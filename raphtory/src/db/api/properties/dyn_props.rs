@@ -1,14 +1,13 @@
 use crate::db::api::{
     properties::{
-        internal::{InheritPropertiesOps, PropertiesOps},
-        ConstantProperties, Properties, TemporalProperties, TemporalPropertyView,
+        internal::PropertiesOps, ConstantProperties, Properties, TemporalProperties,
+        TemporalPropertyView,
     },
     view::{internal::Static, DynamicGraph},
 };
 use std::sync::Arc;
 
 pub type DynProps = Arc<dyn PropertiesOps + Send + Sync>;
-impl InheritPropertiesOps for DynProps {}
 pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
 
 impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>

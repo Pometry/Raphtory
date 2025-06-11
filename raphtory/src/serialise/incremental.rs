@@ -1,16 +1,13 @@
 use super::GraphFolder;
 #[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
+use crate::prelude::IndexMutationOps;
 use crate::{
-    core::{
-        utils::errors::{GraphError, WriteError},
-        Prop, PropType,
-    },
     db::{
         api::{storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::{Graph, StableDecode},
+    errors::{GraphError, WriteError},
+    prelude::{AdditionOps, Graph, StableDecode},
     serialise::{
         serialise::{CacheOps, InternalStableDecode, StableEncode},
         ProtoGraph,
@@ -19,7 +16,10 @@ use crate::{
 use parking_lot::Mutex;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
+    entities::{
+        properties::prop::{Prop, PropType},
+        GidRef, EID, VID,
+    },
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use std::{
@@ -100,9 +100,8 @@ impl GraphWriter {
     #[inline]
     pub fn resolve_layer(&self, layer: Option<&str>, layer_id: MaybeNew<usize>) {
         layer_id.if_new(|id| {
-            if let Some(layer) = layer {
-                self.proto_delta.lock().new_layer(layer, id)
-            }
+            let layer = layer.unwrap_or("_default");
+            self.proto_delta.lock().new_layer(layer, id)
         });
     }
 
@@ -294,7 +293,7 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + InternalStableDecode + StableEncode> CacheOps for G {
+impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;

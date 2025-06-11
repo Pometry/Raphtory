@@ -59,7 +59,9 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPropertyFilter,
         PyWindowSet,
         PyHistory,
-        PyRaphtoryTime // TODO: Might wanna remove this later
+        PyRaphtoryTime, // TODO: Might wanna remove this later
+        PyIndexSpecBuilder,
+        PyIndexSpec
     );
 
     #[cfg(feature = "storage")]
@@ -156,6 +158,10 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 use crate::python::graph::history::PyHistory;
 pub use crate::python::graph::node_state::base_node_state_module;
 use crate::python::{
-    algorithm::epidemics::PyInfected, graph::properties::PropertiesView,
+    algorithm::epidemics::PyInfected,
+    graph::{
+        index::{PyIndexSpec, PyIndexSpecBuilder},
+        properties::PropertiesView,
+    },
     types::wrappers::document::PyEmbedding,
 };

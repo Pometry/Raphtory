@@ -99,7 +99,7 @@ where
 /// The nodes within the given nodes in-component and their distances from the starting node.
 ///
 pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    node: NodeView<G, GH>,
+    node: NodeView<'graph, G, GH>,
 ) -> NodeState<'graph, usize, G> {
     let mut in_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();

@@ -56,11 +56,11 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::utils::errors::GraphError,
     db::{
         api::{state::NodeState, view::internal::DynamicGraph},
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -162,7 +162,7 @@ pub fn strongly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.graph.as_ref())
+    connected_components_rs(graph.0.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -744,7 +744,7 @@ pub fn betweenness_centrality(
 pub fn label_propagation(
     graph: &PyGraphView,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<NodeView<DynamicGraph>>>> {
+) -> PyResult<Vec<HashSet<NodeView<'static, DynamicGraph>>>> {
     match label_propagation_rs(&graph.graph, seed) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),

@@ -261,13 +261,13 @@ impl<CS: ComputeState + Send> EvalGlobalState<CS> {
         Self { ss, global_state }
     }
 
-    pub fn finalize<A: StateType, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
+    pub fn finalize<A, IN, OUT, ACC: Accumulator<A, IN, OUT>>(
         &self,
         agg_def: &AccId<A, IN, OUT, ACC>,
     ) -> OUT
     where
         OUT: StateType + Default,
-        A: 'static,
+        A: StateType + 'static,
     {
         // ss needs to be incremented because the loop ran once and at the end it incremented the state thus
         // the value is on the previous ss

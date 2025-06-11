@@ -284,3 +284,88 @@ def init_edges_graph2(graph):
         graph.edge(src, dst).add_constant_properties(props)
 
     return graph
+
+
+import tempfile
+from raphtory.graphql import GraphServer
+import json
+import re
+
+PORT = 1737
+
+
+def create_test_graph(g):
+    g.add_node(
+        1,
+        "a",
+        {
+            "prop1": 60,
+            "prop2": 31.3,
+            "prop3": "abc123",
+            "prop4": True,
+            "prop5": [1, 2, 3],
+        },
+        "fire_nation"
+    )
+    g.add_node(
+        1,
+        "b",
+        {"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False},
+        "fire_nation"
+    )
+    g.add_node(
+        1,
+        "c",
+        {
+            "prop1": 20,
+            "prop2": 31.3,
+            "prop3": "abc333",
+            "prop4": True,
+            "prop5": [5, 6, 7],
+        },
+        "water_tribe"
+    )
+    g.add_node(
+        1,
+        "d",
+        {"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False},
+        "air_nomads"
+    )
+    g.add_edge(
+        2,
+        "a",
+        "d",
+        {
+            "eprop1": 60,
+            "eprop2": 0.4,
+            "eprop3": "xyz123",
+            "eprop4": True,
+            "eprop5": [1, 2, 3],
+        },
+    )
+    g.add_edge(
+        2,
+        "b",
+        "d",
+        {
+            "eprop1": 10,
+            "eprop2": 1.7,
+            "eprop3": "xyz123",
+            "eprop4": True,
+            "eprop5": [3, 4, 5],
+        },
+    )
+    g.add_edge(
+        2,
+        "c",
+        "d",
+        {
+            "eprop1": 30,
+            "eprop2": 6.4,
+            "eprop3": "xyz123",
+            "eprop4": False,
+            "eprop5": [10],
+        },
+    )
+    return g
+

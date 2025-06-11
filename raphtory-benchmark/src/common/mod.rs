@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod vectors;
+
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
@@ -536,7 +538,6 @@ pub fn run_graph_ops_benches(
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 2;
-    graph_window_layered_group_50.sample_size(10);
     let make_graph = || {
         graph
             .window(start, latest + 1)
@@ -558,7 +559,6 @@ pub fn run_graph_ops_benches(
     let latest = graph.latest_time().expect("non-empty graph");
     let earliest = graph.earliest_time().expect("non-empty graph");
     let start = latest - (latest - earliest) / 2;
-    graph_window_layered_group_50.sample_size(10);
     let make_graph = || {
         graph
             .window(start, latest + 1)

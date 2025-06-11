@@ -3,9 +3,9 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            storage::graph::storage_ops::GraphStorage,
             view::{
-                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph,
+                ExplodedEdgePropertyFilterOps, IntoDynBoxed,
             },
         },
         graph::{
@@ -20,6 +20,7 @@ use crate::{
     },
     prelude::*,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -34,10 +35,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromGraph<'graph, G, GH>
 {
 }
-// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-//     ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
-// {
-// }
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for PathFromGraph<'graph, G, GH>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromGraph<'graph, G, GH>
@@ -140,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         )
     }
 
-    pub fn collect(&self) -> Vec<Vec<NodeView<G, GH>>> {
+    pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G, GH>>> {
         self.iter().map(|path| path.collect()).collect()
     }
 }
@@ -151,7 +152,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T::Output>>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
@@ -307,10 +308,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for PathFromNode<'graph, G, GH>
 {
 }
-// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-//     ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
-// {
-// }
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    ExplodedEdgePropertyFilterOps<'graph> for PathFromNode<'graph, G, GH>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for PathFromNode<'graph, G, GH>
@@ -349,7 +350,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         (self.op)()
     }
 
-    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
+    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<'graph, G, GH>> {
         let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
         let iter = self.iter_refs().map(move |node| {
@@ -392,7 +393,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         }
     }
 
-    pub fn collect(&self) -> Vec<NodeView<G, GH>> {
+    pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter().collect()
     }
 }
@@ -403,7 +404,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = PathFromNode<'graph, G, G>;
     type Edges = Edges<'graph, G, GH>;
 
@@ -467,8 +468,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for PathFromNode<'graph, G, GH>
 {
-    type Item = NodeView<G, GH>;
-    type IntoIter = BoxedLIter<'graph, NodeView<G, GH>>;
+    type Item = NodeView<'graph, G, GH>;
+    type IntoIter = BoxedLIter<'graph, NodeView<'graph, G, GH>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

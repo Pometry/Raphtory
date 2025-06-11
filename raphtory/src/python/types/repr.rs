@@ -10,7 +10,7 @@ use pyo3::{prelude::PyAnyMethods, Bound, PyAny, PyObject, Python};
 use raphtory_api::core::{
     entities::GID, storage::arc_str::ArcStr, storage::timeindex::TimeIndexEntry,
 };
-use std::{collections::HashMap, ops::Deref, sync::Arc};
+use std::{collections::HashMap, error::Error, ops::Deref, sync::Arc};
 
 pub fn iterator_repr<I: Iterator<Item = V>, V: Repr>(iter: I) -> String {
     let values: Vec<String> = iter.take(11).map(|v| v.repr()).collect();
@@ -224,7 +224,16 @@ impl<T: Repr> Repr for Option<T> {
     }
 }
 
-impl<'a, T: Repr> Repr for &'a [T] {
+impl<T: Repr, E: Error> Repr for Result<T, E> {
+    fn repr(&self) -> String {
+        match self {
+            Ok(v) => v.repr(),
+            Err(e) => e.to_string(),
+        }
+    }
+}
+
+impl<T: Repr> Repr for &[T] {
     fn repr(&self) -> String {
         let repr = self.iter().map(|v| v.repr()).join(", ");
         format!("[{}]", repr)
@@ -265,7 +274,7 @@ impl<'a, T: Repr> Repr for LockedView<'a, T> {
     }
 }
 
-impl<'a, R: Repr> Repr for &'a R {
+impl<R: Repr> Repr for &R {
     fn repr(&self) -> String {
         R::repr(self)
     }
@@ -323,7 +332,7 @@ mod repr_tests {
     #[test]
     fn test_int_ref() {
         let v = 1;
-        assert_eq!((&v).repr(), "1")
+        assert_eq!(v.repr(), "1")
     }
 
     #[test]

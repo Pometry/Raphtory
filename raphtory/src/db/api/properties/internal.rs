@@ -5,44 +5,48 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::{
+    core::{
+        entities::properties::prop::{Prop, PropType},
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    inherit::Base,
+    iter::IntoDynBoxed,
+};
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
-    fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.temporal_values(id).last().cloned()
+    fn temporal_value(&self, id: usize) -> Option<Prop>;
+
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry>;
-
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
-        Box::new(self.temporal_history(id).into_iter())
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
+        self.temporal_iter_rev(id)
+            .map(|(t, _)| t.t())
+            .into_dyn_boxed()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
-        self.temporal_history(id)
-            .iter()
-            .map(|t| t.dt().map_err(GraphError::from))
-            .collect::<Result<Vec<_>, GraphError>>()
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+        self.temporal_history_iter(id)
+            .map(|t| t.dt())
+            .collect::<Option<Vec<_>>>()
     }
-    fn temporal_values(&self, id: usize) -> Vec<Prop>;
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
-        Box::new(self.temporal_values(id).into_iter())
+        self.temporal_iter(id).map(|(_, v)| v).into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
-        let history = self
-            .temporal_history(id)
-            .iter()
-            .map(|t| t.t())
-            .collect::<Vec<_>>();
-        match history.binary_search(&t) {
-            Ok(index) => Some(self.temporal_values(id)[index].clone()),
-            Err(index) => (index > 0).then(|| self.temporal_values(id)[index - 1].clone()),
-        }
+    fn temporal_values_iter_rev(&self, id: usize) -> BoxedLIter<Prop> {
+        self.temporal_iter_rev(id).map(|(_, v)| v).into_dyn_boxed()
     }
+
+    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesRowView {
@@ -50,7 +54,7 @@ pub trait TemporalPropertiesRowView {
 }
 
 #[enum_dispatch]
-pub trait ConstPropertiesOps: Send + Sync {
+pub trait ConstantPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
@@ -79,18 +83,21 @@ pub trait TemporalPropertiesOps {
 }
 
 pub trait PropertiesOps:
-    TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps
+    TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps
 {
 }
 
-impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstPropertiesOps> PropertiesOps for P {}
+impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps> PropertiesOps
+    for P
+{
+}
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritStaticPropertiesOps: Base {}
+pub trait InheritConstantPropertiesOps: Base {}
 pub trait InheritPropertiesOps: Base {}
 
-impl<P: InheritPropertiesOps> InheritStaticPropertiesOps for P {}
+impl<P: InheritPropertiesOps> InheritConstantPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
 impl<P: InheritTemporalPropertyViewOps + Send + Sync> TemporalPropertyViewOps for P
@@ -107,19 +114,38 @@ where
     }
 
     #[inline]
-    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
-        self.base().temporal_history(id)
-    }
-    #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
-        self.base()
-            .temporal_history_date_time(id)
-            .map_err(GraphError::from)
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.base().temporal_iter(id)
     }
 
     #[inline]
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
-        self.base().temporal_values(id)
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.base().temporal_iter_rev(id)
+    }
+
+    #[inline]
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+        self.base().temporal_history_iter(id)
+    }
+
+    #[inline]
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
+        self.base().temporal_history_iter_rev(id)
+    }
+
+    #[inline]
+    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+        self.base().temporal_history_date_time(id)
+    }
+
+    #[inline]
+    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
+        self.base().temporal_values_iter(id)
+    }
+
+    #[inline]
+    fn temporal_values_iter_rev(&self, id: usize) -> BoxedLIter<Prop> {
+        self.base().temporal_values_iter_rev(id)
     }
 
     #[inline]
@@ -155,9 +181,9 @@ where
     }
 }
 
-impl<P: InheritStaticPropertiesOps + Send + Sync> ConstPropertiesOps for P
+impl<P: InheritConstantPropertiesOps + Send + Sync> ConstantPropertiesOps for P
 where
-    P::Base: ConstPropertiesOps,
+    P::Base: ConstantPropertiesOps,
 {
     #[inline]
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

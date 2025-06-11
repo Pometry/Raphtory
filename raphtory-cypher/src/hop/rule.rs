@@ -12,7 +12,7 @@ use datafusion::{
     physical_plan::ExecutionPlan,
     physical_planner::{DefaultPhysicalPlanner, ExtensionPlanner, PhysicalPlanner},
 };
-use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
+use raphtory::{api::core::Direction, prelude::DiskGraphStorage};
 
 #[derive(Debug)]
 pub struct HopRule {
@@ -142,7 +142,7 @@ impl ExtensionPlanner for HopPlanner {
 mod test {
     use crate::prepare_plan;
     use arrow::util::pretty::print_batches;
-    use raphtory::{disk_graph::DiskGraphStorage, logging::global_info_logger};
+    use raphtory::{logging::global_info_logger, prelude::DiskGraphStorage};
     use tempfile::tempdir;
     use tracing::info;
 

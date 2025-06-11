@@ -1,46 +1,17 @@
-#[cfg(feature = "proto")]
-use crate::db::api::storage::graph::nodes::node_storage_ops::NodeStorageOps;
-#[cfg(feature = "proto")]
-use crate::serialise::incremental::GraphWriter;
-use crate::{
-    core::{
-        entities::{
-            graph::tgraph::TemporalGraph,
-            nodes::node_ref::{AsNodeRef, NodeRef},
-        },
-        storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-        utils::errors::GraphError,
-        Prop, PropType,
-    },
-    db::api::{
-        mutation::internal::{
-            InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-        },
-        storage::graph::{locked::WriteLockedGraph, storage_ops::GraphStorage},
-        view::{Base, InheritViewOps},
-    },
-};
-
-use crate::db::api::{
-    storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-    view::internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-};
 #[cfg(feature = "search")]
 use crate::search::graph_index::GraphIndex;
-#[cfg(feature = "proto")]
-use crate::serialise::GraphFolder;
-#[cfg(feature = "proto")]
-use once_cell::sync::OnceCell;
-use raphtory_api::core::{
-    entities::{GidType, EID, VID},
-    storage::{
-        dict_mapper::{
-            MaybeNew,
-            MaybeNew::{Existing, New},
-        },
-        timeindex::TimeIndexEntry,
+use crate::{
+    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef},
+    db::api::view::{
+        internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
+        Base, InheritViewOps,
     },
 };
+use raphtory_api::core::{
+    entities::{EID, VID},
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
+use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -48,6 +19,27 @@ use std::{
     sync::Arc,
 };
 use tracing::info;
+
+use crate::{db::api::view::IndexSpec, errors::GraphError};
+use raphtory_api::core::entities::{
+    properties::prop::{Prop, PropType},
+    GidRef,
+};
+use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
+    graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
+    layer_ops::InheritLayerOps,
+    mutation::{
+        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        property_addition_ops::InternalPropertyAdditionOps,
+    },
+};
+#[cfg(feature = "proto")]
+use {
+    crate::serialise::incremental::{GraphWriter, InternalCache},
+    once_cell::sync::OnceCell,
+};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Storage {
@@ -60,6 +52,9 @@ pub struct Storage {
     pub(crate) index: OnceCell<GraphIndex>,
     // vector index
 }
+
+impl InheritLayerOps for Storage {}
+impl InheritCoreGraphOps for Storage {}
 
 impl Display for Storage {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -122,51 +117,47 @@ impl Storage {
     }
 }
 
-#[cfg(feature = "proto")]
-impl Storage {
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    pub(crate) fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache
-            .get_or_try_init(|| Ok::<_, GraphError>(GraphWriter::new(path.clone())?))?;
-        Ok(())
-    }
-
-    /// Get the cache writer if it is initialised.
-    pub(crate) fn get_cache(&self) -> Option<&GraphWriter> {
-        self.cache.get()
-    }
-}
-
 #[cfg(feature = "search")]
 impl Storage {
-    pub(crate) fn get_or_create_index(
-        &self,
-        path: Option<PathBuf>,
-    ) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
+        let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
+        Ok(index.index_spec.read().clone())
+    }
+
+    pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
         self.index.get_or_try_init(|| {
-            if let Some(path) = path {
-                Ok::<_, GraphError>(GraphIndex::load_from_path(&path)?)
-            } else {
-                let cache_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-                Ok::<_, GraphError>(GraphIndex::create_from_graph(
-                    &self.graph,
-                    false,
-                    cache_path,
-                )?)
-            }
+            let index = GraphIndex::load_from_path(&path)?;
+            Ok(index)
         })
     }
 
-    pub(crate) fn get_or_create_index_in_ram(&self) -> Result<&GraphIndex, GraphError> {
+    pub(crate) fn get_or_create_index(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
         let index = self.index.get_or_try_init(|| {
-            Ok::<_, GraphError>(GraphIndex::create_from_graph(&self.graph, true, None)?)
+            let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+            GraphIndex::create(&self.graph, false, cached_graph_path)
         })?;
+        index.update(&self.graph, index_spec)?;
+        Ok(index)
+    }
+
+    pub(crate) fn get_or_create_index_in_ram(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<&GraphIndex, GraphError> {
+        let index = self
+            .index
+            .get_or_try_init(|| GraphIndex::create(&self.graph, true, None))?;
+
         if index.path.is_some() {
-            Err(GraphError::FailedToCreateIndexInRam)
-        } else {
-            Ok(index)
+            return Err(GraphError::FailedToCreateIndexInRam);
         }
+
+        index.update(&self.graph, index_spec)?;
+
+        Ok(index)
     }
 
     pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
@@ -208,43 +199,26 @@ impl InheritEdgeHistoryFilter for Storage {}
 impl InheritViewOps for Storage {}
 
 impl InternalAdditionOps for Storage {
-    #[inline]
-    fn id_type(&self) -> Option<GidType> {
-        self.graph.id_type()
+    type Error = GraphError;
+
+    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+        Ok(self.graph.write_lock()?)
     }
 
-    #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph, GraphError> {
-        self.graph.write_lock()
+    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
+        Ok(self.graph.write_lock_nodes()?)
     }
 
-    #[inline]
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, GraphError> {
-        self.graph.write_lock_nodes()
+    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
+        Ok(self.graph.write_lock_edges()?)
     }
 
-    #[inline]
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, GraphError> {
-        self.graph.write_lock_edges()
+    fn next_event_id(&self) -> Result<usize, Self::Error> {
+        Ok(self.graph.next_event_id()?)
     }
 
-    #[inline]
-    fn num_shards(&self) -> Result<usize, GraphError> {
-        self.graph.num_shards()
-    }
-
-    #[inline]
-    fn next_event_id(&self) -> Result<usize, GraphError> {
-        self.graph.next_event_id()
-    }
-
-    fn read_event_id(&self) -> usize {
-        self.graph.read_event_id()
-    }
-
-    #[inline]
-    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, GraphError> {
-        self.graph.reserve_event_ids(num_ids)
+    fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
+        Ok(self.graph.reserve_event_ids(num_ids)?)
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
@@ -256,11 +230,11 @@ impl InternalAdditionOps for Storage {
         Ok(id)
     }
 
-    fn resolve_node<V: AsNodeRef>(&self, id: V) -> Result<MaybeNew<VID>, GraphError> {
-        match id.as_node_ref() {
-            NodeRef::Internal(id) => Ok(Existing(id)),
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, GraphError> {
+        match id {
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
             NodeRef::External(gid) => {
-                let id = self.graph.resolve_node(gid)?;
+                let id = self.graph.resolve_node(id)?;
 
                 #[cfg(feature = "proto")]
                 self.if_cache(|cache| cache.resolve_node(id, gid));
@@ -270,9 +244,13 @@ impl InternalAdditionOps for Storage {
         }
     }
 
-    fn resolve_node_and_type<V: AsNodeRef>(
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
+        Ok(self.graph.set_node(gid, vid)?)
+    }
+
+    fn resolve_node_and_type(
         &self,
-        id: V,
+        id: NodeRef,
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
         let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
@@ -280,7 +258,7 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| {
             let (vid, _) = node_and_type.inner();
-            let node_entry = self.graph.node_entry(vid.inner());
+            let node_entry = self.graph.core_node(vid.inner());
             cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
         });
 
@@ -316,9 +294,6 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_node_property(prop, id, &dtype, is_static));
 
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.create_node_property_index(id, prop, &dtype, is_static))?;
-
         Ok(id)
     }
 
@@ -335,9 +310,6 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.resolve_edge_property(prop, id, &dtype, is_static));
 
-        #[cfg(feature = "search")]
-        self.if_index(|index| index.create_edge_property_index(id, prop, &dtype, is_static))?;
-
         Ok(id)
     }
 
@@ -353,7 +325,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, New(v), props))?;
+        self.if_index(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
 
         Ok(())
     }
@@ -375,7 +347,7 @@ impl InternalAdditionOps for Storage {
         });
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id, t, src, dst, layer, props))?;
+        self.if_index(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
 
         Ok(id)
     }
@@ -394,10 +366,7 @@ impl InternalAdditionOps for Storage {
 
         #[cfg(feature = "search")]
         self.if_index(|index| {
-            let ee = self.graph.edge_entry(edge);
-            let src = ee.src();
-            let dst = ee.dst();
-            index.add_edge_update(&self.graph, Existing(edge), t, src, dst, layer, props)
+            index.add_edge_update(&self.graph, MaybeNew::Existing(edge), t, layer, props)
         })?;
 
         Ok(())
@@ -405,6 +374,7 @@ impl InternalAdditionOps for Storage {
 }
 
 impl InternalPropertyAdditionOps for Storage {
+    type Error = GraphError;
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
@@ -451,7 +421,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_constant_properties(&self.graph, vid, props))?;
+        self.if_index(|index| index.add_node_constant_properties(vid, props))?;
 
         Ok(())
     }
@@ -468,7 +438,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.update_node_constant_properties(&self.graph, vid, props))?;
+        self.if_index(|index| index.update_node_constant_properties(vid, props))?;
 
         Ok(())
     }
@@ -486,7 +456,7 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_constant_properties(&self.graph, eid, layer, props))?;
+        self.if_index(|index| index.add_edge_constant_properties(eid, layer, props))?;
 
         Ok(())
     }
@@ -504,15 +474,14 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| {
-            index.update_edge_constant_properties(&self.graph, eid, layer, props)
-        })?;
+        self.if_index(|index| index.update_edge_constant_properties(eid, layer, props))?;
 
         Ok(())
     }
 }
 
 impl InternalDeletionOps for Storage {
+    type Error = GraphError;
     fn internal_delete_edge(
         &self,
         t: TimeIndexEntry,

@@ -302,6 +302,7 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
 }
 
 // FIXME: Currently holds a vector of all the intervals, might not be efficient. can't hold an iterator because they can't be reused
+// Change to hold history object instead of vector, can call iterator to keep generating them
 pub struct Intervals(Vec<i64>);
 
 impl Intervals {

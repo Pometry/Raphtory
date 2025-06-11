@@ -1,6 +1,7 @@
 pub use crate::server::GraphServer;
 mod auth;
 pub mod data;
+mod embeddings;
 mod graph;
 pub mod model;
 pub mod observability;
@@ -23,11 +24,7 @@ mod graphql_test {
     };
     use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
-    use serde_json::Value;
-
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
             api::view::{IntoDynamic, MaterializedGraph},
@@ -37,7 +34,7 @@ mod graphql_test {
         serialise::GraphFolder,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
         fs,
@@ -131,14 +128,18 @@ mod graphql_test {
                           node: {
                                 field: NODE_NAME,
                                 operator: EQUAL,
-                                value: "N1"
+                                value: {
+                                  str: "N1"
+                                }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
                             operator: NOT_EQUAL,
-                            value: "air_nomads"
+                            value: {
+                              str: "air_nomads"
+                            }
                           }
                         },
                         {

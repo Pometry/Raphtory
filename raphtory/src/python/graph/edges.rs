@@ -1,14 +1,12 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
-        api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
         },
     },
+    errors::GraphError,
     prelude::*,
     python::{
         graph::properties::{PropertiesView, PyNestedPropsIterable},
@@ -30,6 +28,7 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyDict};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -287,7 +286,7 @@ impl PyEdges {
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
-        if explode == true {
+        if explode {
             edges = self.edges.explode_layers().explode();
         }
 

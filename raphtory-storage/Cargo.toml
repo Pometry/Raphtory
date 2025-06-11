@@ -1,0 +1,33 @@
+[package]
+name = "raphtory-storage"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
+rayon = { workspace = true }
+either = { workspace = true }
+iter-enum = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+itertools = { workspace = true }
+thiserror = { workspace = true }
+pometry-storage = { workspace = true, optional = true }
+polars-arrow = { workspace = true, optional = true }
+bigdecimal = { workspace = true, optional = true }
+num-traits = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = { workspace = true }
+
+[features]
+storage = ["raphtory-api/storage", "dep:pometry-storage", "dep:polars-arrow", "dep:bigdecimal", "dep:num-traits"]

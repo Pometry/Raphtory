@@ -1,6 +1,5 @@
 use super::datetimeformat::datetimeformat;
 use crate::{
-    core::{DocumentInput, Prop},
     db::{
         api::properties::TemporalPropertyView,
         graph::{edge::EdgeView, node::NodeView},
@@ -11,7 +10,7 @@ use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
@@ -22,8 +21,8 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
-    fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<'graph, G>>> for Value {
+    fn from(value: TemporalPropertyView<NodeView<'graph, G>>) -> Self {
         value
             .iter()
             .map(|(time, value)| PropUpdate {
@@ -72,8 +71,8 @@ struct NodeTemplateContext {
     temporal_properties: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
-    fn from(value: NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplateContext {
+    fn from(value: NodeView<'graph, G>) -> Self {
         Self {
             name: value.name(),
             node_type: value.node_type(),
@@ -98,122 +97,31 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext 
     }
 }
 
-#[derive(Serialize)]
-struct GraphTemplateContext {
-    properties: Value,
-    constant_properties: Value,
-    temporal_properties: Value,
-}
-
-// FIXME: boilerplate for the properties
-impl<'graph, G: GraphViewOps<'graph>> From<G> for GraphTemplateContext {
-    fn from(value: G) -> Self {
-        Self {
-            properties: value
-                .properties()
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            constant_properties: value
-                .properties()
-                .constant()
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            temporal_properties: value
-                .properties()
-                .temporal()
-                .iter()
-                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
-                .collect(),
-        }
-    }
-}
-
-// FIXME: this is eagerly allocating a lot of stuff, we should implement Object instead for Prop
-impl From<Prop> for Value {
-    fn from(value: Prop) -> Self {
-        match value {
-            Prop::Bool(value) => Value::from(value),
-            Prop::F32(value) => Value::from(value),
-            Prop::F64(value) => Value::from(value),
-            Prop::I32(value) => Value::from(value),
-            Prop::I64(value) => Value::from(value),
-            Prop::U8(value) => Value::from(value),
-            Prop::U16(value) => Value::from(value),
-            Prop::U32(value) => Value::from(value),
-            Prop::U64(value) => Value::from(value),
-            Prop::Str(value) => Value::from(value.0.to_owned()),
-            Prop::DTime(value) => Value::from(value.timestamp_millis()),
-            Prop::NDTime(value) => Value::from(value.and_utc().timestamp_millis()),
-            Prop::Array(value) => Value::from(value.to_vec_u8()),
-            Prop::List(value) => value.iter().cloned().collect(),
-            Prop::Map(value) => value
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            Prop::Decimal(value) => Value::from(value.to_string()),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
-    pub graph_template: Option<String>,
     pub node_template: Option<String>,
     pub edge_template: Option<String>,
 }
 
-fn empty_iter() -> Box<dyn Iterator<Item = DocumentInput> + Send> {
-    Box::new(std::iter::empty())
-}
-
 impl DocumentTemplate {
-    pub(crate) fn graph<'graph, G: GraphViewOps<'graph>>(
-        &self,
-        graph: G,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
-        match &self.graph_template {
-            Some(template) => {
-                // TODO: create the environment only once and store it on the DocumentTemplate struct
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(GraphTemplateContext::from(graph)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for a node, skipping: {error}");
-                        empty_iter()
-                    }
-                }
-            }
-            None => empty_iter(),
-        }
-    }
-
     /// A function that translate a node into an iterator of documents
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
-        match &self.node_template {
-            Some(template) => {
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(NodeTemplateContext::from(node)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for a node, skipping: {error}");
-                        empty_iter()
-                    }
-                }
+        node: NodeView<'graph, G>,
+    ) -> Option<String> {
+        let template = self.node_template.as_str()?;
+        let mut env = Environment::new();
+        let template = build_template(&mut env, template);
+        match template.render(NodeTemplateContext::from(node.clone())) {
+            Ok(mut document) => {
+                truncate(&mut document);
+                Some(document)
             }
-            None => empty_iter(),
+            Err(error) => {
+                let node = node.name();
+                error!("Template render failed for a node {node}, skipping: {error}");
+                None
+            }
         }
     }
 
@@ -221,23 +129,21 @@ impl DocumentTemplate {
     pub(crate) fn edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         edge: EdgeView<G, G>,
-    ) -> Box<dyn Iterator<Item = DocumentInput> + Send> {
-        match &self.edge_template {
-            Some(template) => {
-                let mut env = Environment::new();
-                let template = build_template(&mut env, template);
-                match template.render(EdgeTemplateContext::from(edge)) {
-                    Ok(mut document) => {
-                        truncate(&mut document);
-                        Box::new(std::iter::once(document.into()))
-                    }
-                    Err(error) => {
-                        error!("Template render failed for an edge, skipping: {error}");
-                        empty_iter()
-                    }
-                }
+    ) -> Option<String> {
+        let template = self.edge_template.as_str()?;
+        let mut env = Environment::new();
+        let template = build_template(&mut env, template);
+        match template.render(EdgeTemplateContext::from(edge.clone())) {
+            Ok(mut document) => {
+                truncate(&mut document);
+                Some(document)
             }
-            None => empty_iter(),
+            Err(error) => {
+                let src = edge.src().name();
+                let dst = edge.dst().name();
+                error!("Template render failed for edge {src}->{dst}, skipping: {error}");
+                None
+            }
         }
     }
 }
@@ -307,17 +213,6 @@ pub const DEFAULT_EDGE_TEMPLATE: &str =
 - {{ time|datetimeformat }}
 {% endfor %}";
 
-pub const DEFAULT_GRAPH_TEMPLATE: &str = "Graph with the following properties:
-{% for (key, value) in constant_properties|items %}
-{{ key }}: {{ value }}
-{% endfor %}
-{% for (key, values) in temporal_properties|items %}
-{{ key }}:
-{% for (time, value) in values %}
- - changed to {{ value }} at {{ time|datetimeformat }}
-{% endfor %}
-{% endfor %}";
-
 #[cfg(test)]
 mod template_tests {
     use indoc::indoc;
@@ -351,12 +246,10 @@ mod template_tests {
 
         let template = DocumentTemplate {
             node_template: Some(DEFAULT_NODE_TEMPLATE.to_owned()),
-            graph_template: Some(DEFAULT_GRAPH_TEMPLATE.to_owned()),
             edge_template: Some(DEFAULT_EDGE_TEMPLATE.to_owned()),
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = indoc! {"
             Node node1 has the following properties:
             key1: value1
@@ -367,20 +260,13 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.edge(graph.edge("node1", "node2").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = template
+            .edge(graph.edge("node1", "node2").unwrap())
+            .unwrap();
         let expected = indoc! {"
             There is an edge from node1 to node2 with events at:
             - Jan 1 1970 00:00
             - Jan 1 1970 00:01
-        "};
-        assert_eq!(&rendered, expected);
-
-        let mut docs = template.graph(graph);
-        let rendered = docs.next().unwrap().content;
-        let expected = indoc! {"
-            Graph with the following properties:
-            name: test-name
         "};
         assert_eq!(&rendered, expected);
     }
@@ -424,12 +310,10 @@ mod template_tests {
         "};
         let template = DocumentTemplate {
             node_template: Some(node_template.to_owned()),
-            graph_template: None,
             edge_template: None,
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = indoc! {"
             node node1 is an unknown entity with the following properties:
             temp_test:
@@ -442,8 +326,7 @@ mod template_tests {
         "};
         assert_eq!(&rendered, expected);
 
-        let mut docs = template.node(graph.node("node2").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = template.node(graph.node("node2").unwrap()).unwrap();
         let expected = indoc! {"
             node node2 is a person with the following properties:
             const_test: const_test_value "};
@@ -462,12 +345,10 @@ mod template_tests {
             "{{ (temporal_properties.temp|first).time|datetimeformat(format=\"long\") }}";
         let template = DocumentTemplate {
             node_template: Some(node_template.to_owned()),
-            graph_template: None,
             edge_template: None,
         };
 
-        let mut docs = template.node(graph.node("node1").unwrap());
-        let rendered = docs.next().unwrap().content;
+        let rendered = template.node(graph.node("node1").unwrap()).unwrap();
         let expected = "September 9 2024 09:08:01";
         assert_eq!(&rendered, expected);
     }

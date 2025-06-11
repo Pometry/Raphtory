@@ -9,27 +9,26 @@ use super::{
     graph::{PyGraph, PyGraphEncoder},
     io::pandas_loaders::*,
 };
-#[cfg(feature = "storage")]
-use crate::disk_graph::DiskGraphStorage;
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
-        api::{
-            mutation::{AdditionOps, PropertyAdditionOps},
-            view::internal::CoreGraphOps,
-        },
+        api::mutation::{AdditionOps, PropertyAdditionOps},
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     io::parquet_loaders::*,
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
     python::{
-        graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
+        graph::{edge::PyEdge, index::PyIndexSpec, node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
     },
     serialise::StableEncode,
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::arc_str::ArcStr,
+};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -110,13 +109,7 @@ impl PyPersistentGraph {
 
     #[cfg(feature = "storage")]
     pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<PersistentGraph, GraphError> {
-        use crate::db::api::storage::graph::storage_ops::GraphStorage;
-        use std::sync::Arc;
-
-        let disk_graph = DiskGraphStorage::from_graph(&self.graph.event_graph(), graph_dir)?;
-        let storage = GraphStorage::Disk(Arc::new(disk_graph));
-        let graph = PersistentGraph::from_internal_graph(storage);
-        Ok(graph)
+        self.graph.persist_as_disk_graph(graph_dir)
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
@@ -146,7 +139,7 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match secondary_index {
             None => self
                 .graph
@@ -182,7 +175,7 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match secondary_index {
             None => {
                 self.graph
@@ -337,7 +330,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<PersistentGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, PersistentGraph>> {
         self.graph.node(id)
     }
 
@@ -378,7 +371,7 @@ impl PyPersistentGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -403,7 +396,7 @@ impl PyPersistentGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<PersistentGraph, PersistentGraph>, GraphError> {
+    ) -> Result<NodeView<'static, PersistentGraph, PersistentGraph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -563,7 +556,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     Graph: the graph with event semantics applied
-    pub fn event_graph<'py>(&'py self) -> PyResult<Py<PyGraph>> {
+    pub fn event_graph(&self) -> PyResult<Py<PyGraph>> {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
@@ -981,5 +974,32 @@ impl PyPersistentGraph {
             layer,
             layer_col,
         )
+    }
+
+    /// Create graph index
+    fn create_index(&self) -> Result<(), GraphError> {
+        self.graph.create_index()
+    }
+
+    /// Create graph index with the provided index spec.
+    fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph.create_index_with_spec(py_spec.spec.clone())
+    }
+
+    /// Creates a graph index in memory (RAM).
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram(&self) -> Result<(), GraphError> {
+        self.graph.create_index_in_ram()
+    }
+
+    /// Creates a graph index in memory (RAM) with the provided index spec.
+    ///
+    /// This is primarily intended for use in tests and should not be used in production environments,
+    /// as the index will not be persisted to disk.
+    fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
+        self.graph
+            .create_index_in_ram_with_spec(py_spec.spec.clone())
     }
 }

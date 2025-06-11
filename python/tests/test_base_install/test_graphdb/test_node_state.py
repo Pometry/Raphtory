@@ -46,7 +46,7 @@ def test_group_by():
 
     assert {
         v: graph.nodes.id.sorted() for v, graph in groups_from_lazy.iter_subgraphs()
-    } == expected
+    } == {0: [], 1: [1, 2]}
 
     assert len(groups_from_lazy) == len(expected)
 
