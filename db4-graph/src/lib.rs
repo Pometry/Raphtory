@@ -1,40 +1,16 @@
 use std::{
-    ops::DerefMut,
     path::{Path, PathBuf},
     sync::{atomic::AtomicUsize, Arc},
 };
 
-use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::{
-        properties::{
-            meta::Meta,
-            prop::{Prop, PropType},
-        },
-        GidRef, EID, VID,
-    },
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
-};
-use raphtory_core::{
-    entities::{graph::logical_to_physical::Mapping, nodes::node_ref::NodeRef, ELID},
-    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-};
-// use raphtory_storage::mutation::{
-//     addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
-//     MutationError,
-// };
-use storage::{
-    error::DBV4Error,
-    pages::session::WriteSession,
-    persist::strategy::PersistentStrategy,
-    properties::props_meta_writer::PropsMetaWriter,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Layer, ES, NS,
-};
+use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_core::entities::graph::logical_to_physical::Mapping;
+use storage::{persist::strategy::PersistentStrategy, Extension, Layer, ES, NS};
 
 pub mod mutation;
 
-pub struct TemporalGraph<EXT = ()> {
+#[derive(Debug)]
+pub struct TemporalGraph<EXT = Extension> {
     graph_dir: PathBuf,
     // mapping between logical and physical ids
     pub logical_to_physical: Mapping,
@@ -49,7 +25,24 @@ pub struct TemporalGraph<EXT = ()> {
     node_meta: Arc<Meta>,
 }
 
+pub struct ReadLockedTemporalGraph<EXT = Extension> {
+    graph: Arc<TemporalGraph<EXT>>,
+    locked_layers: Box<[storage::ReadLockedLayer<'static, EXT>]>,
+}
+
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
+    pub fn read_locked(self: &Arc<Self>) -> ReadLockedTemporalGraph<EXT> {
+        let locked_layers = self
+            .layers
+            .iter()
+            .map(|layer| layer.locked())
+            .collect::<Box<_>>();
+        ReadLockedTemporalGraph {
+            graph: self.clone(),
+            locked_layers,
+        }
+    }
+
     pub fn layers(&self) -> &boxcar::Vec<Layer<EXT>> {
         &self.layers
     }

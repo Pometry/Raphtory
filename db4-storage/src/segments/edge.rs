@@ -6,6 +6,7 @@ use std::{
     },
 };
 
+use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
     VID,
     properties::{meta::Meta, prop::Prop},
@@ -145,7 +146,7 @@ impl MemEdgeSegment {
 }
 
 pub struct EdgeSegmentView<EXT = ()> {
-    segment: parking_lot::RwLock<MemEdgeSegment>,
+    segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicUsize,
     _ext: EXT,
@@ -189,7 +190,7 @@ impl EdgeSegmentOps for EdgeSegmentView {
         _ext: Self::Extension,
     ) -> Self {
         Self {
-            segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta)),
+            segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta)).into(),
             segment_id: page_id,
             num_edges: AtomicUsize::new(0),
             _ext: (),
@@ -206,6 +207,10 @@ impl EdgeSegmentOps for EdgeSegmentView {
 
     fn head(&self) -> parking_lot::RwLockReadGuard<MemEdgeSegment> {
         self.segment.read_recursive()
+    }
+
+    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment> {
+        self.segment.read_arc_recursive()
     }
 
     fn head_mut(&self) -> parking_lot::RwLockWriteGuard<MemEdgeSegment> {

@@ -9,13 +9,15 @@ use raphtory_core::{
         ReadLockedStorage, WriteLockedNodes,
     },
 };
+use storage::ReadLockedLayer;
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct LockedGraph {
-    pub(crate) nodes: Arc<ReadLockedStorage>,
-    pub(crate) edges: Arc<LockedEdges>,
-    pub graph: Arc<TemporalGraph>,
+    // pub(crate) nodes: Arc<ReadLockedStorage>,
+    // pub(crate) edges: Arc<LockedEdges>,
+    // pub graph: Arc<TemporalGraph>,
+    graph: Arc<ReadLockedLayer<>
 }
 
 impl<'de> serde::Deserialize<'de> for LockedGraph {

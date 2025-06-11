@@ -6,10 +6,10 @@ use std::{
 
 use crate::{
     error::DBV4Error,
-    pages::GraphStore,
+    pages::{GraphStore, ReadLockedGraphStore},
     segments::{edge::EdgeSegmentView, node::NodeSegmentView},
 };
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     entities::{
         EID, VID,
@@ -28,7 +28,8 @@ pub mod segments;
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 
-pub type Layer<EXT> = GraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
+pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
+pub type ReadLockedLayer<'a, EXT> = ReadLockedGraphStore<'a, NodeSegmentView, EdgeSegmentView, EXT>;
 
 pub trait EdgeSegmentOps: Send + Sync {
     type Extension;
@@ -66,6 +67,8 @@ pub trait EdgeSegmentOps: Send + Sync {
 
     fn head(&self) -> RwLockReadGuard<MemEdgeSegment>;
 
+    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
+
     fn head_mut(&self) -> RwLockWriteGuard<MemEdgeSegment>;
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<MemEdgeSegment>>;
@@ -90,6 +93,22 @@ pub trait EdgeSegmentOps: Send + Sync {
     ) -> Option<(VID, VID)>;
 
     fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a>;
+
+    fn locked(self: &Arc<Self>) -> ReadLockedES<Self>
+    where
+        Self: Sized,
+    {
+        ReadLockedES {
+            es: self.clone(),
+            head: self.head_arc(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReadLockedES<ES> {
+    es: Arc<ES>,
+    head: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
 }
 
 pub trait EdgeEntryOps<'a> {
@@ -147,6 +166,7 @@ pub trait NodeSegmentOps: Send + Sync {
 
     fn segment_id(&self) -> usize;
 
+    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
     fn head(&self) -> RwLockReadGuard<MemNodeSegment>;
 
     fn head_mut(&self) -> RwLockWriteGuard<MemNodeSegment>;
@@ -177,6 +197,22 @@ pub trait NodeSegmentOps: Send + Sync {
     ) -> Option<EID>;
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a>;
+
+    fn locked(self: &Arc<Self>) -> ReadLockedNS<Self>
+    where
+        Self: Sized,
+    {
+        ReadLockedNS {
+            ns: self.clone(),
+            head: self.head_arc(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ReadLockedNS<NS> {
+    ns: Arc<NS>,
+    head: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
 }
 
 pub trait NodeEntryOps<'a> {

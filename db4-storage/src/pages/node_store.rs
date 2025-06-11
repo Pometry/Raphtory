@@ -1,11 +1,8 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    LocalPOS, NodeSegmentOps,
-    error::DBV4Error,
-    pages::locked::nodes::{LockedNodePage, WriteLockedNodePages},
-    segments::node::MemNodeSegment,
+    error::DBV4Error, pages::locked::nodes::{LockedNodePage, WriteLockedNodePages}, segments::node::MemNodeSegment, LocalPOS, ReadLockedNS, NodeSegmentOps
 };
-use parking_lot::RwLockWriteGuard;
+use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_core::entities::{EID, VID};
 use std::{
@@ -27,7 +24,27 @@ pub struct NodeStorageInner<NS, EXT> {
     ext: EXT,
 }
 
+#[derive(Debug)]
+pub struct ReadLockedNodeStorage<NS, EXT>{
+    storage: Arc<NodeStorageInner<NS, EXT>>,
+    locked_pages: Box<[ReadLockedNS<NS>]>,
+}
+
+
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
+
+    pub fn locked(
+        self: &Arc<Self>,
+    ) -> ReadLockedNodeStorage<NS, EXT> {
+        let locked_pages = self.pages.iter().map(|(_, segment)| {
+            segment.locked()
+        }).collect::<Box<_>>();
+        ReadLockedNodeStorage {
+            storage: self.clone(),
+            locked_pages,
+        }
+    }
+
     pub fn layer(
         nodes_path: impl AsRef<Path>,
         max_page_len: usize,
@@ -54,22 +71,22 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         }
     }
 
-    pub fn locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-        WriteLockedNodePages::new(
-            self.pages
-                .iter()
-                .map(|(page_id, page)| {
-                    LockedNodePage::new(
-                        page_id,
-                        &self.num_nodes,
-                        self.max_page_len,
-                        page.as_ref(),
-                        page.head_mut(),
-                    )
-                })
-                .collect(),
-        )
-    }
+    // pub fn locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
+    //     WriteLockedNodePages::new(
+    //         self.pages
+    //             .iter()
+    //             .map(|(page_id, page)| {
+    //                 LockedNodePage::new(
+    //                     page_id,
+    //                     &self.num_nodes,
+    //                     self.max_page_len,
+    //                     page.as_ref(),
+    //                     page.head_mut(),
+    //                 )
+    //             })
+    //             .collect(),
+    //     )
+    // }
 
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
         let (page_id, pos) = self.resolve_pos(node);

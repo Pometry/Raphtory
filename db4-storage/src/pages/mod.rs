@@ -8,10 +8,7 @@ use std::{
 };
 
 use crate::{
-    EdgeSegmentOps, LocalPOS, NodeSegmentOps,
-    error::DBV4Error,
-    properties::props_meta_writer::PropsMetaWriter,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    error::DBV4Error, pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage}, properties::props_meta_writer::PropsMetaWriter, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, EdgeSegmentOps, LocalPOS, NodeSegmentOps
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -51,9 +48,29 @@ pub struct GraphStore<NS, ES, EXT> {
     _ext: EXT,
 }
 
+#[derive(Debug)]
+pub struct ReadLockedGraphStore<NS, ES, EXT> {
+    nodes: ReadLockedNodeStorage<NS, EXT>,
+    edges: ReadLockedEdgeStorage<ES, EXT>,
+    graph: Arc<GraphStore<NS, ES, EXT>>,
+}
+
 impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Default>
     GraphStore<NS, ES, EXT>
 {
+
+    pub fn read_locked(
+        self: &Arc<Self>,
+    ) -> ReadLockedGraphStore<NS, ES, EXT> {
+        let nodes = self.nodes.locked();
+        let edges = self.edges.locked();
+        ReadLockedGraphStore {
+            nodes,
+            edges,
+            graph: self.clone(),
+        }
+    }
+
     pub fn nodes(&self) -> &NodeStorageInner<NS, EXT> {
         &self.nodes
     }

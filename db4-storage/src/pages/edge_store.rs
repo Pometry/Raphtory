@@ -9,10 +9,7 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    EdgeSegmentOps, LocalPOS,
-    error::DBV4Error,
-    pages::locked::edges::{LockedEdgePage, WriteLockedEdgePages},
-    segments::edge::MemEdgeSegment,
+    EdgeSegmentOps, LocalPOS, ReadLockedES, error::DBV4Error, segments::edge::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -31,7 +28,25 @@ pub struct EdgeStorageInner<ES, EXT> {
     ext: EXT,
 }
 
+#[derive(Debug)]
+pub struct ReadLockedEdgeStorage<ES, EXT> {
+    storage: Arc<EdgeStorageInner<ES, EXT>>,
+    locked_pages: Box<[ReadLockedES<ES>]>,
+}
+
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> {
+    pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
+        let locked_pages = self
+            .pages
+            .iter()
+            .map(|(_, segment)| segment.locked())
+            .collect::<Box<_>>();
+        ReadLockedEdgeStorage {
+            storage: self.clone(),
+            locked_pages,
+        }
+    }
+
     pub fn layer(
         edges_path: impl AsRef<Path>,
         max_page_len: usize,
@@ -253,22 +268,22 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
         self.max_page_len
     }
 
-    pub fn locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
-        WriteLockedEdgePages::new(
-            self.pages
-                .iter()
-                .map(|(page_id, page)| {
-                    LockedEdgePage::new(
-                        page_id,
-                        self.max_page_len,
-                        page.as_ref(),
-                        &self.num_edges,
-                        page.head_mut(),
-                    )
-                })
-                .collect(),
-        )
-    }
+    // pub fn locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
+    //     WriteLockedEdgePages::new(
+    //         self.pages
+    //             .iter()
+    //             .map(|(page_id, page)| {
+    //                 LockedEdgePage::new(
+    //                     page_id,
+    //                     self.max_page_len,
+    //                     page.as_ref(),
+    //                     &self.num_edges,
+    //                     page.head_mut(),
+    //                 )
+    //             })
+    //             .collect(),
+    //     )
+    // }
 
     pub fn get_edge(&self, e_id: EID) -> Option<(VID, VID)> {
         let (chunk, local_edge) = resolve_pos(e_id, self.max_page_len);

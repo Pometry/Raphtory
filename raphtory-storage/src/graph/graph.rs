@@ -7,12 +7,12 @@ use crate::graph::{
     locked::LockedGraph,
     nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
+use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
-use raphtory_core::entities::{
-    graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
-};
+use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter, sync::Arc};
+use storage::{Extension, ReadLockedLayer};
 use thiserror::Error;
 
 #[cfg(feature = "storage")]
@@ -25,9 +25,9 @@ use crate::disk::{
 };
 use crate::mutation::MutationError;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug)]
 pub enum GraphStorage {
-    Mem(LockedGraph),
+    Mem(Arc<ReadLockedLayer<Extension>>),
     Unlocked(Arc<TemporalGraph>),
     #[cfg(feature = "storage")]
     Disk(Arc<DiskGraphStorage>),
@@ -110,10 +110,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn lock(&self) -> Self {
         match self {
-            GraphStorage::Unlocked(storage) => {
-                let locked = LockedGraph::new(storage.clone());
-                GraphStorage::Mem(locked)
-            }
+            GraphStorage::Unlocked(storage) => GraphStorage::Mem(storage.read_locked().into()),
             _ => self.clone(),
         }
     }

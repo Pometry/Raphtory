@@ -1,4 +1,5 @@
 use either::Either;
+use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -209,7 +210,7 @@ impl MemNodeSegment {
 }
 
 pub struct NodeSegmentView<EXT = ()> {
-    inner: parking_lot::RwLock<MemNodeSegment>,
+    inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
     num_nodes: AtomicUsize,
     _ext: EXT,
@@ -253,7 +254,7 @@ impl NodeSegmentOps for NodeSegmentView {
         _ext: Self::Extension,
     ) -> Self {
         Self {
-            inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta)),
+            inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta)).into(),
             segment_id: page_id,
             num_nodes: AtomicUsize::new(0),
             _ext: (),
@@ -266,6 +267,10 @@ impl NodeSegmentOps for NodeSegmentView {
 
     fn head(&self) -> parking_lot::RwLockReadGuard<MemNodeSegment> {
         self.inner.read()
+    }
+
+    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
+        self.inner.read_arc_recursive()
     }
 
     fn head_mut(&self) -> parking_lot::RwLockWriteGuard<MemNodeSegment> {
