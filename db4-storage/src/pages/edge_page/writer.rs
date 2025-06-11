@@ -1,9 +1,8 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
-use crate::{EdgeSegmentOps, segments::edge::MemEdgeSegment};
-use db4_common::{LocalPOS, error::DBV4Error};
-use raphtory::{core::storage::timeindex::AsTime, prelude::Prop};
-use raphtory_api::core::entities::VID;
+use crate::{EdgeSegmentOps, LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
+use raphtory_api::core::entities::{VID, properties::prop::Prop};
+use raphtory_core::storage::timeindex::AsTime;
 
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> {
     pub page: &'a ES,

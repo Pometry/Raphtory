@@ -1,7 +1,6 @@
-use crate::{NodeEntryOps, NodeRefOps, segments::node::MemNodeSegment};
-use db4_common::LocalPOS;
-use raphtory::{core::entities::properties::tprop::TPropCell, prelude::Prop};
-use raphtory_api::core::entities::{EID, VID};
+use crate::{LocalPOS, NodeEntryOps, NodeRefOps, segments::node::MemNodeSegment};
+use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
+use raphtory_core::entities::properties::tprop::TPropCell;
 use std::ops::Deref;
 
 use super::additions::MemAdditions;

@@ -8,25 +8,25 @@ use std::{
 };
 
 use crate::{
-    EdgeSegmentOps, NodeSegmentOps,
+    EdgeSegmentOps, LocalPOS, NodeSegmentOps,
+    error::DBV4Error,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
-use db4_common::{LocalPOS, error::DBV4Error};
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory::{
-    core::{
-        entities::{EID, ELID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::time::{InputTime, TryIntoInputTime},
-    },
-    prelude::Prop,
+use raphtory_api::core::{
+    entities::properties::{meta::Meta, prop::Prop},
+    storage::dict_mapper::MaybeNew,
 };
-use raphtory_api::core::{entities::properties::meta::Meta, storage::dict_mapper::MaybeNew};
+use raphtory_core::{
+    entities::{EID, ELID, VID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+    utils::time::{InputTime, TryIntoInputTime},
+};
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
 
@@ -501,10 +501,8 @@ mod test {
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::panic;
     use proptest::prelude::*;
-    use raphtory::{
-        core::{entities::VID, storage::timeindex::TimeIndexOps},
-        prelude::Prop,
-    };
+    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,

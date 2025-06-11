@@ -1,4 +1,4 @@
-use crate::{EdgeSegmentOps, NodeSegmentOps, pages::GraphStore};
+use crate::{error::DBV4Error, pages::GraphStore, EdgeSegmentOps, NodeSegmentOps};
 use arrow::buffer::ScalarBuffer;
 use arrow_array::{
     Array, PrimitiveArray, RecordBatch, TimestampMicrosecondArray, TimestampMillisecondArray,
@@ -7,22 +7,13 @@ use arrow_array::{
 use arrow_csv::reader::Format;
 use arrow_schema::{ArrowError, DataType, Schema, TimeUnit};
 use bytemuck::checked::cast_slice_mut;
-use db4_common::error::DBV4Error;
 use either::Either;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use raphtory::{
-    atomic_extra::atomic_usize_from_mut_slice,
-    core::entities::{EID, VID, graph::logical_to_physical::Mapping},
-    errors::LoadError,
-    io::arrow::{
-        node_col::NodeCol,
-        prop_handler::{PropCols, combine_properties_arrow},
-    },
-};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
+use raphtory_core::entities::{graph::logical_to_physical::Mapping, EID, VID};
 use rayon::prelude::*;
 use std::{
     fs::File,

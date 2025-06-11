@@ -1,10 +1,6 @@
-use crate::{NodeSegmentOps, segments::node::MemNodeSegment};
-use db4_common::LocalPOS;
-use raphtory::{
-    core::{entities::ELID, storage::timeindex::AsTime},
-    prelude::Prop,
-};
-use raphtory_api::core::entities::{EID, VID};
+use crate::{LocalPOS, NodeSegmentOps, segments::node::MemNodeSegment};
+use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
+use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 #[derive(Debug)]

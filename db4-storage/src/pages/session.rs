@@ -5,17 +5,14 @@ use super::{
 };
 use crate::{
     EdgeSegmentOps, NodeSegmentOps,
+    error::DBV4Error,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
-use db4_common::error::DBV4Error;
-use raphtory::{
-    core::{
-        entities::{EID, ELID, VID},
-        storage::timeindex::AsTime,
-    },
-    prelude::Prop,
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
+use raphtory_core::{
+    entities::{EID, ELID, VID},
+    storage::timeindex::AsTime,
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 pub struct WriteSession<
     'a,

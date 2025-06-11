@@ -14,6 +14,9 @@ edition.workspace = true
 [dependencies]
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
 raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
+storage.workspace = true
+db4-graph.workspace = true
+parking_lot.workspace = true
 rayon = { workspace = true }
 either = { workspace = true }
 iter-enum = { workspace = true }

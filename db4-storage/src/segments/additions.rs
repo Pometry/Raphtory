@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-use raphtory::core::{
+use raphtory_core::{
     entities::nodes::node_store::PropTimestamps,
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
 };

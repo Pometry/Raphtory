@@ -18,9 +18,11 @@ use raphtory_core::entities::{
     },
 };
 use std::sync::Arc;
+use storage::error::DBV4Error;
 use thiserror::Error;
 
 pub mod addition_ops;
+pub mod addition_ops_ext;
 pub mod deletion_ops;
 pub mod property_addition_ops;
 
@@ -50,6 +52,8 @@ pub enum MutationError {
         src: String,
         dst: String,
     },
+    #[error("Storage error: {0}")]
+    DBV4Error(DBV4Error),
 }
 
 pub trait InheritMutationOps: Base {}

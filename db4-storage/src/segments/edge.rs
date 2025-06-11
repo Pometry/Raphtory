@@ -6,14 +6,13 @@ use std::{
     },
 };
 
-use db4_common::LocalPOS;
-use raphtory::{
-    core::storage::timeindex::{AsTime, TimeIndexEntry},
-    prelude::Prop,
+use raphtory_api::core::entities::{
+    VID,
+    properties::{meta::Meta, prop::Prop},
 };
-use raphtory_api::core::entities::{VID, properties::meta::Meta};
+use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
 
-use crate::{EdgeSegmentOps, properties::PropMutEntry};
+use crate::{EdgeSegmentOps, LocalPOS, error::DBV4Error, properties::PropMutEntry};
 
 use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 
@@ -175,7 +174,7 @@ impl EdgeSegmentOps for EdgeSegmentView {
         _meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
-    ) -> Result<Self, db4_common::error::DBV4Error>
+    ) -> Result<Self, DBV4Error>
     where
         Self: Sized,
     {
@@ -220,7 +219,7 @@ impl EdgeSegmentOps for EdgeSegmentView {
     fn notify_write(
         &self,
         _head_lock: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), db4_common::error::DBV4Error> {
+    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 

@@ -11,11 +11,15 @@ members = [
     "raphtory-api",
     "raphtory-core",
     "raphtory-storage",
-    "db4-common",
+    # "db4-common",
     "db4-storage", 
     "db4-graph",
 ]
-default-members = ["raphtory", "db4-common", "db4-storage", "db4-graph"]
+default-members = [
+    "raphtory", 
+    # "db4-common", 
+    "db4-storage", 
+    "db4-graph"]
 resolver = "2"
 
 [workspace.package]

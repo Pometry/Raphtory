@@ -1,16 +1,15 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    NodeSegmentOps,
+    LocalPOS, NodeSegmentOps,
+    error::DBV4Error,
     pages::locked::nodes::{LockedNodePage, WriteLockedNodePages},
     segments::node::MemNodeSegment,
 };
-use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::RwLockWriteGuard;
-use raphtory::core::entities::{EID, VID};
 use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_core::entities::{EID, VID};
 use std::{
     collections::HashMap,
-    ops::DerefMut,
     path::{Path, PathBuf},
     sync::{
         Arc,

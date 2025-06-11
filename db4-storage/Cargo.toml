@@ -12,8 +12,8 @@ edition = "2024"
 
 [dependencies]
 raphtory-api.workspace = true
-raphtory = {workspace = true, features = ["arrow", "io"]}
-db4-common = {path = "../db4-common"}
+raphtory-core = {workspace = true}
+# db4-common = {path = "../db4-common"}
 
 bitvec.workspace = true
 bigdecimal.workspace = true
@@ -32,6 +32,7 @@ parquet.workspace = true
 bytemuck.workspace = true
 rayon.workspace = true
 iter-enum = {workspace = true, features = ["rayon"]}
+thiserror.workspace = true
 
 proptest = {workspace = true, optional = true}
 tempfile = {workspace = true, optional = true}

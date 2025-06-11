@@ -1,13 +1,12 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 use crate::{
-    EdgeSegmentOps,
+    EdgeSegmentOps, LocalPOS,
     pages::{edge_page::writer::EdgeWriter, resolve_pos},
     segments::edge::MemEdgeSegment,
 };
-use db4_common::LocalPOS;
 use parking_lot::RwLockWriteGuard;
-use raphtory::core::entities::EID;
+use raphtory_core::entities::EID;
 use rayon::prelude::*;
 
 pub struct LockedEdgePage<'a, ES> {

@@ -7,27 +7,19 @@ use std::{
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use db4_common::error::DBV4Error;
 use either::Either::Left;
 use itertools::Itertools;
 use proptest::{collection, prelude::*};
-use raphtory::{
-    core::{
-        entities::{VID, graph::logical_to_physical::Mapping},
-        storage::timeindex::TimeIndexOps,
-    },
-    prelude::Prop,
-};
 use raphtory_api::core::entities::properties::{
-    prop::{DECIMAL_MAX, PropType},
+    prop::{DECIMAL_MAX, Prop, PropType},
     tprop::TPropOps,
 };
+use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
 use rayon::prelude::*;
 
 use crate::{
     EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, NodeEntryOps, NodeRefOps, NodeSegmentOps,
-    loaders::{FileFormat, Loader},
-    pages::GraphStore,
+    error::DBV4Error, pages::GraphStore,
 };
 
 pub fn check_edges_support<
@@ -444,184 +436,184 @@ pub fn check_graph_with_props_support<
     }
 }
 
-pub fn check_load_support<
-    EXT: Clone + Default + Send + Sync,
-    NS: NodeSegmentOps<Extension = EXT>,
-    ES: EdgeSegmentOps<Extension = EXT>,
->(
-    edges: &[(i64, u64, u64)],
-    check_load: bool,
-    make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
-) {
-    // Create temporary directory and CSV file
-    let temp_dir = tempfile::tempdir().unwrap();
-    let csv_path = temp_dir.path().join("edges.csv");
+// pub fn check_load_support<
+//     EXT: Clone + Default + Send + Sync,
+//     NS: NodeSegmentOps<Extension = EXT>,
+//     ES: EdgeSegmentOps<Extension = EXT>,
+// >(
+//     edges: &[(i64, u64, u64)],
+//     check_load: bool,
+//     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
+// ) {
+//     // Create temporary directory and CSV file
+//     let temp_dir = tempfile::tempdir().unwrap();
+//     let csv_path = temp_dir.path().join("edges.csv");
 
-    // Write edges to CSV file
-    let mut file = File::create(&csv_path).unwrap();
-    writeln!(file, "src,time,dst,test").unwrap();
-    for (time, src, dst) in edges {
-        writeln!(file, "{},{},{},a", src, time, dst).unwrap();
-    }
-    file.flush().unwrap();
+//     // Write edges to CSV file
+//     let mut file = File::create(&csv_path).unwrap();
+//     writeln!(file, "src,time,dst,test").unwrap();
+//     for (time, src, dst) in edges {
+//         writeln!(file, "{},{},{},a", src, time, dst).unwrap();
+//     }
+//     file.flush().unwrap();
 
-    // Create graph store
-    let graph_dir = temp_dir.path().join("graph");
-    std::fs::create_dir_all(&graph_dir).unwrap();
-    let graph = make_graph(&graph_dir);
+//     // Create graph store
+//     let graph_dir = temp_dir.path().join("graph");
+//     std::fs::create_dir_all(&graph_dir).unwrap();
+//     let graph = make_graph(&graph_dir);
 
-    // Create loader and load data
-    let loader = Loader::new(
-        &csv_path,
-        Left("src"),
-        Left("dst"),
-        Left("time"),
-        FileFormat::CSV {
-            delimiter: b',',
-            has_header: true,
-            sample_records: 10,
-        },
-    )
-    .unwrap();
+//     // Create loader and load data
+//     let loader = Loader::new(
+//         &csv_path,
+//         Left("src"),
+//         Left("dst"),
+//         Left("time"),
+//         FileFormat::CSV {
+//             delimiter: b',',
+//             has_header: true,
+//             sample_records: 10,
+//         },
+//     )
+//     .unwrap();
 
-    let resolver = loader.load_into(&graph, 1024).unwrap();
+//     let resolver = loader.load_into(&graph, 1024).unwrap();
 
-    fn check_graph<
-        NS: NodeSegmentOps<Extension = EXT>,
-        ES: EdgeSegmentOps<Extension = EXT>,
-        EXT: Clone + Default + Send + Sync,
-    >(
-        edges: &[(i64, u64, u64)],
-        graph: &GraphStore<NS, ES, EXT>,
-        resolver: &Mapping,
-        label: &str,
-    ) {
-        // Create expected adjacency data
-        let mut expected_out_edges: HashMap<u64, Vec<u64>> = HashMap::new();
-        let mut expected_in_edges: HashMap<u64, Vec<u64>> = HashMap::new();
-        let mut reverse_resolver = vec![0; resolver.len()];
+//     fn check_graph<
+//         NS: NodeSegmentOps<Extension = EXT>,
+//         ES: EdgeSegmentOps<Extension = EXT>,
+//         EXT: Clone + Default + Send + Sync,
+//     >(
+//         edges: &[(i64, u64, u64)],
+//         graph: &GraphStore<NS, ES, EXT>,
+//         resolver: &Mapping,
+//         label: &str,
+//     ) {
+//         // Create expected adjacency data
+//         let mut expected_out_edges: HashMap<u64, Vec<u64>> = HashMap::new();
+//         let mut expected_in_edges: HashMap<u64, Vec<u64>> = HashMap::new();
+//         let mut reverse_resolver = vec![0; resolver.len()];
 
-        for &(_, src, dst) in edges {
-            expected_out_edges.entry(src).or_default().push(dst);
-            expected_in_edges.entry(dst).or_default().push(src);
-            let id = resolver
-                .get_u64(src)
-                .unwrap_or_else(|| panic!("Missing src node {}", src));
-            reverse_resolver[id.0] = src;
-            let id = resolver
-                .get_u64(dst)
-                .unwrap_or_else(|| panic!("Missing dst node {}", dst));
-            reverse_resolver[id.0] = dst;
-        }
+//         for &(_, src, dst) in edges {
+//             expected_out_edges.entry(src).or_default().push(dst);
+//             expected_in_edges.entry(dst).or_default().push(src);
+//             let id = resolver
+//                 .get_u64(src)
+//                 .unwrap_or_else(|| panic!("Missing src node {}", src));
+//             reverse_resolver[id.0] = src;
+//             let id = resolver
+//                 .get_u64(dst)
+//                 .unwrap_or_else(|| panic!("Missing dst node {}", dst));
+//             reverse_resolver[id.0] = dst;
+//         }
 
-        // Deduplicate expected edges
-        for values in expected_out_edges.values_mut() {
-            values.sort_unstable();
-            values.dedup();
-        }
+//         // Deduplicate expected edges
+//         for values in expected_out_edges.values_mut() {
+//             values.sort_unstable();
+//             values.dedup();
+//         }
 
-        for values in expected_in_edges.values_mut() {
-            values.sort_unstable();
-            values.dedup();
-        }
+//         for values in expected_in_edges.values_mut() {
+//             values.sort_unstable();
+//             values.dedup();
+//         }
 
-        let expected_num_edges = expected_out_edges.values().map(Vec::len).sum::<usize>();
-        // let expected_num_nodes = expected_out_edges.keys().chain(expected_in_edges.keys()).collect::<HashSet<_>>().len();
+//         let expected_num_edges = expected_out_edges.values().map(Vec::len).sum::<usize>();
+//         // let expected_num_nodes = expected_out_edges.keys().chain(expected_in_edges.keys()).collect::<HashSet<_>>().len();
 
-        // Verify graph structure
-        let nodes = graph.nodes();
-        let edges_store = graph.edges();
+//         // Verify graph structure
+//         let nodes = graph.nodes();
+//         let edges_store = graph.edges();
 
-        // assert_eq!(nodes.num_nodes(), expected_num_nodes);
-        assert_eq!(
-            edges_store.num_edges(),
-            expected_num_edges,
-            "Bad number of edges {label}"
-        );
+//         // assert_eq!(nodes.num_nodes(), expected_num_nodes);
+//         assert_eq!(
+//             edges_store.num_edges(),
+//             expected_num_edges,
+//             "Bad number of edges {label}"
+//         );
 
-        for (exp_src, expected_outs) in expected_out_edges {
-            for &exp_dst in &expected_outs {
-                let src_vid = resolver.get_u64(exp_src).unwrap();
-                let dst_vid = resolver.get_u64(exp_dst).unwrap();
+//         for (exp_src, expected_outs) in expected_out_edges {
+//             for &exp_dst in &expected_outs {
+//                 let src_vid = resolver.get_u64(exp_src).unwrap();
+//                 let dst_vid = resolver.get_u64(exp_dst).unwrap();
 
-                let edge_id = graph
-                    .nodes()
-                    .get_edge(src_vid, dst_vid)
-                    .expect("Edge not found");
-                let edge = edges_store.edge(edge_id);
-                let (src, dst) = edge.as_ref().edge().unwrap();
-                let (src_act, dst_act) = (reverse_resolver[src.0], reverse_resolver[dst.0]);
+//                 let edge_id = graph
+//                     .nodes()
+//                     .get_edge(src_vid, dst_vid)
+//                     .expect("Edge not found");
+//                 let edge = edges_store.edge(edge_id);
+//                 let (src, dst) = edge.as_ref().edge().unwrap();
+//                 let (src_act, dst_act) = (reverse_resolver[src.0], reverse_resolver[dst.0]);
 
-                assert_eq!(
-                    (src_act, dst_act),
-                    (exp_src, exp_dst),
-                    "{label} Bad Edge {} -> {}",
-                    exp_src,
-                    exp_dst,
-                );
-            }
+//                 assert_eq!(
+//                     (src_act, dst_act),
+//                     (exp_src, exp_dst),
+//                     "{label} Bad Edge {} -> {}",
+//                     exp_src,
+//                     exp_dst,
+//                 );
+//             }
 
-            let adj = graph.nodes().node(resolver.get_u64(exp_src).unwrap());
-            let adj = adj.as_ref();
+//             let adj = graph.nodes().node(resolver.get_u64(exp_src).unwrap());
+//             let adj = adj.as_ref();
 
-            let mut out_neighbours: Vec<_> = adj
-                .out_nbrs_sorted()
-                .map(|VID(id)| reverse_resolver[id])
-                .collect();
-            out_neighbours.sort_unstable();
-            let mut expected_outs: Vec<_> = expected_outs.iter().copied().collect();
-            expected_outs.sort_unstable();
+//             let mut out_neighbours: Vec<_> = adj
+//                 .out_nbrs_sorted()
+//                 .map(|VID(id)| reverse_resolver[id])
+//                 .collect();
+//             out_neighbours.sort_unstable();
+//             let mut expected_outs: Vec<_> = expected_outs.iter().copied().collect();
+//             expected_outs.sort_unstable();
 
-            assert_eq!(
-                out_neighbours, expected_outs,
-                "{label} Outbound edges don't match for node {}",
-                exp_src
-            );
+//             assert_eq!(
+//                 out_neighbours, expected_outs,
+//                 "{label} Outbound edges don't match for node {}",
+//                 exp_src
+//             );
 
-            // Check edge lookup works and edge_id points to the right (src, dst)
-            for (exp_dst, edge_id) in adj.out_edges() {
-                let (VID(src), dst) = edges_store.get_edge(edge_id).unwrap();
-                assert_eq!(reverse_resolver[src], exp_src);
-                assert_eq!(dst, exp_dst);
-            }
-        }
+//             // Check edge lookup works and edge_id points to the right (src, dst)
+//             for (exp_dst, edge_id) in adj.out_edges() {
+//                 let (VID(src), dst) = edges_store.get_edge(edge_id).unwrap();
+//                 assert_eq!(reverse_resolver[src], exp_src);
+//                 assert_eq!(dst, exp_dst);
+//             }
+//         }
 
-        for (exp_dst, expected_ins) in expected_in_edges {
-            let adj = nodes.node(resolver.get_u64(exp_dst).unwrap());
-            let adj = adj.as_ref();
+//         for (exp_dst, expected_ins) in expected_in_edges {
+//             let adj = nodes.node(resolver.get_u64(exp_dst).unwrap());
+//             let adj = adj.as_ref();
 
-            let mut in_neighbours: Vec<_> = adj
-                .inb_nbrs_sorted()
-                .map(|VID(id)| reverse_resolver[id])
-                .collect();
-            in_neighbours.sort_unstable();
-            let mut expected_ins: Vec<_> = expected_ins.iter().copied().collect();
-            expected_ins.sort_unstable();
+//             let mut in_neighbours: Vec<_> = adj
+//                 .inb_nbrs_sorted()
+//                 .map(|VID(id)| reverse_resolver[id])
+//                 .collect();
+//             in_neighbours.sort_unstable();
+//             let mut expected_ins: Vec<_> = expected_ins.iter().copied().collect();
+//             expected_ins.sort_unstable();
 
-            assert_eq!(
-                in_neighbours, expected_ins,
-                "Inbound edges don't match for node {}",
-                exp_dst
-            );
+//             assert_eq!(
+//                 in_neighbours, expected_ins,
+//                 "Inbound edges don't match for node {}",
+//                 exp_dst
+//             );
 
-            // Check edge lookup works
-            for (exp_src, edge_id) in adj.inb_edges() {
-                let (src, VID(dst)) = edges_store.get_edge(edge_id).unwrap();
-                assert_eq!(reverse_resolver[dst], exp_dst);
-                assert_eq!(src, exp_src);
-            }
-        }
-    }
+//             // Check edge lookup works
+//             for (exp_src, edge_id) in adj.inb_edges() {
+//                 let (src, VID(dst)) = edges_store.get_edge(edge_id).unwrap();
+//                 assert_eq!(reverse_resolver[dst], exp_dst);
+//                 assert_eq!(src, exp_src);
+//             }
+//         }
+//     }
 
-    check_graph(edges, &graph, &resolver, "pre-drop");
-    if check_load {
-        drop(graph);
+//     check_graph(edges, &graph, &resolver, "pre-drop");
+//     if check_load {
+//         drop(graph);
 
-        // Reload graph and check again
-        let graph = GraphStore::<NS, ES, EXT>::load(&graph_dir).unwrap();
-        check_graph(edges, &graph, &resolver, "post-drop");
-    }
-}
+//         // Reload graph and check again
+//         let graph = GraphStore::<NS, ES, EXT>::load(&graph_dir).unwrap();
+//         check_graph(edges, &graph, &resolver, "post-drop");
+//     }
+// }
 
 pub fn edges_strat(size: usize) -> impl Strategy<Value = Vec<(VID, VID)>> {
     (1..=size).prop_flat_map(|num_nodes| {

@@ -1,9 +1,10 @@
-use db4_common::error::DBV4Error;
 use either::Either;
 use raphtory_api::core::entities::properties::{
     meta::{LockedPropMapper, Meta, PropMapper},
     prop::{Prop, unify_types},
 };
+
+use crate::error::DBV4Error;
 
 pub enum PropsMetaWriter<'a, PN: AsRef<str>> {
     Change {

@@ -1,15 +1,14 @@
-use db4_common::{LocalPOS, error::DBV4Error};
 use either::Either;
-use raphtory::{
-    core::{
-        entities::{ELID, nodes::structure::adj::Adj},
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
-    prelude::Prop,
-};
 use raphtory_api::core::{
     Direction,
-    entities::{EID, VID, properties::meta::Meta},
+    entities::{
+        EID, VID,
+        properties::{meta::Meta, prop::Prop},
+    },
+};
+use raphtory_core::{
+    entities::{ELID, nodes::structure::adj::Adj},
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -17,7 +16,7 @@ use std::{
 };
 
 use super::{HasRow, SegmentContainer};
-use crate::{NodeSegmentOps, segments::node_entry::MemNodeEntry};
+use crate::{LocalPOS, NodeSegmentOps, error::DBV4Error, segments::node_entry::MemNodeEntry};
 
 #[derive(Debug)]
 pub struct MemNodeSegment {

@@ -1,7 +1,7 @@
-use db4_common::LocalPOS;
-use raphtory::core::entities::{VID, properties::tprop::TPropCell};
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_core::entities::{VID, properties::tprop::TPropCell};
 
-use crate::{EdgeEntryOps, EdgeRefOps};
+use crate::{EdgeEntryOps, EdgeRefOps, LocalPOS};
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
 
@@ -67,7 +67,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         MemAdditions::Props(self.es.as_ref().additions(self.pos))
     }
 
-    fn c_prop(self, prop_id: usize) -> Option<raphtory::prelude::Prop> {
+    fn c_prop(self, prop_id: usize) -> Option<Prop> {
         self.es.as_ref().c_prop(self.pos, prop_id)
     }
 

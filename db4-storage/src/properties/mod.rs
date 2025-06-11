@@ -1,17 +1,17 @@
 use bigdecimal::ToPrimitive;
 use polars_arrow::array::{Array, BooleanArray, PrimitiveArray, Utf8ViewArray};
-use raphtory::{
-    core::{
-        entities::{
-            ELID,
-            nodes::node_store::PropTimestamps,
-            properties::{tcell::TCell, tprop::TPropCell},
-        },
-        storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
-    },
-    prelude::Prop,
+use raphtory_api::core::entities::properties::{
+    meta::PropMapper,
+    prop::{Prop, PropType},
 };
-use raphtory_api::core::entities::properties::{meta::PropMapper, prop::PropType};
+use raphtory_core::{
+    entities::{
+        ELID,
+        nodes::node_store::PropTimestamps,
+        properties::{tcell::TCell, tprop::TPropCell},
+    },
+    storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
+};
 
 pub mod props_meta_writer;
 

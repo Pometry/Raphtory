@@ -9,14 +9,14 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    EdgeSegmentOps,
+    EdgeSegmentOps, LocalPOS,
+    error::DBV4Error,
     pages::locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     segments::edge::MemEdgeSegment,
 };
-use db4_common::{LocalPOS, error::DBV4Error};
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory::core::storage::timeindex::TimeIndexEntry;
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
+use raphtory_core::storage::timeindex::TimeIndexEntry;
 
 const N: usize = 32;
 
