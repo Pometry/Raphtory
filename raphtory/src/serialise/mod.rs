@@ -10,6 +10,8 @@ mod serialise;
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
+#[cfg(feature = "storage")]
+use crate::disk_graph::DiskGraphStorage;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
@@ -17,8 +19,6 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
-#[cfg(feature = "storage")]
-use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
