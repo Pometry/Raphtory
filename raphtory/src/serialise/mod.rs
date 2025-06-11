@@ -10,8 +10,6 @@ mod serialise;
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
-#[cfg(feature = "storage")]
-use crate::disk_graph::DiskGraphStorage;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
@@ -19,6 +17,8 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
+#[cfg(feature = "storage")]
+use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
@@ -141,9 +141,12 @@ impl GraphFolder {
                             return Err(GraphError::DiskGraphNotFound);
                             #[cfg(feature = "storage")]
                             {
-                                DiskGraphStorage::load_from_dir(self.get_graph_path())?
-                                    .into_graph()
-                                    .into()
+                                use crate::prelude::IntoGraph;
+
+                                MaterializedGraph::from(
+                                    DiskGraphStorage::load_from_dir(self.get_graph_path())?
+                                        .into_graph(),
+                                )
                             }
                         } else {
                             MaterializedGraph::decode(self)?

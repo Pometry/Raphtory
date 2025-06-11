@@ -45,7 +45,7 @@ pub struct ParquetLayerCols<'a> {
 
 #[derive(Clone, Debug)]
 pub struct DiskGraphStorage {
-    pub(crate) inner: Arc<TemporalGraph>,
+    pub inner: Arc<TemporalGraph>,
     graph_props: Arc<GraphMeta>,
 }
 

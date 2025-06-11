@@ -292,7 +292,7 @@ impl PyDiskGraph {
     ) -> Result<PyDiskGraph, GraphError> {
         let path = PathBuf::from_str(location).unwrap();
         let chunks = read_struct_arrays(&path, None)?;
-        let mut graph = TemporalGraph::new(self.0.inner().graph_dir())?;
+        let mut graph = TemporalGraph::new(self.0.inner.graph_dir())?;
         graph.load_temporal_node_props_from_chunks(chunks, chunk_size, false)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
