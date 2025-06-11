@@ -15,6 +15,7 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use std::cell::RefCell;
 use std::ops::Deref;
+use std::slice::Iter;
 use std::sync::Arc;
 // TODO: Do we want to implement gt, lt, etc?
 
@@ -97,6 +98,10 @@ impl<T: InternalHistoryOps> History<T> {
 
     pub fn collect_timestamps(&self) -> Vec<i64> {
         self.0.iter().map(|x| x.t()).dedup().collect_vec()
+    }
+
+    pub fn intervals(&self) -> Intervals {
+        Intervals(self.iter().map(|x| x.t()).collect_vec())
     }
 
     pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
@@ -296,10 +301,102 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     }
 }
 
+// FIXME: Currently holds a vector of all the intervals, might not be efficient. can't hold an iterator because they can't be reused
+pub struct Intervals(Vec<i64>);
+
+impl Intervals {
+    pub fn new(timestamps: &Vec<i64>) -> Self {
+        Intervals(
+            timestamps.windows(2)
+            .map(|w| w[1] - w[0])
+            .collect()
+        )
+    }
+
+    pub fn items(&self) -> &Vec<i64> {
+        &self.0
+    }
+
+    pub fn iter(&self) -> Iter<i64> {
+        self.0.iter()
+    }
+
+    pub fn mean(&self) -> Option<f64> {
+        if self.0.is_empty() {
+            return None;
+        }
+        Some(self.0.iter().sum::<i64>() as f64 / self.0.len() as f64)
+    }
+
+    pub fn median(&self) -> Option<f64> {
+        if self.0.is_empty() {
+            return None;
+        }
+        let mut intervals_copy = self.0.to_vec();
+        intervals_copy.sort_unstable();
+
+        let mid = intervals_copy.len() / 2;
+        if intervals_copy.len() % 2 == 0 {
+            Some((intervals_copy[mid - 1] as f64 + intervals_copy[mid] as f64)/2.0)
+        } else {
+            Some(intervals_copy[mid] as f64)
+        }
+    }
+
+    pub fn max(&self) -> Option<i64> {
+        self.0.iter().max().cloned()
+    }
+
+    pub fn min(&self) -> Option<i64> {
+        self.0.iter().min().cloned()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::api::view::internal::CoreGraphOps;
+
+    #[test]
+    fn intervals() -> Result<(), Box<dyn std::error::Error>> {
+        let timestamps = vec![1, 4, 10, 30];
+        let interval = Intervals::new(&timestamps);
+        assert_eq!(interval.items(), &[3, 6, 20]);
+        Ok(())
+    }
+
+    #[test]
+    fn intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
+        let timestamps = vec![1, 4, 10, 30];
+        let interval = Intervals::new(&timestamps);
+        assert_eq!(interval.mean(), Some(29f64/ 3f64));
+        let timestamps2 = vec![1];
+        let interval2 = Intervals::new(&timestamps2);
+        assert_eq!(interval2.mean(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn intervals_median() -> Result<(), Box<dyn std::error::Error>> {
+        let timestamps = vec![1, 30, 31, 40];       // intervals are 29, 1, 9
+        let interval = Intervals::new(&timestamps);
+        assert_eq!(interval.median(), Some(9.0));
+        let timestamps2 = vec![1];
+        let interval2 = Intervals::new(&timestamps2);
+        assert_eq!(interval2.median(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn intervals_max() -> Result<(), Box<dyn std::error::Error>> {
+        let timestamps = vec![1, 30, 31, 40];       // intervals are 29, 1, 9
+        let interval = Intervals::new(&timestamps);
+        assert_eq!(interval.max(), Some(29));
+        let timestamps2 = vec![1];
+        let interval2 = Intervals::new(&timestamps2);
+        assert_eq!(interval2.max(), None);
+        Ok(())
+    }
 
     // test nodes and edges
     #[test]
