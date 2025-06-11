@@ -16,13 +16,11 @@ def make_folder_structure(client):
 
 
 def sort_dict(d):
-    """Recursively sort lists inside a dictionary to enable order-independent comparison."""
+    """Recursively sort lists *and* dictionary keys for order-independent comparison."""
     if isinstance(d, dict):
-        return {k: sort_dict(v) for k, v in d.items()}
+        return dict(sorted((k, sort_dict(v)) for k, v in d.items()))
     elif isinstance(d, list):
-        return sorted(
-            (sort_dict(i) for i in d), key=json.dumps
-        )  # Sorting by JSON string representation
+        return sorted((sort_dict(i) for i in d), key=json.dumps)
     else:
         return d
 
@@ -35,35 +33,7 @@ def test_namespaces_and_metagraph():
         make_folder_structure(client)
         # tests list and page on namespaces and metagraphs
         query = """{
-  root {
-    path
-    graphs {
-      list {
-        path
-      }
-    }
-    children {
-      list {
-        path
-        graphs {
-          list {
-            path
-          }
-        }
-        children {
-          page(limit: 1, offset: 1) {
-            path
-            children {
-              list {
-                graphs {
-                  page(limit: 1, offset: 1) {
-                    path
-                  }
-                }
-              }
-            }
-          }
-          list {
+          root {
             path
             graphs {
               list {
@@ -79,6 +49,18 @@ def test_namespaces_and_metagraph():
                   }
                 }
                 children {
+                  page(limit: 1, offset: 1) {
+                    path
+                    children {
+                      list {
+                        graphs {
+                          page(limit: 1, offset: 1) {
+                            path
+                          }
+                        }
+                      }
+                    }
+                  }
                   list {
                     path
                     graphs {
@@ -89,6 +71,26 @@ def test_namespaces_and_metagraph():
                     children {
                       list {
                         path
+                        graphs {
+                          list {
+                            path
+                          }
+                        }
+                        children {
+                          list {
+                            path
+                            graphs {
+                              list {
+                                path
+                              }
+                            }
+                            children {
+                              list {
+                                path
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -97,92 +99,88 @@ def test_namespaces_and_metagraph():
             }
           }
         }
-      }
-    }
-  }
-}
-            """
+        """
         result = client.query(query)
 
-        correct = {
-            "root": {
-                "path": "",
-                "graphs": {"list": [{"path": "graph"}]},
-                "children": {
-                    "list": [
-                        {
-                            "path": "test",
-                            "graphs": {"list": [{"path": "test/graph"}]},
-                            "children": {
-                                "page": [
-                                    {
-                                        "path": "test/second",
-                                        "children": {
-                                            "list": [
-                                                {
-                                                    "graphs": {
-                                                        "page": [
-                                                            {
-                                                                "path": "test/second/internal/graph2"
-                                                            }
-                                                        ]
-                                                    }
+    correct = {
+        "root": {
+            "path": "",
+            "graphs": {"list": [{"path": "graph"}]},
+            "children": {
+                "list": [
+                    {
+                        "path": "test",
+                        "graphs": {"list": [{"path": "test/graph"}]},
+                        "children": {
+                            "page": [
+                                {
+                                    "path": "test/second",
+                                    "children": {
+                                        "list": [
+                                            {
+                                                "graphs": {
+                                                    "page": [
+                                                        {
+                                                            "path": "test/second/internal/graph2"
+                                                        }
+                                                    ]
                                                 }
-                                            ]
-                                        },
-                                    }
-                                ],
-                                "list": [
-                                    {
-                                        "path": "test/first",
-                                        "graphs": {"list": []},
-                                        "children": {
-                                            "list": [
-                                                {
-                                                    "path": "test/first/internal",
-                                                    "graphs": {
-                                                        "list": [
-                                                            {
-                                                                "path": "test/first/internal/graph"
-                                                            }
-                                                        ]
-                                                    },
-                                                    "children": {"list": []},
-                                                }
-                                            ]
-                                        },
+                                            }
+                                        ]
                                     },
-                                    {
-                                        "path": "test/second",
-                                        "graphs": {"list": []},
-                                        "children": {
-                                            "list": [
-                                                {
-                                                    "path": "test/second/internal",
-                                                    "graphs": {
-                                                        "list": [
-                                                            {
-                                                                "path": "test/second/internal/graph1"
-                                                            },
-                                                            {
-                                                                "path": "test/second/internal/graph2"
-                                                            },
-                                                        ]
-                                                    },
-                                                    "children": {"list": []},
-                                                }
-                                            ]
-                                        },
+                                }
+                            ],
+                            "list": [
+                                {
+                                    "path": "test/first",
+                                    "graphs": {"list": []},
+                                    "children": {
+                                        "list": [
+                                            {
+                                                "path": "test/first/internal",
+                                                "graphs": {
+                                                    "list": [
+                                                        {
+                                                            "path": "test/first/internal/graph"
+                                                        }
+                                                    ]
+                                                },
+                                                "children": {"list": []},
+                                            }
+                                        ]
                                     },
-                                ],
-                            },
-                        }
-                    ]
-                },
-            }
+                                },
+                                {
+                                    "path": "test/second",
+                                    "graphs": {"list": []},
+                                    "children": {
+                                        "list": [
+                                            {
+                                                "path": "test/second/internal",
+                                                "graphs": {
+                                                    "list": [
+                                                        {
+                                                            "path": "test/second/internal/graph1"
+                                                        },
+                                                        {
+                                                            "path": "test/second/internal/graph2"
+                                                        },
+                                                    ]
+                                                },
+                                                "children": {"list": []},
+                                            }
+                                        ]
+                                    },
+                                },
+                            ],
+                        },
+                    }
+                ]
+            },
         }
+    }
 
-        assert sort_dict(result) == sort_dict(correct)
+    assert sort_dict(result) == sort_dict(correct)
 
 
 def test_counting():
@@ -193,21 +191,21 @@ def test_counting():
         make_folder_structure(client)
 
         query = """
-        {
-  root {
-  	children{
-      count
-    }
-  }
-  namespaces{
-    page(limit:2 offset:2){
-      path
-      graphs{
-        count
-      }
-    }
-  }
-}
+            {
+              root {
+                children{
+                  count
+                }
+              }
+              namespaces{
+                page(limit:2 offset:2){
+                  path
+                  graphs{
+                    count
+                  }
+                }
+              }
+            }
         """
 
         result = client.query(query)
@@ -352,24 +350,24 @@ def test_namespaces():
         make_folder_structure(client)
 
         query = """
-            {
-  namespaces {
-    list {
-      path
-      children {
-        page(limit: 5, offset: 0) {
-          path
-        }
-      }
-      graphs {
-        list {
-          name
-          path
-        }
-      }
-    }
-  }
-}"""
+         {
+          namespaces {
+            list {
+              path
+              children {
+                page(limit: 5, offset: 0) {
+                  path
+                }
+              }
+              graphs {
+                list {
+                  name
+                  path
+                }
+              }
+            }
+          }
+        }"""
         result = client.query(query)
         correct = {
             "namespaces": {
