@@ -12,13 +12,13 @@ mod proto {
 }
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
-#[cfg(feature = "storage")]
-use crate::raphtory_storage::disk::DiskGraphStorage;
 use crate::{
     db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
+#[cfg(feature = "storage")]
+use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
