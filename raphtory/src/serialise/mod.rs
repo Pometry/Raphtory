@@ -10,10 +10,10 @@ mod serialise;
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
-#[cfg(feature = "storage")]
-use crate::disk_graph::DiskGraphStorage;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
+#[cfg(feature = "storage")]
+use crate::storage::disk::DiskGraphStorage;
 use crate::{
     db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
     serialise::metadata::GraphMetadata,
