@@ -209,9 +209,7 @@ mod tests_node_type_filtered_subgraph {
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         g.node(1).unwrap().set_node_type("test").unwrap();
         let expected = Graph::new();
-        expected
-            .resolve_layer(None)
-            .unwrap();
+        expected.resolve_layer(None).unwrap();
         assert_graph_equal(&g.subgraph_node_types(["test"]), &expected);
     }
 
@@ -222,9 +220,7 @@ mod tests_node_type_filtered_subgraph {
         g.node(0).unwrap().set_node_type("two").unwrap();
         let gw = g.window(0, 1);
         let expected = Graph::new();
-        expected
-            .resolve_layer(None)
-            .unwrap();
+        expected.resolve_layer(None).unwrap();
         let sg = gw.subgraph_node_types(["_default"]);
         assert!(!sg.has_node(0));
         assert!(!sg.has_node(1));

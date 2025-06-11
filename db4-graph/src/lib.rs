@@ -1,103 +1,171 @@
-use std::sync::Arc;
+use std::{
+    ops::DerefMut,
+    path::PathBuf,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 use db4_common::error::DBV4Error;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::meta::Meta;
-use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
-use storage::{pages::session::WriteSession, segments::node::MemNodeSegment, Layer, ES, NS};
+use raphtory_api::core::{
+    entities::{
+        properties::{
+            meta::Meta,
+            prop::{Prop, PropType},
+        },
+        GidRef, EID, VID,
+    },
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
+use raphtory_core::{
+    entities::{graph::logical_to_physical::Mapping, nodes::node_ref::NodeRef, ELID},
+    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
+};
+use raphtory_storage::mutation::{
+    addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
+    MutationError,
+};
+use storage::{
+    pages::session::WriteSession,
+    persist::strategy::PersistentStrategy,
+    properties::props_meta_writer::PropsMetaWriter,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    Layer, ES, NS,
+};
+
+pub mod mutation;
 
 pub struct TemporalGraph<EXT = ()> {
+    graph_dir: PathBuf,
+    // mapping between logical and physical ids
+    pub logical_to_physical: Mapping,
+    pub node_count: AtomicUsize,
+
+    max_page_len_nodes: usize,
+    max_page_len_edges: usize,
+
     layers: boxcar::Vec<Layer<EXT>>,
+
     edge_meta: Arc<Meta>,
     node_meta: Arc<Meta>,
 }
 
-pub type WriteS<'a, MNS, MES, EXT> = WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>;
+#[repr(transparent)]
+pub struct WriteS<
+    'a,
+    MNS: DerefMut<Target = MemNodeSegment>,
+    MES: DerefMut<Target = MemEdgeSegment>,
+    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
+>(WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>);
 
 pub struct UnlockedSession<'a, EXT> {
     graph: &'a TemporalGraph<EXT>,
 }
 
-impl <'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
+impl<
+        'a,
+        MNS: DerefMut<Target = MemNodeSegment> + Send + Sync,
+        MES: DerefMut<Target = MemEdgeSegment> + Send + Sync,
+        EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
+    > AtomicAdditionOps for WriteS<'a, MNS, MES, EXT>
+{
+    fn internal_add_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> MaybeNew<ELID> {
+        self.0.internal_add_edge(t, src, dst, lsn, layer, props)
+    }
+}
+
+impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
     type Error = DBV4Error;
-    
+
     fn next_event_id(&self) -> Result<usize, Self::Error> {
         todo!()
     }
-    
+
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
         todo!()
     }
-    
-    fn set_node(&self, gid: raphtory_api::core::entities::GidRef, vid: raphtory_api::core::entities::VID) -> Result<(), Self::Error> {
+
+    fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
         todo!()
     }
-    
+
     fn resolve_graph_property(
         &self,
         prop: &str,
-        dtype: raphtory_api::core::entities::properties::prop::PropType,
+        dtype: PropType,
         is_static: bool,
-    ) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<usize>, Self::Error> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         todo!()
     }
-    
+
     fn resolve_node_property(
         &self,
         prop: &str,
-        dtype: raphtory_api::core::entities::properties::prop::PropType,
+        dtype: PropType,
         is_static: bool,
-    ) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<usize>, Self::Error> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         todo!()
     }
-    
+
     fn resolve_edge_property(
         &self,
         prop: &str,
-        dtype: raphtory_api::core::entities::properties::prop::PropType,
+        dtype: PropType,
         is_static: bool,
-    ) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<usize>, Self::Error> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         todo!()
     }
-    
+
     fn internal_add_node(
         &self,
-        t: raphtory_api::core::storage::timeindex::TimeIndexEntry,
-        v: raphtory_api::core::entities::VID,
-        props: &[(usize, raphtory_api::core::entities::properties::prop::Prop)],
+        t: TimeIndexEntry,
+        v: VID,
+        props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         todo!()
     }
-    
+
     fn internal_add_edge(
         &self,
-        t: raphtory_api::core::storage::timeindex::TimeIndexEntry,
-        src: raphtory_api::core::entities::VID,
-        dst: raphtory_api::core::entities::VID,
-        props: &[(usize, raphtory_api::core::entities::properties::prop::Prop)],
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        props: &[(usize, Prop)],
         layer: usize,
-    ) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<raphtory_api::core::entities::EID>, Self::Error> {
+    ) -> Result<MaybeNew<EID>, Self::Error> {
         todo!()
     }
-    
+
     fn internal_add_edge_update(
         &self,
-        t: raphtory_api::core::storage::timeindex::TimeIndexEntry,
-        edge: raphtory_api::core::entities::EID,
-        props: &[(usize, raphtory_api::core::entities::properties::prop::Prop)],
+        t: TimeIndexEntry,
+        edge: EID,
+        props: &[(usize, Prop)],
         layer: usize,
     ) -> Result<(), Self::Error> {
         todo!()
     }
-
 }
 
-impl <EXT : Send + Sync> InternalAdditionOps for TemporalGraph<EXT> {
+impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
+    for TemporalGraph<EXT>
+{
     type Error = DBV4Error;
 
-    type WS<'a> = UnlockedSession<'a, EXT> where EXT: 'a;
+    type WS<'a>
+        = UnlockedSession<'a, EXT>
+    where
+        EXT: 'a;
 
-    type AtomicAddEdge<'a> = WriteS<RwLockWriteGuard<MemNodeSegment>, RwLockWriteGuard<MemEdgeSegment>, EXT>;
+    type AtomicAddEdge<'a> =
+        WriteS<'a, RwLockWriteGuard<'a, MemNodeSegment>, RwLockWriteGuard<'a, MemEdgeSegment>, EXT>;
 
     fn write_lock(&self) -> Result<raphtory_storage::graph::locked::WriteLockedGraph, Self::Error> {
         todo!()
@@ -111,27 +179,76 @@ impl <EXT : Send + Sync> InternalAdditionOps for TemporalGraph<EXT> {
         todo!()
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<usize>, Self::Error> {
-        todo!()
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+        let id = self.edge_meta.get_or_create_layer_id(layer);
+
+        let layer_id = id.inner();
+        if self.layers.get(layer_id).is_some() {
+            return Ok(id);
+        }
+        let count = self.layers.count();
+        if count >= layer_id + 1 {
+            // something has allocated the layer, wait for it to be added
+            while self.layers.get(layer_id).is_none() {
+                // wait for the layer to be created
+                std::thread::yield_now();
+            }
+            return Ok(id);
+        } else {
+            self.layers.reserve(2);
+            let layer_name = layer.unwrap_or("_default");
+            loop {
+                let new_layer_id = self.layers.push_with(|_| {
+                    Layer::new(
+                        self.graph_dir.join(format!("l_{}", layer_name)),
+                        self.max_page_len_nodes,
+                        self.max_page_len_edges,
+                    )
+                });
+                if new_layer_id >= layer_id {
+                    while self.layers.get(new_layer_id).is_none() {
+                        // wait for the layer to be created
+                        std::thread::yield_now();
+                    }
+                    return Ok(id);
+                }
+            }
+        }
     }
 
-    fn resolve_node(&self, id: NodeRef) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<raphtory_api::core::entities::VID>, Self::Error> {
-        todo!()
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        match id {
+            NodeRef::External(id) => {
+                let id = self
+                    .logical_to_physical
+                    .get_or_init_vid(id, || {
+                        self.node_count
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                            .into()
+                    })
+                    .map_err(MutationError::InvalidNodeId)?;
+                Ok(id)
+            }
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+        }
     }
 
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
         node_type: &str,
-    ) -> Result<raphtory_api::core::storage::dict_mapper::MaybeNew<(raphtory_api::core::storage::dict_mapper::MaybeNew<raphtory_api::core::entities::VID>, raphtory_api::core::storage::dict_mapper::MaybeNew<usize>)>, Self::Error> {
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
         todo!()
     }
 
     fn validate_gids<'a>(
         &self,
-        gids: impl IntoIterator<Item = raphtory_api::core::entities::GidRef<'a>>,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
-        todo!()
+        Ok(self
+            .logical_to_physical
+            .validate_gids(gids)
+            .map_err(MutationError::InvalidNodeId)?)
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
@@ -140,17 +257,24 @@ impl <EXT : Send + Sync> InternalAdditionOps for TemporalGraph<EXT> {
 
     fn atomic_add_edge(
         &self,
-        src: raphtory_api::core::entities::VID,
-        dst: raphtory_api::core::entities::VID,
-        e_id: Option<raphtory_api::core::entities::EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        todo!()
+        src: VID,
+        dst: VID,
+        e_id: Option<EID>,
+        layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_> {
+        let layer = &self.layers[layer_id];
+        WriteS(layer.write_session(src, dst, e_id))
     }
 
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
-        prop: impl ExactSizeIterator<Item = (PN, raphtory_api::core::entities::properties::prop::Prop)>,
-    ) -> Result<Vec<(usize, raphtory_api::core::entities::properties::prop::Prop)>, Self::Error> {
-        todo!()
+        is_static: bool,
+        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        if is_static {
+            PropsMetaWriter::constant(&self.edge_meta, props)?.into_props_const()
+        } else {
+            PropsMetaWriter::temporal(&self.edge_meta, props)?.into_props_temporal()
+        }
     }
 }

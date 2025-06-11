@@ -11,8 +11,7 @@ use crate::{
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps,
-    deletion_ops::InternalDeletionOps,
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
 };
 
 pub trait DeletionOps:
@@ -38,10 +37,7 @@ pub trait DeletionOps:
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer = self
-            .resolve_layer(layer)
-            .map_err(into_graph_err)?
-            .inner();
+        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
         let eid = self
             .internal_delete_edge(ti, src_id, dst_id, layer)
             .map_err(into_graph_err)?

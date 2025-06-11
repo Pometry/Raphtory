@@ -115,10 +115,7 @@ impl<'a> LayerCol<'a> {
                 let mut res = vec![0usize; iter.len()];
                 iter.zip(res.par_iter_mut())
                     .try_for_each(|(layer, entry)| {
-                        let layer = graph
-                            .resolve_layer(layer)
-                            .map_err(into_graph_err)?
-                            .inner();
+                        let layer = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
                         *entry = layer;
                         Ok::<(), GraphError>(())
                     })?;

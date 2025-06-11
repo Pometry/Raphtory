@@ -16,5 +16,6 @@ boxcar.workspace = true
 storage.workspace = true
 raphtory-api.workspace = true
 raphtory-storage.workspace = true
+raphtory-core.workspace = true
 db4-common.workspace = true
 parking_lot.workspace = true

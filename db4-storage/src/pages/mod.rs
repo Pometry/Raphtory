@@ -17,6 +17,7 @@ use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
+use parking_lot::RwLockWriteGuard;
 use raphtory::{
     core::{
         entities::{EID, ELID, VID},
@@ -227,7 +228,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
-        session.internal_add_edge(t, src, dst, lsn, 0, props)
+        let elid = session.internal_add_edge(t, src, dst, lsn, 0, props);
+        Ok(elid)
     }
 
     /// Adds an edge if it doesn't exist yet, does nothing if the edge is there
@@ -408,8 +410,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         e_id: Option<EID>,
     ) -> WriteSession<
         '_,
-        impl DerefMut<Target = MemNodeSegment>,
-        impl DerefMut<Target = MemEdgeSegment>,
+        RwLockWriteGuard<MemNodeSegment>,
+        RwLockWriteGuard<MemEdgeSegment>,
         NS,
         ES,
         EXT,
@@ -446,14 +448,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         WriteSession::new(node_writers, edge_writer, self)
     }
 
-    fn node_writer(
-        &self,
-        node_segment: usize,
-    ) -> NodeWriter<impl DerefMut<Target = MemNodeSegment>, NS> {
+    fn node_writer(&self, node_segment: usize) -> NodeWriter<RwLockWriteGuard<MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 
-    pub fn edge_writer(&self, eid: EID) -> EdgeWriter<impl DerefMut<Target = MemEdgeSegment>, ES> {
+    pub fn edge_writer(&self, eid: EID) -> EdgeWriter<RwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges().get_writer(eid)
     }
 

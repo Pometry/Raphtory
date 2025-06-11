@@ -301,7 +301,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
                     })?,
                 None => {
                     if create {
-                        self.graph.resolve_layer(layer)
+                        self.graph
+                            .resolve_layer(layer)
                             .map_err(into_graph_err)?
                             .inner()
                     } else {

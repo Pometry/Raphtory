@@ -156,9 +156,7 @@ mod tests {
         g.delete_edge(1, 0, 1, None).unwrap();
         let gv = g.valid().unwrap();
         let expected = PersistentGraph::new();
-        expected
-            .resolve_layer(None)
-            .unwrap();
+        expected.resolve_layer(None).unwrap();
         assert_graph_equal(&gv, &expected);
         let gm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gm);

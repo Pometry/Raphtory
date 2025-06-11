@@ -13,7 +13,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     graph::graph::GraphStorage,
-    mutation::addition_ops::{SessionAdditionOps, TGWriteSession},
+    mutation::addition_ops::{AtomicAdditionOps, SessionAdditionOps, TGWriteSession},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -28,7 +28,10 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
 };
-use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
+use raphtory_core::{
+    entities::ELID,
+    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
@@ -205,6 +208,20 @@ impl InheritViewOps for Storage {}
 pub struct StorageWriteSession<'a> {
     session: TGWriteSession<'a>,
     storage: &'a Storage,
+}
+
+impl AtomicAdditionOps for StorageWriteSession<'_> {
+    fn internal_add_edge(
+        &mut self,
+        _t: TimeIndexEntry,
+        _src: impl Into<VID>,
+        _dst: impl Into<VID>,
+        _lsn: u64,
+        _layer: usize,
+        _props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> MaybeNew<ELID> {
+        todo!()
+    }
 }
 
 impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
@@ -415,19 +432,21 @@ impl InternalAdditionOps for Storage {
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(StorageWriteSession {
+        layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_> {
+        let session = self.graph.atomic_add_edge(src, dst, e_id, layer_id);
+        StorageWriteSession {
             session,
             storage: self,
-        })
+        }
     }
 
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
+        is_static: bool,
         prop: impl ExactSizeIterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        Ok(self.graph.validate_prop(prop)?)
+        Ok(self.graph.validate_edge_props(is_static, prop)?)
     }
 
     fn validate_gids<'a>(

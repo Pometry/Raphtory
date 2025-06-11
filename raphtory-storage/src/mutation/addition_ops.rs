@@ -13,7 +13,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::{
-    entities::{graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef},
+    entities::{graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef, ELID},
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::atomic::Ordering;
@@ -24,7 +24,7 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    type AtomicAddEdge<'a>: Send + Sync
+    type AtomicAddEdge<'a>: AtomicAdditionOps
     where
         Self: 'a;
 
@@ -55,12 +55,26 @@ pub trait InternalAdditionOps {
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
+        layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_>;
 
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
+        is_static: bool,
         prop: impl ExactSizeIterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error>;
+}
+
+pub trait AtomicAdditionOps: Send + Sync {
+    fn internal_add_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> MaybeNew<ELID>;
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -119,6 +133,21 @@ pub trait SessionAdditionOps: Send + Sync {
 #[derive(Clone, Copy)]
 pub struct TGWriteSession<'a> {
     tg: &'a TemporalGraph,
+}
+
+impl AtomicAdditionOps for TGWriteSession<'_> {
+    /// add edge update
+    fn internal_add_edge(
+        &mut self,
+        _t: TimeIndexEntry,
+        _src: impl Into<VID>,
+        _dst: impl Into<VID>,
+        _lsn: u64,
+        _layer: usize,
+        _props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> MaybeNew<ELID> {
+        todo!("Atomic addition operations are not implemented for TGWriteSession");
+    }
 }
 
 impl<'a> SessionAdditionOps for TGWriteSession<'a> {
@@ -287,16 +316,18 @@ impl InternalAdditionOps for GraphStorage {
         _src: VID,
         _dst: VID,
         _e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.write_session()
+        _layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_> {
+        self.write_session().unwrap()
     }
 
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
+        is_static: bool,
         prop: impl ExactSizeIterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         self.mutable()?
-            .validate_prop(prop)
+            .validate_edge_props(is_static, prop)
             .map_err(MutationError::from)
     }
 
@@ -372,8 +403,9 @@ impl InternalAdditionOps for TemporalGraph {
         _src: VID,
         _dst: VID,
         _e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        Ok(TGWriteSession { tg: self })
+        _layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_> {
+        TGWriteSession { tg: self }
     }
 
     fn validate_gids<'a>(
@@ -385,8 +417,9 @@ impl InternalAdditionOps for TemporalGraph {
             .map_err(MutationError::from)
     }
 
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
+        is_static: bool,
         prop: impl ExactSizeIterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         let session = self.write_session()?;
@@ -394,7 +427,7 @@ impl InternalAdditionOps for TemporalGraph {
             .map(|(name, prop)| {
                 let dtype = prop.dtype();
                 session
-                    .resolve_node_property(name.as_ref(), dtype, false)
+                    .resolve_edge_property(name.as_ref(), dtype, is_static)
                     .map(|id| (id.inner(), prop))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -466,16 +499,18 @@ where
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.base().atomic_add_edge(src, dst, e_id)
+        layer_id: usize,
+    ) -> Self::AtomicAddEdge<'_> {
+        self.base().atomic_add_edge(src, dst, e_id, layer_id)
     }
 
     #[inline]
-    fn validate_prop<PN: AsRef<str>>(
+    fn validate_edge_props<PN: AsRef<str>>(
         &self,
+        is_static: bool,
         prop: impl ExactSizeIterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.base().validate_prop(prop)
+        self.base().validate_edge_props(is_static, prop)
     }
 
     #[inline]

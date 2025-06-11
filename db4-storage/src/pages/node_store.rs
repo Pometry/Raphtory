@@ -5,6 +5,7 @@ use crate::{
     segments::node::MemNodeSegment,
 };
 use db4_common::{LocalPOS, error::DBV4Error};
+use parking_lot::RwLockWriteGuard;
 use raphtory::core::entities::{EID, VID};
 use raphtory_api::core::entities::properties::meta::Meta;
 use std::{
@@ -88,7 +89,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     pub fn writer<'a>(
         &'a self,
         segment_id: usize,
-    ) -> NodeWriter<'a, impl DerefMut<Target = MemNodeSegment> + 'a, NS> {
+    ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
         NodeWriter::new(segment, &self.num_nodes, head)

@@ -100,7 +100,6 @@ impl<
         self.node_writers
             .get_mut_dst()
             .update_timestamp(t, dst_pos, e_id, lsn);
-
     }
 
     pub fn add_static_edge(
@@ -161,7 +160,7 @@ impl<
         lsn: u64,
         layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<MaybeNew<ELID>, DBV4Error> {
+    ) -> MaybeNew<ELID> {
         let src = src.into();
         let dst = dst.into();
 
@@ -181,7 +180,7 @@ impl<
                 .get_mut_dst()
                 .update_timestamp(t, dst_pos, e_id, lsn);
 
-            Ok(MaybeNew::Existing(e_id))
+            MaybeNew::Existing(e_id)
         } else {
             if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst) {
                 let mut edge_writer = self.graph.edge_writer(e_id);
@@ -196,7 +195,7 @@ impl<
                     .get_mut_dst()
                     .update_timestamp(t, dst_pos, e_id, lsn);
 
-                Ok(MaybeNew::Existing(e_id))
+                MaybeNew::Existing(e_id)
             } else {
                 let mut edge_writer = self.graph.get_free_writer();
                 let edge_id = edge_writer.add_edge(t, None, src, dst, props, lsn, None);
@@ -211,7 +210,7 @@ impl<
                     .get_mut_dst()
                     .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
 
-                Ok(MaybeNew::New(edge_id))
+                MaybeNew::New(edge_id)
             }
         }
     }

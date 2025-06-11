@@ -60,7 +60,7 @@ impl GqlMutableGraph {
 
 fn as_properties(
     properties: Vec<GqlPropertyInput>,
-) -> Result<impl Iterator<Item = (String, Prop)>, GraphError> {
+) -> Result<impl ExactSizeIterator<Item = (String, Prop)>, GraphError> {
     let props: Result<Vec<(String, Prop)>, GraphError> = properties
         .into_iter()
         .map(|p| {
