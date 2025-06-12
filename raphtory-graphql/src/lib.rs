@@ -38,10 +38,12 @@ mod graphql_test {
     use std::{
         collections::{HashMap, HashSet},
         fs,
+        path::Path,
     };
     use tempfile::tempdir;
 
     #[tokio::test]
+    #[cfg(feature = "search")]
     async fn test_search_nodes_gql() {
         let graph = Graph::new();
 

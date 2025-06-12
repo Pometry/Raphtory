@@ -284,7 +284,7 @@ impl Mut {
         {
             let data = ctx.data_unchecked::<Data>();
             let graph = data.get_graph(path)?.0.graph;
-            match index_spec {
+            let _ = match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;
                     if in_ram {
