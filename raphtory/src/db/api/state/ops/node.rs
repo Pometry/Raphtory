@@ -1,11 +1,17 @@
 use crate::{
-    db::api::{storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps},
+    db::api::view::internal::{
+        time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
+    },
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{GID, VID},
     storage::arc_str::ArcStr,
     Direction,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
 };
 use std::{ops::Deref, sync::Arc};
 
@@ -83,7 +89,13 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for Degree<G> {
     type Output = usize;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
-        storage.node_degree(node, self.dir, &self.graph)
+        let node = storage.core_node(node);
+        if matches!(self.graph.filter_state(), FilterState::Neither) {
+            node.degree(self.graph.layer_ids(), self.dir)
+        } else {
+            node.filtered_neighbours_iter(&self.graph, self.graph.layer_ids(), self.dir)
+                .count()
+        }
     }
 }
 

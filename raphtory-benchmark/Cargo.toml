@@ -7,19 +7,28 @@ edition = "2021"
 
 [dependencies]
 criterion = { workspace = true }
-raphtory = { path = "../raphtory", features = ["io", "proto"], version = "0.15.1" }
+raphtory = { path = "../raphtory", features = [
+    "io",
+    "proto",
+    "vectors",
+], version = "0.15.1" }
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
-tracing = {workspace = true}
+tracing = { workspace = true }
 once_cell = { workspace = true }
-serde =  { workspace = true }
-itertools =  { workspace = true }
+serde = { workspace = true }
+itertools = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }
+tokio = { workspace = true }
+
+[[bin]]
+name = "vectorise"
+path = "bin/vectorise.rs"
 
 [[bench]]
 name = "tgraph_benchmarks"
@@ -57,14 +66,20 @@ harness = false
 name = "proto_decode"
 harness = false
 
-# [[bench]]
-# name = "arrow_algobench"
-# harness = false
+[[bench]]
+name = "arrow_algobench"
+harness = false
+required-features = ["storage"]
 
 [[bench]]
 name = "search_bench"
 harness = false
 required-features = ["search"]
 
+[[bench]]
+name = "vectors"
+harness = false
+
 [features]
 search = ["raphtory/search"]
+storage = ["raphtory/storage"]

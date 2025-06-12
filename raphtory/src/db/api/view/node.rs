@@ -2,19 +2,18 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        Direction,
     },
     db::api::{
         properties::internal::PropertiesOps,
         state::{ops, NodeOp},
-        storage::graph::storage_ops::GraphStorage,
-        view::{internal::OneHopFilter, reset_filter::ResetFilter, TimeOps},
+        view::{internal::OneHopFilter, node_edges, reset_filter::ResetFilter, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::timeindex::TimeError;
-use crate::db::api::state::ops::LatestTime;
+use itertools::Itertools;
+use raphtory_api::core::Direction;
+use raphtory_storage::graph::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -79,36 +78,32 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<
-        ops::AsDateTime<ops::EarliestTime<Self::Graph>>,
-    >;
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<
-        ops::AsDateTime<ops::LatestTime<Self::Graph>>,
-    >;
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
-    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
+    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>>;
+    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
 
     //Returns true if the node has any updates within the current window, otherwise false
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>>;
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
     /// Returns:
     ///
     /// A view with the names of the properties as keys and the property values as values.
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>>;
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>>;
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
@@ -208,16 +203,14 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         };
         self.map(op)
     }
-    // could not change TimeError to GraphError because it doesn't implement Clone
     #[inline]
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<
-        ops::AsDateTime<ops::EarliestTime<Self::Graph>>,
-    > {
+    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::EarliestTime {
             graph: self.graph().clone(),
-        }.dt();
+        }
+        .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
     }
 
@@ -232,18 +225,17 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<
-        ops::AsDateTime<LatestTime<Self::Graph>>,
-    > {
+    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Option<DateTime<Utc>>>> {
         let op = ops::LatestTime {
             graph: self.graph().clone(),
-        }.dt();
+        }
+        .map(|t| t.and_then(|t| t.dt()));
         self.map(op)
     }
 
     #[inline]
-    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>> {
-        let op = ops::HistoryOp {
+    fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
+        let op = ops::History {
             graph: self.graph().clone(),
         };
         self.map(op)
@@ -251,32 +243,25 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>>
-    {
-        let op = ops::HistoryOp {
+    ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>> {
+        let op = ops::History {
             graph: self.graph().clone(),
         }
-        .map(|h| {
-            h.iter()
-                .map(|t| t.dt())
-                .collect::<Result<Vec<_>, TimeError>>()
-        });
+        .map(|h| h.into_iter().map(|t| t.dt()).collect());
         self.map(op)
     }
 
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>> {
-        let op = ops::HistoryOp {
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
+        let op = ops::History {
             graph: self.graph().clone(),
         }
-        .map(|h| h.iter().next() != None);
+        .map(|h| !h.is_empty());
         self.map(op)
     }
 
     #[inline]
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>> {
-        let op = ops::GetProperties {
-            graph: self.graph().clone(),
-        };
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>> {
+        let op = ops::GetProperties::new(self.graph().clone());
         self.map(op)
     }
     #[inline]
@@ -306,40 +291,55 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
         })
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|cg, g, v| cg.clone().into_node_edges_iter(v, Direction::IN, g.clone()))
+        self.map_edges(|cg, g, v| {
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+        })
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
         })
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::IN, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
 }

@@ -4,41 +4,47 @@
 //! Edges are identified by a unique ID, can have a direction (Ingoing, Outgoing, or Both)
 //! and can have properties associated with them.
 //!
-
-use chrono::{DateTime, Utc};
-
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-        utils::{errors::GraphError, time::IntoTime},
-        PropType,
+        utils::{iter::GenLockedIter, time::IntoTime},
     },
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps},
-                time_from_input, CollectProperties, TryIntoInputTime,
-            },
+            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
+                internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
             },
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
             view::{
-                internal::{OneHopFilter, Static},
-                BaseEdgeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
+                internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
+                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                IntoDynamic, StaticGraphViewOps,
             },
         },
-        graph::{edges::Edges, node::NodeView},
+        graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
     },
+    errors::{into_graph_err, GraphError},
     prelude::*,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use itertools::Itertools;
+use raphtory_api::core::{
+    entities::properties::prop::PropType,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
+use raphtory_core::entities::graph::tgraph::InvalidLayer;
+use raphtory_storage::{
+    graph::edges::edge_storage_ops::EdgeStorageOps,
+    mutation::{
+        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        property_addition_ops::InternalPropertyAdditionOps,
+    },
+};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
+    iter,
     sync::Arc,
 };
 
@@ -50,6 +56,13 @@ pub struct EdgeView<G, GH = G> {
     pub graph: GH,
     /// A reference to the edge.
     pub edge: EdgeRef,
+}
+
+pub(crate) fn edge_valid_layer<G: BoxableGraphView + Clone>(graph: &G, e: EdgeRef) -> bool {
+    match e.layer() {
+        None => true,
+        Some(layer) => graph.layer_ids().contains(&layer),
+    }
 }
 
 impl<G, GH> Static for EdgeView<G, GH> {}
@@ -91,7 +104,19 @@ impl<G, GH> EdgeView<G, GH> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> {
+impl<G: IntoDynamic, GH: IntoDynamic> EdgeView<G, GH> {
+    pub fn into_dynamic(self) -> EdgeView<DynamicGraph, DynamicGraph> {
+        let base_graph = self.base_graph.into_dynamic();
+        let graph = self.graph.into_dynamic();
+        EdgeView {
+            base_graph,
+            graph,
+            edge: self.edge,
+        }
+    }
+}
+
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> {
     pub(crate) fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
         Self {
             base_graph,
@@ -100,27 +125,62 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgeView<G, GH> 
         }
     }
 
-    #[allow(dead_code)]
-    fn layer_ids(&self) -> LayerIds {
-        self.graph
-            .layer_ids()
-            .constrain_from_edge(self.edge)
-            .into_owned()
+    pub fn deletions_hist(&self) -> BoxedLIter<(TimeIndexEntry, usize)> {
+        let g = &self.graph;
+        let e = self.edge;
+        if edge_valid_layer(g, e) {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics
+                        .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                        .map(move |t| (t, layer))
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
+                None => match e.layer() {
+                    None => GenLockedIter::from(edge, move |edge| {
+                        time_semantics
+                            .edge_deletion_history(edge.as_ref(), g, g.layer_ids())
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed(),
+                    Some(layer) => {
+                        if self.graph.layer_ids().contains(&layer) {
+                            let layer_ids = LayerIds::One(layer);
+                            GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                                time_semantics
+                                    .edge_deletion_history(edge.as_ref(), g, layer_ids)
+                                    .into_dyn_boxed()
+                            })
+                            .into_dyn_boxed()
+                        } else {
+                            iter::empty().into_dyn_boxed()
+                        }
+                    }
+                },
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
     }
 }
 
 impl<
         G: StaticGraphViewOps
-            + InternalAdditionOps
-            + InternalPropertyAdditionOps
-            + InternalDeletionOps,
+            + InternalAdditionOps<Error = GraphError>
+            + InternalPropertyAdditionOps<Error = GraphError>
+            + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
     pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
-            .internal_delete_existing_edge(t, self.edge.pid(), layer)
+            .internal_delete_existing_edge(t, self.edge.pid(), layer)?;
+        Ok(())
     }
 }
 
@@ -156,9 +216,7 @@ impl<
     }
 }
 
-impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord
-    for EdgeView<G1, GH1>
-{
+impl<'graph_1, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord for EdgeView<G1, GH1> {
     fn cmp(&self, other: &EdgeView<G1, GH1>) -> Ordering {
         self.id()
             .cmp(&other.id())
@@ -182,7 +240,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     where
         T: 'graph;
     type PropType = Self;
-    type Nodes = NodeView<G, G>;
+    type Nodes = NodeView<'graph, G, G>;
     type Exploded = Edges<'graph, G, GH>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
@@ -224,39 +282,48 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 }
 
-impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> EdgeView<G, G> {
-    fn get_valid_layers(graph: &G) -> Vec<String> {
-        graph.unique_layers().map(|l| l.0.to_string()).collect()
-    }
-
+impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
-        match layer {
+        let layer_id = match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
                     .graph
                     .get_layer_id(name)
                     .filter(|&id| id == l_id)
                     .ok_or_else(|| {
-                        GraphError::invalid_layer(
-                            name.to_owned(),
-                            Self::get_valid_layers(&self.graph),
+                        InvalidLayer::new(
+                            name.into(),
+                            vec![self.graph.get_layer_name(l_id).to_string()],
                         )
-                    }),
+                    })?,
                 None => {
                     if create {
-                        Ok(self.graph.resolve_layer(layer)?.inner())
-                    } else {
                         self.graph
-                            .get_layer_id(name)
-                            .ok_or(GraphError::invalid_layer(
-                                name.to_owned(),
-                                Self::get_valid_layers(&self.graph),
-                            ))
+                            .resolve_layer(layer)
+                            .map_err(into_graph_err)?
+                            .inner()
+                    } else {
+                        self.graph.get_layer_id(name).ok_or_else(|| {
+                            InvalidLayer::new(
+                                name.into(),
+                                self.graph.unique_layers().map_into().collect(),
+                            )
+                        })?
                     }
                 }
             },
-            None => Ok(self.edge.layer().unwrap_or(0)),
-        }
+            None => {
+                let layer = self.edge.layer();
+                match layer {
+                    Some(l_id) => l_id,
+                    None => self
+                        .graph
+                        .get_default_layer_id()
+                        .ok_or_else(|| GraphError::no_default_layer(&self.graph))?,
+                }
+            }
+        };
+        Ok(layer_id)
     }
 
     /// Add constant properties for the edge
@@ -287,14 +354,17 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
             });
         }
         let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_edge_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
 
-        self.graph.internal_add_constant_edge_properties(
-            self.edge.pid(),
-            input_layer_id,
-            &properties,
-        )
+        self.graph
+            .internal_add_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn update_constant_properties<C: CollectProperties>(
@@ -302,16 +372,19 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         props: C,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_layer(layer, false)?;
+        let input_layer_id = self.resolve_layer(layer, false).map_err(into_graph_err)?;
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self.graph.resolve_edge_property(name, dtype, true)?.inner())
+            Ok(self
+                .graph
+                .resolve_edge_property(name, dtype, true)
+                .map_err(into_graph_err)?
+                .inner())
         })?;
 
-        self.graph.internal_update_constant_edge_properties(
-            self.edge.pid(),
-            input_layer_id,
-            &properties,
-        )
+        self.graph
+            .internal_update_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
@@ -325,17 +398,19 @@ impl<G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps> 
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_edge_property(name, dtype, false)?
+                .resolve_edge_property(name, dtype, false)
+                .map_err(into_graph_err)?
                 .inner())
         })?;
 
         self.graph
-            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)?;
+            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)
+            .map_err(into_graph_err)?;
         Ok(())
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
@@ -360,12 +435,27 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstPropertiesO
     }
 
     fn get_const_prop(&self, id: usize) -> Option<Prop> {
-        self.graph
-            .constant_edge_prop(self.edge, id, self.graph.layer_ids())
+        if edge_valid_layer(&self.graph, self.edge) {
+            let time_semantics = self.graph.edge_time_semantics();
+            match self.edge.layer() {
+                None => time_semantics.constant_edge_prop(
+                    self.graph.core_edge(self.edge.pid()).as_ref(),
+                    &self.graph,
+                    id,
+                ),
+                Some(layer) => time_semantics.constant_edge_prop(
+                    self.graph.core_edge(self.edge.pid()).as_ref(),
+                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                    id,
+                ),
+            }
+        } else {
+            None
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertyViewOps
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalPropertyViewOps
     for EdgeView<G, GH>
 {
     fn dtype(&self, id: usize) -> PropType {
@@ -376,48 +466,164 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperty
             .unwrap()
     }
 
-    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-            // .into_iter()
-            .map(|(t, _)| t)
-            .collect()
+    fn temporal_value(&self, id: usize) -> Option<Prop> {
+        if edge_valid_layer(&self.graph, self.edge) {
+            let time_semantics = self.graph.edge_time_semantics();
+            let edge = self.graph.core_edge(self.edge.pid());
+            match self.edge.time() {
+                None => match self.edge.layer() {
+                    None => time_semantics
+                        .temporal_edge_prop_hist_rev(
+                            edge.as_ref(),
+                            &self.graph,
+                            self.graph.layer_ids(),
+                            id,
+                        )
+                        .next(),
+                    Some(layer) => time_semantics
+                        .temporal_edge_prop_hist_rev(
+                            edge.as_ref(),
+                            &self.graph,
+                            &LayerIds::One(layer),
+                            id,
+                        )
+                        .next(),
+                }
+                .map(|(_, _, v)| v),
+                Some(t) => {
+                    let layer = self.edge.layer().expect("exploded edge should have layer");
+                    time_semantics.temporal_edge_prop_exploded(
+                        edge.as_ref(),
+                        &self.graph,
+                        id,
+                        t,
+                        layer,
+                    )
+                }
+            }
+        } else {
+            None
+        }
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-            .into_iter()
-            .map(|(t, _)| t.dt().map_err(GraphError::from))
-            .collect::<Result<Vec<_>, GraphError>>()
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        if edge_valid_layer(&self.graph, self.edge) {
+            let time_semantics = self.graph.edge_time_semantics();
+            let edge = self.graph.core_edge(self.edge.pid());
+            let graph = &self.graph;
+            match self.edge.time() {
+                None => match self.edge.layer() {
+                    None => GenLockedIter::from(edge, move |edge| {
+                        time_semantics
+                            .temporal_edge_prop_hist(edge.as_ref(), graph, graph.layer_ids(), id)
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed(),
+                    Some(layer) => {
+                        let layer_ids = LayerIds::One(layer);
+                        GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                            time_semantics
+                                .temporal_edge_prop_hist(edge.as_ref(), graph, layer_ids, id)
+                                .into_dyn_boxed()
+                        })
+                        .into_dyn_boxed()
+                    }
+                }
+                .map(|(t, _, v)| (t, v))
+                .into_dyn_boxed(),
+                Some(t) => {
+                    let layer = self.edge.layer().expect("Exploded edge should have layer");
+                    time_semantics
+                        .temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
+                        .map(|v| (t, v))
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
     }
 
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
-        let layer_ids = self.layer_ids();
-        self.graph
-            .temporal_edge_prop_hist(self.edge, id, &layer_ids)
-            .into_iter()
-            .map(|(_, v)| v)
-            .collect()
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        if edge_valid_layer(&self.graph, self.edge) {
+            let time_semantics = self.graph.edge_time_semantics();
+            let edge = self.graph.core_edge(self.edge.pid());
+            let graph = &self.graph;
+            match self.edge.time() {
+                None => match self.edge.layer() {
+                    None => GenLockedIter::from(edge, move |edge| {
+                        time_semantics
+                            .temporal_edge_prop_hist_rev(
+                                edge.as_ref(),
+                                graph,
+                                graph.layer_ids(),
+                                id,
+                            )
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed(),
+                    Some(layer) => {
+                        let layer_ids = LayerIds::One(layer);
+                        GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                            time_semantics
+                                .temporal_edge_prop_hist_rev(edge.as_ref(), graph, layer_ids, id)
+                                .into_dyn_boxed()
+                        })
+                        .into_dyn_boxed()
+                    }
+                }
+                .map(|(t, _, v)| (t, v))
+                .into_dyn_boxed(),
+                Some(t) => {
+                    let layer = self.edge.layer().expect("Exploded edge should have layer");
+                    time_semantics
+                        .temporal_edge_prop_exploded(edge.as_ref(), &self.graph, id, t, layer)
+                        .map(|v| (t, v))
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
     }
 
-    fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
-        let layer_ids = self.layer_ids();
-        Box::new(
-            self.graph
-                .temporal_edge_prop_hist(self.edge, id, &layer_ids)
-                .into_iter()
-                .map(|(_, v)| v),
-        )
-    }
+    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+        if edge_valid_layer(&self.graph, self.edge) {
+            let time_semantics = self.graph.edge_time_semantics();
+            let edge = self.graph.core_edge(self.edge.pid());
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
-        Box::new(
-            self.graph
-                .temporal_edge_prop_hist(self.edge, id, &self.layer_ids())
-                // .into_iter()
-                .map(|(t, _)| t),
-        )
+            match self.edge.time() {
+                None => match self.edge.layer() {
+                    None => time_semantics.temporal_edge_prop_last_at(
+                        edge.as_ref(),
+                        &self.graph,
+                        id,
+                        TimeIndexEntry::start(t),
+                    ),
+                    Some(layer) => time_semantics.temporal_edge_prop_last_at(
+                        edge.as_ref(),
+                        LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                        id,
+                        TimeIndexEntry::start(t),
+                    ),
+                },
+                Some(ti) => {
+                    let layer = self.edge.layer().expect("Exploded edge should have layer");
+                    time_semantics.temporal_edge_prop_exploded_last_at(
+                        edge.as_ref(),
+                        &self.graph,
+                        ti,
+                        layer,
+                        id,
+                        TimeIndexEntry::start(t),
+                    )
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -460,7 +666,13 @@ impl<'graph, G1: GraphViewOps<'graph>, GH1: GraphViewOps<'graph>> Hash for EdgeV
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "EdgeView({:?}, {:?})", self.src().id(), self.dst().id())
+        f.debug_struct("EdgeView")
+            .field("src", &self.src().id())
+            .field("dst", &self.dst().id())
+            .field("time", &self.time().ok())
+            .field("layer", &self.layer_name().ok())
+            .field("properties", &self.properties())
+            .finish()
     }
 }
 
@@ -495,10 +707,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 
 #[cfg(test)]
 mod test_edge {
-    use crate::{
-        core::IntoPropMap, db::api::view::time::TimeOps, prelude::*, test_storage,
-        test_utils::test_graph,
-    };
+    use crate::{db::api::view::time::TimeOps, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
     use raphtory_api::core::storage::arc_str::ArcStr;
     use std::collections::HashMap;
@@ -605,6 +814,7 @@ mod test_edge {
     fn test_constant_property_additions() {
         let g = Graph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
+        assert_eq!(e.edge.layer(), Some(0));
         assert!(e
             .add_constant_properties([("test1", "test1")], None)
             .is_ok()); // adds properties to layer `"test"`

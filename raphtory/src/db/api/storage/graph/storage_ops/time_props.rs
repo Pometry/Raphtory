@@ -1,50 +1,43 @@
+use std::ops::Deref;
+
 use super::GraphStorage;
 use crate::{
-    core::{
-        utils::{errors::GraphError, iter::GenLockedIter},
-        PropType,
-    },
+    core::utils::iter::GenLockedIter,
     db::api::{
         properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
-        storage::graph::tprop_storage_ops::TPropOps,
         view::BoxedLIter,
     },
     prelude::Prop,
 };
-use chrono::{DateTime, Utc};
-use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::properties::{prop::PropType, tprop::TPropOps},
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    iter::IntoDynBoxed,
 };
-use std::ops::Deref;
 
 impl TemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
-    fn temporal_history(&self, id: usize) -> Vec<TimeIndexEntry> {
+
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter().map(|(t, _)| t).collect())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|prop| GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed()))
+            .into_dyn_boxed()
     }
 
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
-        Box::new(
-            self.graph_meta()
-                .get_temporal_prop(id)
-                .into_iter()
-                .flat_map(|prop| {
-                    GenLockedIter::from(prop, |prop| Box::new(prop.iter().map(|(t, _)| t)))
-                }),
-        )
-    }
-
-    fn temporal_values(&self, id: usize) -> Vec<Prop> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(id)
-            .map(|prop| prop.iter_t().map(|(_, v)| v).collect())
-            .unwrap_or_default()
+            .into_iter()
+            .flat_map(|prop| {
+                GenLockedIter::from(prop, |prop| prop.deref().iter().rev().into_dyn_boxed())
+            })
+            .into_dyn_boxed()
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
@@ -53,16 +46,6 @@ impl TemporalPropertyViewOps for GraphStorage {
                 .last_before(TimeIndexEntry::MAX)
                 .map(|(_, v)| v)
         })
-    }
-
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
-        match self.graph_meta().get_temporal_prop(id) {
-            Some(tprop) => tprop
-                .iter_t()
-                .map(|(t, _)| t.dt().map_err(GraphError::from))
-                .collect::<Result<Vec<_>, GraphError>>(),
-            None => Ok(Vec::new()),
-        }
     }
 
     fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {

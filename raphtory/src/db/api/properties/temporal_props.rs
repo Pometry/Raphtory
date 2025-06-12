@@ -1,32 +1,53 @@
-use crate::core::utils::errors::GraphError;
-use crate::{
-    core::{Prop, PropType, PropUnwrap},
-    db::api::{
-        properties::internal::PropertiesOps,
-        view::{
-            history::{History, InternalHistoryOps},
-            BoxedLIter,
-        },
-    },
-};
-use arrow_array::ArrayRef;
+use crate::db::api::{properties::internal::PropertiesOps, view::BoxedLIter};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType, PropUnwrap},
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+};
 use rustc_hash::FxHashMap;
 use std::{
     collections::{HashMap, HashSet},
+    fmt::{Debug, Formatter},
     iter::Zip,
     sync::Arc,
 };
 
+#[cfg(feature = "arrow")]
+use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
+
 #[derive(Clone)]
-pub struct TemporalPropertyView<P: PropertiesOps + Clone> {
+pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) id: usize,
     pub(crate) props: P,
 }
 
-impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
+impl<P: PropertiesOps> Debug for TemporalPropertyView<P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TemporalPropertyView")
+            .field("history", &self.iter().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
+impl<P: PropertiesOps> PartialEq for TemporalPropertyView<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<P: PropertiesOps, RHS, V> PartialEq<RHS> for TemporalPropertyView<P>
+where
+    for<'a> &'a RHS: IntoIterator<Item = &'a (i64, V)>,
+    V: Clone + Into<Prop>,
+{
+    fn eq(&self, other: &RHS) -> bool {
+        self.iter()
+            .eq(other.into_iter().map(|(t, v)| (*t, v.clone().into())))
+    }
+}
+
+impl<P: PropertiesOps> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
     }
@@ -38,11 +59,20 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     pub fn dtype(&self) -> PropType {
         self.props.dtype(self.id)
     }
-    pub fn history(&self) -> History<TemporalPropertyView<P>> {
-        // TODO: Change this to history object?
-        History::new((*self).clone())
+
+    pub fn id(&self) -> usize {
+        self.id
     }
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+
+    pub fn history(&self) -> BoxedLIter<i64> {
+        self.props.temporal_history_iter(self.id)
+    }
+
+    pub fn history_rev(&self) -> BoxedLIter<i64> {
+        self.props.temporal_history_iter_rev(self.id)
+    }
+
+    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.props.temporal_history_date_time(self.id)
     }
     pub fn values(&self) -> BoxedLIter<Prop> {
@@ -50,21 +80,21 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
-        InternalHistoryOps::iter(self)
-            .map(|t| t.t())
-            .zip(self.values())
+        self.history().zip(self.values())
+    }
+
+    pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
+        self.props.temporal_iter(self.id)
     }
 
     pub fn histories(&self) -> impl Iterator<Item = (i64, Prop)> + '_ {
         self.iter()
-    } // TODO: What about histories?
+    }
 
-    pub fn histories_date_time(
-        &self,
-    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, GraphError> {
+    pub fn histories_date_time(&self) -> Option<impl Iterator<Item = (DateTime<Utc>, Prop)>> {
         let hist = self.history_date_time()?;
         let vals = self.values().collect::<Vec<_>>();
-        Ok(hist.into_iter().zip(vals))
+        Some(hist.into_iter().zip(vals))
     }
 
     pub fn at(&self, t: i64) -> Option<Prop> {
@@ -75,7 +105,7 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn unique(&self) -> Vec<Prop> {
-        let unique_props: HashSet<_> = self.values().into_iter().collect();
+        let unique_props: HashSet<_> = self.values().collect();
         unique_props.into_iter().collect()
     }
 
@@ -110,23 +140,23 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     }
 }
 
-impl<P: PropertiesOps + Clone> IntoIterator for TemporalPropertyView<P> {
+impl<P: PropertiesOps> IntoIterator for TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history().iter().map(|t| t.t()).collect::<Vec<_>>();
+        let hist = self.history().collect::<Vec<_>>();
         let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
 }
 
-impl<P: PropertiesOps + Clone> IntoIterator for &TemporalPropertyView<P> {
+impl<P: PropertiesOps> IntoIterator for &TemporalPropertyView<P> {
     type Item = (i64, Prop);
     type IntoIter = Zip<std::vec::IntoIter<i64>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history().iter().map(|t| t.t()).collect::<Vec<_>>();
+        let hist = self.history().collect::<Vec<_>>();
         let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
@@ -202,7 +232,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     }
 }
 
-impl<P: PropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
+impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
     fn into_u8(self) -> Option<u8> {
         self.latest().into_u8()
     }
@@ -255,15 +285,18 @@ impl<P: PropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_ndtime()
     }
 
-    fn into_array(self) -> Option<ArrayRef> {
-        self.latest().into_array()
-    }
-
     fn as_f64(&self) -> Option<f64> {
         self.latest().as_f64()
     }
 
     fn into_decimal(self) -> Option<BigDecimal> {
         self.latest().into_decimal()
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl<P: PropertiesOps> PropArrayUnwrap for TemporalPropertyView<P> {
+    fn into_array(self) -> Option<ArrayRef> {
+        self.latest().into_array()
     }
 }

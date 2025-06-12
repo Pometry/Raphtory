@@ -1,24 +1,27 @@
 use crate::{
-    core::{entities::LayerIds, utils::errors::GraphError},
+    core::entities::LayerIds,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
-        graph::views::filter::internal::InternalEdgeFilterOps,
+        graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-
-use crate::db::{api::view::internal::InheritStorageOps, graph::views::filter::PropertyFilter};
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::edges::edge_ref::EdgeStorageRef,
+};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -28,7 +31,7 @@ pub struct EdgePropertyFilteredGraph<G> {
     filter: PropertyFilter,
 }
 
-impl<'graph, G> EdgePropertyFilteredGraph<G> {
+impl<G> EdgePropertyFilteredGraph<G> {
     pub(crate) fn new(
         graph: G,
         t_prop_id: Option<usize>,
@@ -44,7 +47,7 @@ impl<'graph, G> EdgePropertyFilteredGraph<G> {
     }
 }
 
-impl InternalEdgeFilterOps for PropertyFilter {
+impl CreateEdgeFilter for PropertyFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgePropertyFilteredGraph<G>;
 
     fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
@@ -59,7 +62,7 @@ impl InternalEdgeFilterOps for PropertyFilter {
     }
 }
 
-impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
+impl<G> Base for EdgePropertyFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -70,7 +73,7 @@ impl<'graph, G> Base for EdgePropertyFilteredGraph<G> {
 impl<G> Static for EdgePropertyFilteredGraph<G> {}
 impl<G> Immutable for EdgePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgePropertyFilteredGraph<G> {}
@@ -87,9 +90,21 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let edge = self.core_edge(eid.edge);
+            self.filter
+                .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge.as_ref())
+        }
     }
 
     #[inline]

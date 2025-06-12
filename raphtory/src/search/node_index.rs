@@ -2,29 +2,23 @@ use crate::{
     core::{
         entities::{nodes::node_ref::NodeRef, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
-        utils::errors::GraphError,
     },
-    db::{
-        api::{
-            properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
-            },
-            storage::graph::storage_ops::GraphStorage,
-        },
-        graph::node::NodeView,
-    },
+    db::{api::view::IndexSpec, graph::node::NodeView},
+    errors::GraphError,
     prelude::*,
     search::{
         entity_index::EntityIndex,
         fields::{NODE_ID, NODE_NAME, NODE_NAME_TOKENIZED, NODE_TYPE, NODE_TYPE_TOKENIZED},
-        TOKENIZER,
+        resolve_props, TOKENIZER,
     },
 };
+use ahash::HashSet;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
 use std::{
     fmt::{Debug, Formatter},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use tantivy::{
     collector::TopDocs,
@@ -128,6 +122,16 @@ impl NodeIndex {
         })
     }
 
+    pub(crate) fn resolve_const_props(&self) -> HashSet<usize> {
+        let props = self.entity_index.const_property_indexes.read();
+        resolve_props(&props)
+    }
+
+    pub(crate) fn resolve_temp_props(&self) -> HashSet<usize> {
+        let props = self.entity_index.temporal_property_indexes.read();
+        resolve_props(&props)
+    }
+
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = self.entity_index.reader.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
@@ -185,7 +189,7 @@ impl NodeIndex {
             .get_field(format!("{field_name}_tokenized").as_ref())
     }
 
-    fn create_document<'a>(
+    fn create_document(
         &self,
         node_id: u64,
         node_name: String,
@@ -205,17 +209,13 @@ impl NodeIndex {
     fn index_node_c(
         &self,
         node_id: VID,
-        const_writers: &mut [Option<IndexWriter>],
-        const_props: &[(usize, Prop)],
+        writers: &mut [Option<IndexWriter>],
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let node_id = node_id.as_u64();
-        self.entity_index.index_node_const_properties(
-            node_id,
-            const_writers,
-            const_props.iter().map(|(id, prop)| (*id, prop)),
-        )?;
-
-        self.entity_index.commit_writers(const_writers)
+        self.entity_index
+            .index_node_const_properties(node_id, writers, props)?;
+        self.entity_index.commit_writers(writers)
     }
 
     fn index_node_t(
@@ -226,15 +226,11 @@ impl NodeIndex {
         node_type: Option<ArcStr>,
         writer: &mut IndexWriter,
         temporal_writers: &mut [Option<IndexWriter>],
-        temporal_props: &[(usize, Prop)],
+        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let vid_u64 = node_id.inner().as_u64();
-        self.entity_index.index_node_temporal_properties(
-            time,
-            vid_u64,
-            temporal_writers,
-            temporal_props.iter().map(|(id, prop)| (*id, prop)),
-        )?;
+        self.entity_index
+            .index_node_temporal_properties(time, vid_u64, temporal_writers, props)?;
 
         // Check if the node document is already in the index,
         // if it does skip adding a new doc for same node
@@ -254,7 +250,7 @@ impl NodeIndex {
 
     fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G, GH>,
+        node: NodeView<'graph, G, GH>,
         writer: &IndexWriter,
         const_writers: &[Option<IndexWriter>],
         temporal_writers: &[Option<IndexWriter>],
@@ -266,7 +262,11 @@ impl NodeIndex {
         self.entity_index.index_node_const_properties(
             node_id,
             const_writers,
-            node.properties().constant().iter_id(),
+            &*node
+                .properties()
+                .constant()
+                .iter_id()
+                .collect::<Vec<(usize, Prop)>>(),
         )?;
 
         for (t, temporal_properties) in node.rows() {
@@ -274,7 +274,7 @@ impl NodeIndex {
                 t,
                 node_id,
                 temporal_writers,
-                temporal_properties,
+                &*temporal_properties,
             )?;
         }
 
@@ -285,66 +285,51 @@ impl NodeIndex {
     }
 
     pub(crate) fn index_nodes(
+        &self,
         graph: &GraphStorage,
-        path: Option<&Path>,
-    ) -> Result<NodeIndex, GraphError> {
-        let node_index_path = path.as_deref().map(|p| p.join("nodes"));
-        let node_index = NodeIndex::new(&node_index_path)?;
-
+        path: Option<PathBuf>,
+        index_spec: &IndexSpec,
+    ) -> Result<(), GraphError> {
         // Initialize property indexes and get their writers
-        let const_property_keys = graph.node_meta().const_prop_meta().get_keys().into_iter();
-        let const_properties_index_path = node_index_path
-            .as_deref()
-            .map(|p| p.join("const_properties"));
-        let mut const_writers = node_index
-            .entity_index
-            .initialize_node_const_property_indexes(
-                graph,
-                const_property_keys,
-                &const_properties_index_path,
-            )?;
+        let const_properties_index_path = path.as_deref().map(|p| p.join("const_properties"));
+        let mut const_writers = self.entity_index.initialize_node_const_property_indexes(
+            graph.node_meta().const_prop_meta(),
+            &const_properties_index_path,
+            &index_spec.node_const_props,
+        )?;
 
-        let temporal_property_keys = graph
-            .node_meta()
-            .temporal_prop_meta()
-            .get_keys()
-            .into_iter();
-        let temporal_properties_index_path = node_index_path
-            .as_deref()
-            .map(|p| p.join("temporal_properties"));
-        let mut temporal_writers = node_index
+        let temporal_properties_index_path = path.as_deref().map(|p| p.join("temporal_properties"));
+        let mut temporal_writers = self
             .entity_index
             .initialize_node_temporal_property_indexes(
-                graph,
-                temporal_property_keys,
+                graph.node_meta().temporal_prop_meta(),
                 &temporal_properties_index_path,
+                &index_spec.node_temp_props,
             )?;
 
         // Index nodes in parallel
-        let mut writer = node_index.entity_index.index.writer(100_000_000)?;
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
         let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
         v_ids.par_chunks(128).try_for_each(|v_ids| {
             for v_id in v_ids {
                 if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                    node_index.index_node(node, &writer, &const_writers, &temporal_writers)?;
+                    self.index_node(node, &writer, &const_writers, &temporal_writers)?;
                 }
             }
             Ok::<(), GraphError>(())
         })?;
 
         // Commit writers
-        node_index.entity_index.commit_writers(&mut const_writers)?;
-        node_index
-            .entity_index
-            .commit_writers(&mut temporal_writers)?;
+        self.entity_index.commit_writers(&mut const_writers)?;
+        self.entity_index.commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
         // Reload readers
-        node_index.entity_index.reload_const_property_indexes()?;
-        node_index.entity_index.reload_temporal_property_indexes()?;
-        node_index.entity_index.reader.reload()?;
+        self.entity_index.reload_const_property_indexes()?;
+        self.entity_index.reload_temporal_property_indexes()?;
+        self.entity_index.reader.reload()?;
 
-        Ok(node_index)
+        Ok(())
     }
 
     pub(crate) fn add_node_update(
@@ -359,10 +344,7 @@ impl NodeIndex {
             .expect("Node for internal id should exist.")
             .at(t.t());
 
-        let temporal_property_ids = node.temporal_prop_ids();
-        let mut temporal_writers = self
-            .entity_index
-            .get_temporal_property_writers(temporal_property_ids)?;
+        let mut temporal_writers = self.entity_index.get_temporal_property_writers(props)?;
 
         let mut writer = self.entity_index.index.writer(100_000_000)?;
         self.index_node_t(
@@ -375,6 +357,7 @@ impl NodeIndex {
             props,
         )?;
 
+        self.entity_index.reload_temporal_property_indexes()?;
         self.entity_index.reader.reload()?;
 
         Ok(())
@@ -382,18 +365,10 @@ impl NodeIndex {
 
     pub(crate) fn add_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.as_u64() as usize))
-            .expect("Node for internal id should exist.");
-
-        let const_property_ids = node.const_prop_ids();
-        let mut const_writers = self
-            .entity_index
-            .get_const_property_writers(const_property_ids)?;
+        let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         self.index_node_c(node_id, &mut const_writers, props)?;
 
@@ -404,24 +379,16 @@ impl NodeIndex {
 
     pub(crate) fn update_node_constant_properties(
         &self,
-        graph: &GraphStorage,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.as_u64() as usize))
-            .expect("Node for internal id should exist.");
-
-        let const_property_ids = node.const_prop_ids();
-        let mut const_writers = self
-            .entity_index
-            .get_const_property_writers(const_property_ids)?;
+        let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         // Delete existing constant property document
         self.entity_index.delete_const_properties_index_docs(
             node_id.as_u64(),
             &mut const_writers,
-            props.iter().map(|(id, prop)| (*id, prop)),
+            props,
         )?;
 
         // Reindex the node's constant properties

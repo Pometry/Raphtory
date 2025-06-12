@@ -1,22 +1,28 @@
 use crate::{
-    core::{sort_comparable_props, utils::errors::GraphError, Prop},
     db::{
         api::{
             properties::{internal::PropertiesOps, Properties},
-            storage::graph::{
-                edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-                nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-            },
             view::{node::NodeViewOps, EdgeViewOps},
         },
         graph::{
             edge::EdgeView, node::NodeView, views::filter::model::filter_operator::FilterOperator,
         },
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::props::Meta, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::{
+        meta::Meta,
+        prop::{sort_comparable_props, Prop},
+    },
+    storage::arc_str::ArcStr,
+};
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+};
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,7 +77,7 @@ pub struct PropertyFilter {
 impl Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prop_ref_str = match &self.prop_ref {
-            PropertyRef::Property(name) => format!("{}", name),
+            PropertyRef::Property(name) => name.to_string(),
             PropertyRef::ConstantProperty(name) => format!("const({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Latest) => {
@@ -261,7 +267,7 @@ impl PropertyFilter {
                 let prop_value = c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id));
                 self.matches(prop_value.as_ref())
             }
-            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.map_or(false, |prop_id| {
+            PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.is_some_and(|prop_id| {
                 props
                     .temporal()
                     .get_by_id(prop_id)

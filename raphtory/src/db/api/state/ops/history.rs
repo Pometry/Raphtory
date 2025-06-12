@@ -1,17 +1,13 @@
-use chrono::{DateTime, Utc};
 use crate::{
-    db::{
-        api::{
-            state::{ops::NodeOpFilter, NodeOp},
-            storage::graph::storage_ops::GraphStorage,
-            view::history::History,
-        },
-        graph::node::NodeView,
+    db::api::{
+        state::{ops::NodeOpFilter, NodeOp},
+        view::internal::NodeTimeSemanticsOps,
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
-use raphtory_api::core::storage::timeindex::TimeError;
+use itertools::Itertools;
+use raphtory_api::core::entities::VID;
+use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]
 pub struct EarliestTime<G> {
@@ -21,14 +17,10 @@ pub struct EarliestTime<G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
     type Output = Option<i64>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_earliest_time(node).map(|t| t.t())
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> EarliestTime<G> {
-    pub fn dt(self) -> AsDateTime<EarliestTime<G>> {
-        AsDateTime{op: self}
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.core_node(node);
+        semantics.node_earliest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -58,8 +50,10 @@ pub struct LatestTime<G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
     type Output = Option<i64>;
 
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        self.graph.node_latest_time(node).map(|t| t.t())
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.core_node(node);
+        semantics.node_latest_time(node.as_ref(), &self.graph)
     }
 }
 
@@ -81,55 +75,27 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> LatestTime<G> {
-    pub fn dt(self) -> AsDateTime<LatestTime<G>> {
-        AsDateTime{op: self}
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct AsDateTime<Op> {
-    pub(crate) op: Op,
+pub struct History<G> {
+    pub(crate) graph: G,
 }
 
-impl<Op: NodeOp<Output=Option<i64>>> NodeOp for AsDateTime<Op> {
-    type Output = Result<Option<DateTime<Utc>>, TimeError>;
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
+    type Output = Vec<i64>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.op.apply(storage, node).map(|t| t.dt()).transpose()
+        let semantics = self.graph.node_time_semantics();
+        let node = storage.core_node(node);
+        semantics
+            .node_history(node.as_ref(), &self.graph)
+            .dedup()
+            .collect()
     }
 }
 
-impl<'graph, Op: NodeOpFilter<'graph>> NodeOpFilter<'graph> for AsDateTime<Op> {
-    type Graph = Op::Graph;
-    type Filtered<G: GraphViewOps<'graph>> = AsDateTime<Op::Filtered<G>>;
-
-    fn graph(&self) -> &Self::Graph {
-        self.op.graph()
-    }
-
-    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G> {
-        AsDateTime{op: self.op.filtered(graph)}
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct HistoryOp<G> {
-    pub(crate) graph: G,
-    // _marker: std::marker::PhantomData<&'graph ()>,
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<G> {
-    type Output = History<NodeView<G>>;
-
-    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
-        History::new(NodeView::new_internal(self.graph.clone(), node))
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -139,7 +105,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<G> {
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        HistoryOp {
+        History {
             graph: filtered_graph,
         }
     }

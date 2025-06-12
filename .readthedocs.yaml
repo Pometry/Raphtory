@@ -14,7 +14,7 @@ build:
     pre_build:
       - curl https://sh.rustup.rs -sSf | sh -s -- -y
       - pip install maturin[patchelf]
-      - PATH=$HOME/.cargo/bin:$PATH make install-python
+      - PATH=$HOME/.cargo/bin:$PATH make build-python-rtd
 
 conda:
   environment: .environment.yml

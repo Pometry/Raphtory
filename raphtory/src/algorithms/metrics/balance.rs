@@ -3,13 +3,14 @@
 //! This algorithm provides functionality to accumulate (or sum) weights on nodes
 //! in a graph.
 use crate::{
-    core::{utils::errors::GraphError, Direction},
     db::{
         api::{state::NodeState, view::StaticGraphViewOps},
         graph::node::NodeView,
     },
+    errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::Direction;
 use rayon::prelude::*;
 
 /// Computes the net sum of weights for a given node based on edge direction.
@@ -32,7 +33,7 @@ use rayon::prelude::*;
 /// # Returns
 /// An `f64` which is the net sum of weights for the node considering the specified direction.
 fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    v: &NodeView<G, GH>,
+    v: &NodeView<'graph, G, GH>,
     name: &str,
     direction: Direction,
 ) -> f64 {
@@ -45,7 +46,6 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .flat_map(|prop| {
                 prop.temporal().get(name).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
@@ -57,7 +57,6 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .flat_map(|prop| {
                 prop.temporal().get(name).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
@@ -130,12 +129,12 @@ pub fn balance<G: StaticGraphViewOps>(
 mod sum_weight_test {
     use crate::{
         algorithms::metrics::balance::balance,
-        core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::GraphViewOps,
         test_storage,
     };
     use pretty_assertions::assert_eq;
+    use raphtory_api::core::{entities::properties::prop::Prop, Direction};
     use std::collections::HashMap;
 
     #[test]

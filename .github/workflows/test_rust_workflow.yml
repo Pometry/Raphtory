@@ -58,7 +58,7 @@ jobs:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --all --no-default-features --cargo-profile test-ci
+          cargo nextest run --all --no-default-features --cargo-profile build-fast
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"

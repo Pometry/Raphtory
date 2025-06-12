@@ -1,26 +1,26 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::nodes::node_ref::NodeStorageRef,
-            view::{
-                internal::{
-                    Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
-                    InheritTimeSemantics, NodeFilterOps, NodeHistoryFilter, Static,
-                },
-                Base,
+            view::internal::{
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
+                InternalNodeFilterOps, NodeHistoryFilter, Static,
             },
         },
-        graph::views::filter::{internal::InternalNodeFilterOps, model::OrFilter},
+        graph::views::filter::{internal::CreateNodeFilter, model::OrFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{LayerIds, VID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, VID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ pub struct NodeOrFilteredGraph<G, L, R> {
     right: R,
 }
 
-impl<L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps for OrFilter<L, R> {
+impl<L: CreateNodeFilter, R: CreateNodeFilter> CreateNodeFilter for OrFilter<L, R> {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>>
         = NodeOrFilteredGraph<G, L::NodeFiltered<'graph, G>, R::NodeFiltered<'graph, G>>
     where
@@ -57,7 +57,7 @@ impl<G, L, R> Base for NodeOrFilteredGraph<G, L, R> {
 impl<G, L, R> Static for NodeOrFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for NodeOrFilteredGraph<G, L, R> {}
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreOps for NodeOrFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreGraphOps for NodeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for NodeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritLayerOps for NodeOrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritListOps for NodeOrFilteredGraph<G, L, R> {}
@@ -129,24 +129,27 @@ where
     }
 }
 
-impl<G, L: NodeFilterOps, R: NodeFilterOps> NodeFilterOps for NodeOrFilteredGraph<G, L, R> {
+impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps
+    for NodeOrFilteredGraph<G, L, R>
+{
     #[inline]
-    fn nodes_filtered(&self) -> bool {
-        self.left.nodes_filtered() && self.right.nodes_filtered()
+    fn internal_nodes_filtered(&self) -> bool {
+        self.left.internal_nodes_filtered() && self.right.internal_nodes_filtered()
     }
 
     #[inline]
-    fn node_list_trusted(&self) -> bool {
-        self.left.node_list_trusted() && self.right.node_list_trusted()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.left.internal_node_list_trusted() && self.right.internal_node_list_trusted()
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.filter_node(node.clone(), layer_ids) || self.right.filter_node(node, layer_ids)
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.left.internal_filter_node(node, layer_ids)
+            || self.right.internal_filter_node(node, layer_ids)
     }
 }

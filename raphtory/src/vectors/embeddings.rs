@@ -1,11 +1,37 @@
-use crate::vectors::Embedding;
+use super::cache::VectorCache;
+use crate::{errors::GraphResult, vectors::Embedding};
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
+use futures_util::{future::BoxFuture, Stream, StreamExt};
+use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
 use tracing::info;
 
-use super::EmbeddingResult;
+const CHUNK_SIZE: usize = 1000;
+
+pub(crate) type EmbeddingError = Box<dyn std::error::Error + Send + Sync>;
+pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
+
+pub trait EmbeddingFunction: Send + Sync {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>>;
+}
+
+impl<T, F> EmbeddingFunction for T
+where
+    T: Fn(Vec<String>) -> F + Send + Sync,
+    F: Future<Output = EmbeddingResult<Vec<Embedding>>> + Send + 'static,
+{
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+        Box::pin(self(texts))
+    }
+}
+
+impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+        Box::pin(self.deref().call(texts))
+    }
+}
 
 pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
     info!("computing embeddings for {} texts", texts.len());
@@ -26,32 +52,30 @@ pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embeddi
         .collect())
 }
 
-// this is currently commented out so we don't need to add any new dependencies
-// but might be potentially useful in the future
-// async fn sentence_transformers_embeddings(texts: Vec<String>) -> Vec<Embedding> {
-//     info!("computing embeddings for {} texts", texts.len());
-//     Python::with_gil(|py| {
-//         let sentence_transformers = py.import("sentence_transformers")?;
-//         let locals = [("sentence_transformers", sentence_transformers)].into_py_dict(py);
-//         locals.set_item("texts", texts);
-//
-//         let pyarray: &PyArray2<f32> = py
-//             .eval(
-//                 &format!(
-//                     "sentence_transformers.SentenceTransformer('thenlper/gte-small').encode(texts)"
-//                 ),
-//                 Some(locals),
-//                 None,
-//             )?
-//             .extract()?;
-//
-//         let readonly = pyarray.readonly();
-//         let chunks = readonly.as_slice().unwrap().chunks(384).into_iter();
-//         let embeddings = chunks
-//             .map(|chunk| chunk.iter().copied().collect_vec())
-//             .collect_vec();
-//
-//         Ok::<Vec<Vec<f32>>, Box<dyn std::error::Error>>(embeddings)
-//     })
-//     .unwrap()
-// }
+pub(super) fn compute_embeddings<'a, I>(
+    documents: I,
+    cache: &'a VectorCache,
+) -> impl Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
+where
+    I: Iterator<Item = (u32, String)> + Send + 'a,
+{
+    futures_util::stream::iter(documents)
+        .chunks(CHUNK_SIZE)
+        .then(|chunk| async {
+            let texts = chunk.iter().map(|(_, text)| text.clone()).collect();
+            let stream: Pin<Box<dyn Stream<Item = GraphResult<(u32, Embedding)>> + Send>> =
+                match cache.get_embeddings(texts).await {
+                    Ok(embeddings) => {
+                        let embedded: Vec<_> = chunk
+                            .into_iter()
+                            .zip(embeddings)
+                            .map(|((id, _), vector)| Ok((id, vector)))
+                            .collect(); // TODO: do I really need this collect?
+                        Box::pin(futures_util::stream::iter(embedded))
+                    }
+                    Err(error) => Box::pin(futures_util::stream::iter([Err(error)])),
+                };
+            stream
+        })
+        .flatten()
+}

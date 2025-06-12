@@ -1,5 +1,4 @@
 use crate::{
-    core::Prop,
     db::api::{
         properties::{
             dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
@@ -25,7 +24,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -117,7 +116,7 @@ impl PyProperties {
 
     /// Get the names for all properties (includes temporal and static properties)
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys().map(|k| k.clone()).collect()
+        self.props.keys().collect()
     }
 
     /// Get the values of the properties
@@ -289,7 +288,7 @@ impl PropertiesView {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().map(|k| k.clone()).sorted().collect_vec())
+            .map(|p| p.keys().sorted().collect_vec())
             .kmerge()
             .dedup()
             .collect()
@@ -433,7 +432,7 @@ impl PyNestedPropsIterable {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             // FIXME: Still have to clone all those strings which sucks
-            .flat_map(|it| it.map(|p| p.keys().map(|k| k.clone()).collect_vec()))
+            .flat_map(|it| it.map(|p| p.keys().collect_vec()))
             .kmerge()
             .dedup()
             .collect()

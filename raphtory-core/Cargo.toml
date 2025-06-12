@@ -1,0 +1,38 @@
+[package]
+name = "raphtory-core"
+version.workspace = true
+documentation.workspace = true
+repository.workspace = true
+license.workspace = true
+readme.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+
+[dependencies]
+raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+dashmap = { workspace = true }
+either = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+rustc-hash = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+iter-enum = { workspace = true }
+bigdecimal = { workspace = true }
+lock_api = { workspace = true }
+rayon = { workspace = true }
+parking_lot = { workspace = true }
+itertools = { workspace = true }
+once_cell = { workspace = true }
+ouroboros = { workspace = true }
+regex = "1.11.1"
+pyo3 = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[features]
+arrow = ["raphtory-api/arrow"]
+python = ["dep:pyo3", "raphtory-api/python"]

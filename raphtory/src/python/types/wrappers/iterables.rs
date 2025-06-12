@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::{i64, iter::Sum};
+use std::iter::Sum;
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where

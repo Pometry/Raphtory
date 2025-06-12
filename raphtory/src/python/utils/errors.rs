@@ -1,15 +1,6 @@
-use crate::{
-    core::utils::{errors::GraphError, time::error::ParseTimeError},
-    io::csv_loader::CsvErr,
-};
-use pyo3::{exceptions::PyException, PyErr};
-use std::error::Error;
-
-impl From<ParseTimeError> for PyErr {
-    fn from(value: ParseTimeError) -> Self {
-        adapt_err_value(&value)
-    }
-}
+use crate::{errors::GraphError, io::csv_loader::CsvErr};
+use pyo3::PyErr;
+use raphtory_api::python::error::adapt_err_value;
 
 impl From<GraphError> for PyErr {
     fn from(value: GraphError) -> Self {
@@ -21,12 +12,4 @@ impl From<CsvErr> for PyErr {
     fn from(value: CsvErr) -> Self {
         adapt_err_value(&value)
     }
-}
-
-pub fn adapt_err_value<E>(err: &E) -> PyErr
-where
-    E: Error + ?Sized,
-{
-    let error_log = display_error_chain::DisplayErrorChain::new(err).to_string();
-    PyException::new_err(error_log)
 }
