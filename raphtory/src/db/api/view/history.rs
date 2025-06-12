@@ -2,21 +2,23 @@
 #![allow(dead_code)]
 
 use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use crate::core::utils::iter::GenLockedIter;
 use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::db::api::view::internal::{InternalLayerOps, TimeSemantics};
+use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps, TimeSemantics};
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
-use crate::db::graph::edge::EdgeView;
+use crate::db::graph::edge::{edge_valid_layer, EdgeView};
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
-use arrow_ipc::Time;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{LayerIds, VID};
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::slice::Iter;
 use std::sync::Arc;
+use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -235,14 +237,23 @@ impl InternalHistoryOps for CompositeHistory {
 
 // TODO: Change earliest_time and latest_time implementations to use the built in earliest_time and latest_time functions
 // They are probably more efficient. New PR will have iter_rev implementation
-impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
+impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeView<'graph, G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.graph.node_history(self.node)
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        let graph = &self.graph;
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_history(node.as_ref(), graph)
+                .map(|t| TimeIndexEntry::from(t))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     // Implementation is not efficient, only for testing purposes
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self.graph.node_history(self.node).collect_vec();
+        let mut x = self.iter().collect_vec();
         x.reverse();
         x.into_iter().into_dyn_boxed()
     }
@@ -256,9 +267,34 @@ impl<G: TimeSemantics + Send + Sync> InternalHistoryOps for NodeView<G> {
     }
 }
 
-impl<G: TimeSemantics + InternalLayerOps + Send + Sync> InternalHistoryOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.graph.edge_history(self.edge, self.graph.layer_ids())
+        let g = &self.graph;
+        let e = self.edge.clone();
+        if edge_valid_layer(g, e) {
+            match e.time() {
+                Some(t) => vec![t].into_iter().into_dyn_boxed(),
+                None => {
+                    let time_semantics = g.edge_time_semantics();
+                    GenLockedIter::from(e, move |e| {
+                        let edge = g.core_edge(e.pid());
+                        let layer = e.layer();
+                        match layer {
+                            None => time_semantics
+                                .edge_history(edge.as_ref(), g, g.layer_ids())
+                                .map(|(ti, _)| ti)
+                                .into_dyn_boxed(),
+                            Some(layer) => time_semantics
+                                .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
+                                .map(|(ti, _)| ti)
+                                .into_dyn_boxed(),
+                        }
+                    }).into_dyn_boxed()
+                }
+            }
+        } else {
+            vec![].into_iter().into_dyn_boxed()
+        }
     }
 
     // FIXME: Implementation is not efficient, only for testing purposes

@@ -635,7 +635,7 @@ impl PyNodes {
     /// Returns:
     ///    HistoryView: a view of the node histories
     ///
-    fn history(&self) -> LazyNodeState<'static, ops::History<DynamicGraph>, DynamicGraph> {
+    fn history(&self) -> LazyNodeState<'static, ops::HistoryOp<DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
@@ -657,7 +657,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::History<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        ops::Map<ops::HistoryOp<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
         DynamicGraph,
     > {
         self.nodes.history_date_time()

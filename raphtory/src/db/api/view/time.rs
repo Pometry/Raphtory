@@ -15,6 +15,7 @@ use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
+use crate::errors::GraphError;
 
 pub(crate) mod internal {
     use crate::{
@@ -92,12 +93,12 @@ pub trait TimeOps<'graph>:
     /// Return the timestamp of the start of the view or None if the view start is unbounded.
     fn start(&self) -> Option<i64>;
 
-    fn start_date_time(&self) -> Option<DateTime<Utc>>;
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
 
     /// Return the timestamp of the view or None if the view end is unbounded.
     fn end(&self) -> Option<i64>;
 
-    fn end_date_time(&self) -> Option<DateTime<Utc>>;
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
@@ -172,12 +173,12 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         self.current_filter().view_end()
     }
 
-    fn start_date_time(&self) -> Option<DateTime<Utc>> {
-        self.start()?.dt()
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.start().map(|t| t.dt()).transpose().map_err(GraphError::from)
     }
 
-    fn end_date_time(&self) -> Option<DateTime<Utc>> {
-        self.end()?.dt()
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+        self.end().map(|t| t.dt()).transpose().map_err(GraphError::from)
     }
 
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {

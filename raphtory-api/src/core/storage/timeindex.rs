@@ -35,6 +35,11 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
         DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))
     }
 
+    // fn dt(&self) -> Option<DateTime<Utc>> {
+    //     let t = self.t();
+    //     DateTime::from_timestamp_millis(t)
+    // }
+
     fn range(w: Range<i64>) -> Range<Self>;
 
     fn i(&self) -> usize {

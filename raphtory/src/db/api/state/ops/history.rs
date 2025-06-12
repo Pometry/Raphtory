@@ -76,11 +76,11 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
 }
 
 #[derive(Debug, Clone)]
-pub struct History<G> {
+pub struct HistoryOp<G> {
     pub(crate) graph: G,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<G> {
     type Output = Vec<i64>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
@@ -93,9 +93,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -105,7 +105,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        History {
+        HistoryOp {
             graph: filtered_graph,
         }
     }
