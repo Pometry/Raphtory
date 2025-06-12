@@ -52,6 +52,7 @@ impl Namespace {
                     None
                 }
             })
+            .sorted()
             .collect()
     }
 }

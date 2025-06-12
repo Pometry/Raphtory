@@ -425,4 +425,4 @@ def test_namespaces():
             }
         }
 
-        assert result == correct
+        assert sort_dict(result) == sort_dict(correct)
