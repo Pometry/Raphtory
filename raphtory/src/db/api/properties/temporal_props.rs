@@ -13,9 +13,9 @@ use std::{
     sync::Arc,
 };
 
+use crate::errors::GraphError;
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
-use crate::errors::GraphError;
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: PropertiesOps> {
@@ -92,7 +92,9 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         self.iter()
     }
 
-    pub fn histories_date_time(&self) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, GraphError> {
+    pub fn histories_date_time(
+        &self,
+    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, GraphError> {
         let hist = self.history_date_time()?;
         let vals = self.values().collect::<Vec<_>>();
         Ok(hist.into_iter().zip(vals))

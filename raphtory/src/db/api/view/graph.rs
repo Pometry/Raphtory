@@ -94,14 +94,20 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// UTC DateTime of earliest activity in the graph
     fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.earliest_time().map(|t| t.dt()).transpose().map_err(GraphError::from)
+        self.earliest_time()
+            .map(|t| t.dt())
+            .transpose()
+            .map_err(GraphError::from)
     }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<i64>;
 
     /// UTC DateTime of latest activity in the graph
     fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.latest_time().map(|t| t.dt()).transpose().map_err(GraphError::from)
+        self.latest_time()
+            .map(|t| t.dt())
+            .transpose()
+            .map_err(GraphError::from)
     }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;

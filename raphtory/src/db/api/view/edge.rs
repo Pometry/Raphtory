@@ -489,7 +489,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 match e.time() {
                     None => time_semantics
                         .edge_earliest_time(g.core_edge(e.pid()).as_ref(), g)
-                        .map(|t| t.dt()).transpose().map_err(GraphError::from),
+                        .map(|t| t.dt())
+                        .transpose()
+                        .map_err(GraphError::from),
                     Some(t) => time_semantics
                         .edge_exploded_earliest_time(
                             g.core_edge(e.pid()).as_ref(),
@@ -497,7 +499,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             t,
                             e.layer().expect("exploded edge should have layer"),
                         )
-                        .map(|t| t.dt()).transpose().map_err(GraphError::from),
+                        .map(|t| t.dt())
+                        .transpose()
+                        .map_err(GraphError::from),
                 }
             } else {
                 Ok(None)
@@ -512,7 +516,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 match e.time() {
                     None => time_semantics
                         .edge_latest_time(g.core_edge(e.pid()).as_ref(), g)
-                        .map(|t| t.dt()).transpose().map_err(GraphError::from),
+                        .map(|t| t.dt())
+                        .transpose()
+                        .map_err(GraphError::from),
                     Some(t) => time_semantics
                         .edge_exploded_latest_time(
                             g.core_edge(e.pid()).as_ref(),
@@ -520,7 +526,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             t,
                             e.layer().expect("exploded edge should have layer"),
                         )
-                        .map(|t| t.dt()).transpose().map_err(GraphError::from),
+                        .map(|t| t.dt())
+                        .transpose()
+                        .map_err(GraphError::from),
                 }
             } else {
                 Ok(None)
@@ -561,7 +569,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     fn date_time(&self) -> Self::ValueType<Result<Option<DateTime<Utc>>, GraphError>> {
-        self.map(|_, e| e.time_t().map(|t| t.dt()).transpose().map_err(GraphError::from))
+        self.map(|_, e| {
+            e.time_t()
+                .map(|t| t.dt())
+                .transpose()
+                .map_err(GraphError::from)
+        })
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer

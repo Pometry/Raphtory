@@ -12,8 +12,8 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::Direction;
 use raphtory_api::core::storage::timeindex::TimeError;
+use raphtory_api::core::Direction;
 use raphtory_storage::graph::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
@@ -79,14 +79,18 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>;
+    ) -> Self::ValueType<
+        ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+    >;
 
     /// Get the timestamp for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>>;
+    ) -> Self::ValueType<
+        ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+    >;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
@@ -207,7 +211,9 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn earliest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>> {
+    ) -> Self::ValueType<
+        ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+    > {
         let op = ops::EarliestTime {
             graph: self.graph().clone(),
         }
@@ -226,7 +232,9 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn latest_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>> {
+    ) -> Self::ValueType<
+        ops::Map<ops::LatestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
+    > {
         let op = ops::LatestTime {
             graph: self.graph().clone(),
         }
@@ -244,11 +252,16 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>> {
+    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>>
+    {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
         }
-        .map(|h| h.into_iter().map(|t| t.dt()).collect::<Result<Vec<_>, TimeError>>());
+        .map(|h| {
+            h.into_iter()
+                .map(|t| t.dt())
+                .collect::<Result<Vec<_>, TimeError>>()
+        });
         self.map(op)
     }
 

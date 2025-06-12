@@ -13,8 +13,8 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    prelude::*,
     errors::GraphError,
+    prelude::*,
 };
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;

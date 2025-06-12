@@ -5,7 +5,10 @@ use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use crate::core::utils::iter::GenLockedIter;
 use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps, TimeSemantics};
+use crate::db::api::view::internal::{
+    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
+    TimeSemantics,
+};
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use crate::db::graph::edge::{edge_valid_layer, EdgeView};
 use crate::db::graph::node::NodeView;
@@ -13,12 +16,12 @@ use crate::prelude::*;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::entities::{LayerIds, VID};
+use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 use std::cell::RefCell;
 use std::ops::Deref;
 use std::slice::Iter;
 use std::sync::Arc;
-use raphtory_storage::core_ops::CoreGraphOps;
-use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -289,7 +292,8 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for EdgeV
                                 .map(|(ti, _)| ti)
                                 .into_dyn_boxed(),
                         }
-                    }).into_dyn_boxed()
+                    })
+                    .into_dyn_boxed()
                 }
             }
         } else {
@@ -343,11 +347,7 @@ pub struct Intervals(Vec<i64>);
 
 impl Intervals {
     pub fn new(timestamps: &Vec<i64>) -> Self {
-        Intervals(
-            timestamps.windows(2)
-            .map(|w| w[1] - w[0])
-            .collect()
-        )
+        Intervals(timestamps.windows(2).map(|w| w[1] - w[0]).collect())
     }
 
     pub fn items(&self) -> &Vec<i64> {
@@ -374,7 +374,7 @@ impl Intervals {
 
         let mid = intervals_copy.len() / 2;
         if intervals_copy.len() % 2 == 0 {
-            Some((intervals_copy[mid - 1] as f64 + intervals_copy[mid] as f64)/2.0)
+            Some((intervals_copy[mid - 1] as f64 + intervals_copy[mid] as f64) / 2.0)
         } else {
             Some(intervals_copy[mid] as f64)
         }
@@ -406,7 +406,7 @@ mod tests {
     fn intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
         let timestamps = vec![1, 4, 10, 30];
         let interval = Intervals::new(&timestamps);
-        assert_eq!(interval.mean(), Some(29f64/ 3f64));
+        assert_eq!(interval.mean(), Some(29f64 / 3f64));
         let timestamps2 = vec![1];
         let interval2 = Intervals::new(&timestamps2);
         assert_eq!(interval2.mean(), None);
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn intervals_median() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 30, 31, 40];       // intervals are 29, 1, 9
+        let timestamps = vec![1, 30, 31, 40]; // intervals are 29, 1, 9
         let interval = Intervals::new(&timestamps);
         assert_eq!(interval.median(), Some(9.0));
         let timestamps2 = vec![1];
@@ -426,7 +426,7 @@ mod tests {
 
     #[test]
     fn intervals_max() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 30, 31, 40];       // intervals are 29, 1, 9
+        let timestamps = vec![1, 30, 31, 40]; // intervals are 29, 1, 9
         let interval = Intervals::new(&timestamps);
         assert_eq!(interval.max(), Some(29));
         let timestamps2 = vec![1];

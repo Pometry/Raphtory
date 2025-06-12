@@ -1,3 +1,4 @@
+use crate::errors::GraphError;
 use crate::{
     core::{
         storage::timeindex::AsTime,
@@ -15,7 +16,6 @@ use std::{
     cmp::{max, min},
     marker::PhantomData,
 };
-use crate::errors::GraphError;
 
 pub(crate) mod internal {
     use crate::{
@@ -174,11 +174,17 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     }
 
     fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.start().map(|t| t.dt()).transpose().map_err(GraphError::from)
+        self.start()
+            .map(|t| t.dt())
+            .transpose()
+            .map_err(GraphError::from)
     }
 
     fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.end().map(|t| t.dt()).transpose().map_err(GraphError::from)
+        self.end()
+            .map(|t| t.dt())
+            .transpose()
+            .map_err(GraphError::from)
     }
 
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {

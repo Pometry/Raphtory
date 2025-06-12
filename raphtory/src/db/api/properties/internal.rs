@@ -1,3 +1,4 @@
+use crate::errors::GraphError;
 use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
@@ -9,7 +10,6 @@ use raphtory_api::{
     inherit::Base,
     iter::IntoDynBoxed,
 };
-use crate::errors::GraphError;
 
 #[enum_dispatch]
 pub trait TemporalPropertyViewOps {

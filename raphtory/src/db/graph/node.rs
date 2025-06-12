@@ -26,7 +26,10 @@ use crate::{
 };
 
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter, storage::timeindex::AsTime, PropType},
+    core::{
+        entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime,
+        utils::iter::GenLockedIter, PropType,
+    },
     db::{
         api::{
             state::NodeOp,
