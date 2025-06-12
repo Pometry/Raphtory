@@ -4,6 +4,7 @@ use raphtory_graphql::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
+        index_config::DEFAULT_CREATE_INDEX,
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
             DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT, DEFAULT_OTLP_TRACING_SERVICE_NAME,
@@ -54,6 +55,9 @@ struct Args {
     #[arg(long, default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
     auth_enabled_for_reads: bool,
 
+    #[arg(long, default_value_t = DEFAULT_CREATE_INDEX)]
+    create_index: bool,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -84,9 +88,9 @@ async fn main() -> IoResult<()> {
                 .with_auth_public_key(args.auth_public_key)
                 .expect(PUBLIC_KEY_DECODING_ERR_MSG)
                 .with_auth_enabled_for_reads(args.auth_enabled_for_reads)
+                .with_create_index(args.create_index)
                 .build(),
         );
-
         GraphServer::new(args.working_dir, app_config, None)?
             .run_with_port(args.port)
             .await?;

@@ -1,6 +1,7 @@
 pub mod app_config;
 pub mod auth_config;
 pub mod cache_config;
+pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
 

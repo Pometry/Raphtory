@@ -572,13 +572,9 @@ impl GqlGraph {
             spawn(async move {
                 filter.validate()?;
                 let f: CompositeNodeFilter = filter.try_into()?;
-                Ok(self_clone
-                    .graph
-                    .search_nodes(f, limit, offset)
-                    .into_iter()
-                    .flatten()
-                    .map(|vv| vv.into())
-                    .collect())
+                let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
+                let result = nodes.into_iter().map(|vv| vv.into()).collect();
+                Ok(result)
             })
             .await
             .unwrap()
@@ -601,13 +597,9 @@ impl GqlGraph {
             spawn(async move {
                 filter.validate()?;
                 let f: CompositeEdgeFilter = filter.try_into()?;
-                Ok(self_clone
-                    .graph
-                    .search_edges(f, limit, offset)
-                    .into_iter()
-                    .flatten()
-                    .map(|vv| vv.into())
-                    .collect())
+                let edges = self_clone.graph.search_edges(f, limit, offset)?;
+                let result = edges.into_iter().map(|vv| vv.into()).collect();
+                Ok(result)
             })
             .await
             .unwrap()

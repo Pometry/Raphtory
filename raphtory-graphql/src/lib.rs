@@ -17,7 +17,7 @@ pub mod python;
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        config::app_config::AppConfig,
+        config::app_config::{AppConfig, AppConfigBuilder},
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
@@ -105,7 +105,8 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let config = AppConfigBuilder::new().with_create_index(true).build();
+        let data = Data::new(tmp_dir.path(), &config);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 

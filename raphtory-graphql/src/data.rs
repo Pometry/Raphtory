@@ -76,7 +76,7 @@ impl Data {
             .build();
 
         #[cfg(feature = "search")]
-        let create_index = true;
+        let create_index = configs.index.create_index;
         #[cfg(not(feature = "search"))]
         let create_index = false;
 

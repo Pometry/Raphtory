@@ -1,11 +1,11 @@
+use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 use crate::config::{
-    cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
+    cache_config::CacheConfig, index_config::IndexConfig, log_config::LoggingConfig,
+    otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-
-use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 
 #[derive(Debug, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
@@ -13,6 +13,7 @@ pub struct AppConfig {
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
+    pub index: IndexConfig,
 }
 
 impl Default for AppConfig {
@@ -22,6 +23,7 @@ impl Default for AppConfig {
             cache: CacheConfig::default(),
             tracing: TracingConfig::default(),
             auth: AuthConfig::default(),
+            index: IndexConfig::default(),
         }
     }
 }
@@ -31,6 +33,7 @@ pub struct AppConfigBuilder {
     cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
+    index: IndexConfig,
 }
 
 impl From<AppConfig> for AppConfigBuilder {
@@ -40,6 +43,7 @@ impl From<AppConfig> for AppConfigBuilder {
             cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
+            index: config.index,
         }
     }
 }
@@ -99,12 +103,18 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_create_index(mut self, create_index: bool) -> Self {
+        self.index.create_index = create_index;
+        self
+    }
+
     pub fn build(self) -> AppConfig {
         AppConfig {
             logging: self.logging,
             cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
+            index: self.index,
         }
     }
 }

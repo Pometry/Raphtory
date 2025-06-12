@@ -152,9 +152,6 @@ pub enum GraphError {
     #[error("Disk graph not found")]
     DiskGraphNotFound,
 
-    #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
-    IndexMissing,
-
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
 
