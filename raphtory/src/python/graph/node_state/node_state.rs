@@ -1,9 +1,6 @@
 use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::GraphError,
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             state::{
@@ -17,6 +14,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::*,
     py_borrowing_iter,
     python::{

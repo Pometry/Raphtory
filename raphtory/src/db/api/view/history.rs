@@ -5,17 +5,19 @@ use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use crate::core::utils::iter::GenLockedIter;
 use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
 use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
+use crate::db::api::view::internal::filtered_node::FilteredNodeStorageOps;
 use crate::db::api::view::internal::{
     EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
     TimeSemantics,
 };
-use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
+use crate::db::api::view::{BoxableGraphView, BoxedLIter, IntoDynBoxed};
 use crate::db::graph::edge::{edge_valid_layer, EdgeView};
 use crate::db::graph::node::NodeView;
 use crate::prelude::*;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::entities::{LayerIds, VID};
+use raphtory_api::core::storage::timeindex::TimeIndexOps;
 use raphtory_storage::core_ops::CoreGraphOps;
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 use std::cell::RefCell;
@@ -228,7 +230,6 @@ impl InternalHistoryOps for CompositeHistory {
             .into_dyn_boxed()
     }
 
-    // Performance consideration: Is it more efficient to use the kmerged iterator or to call each object's implemented earliest_time() and return the smallest?
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
@@ -254,11 +255,15 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
         .into_dyn_boxed()
     }
 
-    // Implementation is not efficient, only for testing purposes
+    // TODO: Ask about node.history() vs semantics.node_history. It seems like the first bypasses semantics filtering and returns ALL history information
+    // I can't seem to find a semantics.node_history_rev or call .rev() since its not a DoubleEndedIterator. Which one do we want here? Probably with semantics
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self.iter().collect_vec();
-        x.reverse();
-        x.into_iter().into_dyn_boxed()
+        let node = self.graph.core_node(self.node);
+        let graph = &self.graph;
+        GenLockedIter::from(node, move |node| {
+            node.history(graph).iter_rev().into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
@@ -270,30 +275,35 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for EdgeView<G> {
+impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let g = &self.graph;
-        let e = self.edge.clone();
-        if edge_valid_layer(g, e) {
+        let e = self.edge;
+        if edge_valid_layer(&g, e) {
             match e.time() {
                 Some(t) => vec![t].into_iter().into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    GenLockedIter::from(e, move |e| {
-                        let edge = g.core_edge(e.pid());
-                        let layer = e.layer();
-                        match layer {
-                            None => time_semantics
+                    let edge = g.core_edge(e.pid());
+                    match e.layer() {
+                        None => GenLockedIter::from(edge, move |edge| {
+                            time_semantics
                                 .edge_history(edge.as_ref(), g, g.layer_ids())
                                 .map(|(ti, _)| ti)
-                                .into_dyn_boxed(),
-                            Some(layer) => time_semantics
-                                .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
-                                .map(|(ti, _)| ti)
-                                .into_dyn_boxed(),
+                                .into_dyn_boxed()
+                        })
+                        .into_dyn_boxed(),
+                        Some(layer) => {
+                            let layer_ids = LayerIds::One(layer);
+                            GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                                time_semantics
+                                    .edge_history(edge.as_ref(), g, layer_ids)
+                                    .map(|(ti, _)| ti)
+                                    .into_dyn_boxed()
+                            })
+                            .into_dyn_boxed()
                         }
-                    })
-                    .into_dyn_boxed()
+                    }
                 }
             }
         } else {
@@ -301,14 +311,16 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for EdgeV
         }
     }
 
-    // FIXME: Implementation is not efficient, only for testing purposes
+    // FIXME: Implementation is not efficient, only for testing purposes. edge doesn't seem to have a history() function, so how can i implement this efficiently?
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self
-            .graph
-            .edge_history(self.edge, self.graph.layer_ids())
-            .collect_vec();
+        let mut x = self.iter().collect_vec();
         x.reverse();
         x.into_iter().into_dyn_boxed()
+        // let edge = self.graph.core_edge(self.edge.pid());
+        // let graph = &self.graph;
+        // GenLockedIter::from(edge, move |edge| {
+        //     edge.history(graph).iter_rev().into_dyn_boxed()
+        // }).into_dyn_boxed()
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
@@ -321,9 +333,11 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for EdgeV
 }
 
 impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
-    // FIXME: This probably isn't great, also we're defining iter() twice but I'm not getting an error
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.props.temporal_history_iter(self.id)
+        self.props
+            .temporal_iter(self.id)
+            .map(|(t, _)| t)
+            .into_dyn_boxed()
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {

@@ -1,22 +1,15 @@
 //! Defines the `Node` struct, which represents a node in the graph.
 
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
-        utils::errors::GraphError,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{
-                internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                time_from_input, CollectProperties, TryIntoInputTime,
-            },
+            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
-                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView,
-                TemporalPropertyViewOps,
+                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
-                internal::{GraphTimeSemanticsOps, OneHopFilter, Static, TimeSemantics},
+                internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -26,10 +19,7 @@ use crate::{
 };
 
 use crate::{
-    core::{
-        entities::nodes::node_ref::AsNodeRef, storage::timeindex::AsTime,
-        utils::iter::GenLockedIter, PropType,
-    },
+    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
     db::{
         api::{
             state::NodeOp,
@@ -42,7 +32,6 @@ use crate::{
     },
     errors::{into_graph_err, GraphError},
 };
-use chrono::{DateTime, Utc};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},

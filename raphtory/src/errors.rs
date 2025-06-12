@@ -3,9 +3,12 @@ use crate::{
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{
-    properties::prop::{PropError, PropType},
-    GID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{PropError, PropType},
+        GID,
+    },
+    storage::timeindex::TimeError,
 };
 use raphtory_core::{
     entities::{
@@ -36,7 +39,6 @@ use {
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-use raphtory_api::core::storage::timeindex::TimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
