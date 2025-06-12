@@ -26,13 +26,15 @@ use crate::{
     },
 };
 
-#[repr(transparent)]
 pub struct WriteS<
     'a,
     MNS: DerefMut<Target = MemNodeSegment>,
     MES: DerefMut<Target = MemEdgeSegment>,
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
->(WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>);
+>{
+    static_session: WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>,
+    layer: Option<WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>>
+}
 
 pub struct UnlockedSession<'a, EXT> {
     graph: &'a TemporalGraph<EXT>,
@@ -54,7 +56,15 @@ impl<
         layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        self.0.internal_add_edge(t, src, dst, lsn, layer, props)
+        let src = src.into();
+        let dst = dst.into();
+        let eid = self.static_session.add_static_edge(src, dst, lsn).map(|eid| eid.with_layer(layer));
+        self.layer
+            .as_mut()
+            .map(|layer| {
+                layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
+            });
+        eid
     }
 }
 
@@ -180,7 +190,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                         self.graph_dir().join(format!("l_{}", layer_name)),
                         self.max_page_len_nodes(),
                         self.max_page_len_edges(),
-                    )
+                    ).into()
                 });
                 if new_layer_id >= layer_id {
                     while self.layers().get(new_layer_id).is_none() {
@@ -239,8 +249,13 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Self::AtomicAddEdge<'_> {
+        let static_session = self.static_graph().write_session(src, dst, e_id);
         let layer = &self.layers()[layer_id];
-        WriteS(layer.write_session(src, dst, e_id))
+        let layer = layer.write_session(src, dst, e_id);
+        WriteS {
+            static_session,
+            layer: Some(layer),
+        }
     }
 
     fn validate_edge_props<PN: AsRef<str>>(

@@ -7,12 +7,10 @@ use crate::graph::{
     locked::LockedGraph,
     nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
 };
-use db4_graph::TemporalGraph;
+use db4_graph::{ReadLockedTemporalGraph, TemporalGraph};
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
-use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, iter, sync::Arc};
-use storage::{Extension, ReadLockedLayer};
 use thiserror::Error;
 
 #[cfg(feature = "storage")]
@@ -27,7 +25,7 @@ use crate::mutation::MutationError;
 
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
-    Mem(Arc<ReadLockedLayer<Extension>>),
+    Mem(Arc<ReadLockedTemporalGraph>),
     Unlocked(Arc<TemporalGraph>),
     #[cfg(feature = "storage")]
     Disk(Arc<DiskGraphStorage>),
@@ -50,7 +48,8 @@ impl From<TemporalGraph> for GraphStorage {
 
 impl Default for GraphStorage {
     fn default() -> Self {
-        GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
+        // GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
+        todo!("does this even make sense? GraphStorage::default() is not a valid graph, it should be created with a valid graph directory");
     }
 }
 
@@ -69,16 +68,21 @@ impl GraphStorage {
     /// Check if two storage instances point at the same underlying storage
     pub fn ptr_eq(&self, other: &Self) -> bool {
         match self {
-            GraphStorage::Mem(LockedGraph {
-                graph: this_graph, ..
-            })
-            | GraphStorage::Unlocked(this_graph) => match other {
-                GraphStorage::Mem(LockedGraph {
-                    graph: other_graph, ..
-                })
-                | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
+            GraphStorage::Mem(locked_graph) => match other {
+                GraphStorage::Mem(other_graph) => {
+                    Arc::ptr_eq(locked_graph.graph(), other_graph.graph())
+                }
                 #[cfg(feature = "storage")]
-                _ => false,
+                GraphStorage::Disk(_) => false,
+                GraphStorage::Unlocked(other_graph) => {
+                    Arc::ptr_eq(locked_graph.graph(), other_graph)
+                }
+            },
+            GraphStorage::Unlocked(this_graph) => match other {
+                GraphStorage::Mem(other_graph) => Arc::ptr_eq(this_graph, other_graph.graph()),
+                GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
+                #[cfg(feature = "storage")]
+                GraphStorage::Disk(_) => false,
             },
             #[cfg(feature = "storage")]
             GraphStorage::Disk(this_graph) => match other {
@@ -118,10 +122,8 @@ impl GraphStorage {
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry {
         match self {
-            GraphStorage::Mem(storage) => NodesStorageEntry::Mem(&storage.nodes),
-            GraphStorage::Unlocked(storage) => {
-                NodesStorageEntry::Unlocked(storage.storage.nodes.read_lock())
-            }
+            GraphStorage::Mem(storage) => NodesStorageEntry::Mem(storage.as_ref()),
+            GraphStorage::Unlocked(storage) => NodesStorageEntry::Unlocked(storage.read_locked()),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodesStorageEntry::Disk(DiskNodesRef::new(&storage.inner))
@@ -134,7 +136,7 @@ impl GraphStorage {
         match v {
             NodeRef::Internal(vid) => Some(vid),
             node_ref => match self {
-                GraphStorage::Mem(locked) => locked.graph.resolve_node_ref(node_ref),
+                GraphStorage::Mem(locked) => locked.graph().resolve_node_ref(node_ref),
                 GraphStorage::Unlocked(unlocked) => unlocked.resolve_node_ref(node_ref),
                 #[cfg(feature = "storage")]
                 GraphStorage::Disk(storage) => match v {
@@ -148,7 +150,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_nodes(&self) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.nodes.len(),
+            GraphStorage::Mem(storage) => storage.graph().internal_num_nodes(),
             GraphStorage::Unlocked(storage) => storage.internal_num_nodes(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.num_nodes(),
@@ -158,8 +160,8 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_edges(&self) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.edges.len(),
-            GraphStorage::Unlocked(storage) => storage.storage.edges_len(),
+            GraphStorage::Mem(storage) => storage.graph().internal_num_edges(),
+            GraphStorage::Unlocked(storage) => storage.internal_num_edges(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.count_edges(),
         }
@@ -168,7 +170,7 @@ impl GraphStorage {
     #[inline(always)]
     pub fn unfiltered_num_layers(&self) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.num_layers(),
+            GraphStorage::Mem(storage) => storage.graph().num_layers(),
             GraphStorage::Unlocked(storage) => storage.num_layers(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.layers().len(),
@@ -178,10 +180,8 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_nodes(&self) -> NodesStorage {
         match self {
-            GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
-            GraphStorage::Unlocked(storage) => {
-                NodesStorage::Mem(LockedGraph::new(storage.clone()).nodes.clone())
-            }
+            GraphStorage::Mem(storage) => NodesStorage::Mem(storage.clone()),
+            GraphStorage::Unlocked(storage) => NodesStorage::Mem(storage.read_locked().into()),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodesStorage::Disk(DiskNodesOwned::new(storage.inner.clone()))
@@ -192,9 +192,9 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_node<'a>(&'a self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
-            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.get_entry(vid)),
+            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.node(vid)),
             GraphStorage::Unlocked(storage) => {
-                NodeStorageEntry::Unlocked(storage.storage.get_node(vid))
+                NodeStorageEntry::Unlocked(storage.node(vid))
             }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
@@ -629,8 +629,8 @@ impl GraphStorage {
 
     pub fn node_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Mem(storage) => &storage.graph.node_meta,
-            GraphStorage::Unlocked(storage) => &storage.node_meta,
+            GraphStorage::Mem(storage) => storage.graph().node_meta(),
+            GraphStorage::Unlocked(storage) => storage.node_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.node_meta(),
         }
@@ -638,8 +638,8 @@ impl GraphStorage {
 
     pub fn edge_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Mem(storage) => &storage.graph.edge_meta,
-            GraphStorage::Unlocked(storage) => &storage.edge_meta,
+            GraphStorage::Mem(storage) => storage.graph().edge_meta(),
+            GraphStorage::Unlocked(storage) => storage.edge_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.edge_meta(),
         }
@@ -647,8 +647,8 @@ impl GraphStorage {
 
     pub fn graph_meta(&self) -> &GraphMeta {
         match self {
-            GraphStorage::Mem(storage) => &storage.graph.graph_meta,
-            GraphStorage::Unlocked(storage) => &storage.graph_meta,
+            GraphStorage::Mem(storage) => storage.graph().graph_meta(),
+            GraphStorage::Unlocked(storage) => storage.graph_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.graph_meta(),
         }

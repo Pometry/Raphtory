@@ -4,6 +4,7 @@ use crate::graph::{
     locked::LockedGraph,
     nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
 };
+use db4_graph::ReadLockedTemporalGraph;
 use raphtory_api::{
     core::{
         entities::{
@@ -36,30 +37,28 @@ pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> boo
 pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.logical_to_physical.dtype()
-            }
+            GraphStorage::Mem(graph) => graph.inner().logical_to_physical.dtype(),
+            GraphStorage::Unlocked(graph) => graph.logical_to_physical.dtype(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
         }
     }
 
-    fn num_shards(&self) -> usize {
-        match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.storage.num_shards()
-            }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => 1,
-        }
-    }
+    // fn num_shards(&self) -> usize {
+    //     match self.core_graph() {
+    //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+    //             graph.storage.num_shards()
+    //         }
+    //         #[cfg(feature = "storage")]
+    //         GraphStorage::Disk(_) => 1,
+    //     }
+    // }
 
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
-            GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
-                graph.event_counter.load(Ordering::Relaxed)
-            }
+            GraphStorage::Unlocked(graph) => graph.read_event_counter(),
+            GraphStorage::Mem(graph) => graph.inner().read_event_counter(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
         }

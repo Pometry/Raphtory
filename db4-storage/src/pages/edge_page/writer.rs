@@ -1,6 +1,6 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
-use crate::{EdgeSegmentOps, LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
+use crate::{EdgeSegmentOps, LocalPOS, segments::edge::MemEdgeSegment};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::storage::timeindex::AsTime;
 
@@ -54,7 +54,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         dst: impl Into<VID>,
         lsn: u64,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
-    ) -> Result<LocalPOS, DBV4Error> {
+    ) -> LocalPOS {
         self.writer.as_mut().set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
@@ -65,7 +65,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.writer.insert_static_edge_internal(edge_pos, src, dst);
         // self.est_size = self.page.increment_size(size_of::<(VID, VID)>())
         //     + self.writer.as_ref().t_prop_est_size();
-        Ok(edge_pos)
+        edge_pos
     }
 
     pub fn segment_id(&self) -> usize {

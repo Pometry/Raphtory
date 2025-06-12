@@ -5,7 +5,6 @@ use super::{
 };
 use crate::{
     EdgeSegmentOps, NodeSegmentOps,
-    error::DBV4Error,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
@@ -104,7 +103,7 @@ impl<
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
-    ) -> Result<MaybeNew<EID>, DBV4Error> {
+    ) -> MaybeNew<EID> {
         let src = src.into();
         let dst = dst.into();
 
@@ -114,20 +113,20 @@ impl<
         if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst) {
             let mut edge_writer = self.graph.edge_writer(e_id);
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
-            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, None)?;
+            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, None);
 
-            Ok(MaybeNew::Existing(e_id))
+            MaybeNew::Existing(e_id)
         } else {
             if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst) {
                 let mut edge_writer = self.graph.edge_writer(e_id);
                 let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
-                edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, None)?;
+                edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, None);
 
-                Ok(MaybeNew::Existing(e_id))
+                MaybeNew::Existing(e_id)
             } else {
                 let mut edge_writer = self.graph.get_free_writer();
-                let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, None)?;
+                let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, None);
                 let edge_id =
                     edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
@@ -144,7 +143,7 @@ impl<
                     lsn,
                 );
 
-                Ok(MaybeNew::New(edge_id))
+                MaybeNew::New(edge_id)
             }
         }
     }

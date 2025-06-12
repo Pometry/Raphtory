@@ -3,6 +3,7 @@ use crate::graph::{
     nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
     variants::storage_variants2::StorageVariants2,
 };
+use db4_graph::{entries::node::LockedNodeEntry, ReadLockedTemporalGraph};
 use raphtory_api::{
     core::{
         entities::{
@@ -16,6 +17,7 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 use raphtory_core::storage::node_entry::NodePtr;
+use storage::Extension;
 use std::{borrow::Cow, ops::Range};
 
 #[cfg(feature = "storage")]
@@ -23,7 +25,7 @@ use crate::disk::storage_interface::node::DiskNode;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
-    Mem(NodePtr<'a>),
+    Mem(LockedNodeEntry<'a, Extension>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }

@@ -1,16 +1,19 @@
+use std::sync::Arc;
+
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
+use db4_graph::{ReadLockedTemporalGraph, TemporalGraph};
 use raphtory_api::core::entities::VID;
-use raphtory_core::storage::ReadLockedStorage;
 use rayon::iter::ParallelIterator;
+use storage::Extension;
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
 
 #[derive(Debug)]
-pub enum NodesStorageEntry<'a> {
-    Mem(&'a ReadLockedStorage),
-    Unlocked(ReadLockedStorage),
+pub enum NodesStorageEntry<'a, EXT = Extension> {
+    Mem(&'a ReadLockedTemporalGraph<EXT>),
+    Unlocked(ReadLockedTemporalGraph<EXT>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }
@@ -29,8 +32,8 @@ macro_rules! for_all_variants {
 impl<'a> NodesStorageEntry<'a> {
     pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.get_entry(vid)),
-            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.get_entry(vid)),
+            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.node(vid)),
+            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.node(vid)),
             #[cfg(feature = "storage")]
             NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }

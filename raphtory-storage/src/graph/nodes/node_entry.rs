@@ -2,6 +2,7 @@ use crate::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     variants::storage_variants3::StorageVariants3,
 };
+use db4_graph::{entries::node::{LockedNodeEntry, UnlockedNodeEntry}, ReadLockedTemporalGraph, TemporalGraph};
 use raphtory_api::{
     core::{
         entities::{
@@ -13,34 +14,32 @@ use raphtory_api::{
     },
     iter::BoxedLIter,
 };
-use raphtory_core::{
-    storage::{node_entry::NodePtr, NodeEntry},
-    utils::iter::GenLockedIter,
-};
+use raphtory_core::utils::iter::GenLockedIter;
 use std::borrow::Cow;
+use storage::Extension;
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::node::DiskNode;
 use crate::graph::nodes::node_additions::NodeAdditions;
 
 pub enum NodeStorageEntry<'a> {
-    Mem(NodePtr<'a>),
-    Unlocked(NodeEntry<'a>),
+    Mem(LockedNodeEntry<'a, Extension>),
+    Unlocked(UnlockedNodeEntry<'a, Extension>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
 }
 
-impl<'a> From<NodePtr<'a>> for NodeStorageEntry<'a> {
-    fn from(value: NodePtr<'a>) -> Self {
-        NodeStorageEntry::Mem(value)
-    }
-}
+// impl<'a> From<NodePtr<'a>> for NodeStorageEntry<'a> {
+//     fn from(value: NodePtr<'a>) -> Self {
+//         NodeStorageEntry::Mem(value)
+//     }
+// }
 
-impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
-    fn from(value: NodeEntry<'a>) -> Self {
-        NodeStorageEntry::Unlocked(value)
-    }
-}
+// impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
+//     fn from(value: NodeEntry<'a>) -> Self {
+//         NodeStorageEntry::Unlocked(value)
+//     }
+// }
 
 #[cfg(feature = "storage")]
 impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
