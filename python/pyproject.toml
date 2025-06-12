@@ -39,6 +39,7 @@ tox = ["nbmake"]
 [tool.maturin]
 features = ["pyo3/extension-module"]
 python-source = "python"
+module-name = "raphtory._raphtory"
 include = ["motif-images/*"]
 
 [tool.pytest.ini_options]

@@ -1,5 +1,5 @@
 import sys as _sys
-from .raphtory import *
+from ._raphtory import *
 
 _sys.modules["raphtory.node_state"] = node_state
 _sys.modules["raphtory.algorithms"] = algorithms
@@ -8,9 +8,9 @@ _sys.modules["raphtory.graph_loader"] = graph_loader
 _sys.modules["raphtory.vectors"] = vectors
 _sys.modules["raphtory.graphql"] = graphql
 
-__doc__ = raphtory.__doc__
-if hasattr(raphtory, "__all__"):
-    __all__ = raphtory.__all__
+__doc__ = _raphtory.__doc__
+if hasattr(_raphtory, "__all__"):
+    __all__ = _raphtory.__all__
 else:
     __all__ = []
 
