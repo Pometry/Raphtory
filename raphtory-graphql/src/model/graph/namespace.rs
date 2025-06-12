@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use tokio::task::spawn_blocking;
 use walkdir::WalkDir;
 
-#[derive(ResolvedObject, Clone)]
+#[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub(crate) struct Namespace {
     base_dir: PathBuf,
     current_dir: PathBuf,
@@ -129,6 +129,7 @@ impl Namespace {
                             None
                         }
                     })
+                    .sorted()
                     .collect(),
             )
         })
