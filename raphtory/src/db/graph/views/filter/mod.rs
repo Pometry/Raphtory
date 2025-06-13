@@ -1315,7 +1315,7 @@ pub(crate) mod test_filters {
         let nodes = [
             (
                 1,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
@@ -1325,7 +1325,7 @@ pub(crate) mod test_filters {
             ),
             (
                 2,
-                2,
+                "2",
                 vec![
                     ("p1", "prop12".into_prop()),
                     ("p2", 2u64.into_prop()),
@@ -1335,7 +1335,7 @@ pub(crate) mod test_filters {
             ),
             (
                 3,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
@@ -1344,7 +1344,7 @@ pub(crate) mod test_filters {
             ),
             (
                 3,
-                3,
+                "3",
                 vec![
                     ("p2", 6u64.into_prop()),
                     ("p3", 1u64.into_prop()),
@@ -1354,15 +1354,15 @@ pub(crate) mod test_filters {
             ),
             (
                 4,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
                 ],
                 Some("fire_nation"),
             ),
-            (3, 4, vec![("p4", "pometry".into_prop())], None),
-            (4, 4, vec![("p5", 12u64.into_prop())], None),
+            (3, "4", vec![("p4", "pometry".into_prop())], None),
+            (4, "4", vec![("p5", 12u64.into_prop())], None),
         ];
 
         for (time, id, props, node_type) in nodes {
@@ -2710,7 +2710,8 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_composite_filter {
-        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
+        use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
+        use raphtory_api::core::Direction;
 
         use crate::db::graph::views::filter::model::{
             property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NodeFilter,
@@ -2718,7 +2719,10 @@ pub(crate) mod test_filters {
         };
 
         use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
+            assertions::{
+                assert_filter_neighbours_results, assert_filter_nodes_results,
+                assert_search_nodes_results, TestVariants,
+            },
             views::filter::test_filters::IdentityGraphTransformer,
         };
 
@@ -3088,6 +3092,53 @@ pub(crate) mod test_filters {
             assert_search_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_out_neighbours_filter() {
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(PropertyFilter::property("p2").eq(2u64));
+            let expected_results = vec!["2"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "1",
+                Direction::OUT,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_in_neighbours_filter() {
+            let filter = PropertyFilter::property("p9").ge(1u64);
+            let expected_results = vec!["1"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::IN,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_neighbours_filter() {
+            let filter = PropertyFilter::property("p10").contains("Paper");
+            let expected_results = vec!["1", "3"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::BOTH,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
