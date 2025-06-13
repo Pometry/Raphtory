@@ -1006,8 +1006,6 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            #[ignore]
-            // TODO: Enable test once issue is fixed: https://github.com/Pometry/Raphtory/issues/2109
             fn test_constant_semantics2() {
                 fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
                     let mut results = graph
@@ -1046,9 +1044,14 @@ pub(crate) mod test_filters {
                     .unwrap();
                 assert_eq!("{\"fire_nation\": true}", prop.to_string());
 
-                let filter2 = PropertyFilter::property("z").constant().eq(true);
+                let filter2 = PropertyFilter::property("z")
+                    .constant()
+                    .eq(Prop::map([("fire_nation", true)]));
                 assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
 
+                let filter = PropertyFilter::property("p1")
+                    .constant()
+                    .eq(Prop::map([("_default", 1u64)]));
                 assert_eq!(
                     filter_edges(&graph, filter),
                     vec![

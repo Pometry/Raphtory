@@ -50,7 +50,7 @@ impl CreateNodeFilter for PropertyFilter {
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))

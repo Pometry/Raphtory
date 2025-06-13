@@ -89,6 +89,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
+
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
 

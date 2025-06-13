@@ -12,7 +12,7 @@ use crate::{
         graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, LayerOps},
 };
 use raphtory_api::{
     core::{entities::ELID, storage::timeindex::TimeIndexEntry},
@@ -55,7 +55,8 @@ impl CreateEdgeFilter for PropertyFilter {
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
-        let c_prop_id = self.resolve_constant_prop_id(graph.edge_meta())?;
+        let resolve_to_map = graph.num_layers() > 1;
+        let c_prop_id = self.resolve_constant_prop_id(graph.edge_meta(), resolve_to_map)?;
         Ok(EdgePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))
