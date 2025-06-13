@@ -5,20 +5,17 @@
 # Required
 version: 2
 
-# Set the version of Python and other tools you might need
 build:
-  os: ubuntu-22.04
+  os: "ubuntu-24.04"
   tools:
-    python: "mambaforge-4.10"
+    python: "3"
+  # We recommend using a requirements file for reproducible builds.
+  # This is just a quick example to get started.
+  # https://docs.readthedocs.io/page/guides/reproducible-builds.html
   jobs:
-    pre_build:
-      - curl https://sh.rustup.rs -sSf | sh -s -- -y
-      - pip install maturin[patchelf]
-      - PATH=$HOME/.cargo/bin:$PATH make build-python-rtd
+    pre_install:
+      - pip install mkdocs
+      - pip install $(mkdocs get-deps)
 
-conda:
-  environment: .environment.yml
-
-# Build documentation in the docs/ directory with Sphinx
-sphinx:
-  configuration: docs/source/conf.py
+mkdocs:
+  configuration: mkdocs.yml
