@@ -15,7 +15,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
-        prop::{sort_comparable_props, Prop},
+        prop::{sort_comparable_props, Prop, PropType},
     },
     storage::arc_str::ArcStr,
 };
@@ -219,19 +219,45 @@ impl PropertyFilter {
     }
 
     pub fn resolve_temporal_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        let prop_name = self.prop_ref.name();
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            Ok(meta
-                .temporal_prop_meta()
-                .get_and_validate(prop_name, value.dtype())?)
-        } else {
-            Ok(meta.temporal_prop_meta().get_id(prop_name))
+        match self.prop_ref {
+            PropertyRef::ConstantProperty(_) => Ok(None),
+            _ => {
+                let prop_name = self.prop_ref.name();
+                if let PropertyFilterValue::Single(value) = &self.prop_value {
+                    Ok(meta
+                        .temporal_prop_meta()
+                        .get_and_validate(prop_name, value.dtype())?)
+                } else {
+                    Ok(meta.temporal_prop_meta().get_id(prop_name))
+                }
+            }
         }
     }
 
-    pub fn resolve_constant_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
+    pub fn resolve_constant_prop_id(
+        &self,
+        meta: &Meta,
+        resolve_to_map: bool,
+    ) -> Result<Option<usize>, GraphError> {
         let prop_name = self.prop_ref.name();
         if let PropertyFilterValue::Single(value) = &self.prop_value {
+            if resolve_to_map {
+                return if let PropType::Map(map) = value.dtype() {
+                    if let Some((_k, v)) = map.iter().next() {
+                        Ok(meta
+                            .const_prop_meta()
+                            .get_and_validate(prop_name, v.clone())?)
+                    } else {
+                        Err(GraphError::InvalidProperty {
+                            reason: "Empty constant property map".to_owned(),
+                        })?
+                    }
+                } else {
+                    Err(GraphError::InvalidProperty {
+                        reason: "Expected PropType::Map".to_owned(),
+                    })?
+                };
+            }
             Ok(meta
                 .const_prop_meta()
                 .get_and_validate(prop_name, value.dtype())?)
