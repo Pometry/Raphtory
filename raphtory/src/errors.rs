@@ -152,9 +152,6 @@ pub enum GraphError {
     #[error("Disk graph not found")]
     DiskGraphNotFound,
 
-    #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
-    IndexMissing,
-
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
 
@@ -406,8 +403,8 @@ pub enum GraphError {
     #[error("Indexing not supported")]
     IndexingNotSupported,
 
-    #[error("Failed to create index in ram")]
-    FailedToCreateIndexInRam,
+    #[error("Failed to create index in ram. There already exists an on disk index.")]
+    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,

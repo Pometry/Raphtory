@@ -3,8 +3,8 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
+            graph::GqlGraph, index::IndexSpecInput, mutable_graph::GqlMutableGraph,
+            namespace::Namespace, namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -22,6 +22,8 @@ use raphtory::{
     prelude::*,
     serialise::InternalStableDecode,
 };
+#[cfg(feature = "storage")]
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -29,9 +31,6 @@ use std::{
     sync::Arc,
 };
 use zip::ZipArchive;
-
-#[cfg(feature = "storage")]
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -118,6 +117,7 @@ impl QueryRoot {
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
         Namespaces::new(root.get_all_namespaces())
     }
+
     async fn namespace<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -131,6 +131,7 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
+
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
@@ -273,6 +274,42 @@ impl Mut {
         }
         data.insert_graph(&new_path, new_subgraph).await?;
         Ok(new_path)
+    }
+
+    async fn create_index<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        index_spec: Option<IndexSpecInput>,
+        in_ram: bool,
+    ) -> Result<bool> {
+        #[cfg(feature = "search")]
+        {
+            let data = ctx.data_unchecked::<Data>();
+            let graph = data.get_graph(path)?.0.graph;
+            match index_spec {
+                Some(index_spec) => {
+                    let index_spec = index_spec.to_index_spec(graph.clone())?;
+                    if in_ram {
+                        graph.create_index_in_ram_with_spec(index_spec)
+                    } else {
+                        graph.create_index_with_spec(index_spec)
+                    }
+                }
+                None => {
+                    if in_ram {
+                        graph.create_index_in_ram()
+                    } else {
+                        graph.create_index()
+                    }
+                }
+            }?;
+
+            Ok(true)
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
     }
 }
 

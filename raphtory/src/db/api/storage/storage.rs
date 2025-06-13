@@ -152,7 +152,7 @@ impl Storage {
             .get_or_try_init(|| GraphIndex::create(&self.graph, true, None))?;
 
         if index.path.is_some() {
-            return Err(GraphError::FailedToCreateIndexInRam);
+            return Err(GraphError::OnDiskIndexAlreadyExists);
         }
 
         index.update(&self.graph, index_spec)?;
