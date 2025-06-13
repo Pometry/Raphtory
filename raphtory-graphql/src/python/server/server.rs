@@ -125,6 +125,7 @@ impl PyGraphServer {
             app_config_builder =
                 app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
         }
+        #[cfg(feature = "search")]
         if let Some(create_index) = create_index {
             app_config_builder = app_config_builder.with_create_index(create_index);
         }

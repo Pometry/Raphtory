@@ -1,31 +1,22 @@
 use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 use crate::config::{
-    cache_config::CacheConfig, index_config::IndexConfig, log_config::LoggingConfig,
-    otlp_config::TracingConfig,
+    cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Serialize)]
+#[cfg(feature = "search")]
+use crate::config::index_config::IndexConfig;
+
+#[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
+    #[cfg(feature = "search")]
     pub index: IndexConfig,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            logging: LoggingConfig::default(),
-            cache: CacheConfig::default(),
-            tracing: TracingConfig::default(),
-            auth: AuthConfig::default(),
-            index: IndexConfig::default(),
-        }
-    }
 }
 
 pub struct AppConfigBuilder {
@@ -33,6 +24,7 @@ pub struct AppConfigBuilder {
     cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
+    #[cfg(feature = "search")]
     index: IndexConfig,
 }
 
@@ -43,6 +35,7 @@ impl From<AppConfig> for AppConfigBuilder {
             cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
+            #[cfg(feature = "search")]
             index: config.index,
         }
     }
@@ -103,6 +96,7 @@ impl AppConfigBuilder {
         self
     }
 
+    #[cfg(feature = "search")]
     pub fn with_create_index(mut self, create_index: bool) -> Self {
         self.index.create_index = create_index;
         self
@@ -114,6 +108,7 @@ impl AppConfigBuilder {
             cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
+            #[cfg(feature = "search")]
             index: self.index,
         }
     }
@@ -143,6 +138,7 @@ pub fn load_config(
     if let Some(log_level) = settings.get::<String>("logging.log_level").ok() {
         app_config_builder = app_config_builder.with_log_level(log_level);
     }
+
     if let Some(tracing) = settings.get::<bool>("tracing.tracing_enabled").ok() {
         app_config_builder = app_config_builder.with_tracing(tracing);
     }
@@ -177,6 +173,11 @@ pub fn load_config(
     }
     if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
         app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
+    }
+
+    #[cfg(feature = "search")]
+    if let Ok(create_index) = settings.get::<bool>("index.create_index") {
+        app_config_builder = app_config_builder.with_create_index(create_index);
     }
 
     Ok(app_config_builder.build())

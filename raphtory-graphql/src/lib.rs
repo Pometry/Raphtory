@@ -38,7 +38,6 @@ mod graphql_test {
     use std::{
         collections::{HashMap, HashSet},
         fs,
-        path::Path,
     };
     use tempfile::tempdir;
 

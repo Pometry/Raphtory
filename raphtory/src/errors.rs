@@ -403,8 +403,8 @@ pub enum GraphError {
     #[error("Indexing not supported")]
     IndexingNotSupported,
 
-    #[error("Failed to create index in ram")]
-    FailedToCreateIndexInRam,
+    #[error("Failed to create index in ram. There already exists an on disk index.")]
+    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
