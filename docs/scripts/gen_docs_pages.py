@@ -5,10 +5,11 @@ from shutil import copy
 
 import mkdocs_gen_files
 
-root = Path(__file__).parent.parent
+root = Path(__file__).parent.parent.parent
 doc_root = Path("reference")
 stubs_source = root / "python" / "python"
 src = stubs_source
+nav = mkdocs_gen_files.Nav()
 
 import griffe
 
@@ -26,18 +27,22 @@ def _docstr_desc(item) -> str:
 
 
 def gen_class(name: str, cl) -> Path:
-    doc_path = doc_root / cl.module.filepath.relative_to(src).with_stem(
-        name
-    ).with_suffix(".md")
+    path = cl.module.filepath.relative_to(src).with_stem(name).with_suffix("")
+    doc_path = doc_root / path.with_suffix(".md")
     with mkdocs_gen_files.open(doc_path, "w") as fd:
         print(f"# ::: {cl.path}", file=fd)
+    nav[tuple(path.parts)] = path.with_suffix(".md").as_posix()
     return doc_path
 
 
 def gen_module(name: str, module):
-    doc_path = doc_root / module.filepath.relative_to(src).with_suffix(".md")
-    if doc_path.stem == "__init__":
-        doc_path = doc_path.with_stem("index")
+    path = module.filepath.relative_to(src).with_suffix("")
+    parts = tuple(path.parts)
+    if path.stem == "__init__":
+        parts = parts[:-1]
+        path = path.with_stem("index")
+    nav[parts] = path.with_suffix(".md").as_posix()
+    doc_path = doc_root / path.with_suffix(".md")
 
     with mkdocs_gen_files.open(doc_path, "w") as fd:
         print(f"# {name}", file=fd)
@@ -83,4 +88,8 @@ raphtory = griffe.load(
     allow_inspection=False,
     resolve_aliases=False,
 )
+
 gen_module("raphtory", raphtory)
+
+with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:
+    nav_file.writelines(nav.build_literate_nav())

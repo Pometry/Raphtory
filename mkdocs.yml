@@ -31,7 +31,10 @@ plugins:
   #  - search
   - gen-files:
       scripts:
-        - scripts/gen_docs_pages.py
+        - docs/scripts/gen_docs_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
   - mkdocstrings:
       handlers:
         python:
@@ -41,10 +44,12 @@ plugins:
             show_if_no_docstring: true
             allow_inspection: false
             docstring_style: google
+            docstring_options:
+              returns_type_in_property_summary: true
+              returns_named_value: false
           paths: [ "python/python" ]
           inventories:
             - https://docs.python.org/3/objects.inv
-
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -67,4 +72,4 @@ repo_url: https://github.com/pometry/raphtory
 repo_name: pometry/raphtory
 nav:
   - Home: index.md
-  - Api: reference/raphtory/index.md
+  - Api: reference/
