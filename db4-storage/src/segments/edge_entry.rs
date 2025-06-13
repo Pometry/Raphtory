@@ -56,24 +56,24 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
 
     type TProps = TPropCell<'a>;
 
-    fn edge(self) -> Option<(VID, VID)> {
+    fn edge(self, layer_id: usize) -> Option<(VID, VID)> {
         self.es
-            .as_ref()
+            .as_ref()[layer_id]
             .get(&self.pos)
             .map(|entry| (entry.src, entry.dst))
     }
 
-    fn additions(self) -> Self::Additions {
-        MemAdditions::Props(self.es.as_ref().additions(self.pos))
+    fn additions(self, layer_id: usize) -> Self::Additions {
+        MemAdditions::Props(self.es.as_ref()[layer_id].additions(self.pos))
     }
 
-    fn c_prop(self, prop_id: usize) -> Option<Prop> {
-        self.es.as_ref().c_prop(self.pos, prop_id)
+    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.es.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
 
-    fn t_prop(self, prop_id: usize) -> Self::TProps {
+    fn t_prop(self, layer_id:usize, prop_id: usize) -> Self::TProps {
         self.es
-            .as_ref()
+            .as_ref()[layer_id]
             .t_prop(self.pos, prop_id)
             .unwrap_or_default()
     }

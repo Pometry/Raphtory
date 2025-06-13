@@ -377,12 +377,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
 
     pub fn update_edge_const_props<PN: AsRef<str>>(
         &self,
-        eid: impl Into<EID>,
+        eid: impl Into<ELID>,
         props: Vec<(PN, Prop)>,
     ) -> Result<(), DBV4Error> {
         let eid = eid.into();
-        let (_, edge_pos) = self.edges.resolve_pos(eid);
-        let mut edge_writer = self.edges.try_get_writer(eid)?;
+        let layer = eid.layer();
+        let (_, edge_pos) = self.edges.resolve_pos(eid.edge);
+        let mut edge_writer = self.edges.try_get_writer(eid.edge)?;
         let (src, dst) = edge_writer
             .get_edge(edge_pos)
             .expect("Internal Error, EID should be checked at this point!");

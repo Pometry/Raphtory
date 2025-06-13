@@ -25,9 +25,9 @@ pub mod persist;
 pub mod properties;
 pub mod segments;
 
+pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-
 pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
 pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 
@@ -83,12 +83,14 @@ pub trait EdgeSegmentOps: Send + Sync {
     fn contains_edge(
         &self,
         edge_pos: LocalPOS,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
     fn get_edge(
         &self,
         edge_pos: LocalPOS,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
@@ -126,13 +128,13 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     type Additions: TimeIndexOps<'a>;
     type TProps: TPropOps<'a>;
 
-    fn edge(self) -> Option<(VID, VID)>;
+    fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
 
-    fn additions(self) -> Self::Additions;
+    fn additions(self, layer_id: usize) -> Self::Additions;
 
-    fn c_prop(self, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn t_prop(self, prop_id: usize) -> Self::TProps;
+    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 }
 
 pub trait NodeSegmentOps: Send + Sync {

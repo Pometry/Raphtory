@@ -33,9 +33,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         dst: impl Into<VID>,
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
+        layer_id: usize,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) -> LocalPOS {
-        self.writer.as_mut().set_lsn(lsn);
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
             self.new_local_pos(); // increment the counts, this is triggered from the bulk loader
@@ -43,7 +44,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
         self.writer
-            .insert_edge_internal(t, edge_pos, src, dst, props);
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
         edge_pos
     }
 
@@ -52,17 +53,18 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         edge_pos: Option<LocalPOS>,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        layer_id: usize,
         lsn: u64,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) -> LocalPOS {
-        self.writer.as_mut().set_lsn(lsn);
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
             self.new_local_pos(); // increment the counts, this is triggered from the bulk loader
         }
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
-        self.writer.insert_static_edge_internal(edge_pos, src, dst);
+        self.writer.insert_static_edge_internal(edge_pos, src, dst, layer_id);
         // self.est_size = self.page.increment_size(size_of::<(VID, VID)>())
         //     + self.writer.as_ref().t_prop_est_size();
         edge_pos
@@ -77,16 +79,12 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 
-    pub fn contains_edge(&self, pos: LocalPOS) -> bool {
-        // self.writer.contains_edge(pos) || self.page.disk_contains_edge(pos)
-        self.page.contains_edge(pos, self.writer.deref())
+    pub fn contains_edge(&self, pos: LocalPOS, layer_id: usize) -> bool {
+        self.page.contains_edge(pos, layer_id, self.writer.deref())
     }
 
-    pub fn get_edge(&self, edge_pos: LocalPOS) -> Option<(VID, VID)> {
-        // self.writer
-        //     .get_edge(edge_pos)
-        //     .or_else(|| self.page.get_disk_edge(edge_pos))
-        self.page.get_edge(edge_pos, self.writer.deref())
+    pub fn get_edge(&self, layer_id: usize, edge_pos: LocalPOS) -> Option<(VID, VID)> {
+        self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
     pub fn update_c_props(
@@ -94,11 +92,11 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        // self.page.increment_size(size_of::<(VID, VID)>());
         self.writer
-            .update_const_properties(edge_pos, src, dst, props);
+            .update_const_properties(edge_pos, src, dst, layer_id, props);
     }
 }
 

@@ -13,7 +13,7 @@ use crate::{
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
-use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 
 const N: usize = 32;
 
@@ -285,10 +285,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
     //     )
     // }
 
-    pub fn get_edge(&self, e_id: EID) -> Option<(VID, VID)> {
+    pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
+        let layer = e_id.layer();
+        let e_id = e_id.edge;
         let (chunk, local_edge) = resolve_pos(e_id, self.max_page_len);
         let page = self.pages.get(chunk)?;
-        page.get_edge(local_edge, page.head())
+        page.get_edge(local_edge, layer, page.head())
     }
 
     pub fn edge(&self, e_id: impl Into<EID>) -> ES::Entry<'_> {
