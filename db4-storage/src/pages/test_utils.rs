@@ -11,7 +11,7 @@ use raphtory_api::core::entities::properties::{
     prop::{DECIMAL_MAX, Prop, PropType},
     tprop::TPropOps,
 };
-use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
+use raphtory_core::{entities::{ELID, VID}, storage::timeindex::TimeIndexOps};
 use rayon::prelude::*;
 
 use crate::{
@@ -77,6 +77,7 @@ pub fn check_edges_support<
     ) {
         let nodes = graph.nodes();
         let edges = graph.edges();
+        let layer_id = 0;
 
         if !es.is_empty() {
             assert!(nodes.pages().count() > 0, "{stage}");
@@ -114,20 +115,24 @@ pub fn check_edges_support<
             let entry = nodes.node(n);
 
             let adj = entry.as_ref();
-            let out_nbrs: Vec<_> = adj.out_nbrs_sorted(0).collect();
+            let out_nbrs: Vec<_> = adj.out_nbrs_sorted(layer_id).collect();
             assert_eq!(out_nbrs, exp_out, "{stage} node: {:?}", n);
 
-            let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(0).collect();
+            let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(layer_id).collect();
             assert_eq!(in_nbrs, exp_inb, "{stage} node: {:?}", n);
 
             for (exp_dst, eid) in adj.out_edges(0) {
-                let (src, dst) = edges.get_edge(eid).unwrap();
+                let elid = ELID::new(eid, layer_id);
+                let (src, dst) = edges.get_edge(elid).unwrap();
+
                 assert_eq!(src, n, "{stage}");
                 assert_eq!(dst, exp_dst, "{stage}");
             }
 
             for (exp_src, eid) in adj.inb_edges(0) {
-                let (src, dst) = edges.get_edge(eid).unwrap();
+                let elid = ELID::new(eid, layer_id);
+                let (src, dst) = edges.get_edge(elid).unwrap();
+
                 assert_eq!(src, exp_src, "{stage}");
                 assert_eq!(dst, n, "{stage}");
             }
@@ -305,11 +310,13 @@ pub fn check_graph_with_props_support<
 
     // Add const props
     for ((src, dst), const_props) in const_props {
+        let layer_id = 0;
         let eid = graph
             .nodes()
-            .get_edge(*src, *dst, 0)
+            .get_edge(*src, *dst, layer_id)
             .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
-        let res = graph.update_edge_const_props(eid, const_props.clone());
+        let elid = ELID::new(eid, layer_id);
+        let res = graph.update_edge_const_props(elid, const_props.clone());
 
         assert!(
             res.is_ok(),
@@ -378,7 +385,8 @@ pub fn check_graph_with_props_support<
                 .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
-            let actual_props = e.t_prop(prop_id).iter_t().collect::<Vec<_>>();
+            let layer_id = 0;
+            let actual_props = e.t_prop(layer_id, prop_id).iter_t().collect::<Vec<_>>();
 
             assert_eq!(
                 actual_props, props,
@@ -394,7 +402,7 @@ pub fn check_graph_with_props_support<
                         .const_prop_meta()
                         .get_id(name)
                         .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
-                    let actual_props = e.c_prop(prop_id);
+                    let actual_props = e.c_prop(layer_id, prop_id);
                     assert_eq!(
                         actual_props.as_ref(),
                         Some(prop),
