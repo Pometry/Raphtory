@@ -26,16 +26,17 @@ def _docstr_desc(item) -> str:
     return doc_str
 
 
-def gen_class(name: str, cl) -> Path:
-    path = cl.module.filepath.relative_to(src).with_stem(name).with_suffix("")
+def gen_class(name: str, cls: griffe.Class) -> Path:
+    path = cls.module.filepath.relative_to(src).with_stem(name).with_suffix("")
     doc_path = doc_root / path.with_suffix(".md")
     with mkdocs_gen_files.open(doc_path, "w") as fd:
-        print(f"# ::: {cl.path}", file=fd)
+        print(f"# ::: {cls.path}", file=fd)
     nav[tuple(path.parts)] = path.with_suffix(".md").as_posix()
+    mkdocs_gen_files.set_edit_path(doc_path, cls.module.filepath.relative_to(root))
     return doc_path
 
 
-def gen_module(name: str, module):
+def gen_module(name: str, module: griffe.Module) -> Path:
     path = module.filepath.relative_to(src).with_suffix("")
     parts = tuple(path.parts)
     if path.stem == "__init__":
@@ -60,11 +61,11 @@ def gen_module(name: str, module):
         public_classes = _public_items(module.classes)
         if public_classes:
             print("## Classes", file=fd)
-            for member_name, cl in public_classes:
-                sub_path = gen_class(member_name, cl)
+            for member_name, cls in public_classes:
+                sub_path = gen_class(member_name, cls)
                 link_path = sub_path.relative_to(doc_path.parent)
                 print(f"### [`{member_name}`]({link_path})", file=fd)
-                print(f"{_docstr_desc(cl)}\n", file=fd)
+                print(f"{_docstr_desc(cls)}\n", file=fd)
 
         public_attributes = _public_items(module.attributes)
         if public_attributes:
