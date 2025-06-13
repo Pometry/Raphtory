@@ -32,8 +32,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         src: impl Into<VID>,
         dst: impl Into<VID>,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        lsn: u64,
         layer_id: usize,
+        lsn: u64,
         exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) -> LocalPOS {
         self.writer.as_mut()[layer_id].set_lsn(lsn);
