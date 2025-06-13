@@ -424,7 +424,7 @@ def gen_module(
     global fn_logger
     objs = vars(module)
     # objs = list(vars(module).items())
-    all_names = module.__all__
+    all_names = [n for n in module.__all__ if not n.startswith("_")]
     objs = [(name, objs[name]) for name in all_names]
     # objs.sort(key=lambda x: x[0])
     stubs: List[str] = []
