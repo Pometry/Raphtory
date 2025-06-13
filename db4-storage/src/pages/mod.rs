@@ -8,7 +8,11 @@ use std::{
 };
 
 use crate::{
-    error::DBV4Error, pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage}, properties::props_meta_writer::PropsMetaWriter, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, EdgeSegmentOps, LocalPOS, NodeSegmentOps
+    EdgeSegmentOps, LocalPOS, NodeSegmentOps,
+    error::DBV4Error,
+    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    properties::props_meta_writer::PropsMetaWriter,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -58,10 +62,7 @@ pub struct ReadLockedGraphStore<NS, ES, EXT> {
 impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Default>
     GraphStore<NS, ES, EXT>
 {
-
-    pub fn read_locked(
-        self: &Arc<Self>,
-    ) -> ReadLockedGraphStore<NS, ES, EXT> {
+    pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
         let nodes = self.nodes.locked();
         let edges = self.edges.locked();
         ReadLockedGraphStore {
@@ -393,13 +394,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
     pub fn update_node_const_props<PN: AsRef<str>>(
         &self,
         node: impl Into<VID>,
+        layer_id: usize,
         props: Vec<(PN, Prop)>,
     ) -> Result<(), DBV4Error> {
         let node = node.into();
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::constant(&self.node_meta, props.into_iter())?;
-        node_writer.update_c_props(node_pos, prop_writer.into_props_const()?, 0); // TODO: LSN
+        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?, 0); // TODO: LSN
         Ok(())
     }
 
@@ -407,6 +409,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         &self,
         t: impl TryIntoInputTime,
         node: impl Into<VID>,
+        layer_id: usize,
         props: Vec<(PN, Prop)>,
     ) -> Result<(), DBV4Error> {
         let node = node.into();
@@ -416,7 +419,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
 
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::temporal(&self.node_meta, props.into_iter())?;
-        node_writer.add_props(t, node_pos, prop_writer.into_props_temporal()?, 0); // TODO: LSN
+        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?, 0); // TODO: LSN
         Ok(())
     }
 
@@ -600,7 +603,7 @@ mod test {
 
             let node = g.nodes().node(3);
             let node_entry = node.as_ref();
-            let actual: Vec<_> = node_entry.additions().iter_t().collect();
+            let actual: Vec<_> = node_entry.additions(0).iter_t().collect();
             assert_eq!(actual, vec![4]);
         };
 

@@ -1,13 +1,10 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs::File,
-    io::Write,
     path::Path,
 };
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
-use either::Either::Left;
 use itertools::Itertools;
 use proptest::{collection, prelude::*};
 use raphtory_api::core::entities::properties::{
@@ -117,19 +114,19 @@ pub fn check_edges_support<
             let entry = nodes.node(n);
 
             let adj = entry.as_ref();
-            let out_nbrs: Vec<_> = adj.out_nbrs_sorted().collect();
+            let out_nbrs: Vec<_> = adj.out_nbrs_sorted(0).collect();
             assert_eq!(out_nbrs, exp_out, "{stage} node: {:?}", n);
 
-            let in_nbrs: Vec<_> = adj.inb_nbrs_sorted().collect();
+            let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(0).collect();
             assert_eq!(in_nbrs, exp_inb, "{stage} node: {:?}", n);
 
-            for (exp_dst, eid) in adj.out_edges() {
+            for (exp_dst, eid) in adj.out_edges(0) {
                 let (src, dst) = edges.get_edge(eid).unwrap();
                 assert_eq!(src, n, "{stage}");
                 assert_eq!(dst, exp_dst, "{stage}");
             }
 
-            for (exp_src, eid) in adj.inb_edges() {
+            for (exp_src, eid) in adj.inb_edges(0) {
                 let (src, dst) = edges.get_edge(eid).unwrap();
                 assert_eq!(src, exp_src, "{stage}");
                 assert_eq!(dst, n, "{stage}");
@@ -175,13 +172,13 @@ pub fn check_graph_with_nodes_support<
     let graph = make_graph(graph_dir.path());
 
     for (node, t, t_props) in temp_props {
-        let err = graph.add_node_props(*t, *node, t_props.clone());
+        let err = graph.add_node_props(*t, *node, 0, t_props.clone());
 
         assert!(err.is_ok(), "Failed to add node: {:?}", err);
     }
 
     for (node, const_props) in const_props {
-        let err = graph.update_node_const_props(*node, const_props.clone());
+        let err = graph.update_node_const_props(*node, 0, const_props.clone());
 
         assert!(err.is_ok(), "Failed to add node: {:?}", err);
     }
@@ -200,7 +197,7 @@ pub fn check_graph_with_nodes_support<
         for (node, ts_expected) in ts_for_nodes {
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
-            let actual: Vec<_> = node_entry.additions().iter_t().collect();
+            let actual: Vec<_> = node_entry.additions(0).iter_t().collect();
             assert_eq!(
                 actual, ts_expected,
                 "Expected node additions for node ({node:?})",
@@ -227,7 +224,7 @@ pub fn check_graph_with_nodes_support<
                 .const_prop_meta()
                 .get_id(&name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
-            let actual_props = node_entry.c_prop(prop_id);
+            let actual_props = node_entry.c_prop(0, prop_id);
 
             if !const_props.is_empty() {
                 let actual_prop = actual_props
@@ -267,7 +264,7 @@ pub fn check_graph_with_nodes_support<
 
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
-            let actual_props = node_entry.t_prop(prop_id).iter_t().collect::<Vec<_>>();
+            let actual_props = node_entry.t_prop(0, prop_id).iter_t().collect::<Vec<_>>();
 
             assert_eq!(
                 actual_props, props,
@@ -310,7 +307,7 @@ pub fn check_graph_with_props_support<
     for ((src, dst), const_props) in const_props {
         let eid = graph
             .nodes()
-            .get_edge(*src, *dst)
+            .get_edge(*src, *dst, 0)
             .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
         let res = graph.update_edge_const_props(eid, const_props.clone());
 
@@ -377,7 +374,7 @@ pub fn check_graph_with_props_support<
 
             let edge = graph
                 .nodes()
-                .get_edge(src, dst)
+                .get_edge(src, dst, 0)
                 .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
@@ -415,7 +412,7 @@ pub fn check_graph_with_props_support<
         for (node_id, ts) in node_groups {
             let node = graph.nodes().node(node_id);
             let node_entry = node.as_ref();
-            let actual_additions_ts = node_entry.additions().iter_t().collect::<Vec<_>>();
+            let actual_additions_ts = node_entry.additions(0).iter_t().collect::<Vec<_>>();
 
             assert_eq!(
                 actual_additions_ts, ts,

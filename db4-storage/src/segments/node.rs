@@ -21,7 +21,15 @@ use crate::{LocalPOS, NodeSegmentOps, error::DBV4Error, segments::node_entry::Me
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
-    inner: SegmentContainer<AdjEntry>,
+    inner: Vec<SegmentContainer<AdjEntry>>,
+}
+
+impl <I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
+    fn from(inner: I) -> Self {
+        Self {
+            inner: inner.into_iter().collect(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -54,59 +62,57 @@ impl HasRow for AdjEntry {
     }
 }
 
-impl AsRef<SegmentContainer<AdjEntry>> for MemNodeSegment {
-    fn as_ref(&self) -> &SegmentContainer<AdjEntry> {
+impl AsRef<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
+    fn as_ref(&self) -> &[SegmentContainer<AdjEntry>] {
         &self.inner
     }
 }
 
-impl AsMut<SegmentContainer<AdjEntry>> for MemNodeSegment {
-    fn as_mut(&mut self) -> &mut SegmentContainer<AdjEntry> {
+impl AsMut<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
+    fn as_mut(&mut self) -> &mut [SegmentContainer<AdjEntry>] {
         &mut self.inner
     }
 }
 
 impl MemNodeSegment {
+    pub fn est_size(&self) -> usize {
+        self.inner.iter().map(|seg| seg.est_size()).sum::<usize>()
+    }
+
     #[inline(always)]
-    fn get_adj(&self, n: LocalPOS) -> Option<&Adj> {
-        self.inner.get(&n).map(|AdjEntry { adj, .. }| adj)
+    fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
+        self.inner[layer_id].get(&n).map(|AdjEntry { adj, .. }| adj)
     }
 
-    pub fn has_node(&self, n: LocalPOS) -> bool {
-        self.inner.get(&n).is_some()
+    pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
+        self.inner[layer_id].items().get(n.0).map_or(false, |v| *v)
     }
 
-    // pub(crate) fn contains_out(&self, n: LocalPOS, dst: VID) -> bool {
-    //     self.get_out_edge(n, dst).is_some()
-    // }
-
-    // pub(crate) fn contains_in(&self, n: LocalPOS, src: VID) -> bool {
-    //     self.get_in_edge(n, src).is_some()
-    // }
-
-    pub fn get_out_edge(&self, n: LocalPOS, dst: VID) -> Option<EID> {
-        self.get_adj(n)
+    pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
+        self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(dst, Direction::OUT))
     }
 
-    pub fn get_inb_edge(&self, n: LocalPOS, src: VID) -> Option<EID> {
-        self.get_adj(n)
+    pub fn get_inb_edge(&self, n: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
+        self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(src, Direction::IN))
     }
 
-    pub fn out_edges(&self, n: LocalPOS) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.get_adj(n).into_iter().flat_map(|adj| adj.out_iter())
+    pub fn out_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+        self.get_adj(n, layer_id)
+            .into_iter()
+            .flat_map(|adj| adj.out_iter())
     }
 
-    pub fn inb_edges(&self, n: LocalPOS) -> impl Iterator<Item = (VID, EID)> + '_ {
-        self.get_adj(n).into_iter().flat_map(|adj| adj.inb_iter())
+    pub fn inb_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+        self.get_adj(n, layer_id)
+            .into_iter()
+            .flat_map(|adj| adj.inb_iter())
     }
-}
 
-impl MemNodeSegment {
     pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         Self {
-            inner: SegmentContainer::new(segment_id, max_page_len, meta),
+            inner: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
     }
 
@@ -119,7 +125,8 @@ impl MemNodeSegment {
     ) -> bool {
         let dst = dst.into();
         let e_id = e_id.into();
-        let add_out = self.inner.reserve_local_row(src_pos).map_either(
+        let layer_id = e_id.layer();
+        let add_out = self.inner[layer_id].reserve_local_row(src_pos).map_either(
             |row| {
                 row.adj.add_edge_out(dst, e_id.edge);
                 row.row()
@@ -146,9 +153,10 @@ impl MemNodeSegment {
     ) -> bool {
         let src = src.into();
         let e_id = e_id.into();
+        let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
 
-        let add_in = self.inner.reserve_local_row(dst_pos).map_either(
+        let add_in = self.inner[layer_id].reserve_local_row(dst_pos).map_either(
             |row| {
                 row.adj.add_edge_into(src, e_id.edge);
                 row.row()
@@ -166,15 +174,14 @@ impl MemNodeSegment {
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
-        let mut prop_mut_entry = self.inner.properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.inner[e_id.layer()].properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
 
         prop_mut_entry.append_edge_ts(ts, e_id);
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) {
-        let row = self
-            .inner
+        let row = self.inner[e_id.layer()]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
         self.update_timestamp_inner(t, row, e_id);
@@ -184,13 +191,13 @@ impl MemNodeSegment {
         &mut self,
         t: T,
         node_pos: LocalPOS,
+        layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let row = self
-            .inner
+        let row = self.inner[layer_id]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
-        let mut prop_mut_entry = self.inner.properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.inner[layer_id].properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_mut_entry.append_t_props(ts, props);
     }
@@ -198,14 +205,26 @@ impl MemNodeSegment {
     pub fn update_c_props(
         &mut self,
         node_pos: LocalPOS,
+        layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let row = self
-            .inner
+        let row = self.inner[layer_id]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
-        let mut prop_mut_entry = self.inner.properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.inner[layer_id].properties_mut().get_mut_entry(row);
         prop_mut_entry.append_const_props(props);
+    }
+
+    pub fn latest(&self) -> Option<TimeIndexEntry> {
+        Iterator::max(self.inner.iter().filter_map(|seg| seg.latest()))
+    }
+
+    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+        Iterator::min(self.inner.iter().filter_map(|seg| seg.earliest()))
+    }
+
+    pub fn t_len(&self) -> usize {
+        self.inner.iter().map(|seg| seg.t_len()).sum()
     }
 }
 
@@ -222,15 +241,15 @@ impl NodeSegmentOps for NodeSegmentView {
     type Entry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
 
     fn latest(&self) -> Option<TimeIndexEntry> {
-        self.head().as_ref().latest()
+        self.head().latest()
     }
 
     fn earliest(&self) -> Option<TimeIndexEntry> {
-        self.head().as_ref().earliest()
+        self.head().latest()
     }
 
     fn t_len(&self) -> usize {
-        self.head().as_ref().t_len()
+        self.head().t_len()
     }
 
     fn load(
@@ -254,7 +273,8 @@ impl NodeSegmentOps for NodeSegmentView {
         _ext: Self::Extension,
     ) -> Self {
         Self {
-            inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta)).into(),
+            inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
+                .into(),
             segment_id: page_id,
             num_nodes: AtomicUsize::new(0),
             _ext: (),
@@ -292,7 +312,7 @@ impl NodeSegmentOps for NodeSegmentView {
         Ok(())
     }
 
-    fn check_node(&self, _pos: LocalPOS) -> bool {
+    fn check_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
         false
     }
 
@@ -300,18 +320,20 @@ impl NodeSegmentOps for NodeSegmentView {
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_out_edge(pos, dst.into())
+        locked_head.get_out_edge(pos, dst.into(), layer_id)
     }
 
     fn get_inb_edge(
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_inb_edge(pos, src.into())
+        locked_head.get_inb_edge(pos, src.into(), layer_id)
     }
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {

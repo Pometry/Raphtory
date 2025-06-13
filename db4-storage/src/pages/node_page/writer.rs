@@ -49,12 +49,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let src_pos = src_pos.into();
-        self.writer.as_mut().set_lsn(lsn);
 
         let e_id = e_id.into();
+        let layer_id = e_id.layer();
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
         let is_new_node = self.writer.add_outbound_edge(t, src_pos, dst, e_id);
 
-        if is_new_node && !self.page.check_node(src_pos) {
+        if is_new_node && !self.page.check_node(src_pos, layer_id) {
             self.page.increment_num_nodes();
             self.global_num_nodes
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -90,12 +91,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         e_id: impl Into<ELID>,
         lsn: u64,
     ) {
-        self.writer.as_mut().set_lsn(lsn);
         let e_id = e_id.into();
+        let layer = e_id.layer();
+        self.writer.as_mut()[layer].set_lsn(lsn);
         let dst_pos = dst_pos.into();
         let is_new_node = self.writer.add_inbound_edge(t, dst_pos, src, e_id);
 
-        if is_new_node && !self.page.check_node(dst_pos) {
+        if is_new_node && !self.page.check_node(dst_pos, layer) {
             self.page.increment_num_nodes();
             self.global_num_nodes
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -106,37 +108,40 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         t: T,
         pos: LocalPOS,
+        layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
-        self.writer.as_mut().set_lsn(lsn);
-        self.writer.add_props(t, pos, props);
-        // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
+        self.writer.add_props(t, pos, layer_id, props);
     }
 
     pub fn update_c_props(
         &mut self,
         pos: LocalPOS,
+        layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
-        self.writer.as_mut().set_lsn(lsn);
-        self.writer.update_c_props(pos, props);
-        // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
+        self.writer.update_c_props(pos, layer_id, props);
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {
-        self.writer.as_mut().set_lsn(lsn);
+        let layer_id = e_id.layer();
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
         self.writer.update_timestamp(t, pos, e_id);
         // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
     }
 
-    pub fn get_out_edge(&self, pos: LocalPOS, dst: VID) -> Option<EID> {
-        self.page.get_out_edge(pos, dst, self.writer.deref())
+    pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
+        self.page
+            .get_out_edge(pos, dst, layer_id, self.writer.deref())
     }
 
-    pub fn get_inb_edge(&self, pos: LocalPOS, src: VID) -> Option<EID> {
-        self.page.get_inb_edge(pos, src, self.writer.deref())
+    pub fn get_inb_edge(&self, pos: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
+        self.page
+            .get_inb_edge(pos, src, layer_id, self.writer.deref())
     }
 }
 

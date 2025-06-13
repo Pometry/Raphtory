@@ -208,7 +208,6 @@ impl<T: HasRow> SegmentContainer<T> {
         &self,
         item_id: impl Into<LocalPOS>,
         prop_id: usize,
-        _layer_id: usize,
     ) -> Option<TPropCell<'_>> {
         let item_id = item_id.into();
         self.data.get(&item_id).and_then(|entry| {

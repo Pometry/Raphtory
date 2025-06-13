@@ -58,7 +58,7 @@ impl<
     ) -> MaybeNew<ELID> {
         let src = src.into();
         let dst = dst.into();
-        let eid = self.static_session.add_static_edge(src, dst, lsn).map(|eid| eid.with_layer(layer));
+        let eid = self.static_session.add_static_edge(src, dst, lsn).map(|eid| eid.with_layer(0));
         self.layer
             .as_mut()
             .map(|layer| {

@@ -180,12 +180,13 @@ pub trait NodeSegmentOps: Send + Sync {
         head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), DBV4Error>;
 
-    fn check_node(&self, pos: LocalPOS) -> bool;
+    fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_out_edge(
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -193,6 +194,7 @@ pub trait NodeSegmentOps: Send + Sync {
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
+        layer_id: usize,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -231,47 +233,47 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
 
     type TProps: TPropOps<'a>;
 
-    fn out_edges(self) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
 
-    fn inb_edges(self) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
 
-    fn out_edges_sorted(self) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn out_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
 
-    fn inb_edges_sorted(self) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn inb_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
 
-    fn out_nbrs(self) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
-        self.out_edges().map(|(v, _)| v)
+        self.out_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs(self) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
-        self.inb_edges().map(|(v, _)| v)
+        self.inb_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn out_nbrs_sorted(self) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
-        self.out_edges_sorted().map(|(v, _)| v)
+        self.out_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs_sorted(self) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
-        self.inb_edges_sorted().map(|(v, _)| v)
+        self.inb_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn additions(self) -> Self::Additions;
+    fn additions(self, layer_id: usize) -> Self::Additions;
 
-    fn c_prop(self, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn t_prop(self, prop_id: usize) -> Self::TProps;
+    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 }
 
 pub mod error {

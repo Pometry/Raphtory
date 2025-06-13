@@ -74,7 +74,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     fn t_prop(self, prop_id: usize) -> Self::TProps {
         self.es
             .as_ref()
-            .t_prop(self.pos, prop_id, 0)
+            .t_prop(self.pos, prop_id)
             .unwrap_or_default()
     }
 }

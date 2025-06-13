@@ -54,34 +54,33 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = MemAdditions<'a>;
     type TProps = TPropCell<'a>;
 
-    fn out_edges(self) -> impl Iterator<Item = (VID, EID)> + 'a {
-        self.ns.out_edges(self.pos)
+    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+        self.ns.out_edges(self.pos, layer_id)
     }
 
-    fn inb_edges(self) -> impl Iterator<Item = (VID, EID)> + 'a {
-        self.ns.inb_edges(self.pos)
+    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+        self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn out_edges_sorted(self) -> impl Iterator<Item = (VID, EID)> + 'a {
-        self.ns.out_edges(self.pos)
+    fn out_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+        self.ns.out_edges(self.pos, layer_id)
     }
 
-    fn inb_edges_sorted(self) -> impl Iterator<Item = (VID, EID)> + 'a {
-        self.ns.inb_edges(self.pos)
+    fn inb_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+        self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn additions(self) -> Self::Additions {
-        MemAdditions::Props(self.ns.as_ref().additions(self.pos))
+    fn additions(self, layer_id: usize) -> Self::Additions {
+        MemAdditions::Props(self.ns.as_ref()[layer_id].additions(self.pos))
     }
 
-    fn c_prop(self, prop_id: usize) -> Option<Prop> {
-        self.ns.as_ref().c_prop(self.pos, prop_id)
+    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.ns.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
 
-    fn t_prop(self, prop_id: usize) -> Self::TProps {
-        self.ns
-            .as_ref()
-            .t_prop(self.pos, prop_id, 0)
+    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
+        self.ns.as_ref()[layer_id]
+            .t_prop(self.pos, prop_id)
             .unwrap_or_default()
     }
 }

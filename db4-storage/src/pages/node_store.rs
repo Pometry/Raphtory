@@ -1,8 +1,8 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    error::DBV4Error, pages::locked::nodes::{LockedNodePage, WriteLockedNodePages}, segments::node::MemNodeSegment, LocalPOS, ReadLockedNS, NodeSegmentOps
+    LocalPOS, NodeSegmentOps, ReadLockedNS, error::DBV4Error, segments::node::MemNodeSegment,
 };
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_core::entities::{EID, VID};
 use std::{
@@ -25,20 +25,18 @@ pub struct NodeStorageInner<NS, EXT> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedNodeStorage<NS, EXT>{
+pub struct ReadLockedNodeStorage<NS, EXT> {
     storage: Arc<NodeStorageInner<NS, EXT>>,
     locked_pages: Box<[ReadLockedNS<NS>]>,
 }
 
-
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
-
-    pub fn locked(
-        self: &Arc<Self>,
-    ) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_pages = self.pages.iter().map(|(_, segment)| {
-            segment.locked()
-        }).collect::<Box<_>>();
+    pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
+        let locked_pages = self
+            .pages
+            .iter()
+            .map(|(_, segment)| segment.locked())
+            .collect::<Box<_>>();
         ReadLockedNodeStorage {
             storage: self.clone(),
             locked_pages,
@@ -202,13 +200,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         resolve_pos(i.into(), self.max_page_len)
     }
 
-    pub fn get_edge(&self, src: VID, dst: VID) -> Option<EID> {
+    pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
         let (src_chunk, src_pos) = self.resolve_pos(src);
         if src_chunk >= self.pages.count() {
             return None;
         }
         let src_page = &self.pages[src_chunk];
-        src_page.get_out_edge(src_pos, dst, src_page.head())
+        src_page.get_out_edge(src_pos, dst, layer_id, src_page.head())
     }
 
     pub fn grow(&self, new_len: usize) {
