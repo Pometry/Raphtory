@@ -5,18 +5,23 @@ use raphtory::{
 };
 
 #[derive(Enum)]
-pub enum PropertySpec {
+pub enum AllPropertySpec {
     All,
     AllConstant,
     AllTemporal,
 }
 
+#[derive(InputObject)]
+pub struct SomePropertySpec {
+    pub constant: Vec<String>,
+    pub temporal: Vec<String>,
+}
+
 #[allow(dead_code)]
 #[derive(OneOfInput)]
 pub enum PropsInput {
-    All(PropertySpec),
-    Const(Vec<String>),
-    Temp(Vec<String>),
+    All(AllPropertySpec),
+    Some(SomePropertySpec),
 }
 
 #[derive(InputObject)]
@@ -34,22 +39,24 @@ impl IndexSpecInput {
 
         builder = match self.node_props {
             PropsInput::All(spec) => match spec {
-                PropertySpec::All => builder.with_all_node_props(),
-                PropertySpec::AllConstant => builder.with_all_const_node_props(),
-                PropertySpec::AllTemporal => builder.with_all_temp_node_props(),
+                AllPropertySpec::All => builder.with_all_node_props(),
+                AllPropertySpec::AllConstant => builder.with_all_const_node_props(),
+                AllPropertySpec::AllTemporal => builder.with_all_temp_node_props(),
             },
-            PropsInput::Const(props) => builder.with_const_node_props(props)?,
-            PropsInput::Temp(props) => builder.with_temp_node_props(props)?,
+            PropsInput::Some(props) => builder
+                .with_const_node_props(props.constant)?
+                .with_temp_node_props(props.temporal)?,
         };
 
         builder = match self.edge_props {
             PropsInput::All(spec) => match spec {
-                PropertySpec::All => builder.with_all_edge_props(),
-                PropertySpec::AllConstant => builder.with_all_edge_const_props(),
-                PropertySpec::AllTemporal => builder.with_all_temp_edge_props(),
+                AllPropertySpec::All => builder.with_all_edge_props(),
+                AllPropertySpec::AllConstant => builder.with_all_edge_const_props(),
+                AllPropertySpec::AllTemporal => builder.with_all_temp_edge_props(),
             },
-            PropsInput::Const(props) => builder.with_const_edge_props(props)?,
-            PropsInput::Temp(props) => builder.with_temp_edge_props(props)?,
+            PropsInput::Some(props) => builder
+                .with_const_edge_props(props.constant)?
+                .with_temp_edge_props(props.temporal)?,
         };
 
         Ok(builder.build())

@@ -117,6 +117,7 @@ impl QueryRoot {
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
         Namespaces::new(root.get_all_namespaces())
     }
+
     async fn namespace<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -130,6 +131,7 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
+
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
@@ -284,7 +286,7 @@ impl Mut {
         {
             let data = ctx.data_unchecked::<Data>();
             let graph = data.get_graph(path)?.0.graph;
-            let _ = match index_spec {
+            match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;
                     if in_ram {
@@ -300,7 +302,7 @@ impl Mut {
                         graph.create_index()
                     }
                 }
-            };
+            }?;
 
             Ok(true)
         }
