@@ -1,6 +1,6 @@
 use crate::model::graph::{
     edges::GqlEdges,
-    filtering::NodeViewCollection,
+    filtering::{NodeFilter, NodeViewCollection},
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
     property::GqlProperties,
@@ -13,7 +13,7 @@ use raphtory::{
     algorithms::components::{in_component, out_component},
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
-        graph::node::NodeView,
+        graph::{node::NodeView, views::filter::model::node_filter::CompositeNodeFilter},
     },
     errors::GraphError,
     prelude::NodeStateOps,
@@ -379,5 +379,23 @@ impl GqlNode {
 
     async fn out_neighbours(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.vv.out_neighbours())
+    }
+
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            filter.validate()?;
+            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
+            Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
+        })
+        .await
+        .unwrap()
+    }
+}
+
+impl GqlNode {
+    fn update<N: Into<NodeView<'static, DynamicGraph>>>(&self, node: N) -> Self {
+        Self { vv: node.into() }
     }
 }
