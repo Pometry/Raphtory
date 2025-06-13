@@ -242,21 +242,13 @@ impl PropertyFilter {
         let prop_name = self.prop_ref.name();
         if let PropertyFilterValue::Single(value) = &self.prop_value {
             if resolve_to_map {
-                return if let PropType::Map(map) = value.dtype() {
+                if let PropType::Map(map) = value.dtype() {
                     if let Some((_k, v)) = map.iter().next() {
-                        Ok(meta
+                        return Ok(meta
                             .const_prop_meta()
-                            .get_and_validate(prop_name, v.clone())?)
-                    } else {
-                        Err(GraphError::InvalidProperty {
-                            reason: "Empty constant property map".to_owned(),
-                        })?
+                            .get_and_validate(prop_name, v.clone())?);
                     }
-                } else {
-                    Err(GraphError::InvalidProperty {
-                        reason: "Expected PropType::Map".to_owned(),
-                    })?
-                };
+                }
             }
             Ok(meta
                 .const_prop_meta()
