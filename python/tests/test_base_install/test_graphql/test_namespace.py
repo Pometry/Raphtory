@@ -3,7 +3,6 @@ import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 import json
-import time
 
 
 def make_folder_structure(client):
@@ -14,7 +13,6 @@ def make_folder_structure(client):
     client.send_graph("test/first/internal/graph", g, overwrite=True)
     client.send_graph("test/second/internal/graph1", g, overwrite=True)
     client.send_graph("test/second/internal/graph2", g, overwrite=True)
-    time.sleep(1)
 
 
 def sort_dict(d):
