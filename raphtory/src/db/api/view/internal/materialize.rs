@@ -13,6 +13,7 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
 use chrono::{DateTime, Utc};

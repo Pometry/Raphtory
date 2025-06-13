@@ -209,7 +209,7 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[datetime]: the datetime of the earliest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         self.graph.earliest_date_time()
     }
 
@@ -227,7 +227,7 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[datetime]: the datetime of the latest activity in the graph
     #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         self.graph.latest_date_time()
     }
 
