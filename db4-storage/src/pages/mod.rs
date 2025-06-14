@@ -385,10 +385,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let (_, edge_pos) = self.edges.resolve_pos(eid.edge);
         let mut edge_writer = self.edges.try_get_writer(eid.edge)?;
         let (src, dst) = edge_writer
-            .get_edge(edge_pos)
+            .get_edge(layer, edge_pos)
             .expect("Internal Error, EID should be checked at this point!");
         let prop_writer = PropsMetaWriter::constant(&self.edge_meta, props.into_iter())?;
-        edge_writer.update_c_props(edge_pos, src, dst, prop_writer.into_props_const()?);
+
+        edge_writer.update_c_props(edge_pos, src, dst, layer, prop_writer.into_props_const()?);
+
         Ok(())
     }
 
