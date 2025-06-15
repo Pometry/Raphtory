@@ -117,12 +117,12 @@ pub fn triadic_census<G: StaticGraphViewOps>(
 
             }
             
-            if vnbrs.contains(&u) & unbrs.contains(&v) {
+            if g.has_edge(u,v) & g.has_edge(v,u) {
                 // Triad 102
-                local_census[1] += n - count_neighbours - 2;
+                local_census[2] += n - count_neighbours - 2;
             } else {
                 // Triad 012
-                local_census[2] += n - count_neighbours - 2;
+                local_census[1] += n - count_neighbours - 2;
             }
             
         }
