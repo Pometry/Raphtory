@@ -1,5 +1,4 @@
-use crate::errors::GraphError;
-use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
+use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter, errors::GraphError};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{

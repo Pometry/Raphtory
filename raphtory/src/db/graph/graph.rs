@@ -210,18 +210,21 @@ pub fn assert_node_equal_layer<
             }
             Some(earliest) => {
                 // persistent graph might have updates at start after materialize
+                // history objects aren't identical because the nodes use different generic graph types
                 assert_eq!(
-                    n1.after(earliest).history(),
-                    n2.after(earliest).history(),
+                    n1.after(earliest).history().collect_timestamps(),
+                    n2.after(earliest).history().collect_timestamps(),
                     "mismatched history for node {:?}{layer_tag}",
                     n1.id()
                 );
             }
         }
     } else {
+        let n1_timestamps = n1.history().collect_timestamps();
+        let n2_timestamps = n2.history().collect_timestamps();
         assert_eq!(
-            n1.history(),
-            n2.history(),
+            n1_timestamps,
+            n2_timestamps,
             "mismatched history for node {:?}{layer_tag}",
             n1.id()
         );
@@ -820,7 +823,7 @@ mod db_tests {
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
 
-        assert_eq!(g_b.history()vcollect_timestamps(), vec![1]);
+        assert_eq!(g_b.history().collect_timestamps(), vec![1]);
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
         let res = gg.import_node(&g_a, false).unwrap();

@@ -12,9 +12,9 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::storage::timeindex::TimeError;
-use raphtory_api::core::Direction;
+use raphtory_api::core::{storage::timeindex::TimeError, Direction};
 use raphtory_storage::graph::graph::GraphStorage;
+use std::marker::PhantomData;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -93,15 +93,17 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     >;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
-    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>>;
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>>;
 
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>>;
+    ) -> Self::ValueType<
+        ops::Map<ops::HistoryOp<'graph, Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>,
+    >;
 
     //Returns true if the node has any updates within the current window, otherwise false
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>>;
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -243,31 +245,31 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn history(&self) -> Self::ValueType<ops::HistoryOp<Self::Graph>> {
+    fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>> {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
+            _phantom: PhantomData,
         };
         self.map(op)
     }
     #[inline]
     fn history_date_time(
         &self,
-    ) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>>
-    {
+    ) -> Self::ValueType<
+        ops::Map<ops::HistoryOp<'graph, Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>,
+    > {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
+            _phantom: PhantomData,
         }
-        .map(|h| {
-            h.into_iter()
-                .map(|t| t.dt())
-                .collect::<Result<Vec<_>, TimeError>>()
-        });
+        .map(|h| h.collect_date_times());
         self.map(op)
     }
 
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<Self::Graph>, bool>> {
+    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>> {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
+            _phantom: PhantomData,
         }
         .map(|h| !h.is_empty());
         self.map(op)

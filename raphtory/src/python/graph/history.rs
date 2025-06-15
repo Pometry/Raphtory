@@ -1,15 +1,20 @@
-use crate::db::api::view::history::*;
-use crate::prelude::EdgeViewOps;
-use crate::python::graph::edge::PyEdge;
-use crate::python::graph::node::PyNode;
-use crate::python::types::iterable::FromIterable;
-use crate::python::types::repr::iterator_repr;
-use crate::python::types::wrappers::iterators::PyBorrowingIterator;
+use crate::{
+    db::api::view::history::*,
+    prelude::EdgeViewOps,
+    python::{
+        graph::{edge::PyEdge, node::PyNode},
+        types::{
+            iterable::FromIterable, repr::iterator_repr, wrappers::iterators::PyBorrowingIterator,
+        },
+    },
+};
 use pyo3::prelude::*;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use std::sync::Arc;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]

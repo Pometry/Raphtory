@@ -1,29 +1,40 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 
-use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
-use crate::core::utils::iter::GenLockedIter;
-use crate::db::api::properties::internal::{PropertiesOps, TemporalPropertiesOps};
-use crate::db::api::properties::{TemporalProperties, TemporalPropertyView};
-use crate::db::api::view::internal::filtered_node::FilteredNodeStorageOps;
-use crate::db::api::view::internal::{
-    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
-    TimeSemantics,
+use crate::{
+    core::{
+        storage::timeindex::{AsTime, TimeIndexEntry},
+        utils::iter::GenLockedIter,
+    },
+    db::{
+        api::{
+            properties::{
+                internal::{PropertiesOps, TemporalPropertiesOps},
+                TemporalPropertyView,
+            },
+            view::{
+                internal::{
+                    filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
+                    GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
+                },
+                BoxableGraphView, BoxedLIter, IntoDynBoxed,
+            },
+        },
+        graph::{
+            edge::{edge_valid_layer, EdgeView},
+            node::NodeView,
+        },
+    },
+    prelude::*,
 };
-use crate::db::api::view::{BoxableGraphView, BoxedLIter, IntoDynBoxed};
-use crate::db::graph::edge::{edge_valid_layer, EdgeView};
-use crate::db::graph::node::NodeView;
-use crate::prelude::*;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::entities::{LayerIds, VID};
-use raphtory_api::core::storage::timeindex::TimeIndexOps;
+use raphtory_api::core::{
+    entities::LayerIds,
+    storage::timeindex::{TimeError, TimeIndexOps},
+};
 use raphtory_storage::core_ops::CoreGraphOps;
-use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::slice::Iter;
-use std::sync::Arc;
+use std::{ops::Deref, slice::Iter, sync::Arc};
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -104,7 +115,21 @@ impl<T: InternalHistoryOps> History<T> {
     }
 
     pub fn collect_timestamps(&self) -> Vec<i64> {
-        self.0.iter().map(|x| x.t()).dedup().collect_vec()
+        self.0
+            .iter()
+            .map(|x| x.t()) /*.dedup()*/
+            .collect_vec()
+    }
+
+    pub fn collect_date_times(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
+        self.0
+            .iter()
+            .map(|x| x.dt()) /*.dedup()*/
+            .collect::<Result<Vec<_>, TimeError>>()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
     }
 
     pub fn intervals(&self) -> Intervals {
@@ -245,10 +270,9 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history(node.as_ref(), graph)
+                .node_history(node.as_ref(), &self.graph)
                 .map(|t| TimeIndexEntry::from(t))
                 .into_dyn_boxed()
         })
@@ -257,11 +281,11 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
 
     // TODO: Ask about node.history() vs semantics.node_history. It seems like the first bypasses semantics filtering and returns ALL history information
     // I can't seem to find a semantics.node_history_rev or call .rev() since its not a DoubleEndedIterator. Which one do we want here? Probably with semantics
+    // Test to make sure the answer is correct, we might need to reverse self.iter() after collecting
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         let node = self.graph.core_node(self.node);
-        let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
-            node.history(graph).iter_rev().into_dyn_boxed()
+            node.history(&self.graph).iter_rev().into_dyn_boxed()
         })
         .into_dyn_boxed()
     }

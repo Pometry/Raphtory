@@ -1,5 +1,5 @@
-use crate::core::utils::errors::GraphError;
 use crate::{
+    core::utils::errors::GraphError,
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},

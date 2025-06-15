@@ -1,4 +1,3 @@
-use crate::errors::GraphError;
 use crate::{
     core::{
         storage::timeindex::AsTime,
@@ -8,6 +7,7 @@ use crate::{
         internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
         time::internal::InternalTimeOps,
     },
+    errors::GraphError,
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::GraphType;
