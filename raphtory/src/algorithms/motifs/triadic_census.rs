@@ -84,7 +84,9 @@ pub fn triadic_census<G: StaticGraphViewOps>(
         .map(|(i, &code)| (i, code - 1))
         .collect();
 
-     g.nodes().par_iter().map(|v| {
+    let n = g.count_nodes();
+
+     let mut census_global = g.nodes().par_iter().map(|v| {
         let mut local_census = [0usize; 16];
 
         let vnbrs: Vec<_> = v.neighbours().iter().sorted_by(|a, b| a.id().cmp(&b.id())).collect();
@@ -95,11 +97,15 @@ pub fn triadic_census<G: StaticGraphViewOps>(
             }
 
             let unbrs: Vec<_> = u.neighbours().iter().sorted_by(|a, b| a.id().cmp(&b.id())).collect();
-
+            
+            let mut count_neighbours = 0;
             for w in vnbrs.iter()
                 .merge_by(unbrs.iter(), |a, b| a.id() < b.id())
                 .dedup_by(|a, b| a.id() == b.id())
-                .skip_while(|w| w.id() < v.id()) {
+                .filter(|w| w.id() != v.id() && w.id() != u.id())
+            {
+
+                count_neighbours += 1;
 
                 if ( u.id() < w.id() )  || (v.id() < w.id() && w.id() < u.id() && !w.neighbours().iter().contains(&v)) {
                     let code = tricode(g, v, u, *w);
@@ -109,8 +115,16 @@ pub fn triadic_census<G: StaticGraphViewOps>(
                     }
                 }
 
-
             }
+            
+            if vnbrs.contains(&u) & unbrs.contains(&v) {
+                // Triad 102
+                local_census[1] += n - count_neighbours - 2;
+            } else {
+                // Triad 012
+                local_census[2] += n - count_neighbours - 2;
+            }
+            
         }
 
         local_census
@@ -123,7 +137,9 @@ pub fn triadic_census<G: StaticGraphViewOps>(
             }
             a
         }
-    )
+    );
+    census_global[0] = ( (n * (n - 1) * (n - 2)) / 6) - (census_global.iter().sum::<usize>());
+    census_global
 }
 
 pub fn labeled_triadic_census<G: StaticGraphViewOps>(
