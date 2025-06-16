@@ -33,7 +33,7 @@ extra_css:
   - stylesheets/extra.css
 plugins:
   - search:
-      -lang: en
+      lang: en
   - markdown-exec
   - gen-files:
       scripts:
