@@ -8,7 +8,7 @@ use std::{
 
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::entities::{
-    VID, 
+    VID,
     properties::{meta::Meta, prop::Prop},
 };
 use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
@@ -36,43 +36,54 @@ impl HasRow for MemPageEntry {
 
 #[derive(Debug)]
 pub struct MemEdgeSegment {
-    inner: Vec<SegmentContainer<MemPageEntry>>,
+    layers: Vec<SegmentContainer<MemPageEntry>>,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdgeSegment {
     fn from(inner: I) -> Self {
         Self {
-            inner: inner.into_iter().collect(),
+            layers: inner.into_iter().collect(),
         }
     }
 }
 
 impl AsRef<[SegmentContainer<MemPageEntry>]> for MemEdgeSegment {
     fn as_ref(&self) -> &[SegmentContainer<MemPageEntry>] {
-        &self.inner
+        &self.layers
     }
 }
 
 impl AsMut<[SegmentContainer<MemPageEntry>]> for MemEdgeSegment {
     fn as_mut(&mut self) -> &mut [SegmentContainer<MemPageEntry>] {
-        &mut self.inner
+        &mut self.layers
     }
 }
 
 impl MemEdgeSegment {
     pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         Self {
-            inner: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
     }
 
     pub fn est_size(&self) -> usize {
-        self.inner.iter().map(|seg| seg.est_size()).sum::<usize>()
+        self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
+    }
+
+    pub fn lsn(&self) -> u64 {
+        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
+    }
+
+    pub fn max_page_len(&self) -> usize {
+        self.layers[0].max_page_len()
     }
 
     pub fn get_edge(&self, edge_pos: impl Into<LocalPOS>, layer_id: usize) -> Option<(VID, VID)> {
         let edge_pos = edge_pos.into();
-        self.inner.get(layer_id)?.get(&edge_pos).map(|entry| (entry.src, entry.dst))
+        self.layers
+            .get(layer_id)?
+            .get(&edge_pos)
+            .map(|entry| (entry.src, entry.dst))
     }
 
     pub fn insert_edge_internal<T: AsTime>(
@@ -87,13 +98,15 @@ impl MemEdgeSegment {
         let edge_pos = edge_pos.into();
         let src = src.into();
         let dst = dst.into();
-        
+
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        
+
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
 
-        let mut prop_entry: PropMutEntry<'_> = self.inner[layer_id].properties_mut().get_mut_entry(local_row);
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+            .properties_mut()
+            .get_mut_entry(local_row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_entry.append_t_props(ts, props)
     }
@@ -107,24 +120,28 @@ impl MemEdgeSegment {
     ) {
         let src = src.into();
         let dst = dst.into();
-        
+
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        
+
         self.reserve_local_row(edge_pos, src, dst, layer_id);
     }
 
     fn ensure_layer(&mut self, layer_id: usize) {
-        if layer_id >= self.inner.len() {
+        if layer_id >= self.layers.len() {
             // Get details from first layer to create consistent new layers
-            if let Some(first_layer) = self.inner.first() {
+            if let Some(first_layer) = self.layers.first() {
                 let segment_id = first_layer.segment_id();
                 let max_page_len = first_layer.max_page_len();
                 let meta = first_layer.meta().clone();
-                
+
                 // Extend with new layers
-                while self.inner.len() <= layer_id {
-                    self.inner.push(SegmentContainer::new(segment_id, max_page_len, meta.clone()));
+                while self.layers.len() <= layer_id {
+                    self.layers.push(SegmentContainer::new(
+                        segment_id,
+                        max_page_len,
+                        meta.clone(),
+                    ));
                 }
             }
         }
@@ -139,11 +156,11 @@ impl MemEdgeSegment {
     ) -> usize {
         let src = src.into();
         let dst = dst.into();
-        
+
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        
-        let row = self.inner[layer_id].reserve_local_row(edge_pos).map_either(
+
+        let row = self.layers[layer_id].reserve_local_row(edge_pos).map_either(
             |row| {
                 row.src = src;
                 row.dst = dst;
@@ -169,37 +186,45 @@ impl MemEdgeSegment {
         let edge_pos = edge_pos.into();
         let src = src.into();
         let dst = dst.into();
-        
+
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        
+
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let mut prop_entry: PropMutEntry<'_> = self.inner[layer_id].properties_mut().get_mut_entry(local_row);
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+            .properties_mut()
+            .get_mut_entry(local_row);
         prop_entry.append_const_props(props)
     }
 
-    pub fn insert_edge(&mut self, edge_pos: LocalPOS, src: impl Into<VID>, dst: impl Into<VID>, layer_id: usize) {
+    pub fn insert_edge(
+        &mut self,
+        edge_pos: LocalPOS,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        layer_id: usize,
+    ) {
         self.insert_edge_internal(0, edge_pos, src, dst, layer_id, []);
     }
 
     pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
-        self.inner
+        self.layers
             .get(layer_id)
             .and_then(|layer| layer.items().get::<usize>(edge_pos.0))
             .map(|b| *b)
             .unwrap_or_default()
     }
-    
+
     pub fn latest(&self) -> Option<TimeIndexEntry> {
-        Iterator::max(self.inner.iter().filter_map(|seg| seg.latest()))
+        Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
-        Iterator::min(self.inner.iter().filter_map(|seg| seg.earliest()))
+        Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
     pub fn t_len(&self) -> usize {
-        self.inner.iter().map(|seg| seg.t_len()).sum()
+        self.layers.iter().map(|seg| seg.t_len()).sum()
     }
 }
 
@@ -249,7 +274,8 @@ impl EdgeSegmentOps for EdgeSegmentView {
         _ext: Self::Extension,
     ) -> Self {
         Self {
-            segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta)).into(),
+            segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
+                .into(),
             segment_id: page_id,
             num_edges: AtomicUsize::new(0),
             _ext: (),

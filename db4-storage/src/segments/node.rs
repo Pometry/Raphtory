@@ -21,13 +21,13 @@ use crate::{LocalPOS, NodeSegmentOps, error::DBV4Error, segments::node_entry::Me
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
-    inner: Vec<SegmentContainer<AdjEntry>>,
+    layers: Vec<SegmentContainer<AdjEntry>>,
 }
 
-impl <I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
+impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
     fn from(inner: I) -> Self {
         Self {
-            inner: inner.into_iter().collect(),
+            layers: inner.into_iter().collect(),
         }
     }
 }
@@ -64,28 +64,32 @@ impl HasRow for AdjEntry {
 
 impl AsRef<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
     fn as_ref(&self) -> &[SegmentContainer<AdjEntry>] {
-        &self.inner
+        &self.layers
     }
 }
 
 impl AsMut<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
     fn as_mut(&mut self) -> &mut [SegmentContainer<AdjEntry>] {
-        &mut self.inner
+        &mut self.layers
     }
 }
 
 impl MemNodeSegment {
+    pub fn lsn(&self) -> u64 {
+        self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
+    }
+
     pub fn est_size(&self) -> usize {
-        self.inner.iter().map(|seg| seg.est_size()).sum::<usize>()
+        self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
     }
 
     #[inline(always)]
     fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
-        self.inner[layer_id].get(&n).map(|AdjEntry { adj, .. }| adj)
+        self.layers[layer_id].get(&n).map(|AdjEntry { adj, .. }| adj)
     }
 
     pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
-        self.inner[layer_id].items().get(n.0).map_or(false, |v| *v)
+        self.layers[layer_id].items().get(n.0).map_or(false, |v| *v)
     }
 
     pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
@@ -112,7 +116,7 @@ impl MemNodeSegment {
 
     pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         Self {
-            inner: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
     }
 
@@ -126,7 +130,7 @@ impl MemNodeSegment {
         let dst = dst.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let add_out = self.inner[layer_id].reserve_local_row(src_pos).map_either(
+        let add_out = self.layers[layer_id].reserve_local_row(src_pos).map_either(
             |row| {
                 row.adj.add_edge_out(dst, e_id.edge);
                 row.row()
@@ -156,7 +160,7 @@ impl MemNodeSegment {
         let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
 
-        let add_in = self.inner[layer_id].reserve_local_row(dst_pos).map_either(
+        let add_in = self.layers[layer_id].reserve_local_row(dst_pos).map_either(
             |row| {
                 row.adj.add_edge_into(src, e_id.edge);
                 row.row()
@@ -174,14 +178,14 @@ impl MemNodeSegment {
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
-        let mut prop_mut_entry = self.inner[e_id.layer()].properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.layers[e_id.layer()].properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
 
         prop_mut_entry.append_edge_ts(ts, e_id);
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) {
-        let row = self.inner[e_id.layer()]
+        let row = self.layers[e_id.layer()]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
         self.update_timestamp_inner(t, row, e_id);
@@ -194,10 +198,10 @@ impl MemNodeSegment {
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let row = self.inner[layer_id]
+        let row = self.layers[layer_id]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
-        let mut prop_mut_entry = self.inner[layer_id].properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.layers[layer_id].properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_mut_entry.append_t_props(ts, props);
     }
@@ -208,23 +212,23 @@ impl MemNodeSegment {
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let row = self.inner[layer_id]
+        let row = self.layers[layer_id]
             .reserve_local_row(node_pos)
             .either(|a| a.row, |a| a.row);
-        let mut prop_mut_entry = self.inner[layer_id].properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.layers[layer_id].properties_mut().get_mut_entry(row);
         prop_mut_entry.append_const_props(props);
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
-        Iterator::max(self.inner.iter().filter_map(|seg| seg.latest()))
+        Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
-        Iterator::min(self.inner.iter().filter_map(|seg| seg.earliest()))
+        Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
     pub fn t_len(&self) -> usize {
-        self.inner.iter().map(|seg| seg.t_len()).sum()
+        self.layers.iter().map(|seg| seg.t_len()).sum()
     }
 }
 

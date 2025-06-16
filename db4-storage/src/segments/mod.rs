@@ -24,7 +24,7 @@ pub mod edge_entry;
 pub mod node_entry;
 
 pub struct SegmentContainer<T> {
-    page_id: usize,
+    segment_id: usize,
     items: BitVec<u8, Msb0>,
     data: FxHashMap<LocalPOS, T>,
     max_page_len: usize,
@@ -44,7 +44,7 @@ impl<T: Debug> Debug for SegmentContainer<T> {
         data.sort_by(|a, b| a.0.cmp(&b.0));
 
         f.debug_struct("SegmentContainer")
-            .field("page_id", &self.page_id)
+            .field("page_id", &self.segment_id)
             .field("items", &items as &dyn Debug)
             .field("data", &data)
             .field("max_page_len", &self.max_page_len)
@@ -59,10 +59,10 @@ pub trait HasRow: Default {
 }
 
 impl<T: HasRow> SegmentContainer<T> {
-    pub fn new(page_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
+    pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
         Self {
-            page_id,
+            segment_id,
             items: BitVec::repeat(false, max_page_len),
             data: Default::default(),
             max_page_len,
@@ -142,7 +142,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     #[inline(always)]
     pub fn segment_id(&self) -> usize {
-        self.page_id
+        self.segment_id
     }
 
     #[inline(always)]

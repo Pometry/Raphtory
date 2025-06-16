@@ -95,6 +95,12 @@ impl EID {
     }
 }
 
+impl From<ELID> for EID {
+    fn from(elid: ELID) -> Self {
+        elid.edge
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ELID {
     pub edge: EID,
