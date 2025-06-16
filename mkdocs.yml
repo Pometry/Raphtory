@@ -47,6 +47,7 @@ plugins:
           options:
             show_source: false
             show_root_heading: true
+            show_root_full_path: false
             show_if_no_docstring: true
             allow_inspection: false
             docstring_style: google

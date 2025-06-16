@@ -46,7 +46,9 @@ def gen_module(name: str, module: griffe.Module) -> Path:
     doc_path = doc_root / path.with_suffix(".md")
 
     with mkdocs_gen_files.open(doc_path, "w") as fd:
-        print(f"# {name}", file=fd)
+        print(f"# ::: {module.path}", file=fd)
+        print(f"    options:", file=fd)
+        print(f"      members: false", file=fd)
 
         public_modules = _public_items(module.modules)
         if public_modules:
@@ -54,7 +56,6 @@ def gen_module(name: str, module: griffe.Module) -> Path:
             for member_name, sub_module in public_modules:
                 sub_path = gen_module(member_name, sub_module)
                 link_path = sub_path.relative_to(doc_path.parent)
-
                 print(f"### [`{member_name}`]({link_path})", file=fd)
                 print(f"{_docstr_desc(sub_module)}\n", file=fd)
 
