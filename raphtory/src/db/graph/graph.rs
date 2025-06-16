@@ -2400,6 +2400,7 @@ mod db_tests {
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
             assert!(windowed_times_of_four.is_empty());
+            assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
         });
     }
 

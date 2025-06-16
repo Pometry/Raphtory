@@ -1,12 +1,12 @@
 use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
-        view::internal::NodeTimeSemanticsOps,
+        view::internal::{filtered_node::FilteredNodeStorageOps, NodeTimeSemanticsOps},
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexOps};
 use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]
@@ -108,5 +108,32 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
         History {
             graph: filtered_graph,
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct EdgeHistoryCount<G> {
+    pub(crate) graph: G,
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for EdgeHistoryCount<G> {
+    type Output = usize;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let node = storage.core_node(node);
+        node.as_ref().history(&self.graph).edge_history().len()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EdgeHistoryCount<G> {
+    type Graph = G;
+    type Filtered<GH: GraphViewOps<'graph>> = EdgeHistoryCount<GH>;
+
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
+    }
+
+    fn filtered<GH: GraphViewOps<'graph>>(&self, graph: GH) -> Self::Filtered<GH> {
+        EdgeHistoryCount { graph }
     }
 }
