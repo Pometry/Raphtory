@@ -23,7 +23,7 @@ def test_create_index_with_custom_spec(graph):
               )
             }
             """,
-            {"createIndex": True}
+            {"createIndex": True},
         ),
         (
             """
@@ -39,16 +39,16 @@ def test_create_index_with_custom_spec(graph):
             }
             """,
             {
-                'graph': {
-                    'getIndexSpec': {
-                        'nodeConstProps': ['p1'],
-                        'nodeTempProps': ['p1', 'q1'],
-                        'edgeConstProps': ['p1'],
-                        'edgeTempProps': [],
+                "graph": {
+                    "getIndexSpec": {
+                        "nodeConstProps": ["p1"],
+                        "nodeTempProps": ["p1", "q1"],
+                        "edgeConstProps": ["p1"],
+                        "edgeTempProps": [],
                     }
                 }
-            }
-        )
+            },
+        ),
     ]
 
     run_group_graphql_test(queries, graph)
@@ -66,7 +66,7 @@ def test_create_index_with_default_spec(graph):
               )
             }
             """,
-            {"createIndex": True}
+            {"createIndex": True},
         ),
         (
             """
@@ -82,16 +82,16 @@ def test_create_index_with_default_spec(graph):
             }
             """,
             {
-                'graph': {
-                    'getIndexSpec': {
-                        'edgeConstProps': ['p1'],
-                        'edgeTempProps': ['p1', 'q1'],
-                        'nodeConstProps': ['p1'],
-                        'nodeTempProps': ['p1', 'q1']
+                "graph": {
+                    "getIndexSpec": {
+                        "edgeConstProps": ["p1"],
+                        "edgeTempProps": ["p1", "q1"],
+                        "nodeConstProps": ["p1"],
+                        "nodeTempProps": ["p1", "q1"],
                     }
                 }
-            }
-        )
+            },
+        ),
     ]
 
     run_group_graphql_test(queries, graph)

@@ -110,17 +110,6 @@ class GraphView(object):
            int: the number of temporal edges in the graph
         """
 
-    def create_index(self):
-        """Create graph index"""
-
-    def create_index_in_ram(self):
-        """
-        Creates a graph index in memory (RAM).
-
-        This is primarily intended for use in tests and should not be used in production environments,
-        as the index will not be persisted to disk.
-        """
-
     def default_layer(self) -> GraphView:
         """
          Return a view of GraphView containing only the default edge layer
@@ -306,6 +295,9 @@ class GraphView(object):
         Returns:
            list[Node]: the nodes that match the properties name and value
         """
+
+    def get_index_spec(self):
+        """Get index spec"""
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
@@ -804,6 +796,28 @@ class Graph(GraphView):
         Returns:
             None:
         """
+
+    def create_index(self):
+        """Create graph index"""
+
+    def create_index_in_ram(self):
+        """
+        Creates a graph index in memory (RAM).
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
+    def create_index_in_ram_with_spec(self, py_spec):
+        """
+        Creates a graph index in memory (RAM) with the provided index spec.
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
+    def create_index_with_spec(self, py_spec):
+        """Create graph index with the provided index spec."""
 
     def create_node(
         self,
@@ -1494,6 +1508,28 @@ class PersistentGraph(GraphView):
         Returns:
             None:
         """
+
+    def create_index(self):
+        """Create graph index"""
+
+    def create_index_in_ram(self):
+        """
+        Creates a graph index in memory (RAM).
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
+    def create_index_in_ram_with_spec(self, py_spec):
+        """
+        Creates a graph index in memory (RAM) with the provided index spec.
+
+        This is primarily intended for use in tests and should not be used in production environments,
+        as the index will not be persisted to disk.
+        """
+
+    def create_index_with_spec(self, py_spec):
+        """Create graph index with the provided index spec."""
 
     def create_node(
         self,
@@ -5595,7 +5631,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5664,7 +5700,7 @@ class ConstantProperties(object):
     """A view of constant properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5745,7 +5781,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5827,7 +5863,7 @@ class TemporalProperties(object):
 
 class PropertiesView(object):
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -6103,3 +6139,32 @@ class WindowSet(object):
         Returns:
             Iterable: the time index"
         """
+
+class IndexSpecBuilder(object):
+    def __new__(cls, graph) -> IndexSpecBuilder:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+    def build(self): ...
+    def with_all_const_node_props(self): ...
+    def with_all_edge_const_props(self): ...
+    def with_all_edge_props(self): ...
+    def with_all_node_props(self): ...
+    def with_all_temp_edge_props(self): ...
+    def with_all_temp_node_props(self): ...
+    def with_const_edge_props(self, props): ...
+    def with_const_node_props(self, props): ...
+    def with_temp_edge_props(self, props): ...
+    def with_temp_node_props(self, props): ...
+
+class IndexSpec(object):
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @property
+    def edge_const_props(self): ...
+    @property
+    def edge_temp_props(self): ...
+    @property
+    def node_const_props(self): ...
+    @property
+    def node_temp_props(self): ...

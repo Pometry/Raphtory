@@ -31,7 +31,7 @@ def test_namespaces_and_metagraph():
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         make_folder_structure(client)
-       
+
         # tests list and page on namespaces and metagraphs
         query = """{
           root {
