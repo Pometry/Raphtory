@@ -5,6 +5,7 @@ pub(crate) mod edge;
 mod edges;
 pub(crate) mod filtering;
 pub(crate) mod graph;
+pub(crate) mod index;
 pub(crate) mod meta_graph;
 mod meta_graphs;
 pub(crate) mod mutable_graph;

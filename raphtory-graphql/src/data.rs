@@ -75,10 +75,15 @@ impl Data {
             })
             .build();
 
+        #[cfg(feature = "search")]
+        let create_index = configs.index.create_index;
+        #[cfg(not(feature = "search"))]
+        let create_index = false;
+
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
-            create_index: true,
+            create_index,
             embedding_conf: Default::default(),
         }
     }
