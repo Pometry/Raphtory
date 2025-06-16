@@ -5,7 +5,6 @@ use crate::{
         },
         EdgeTimeSemanticsOps, GraphView,
     },
-    prelude::GraphViewOps,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds},

@@ -1,4 +1,4 @@
-use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps};
+use crate::db::api::view::internal::GraphView;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds},
     storage::timeindex::TimeIndexEntry,

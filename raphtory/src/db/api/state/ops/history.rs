@@ -1,12 +1,12 @@
 use crate::{
     db::api::{
         state::{ops::NodeOpFilter, NodeOp},
-        view::internal::{filtered_node::FilteredNodeStorageOps, NodeTimeSemanticsOps},
+        view::internal::NodeTimeSemanticsOps,
     },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexOps};
+use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]

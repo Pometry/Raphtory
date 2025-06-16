@@ -6,7 +6,6 @@ use crate::{
         },
         EdgeTimeSemanticsOps, GraphView,
     },
-    prelude::GraphViewOps,
 };
 use either::Either;
 use itertools::Itertools;

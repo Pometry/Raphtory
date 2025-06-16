@@ -1,12 +1,9 @@
-use crate::{
-    db::api::view::internal::{
-        time_semantics::{
-            event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
-            time_semantics_ops::NodeTimeSemanticsOps,
-        },
-        EdgeTimeSemanticsOps, GraphView,
+use crate::db::api::view::internal::{
+    time_semantics::{
+        event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
+        time_semantics_ops::NodeTimeSemanticsOps,
     },
-    prelude::GraphViewOps,
+    EdgeTimeSemanticsOps, GraphView,
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
