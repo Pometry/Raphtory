@@ -12,12 +12,16 @@ use crate::{
                 internal::{PropertiesOps, TemporalPropertiesOps},
                 TemporalPropertyView,
             },
+            state::{
+                ops,
+                ops::{node::NodeOp, EarliestTime},
+            },
             view::{
                 internal::{
                     filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
                     GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
                 },
-                BoxableGraphView, BoxedLIter, IntoDynBoxed,
+                BaseNodeViewOps, BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
         },
         graph::{
@@ -291,11 +295,29 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter().next()
+        // ops::EarliestTime {
+        //     graph: self.graph().clone(),
+        // }.map(|t| t.map(|t| TimeIndexEntry::from(t))).apply(self.graph.core_graph(), self.node)
+
+        // I feel like the above method is less efficient
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        semantics
+            .node_earliest_time(node.as_ref(), &self.graph)
+            .map(|t| TimeIndexEntry::from(t))
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter_rev().next()
+        // ops::LatestTime {
+        //     graph: self.graph().clone(),
+        // }.map(|t| t.map(|t| TimeIndexEntry::from(t))).apply(self.graph.core_graph(), self.node)
+
+        // I feel like the above method is less efficient
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        semantics
+            .node_latest_time(node.as_ref(), &self.graph)
+            .map(|t| TimeIndexEntry::from(t))
     }
 }
 
@@ -340,6 +362,8 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         let mut x = self.iter().collect_vec();
         x.reverse();
         x.into_iter().into_dyn_boxed()
+
+        // There is no edge.history() function. Either way, we want to use time_semantics.
         // let edge = self.graph.core_edge(self.edge.pid());
         // let graph = &self.graph;
         // GenLockedIter::from(edge, move |edge| {
@@ -499,14 +523,14 @@ mod tests {
         let dumbledore_node_history_object = History::new(dumbledore_node.clone());
         assert_eq!(
             dumbledore_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 2)]
+            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 0)]
         );
 
         // create Harry node history object
         let harry_node_history_object = History::new(harry_node.clone());
         assert_eq!(
             harry_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(2, 1), TimeIndexEntry::new(3, 2)]
+            vec![TimeIndexEntry::new(2, 0), TimeIndexEntry::new(3, 0)]
         );
 
         // create edge history object
@@ -527,9 +551,9 @@ mod tests {
             composite_history_object.iter().collect_vec(),
             vec![
                 TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(2, 0),
+                TimeIndexEntry::new(3, 0),
+                TimeIndexEntry::new(3, 0),
                 TimeIndexEntry::new(3, 2)
             ]
         );
@@ -620,9 +644,9 @@ mod tests {
             dumbledore_history.iter().collect_vec(),
             vec![
                 TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(5, 7)
+                TimeIndexEntry::new(3, 0),
+                TimeIndexEntry::new(4, 0),
+                TimeIndexEntry::new(5, 0)
             ]
         );
 
@@ -630,10 +654,10 @@ mod tests {
         assert_eq!(
             harry_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(3, 2),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(5, 6)
+                TimeIndexEntry::new(2, 0),
+                TimeIndexEntry::new(3, 0),
+                TimeIndexEntry::new(4, 0),
+                TimeIndexEntry::new(5, 0)
             ]
         );
 
@@ -641,11 +665,11 @@ mod tests {
         assert_eq!(
             broom_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(4, 3),
-                TimeIndexEntry::new(4, 4),
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(5, 6),
-                TimeIndexEntry::new(5, 7)
+                TimeIndexEntry::new(4, 0),
+                TimeIndexEntry::new(4, 0),
+                TimeIndexEntry::new(4, 0),
+                TimeIndexEntry::new(5, 0),
+                TimeIndexEntry::new(5, 0)
             ]
         );
 

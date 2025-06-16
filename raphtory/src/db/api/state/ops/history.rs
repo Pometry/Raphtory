@@ -10,7 +10,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
 
