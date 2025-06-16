@@ -2411,6 +2411,20 @@ mod db_tests {
     }
 
     #[test]
+    fn check_node_edge_history_count() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+
+        test_storage!(&graph, |graph| {
+            let node = graph.node(0).unwrap();
+            assert_eq!(node.edge_history_count(), 2);
+            assert_eq!(node.after(1).edge_history_count(), 1);
+            assert_eq!(node.after(3).edge_history_count(), 0);
+        });
+    }
+
+    #[test]
     fn check_edge_history_on_multiple_shards() {
         let graph = Graph::new();
 

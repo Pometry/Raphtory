@@ -252,6 +252,14 @@ impl PyNode {
         history.into_pyarray(py)
     }
 
+    /// Get the number of edge events for this node
+    ///
+    /// Returns:
+    ///     int: The number of edge events
+    pub fn edge_history_count(&self) -> usize {
+        self.node.edge_history_count()
+    }
+
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
@@ -639,6 +647,16 @@ impl PyNodes {
         self.nodes.history()
     }
 
+    /// Return the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     EdgeHistoryCountView: a view of the edge history counts
+    fn edge_history_count(
+        &self,
+    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+        self.nodes.edge_history_count()
+    }
+
     /// The node types
     ///
     /// Returns:
@@ -879,6 +897,12 @@ impl PyPathFromGraph {
         (move || path.history()).into()
     }
 
+    /// Returns the number of edge updates for each node
+    fn edge_history_count(&self) -> NestedUsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let path = self.path.clone();
@@ -1033,6 +1057,15 @@ impl PyPathFromNode {
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
+    }
+
+    /// Get the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     UsizeIterable:
+    fn edge_history_count(&self) -> UsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
     }
 
     /// the node earliest times
