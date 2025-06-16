@@ -198,12 +198,6 @@ pub fn assert_node_equal_layer<
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>()
     );
-    assert_eq!(
-        n1.edge_history_count(),
-        n2.edge_history_count(),
-        "mismatched edge_history_count for node {:?}{layer_tag}",
-        n1.id()
-    );
     if persistent {
         let earliest = n1.timeline_start();
         match earliest {
@@ -217,6 +211,12 @@ pub fn assert_node_equal_layer<
             Some(earliest) => {
                 // persistent graph might have updates at start after materialize
                 assert_eq!(
+                    n1.after(earliest).edge_history_count(),
+                    n2.after(earliest).edge_history_count(),
+                    "mismatched edge_history_count for node {:?}{layer_tag}",
+                    n1.id()
+                );
+                assert_eq!(
                     n1.after(earliest).history(),
                     n2.after(earliest).history(),
                     "mismatched history for node {:?}{layer_tag}",
@@ -229,6 +229,12 @@ pub fn assert_node_equal_layer<
             n1.history(),
             n2.history(),
             "mismatched history for node {:?}{layer_tag}",
+            n1.id()
+        );
+        assert_eq!(
+            n1.edge_history_count(),
+            n2.edge_history_count(),
+            "mismatched edge_history_count for node {:?}{layer_tag}",
             n1.id()
         );
     }
