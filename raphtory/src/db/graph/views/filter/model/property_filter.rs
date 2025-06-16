@@ -15,7 +15,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
-        prop::{sort_comparable_props, Prop, PropType},
+        prop::{sort_comparable_props, Prop},
     },
     storage::arc_str::ArcStr,
 };
@@ -242,12 +242,10 @@ impl PropertyFilter {
         let prop_name = self.prop_ref.name();
         if let PropertyFilterValue::Single(value) = &self.prop_value {
             if resolve_to_map {
-                if let PropType::Map(map) = value.dtype() {
-                    if let Some((_k, v)) = map.iter().next() {
-                        return Ok(meta
-                            .const_prop_meta()
-                            .get_and_validate(prop_name, v.clone())?);
-                    }
+                if let Some(inner_type) = value.dtype().homogeneous_map_value_type() {
+                    return Ok(meta
+                        .const_prop_meta()
+                        .get_and_validate(prop_name, inner_type)?);
                 }
             }
             Ok(meta
