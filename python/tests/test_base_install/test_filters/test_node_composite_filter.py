@@ -72,12 +72,18 @@ def test_out_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "d"
         filter_expr2 = filter.Property("prop1") > 10
-        result_names = sorted(graph.node("a").filter_nodes(filter_expr1 & filter_expr2).out_neighbours.name)
-        expected_names = ['d']
+        result_names = sorted(
+            graph.node("a")
+            .filter_nodes(filter_expr1 & filter_expr2)
+            .out_neighbours.name
+        )
+        expected_names = ["d"]
         assert result_names == expected_names
 
         filter_expr = filter.Property("prop1") < 10
-        result_names = sorted(graph.node("a").filter_nodes(filter_expr).out_neighbours.name)
+        result_names = sorted(
+            graph.node("a").filter_nodes(filter_expr).out_neighbours.name
+        )
         expected_names = []
         assert result_names == expected_names
 
@@ -89,17 +95,23 @@ def test_in_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "a"
         filter_expr2 = filter.Property("prop1") > 10
-        result_names = sorted(graph.node("d").filter_nodes(filter_expr1 & filter_expr2).in_neighbours.name)
-        expected_names = ['a']
+        result_names = sorted(
+            graph.node("d").filter_nodes(filter_expr1 & filter_expr2).in_neighbours.name
+        )
+        expected_names = ["a"]
         assert result_names == expected_names
 
         filter_expr = filter.Property("prop1") > 10
-        result_names = sorted(graph.node("d").filter_nodes(filter_expr).in_neighbours.name)
-        expected_names = ['a', 'c']
+        result_names = sorted(
+            graph.node("d").filter_nodes(filter_expr).in_neighbours.name
+        )
+        expected_names = ["a", "c"]
         assert result_names == expected_names
 
         filter_expr = filter.Property("prop1") < 10
-        result_names = sorted(graph.node("d").filter_nodes(filter_expr).in_neighbours.name)
+        result_names = sorted(
+            graph.node("d").filter_nodes(filter_expr).in_neighbours.name
+        )
         expected_names = []
         assert result_names == expected_names
 
@@ -111,12 +123,12 @@ def test_neighbours_composite_filter():
     def check(graph):
         filter_expr = filter.Property("prop4") == False
         result_names = sorted(graph.node("a").filter_nodes(filter_expr).neighbours.name)
-        expected_names = ['d']
+        expected_names = ["d"]
         assert result_names == expected_names
 
         filter_expr = filter.Property("prop1") <= 100
         result_names = sorted(graph.node("d").filter_nodes(filter_expr).neighbours.name)
-        expected_names = ['a', 'b', 'c']
+        expected_names = ["a", "b", "c"]
         assert result_names == expected_names
 
         filter_expr = filter.Property("prop1") > 500

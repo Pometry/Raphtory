@@ -41,7 +41,9 @@ def test_out_neighbours_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"outNeighbours": {"list": [{"name": "d"}]}}}}}
+    expected_output = {
+        "graph": {"node": {"nodeFilter": {"outNeighbours": {"list": [{"name": "d"}]}}}}
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -68,7 +70,9 @@ def test_out_neighbours_not_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"outNeighbours": {"list": []}}}}}
+    expected_output = {
+        "graph": {"node": {"nodeFilter": {"outNeighbours": {"list": []}}}}
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -95,7 +99,13 @@ def test_in_neighbours_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"inNeighbours": {"list": [{'name': 'a'}, {'name': 'c'}]}}}}}
+    expected_output = {
+        "graph": {
+            "node": {
+                "nodeFilter": {"inNeighbours": {"list": [{"name": "a"}, {"name": "c"}]}}
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -122,7 +132,9 @@ def test_in_neighbours_not_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"inNeighbours": {"list": []}}}}}
+    expected_output = {
+        "graph": {"node": {"nodeFilter": {"inNeighbours": {"list": []}}}}
+    }
     run_graphql_test(query, expected_output, graph)
 
 
@@ -149,7 +161,13 @@ def test_neighbours_found(graph):
           }
         }
     """
-    expected_output = {"graph": {"node": {"nodeFilter": {"neighbours": {"list": [{'name': 'b'}, {'name': 'c'}]}}}}}
+    expected_output = {
+        "graph": {
+            "node": {
+                "nodeFilter": {"neighbours": {"list": [{"name": "b"}, {"name": "c"}]}}
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 

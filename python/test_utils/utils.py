@@ -135,9 +135,11 @@ def run_group_graphql_test(queries_and_expected_outputs, graph):
 
         for query, expected_output in queries_and_expected_outputs:
             response = client.query(query)
-            response_dict = json.loads(response) if isinstance(response, str) else response
-            assert (
-                sort_dict_recursive(response_dict) == sort_dict_recursive(expected_output)
+            response_dict = (
+                json.loads(response) if isinstance(response, str) else response
+            )
+            assert sort_dict_recursive(response_dict) == sort_dict_recursive(
+                expected_output
             ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 

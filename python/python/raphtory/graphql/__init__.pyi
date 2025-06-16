@@ -21,8 +21,21 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'encode_graph', 'decode_graph']
-class GraphServer(object): 
+__all__ = [
+    "GraphServer",
+    "RunningGraphServer",
+    "RaphtoryClient",
+    "RemoteGraph",
+    "RemoteEdge",
+    "RemoteNode",
+    "RemoteNodeAddition",
+    "RemoteUpdate",
+    "RemoteEdgeAddition",
+    "encode_graph",
+    "decode_graph",
+]
+
+class GraphServer(object):
     """
     A class for defining and running a Raphtory GraphQL server
 
@@ -38,7 +51,21 @@ class GraphServer(object):
         config_path (str | PathLike, optional): Path to the config file
     """
 
-    def __new__(cls, work_dir: str | PathLike, cache_capacity: Optional[int] = None, cache_tti_seconds: Optional[int] = None, log_level: Optional[str] = None, tracing: Optional[bool] = None, otlp_agent_host: Optional[str] = None, otlp_agent_port: Optional[str] = None, otlp_tracing_service_name: Optional[str] = None, auth_public_key=None, auth_enabled_for_reads=None, config_path: Optional[str | PathLike] = None) -> GraphServer:
+    def __new__(
+        cls,
+        work_dir: str | PathLike,
+        cache_capacity: Optional[int] = None,
+        cache_tti_seconds: Optional[int] = None,
+        log_level: Optional[str] = None,
+        tracing: Optional[bool] = None,
+        otlp_agent_host: Optional[str] = None,
+        otlp_agent_port: Optional[str] = None,
+        otlp_tracing_service_name: Optional[str] = None,
+        auth_public_key=None,
+        auth_enabled_for_reads=None,
+        config_path: Optional[str | PathLike] = None,
+        create_index=None,
+    ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
@@ -53,7 +80,13 @@ class GraphServer(object):
             None:
         """
 
-    def set_embeddings(self, cache: str, embedding: Optional[Callable] = None, nodes: bool | str = True, edges: bool | str = True) -> GraphServer:
+    def set_embeddings(
+        self,
+        cache: str,
+        embedding: Optional[Callable] = None,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+    ) -> GraphServer:
         """
         Setup the server to vectorise graphs with a default template.
 
@@ -88,7 +121,9 @@ class GraphServer(object):
             GraphServer: The server with indexing disabled
         """
 
-    def with_vectorised_graphs(self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True) -> GraphServer:
+    def with_vectorised_graphs(
+        self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True
+    ) -> GraphServer:
         """
         Vectorise a subset of the graphs of the server.
 
@@ -101,15 +136,11 @@ class GraphServer(object):
            GraphServer: A new server object containing the vectorised graphs.
         """
 
-class RunningGraphServer(object): 
+class RunningGraphServer(object):
     """A Raphtory server handler that also enables querying the server"""
 
-    def __enter__(self):
-        ...
-
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
-        ...
-
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def get_client(self) -> RaphtoryClient:
         """
         Get the client for the server
@@ -126,7 +157,7 @@ class RunningGraphServer(object):
             None:
         """
 
-class RaphtoryClient(object): 
+class RaphtoryClient(object):
     """
     A client for handling GraphQL operations in the context of Raphtory.
 
@@ -193,7 +224,9 @@ class RaphtoryClient(object):
 
         """
 
-    def query(self, query: str, variables: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    def query(
+        self, query: str, variables: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """
         Make a GraphQL query against the server.
 
@@ -231,7 +264,9 @@ class RaphtoryClient(object):
 
         """
 
-    def send_graph(self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False) -> dict[str, Any]:
+    def send_graph(
+        self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
+    ) -> dict[str, Any]:
         """
         Send a graph to the server
 
@@ -244,7 +279,9 @@ class RaphtoryClient(object):
            dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
         """
 
-    def upload_graph(self, path: str, file_path: str, overwrite: bool = False) -> dict[str, Any]:
+    def upload_graph(
+        self, path: str, file_path: str, overwrite: bool = False
+    ) -> dict[str, Any]:
         """
         Upload graph file from a path `file_path` on the client
 
@@ -257,8 +294,7 @@ class RaphtoryClient(object):
            dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
         """
 
-class RemoteGraph(object): 
-
+class RemoteGraph(object):
     def add_constant_properties(self, properties: dict) -> None:
         """
         Adds constant properties to the remote graph.
@@ -270,7 +306,14 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_edge(self, timestamp: int | str | datetime, src: str | int, dst: str | int, properties: Optional[dict] = None, layer: Optional[str] = None) -> RemoteEdge:
+    def add_edge(
+        self,
+        timestamp: int | str | datetime,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[dict] = None,
+        layer: Optional[str] = None,
+    ) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
 
@@ -296,7 +339,13 @@ class RemoteGraph(object):
             None:
         """
 
-    def add_node(self, timestamp: int | str | datetime, id: str | int, properties: Optional[dict] = None, node_type: Optional[str] = None) -> RemoteNode:
+    def add_node(
+        self,
+        timestamp: int | str | datetime,
+        id: str | int,
+        properties: Optional[dict] = None,
+        node_type: Optional[str] = None,
+    ) -> RemoteNode:
         """
         Adds a new node with the given id and properties to the remote graph.
 
@@ -332,7 +381,13 @@ class RemoteGraph(object):
             None:
         """
 
-    def create_node(self, timestamp: int | str | datetime, id: str | int, properties: Optional[dict] = None, node_type: Optional[str] = None) -> RemoteNode:
+    def create_node(
+        self,
+        timestamp: int | str | datetime,
+        id: str | int,
+        properties: Optional[dict] = None,
+        node_type: Optional[str] = None,
+    ) -> RemoteNode:
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
 
@@ -345,7 +400,13 @@ class RemoteGraph(object):
           RemoteNode: the new remote node
         """
 
-    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None) -> RemoteEdge:
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str] = None,
+    ) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
 
@@ -393,14 +454,16 @@ class RemoteGraph(object):
             None:
         """
 
-class RemoteEdge(object): 
+class RemoteEdge(object):
     """
     A remote edge reference
 
     Returned by :meth:`RemoteGraph.edge`, :meth:`RemoteGraph.add_edge`, and :meth:`RemoteGraph.delete_edge`.
     """
 
-    def add_constant_properties(self, properties: Dict[str, Prop], layer: Optional[str] = None) -> None:
+    def add_constant_properties(
+        self, properties: Dict[str, Prop], layer: Optional[str] = None
+    ) -> None:
         """
         Add constant properties to the edge within the remote graph.
         This function is used to add properties to an edge that remain constant and do not
@@ -414,7 +477,12 @@ class RemoteEdge(object):
             None:
         """
 
-    def add_updates(self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None, layer: Optional[str] = None) -> None:
+    def add_updates(
+        self,
+        t: int | str | datetime,
+        properties: Optional[Dict[str, Prop]] = None,
+        layer: Optional[str] = None,
+    ) -> None:
         """
         Add updates to an edge in the remote graph at a specified time.
 
@@ -442,7 +510,9 @@ class RemoteEdge(object):
             None:
         """
 
-    def update_constant_properties(self, properties: Dict[str, Prop], layer: Optional[str] = None) -> None:
+    def update_constant_properties(
+        self, properties: Dict[str, Prop], layer: Optional[str] = None
+    ) -> None:
         """
         Update constant properties of an edge in the remote graph overwriting existing values.
         This function is used to add properties to an edge that remains constant and does not
@@ -456,8 +526,7 @@ class RemoteEdge(object):
             None:
         """
 
-class RemoteNode(object): 
-
+class RemoteNode(object):
     def add_constant_properties(self, properties: Dict[str, Prop]) -> None:
         """
         Add constant properties to a node in the remote graph.
@@ -471,7 +540,9 @@ class RemoteNode(object):
             None:
         """
 
-    def add_updates(self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None) -> None:
+    def add_updates(
+        self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None
+    ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -509,7 +580,7 @@ class RemoteNode(object):
             None:
         """
 
-class RemoteNodeAddition(object): 
+class RemoteNodeAddition(object):
     """
     Node addition update
 
@@ -520,10 +591,16 @@ class RemoteNodeAddition(object):
         updates: (list[RemoteUpdate], optional): the temporal updates
     """
 
-    def __new__(cls, name: GID, node_type: Optional[str] = None, constant_properties: Optional[PropInput] = None, updates: Any = None) -> RemoteNodeAddition:
+    def __new__(
+        cls,
+        name: GID,
+        node_type: Optional[str] = None,
+        constant_properties: Optional[PropInput] = None,
+        updates: Any = None,
+    ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteUpdate(object): 
+class RemoteUpdate(object):
     """
     A temporal update
 
@@ -532,10 +609,12 @@ class RemoteUpdate(object):
         properties (PropInput, optional): the properties for the update
     """
 
-    def __new__(cls, time: TimeInput, properties: Optional[PropInput] = None) -> RemoteUpdate:
+    def __new__(
+        cls, time: TimeInput, properties: Optional[PropInput] = None
+    ) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteEdgeAddition(object): 
+class RemoteEdgeAddition(object):
     """
     An edge update
 
@@ -547,7 +626,14 @@ class RemoteEdgeAddition(object):
         updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
-    def __new__(cls, src: GID, dst: GID, layer: Optional[str] = None, constant_properties: Optional[PropInput] = None, updates: Optional[list[RemoteUpdate]] = None) -> RemoteEdgeAddition:
+    def __new__(
+        cls,
+        src: GID,
+        dst: GID,
+        layer: Optional[str] = None,
+        constant_properties: Optional[PropInput] = None,
+        updates: Optional[list[RemoteUpdate]] = None,
+    ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 def encode_graph(graph: Graph | PersistentGraph) -> str:

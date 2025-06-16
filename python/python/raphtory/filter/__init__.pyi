@@ -22,9 +22,18 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['NodeFilterOp', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'PropertyFilterBuilder', 'TemporalPropertyFilterBuilder', 'Property']
-class NodeFilterOp(object): 
+__all__ = [
+    "NodeFilterOp",
+    "Node",
+    "EdgeFilterOp",
+    "EdgeEndpoint",
+    "Edge",
+    "PropertyFilterBuilder",
+    "TemporalPropertyFilterBuilder",
+    "Property",
+]
 
+class NodeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -43,33 +52,19 @@ class NodeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
-
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class Node(object): 
-
+class Node(object):
     @staticmethod
-    def name():
-        ...
-
+    def name(): ...
     @staticmethod
-    def node_type():
-        ...
+    def node_type(): ...
 
-class EdgeFilterOp(object): 
-
+class EdgeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -88,54 +83,30 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
+class EdgeEndpoint(object):
+    def name(self): ...
 
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class EdgeEndpoint(object): 
-
-    def name(self):
-        ...
-
-class Edge(object): 
-
+class Edge(object):
     @staticmethod
-    def dst():
-        ...
-
+    def dst(): ...
     @staticmethod
-    def src():
-        ...
+    def src(): ...
 
-class PropertyFilterBuilder(PropertyFilterOps): 
-
+class PropertyFilterBuilder(PropertyFilterOps):
     def __new__(cls, name) -> PropertyFilterBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def constant(self):
-        ...
+    def constant(self): ...
+    def temporal(self): ...
 
-    def temporal(self):
-        ...
+class TemporalPropertyFilterBuilder(object):
+    def any(self): ...
+    def latest(self): ...
 
-class TemporalPropertyFilterBuilder(object): 
-
-    def any(self):
-        ...
-
-    def latest(self):
-        ...
-
-def Property(name):
-    ...
+def Property(name): ...
