@@ -289,6 +289,9 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 }
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
+    /// Get a filtered view of the update history of the node
+    ///
+    /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
         let additions = self.additions();
         NodeHistory { additions, view }
