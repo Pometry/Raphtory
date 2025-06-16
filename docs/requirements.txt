@@ -1,3 +1,4 @@
+markdown-exec
 mkdocs
 mkdocs-gen-files
 mkdocs-literate-nav

@@ -37,5 +37,8 @@ __pycache__/
 # Python
 *.egg-info
 
+# MkDocs
+*Site
+
 # Profiling
 profile.json

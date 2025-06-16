@@ -88,6 +88,9 @@ clean-doc-pages:
 python-docs-serve: install-doc-deps
 	mkdocs serve
 
+python-docs-build: install-doc-deps
+	mkdocs build
+
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736
 
