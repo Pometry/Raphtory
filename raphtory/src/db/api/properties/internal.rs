@@ -1,4 +1,4 @@
-use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
+use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter, errors::GraphError};
 use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
@@ -28,10 +28,10 @@ pub trait TemporalPropertyViewOps {
             .into_dyn_boxed()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.temporal_history_iter(id)
-            .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
+            .map(|t| t.dt().map_err(GraphError::from))
+            .collect::<Result<Vec<_>, GraphError>>()
     }
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
@@ -130,7 +130,7 @@ where
     }
 
     #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, GraphError> {
         self.base().temporal_history_date_time(id)
     }
 

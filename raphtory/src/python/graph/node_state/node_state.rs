@@ -14,6 +14,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::*,
     py_borrowing_iter,
     python::{
@@ -385,6 +386,76 @@ macro_rules! impl_lazy_node_state {
     };
 }
 
+macro_rules! impl_lazy_node_state_result {
+    ($name:ident<$op:ty>, $computed:literal, $py_value:literal) => {
+        /// A lazy view over node values
+        #[pyclass(module = "raphtory.node_state", frozen)]
+        pub struct $name {
+            inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
+        }
+
+        impl $name {
+            pub fn inner(&self) -> &LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+                &self.inner
+            }
+        }
+
+        #[pymethods]
+        impl $name {
+            /// Compute all values and return the result as a node view
+            ///
+            /// Returns:
+            #[doc = concat!("     ", $computed, ": the computed `NodeState`")]
+            fn compute(
+                &self,
+            ) -> NodeState<'static, <$op as NodeOp>::Output, DynamicGraph, DynamicGraph> {
+                self.inner.compute()
+            }
+
+            /// Compute all values and return the result as a list
+            ///
+            /// Returns:
+            #[doc = concat!("     list[", $py_value, "]", ": all values as a list")]
+            fn collect(&self) -> Vec<<$op as NodeOp>::Output> {
+                self.inner.collect()
+            }
+        }
+
+        impl_node_state_ops!(
+            $name,
+            <$op as NodeOp>::Output,
+            LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>,
+            |v: <$op as NodeOp>::Output| v,
+            $computed,
+            $py_value
+        );
+
+        impl From<LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>> for $name {
+            fn from(inner: LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>) -> Self {
+                $name { inner }
+            }
+        }
+
+        impl<'py> pyo3::IntoPyObject<'py>
+            for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph>
+        {
+            type Target = $name;
+            type Output = Bound<'py, Self::Target>;
+            type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                $name::from(self).into_pyobject(py)
+            }
+        }
+
+        impl<'py> FromPyObject<'py> for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph> {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.downcast::<$name>()?.get().inner().clone())
+            }
+        }
+    };
+}
+
 macro_rules! impl_node_state {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         #[pyclass(module = "raphtory.node_state", frozen)]
@@ -528,7 +599,7 @@ impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
 
-type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Option<DateTime<Utc>>>;
+type EarliestDateTime<G> = ops::AsDateTime<ops::EarliestTime<G>>;
 impl_lazy_node_state_ord!(
     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
@@ -540,9 +611,9 @@ impl_one_hop!(
 );
 impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
-type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
+type LatestDateTime<G> = ops::AsDateTime<ops::LatestTime<G>>;
 impl_lazy_node_state_ord!(
-    LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
+    LatestDateTimeView<LatestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
     "Optional[datetime]"
 );
@@ -556,14 +627,14 @@ impl_node_state_ord!(
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
-    HistoryView<ops::History<DynamicGraph>>,
+    HistoryView<ops::HistoryOp<DynamicGraph>>,
     "NodeStateListI64",
     "list[int]"
 );
-impl_one_hop!(HistoryView<ops::History>, "HistoryView");
+impl_one_hop!(HistoryView<ops::HistoryOp>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
-type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
+type HistoryDateTime<G> = ops::Map<ops::HistoryOp<G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",
@@ -575,6 +646,19 @@ impl_node_state_ord!(
     "NodeStateOptionListDateTime",
     "Optional[list[datetime]]"
 );
+//
+// type HistoryDateTimeResult<G> = ops::Map<ops::HistoryOp<G>, Result<Vec<DateTime<Utc>>, TimeError>>;
+// impl_lazy_node_state_ord!(
+//     HistoryDateTimeResultView<HistoryDateTimeResult<DynamicGraph>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
+// impl_one_hop!(HistoryDateTimeResultView<HistoryDateTimeResult>, "HistoryDateTimeResultView");
+// impl_node_state_ord!(
+//     NodeStateResultListDateTime<Result<Vec<DateTime<Utc>>, TimeError>>,
+//     "NodeStateResultListDateTime",
+//     "Result[list[datetime], TimeError]"
+// );
 
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,

@@ -1,11 +1,15 @@
+use std::marker::PhantomData;
+
 use crate::{
-    db::api::{
-        state::{ops::NodeOpFilter, NodeOp},
-        view::internal::NodeTimeSemanticsOps,
+    db::{
+        api::{
+            state::{ops::NodeOpFilter, NodeOp},
+            view::{history::History, internal::NodeTimeSemanticsOps},
+        },
+        graph::node::NodeView,
     },
     prelude::GraphViewOps,
 };
-use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
 
@@ -76,26 +80,22 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for LatestTime<G> {
 }
 
 #[derive(Debug, Clone)]
-pub struct History<G> {
+pub struct HistoryOp<'graph, G> {
     pub(crate) graph: G,
+    pub(crate) _phantom: PhantomData<&'graph G>,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for History<G> {
-    type Output = Vec<i64>;
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<'graph, G> {
+    type Output = History<NodeView<'graph, G>>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        let semantics = self.graph.node_time_semantics();
-        let node = storage.core_node(node);
-        semantics
-            .node_history(node.as_ref(), &self.graph)
-            .dedup()
-            .collect()
+        History::new(NodeView::new_internal(self.graph.clone(), node))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<'graph, G> {
     type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = History<GH>;
+    type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<'graph, GH>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -105,8 +105,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
         &self,
         filtered_graph: GH,
     ) -> Self::Filtered<GH> {
-        History {
+        HistoryOp {
             graph: filtered_graph,
+            _phantom: PhantomData,
         }
     }
 }

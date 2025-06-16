@@ -3,9 +3,12 @@ use crate::{
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{
-    properties::prop::{PropError, PropType},
-    GID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{PropError, PropType},
+        GID,
+    },
+    storage::timeindex::TimeError,
 };
 use raphtory_core::{
     entities::{
@@ -36,7 +39,6 @@ use {
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
@@ -300,6 +302,13 @@ pub enum GraphError {
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
 
+    #[error("Timestamp '{timestamp}' is out of range for DateTime conversion.")]
+    DateTimeConversionError {
+        #[source]
+        source: TimeError,
+        timestamp: i64,
+    },
+
     #[error("Illegal set error {0}")]
     IllegalSet(String),
 
@@ -444,6 +453,17 @@ impl GraphError {
 impl<A: Debug> From<IllegalSet<A>> for GraphError {
     fn from(value: IllegalSet<A>) -> Self {
         Self::IllegalSet(value.to_string())
+    }
+}
+
+impl From<TimeError> for GraphError {
+    fn from(error: TimeError) -> Self {
+        match error {
+            TimeError::OutOfRange(timestamp) => Self::DateTimeConversionError {
+                source: error,
+                timestamp,
+            },
+        }
     }
 }
 
