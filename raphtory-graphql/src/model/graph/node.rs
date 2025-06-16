@@ -384,7 +384,6 @@ impl GqlNode {
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            filter.validate()?;
             let filter: CompositeNodeFilter = filter.try_into()?;
             let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
             Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))

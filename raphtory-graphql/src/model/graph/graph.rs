@@ -511,7 +511,6 @@ impl GqlGraph {
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            filter.validate()?;
             let filter: CompositeNodeFilter = filter.try_into()?;
             let filtered_graph = self_clone.graph.filter_nodes(filter)?;
             Ok(GqlGraph::new(
@@ -526,7 +525,6 @@ impl GqlGraph {
     async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            filter.validate()?;
             let filter: CompositeEdgeFilter = filter.try_into()?;
             let filtered_graph = self_clone.graph.filter_edges(filter)?;
             Ok(GqlGraph::new(
@@ -570,7 +568,6 @@ impl GqlGraph {
         {
             let self_clone = self.clone();
             spawn(async move {
-                filter.validate()?;
                 let f: CompositeNodeFilter = filter.try_into()?;
                 let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
                 let result = nodes.into_iter().map(|vv| vv.into()).collect();
@@ -595,7 +592,6 @@ impl GqlGraph {
         {
             let self_clone = self.clone();
             spawn(async move {
-                filter.validate()?;
                 let f: CompositeEdgeFilter = filter.try_into()?;
                 let edges = self_clone.graph.search_edges(f, limit, offset)?;
                 let result = edges.into_iter().map(|vv| vv.into()).collect();

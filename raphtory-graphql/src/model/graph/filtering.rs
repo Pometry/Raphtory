@@ -4,7 +4,7 @@ use dynamic_graphql::{
     internal::{
         FromValue, GetInputTypeRef, InputTypeName, InputValueResult, Register, Registry, TypeName,
     },
-    Enum, InputObject,
+    Enum, InputObject, OneOfInput,
 };
 use raphtory::{
     db::graph::views::filter::model::{
@@ -169,15 +169,15 @@ impl Display for Operator {
     }
 }
 
-#[derive(InputObject, Clone, Debug)]
-pub struct NodeFilter {
-    pub node: Option<NodeFieldFilter>,
-    pub property: Option<PropertyFilterExpr>,
-    pub constant_property: Option<ConstantPropertyFilterExpr>,
-    pub temporal_property: Option<TemporalPropertyFilterExpr>,
-    pub and: Option<Vec<NodeFilter>>,
-    pub or: Option<Vec<NodeFilter>>,
-    pub not: Option<Wrapped<NodeFilter>>,
+#[derive(OneOfInput, Clone, Debug)]
+pub enum NodeFilter {
+    Node(NodeFieldFilter),
+    Property(PropertyFilterExpr),
+    ConstantProperty(ConstantPropertyFilterExpr),
+    TemporalProperty(TemporalPropertyFilterExpr),
+    And(Vec<NodeFilter>),
+    Or(Vec<NodeFilter>),
+    Not(Wrapped<NodeFilter>),
 }
 
 #[derive(Clone, Debug)]
@@ -214,28 +214,6 @@ impl<T: TypeName + 'static> TypeName for Wrapped<T> {
 
 impl<T: InputTypeName + 'static> InputTypeName for Wrapped<T> {}
 
-impl NodeFilter {
-    pub fn validate(&self) -> Result<(), GraphError> {
-        let fields_set = [
-            self.node.is_some(),
-            self.property.is_some(),
-            self.constant_property.is_some(),
-            self.temporal_property.is_some(),
-            self.and.is_some(),
-            self.or.is_some(),
-            self.not.is_some(),
-        ];
-
-        let count = fields_set.iter().filter(|x| **x).count();
-
-        match count {
-            0 => Err(GraphError::InvalidGqlFilter("At least one field in NodeFilter must be provided.".to_string())),
-            1 => Ok(()),
-            _ => Err(GraphError::InvalidGqlFilter("Only one of node, property, constant_property, temporal_property, and/or must be provided.".to_string())),
-        }
-    }
-}
-
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFieldFilter {
     pub field: NodeField,
@@ -249,39 +227,16 @@ pub enum NodeField {
     NodeType,
 }
 
-#[derive(InputObject, Clone, Debug)]
-pub struct EdgeFilter {
-    pub src: Option<NodeFieldFilter>,
-    pub dst: Option<NodeFieldFilter>,
-    pub property: Option<PropertyFilterExpr>,
-    pub constant_property: Option<ConstantPropertyFilterExpr>,
-    pub temporal_property: Option<TemporalPropertyFilterExpr>,
-    pub and: Option<Vec<EdgeFilter>>,
-    pub or: Option<Vec<EdgeFilter>>,
-    pub not: Option<Wrapped<EdgeFilter>>,
-}
-
-impl EdgeFilter {
-    pub fn validate(&self) -> Result<(), GraphError> {
-        let fields_set = [
-            self.src.is_some(),
-            self.dst.is_some(),
-            self.property.is_some(),
-            self.constant_property.is_some(),
-            self.temporal_property.is_some(),
-            self.and.is_some(),
-            self.or.is_some(),
-            self.not.is_some(),
-        ];
-
-        let count = fields_set.iter().filter(|x| **x).count();
-
-        match count {
-            0 => Err(GraphError::InvalidGqlFilter("At least one field in EdgeFilter must be provided.".to_string())),
-            1 => Ok(()),
-            _ => Err(GraphError::InvalidGqlFilter("Only one of src, dst, property, constant_property, temporal_property, and/or must be provided.".to_string())),
-        }
-    }
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EdgeFilter {
+    Src(NodeFieldFilter),
+    Dst(NodeFieldFilter),
+    Property(PropertyFilterExpr),
+    ConstantProperty(ConstantPropertyFilterExpr),
+    TemporalProperty(TemporalPropertyFilterExpr),
+    And(Vec<EdgeFilter>),
+    Or(Vec<EdgeFilter>),
+    Not(Wrapped<EdgeFilter>),
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -345,7 +300,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
     fn try_from(filter: NodeFilter) -> Result<Self, Self::Error> {
         let mut exprs = Vec::new();
 
-        if let Some(node) = filter.node {
+        if let NodeFilter::Node(node) = filter.clone() {
             exprs.push(CompositeNodeFilter::Node(Filter {
                 field_name: node.field.to_string(),
                 field_value: field_value(node.value, node.operator)?,
@@ -353,19 +308,19 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
             }));
         }
 
-        if let Some(prop) = filter.property {
+        if let NodeFilter::Property(prop) = filter.clone() {
             exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(constant_prop) = filter.constant_property {
-            exprs.push(CompositeNodeFilter::Property(constant_prop.try_into()?));
+        if let NodeFilter::ConstantProperty(prop) = filter.clone() {
+            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(temporal_prop) = filter.temporal_property {
-            exprs.push(CompositeNodeFilter::Property(temporal_prop.try_into()?));
+        if let NodeFilter::TemporalProperty(prop) = filter.clone() {
+            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(and_filters) = filter.and {
+        if let NodeFilter::And(and_filters) = filter.clone() {
             let mut iter = and_filters
                 .into_iter()
                 .map(TryInto::try_into)
@@ -379,7 +334,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
             }
         }
 
-        if let Some(or_filters) = filter.or {
+        if let NodeFilter::Or(or_filters) = filter.clone() {
             let mut iter = or_filters
                 .into_iter()
                 .map(TryInto::try_into)
@@ -393,7 +348,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
             }
         }
 
-        if let Some(not_filters) = filter.not {
+        if let NodeFilter::Not(not_filters) = filter.clone() {
             let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
             exprs.push(CompositeNodeFilter::Not(Box::new(inner)));
         }
@@ -421,7 +376,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
         let mut exprs = Vec::new();
 
-        if let Some(src) = filter.src {
+        if let EdgeFilter::Src(src) = filter.clone() {
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "src".to_string(),
                 field_value: field_value(src.value, src.operator)?,
@@ -429,7 +384,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
             }));
         }
 
-        if let Some(dst) = filter.dst {
+        if let EdgeFilter::Dst(dst) = filter.clone() {
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "dst".to_string(),
                 field_value: field_value(dst.value, dst.operator)?,
@@ -437,19 +392,19 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
             }));
         }
 
-        if let Some(prop) = filter.property {
+        if let EdgeFilter::Property(prop) = filter.clone() {
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(prop) = filter.constant_property {
+        if let EdgeFilter::ConstantProperty(prop) = filter.clone() {
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(prop) = filter.temporal_property {
+        if let EdgeFilter::TemporalProperty(prop) = filter.clone() {
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
-        if let Some(and_filters) = filter.and {
+        if let EdgeFilter::And(and_filters) = filter.clone() {
             let mut iter = and_filters
                 .into_iter()
                 .map(TryInto::try_into)
@@ -464,7 +419,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
             }
         }
 
-        if let Some(or_filters) = filter.or {
+        if let EdgeFilter::Or(or_filters) = filter.clone() {
             let mut iter = or_filters
                 .into_iter()
                 .map(TryInto::try_into)
@@ -479,7 +434,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
             }
         }
 
-        if let Some(not_filters) = filter.not {
+        if let EdgeFilter::Not(not_filters) = filter.clone() {
             let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
             exprs.push(CompositeEdgeFilter::Not(Box::new(inner)));
         }
