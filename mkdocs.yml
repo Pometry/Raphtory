@@ -77,4 +77,5 @@ repo_url: https://github.com/pometry/raphtory
 repo_name: pometry/raphtory
 nav:
   - Home: index.md
+  - UserGuide: user-guide/
   - Api: reference/
