@@ -59,6 +59,8 @@ plugins:
             - https://docs.python.org/3/objects.inv
 markdown_extensions:
   - admonition
+  - toc:
+      permalink: "#"
   - pymdownx.details
   - attr_list
   - def_list
