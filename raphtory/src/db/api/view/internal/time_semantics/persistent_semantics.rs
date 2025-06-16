@@ -213,6 +213,23 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node.history(view).range_t(w).iter_t()
     }
 
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        EventSemantics.node_edge_history_count(node, view)
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        EventSemantics.node_edge_history_count_window(node, view, w)
+    }
+
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,

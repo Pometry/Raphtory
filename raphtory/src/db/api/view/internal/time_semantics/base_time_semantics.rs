@@ -1,9 +1,12 @@
-use crate::db::api::view::internal::{
-    time_semantics::{
-        event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
-        time_semantics_ops::NodeTimeSemanticsOps,
+use crate::{
+    db::api::view::internal::{
+        time_semantics::{
+            event_semantics::EventSemantics, persistent_semantics::PersistentSemantics,
+            time_semantics_ops::NodeTimeSemanticsOps,
+        },
+        EdgeTimeSemanticsOps, GraphView,
     },
-    EdgeTimeSemanticsOps, GraphView,
+    prelude::GraphViewOps,
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
@@ -101,6 +104,25 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history_window(node, view, w))
+    }
+
+    #[inline]
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count(node, view))
+    }
+
+    #[inline]
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count_window(node, view, w))
     }
 
     #[inline]

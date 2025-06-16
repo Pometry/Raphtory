@@ -1,9 +1,12 @@
-use crate::db::api::view::internal::{
-    time_semantics::{
-        filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
-        time_semantics_ops::NodeTimeSemanticsOps,
+use crate::{
+    db::api::view::internal::{
+        time_semantics::{
+            filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
+            time_semantics_ops::NodeTimeSemanticsOps,
+        },
+        EdgeTimeSemanticsOps, GraphView,
     },
-    EdgeTimeSemanticsOps, GraphView,
+    prelude::GraphViewOps,
 };
 use either::Either;
 use itertools::Itertools;
@@ -73,6 +76,23 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
         node.history(view).range_t(w).iter_t()
+    }
+
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        node.history(view).edge_history().len()
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        node.history(view).range_t(w).edge_history().len()
     }
 
     fn node_updates<'graph, G: GraphView + 'graph>(

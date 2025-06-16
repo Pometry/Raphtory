@@ -1,4 +1,4 @@
-use crate::db::api::view::internal::GraphView;
+use crate::{db::api::view::internal::GraphView, prelude::GraphViewOps};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds},
     storage::timeindex::TimeIndexEntry,
@@ -45,6 +45,19 @@ pub trait NodeTimeSemanticsOps {
         view: G,
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph;
+
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize;
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize;
 
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,

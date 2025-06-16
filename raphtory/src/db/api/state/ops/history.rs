@@ -121,7 +121,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for EdgeHistoryCount<G> {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node = storage.core_node(node);
-        node.as_ref().history(&self.graph).edge_history().len()
+        let ts = self.graph.node_time_semantics();
+        ts.node_edge_history_count(node.as_ref(), &self.graph)
     }
 }
 
