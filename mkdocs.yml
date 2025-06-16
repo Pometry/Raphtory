@@ -1,5 +1,5 @@
 site_name: Raphtory API Docs
-site_url: https://docs.raphtory.com
+site_url: !ENV READTHEDOCS_CANONICAL_URL
 
 theme:
   palette:
