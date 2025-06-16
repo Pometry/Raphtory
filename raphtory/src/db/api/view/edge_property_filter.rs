@@ -13,12 +13,6 @@ pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError> {
-        if matches!(
-            self.current_filter().graph_type(),
-            GraphType::PersistentGraph
-        ) {
-            return Err(GraphError::PropertyFilteringNotImplemented);
-        }
         Ok(self.one_hop_filtered(filter.create_edge_filter(self.current_filter().clone())?))
     }
 }
