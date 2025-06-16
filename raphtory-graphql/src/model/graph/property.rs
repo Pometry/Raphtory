@@ -1,5 +1,5 @@
 use async_graphql::{Error, Name, Value as GqlValue};
-use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use dynamic_graphql::{InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use itertools::Itertools;
 use raphtory::{
     db::api::properties::{
@@ -17,21 +17,21 @@ use serde_json::Number;
 use std::{collections::HashMap, convert::TryFrom, sync::Arc};
 use tokio::task::spawn_blocking;
 
-#[derive(InputObject, Clone, Debug, Default)]
+#[derive(InputObject, Clone, Debug)]
 pub struct ObjectEntry {
     pub key: String,
     pub value: Value,
 }
 
-#[derive(InputObject, Clone, Debug, Default)]
-pub struct Value {
-    pub u64: Option<u64>,
-    pub i64: Option<i64>,
-    pub f64: Option<f64>,
-    pub str: Option<String>,
-    pub bool: Option<bool>,
-    pub list: Option<Vec<Value>>,
-    pub object: Option<Vec<ObjectEntry>>,
+#[derive(OneOfInput, Clone, Debug)]
+pub enum Value {
+    U64(u64),
+    I64(i64),
+    F64(f64),
+    Str(String),
+    Bool(bool),
+    List(Vec<Value>),
+    Object(Vec<ObjectEntry>),
 }
 
 impl TryFrom<Value> for Prop {
@@ -43,29 +43,29 @@ impl TryFrom<Value> for Prop {
 }
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
-    if let Some(n) = value.u64 {
+    if let Value::U64(n) = value.clone() {
         return Ok(Prop::U64(n));
     }
-    if let Some(n) = value.i64 {
+    if let Value::I64(n) = value.clone() {
         return Ok(Prop::I64(n));
     }
-    if let Some(n) = value.f64 {
+    if let Value::F64(n) = value.clone() {
         return Ok(Prop::F64(n));
     }
-    if let Some(s) = value.str {
+    if let Value::Str(s) = value.clone() {
         return Ok(Prop::Str(s.into()));
     }
-    if let Some(b) = value.bool {
+    if let Value::Bool(b) = value.clone() {
         return Ok(Prop::Bool(b));
     }
-    if let Some(list) = value.list {
+    if let Value::List(list) = value.clone() {
         let prop_list: Vec<Prop> = list
             .into_iter()
             .map(value_to_prop)
             .collect::<Result<Vec<_>, _>>()?;
         return Ok(Prop::List(prop_list.into()));
     }
-    if let Some(object) = value.object {
+    if let Value::Object(object) = value.clone() {
         let prop_map: FxHashMap<ArcStr, Prop> = object
             .into_iter()
             .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
