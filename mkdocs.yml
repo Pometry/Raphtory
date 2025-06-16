@@ -1,4 +1,5 @@
 site_name: Raphtory API Docs
+site_url: https://docs.raphtory.com
 
 theme:
   palette:
@@ -15,6 +16,7 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+    - primary: custom
   name: material
   custom_dir: docs/overrides
   logo: assets/logo.png
@@ -27,8 +29,12 @@ theme:
     - content.tabs.link
   icon:
     repo: fontawesome/brands/github
+extra_css:
+  - stylesheets/extra.css
 plugins:
-  #  - search
+  - search:
+      -lang: en
+  - markdown-exec
   - gen-files:
       scripts:
         - docs/scripts/gen_docs_pages.py
@@ -66,8 +72,6 @@ markdown_extensions:
       check_paths: true
       dedent_subsections: true
   - footnotes
-extra_css:
-  - stylesheets/extra.css
 repo_url: https://github.com/pometry/raphtory
 repo_name: pometry/raphtory
 nav:

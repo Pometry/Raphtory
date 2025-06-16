@@ -1,4 +1,4 @@
-:root {
+:root > * {
     --md-primary-fg-color: #ff3663;
     --md-primary-fg-color--light: #C2CCD6;
     --md-primary-fg-color--dark: #103547;
@@ -12,7 +12,7 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
 
 @font-face {
     font-family: 'Proxima Nova', sans-serif;
-    src: 'https://fonts.cdnfonts.com/css/proxima-nova-2'
+    src: url('https://fonts.cdnfonts.com/css/proxima-nova-2')
 }
 
 :root {
