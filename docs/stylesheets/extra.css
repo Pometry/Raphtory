@@ -74,3 +74,11 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
 .md-header__button.md-logo {
     margin-left: 0.8rem;
 }
+
+.mascot-placeholder {
+    background-image: url('/assets/mascot.png');
+    background-size: cover;
+    background-position: center;
+    min-height: 400px;
+    min-width: 400px;
+}
