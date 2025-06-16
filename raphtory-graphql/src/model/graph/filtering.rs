@@ -221,6 +221,12 @@ pub struct NodeFieldFilter {
     pub value: Value,
 }
 
+impl NodeFieldFilter {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &Some(self.value.clone()))
+    }
+}
+
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum NodeField {
     NodeName,
@@ -246,11 +252,23 @@ pub struct PropertyFilterExpr {
     pub value: Option<Value>,
 }
 
+impl PropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct ConstantPropertyFilterExpr {
     pub name: String,
     pub operator: Operator,
     pub value: Option<Value>,
+}
+
+impl ConstantPropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -259,6 +277,12 @@ pub struct TemporalPropertyFilterExpr {
     pub temporal: TemporalType,
     pub operator: Operator,
     pub value: Option<Value>,
+}
+
+impl TemporalPropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
@@ -301,6 +325,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
         let mut exprs = Vec::new();
 
         if let NodeFilter::Node(node) = filter.clone() {
+            node.validate()?;
             exprs.push(CompositeNodeFilter::Node(Filter {
                 field_name: node.field.to_string(),
                 field_value: field_value(node.value, node.operator)?,
@@ -309,14 +334,17 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
         }
 
         if let NodeFilter::Property(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
         if let NodeFilter::ConstantProperty(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
         if let NodeFilter::TemporalProperty(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
         }
 
@@ -377,6 +405,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
         let mut exprs = Vec::new();
 
         if let EdgeFilter::Src(src) = filter.clone() {
+            src.validate()?;
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "src".to_string(),
                 field_value: field_value(src.value, src.operator)?,
@@ -385,6 +414,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
         }
 
         if let EdgeFilter::Dst(dst) = filter.clone() {
+            dst.validate()?;
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "dst".to_string(),
                 field_value: field_value(dst.value, dst.operator)?,
@@ -393,14 +423,17 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
         }
 
         if let EdgeFilter::Property(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
         if let EdgeFilter::ConstantProperty(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
         if let EdgeFilter::TemporalProperty(prop) = filter.clone() {
+            prop.validate()?;
             exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
         }
 
@@ -459,28 +492,9 @@ fn build_property_filter(
     operator: Operator,
     value: Option<Value>,
 ) -> Result<PropertyFilter, GraphError> {
-    let prop = value.map(Prop::try_from).transpose()?;
+    let prop = value.clone().map(Prop::try_from).transpose()?;
 
-    // Validates required value
-    if matches!(
-        operator,
-        Operator::Equal
-            | Operator::NotEqual
-            | Operator::GreaterThan
-            | Operator::LessThan
-            | Operator::GreaterThanOrEqual
-            | Operator::LessThanOrEqual
-            | Operator::IsIn
-            | Operator::IsNotIn
-            | Operator::Contains
-            | Operator::NotContains
-    ) && prop.is_none()
-    {
-        return Err(GraphError::ExpectedValueForOperator(
-            "value".into(),
-            format!("{:?}", operator),
-        ));
-    }
+    validate_operator_value_pair(operator, &value)?;
 
     let prop_value = match (&prop, operator) {
         (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
@@ -563,6 +577,55 @@ impl From<TemporalType> for Temporal {
         match temporal {
             TemporalType::Any => Temporal::Any,
             TemporalType::Latest => Temporal::Latest,
+        }
+    }
+}
+
+fn validate_operator_value_pair(
+    operator: Operator,
+    value: &Option<Value>,
+) -> Result<(), GraphError> {
+    use Operator::*;
+
+    match operator {
+        IsSome | IsNone => {
+            if value.is_some() {
+                Err(GraphError::InvalidGqlFilter(format!(
+                    "Operator {operator} does not accept a value"
+                )))
+            } else {
+                Ok(())
+            }
+        }
+
+        IsIn | IsNotIn => match value {
+            Some(Value::List(_)) => Ok(()),
+            Some(v) => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a list value, got {v}"
+            ))),
+            None => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a non-empty list"
+            ))),
+        },
+
+        Contains | NotContains => match value {
+            Some(Value::Str(_)) => Ok(()),
+            Some(v) => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a string value, got {v}"
+            ))),
+            None => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a string value"
+            ))),
+        },
+
+        Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual => {
+            if value.is_none() {
+                return Err(GraphError::InvalidGqlFilter(format!(
+                    "Operator {operator} requires a value"
+                )));
+            }
+
+            Ok(())
         }
     }
 }

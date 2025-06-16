@@ -1,5 +1,7 @@
 use async_graphql::{Error, Name, Value as GqlValue};
-use dynamic_graphql::{InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use dynamic_graphql::{
+    InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
+};
 use itertools::Itertools;
 use raphtory::{
     db::api::properties::{
@@ -14,7 +16,13 @@ use raphtory_api::core::{
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
-use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 use tokio::task::spawn_blocking;
 
 #[derive(InputObject, Clone, Debug)]
@@ -32,6 +40,34 @@ pub enum Value {
     Bool(bool),
     List(Vec<Value>),
     Object(Vec<ObjectEntry>),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::U64(v) => write!(f, "U64({})", v),
+            Value::I64(v) => write!(f, "I64({})", v),
+            Value::F64(v) => write!(f, "F64({})", v),
+            Value::Str(v) => write!(f, "Str({})", v),
+            Value::Bool(v) => write!(f, "Bool({})", v),
+            Value::List(vs) => {
+                let inner = vs
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "List([{}])", inner)
+            }
+            Value::Object(entries) => {
+                let inner = entries
+                    .iter()
+                    .map(|entry| format!("{}: {}", entry.key, entry.value))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "Object({{{}}})", inner)
+            }
+        }
+    }
 }
 
 impl TryFrom<Value> for Prop {
