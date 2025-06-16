@@ -198,6 +198,12 @@ pub fn assert_node_equal_layer<
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>()
     );
+    assert_eq!(
+        n1.edge_history_count(),
+        n2.edge_history_count(),
+        "mismatched edge_history_count for node {:?}{layer_tag}",
+        n1.id()
+    );
     if persistent {
         let earliest = n1.timeline_start();
         match earliest {
