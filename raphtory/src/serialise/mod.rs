@@ -29,7 +29,7 @@ use tracing::info;
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
     prefer_zip_format: bool,

@@ -1,7 +1,9 @@
+use crate::model::graph::namespaced_item::NamespacedItem;
+use crate::model::graph::namespaced_items::NamespacedItems;
 use crate::{
     data::get_relative_path,
     model::graph::{meta_graph::MetaGraph, meta_graphs::MetaGraphs, namespaces::Namespaces},
-    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
+    paths::{valid_path, ExistingGraphFolder},
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -10,7 +12,7 @@ use std::path::PathBuf;
 use tokio::task::spawn_blocking;
 use walkdir::WalkDir;
 
-#[derive(ResolvedObject, Clone)]
+#[derive(ResolvedObject, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub(crate) struct Namespace {
     base_dir: PathBuf,
     current_dir: PathBuf,
@@ -24,19 +26,33 @@ impl Namespace {
         }
     }
 
-    fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
-        let base_path = self.base_dir.clone();
+    fn get_all_children(&self) -> impl Iterator<Item = NamespacedItem> + use<'_> {
         WalkDir::new(&self.current_dir)
             .max_depth(1)
             .into_iter()
-            .filter_map(|e| {
-                let entry = e.ok()?;
+            .flatten()
+            .filter_map(|entry| {
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
-                Some(folder)
+                let file_name = entry.file_name().to_str()?;
+                if path.is_dir() {
+                    if path != self.current_dir
+                        && valid_path(self.current_dir.clone(), file_name, true).is_ok()
+                    {
+                        Some(NamespacedItem::Namespace(Namespace::new(
+                            self.base_dir.clone(),
+                            path.to_path_buf(),
+                        )))
+                    } else {
+                        let base_path = self.base_dir.clone();
+                        let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                        let folder =
+                            ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
+                        Some(NamespacedItem::MetaGraph(MetaGraph::new(folder)))
+                    }
+                } else {
+                    None
+                }
             })
-            .collect()
     }
 
     pub(crate) fn get_all_namespaces(&self) -> Vec<Namespace> {
@@ -63,16 +79,13 @@ impl Namespace {
         spawn_blocking(move || {
             MetaGraphs::new(
                 self_clone
-                    .get_all_graph_folders()
+                    .get_all_children()
                     .into_iter()
-                    .sorted_by(|a, b| {
-                        let a_as_valid_folder: ValidGraphFolder = a.clone().into();
-                        let b_as_valid_folder: ValidGraphFolder = b.clone().into();
-                        a_as_valid_folder
-                            .get_original_path_str()
-                            .cmp(b_as_valid_folder.get_original_path_str())
+                    .filter_map(|g| match g {
+                        NamespacedItem::MetaGraph(g) => Some(g),
+                        NamespacedItem::Namespace(_) => None,
                     })
-                    .map(|g| MetaGraph::new(g.clone()))
+                    .sorted()
                     .collect(),
             )
         })
@@ -110,27 +123,24 @@ impl Namespace {
         let self_clone = self.clone();
         spawn_blocking(move || {
             Namespaces::new(
-                WalkDir::new(&self_clone.current_dir)
-                    .max_depth(1)
-                    .into_iter()
-                    .filter_map(|e| {
-                        let entry = e.ok()?;
-                        let file_name = entry.file_name().to_str()?;
-                        let path = entry.path();
-                        if path.is_dir()
-                            && path != self_clone.current_dir
-                            && valid_path(self_clone.current_dir.clone(), file_name, true).is_ok()
-                        {
-                            Some(Namespace::new(
-                                self_clone.base_dir.clone(),
-                                path.to_path_buf(),
-                            ))
-                        } else {
-                            None
-                        }
+                self_clone
+                    .get_all_children()
+                    .filter_map(|item| match item {
+                        NamespacedItem::MetaGraph(_) => None,
+                        NamespacedItem::Namespace(n) => Some(n),
                     })
+                    .sorted()
                     .collect(),
             )
+        })
+        .await
+        .unwrap()
+    }
+
+    async fn items(&self) -> NamespacedItems {
+        let self_clone = self.clone();
+        spawn_blocking(move || NamespacedItems {
+            items: self_clone.get_all_children().sorted().collect(),
         })
         .await
         .unwrap()
