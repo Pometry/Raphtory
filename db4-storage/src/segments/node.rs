@@ -17,7 +17,11 @@ use std::{
 };
 
 use super::{HasRow, SegmentContainer};
-use crate::{LocalPOS, NodeSegmentOps, error::DBV4Error, segments::node_entry::MemNodeEntry};
+use crate::{
+    LocalPOS, NodeSegmentOps,
+    error::DBV4Error,
+    segments::node_entry::{MemNodeEntry, MemNodeRef},
+};
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
@@ -85,7 +89,9 @@ impl MemNodeSegment {
 
     #[inline(always)]
     fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
-        self.layers[layer_id].get(&n).map(|AdjEntry { adj, .. }| adj)
+        self.layers[layer_id]
+            .get(&n)
+            .map(|AdjEntry { adj, .. }| adj)
     }
 
     pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
@@ -178,7 +184,9 @@ impl MemNodeSegment {
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
-        let mut prop_mut_entry = self.layers[e_id.layer()].properties_mut().get_mut_entry(row);
+        let mut prop_mut_entry = self.layers[e_id.layer()]
+            .properties_mut()
+            .get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
 
         prop_mut_entry.append_edge_ts(ts, e_id);
@@ -229,6 +237,10 @@ impl MemNodeSegment {
 
     pub fn t_len(&self) -> usize {
         self.layers.iter().map(|seg| seg.t_len()).sum()
+    }
+
+    pub fn node_ref(&self, pos: LocalPOS) -> MemNodeRef {
+        MemNodeRef::new(pos, self)
     }
 }
 
