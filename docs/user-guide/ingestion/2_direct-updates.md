@@ -15,10 +15,9 @@ Printing out the graph and the returned node we can see the update was successfu
 
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/node_add"
-    --8<-- "python/getting-started/ingestion.py:node_add"
+    ```python
+    --8<-- "python/getting-started/ingestion.py:node_add_output"
     ```
-
 
 
 ## Adding edges
