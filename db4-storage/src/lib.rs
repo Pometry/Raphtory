@@ -31,7 +31,7 @@ pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
 pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 
-pub trait EdgeSegmentOps: Send + Sync {
+pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
     type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>

@@ -17,8 +17,8 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 use raphtory_core::storage::node_entry::NodePtr;
-use storage::Extension;
 use std::{borrow::Cow, ops::Range};
+use storage::Extension;
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::node::DiskNode;

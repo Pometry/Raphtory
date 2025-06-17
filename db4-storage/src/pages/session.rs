@@ -66,12 +66,8 @@ impl<
             .as_mut()
             .expect("Internal Error: Edge writer is not set");
 
-        let node_max_page_len = self
-            .node_writers
-            .get_mut_src()
-            .writer
-            .as_ref()[layer]
-            .max_page_len();
+        let node_max_page_len =
+            self.node_writers.get_mut_src().writer.as_ref()[layer].max_page_len();
         let edge_max_page_len = edge_writer.writer.as_ref()[layer].max_page_len();
 
         let (_, src_pos) = resolve_pos(src, node_max_page_len);
@@ -112,7 +108,11 @@ impl<
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
 
-        if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst, layer_id) {
+        if let Some(e_id) = self
+            .node_writers
+            .get_mut_src()
+            .get_out_edge(src_pos, dst, layer_id)
+        {
             let mut edge_writer = self.graph.edge_writer(e_id);
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
@@ -120,7 +120,11 @@ impl<
 
             MaybeNew::Existing(e_id)
         } else {
-            if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst, layer_id) {
+            if let Some(e_id) = self
+                .node_writers
+                .get_mut_src()
+                .get_out_edge(src_pos, dst, layer_id)
+            {
                 let mut edge_writer = self.graph.edge_writer(e_id);
                 let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
@@ -166,7 +170,11 @@ impl<
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
 
-        if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst, layer) {
+        if let Some(e_id) = self
+            .node_writers
+            .get_mut_src()
+            .get_out_edge(src_pos, dst, layer)
+        {
             let mut edge_writer = self.graph.edge_writer(e_id);
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
             edge_writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, None);
@@ -181,7 +189,11 @@ impl<
 
             MaybeNew::Existing(e_id)
         } else {
-            if let Some(e_id) = self.node_writers.get_mut_src().get_out_edge(src_pos, dst, layer) {
+            if let Some(e_id) = self
+                .node_writers
+                .get_mut_src()
+                .get_out_edge(src_pos, dst, layer)
+            {
                 let mut edge_writer = self.graph.edge_writer(e_id);
                 let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
                 let e_id = e_id.with_layer(layer);

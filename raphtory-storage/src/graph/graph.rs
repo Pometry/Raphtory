@@ -193,9 +193,7 @@ impl GraphStorage {
     pub fn core_node<'a>(&'a self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
             GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.node(vid)),
-            GraphStorage::Unlocked(storage) => {
-                NodeStorageEntry::Unlocked(storage.node(vid))
-            }
+            GraphStorage::Unlocked(storage) => NodeStorageEntry::Unlocked(storage.node(vid)),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodeStorageEntry::Disk(DiskNode::new(&storage.inner, vid))

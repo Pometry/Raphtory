@@ -60,7 +60,6 @@ impl<EXT> ReadLockedTemporalGraph<EXT> {
     }
 }
 
-
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn node(&self, vid: VID) -> UnlockedNodeEntry<EXT> {
         UnlockedNodeEntry::new(vid, self)

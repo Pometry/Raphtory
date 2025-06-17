@@ -31,9 +31,9 @@ pub struct WriteS<
     MNS: DerefMut<Target = MemNodeSegment>,
     MES: DerefMut<Target = MemEdgeSegment>,
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
->{
+> {
     static_session: WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>,
-    layer: Option<WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>>
+    layer: Option<WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>>,
 }
 
 pub struct UnlockedSession<'a, EXT> {
@@ -58,12 +58,13 @@ impl<
     ) -> MaybeNew<ELID> {
         let src = src.into();
         let dst = dst.into();
-        let eid = self.static_session.add_static_edge(src, dst, lsn).map(|eid| eid.with_layer(0));
-        self.layer
-            .as_mut()
-            .map(|layer| {
-                layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
-            });
+        let eid = self
+            .static_session
+            .add_static_edge(src, dst, lsn)
+            .map(|eid| eid.with_layer(0));
+        self.layer.as_mut().map(|layer| {
+            layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
+        });
         eid
     }
 }
@@ -190,7 +191,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                         self.graph_dir().join(format!("l_{}", layer_name)),
                         self.max_page_len_nodes(),
                         self.max_page_len_edges(),
-                    ).into()
+                    )
+                    .into()
                 });
                 if new_layer_id >= layer_id {
                     while self.layers().get(new_layer_id).is_none() {

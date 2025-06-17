@@ -160,18 +160,20 @@ impl MemEdgeSegment {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
 
-        let row = self.layers[layer_id].reserve_local_row(edge_pos).map_either(
-            |row| {
-                row.src = src;
-                row.dst = dst;
-                row.row()
-            },
-            |row| {
-                row.src = src;
-                row.dst = dst;
-                row.row()
-            },
-        );
+        let row = self.layers[layer_id]
+            .reserve_local_row(edge_pos)
+            .map_either(
+                |row| {
+                    row.src = src;
+                    row.dst = dst;
+                    row.row()
+                },
+                |row| {
+                    row.src = src;
+                    row.dst = dst;
+                    row.row()
+                },
+            );
         row.either(|a| a, |a| a)
     }
 
@@ -229,6 +231,7 @@ impl MemEdgeSegment {
 }
 
 // Update EdgeSegmentView implementation to use multiple layers
+#[derive(Debug)]
 pub struct EdgeSegmentView<EXT = ()> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,

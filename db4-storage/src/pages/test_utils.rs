@@ -11,7 +11,10 @@ use raphtory_api::core::entities::properties::{
     prop::{DECIMAL_MAX, Prop, PropType},
     tprop::TPropOps,
 };
-use raphtory_core::{entities::{ELID, VID}, storage::timeindex::TimeIndexOps};
+use raphtory_core::{
+    entities::{ELID, VID},
+    storage::timeindex::TimeIndexOps,
+};
 use rayon::prelude::*;
 
 use crate::{

@@ -9,8 +9,8 @@ use raphtory_core::{
         ReadLockedStorage, WriteLockedNodes,
     },
 };
-use storage::ReadLockedLayer;
 use std::sync::Arc;
+use storage::ReadLockedLayer;
 
 #[derive(Debug)]
 pub struct LockedGraph {

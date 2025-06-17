@@ -10,10 +10,7 @@ pub struct LockedNodeEntry<'a, EXT> {
 
 impl<'a, EXT> LockedNodeEntry<'a, EXT> {
     pub fn new(vid: VID, node_support: &'a ReadLockedTemporalGraph<EXT>) -> Self {
-        Self {
-            vid,
-            node_support,
-        }
+        Self { vid, node_support }
     }
 
     pub fn vid(&self) -> VID {
@@ -33,10 +30,7 @@ pub struct UnlockedNodeEntry<'a, EXT> {
 
 impl<'a, EXT> UnlockedNodeEntry<'a, EXT> {
     pub fn new(vid: VID, node_support: &'a TemporalGraph<EXT>) -> Self {
-        Self {
-            vid,
-            node_support,
-        }
+        Self { vid, node_support }
     }
 
     pub fn vid(&self) -> VID {

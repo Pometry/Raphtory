@@ -204,11 +204,7 @@ impl<T: HasRow> SegmentContainer<T> {
             .collect::<Vec<_>>()
     }
 
-    pub fn t_prop(
-        &self,
-        item_id: impl Into<LocalPOS>,
-        prop_id: usize,
-    ) -> Option<TPropCell<'_>> {
+    pub fn t_prop(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<TPropCell<'_>> {
         let item_id = item_id.into();
         self.data.get(&item_id).and_then(|entry| {
             let prop_entry = self.properties.get_entry(entry.row());

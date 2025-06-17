@@ -2,7 +2,10 @@ use crate::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     variants::storage_variants3::StorageVariants3,
 };
-use db4_graph::{entries::node::{LockedNodeEntry, UnlockedNodeEntry}, ReadLockedTemporalGraph, TemporalGraph};
+use db4_graph::{
+    entries::node::{LockedNodeEntry, UnlockedNodeEntry},
+    ReadLockedTemporalGraph, TemporalGraph,
+};
 use raphtory_api::{
     core::{
         entities::{
