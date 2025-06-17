@@ -2,7 +2,7 @@ use super::embeddings::EmbeddingFunction;
 use crate::{errors::GraphResult, vectors::Embedding};
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
-use moka::sync::Cache;
+use moka::future::Cache;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -115,7 +115,10 @@ impl VectorCache {
         }
     }
 
-    pub fn on_disk(path: &Path, function: impl EmbeddingFunction + 'static) -> GraphResult<Self> {
+    pub async fn on_disk(
+        path: &Path,
+        function: impl EmbeddingFunction + 'static,
+    ) -> GraphResult<Self> {
         let store: Arc<_> = VectorStore::on_disk(path)?.into();
         let cloned = store.clone();
 
@@ -125,7 +128,7 @@ impl VectorCache {
             .build();
 
         for key in store.get_disk_keys()? {
-            cache.insert(key, ());
+            cache.insert(key, ()).await;
         }
 
         Ok(Self {
@@ -135,9 +138,9 @@ impl VectorCache {
         })
     }
 
-    fn get(&self, text: &str) -> Option<Embedding> {
+    async fn get(&self, text: &str) -> Option<Embedding> {
         let hash = hash(text);
-        self.cache.get(&hash)?;
+        self.cache.get(&hash).await?;
         let entry = self.store.get(&hash)?;
         if entry.key == text {
             Some(entry.value)
@@ -146,14 +149,14 @@ impl VectorCache {
         }
     }
 
-    fn insert(&self, text: String, vector: Embedding) {
+    async fn insert(&self, text: String, vector: Embedding) {
         let hash = hash(&text);
         let entry = CacheEntry {
             key: text,
             value: vector,
         };
         self.store.insert(hash, entry);
-        self.cache.insert(hash, ());
+        self.cache.insert(hash, ()).await;
     }
 
     pub(super) async fn get_embeddings(
@@ -161,9 +164,9 @@ impl VectorCache {
         texts: Vec<String>,
     ) -> GraphResult<impl Iterator<Item = Embedding> + '_> {
         // TODO: review, turned this into a vec only to make compute_embeddings work
-        let mut results: Vec<_> = futures_util::stream::iter(texts)
+        let results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
-                match self.get(&text) {
+                match self.get(&text).await {
                     Some(cached) => (text, Some(cached)),
                     None => (text, None),
                 }
@@ -171,24 +174,23 @@ impl VectorCache {
             .collect()
             .await;
         let misses: Vec<_> = results
-            .iter_mut()
+            .iter()
             .filter_map(|(text, vector)| match vector {
                 Some(_) => None,
                 None => Some(text.clone()),
             })
             .collect();
         let mut fresh_vectors: VecDeque<_> = if !misses.is_empty() {
-            self.function.call(misses).await?.into()
+            self.function.call(misses.clone()).await?.into()
         } else {
             vec![].into()
         };
-        let embeddings = results.into_iter().map(move |(text, vector)| match vector {
+        futures_util::stream::iter(misses.into_iter().zip(fresh_vectors.iter().cloned()))
+            .for_each(|(text, vector)| self.insert(text, vector))
+            .await;
+        let embeddings = results.into_iter().map(move |(_, vector)| match vector {
             Some(vector) => vector,
-            None => {
-                let vector = fresh_vectors.pop_front().unwrap();
-                self.insert(text, vector.clone());
-                vector
-            }
+            None => fresh_vectors.pop_front().unwrap(),
         });
         Ok(embeddings)
     }

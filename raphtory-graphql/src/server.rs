@@ -111,7 +111,7 @@ impl GraphServer {
         global_template: Option<DocumentTemplate>,
     ) -> GraphResult<Self> {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding)?, // TODO: better do this lazily, actually do it when running the server
+            cache: VectorCache::on_disk(cache, embedding).await?, // TODO: better do this lazily, actually do it when running the server
             global_template,
             individual_templates: Default::default(),
         });

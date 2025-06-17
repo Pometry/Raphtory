@@ -496,7 +496,7 @@ impl GqlGraph {
         path: String,
     ) -> Result<bool, Arc<GraphError>> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph_async(path.as_ref()).await?.0;
+        let other_g = data.get_graph(path.as_ref()).await?.0;
         let g = self.graph.clone();
         spawn_blocking(move || {
             other_g.import_nodes(g.nodes(), true)?;

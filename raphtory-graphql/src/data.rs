@@ -1,10 +1,12 @@
 use crate::{
     config::app_config::AppConfig,
     graph::GraphWithVectors,
+    model::blocking_io,
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
+use futures_util::TryFutureExt;
 use itertools::Itertools;
-use moka::sync::Cache;
+use moka::future::Cache;
 use raphtory::{
     db::api::view::MaterializedGraph,
     errors::{GraphError, InvalidPathReason},
@@ -16,11 +18,10 @@ use raphtory::{
 };
 use std::{
     collections::HashMap,
-    fs,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::task::spawn_blocking;
+use tokio::{fs, task::spawn_blocking};
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -88,31 +89,16 @@ impl Data {
         }
     }
 
-    pub fn get_graph(
+    pub async fn get_graph(
         &self,
         path: &str,
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        let graph_folder_clone = graph_folder.clone();
         self.cache
-            .try_get_with(path.into(), || self.read_graph_from_folder(&graph_folder))
+            .try_get_with(path.into(), self.read_graph_from_folder(graph_folder_clone))
+            .await
             .map(|graph| (graph, graph_folder))
-    }
-
-    pub async fn get_graph_async(
-        &self,
-        path: &str,
-    ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
-        let data = self.clone();
-        let graph_folder = ExistingGraphFolder::try_from(data.work_dir.clone(), path)?;
-        let path = path.into();
-        // TODO: we should use the async cache apis
-        spawn_blocking(move || {
-            data.cache
-                .try_get_with(path, || data.read_graph_from_folder(&graph_folder))
-                .map(|graph| (graph, graph_folder))
-        })
-        .await
-        .unwrap()
     }
 
     pub async fn insert_graph(
@@ -127,23 +113,25 @@ impl Data {
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
-                fs::create_dir_all(folder.get_base_path())?;
-                graph.cache(folder.clone())?;
+                fs::create_dir_all(folder.get_base_path()).await?;
+                let folder_clone = folder.clone();
+                let graph_clone = graph.clone();
+                blocking_io(move || graph_clone.cache(folder_clone)).await?;
                 let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, vectors);
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-                self.cache.insert(path.into(), graph);
+                self.cache.insert(path.into(), graph).await;
                 Ok(())
             }
         }
     }
 
-    pub fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
+    pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        fs::remove_dir_all(graph_folder.get_base_path())?;
-        self.cache.remove(&PathBuf::from(path));
+        fs::remove_dir_all(graph_folder.get_base_path()).await?;
+        self.cache.remove(&PathBuf::from(path)).await;
         Ok(())
     }
 
@@ -192,7 +180,11 @@ impl Data {
         // it's important that we check if there is a valid template set for this graph path
         // before actually loading the graph, otherwise we are loading the graph for no reason
         let template = self.resolve_template(folder.get_original_path())?;
-        let graph = self.read_graph_from_folder(folder).ok()?.graph;
+        let graph = self
+            .read_graph_from_folder(folder.clone())
+            .await
+            .ok()?
+            .graph;
         self.vectorise_with_template(graph, folder, template).await;
         Some(())
     }
@@ -221,12 +213,13 @@ impl Data {
             .collect()
     }
 
-    fn read_graph_from_folder(
+    async fn read_graph_from_folder(
         &self,
-        folder: &ExistingGraphFolder,
+        folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
         let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
-        GraphWithVectors::read_from_folder(folder, cache, self.create_index)
+        let create_index = self.create_index;
+        blocking_io(move || GraphWithVectors::read_from_folder(&folder, cache, create_index)).await
     }
 }
 
@@ -237,10 +230,10 @@ pub(crate) mod data_tests {
         config::app_config::{AppConfig, AppConfigBuilder},
         data::Data,
     };
+    use futures_util::TryFutureExt;
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
     use std::{collections::HashMap, fs, fs::File, io, path::Path};
-
     #[cfg(feature = "storage")]
     use {
         raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage},
@@ -446,8 +439,8 @@ pub(crate) mod data_tests {
         File::create(path.join("graph")).unwrap();
     }
 
-    #[test]
-    fn test_get_graph_paths() {
+    #[tokio::test]
+    async fn test_get_graph_paths() {
         let temp_dir = tempfile::tempdir().unwrap();
         let work_dir = temp_dir.path();
         let g0_path = work_dir.join("g0");
@@ -495,7 +488,8 @@ pub(crate) mod data_tests {
 
         assert!(data
             .get_graph("shivam/investigations/2024-12-22/g2")
+            .await
             .is_ok());
-        assert!(data.get_graph("some/random/path").is_err());
+        assert!(data.get_graph("some/random/path").await.is_err());
     }
 }

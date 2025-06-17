@@ -13,6 +13,7 @@ pub mod url_encode;
 pub mod config;
 #[cfg(feature = "python")]
 pub mod python;
+pub mod rayon;
 
 #[cfg(test)]
 mod graphql_test {
