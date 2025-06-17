@@ -1,6 +1,5 @@
 use crate::model::graph::meta_graph::MetaGraph;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct MetaGraphs {
@@ -15,32 +14,20 @@ impl MetaGraphs {
 #[ResolvedObjectFields]
 impl MetaGraphs {
     async fn list(&self) -> Vec<MetaGraph> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.graphs.clone())
-            .await
-            .unwrap()
+        self.graphs.clone()
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<MetaGraph> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
-            self_clone
-                .graphs
-                .iter()
-                .map(|n| n.clone())
-                .skip(start)
-                .take(limit)
-                .collect()
-        })
-        .await
-        .unwrap()
+        let start = offset * limit;
+        self.graphs
+            .iter()
+            .skip(start)
+            .take(limit)
+            .cloned()
+            .collect()
     }
 
     async fn count(&self) -> usize {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.graphs.iter().count())
-            .await
-            .unwrap()
+        self.graphs.len()
     }
 }

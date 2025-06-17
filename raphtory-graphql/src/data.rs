@@ -4,7 +4,6 @@ use crate::{
     model::blocking_io,
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
 };
-use futures_util::TryFutureExt;
 use itertools::Itertools;
 use moka::future::Cache;
 use raphtory::{
@@ -21,7 +20,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::{fs, task::spawn_blocking};
+use tokio::fs;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -230,7 +229,6 @@ pub(crate) mod data_tests {
         config::app_config::{AppConfig, AppConfigBuilder},
         data::Data,
     };
-    use futures_util::TryFutureExt;
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
     use std::{collections::HashMap, fs, fs::File, io, path::Path};

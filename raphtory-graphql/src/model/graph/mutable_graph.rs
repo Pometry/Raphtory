@@ -1,7 +1,11 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
+    model::{
+        blocking_io,
+        graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
+    },
     paths::ExistingGraphFolder,
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -10,7 +14,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
-use tokio::{spawn, task::spawn_blocking};
+use tokio::spawn;
 
 #[derive(InputObject, Clone)]
 #[graphql(name = "PropertyInput")]
@@ -96,21 +100,19 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let node = spawn_blocking(move || {
+        let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .add_node(time, &name, prop_iter, node_type.as_str())
         })
-        .await
-        .unwrap()?;
+        .await?;
         node.update_embeddings().await?;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(node.into())
         })
         .await
-        .unwrap()
     }
 
     /// Create a new node or fail if it already exists
@@ -123,21 +125,19 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let node = spawn_blocking(move || {
+        let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .create_node(time, &name, prop_iter, node_type.as_str())
         })
-        .await
-        .unwrap()?;
+        .await?;
         node.update_embeddings().await?;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(node.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add a batch of nodes
@@ -146,7 +146,7 @@ impl GqlMutableGraph {
         let self_clone_2 = self.clone();
 
         let nodes: Vec<Result<NodeView<GraphWithVectors>, GraphError>> =
-            spawn_blocking(move || {
+            blocking_compute(move || {
                 nodes
                     .iter()
                     .map(|node| {
@@ -173,17 +173,15 @@ impl GqlMutableGraph {
                     })
                     .collect()
             })
-            .await
-            .unwrap();
+            .await;
         for node in nodes {
             let _ = node?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
         }
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Get a mutable existing edge
@@ -203,22 +201,20 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let edge = spawn_blocking(move || {
+        let edge = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .add_edge(time, src, dst, prop_iter, layer.as_str())
         })
-        .await
-        .unwrap();
+        .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(edge.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add a batch of edges
@@ -227,7 +223,7 @@ impl GqlMutableGraph {
         let self_clone_2 = self.clone();
 
         let edges: Vec<Result<EdgeView<GraphWithVectors>, GraphError>> =
-            spawn_blocking(move || {
+            blocking_compute(move || {
                 edges
                     .iter()
                     .map(|edge| {
@@ -252,17 +248,15 @@ impl GqlMutableGraph {
                     })
                     .collect()
             })
-            .await
-            .unwrap();
+            .await;
         for edge in edges {
             let _ = edge?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
         }
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
@@ -277,17 +271,15 @@ impl GqlMutableGraph {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
         let edge =
-            spawn_blocking(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
-                .await
-                .unwrap();
+            blocking_compute(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
+                .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(edge.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add temporal properties to graph
@@ -297,7 +289,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .graph
                 .add_properties(t, as_properties(properties)?)?;
@@ -305,7 +297,6 @@ impl GqlMutableGraph {
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Add constant properties to graph (errors if the property already exists)
@@ -314,7 +305,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .graph
                 .add_constant_properties(as_properties(properties)?)?;
@@ -322,7 +313,6 @@ impl GqlMutableGraph {
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Update constant properties of the graph (overwrites existing values)
@@ -331,7 +321,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .graph
                 .update_constant_properties(as_properties(properties)?)?;
@@ -339,7 +329,6 @@ impl GqlMutableGraph {
             Ok(true)
         })
         .await
-        .unwrap()
     }
 }
 
