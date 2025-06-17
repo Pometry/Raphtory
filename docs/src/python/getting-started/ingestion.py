@@ -15,6 +15,9 @@ print(g)
 print(v)
 # --8<-- [end:node_add]
 
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)"
+assert str(v) == "Node(name=10, earliest_time=1, latest_time=1)"
+
 
 # --8<-- [start:node_add_output]
 # Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)
