@@ -2,7 +2,7 @@
 import pandas as pd
 
 edges_df = pd.read_csv(
-    "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -351,7 +351,7 @@ import pandas as pd
 from raphtory import Graph
 
 edges_df = pd.read_csv(
-    "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
