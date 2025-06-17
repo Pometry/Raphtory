@@ -763,7 +763,7 @@ def test_node_property_filter_is_not_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a non-empty list"
+    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a list"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -793,4 +793,29 @@ def test_node_property_filter_is_not_in_type_error(graph):
     expected_error_message = (
         "Invalid filter: Operator IS_NOT_IN requires a list value, got Str(shivam)"
     )
+    run_graphql_error_test(query, expected_error_message, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_node_property_filter_contains_wrong_value_type_error(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+              property: {
+                name: "p10"
+                operator: CONTAINS
+                value: { u64: 2 }
+              }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_error_message = "Invalid filter: Operator CONTAINS requires a string value, got U64(2)"
     run_graphql_error_test(query, expected_error_message, graph)

@@ -322,79 +322,62 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
 
     fn try_from(filter: NodeFilter) -> Result<Self, Self::Error> {
-        let mut exprs = Vec::new();
-
-        if let NodeFilter::Node(node) = filter.clone() {
-            node.validate()?;
-            exprs.push(CompositeNodeFilter::Node(Filter {
-                field_name: node.field.to_string(),
-                field_value: field_value(node.value, node.operator)?,
-                operator: node.operator.into(),
-            }));
-        }
-
-        if let NodeFilter::Property(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
-        }
-
-        if let NodeFilter::ConstantProperty(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
-        }
-
-        if let NodeFilter::TemporalProperty(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
-        }
-
-        if let NodeFilter::And(and_filters) = filter.clone() {
-            let mut iter = and_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-            if let Some(first) = iter.next() {
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::And(Box::new(acc), Box::new(next))
-                });
-                exprs.push(and_chain);
+        match filter {
+            NodeFilter::Node(node) => {
+                node.validate()?;
+                Ok(CompositeNodeFilter::Node(Filter {
+                    field_name: node.field.to_string(),
+                    field_value: field_value(node.value, node.operator)?,
+                    operator: node.operator.into(),
+                }))
+            }
+            NodeFilter::Property(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::ConstantProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::TemporalProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::And(and_filters) => {
+                let mut iter = and_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
+                if let Some(first) = iter.next() {
+                    let and_chain = iter.fold(first, |acc, next| {
+                        CompositeNodeFilter::And(Box::new(acc), Box::new(next))
+                    });
+                    Ok(and_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                }
+            }
+            NodeFilter::Or(or_filters) => {
+                let mut iter = or_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
+                if let Some(first) = iter.next() {
+                    let or_chain = iter.fold(first, |acc, next| {
+                        CompositeNodeFilter::Or(Box::new(acc), Box::new(next))
+                    });
+                    Ok(or_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                }
+            }
+            NodeFilter::Not(not_filters) => {
+                let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
+                Ok(CompositeNodeFilter::Not(Box::new(inner)))
             }
         }
-
-        if let NodeFilter::Or(or_filters) = filter.clone() {
-            let mut iter = or_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-            if let Some(first) = iter.next() {
-                let or_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::Or(Box::new(acc), Box::new(next))
-                });
-                exprs.push(or_chain);
-            }
-        }
-
-        if let NodeFilter::Not(not_filters) = filter.clone() {
-            let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
-            exprs.push(CompositeNodeFilter::Not(Box::new(inner)));
-        }
-
-        let result = match exprs.len() {
-            0 => Err(GraphError::ParsingError),
-            1 => Ok(exprs.remove(0)),
-            _ => {
-                let mut iter = exprs.into_iter();
-                let first = iter.next().unwrap();
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::And(Box::new(acc), Box::new(next))
-                });
-                Ok(and_chain)
-            }
-        };
-
-        result
     }
 }
 
@@ -402,86 +385,70 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     type Error = GraphError;
 
     fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
-        let mut exprs = Vec::new();
-
-        if let EdgeFilter::Src(src) = filter.clone() {
-            src.validate()?;
-            exprs.push(CompositeEdgeFilter::Edge(Filter {
-                field_name: "src".to_string(),
-                field_value: field_value(src.value, src.operator)?,
-                operator: src.operator.into(),
-            }));
-        }
-
-        if let EdgeFilter::Dst(dst) = filter.clone() {
-            dst.validate()?;
-            exprs.push(CompositeEdgeFilter::Edge(Filter {
-                field_name: "dst".to_string(),
-                field_value: field_value(dst.value, dst.operator)?,
-                operator: dst.operator.into(),
-            }));
-        }
-
-        if let EdgeFilter::Property(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let EdgeFilter::ConstantProperty(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let EdgeFilter::TemporalProperty(prop) = filter.clone() {
-            prop.validate()?;
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let EdgeFilter::And(and_filters) = filter.clone() {
-            let mut iter = and_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-
-            if let Some(first) = iter.next() {
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
-                });
-                exprs.push(and_chain);
+        match filter {
+            EdgeFilter::Src(src) => {
+                src.validate()?;
+                Ok(CompositeEdgeFilter::Edge(Filter {
+                    field_name: "src".to_string(),
+                    field_value: field_value(src.value, src.operator)?,
+                    operator: src.operator.into(),
+                }))
             }
-        }
-
-        if let EdgeFilter::Or(or_filters) = filter.clone() {
-            let mut iter = or_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-
-            if let Some(first) = iter.next() {
-                let or_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::Or(Box::new(acc), Box::new(next))
-                });
-                exprs.push(or_chain);
+            EdgeFilter::Dst(dst) => {
+                dst.validate()?;
+                Ok(CompositeEdgeFilter::Edge(Filter {
+                    field_name: "dst".to_string(),
+                    field_value: field_value(dst.value, dst.operator)?,
+                    operator: dst.operator.into(),
+                }))
             }
-        }
+            EdgeFilter::Property(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::ConstantProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::TemporalProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::And(and_filters) => {
+                let mut iter = and_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
 
-        if let EdgeFilter::Not(not_filters) = filter.clone() {
-            let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
-            exprs.push(CompositeEdgeFilter::Not(Box::new(inner)));
-        }
+                if let Some(first) = iter.next() {
+                    let and_chain = iter.fold(first, |acc, next| {
+                        CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
+                    });
+                    Ok(and_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                }
+            }
+            EdgeFilter::Or(or_filters) => {
+                let mut iter = or_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
 
-        match exprs.len() {
-            0 => Err(GraphError::ParsingError),
-            1 => Ok(exprs.remove(0)),
-            _ => {
-                let mut iter = exprs.into_iter();
-                let first = iter.next().unwrap();
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
-                });
-                Ok(and_chain)
+                if let Some(first) = iter.next() {
+                    let or_chain = iter.fold(first, |acc, next| {
+                        CompositeEdgeFilter::Or(Box::new(acc), Box::new(next))
+                    });
+                    Ok(or_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                }
+            }
+            EdgeFilter::Not(not_filters) => {
+                let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
+                Ok(CompositeEdgeFilter::Not(Box::new(inner)))
             }
         }
     }
@@ -604,7 +571,7 @@ fn validate_operator_value_pair(
                 "Operator {operator} requires a list value, got {v}"
             ))),
             None => Err(GraphError::InvalidGqlFilter(format!(
-                "Operator {operator} requires a non-empty list"
+                "Operator {operator} requires a list"
             ))),
         },
 

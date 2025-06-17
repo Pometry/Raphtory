@@ -1158,7 +1158,7 @@ def test_graph_edge_property_filter_is_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: Operator IS_IN requires a non-empty list"
+    expected_error_message = "Invalid filter: Operator IS_IN requires a list"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1371,7 +1371,7 @@ def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a non-empty list"
+    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a list"
     run_graphql_error_test(query, expected_error_message, graph)
 
 

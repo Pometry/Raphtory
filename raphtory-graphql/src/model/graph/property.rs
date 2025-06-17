@@ -51,18 +51,13 @@ impl Display for Value {
             Value::Str(v) => write!(f, "Str({})", v),
             Value::Bool(v) => write!(f, "Bool({})", v),
             Value::List(vs) => {
-                let inner = vs
-                    .iter()
-                    .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let inner = vs.iter().map(|v| v.to_string()).join(", ");
                 write!(f, "List([{}])", inner)
             }
             Value::Object(entries) => {
                 let inner = entries
                     .iter()
                     .map(|entry| format!("{}: {}", entry.key, entry.value))
-                    .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "Object({{{}}})", inner)
             }
@@ -79,36 +74,27 @@ impl TryFrom<Value> for Prop {
 }
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
-    if let Value::U64(n) = value.clone() {
-        return Ok(Prop::U64(n));
+    match value {
+        Value::U64(n) => Ok(Prop::U64(n)),
+        Value::I64(n) => Ok(Prop::I64(n)),
+        Value::F64(n) => Ok(Prop::F64(n)),
+        Value::Str(s) => Ok(Prop::Str(s.into())),
+        Value::Bool(b) => Ok(Prop::Bool(b)),
+        Value::List(list) => {
+            let prop_list: Vec<Prop> = list
+                .into_iter()
+                .map(value_to_prop)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Prop::List(prop_list.into()))
+        }
+        Value::Object(object) => {
+            let prop_map: FxHashMap<ArcStr, Prop> = object
+                .into_iter()
+                .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
+                .collect::<Result<FxHashMap<_, _>, _>>()?;
+            Ok(Prop::Map(Arc::new(prop_map)))
+        }
     }
-    if let Value::I64(n) = value.clone() {
-        return Ok(Prop::I64(n));
-    }
-    if let Value::F64(n) = value.clone() {
-        return Ok(Prop::F64(n));
-    }
-    if let Value::Str(s) = value.clone() {
-        return Ok(Prop::Str(s.into()));
-    }
-    if let Value::Bool(b) = value.clone() {
-        return Ok(Prop::Bool(b));
-    }
-    if let Value::List(list) = value.clone() {
-        let prop_list: Vec<Prop> = list
-            .into_iter()
-            .map(value_to_prop)
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Prop::List(prop_list.into()));
-    }
-    if let Value::Object(object) = value.clone() {
-        let prop_map: FxHashMap<ArcStr, Prop> = object
-            .into_iter()
-            .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
-            .collect::<Result<FxHashMap<_, _>, _>>()?;
-        return Ok(Prop::Map(Arc::new(prop_map)));
-    }
-    Err(GraphError::EmptyValue)
 }
 
 #[derive(Clone, Debug, Scalar)]
