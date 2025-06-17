@@ -28,16 +28,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).first_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).first()
     }
 
     fn node_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).last_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).last()
     }
 
     fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
@@ -45,8 +45,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
-        node.history(view).range_t(w).first_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).range_t(w).first()
     }
 
     fn node_latest_time_window<'graph, G: GraphView + 'graph>(
@@ -54,16 +54,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
-        node.history(view).range_t(w).last_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).range_t(w).last()
     }
 
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).iter_t()
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).iter()
     }
 
     fn node_history_window<'graph, G: GraphView + 'graph>(
@@ -71,8 +71,8 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).range_t(w).iter_t()
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).range_t(w).iter()
     }
 
     fn node_updates<'graph, G: GraphView + 'graph>(

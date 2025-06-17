@@ -38,7 +38,7 @@ use raphtory_api::core::{
     storage::timeindex::{TimeError, TimeIndexOps},
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{ops::Deref, slice::Iter, sync::Arc};
+use std::{iter, ops::Deref, slice::Iter, sync::Arc};
 // TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -226,7 +226,7 @@ impl CompositeHistory {
     }
 }
 
-// Note: All the items held by their respective HistoryImplemented objects must already be of type Box<T>
+// Note: All the items held by their respective History objects must already be of type Arc<T>
 pub fn compose_multiple_histories(
     objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>,
 ) -> History<CompositeHistory> {
@@ -235,7 +235,7 @@ pub fn compose_multiple_histories(
     ))
 }
 
-// Note: Items supplied by the iterator must already be of type Box<T>
+// Note: Items supplied by the iterator must already be of type Arc<T>
 pub fn compose_history_from_items(
     objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>,
 ) -> History<CompositeHistory> {
@@ -327,7 +327,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(&g, e) {
             match e.time() {
-                Some(t) => vec![t].into_iter().into_dyn_boxed(),
+                Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
                     let edge = g.core_edge(e.pid());
@@ -353,7 +353,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 }
             }
         } else {
-            vec![].into_iter().into_dyn_boxed()
+            iter::empty().into_dyn_boxed()
         }
     }
 

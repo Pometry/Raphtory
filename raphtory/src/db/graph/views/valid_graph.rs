@@ -172,15 +172,15 @@ mod tests {
         let w = 1..11;
 
         let gv = g.valid().unwrap();
-        assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+        assert_eq!(gv.node(0).unwrap().earliest_time().unwrap().0, 0);
 
         let gvw = gv.window(w.start, w.end);
-        assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+        assert_eq!(gvw.node(0).unwrap().earliest_time().unwrap().0, 10);
 
         assert_eq!(gvw.node(0).unwrap().history().collect_timestamps(), [10]);
 
         let gvwm = gvw.materialize().unwrap();
-        assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+        assert_eq!(gvwm.node(0).unwrap().earliest_time().unwrap().0, 10);
     }
 
     #[test]
@@ -190,10 +190,10 @@ mod tests {
         g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
         g.delete_edge(100, 0, 0, None).unwrap();
         let gvw = g.valid().unwrap().window(2, 20);
-        assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
+        assert_eq!(gvw.node(0).unwrap().earliest_time().unwrap().0, 10);
         let gvwm = gvw.materialize().unwrap();
         println!("{:?}", gvwm);
-        assert_eq!(gvwm.node(0).unwrap().earliest_time(), Some(10));
+        assert_eq!(gvwm.node(0).unwrap().earliest_time().unwrap().0, 10);
     }
 
     #[test]
@@ -268,7 +268,7 @@ mod tests {
         let gv = g.valid().unwrap().window(-1, 10);
         let gvm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gvm);
-        assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
+        assert_eq!(gv.node(0).unwrap().earliest_time().unwrap().0, 0);
     }
 
     #[test]

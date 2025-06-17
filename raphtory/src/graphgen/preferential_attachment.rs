@@ -21,6 +21,7 @@ use crate::{
     prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use std::collections::HashSet;
 use tracing::error;
 
@@ -63,7 +64,7 @@ pub fn ba_preferential_attachment(
     } else {
         rng = StdRng::from_entropy();
     }
-    let mut latest_time = graph.latest_time().unwrap_or(0);
+    let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let view = graph;
     let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
     let mut degrees: Vec<usize> = view.nodes().degree().iter_values().collect();

@@ -602,7 +602,7 @@ mod db_tests {
         entities::{GID, VID},
         storage::{
             arc_str::{ArcStr, OptionAsStr},
-            timeindex::TimeIndexEntry,
+            timeindex::{AsTime, TimeIndexEntry},
         },
         utils::logging::global_info_logger,
     };
@@ -1429,7 +1429,7 @@ mod db_tests {
             .map_err(|err| error!("{:?}", err))
             .ok();
 
-        assert_eq!(g.latest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 5);
 
         let earliest_times = g
             .edge(1, 2)
@@ -1464,28 +1464,28 @@ mod db_tests {
             .map_err(|err| error!("{:?}", err))
             .ok();
 
-        assert_eq!(g.latest_time(), Some(5));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 5);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         let g = Graph::new();
 
         g.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
-        assert_eq!(g.latest_time(), Some(10));
-        assert_eq!(g.earliest_time(), Some(10));
+        assert_eq!(g.latest_time().unwrap().0, 10);
+        assert_eq!(g.earliest_time().unwrap().0, 10);
 
         g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
-        assert_eq!(g.latest_time(), Some(10));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 10);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         g.add_edge(20, 3, 4, NO_PROPS, None).unwrap();
-        assert_eq!(g.latest_time(), Some(20));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 20);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         random_attachment(&g, 100, 10, None);
-        assert_eq!(g.latest_time(), Some(126));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 126);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
     }
 
     #[test]
@@ -1796,6 +1796,7 @@ mod db_tests {
                 .get("cool")
                 .unwrap()
                 .iter()
+                .map(|(x, y)| (x.t(), y))
                 .collect();
             assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
@@ -1807,6 +1808,7 @@ mod db_tests {
                 .get("cool")
                 .unwrap()
                 .iter()
+                .map(|(x, y)| (x.t(), y))
                 .collect();
             assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
         });
@@ -2470,8 +2472,8 @@ mod db_tests {
             .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
+        assert_eq!(g.latest_time().unwrap().0, latest_time);
 
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
@@ -2480,8 +2482,8 @@ mod db_tests {
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
+        assert_eq!(g.latest_time().unwrap().0, latest_time);
     }
 
     #[test]
@@ -2687,7 +2689,7 @@ mod db_tests {
                 .properties()
                 .temporal()
                 .iter()
-                .map(|(k, v)| (k.clone(), v.iter().collect()))
+                .map(|(k, v)| (k.clone(), v.iter().map(|(x, y)| (x.t(), y)).collect()))
                 .collect();
 
             let mut exp = HashMap::new();
@@ -2708,17 +2710,41 @@ mod db_tests {
 
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
-            assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
-            assert_eq!(graph.node(1).unwrap().latest_time(), Some(3));
+            assert_eq!(
+                graph.node(1).unwrap().earliest_time(),
+                Some(TimeIndexEntry::from(1))
+            );
+            assert_eq!(
+                graph.node(1).unwrap().latest_time(),
+                Some(TimeIndexEntry::from(3))
+            );
 
-            assert_eq!(graph.at(2).node(1).unwrap().earliest_time(), Some(2));
-            assert_eq!(graph.at(2).node(1).unwrap().latest_time(), Some(2));
+            assert_eq!(
+                graph.at(2).node(1).unwrap().earliest_time(),
+                Some(TimeIndexEntry::from(2))
+            );
+            assert_eq!(
+                graph.at(2).node(1).unwrap().latest_time(),
+                Some(TimeIndexEntry::from(2))
+            );
 
-            assert_eq!(graph.before(2).node(1).unwrap().earliest_time(), Some(1));
-            assert_eq!(graph.before(2).node(1).unwrap().latest_time(), Some(1));
+            assert_eq!(
+                graph.before(2).node(1).unwrap().earliest_time(),
+                Some(TimeIndexEntry::from(1))
+            );
+            assert_eq!(
+                graph.before(2).node(1).unwrap().latest_time(),
+                Some(TimeIndexEntry::from(1))
+            );
 
-            assert_eq!(graph.after(2).node(1).unwrap().earliest_time(), Some(3));
-            assert_eq!(graph.after(2).node(1).unwrap().latest_time(), Some(3));
+            assert_eq!(
+                graph.after(2).node(1).unwrap().earliest_time(),
+                Some(TimeIndexEntry::from(3))
+            );
+            assert_eq!(
+                graph.after(2).node(1).unwrap().latest_time(),
+                Some(TimeIndexEntry::from(3))
+            );
         })
     }
 
@@ -3953,7 +3979,7 @@ mod db_tests {
             .unwrap()
             .ordered_dedupe(true)
             .into_iter()
-            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
             .collect_vec();
 
         assert_eq!(
@@ -3975,7 +4001,7 @@ mod db_tests {
             .unwrap()
             .ordered_dedupe(false)
             .into_iter()
-            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
             .collect_vec();
 
         assert_eq!(

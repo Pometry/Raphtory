@@ -141,16 +141,16 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).first_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).first()
     }
 
     fn node_latest_time<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
-        node.history(view).last_t()
+    ) -> Option<TimeIndexEntry> {
+        node.history(view).last()
     }
 
     fn node_earliest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -158,12 +158,12 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         let additions = node.additions();
         let mut earliest = additions.prop_events().next().map(|t| t.t());
         if let Some(earliest) = earliest {
             if earliest <= w.start {
-                return Some(w.start);
+                return Some(TimeIndexEntry::start(w.start));
             }
         }
 
@@ -174,14 +174,14 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                 edge_semantics.edge_earliest_time_window(edge.as_ref(), &view, w.clone())
             {
                 if edge_earliest_time <= w.start {
-                    return Some(w.start);
+                    return Some(TimeIndexEntry::start(w.start));
                 }
                 if edge_earliest_time < earliest.unwrap_or(w.end) {
                     earliest = Some(edge_earliest_time);
                 }
             }
         }
-        earliest
+        earliest.map(|t| TimeIndexEntry::start(t))
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -189,19 +189,19 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         node.history(view)
             .range_t(i64::MIN..w.end)
-            .last_t()
-            .map(|t| t.max(w.start))
+            .last()
+            .map(|t| t.max(TimeIndexEntry::from(w.start)))
     }
 
     fn node_history<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).iter_t()
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).iter()
     }
 
     fn node_history_window<'graph, G: GraphViewOps<'graph>>(
@@ -209,8 +209,8 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
-        node.history(view).range_t(w).iter_t()
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).range_t(w).iter()
     }
 
     fn node_updates<'graph, G: GraphViewOps<'graph>>(

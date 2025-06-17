@@ -51,7 +51,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_earliest_time(node, view))
     }
 
@@ -60,7 +60,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_latest_time(node, view))
     }
 
@@ -70,7 +70,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_earliest_time_window(node, view, w))
     }
 
@@ -80,7 +80,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_latest_time_window(node, view, w))
     }
 
@@ -89,7 +89,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history(node, view))
     }
 
@@ -99,7 +99,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history_window(node, view, w))
     }
 

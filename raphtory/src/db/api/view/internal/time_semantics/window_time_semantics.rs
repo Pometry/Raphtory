@@ -34,7 +34,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .node_earliest_time_window(node, view, self.window.clone())
     }
@@ -44,7 +44,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .node_latest_time_window(node, view, self.window.clone())
     }
@@ -55,7 +55,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics.node_earliest_time_window(node, view, w)
     }
 
@@ -65,7 +65,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics.node_latest_time_window(node, view, w)
     }
 
@@ -74,7 +74,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         self.semantics
             .node_history_window(node, view, self.window.clone())
     }
@@ -85,7 +85,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         self.semantics.node_history_window(node, view, w)
     }
 

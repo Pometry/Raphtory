@@ -10,7 +10,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::TimeIndexEntry};
 use raphtory_storage::graph::graph::GraphStorage;
 
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub struct EarliestTime<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for EarliestTime<G> {
-    type Output = Option<i64>;
+    type Output = Option<TimeIndexEntry>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();
@@ -52,7 +52,7 @@ pub struct LatestTime<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for LatestTime<G> {
-    type Output = Option<i64>;
+    type Output = Option<TimeIndexEntry>;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let semantics = self.graph.node_time_semantics();

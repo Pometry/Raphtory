@@ -22,6 +22,7 @@ pub(crate) mod internal {
         db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
+    use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
     use std::cmp::{max, min};
 
     pub trait InternalTimeOps<'graph> {
@@ -40,19 +41,19 @@ pub(crate) mod internal {
 
         fn timeline_start(&self) -> Option<i64> {
             self.start()
-                .or_else(|| self.current_filter().earliest_time())
+                .or_else(|| self.current_filter().earliest_time().map(|t| t.t()))
         }
 
         fn timeline_end(&self) -> Option<i64> {
             self.end().or_else(|| {
                 self.current_filter()
                     .latest_time()
-                    .map(|v| v.saturating_add(1))
+                    .map(|v| v.0.saturating_add(1))
             })
         }
 
         fn latest_t(&self) -> Option<i64> {
-            self.current_filter().latest_time()
+            self.current_filter().latest_time().map(|t| t.t())
         }
 
         fn internal_window(

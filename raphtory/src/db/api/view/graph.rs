@@ -90,7 +90,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
     /// Timestamp of earliest activity in the graph
-    fn earliest_time(&self) -> Option<i64>;
+    fn earliest_time(&self) -> Option<TimeIndexEntry>;
 
     /// UTC DateTime of earliest activity in the graph
     fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
@@ -100,7 +100,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
             .map_err(GraphError::from)
     }
     /// Timestamp of latest activity in the graph
-    fn latest_time(&self) -> Option<i64>;
+    fn latest_time(&self) -> Option<TimeIndexEntry>;
 
     /// UTC DateTime of latest activity in the graph
     fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
@@ -291,13 +291,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
+            g.update_time(earliest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
 
         if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
+            g.update_time(latest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
@@ -502,9 +502,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     #[inline]
-    fn earliest_time(&self) -> Option<i64> {
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global(),
+            FilterState::Neither => self.earliest_time_global().map(TimeIndexEntry::from), // couldn't change earliest_time_global() to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()
@@ -524,9 +524,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     #[inline]
-    fn latest_time(&self) -> Option<i64> {
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global(),
+            FilterState::Neither => self.latest_time_global().map(TimeIndexEntry::end),
             _ => self
                 .properties()
                 .temporal()

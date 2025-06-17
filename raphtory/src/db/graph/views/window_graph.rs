@@ -65,7 +65,10 @@ use raphtory_api::{
             properties::prop::{Prop, PropType},
             EID, ELID, VID,
         },
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, TimeIndexEntry},
+        },
     },
     inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
@@ -145,7 +148,7 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
             None => false,
             Some(start) => match self.graph.core_graph().earliest_time() {
                 None => false,
-                Some(graph_earliest) => start >= graph_earliest, // deletions have exclusive window, thus >= here!
+                Some(graph_earliest) => start >= graph_earliest.t(), // deletions have exclusive window, thus >= here!
             },
         }
     }
@@ -156,7 +159,7 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
             None => false,
             Some(end) => match self.core_graph().latest_time() {
                 None => false,
-                Some(graph_latest) => end <= graph_latest,
+                Some(graph_latest) => end <= graph_latest.t(),
             },
         }
     }
@@ -1159,6 +1162,7 @@ mod views_test {
                     .earliest_time()
                     .iter_values()
                     .flatten()
+                    .map(|t| t.0)
                     .collect_vec(),
                 [0, 0, 0, 4,]
             );
@@ -1169,6 +1173,7 @@ mod views_test {
                     .latest_time()
                     .iter_values()
                     .flatten()
+                    .map(|t| t.0)
                     .collect_vec(),
                 [3, 7, 3, 7]
             );
@@ -1178,7 +1183,7 @@ mod views_test {
                     .nodes()
                     .neighbours()
                     .latest_time()
-                    .map(|it| it.flatten().collect_vec())
+                    .map(|it| it.flatten().map(|t| t.0).collect_vec())
                     .collect_vec(),
                 [vec![], vec![3, 7], vec![7], vec![7],]
             );
@@ -1188,7 +1193,7 @@ mod views_test {
                     .nodes()
                     .neighbours()
                     .earliest_time()
-                    .map(|it| it.flatten().collect_vec())
+                    .map(|it| it.flatten().map(|t| t.0).collect_vec())
                     .collect_vec(),
                 [vec![], vec![0, 4], vec![0], vec![0],]
             );

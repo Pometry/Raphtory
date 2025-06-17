@@ -13,6 +13,7 @@
 //! random_attachment(&graph, 1000, 10, None);
 //! ```
 
+use super::next_id;
 use crate::{
     db::{
         api::{mutation::AdditionOps, view::*},
@@ -21,9 +22,8 @@ use crate::{
     prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
 use tracing::error;
-
-use super::next_id;
 
 /// Given a graph this function will add a user defined number of nodes, each with a
 /// user defined number of edges.
@@ -60,7 +60,7 @@ pub fn random_attachment(
     } else {
         rng = StdRng::from_entropy();
     }
-    let mut latest_time = graph.latest_time().unwrap_or(0);
+    let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
     let mut max_id = next_id(graph, ids.iter().max().cloned());
 

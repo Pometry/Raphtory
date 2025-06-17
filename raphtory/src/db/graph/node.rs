@@ -475,24 +475,24 @@ mod node_test {
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
             let view = graph.before(2);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 1);
 
             let view = graph.before(3);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 2);
 
             let view = graph.after(0);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 2);
 
             let view = graph.after(2);
             assert_eq!(view.node(1), None);
             assert_eq!(view.node(1), None);
 
             let view = graph.at(1);
-            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap().0, 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap().0, 1);
         });
     }
 
