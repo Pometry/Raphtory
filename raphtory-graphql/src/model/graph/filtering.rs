@@ -355,7 +355,9 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                     });
                     Ok(and_chain)
                 } else {
-                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'and' requires non-empty list".to_string(),
+                    ))
                 }
             }
             NodeFilter::Or(or_filters) => {
@@ -370,7 +372,9 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                     });
                     Ok(or_chain)
                 } else {
-                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'or' requires non-empty list".to_string(),
+                    ))
                 }
             }
             NodeFilter::Not(not_filters) => {
@@ -427,7 +431,9 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                     });
                     Ok(and_chain)
                 } else {
-                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'and' requires non-empty list".to_string(),
+                    ))
                 }
             }
             EdgeFilter::Or(or_filters) => {
@@ -443,7 +449,9 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                     });
                     Ok(or_chain)
                 } else {
-                    Err(GraphError::InvalidGqlFilter("No filters found".to_string()))
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'or' requires non-empty list".to_string(),
+                    ))
                 }
             }
             EdgeFilter::Not(not_filters) => {
