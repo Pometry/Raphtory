@@ -169,6 +169,23 @@ impl NodeTimeSemanticsOps for TimeSemantics {
     ) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, semantics => semantics.node_tprop_last_at_window(node, view, prop_id, t, w))
     }
+
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count(node, view))
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count_window(node, view, w))
+    }
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {

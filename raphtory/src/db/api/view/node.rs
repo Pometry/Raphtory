@@ -90,6 +90,8 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
 
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
+
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
@@ -236,6 +238,14 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>> {
         let op = ops::History {
+            graph: self.graph().clone(),
+        };
+        self.map(op)
+    }
+
+    #[inline]
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
+        let op = ops::EdgeHistoryCount {
             graph: self.graph().clone(),
         };
         self.map(op)

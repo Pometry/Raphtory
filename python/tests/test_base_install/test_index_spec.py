@@ -1,6 +1,7 @@
 from raphtory import Graph, IndexSpecBuilder
 from raphtory import filter
 
+
 def init_graph(graph):
     nodes = [
         (1, "pometry", {"p1": 5, "p2": 50}, "fire_nation", {"x": True}),
@@ -26,17 +27,14 @@ def search_nodes(graph, filter_expr):
 
 
 def search_edges(graph, filter_expr):
-    return sorted(f"{e.src.name}->{e.dst.name}" for e in graph.search_edges(filter_expr, 10, 0))
+    return sorted(
+        f"{e.src.name}->{e.dst.name}" for e in graph.search_edges(filter_expr, 10, 0)
+    )
 
 
 def test_with_all_props_index_spec():
     graph = init_graph(Graph())
-    spec = (
-        IndexSpecBuilder(graph)
-        .with_all_node_props()
-        .with_all_edge_props()
-        .build()
-    )
+    spec = IndexSpecBuilder(graph).with_all_node_props().with_all_edge_props().build()
 
     graph.create_index_in_ram_with_spec(spec)
 
@@ -71,7 +69,9 @@ def test_with_selected_props_index_spec():
 
     f1 = filter.Property("e_p1") < 5.0
     f2 = filter.Property("e_y") == False
-    assert sorted(search_edges(graph, f1 | f2)) == sorted(["pometry->raphtory", "raphtory->pometry"])
+    assert sorted(search_edges(graph, f1 | f2)) == sorted(
+        ["pometry->raphtory", "raphtory->pometry"]
+    )
 
 
 def test_with_invalid_property_returns_error():
@@ -95,7 +95,9 @@ def test_build_empty_spec_by_default():
 
     f1 = filter.Property("e_p1") < 5.0
     f2 = filter.Property("e_y") == False
-    assert sorted(search_edges(graph, f1 | f2)) == sorted(["pometry->raphtory", "raphtory->pometry"])
+    assert sorted(search_edges(graph, f1 | f2)) == sorted(
+        ["pometry->raphtory", "raphtory->pometry"]
+    )
 
 
 def test_mixed_node_and_edge_props_index_spec():
@@ -116,7 +118,9 @@ def test_mixed_node_and_edge_props_index_spec():
 
     f1 = filter.Property("e_p1") < 5.0
     f2 = filter.Property("e_y") == False
-    assert sorted(search_edges(graph, f1 | f2)) == sorted(["pometry->raphtory", "raphtory->pometry"])
+    assert sorted(search_edges(graph, f1 | f2)) == sorted(
+        ["pometry->raphtory", "raphtory->pometry"]
+    )
 
 
 def test_get_index_spec():

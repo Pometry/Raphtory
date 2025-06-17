@@ -224,9 +224,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
                     TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
                 },
                 #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => {
-                    additions.clone().edge_events().map(|t| t.len()).sum()
-                }
+                NodeAdditions::Col(additions) => additions.edge_history().count(),
             }
         } else {
             self.history().count()
@@ -289,6 +287,9 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 }
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
+    /// Get a filtered view of the update history of the node
+    ///
+    /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
         let additions = self.additions();
         NodeHistory { additions, view }

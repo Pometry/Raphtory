@@ -291,6 +291,10 @@ impl GqlNode {
             .unwrap()
     }
 
+    async fn edge_history_count(&self) -> usize {
+        self.vv.edge_history_count()
+    }
+
     async fn is_active(&self) -> bool {
         let self_clone = self.clone();
         spawn_blocking(move || self_clone.vv.is_active())

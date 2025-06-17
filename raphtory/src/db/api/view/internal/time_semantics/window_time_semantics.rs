@@ -90,6 +90,26 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        self.semantics
+            .node_edge_history_count_window(node, view, self.window.clone())
+    }
+
+    #[inline]
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        self.semantics.node_edge_history_count_window(node, view, w)
+    }
+
+    #[inline]
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

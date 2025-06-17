@@ -75,6 +75,23 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.history(view).range_t(w).iter_t()
     }
 
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        node.history(view).edge_history().len()
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        node.history(view).range_t(w).edge_history().len()
+    }
+
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

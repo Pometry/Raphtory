@@ -211,6 +211,12 @@ pub fn assert_node_equal_layer<
             Some(earliest) => {
                 // persistent graph might have updates at start after materialize
                 assert_eq!(
+                    n1.after(earliest).edge_history_count(),
+                    n2.after(earliest).edge_history_count(),
+                    "mismatched edge_history_count for node {:?}{layer_tag}",
+                    n1.id()
+                );
+                assert_eq!(
                     n1.after(earliest).history(),
                     n2.after(earliest).history(),
                     "mismatched history for node {:?}{layer_tag}",
@@ -223,6 +229,12 @@ pub fn assert_node_equal_layer<
             n1.history(),
             n2.history(),
             "mismatched history for node {:?}{layer_tag}",
+            n1.id()
+        );
+        assert_eq!(
+            n1.edge_history_count(),
+            n2.edge_history_count(),
+            "mismatched edge_history_count for node {:?}{layer_tag}",
             n1.id()
         );
     }
@@ -2400,6 +2412,21 @@ mod db_tests {
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
             assert!(windowed_times_of_four.is_empty());
+            assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
+        });
+    }
+
+    #[test]
+    fn check_node_edge_history_count() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+
+        test_storage!(&graph, |graph| {
+            let node = graph.node(0).unwrap();
+            assert_eq!(node.edge_history_count(), 2);
+            assert_eq!(node.after(1).edge_history_count(), 1);
+            assert_eq!(node.after(3).edge_history_count(), 0);
         });
     }
 
