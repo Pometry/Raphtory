@@ -48,6 +48,7 @@ class GraphServer(object):
         auth_public_key=None,
         auth_enabled_for_reads=None,
         config_path: Optional[str | PathLike] = None,
+        create_index=None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
