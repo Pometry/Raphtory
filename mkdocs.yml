@@ -35,6 +35,8 @@ plugins:
   - search:
       lang: en
   - markdown-exec
+  - macros:
+      module_name: docs/scripts/macro
   - gen-files:
       scripts:
         - docs/scripts/gen_docs_pages.py

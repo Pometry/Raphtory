@@ -2,6 +2,7 @@ markdown-exec
 mkdocs
 mkdocs-gen-files
 mkdocs-literate-nav
+mkdocs-macros-plugin
 mkdocs-material
 mkdocs-section-index
 mkdocstrings
