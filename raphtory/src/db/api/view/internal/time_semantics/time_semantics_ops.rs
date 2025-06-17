@@ -39,7 +39,20 @@ pub trait NodeTimeSemanticsOps {
         view: G,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph;
 
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph;
+
     fn node_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph;
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,

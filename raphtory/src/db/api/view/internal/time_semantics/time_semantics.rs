@@ -87,6 +87,14 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.node_history(node, view))
     }
 
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_history_rev(node, view))
+    }
+
     fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -94,6 +102,15 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history_window(node, view, w))
+    }
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_history_window_rev(node, view, w))
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(

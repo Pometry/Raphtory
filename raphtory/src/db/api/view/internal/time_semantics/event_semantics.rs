@@ -66,6 +66,14 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node.history(view).iter()
     }
 
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).iter_rev()
+    }
+
     fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
@@ -73,6 +81,15 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         node.history(view).range_t(w).iter()
+    }
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        node.history(view).range_t(w).iter_rev()
     }
 
     fn node_updates<'graph, G: GraphView + 'graph>(

@@ -268,8 +268,6 @@ impl InternalHistoryOps for CompositeHistory {
     }
 }
 
-// TODO: Change earliest_time and latest_time implementations to use the built in earliest_time and latest_time functions
-// They are probably more efficient. New PR will have iter_rev implementation
 impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeView<'graph, G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let semantics = self.graph.node_time_semantics();
@@ -277,19 +275,18 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
         GenLockedIter::from(node, move |node| {
             semantics
                 .node_history(node.as_ref(), &self.graph)
-                .map(|t| TimeIndexEntry::from(t))
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }
 
-    // TODO: Ask about node.history() vs semantics.node_history. It seems like the first bypasses semantics filtering and returns ALL history information
-    // I can't seem to find a semantics.node_history_rev or call .rev() since its not a DoubleEndedIterator. Which one do we want here? Probably with semantics
-    // Test to make sure the answer is correct, we might need to reverse self.iter() after collecting
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
-            node.history(&self.graph).iter_rev().into_dyn_boxed()
+            semantics
+                .node_history_rev(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }
@@ -297,13 +294,15 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         ops::EarliestTime {
             graph: self.graph().clone(),
-        }.apply(self.graph.core_graph(), self.node)
+        }
+        .apply(self.graph.core_graph(), self.node)
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         ops::LatestTime {
             graph: self.graph().clone(),
-        }.apply(self.graph.core_graph(), self.node)
+        }
+        .apply(self.graph.core_graph(), self.node)
     }
 }
 
@@ -343,7 +342,6 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
-    // FIXME: Implementation is not efficient, only for testing purposes. edge doesn't seem to have a history() function, so how can i implement this efficiently?
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         let g = &self.graph;
         let e = self.edge;
@@ -360,7 +358,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                                 .map(|(ti, _)| ti)
                                 .into_dyn_boxed()
                         })
-                            .into_dyn_boxed(),
+                        .into_dyn_boxed(),
                         Some(layer) => {
                             let layer_ids = LayerIds::One(layer);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
@@ -369,7 +367,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                                     .map(|(ti, _)| ti)
                                     .into_dyn_boxed()
                             })
-                                .into_dyn_boxed()
+                            .into_dyn_boxed()
                         }
                     }
                 }
@@ -379,6 +377,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
+    //TODO: Do we want the first time the edge was ever seen or the first time the edge is seen in this context? Ex: GraphView/Window
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
