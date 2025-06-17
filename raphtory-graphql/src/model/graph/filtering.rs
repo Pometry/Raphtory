@@ -4,7 +4,7 @@ use dynamic_graphql::{
     internal::{
         FromValue, GetInputTypeRef, InputTypeName, InputValueResult, Register, Registry, TypeName,
     },
-    Enum, InputObject,
+    Enum, InputObject, OneOfInput,
 };
 use raphtory::{
     db::graph::views::filter::model::{
@@ -169,15 +169,15 @@ impl Display for Operator {
     }
 }
 
-#[derive(InputObject, Clone, Debug)]
-pub struct NodeFilter {
-    pub node: Option<NodeFieldFilter>,
-    pub property: Option<PropertyFilterExpr>,
-    pub constant_property: Option<ConstantPropertyFilterExpr>,
-    pub temporal_property: Option<TemporalPropertyFilterExpr>,
-    pub and: Option<Vec<NodeFilter>>,
-    pub or: Option<Vec<NodeFilter>>,
-    pub not: Option<Wrapped<NodeFilter>>,
+#[derive(OneOfInput, Clone, Debug)]
+pub enum NodeFilter {
+    Node(NodeFieldFilter),
+    Property(PropertyFilterExpr),
+    ConstantProperty(ConstantPropertyFilterExpr),
+    TemporalProperty(TemporalPropertyFilterExpr),
+    And(Vec<NodeFilter>),
+    Or(Vec<NodeFilter>),
+    Not(Wrapped<NodeFilter>),
 }
 
 #[derive(Clone, Debug)]
@@ -214,33 +214,17 @@ impl<T: TypeName + 'static> TypeName for Wrapped<T> {
 
 impl<T: InputTypeName + 'static> InputTypeName for Wrapped<T> {}
 
-impl NodeFilter {
-    pub fn validate(&self) -> Result<(), GraphError> {
-        let fields_set = [
-            self.node.is_some(),
-            self.property.is_some(),
-            self.constant_property.is_some(),
-            self.temporal_property.is_some(),
-            self.and.is_some(),
-            self.or.is_some(),
-            self.not.is_some(),
-        ];
-
-        let count = fields_set.iter().filter(|x| **x).count();
-
-        match count {
-            0 => Err(GraphError::InvalidGqlFilter("At least one field in NodeFilter must be provided.".to_string())),
-            1 => Ok(()),
-            _ => Err(GraphError::InvalidGqlFilter("Only one of node, property, constant_property, temporal_property, and/or must be provided.".to_string())),
-        }
-    }
-}
-
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFieldFilter {
     pub field: NodeField,
     pub operator: Operator,
     pub value: Value,
+}
+
+impl NodeFieldFilter {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &Some(self.value.clone()))
+    }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
@@ -249,39 +233,16 @@ pub enum NodeField {
     NodeType,
 }
 
-#[derive(InputObject, Clone, Debug)]
-pub struct EdgeFilter {
-    pub src: Option<NodeFieldFilter>,
-    pub dst: Option<NodeFieldFilter>,
-    pub property: Option<PropertyFilterExpr>,
-    pub constant_property: Option<ConstantPropertyFilterExpr>,
-    pub temporal_property: Option<TemporalPropertyFilterExpr>,
-    pub and: Option<Vec<EdgeFilter>>,
-    pub or: Option<Vec<EdgeFilter>>,
-    pub not: Option<Wrapped<EdgeFilter>>,
-}
-
-impl EdgeFilter {
-    pub fn validate(&self) -> Result<(), GraphError> {
-        let fields_set = [
-            self.src.is_some(),
-            self.dst.is_some(),
-            self.property.is_some(),
-            self.constant_property.is_some(),
-            self.temporal_property.is_some(),
-            self.and.is_some(),
-            self.or.is_some(),
-            self.not.is_some(),
-        ];
-
-        let count = fields_set.iter().filter(|x| **x).count();
-
-        match count {
-            0 => Err(GraphError::InvalidGqlFilter("At least one field in EdgeFilter must be provided.".to_string())),
-            1 => Ok(()),
-            _ => Err(GraphError::InvalidGqlFilter("Only one of src, dst, property, constant_property, temporal_property, and/or must be provided.".to_string())),
-        }
-    }
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EdgeFilter {
+    Src(NodeFieldFilter),
+    Dst(NodeFieldFilter),
+    Property(PropertyFilterExpr),
+    ConstantProperty(ConstantPropertyFilterExpr),
+    TemporalProperty(TemporalPropertyFilterExpr),
+    And(Vec<EdgeFilter>),
+    Or(Vec<EdgeFilter>),
+    Not(Wrapped<EdgeFilter>),
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -291,11 +252,23 @@ pub struct PropertyFilterExpr {
     pub value: Option<Value>,
 }
 
+impl PropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct ConstantPropertyFilterExpr {
     pub name: String,
     pub operator: Operator,
     pub value: Option<Value>,
+}
+
+impl ConstantPropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -304,6 +277,12 @@ pub struct TemporalPropertyFilterExpr {
     pub temporal: TemporalType,
     pub operator: Operator,
     pub value: Option<Value>,
+}
+
+impl TemporalPropertyFilterExpr {
+    pub fn validate(&self) -> Result<(), GraphError> {
+        validate_operator_value_pair(self.operator, &self.value)
+    }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
@@ -343,75 +322,66 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
 
     fn try_from(filter: NodeFilter) -> Result<Self, Self::Error> {
-        let mut exprs = Vec::new();
-
-        if let Some(node) = filter.node {
-            exprs.push(CompositeNodeFilter::Node(Filter {
-                field_name: node.field.to_string(),
-                field_value: field_value(node.value, node.operator)?,
-                operator: node.operator.into(),
-            }));
-        }
-
-        if let Some(prop) = filter.property {
-            exprs.push(CompositeNodeFilter::Property(prop.try_into()?));
-        }
-
-        if let Some(constant_prop) = filter.constant_property {
-            exprs.push(CompositeNodeFilter::Property(constant_prop.try_into()?));
-        }
-
-        if let Some(temporal_prop) = filter.temporal_property {
-            exprs.push(CompositeNodeFilter::Property(temporal_prop.try_into()?));
-        }
-
-        if let Some(and_filters) = filter.and {
-            let mut iter = and_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-            if let Some(first) = iter.next() {
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::And(Box::new(acc), Box::new(next))
-                });
-                exprs.push(and_chain);
+        match filter {
+            NodeFilter::Node(node) => {
+                node.validate()?;
+                Ok(CompositeNodeFilter::Node(Filter {
+                    field_name: node.field.to_string(),
+                    field_value: field_value(node.value, node.operator)?,
+                    operator: node.operator.into(),
+                }))
+            }
+            NodeFilter::Property(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::ConstantProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::TemporalProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeNodeFilter::Property(prop.try_into()?))
+            }
+            NodeFilter::And(and_filters) => {
+                let mut iter = and_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
+                if let Some(first) = iter.next() {
+                    let and_chain = iter.fold(first, |acc, next| {
+                        CompositeNodeFilter::And(Box::new(acc), Box::new(next))
+                    });
+                    Ok(and_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'and' requires non-empty list".to_string(),
+                    ))
+                }
+            }
+            NodeFilter::Or(or_filters) => {
+                let mut iter = or_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
+                if let Some(first) = iter.next() {
+                    let or_chain = iter.fold(first, |acc, next| {
+                        CompositeNodeFilter::Or(Box::new(acc), Box::new(next))
+                    });
+                    Ok(or_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'or' requires non-empty list".to_string(),
+                    ))
+                }
+            }
+            NodeFilter::Not(not_filters) => {
+                let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
+                Ok(CompositeNodeFilter::Not(Box::new(inner)))
             }
         }
-
-        if let Some(or_filters) = filter.or {
-            let mut iter = or_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-            if let Some(first) = iter.next() {
-                let or_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::Or(Box::new(acc), Box::new(next))
-                });
-                exprs.push(or_chain);
-            }
-        }
-
-        if let Some(not_filters) = filter.not {
-            let inner = CompositeNodeFilter::try_from(not_filters.deref().clone())?;
-            exprs.push(CompositeNodeFilter::Not(Box::new(inner)));
-        }
-
-        let result = match exprs.len() {
-            0 => Err(GraphError::ParsingError),
-            1 => Ok(exprs.remove(0)),
-            _ => {
-                let mut iter = exprs.into_iter();
-                let first = iter.next().unwrap();
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeNodeFilter::And(Box::new(acc), Box::new(next))
-                });
-                Ok(and_chain)
-            }
-        };
-
-        result
     }
 }
 
@@ -419,81 +389,74 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     type Error = GraphError;
 
     fn try_from(filter: EdgeFilter) -> Result<Self, Self::Error> {
-        let mut exprs = Vec::new();
-
-        if let Some(src) = filter.src {
-            exprs.push(CompositeEdgeFilter::Edge(Filter {
-                field_name: "src".to_string(),
-                field_value: field_value(src.value, src.operator)?,
-                operator: src.operator.into(),
-            }));
-        }
-
-        if let Some(dst) = filter.dst {
-            exprs.push(CompositeEdgeFilter::Edge(Filter {
-                field_name: "dst".to_string(),
-                field_value: field_value(dst.value, dst.operator)?,
-                operator: dst.operator.into(),
-            }));
-        }
-
-        if let Some(prop) = filter.property {
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let Some(prop) = filter.constant_property {
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let Some(prop) = filter.temporal_property {
-            exprs.push(CompositeEdgeFilter::Property(prop.try_into()?));
-        }
-
-        if let Some(and_filters) = filter.and {
-            let mut iter = and_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-
-            if let Some(first) = iter.next() {
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
-                });
-                exprs.push(and_chain);
+        match filter {
+            EdgeFilter::Src(src) => {
+                src.validate()?;
+                Ok(CompositeEdgeFilter::Edge(Filter {
+                    field_name: "src".to_string(),
+                    field_value: field_value(src.value, src.operator)?,
+                    operator: src.operator.into(),
+                }))
             }
-        }
-
-        if let Some(or_filters) = filter.or {
-            let mut iter = or_filters
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter();
-
-            if let Some(first) = iter.next() {
-                let or_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::Or(Box::new(acc), Box::new(next))
-                });
-                exprs.push(or_chain);
+            EdgeFilter::Dst(dst) => {
+                dst.validate()?;
+                Ok(CompositeEdgeFilter::Edge(Filter {
+                    field_name: "dst".to_string(),
+                    field_value: field_value(dst.value, dst.operator)?,
+                    operator: dst.operator.into(),
+                }))
             }
-        }
+            EdgeFilter::Property(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::ConstantProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::TemporalProperty(prop) => {
+                prop.validate()?;
+                Ok(CompositeEdgeFilter::Property(prop.try_into()?))
+            }
+            EdgeFilter::And(and_filters) => {
+                let mut iter = and_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
 
-        if let Some(not_filters) = filter.not {
-            let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
-            exprs.push(CompositeEdgeFilter::Not(Box::new(inner)));
-        }
+                if let Some(first) = iter.next() {
+                    let and_chain = iter.fold(first, |acc, next| {
+                        CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
+                    });
+                    Ok(and_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'and' requires non-empty list".to_string(),
+                    ))
+                }
+            }
+            EdgeFilter::Or(or_filters) => {
+                let mut iter = or_filters
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter();
 
-        match exprs.len() {
-            0 => Err(GraphError::ParsingError),
-            1 => Ok(exprs.remove(0)),
-            _ => {
-                let mut iter = exprs.into_iter();
-                let first = iter.next().unwrap();
-                let and_chain = iter.fold(first, |acc, next| {
-                    CompositeEdgeFilter::And(Box::new(acc), Box::new(next))
-                });
-                Ok(and_chain)
+                if let Some(first) = iter.next() {
+                    let or_chain = iter.fold(first, |acc, next| {
+                        CompositeEdgeFilter::Or(Box::new(acc), Box::new(next))
+                    });
+                    Ok(or_chain)
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        "Filter 'or' requires non-empty list".to_string(),
+                    ))
+                }
+            }
+            EdgeFilter::Not(not_filters) => {
+                let inner = CompositeEdgeFilter::try_from(not_filters.deref().clone())?;
+                Ok(CompositeEdgeFilter::Not(Box::new(inner)))
             }
         }
     }
@@ -504,28 +467,9 @@ fn build_property_filter(
     operator: Operator,
     value: Option<Value>,
 ) -> Result<PropertyFilter, GraphError> {
-    let prop = value.map(Prop::try_from).transpose()?;
+    let prop = value.clone().map(Prop::try_from).transpose()?;
 
-    // Validates required value
-    if matches!(
-        operator,
-        Operator::Equal
-            | Operator::NotEqual
-            | Operator::GreaterThan
-            | Operator::LessThan
-            | Operator::GreaterThanOrEqual
-            | Operator::LessThanOrEqual
-            | Operator::IsIn
-            | Operator::IsNotIn
-            | Operator::Contains
-            | Operator::NotContains
-    ) && prop.is_none()
-    {
-        return Err(GraphError::ExpectedValueForOperator(
-            "value".into(),
-            format!("{:?}", operator),
-        ));
-    }
+    validate_operator_value_pair(operator, &value)?;
 
     let prop_value = match (&prop, operator) {
         (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
@@ -608,6 +552,55 @@ impl From<TemporalType> for Temporal {
         match temporal {
             TemporalType::Any => Temporal::Any,
             TemporalType::Latest => Temporal::Latest,
+        }
+    }
+}
+
+fn validate_operator_value_pair(
+    operator: Operator,
+    value: &Option<Value>,
+) -> Result<(), GraphError> {
+    use Operator::*;
+
+    match operator {
+        IsSome | IsNone => {
+            if value.is_some() {
+                Err(GraphError::InvalidGqlFilter(format!(
+                    "Operator {operator} does not accept a value"
+                )))
+            } else {
+                Ok(())
+            }
+        }
+
+        IsIn | IsNotIn => match value {
+            Some(Value::List(_)) => Ok(()),
+            Some(v) => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a list value, got {v}"
+            ))),
+            None => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a list"
+            ))),
+        },
+
+        Contains | NotContains => match value {
+            Some(Value::Str(_)) => Ok(()),
+            Some(v) => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a string value, got {v}"
+            ))),
+            None => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} requires a string value"
+            ))),
+        },
+
+        Equal | NotEqual | LessThan | LessThanOrEqual | GreaterThan | GreaterThanOrEqual => {
+            if value.is_none() {
+                return Err(GraphError::InvalidGqlFilter(format!(
+                    "Operator {operator} requires a value"
+                )));
+            }
+
+            Ok(())
         }
     }
 }
