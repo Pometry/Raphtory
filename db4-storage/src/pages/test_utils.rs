@@ -46,6 +46,9 @@ pub fn check_edges_support<
         nodes.insert(*dst);
     }
 
+    // let eid = session.add_static_edge(src, dst, lsn);
+    // session.add_edge_into_layer(t, src, dst, eid.inner().with_layer(layer), lsn, props);
+
     if par_load {
         edges
             .par_iter()

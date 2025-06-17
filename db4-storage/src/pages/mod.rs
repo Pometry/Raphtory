@@ -222,7 +222,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         self.internal_add_edge(t, src, dst, 0, [])
     }
 
-    pub fn add_edge_props<PN: AsRef<str>, T: TryIntoInputTime>(
+    pub(crate) fn add_edge_props<PN: AsRef<str>, T: TryIntoInputTime>(
         &self,
         t: T,
         src: impl Into<VID>,
@@ -235,7 +235,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         self.internal_add_edge(t, src, dst, 0, prop_writer.into_props_temporal()?)
     }
 
-    pub fn internal_add_edge(
+    fn internal_add_edge(
         &self,
         t: TimeIndexEntry,
         src: impl Into<VID>,
