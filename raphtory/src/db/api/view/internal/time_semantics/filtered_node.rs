@@ -224,9 +224,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
                     TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
                 },
                 #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => {
-                    additions.clone().edge_events().map(|t| t.len()).sum()
-                }
+                NodeAdditions::Col(additions) => additions.edge_history().count(),
             }
         } else {
             self.history().count()
