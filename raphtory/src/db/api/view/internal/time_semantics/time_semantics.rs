@@ -191,6 +191,15 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.edge_history(edge, view, layer_ids))
     }
 
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_history_rev(edge, view, layer_ids))
+    }
+
     fn edge_history_window<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -199,6 +208,16 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.edge_history_window(edge, view, layer_ids, w))
+    }
+
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_history_window_rev(edge, view, layer_ids, w))
     }
 
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(

@@ -198,6 +198,17 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .kmerge()
     }
 
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(|(layer_id, additions)| additions.iter_rev().map(move |t| (t, layer_id)))
+            .kmerge_by(|a, b| a >= b)
+    }
+
     fn edge_history_window<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -213,6 +224,23 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .map(move |t| (t, layer_id))
             })
             .kmerge()
+    }
+
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        edge.filtered_additions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range_t(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge_by(|a, b| a >= b)
     }
 
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(

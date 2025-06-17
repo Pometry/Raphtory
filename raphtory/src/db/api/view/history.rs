@@ -295,29 +295,15 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        // ops::EarliestTime {
-        //     graph: self.graph().clone(),
-        // }.map(|t| t.map(|t| TimeIndexEntry::from(t))).apply(self.graph.core_graph(), self.node)
-
-        // I feel like the above method is less efficient
-        let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node(self.node);
-        semantics
-            .node_earliest_time(node.as_ref(), &self.graph)
-            .map(|t| TimeIndexEntry::from(t))
+        ops::EarliestTime {
+            graph: self.graph().clone(),
+        }.apply(self.graph.core_graph(), self.node)
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        // ops::LatestTime {
-        //     graph: self.graph().clone(),
-        // }.map(|t| t.map(|t| TimeIndexEntry::from(t))).apply(self.graph.core_graph(), self.node)
-
-        // I feel like the above method is less efficient
-        let semantics = self.graph.node_time_semantics();
-        let node = self.graph.core_node(self.node);
-        semantics
-            .node_latest_time(node.as_ref(), &self.graph)
-            .map(|t| TimeIndexEntry::from(t))
+        ops::LatestTime {
+            graph: self.graph().clone(),
+        }.apply(self.graph.core_graph(), self.node)
     }
 }
 
@@ -359,16 +345,38 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
 
     // FIXME: Implementation is not efficient, only for testing purposes. edge doesn't seem to have a history() function, so how can i implement this efficiently?
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = self.iter().collect_vec();
-        x.reverse();
-        x.into_iter().into_dyn_boxed()
-
-        // There is no edge.history() function. Either way, we want to use time_semantics.
-        // let edge = self.graph.core_edge(self.edge.pid());
-        // let graph = &self.graph;
-        // GenLockedIter::from(edge, move |edge| {
-        //     edge.history(graph).iter_rev().into_dyn_boxed()
-        // }).into_dyn_boxed()
+        let g = &self.graph;
+        let e = self.edge;
+        if edge_valid_layer(&g, e) {
+            match e.time() {
+                Some(t) => iter::once(t).into_dyn_boxed(),
+                None => {
+                    let time_semantics = g.edge_time_semantics();
+                    let edge = g.core_edge(e.pid());
+                    match e.layer() {
+                        None => GenLockedIter::from(edge, move |edge| {
+                            time_semantics
+                                .edge_history_rev(edge.as_ref(), g, g.layer_ids())
+                                .map(|(ti, _)| ti)
+                                .into_dyn_boxed()
+                        })
+                            .into_dyn_boxed(),
+                        Some(layer) => {
+                            let layer_ids = LayerIds::One(layer);
+                            GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                                time_semantics
+                                    .edge_history_rev(edge.as_ref(), g, layer_ids)
+                                    .map(|(ti, _)| ti)
+                                    .into_dyn_boxed()
+                            })
+                                .into_dyn_boxed()
+                        }
+                    }
+                }
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
@@ -389,9 +397,10 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     }
 
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        let mut x = InternalHistoryOps::iter(self).collect::<Vec<TimeIndexEntry>>();
-        x.reverse();
-        x.into_iter().into_dyn_boxed()
+        self.props
+            .temporal_iter_rev(self.id)
+            .map(|(t, _)| t)
+            .into_dyn_boxed()
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {

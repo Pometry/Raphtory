@@ -21,7 +21,7 @@ use crate::{
     prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::AsTime;
 use std::collections::HashSet;
 use tracing::error;
 

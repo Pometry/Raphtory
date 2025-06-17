@@ -22,7 +22,7 @@ pub(crate) mod internal {
         db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
-    use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+    use raphtory_api::core::storage::timeindex::AsTime;
     use std::cmp::{max, min};
 
     pub trait InternalTimeOps<'graph> {

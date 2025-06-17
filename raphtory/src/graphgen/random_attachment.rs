@@ -22,7 +22,7 @@ use crate::{
     prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::AsTime;
 use tracing::error;
 
 /// Given a graph this function will add a user defined number of nodes, each with a
