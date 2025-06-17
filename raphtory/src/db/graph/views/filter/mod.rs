@@ -232,7 +232,6 @@ mod test_fluent_builder_apis {
 #[cfg(test)]
 mod test_composite_filters {
     use crate::{
-        core::Prop,
         db::graph::views::filter::model::{
             edge_filter::CompositeEdgeFilter,
             node_filter::CompositeNodeFilter,
@@ -241,7 +240,7 @@ mod test_composite_filters {
         },
         prelude::IntoProp,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 
     #[test]
     fn test_composite_node_filter() {
@@ -501,12 +500,12 @@ mod test_composite_filters {
 #[cfg(test)]
 pub(crate) mod test_filters {
     use crate::{
-        core::IntoProp,
-        db::api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            view::StaticGraphViewOps,
-        },
+        db::api::view::StaticGraphViewOps,
         prelude::{AdditionOps, PropertyAdditionOps},
+    };
+    use raphtory_api::core::entities::properties::prop::IntoProp;
+    use raphtory_storage::mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
 
     struct IdentityGraphTransformer;
@@ -520,43 +519,29 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_property_semantics {
-        use crate::{
-            db::{api::view::StaticGraphViewOps, graph::assertions::GraphTransformer},
-            prelude::GraphViewOps,
-        };
-
         #[cfg(test)]
         mod test_node_property_filter_semantics {
-
             use crate::{
-                core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                        },
+                        views::filter::{
+                            model::PropertyFilterOps, test_filters::IdentityGraphTransformer,
+                        },
                     },
-                    graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, PropertyAdditionOps},
+                prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
+            };
+            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
 
-            use crate::{
-                db::graph::{
-                    assertions::{
-                        assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
-                    },
-                    views::filter::test_filters::IdentityGraphTransformer,
-                },
-                prelude::PropertyFilter,
-            };
-
-            fn init_graph<
-                G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
-            >(
+            fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
             ) -> G {
                 let nodes = [
@@ -882,25 +867,29 @@ pub(crate) mod test_filters {
         #[cfg(test)]
         mod test_edge_property_filter_semantics {
             use crate::{
-                core::Prop,
                 db::{
-                    api::{
-                        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                        view::StaticGraphViewOps,
+                    api::view::{EdgeViewOps, StaticGraphViewOps},
+                    graph::{
+                        assertions::{
+                            assert_filter_edges_results, assert_search_edges_results,
+                            TestGraphVariants, TestVariants,
+                        },
+                        views::filter::{
+                            internal::CreateEdgeFilter,
+                            model::{property_filter::PropertyFilter, PropertyFilterOps},
+                            test_filters::IdentityGraphTransformer,
+                        },
                     },
-                    graph::views::filter::model::PropertyFilterOps,
                 },
-                prelude::{AdditionOps, PropertyAdditionOps},
+                prelude::{
+                    AdditionOps, EdgePropertyFilterOps, Graph, GraphViewOps, NodeViewOps,
+                    PropertyAdditionOps,
+                },
             };
-
-            use crate::db::graph::{
-                assertions::{
-                    assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                    TestVariants,
-                },
-                views::filter::{
-                    model::property_filter::PropertyFilter, test_filters::IdentityGraphTransformer,
-                },
+            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_storage::mutation::{
+                addition_ops::InternalAdditionOps,
+                property_addition_ops::InternalPropertyAdditionOps,
             };
 
             fn init_graph<
@@ -1013,6 +1002,62 @@ pub(crate) mod test_filters {
                     filter.clone(),
                     &expected_results,
                     TestVariants::NonDiskOnly,
+                );
+            }
+
+            #[test]
+            fn test_constant_semantics2() {
+                fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
+                    let mut results = graph
+                        .filter_edges(filter)
+                        .unwrap()
+                        .edges()
+                        .iter()
+                        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                        .collect::<Vec<_>>();
+                    results.sort();
+                    results
+                }
+
+                let graph = init_graph(Graph::new());
+
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                assert_eq!(
+                    filter_edges(&graph, filter.clone()),
+                    vec![
+                        "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                        "N15->N1", "N9->N10"
+                    ]
+                );
+
+                let edge = graph
+                    .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], Some("fire_nation"))
+                    .unwrap();
+                edge.add_constant_properties([("z", true)], Some("fire_nation"))
+                    .unwrap();
+                let prop = graph
+                    .edge("shivam", "kapoor")
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("z")
+                    .unwrap();
+                assert_eq!("{\"fire_nation\": true}", prop.to_string());
+
+                let filter2 = PropertyFilter::property("z")
+                    .constant()
+                    .eq(Prop::map([("fire_nation", true)]));
+                assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
+
+                let filter = PropertyFilter::property("p1")
+                    .constant()
+                    .eq(Prop::map([("_default", 1u64)]));
+                assert_eq!(
+                    filter_edges(&graph, filter),
+                    vec![
+                        "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
+                        "N15->N1", "N9->N10"
+                    ]
                 );
             }
 
@@ -1259,10 +1304,7 @@ pub(crate) mod test_filters {
         }
     }
 
-    use crate::db::graph::{
-        assertions::GraphTransformer,
-        views::filter::internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-    };
+    use crate::db::graph::assertions::GraphTransformer;
 
     fn init_nodes_graph<
         G: StaticGraphViewOps
@@ -1276,7 +1318,7 @@ pub(crate) mod test_filters {
         let nodes = [
             (
                 1,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
@@ -1286,7 +1328,7 @@ pub(crate) mod test_filters {
             ),
             (
                 2,
-                2,
+                "2",
                 vec![
                     ("p1", "prop12".into_prop()),
                     ("p2", 2u64.into_prop()),
@@ -1296,7 +1338,7 @@ pub(crate) mod test_filters {
             ),
             (
                 3,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
@@ -1305,7 +1347,7 @@ pub(crate) mod test_filters {
             ),
             (
                 3,
-                3,
+                "3",
                 vec![
                     ("p2", 6u64.into_prop()),
                     ("p3", 1u64.into_prop()),
@@ -1315,15 +1357,15 @@ pub(crate) mod test_filters {
             ),
             (
                 4,
-                1,
+                "1",
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
                 ],
                 Some("fire_nation"),
             ),
-            (3, 4, vec![("p4", "pometry".into_prop())], None),
-            (4, 4, vec![("p5", 12u64.into_prop())], None),
+            (3, "4", vec![("p4", "pometry".into_prop())], None),
+            (4, "4", vec![("p5", 12u64.into_prop())], None),
         ];
 
         for (time, id, props, node_type) in nodes {
@@ -1417,10 +1459,10 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::{
-            core::Prop,
-            db::graph::views::filter::{model::PropertyFilterOps, test_filters::init_nodes_graph},
+        use crate::db::graph::views::filter::{
+            model::PropertyFilterOps, test_filters::init_nodes_graph,
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
@@ -1863,19 +1905,17 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_property_filter {
-        use crate::{
-            core::Prop,
-            db::graph::{
-                assertions::{
-                    assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
-                    TestVariants,
-                },
-                views::filter::{
-                    model::{property_filter::PropertyFilter, ComposableFilter, PropertyFilterOps},
-                    test_filters::{init_edges_graph, IdentityGraphTransformer},
-                },
+        use crate::db::graph::{
+            assertions::{
+                assert_filter_edges_results, assert_search_edges_results, TestGraphVariants,
+                TestVariants,
+            },
+            views::filter::{
+                model::{property_filter::PropertyFilter, ComposableFilter, PropertyFilterOps},
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
+        use raphtory_api::core::entities::properties::prop::Prop;
 
         #[test]
         fn test_filter_edges_for_property_eq() {
@@ -2673,7 +2713,8 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_composite_filter {
-        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
+        use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
+        use raphtory_api::core::Direction;
 
         use crate::db::graph::views::filter::model::{
             property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NodeFilter,
@@ -2681,7 +2722,10 @@ pub(crate) mod test_filters {
         };
 
         use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
+            assertions::{
+                assert_filter_neighbours_results, assert_filter_nodes_results,
+                assert_search_nodes_results, TestVariants,
+            },
             views::filter::test_filters::IdentityGraphTransformer,
         };
 
@@ -3051,6 +3095,53 @@ pub(crate) mod test_filters {
             assert_search_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_out_neighbours_filter() {
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(PropertyFilter::property("p2").eq(2u64));
+            let expected_results = vec!["2"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "1",
+                Direction::OUT,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_in_neighbours_filter() {
+            let filter = PropertyFilter::property("p9").ge(1u64);
+            let expected_results = vec!["1"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::IN,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_neighbours_filter() {
+            let filter = PropertyFilter::property("p10").contains("Paper");
+            let expected_results = vec!["1", "3"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::BOTH,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,

@@ -1,6 +1,5 @@
+use raphtory::api::core::Direction;
 use std::collections::HashMap;
-
-use raphtory::core::Direction;
 
 #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Query {

@@ -9,11 +9,11 @@ use crate::model::graph::{
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::view::{DynamicGraph, EdgeViewOps, IntoDynamic, StaticGraphViewOps},
         graph::edge::EdgeView,
     },
+    errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
 use tokio::task::spawn_blocking;
@@ -103,7 +103,7 @@ impl GqlEdge {
                             .ee
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlEdgeWindowSet::new(
                     self_clone.ee.rolling(window_duration, None)?,
@@ -111,7 +111,7 @@ impl GqlEdge {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlEdgeWindowSet::new(
                         self_clone
                             .ee

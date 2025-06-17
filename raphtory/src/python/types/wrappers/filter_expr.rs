@@ -1,5 +1,4 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
         AsEdgeFilter, AsNodeFilter, EdgeEndpointFilter, EdgeFilter, EdgeFilterOps,
@@ -7,6 +6,7 @@ use crate::{
         NodeFilter, NotFilter, OrFilter, PropertyFilterBuilder, PropertyFilterOps,
         TemporalPropertyFilterBuilder,
     },
+    errors::GraphError,
     python::types::{
         iterable::FromIterable,
         wrappers::prop::{
@@ -15,6 +15,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
 pub trait AsPropertyFilter: DynInternalNodeFilterOps + DynInternalEdgeFilterOps {}

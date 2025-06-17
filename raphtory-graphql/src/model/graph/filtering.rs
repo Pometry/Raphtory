@@ -7,7 +7,6 @@ use dynamic_graphql::{
     Enum, InputObject,
 };
 use raphtory::{
-    core::{utils::errors::GraphError, Prop},
     db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
         filter_operator::FilterOperator,
@@ -15,7 +14,9 @@ use raphtory::{
         property_filter::{PropertyFilter, PropertyFilterValue, PropertyRef, Temporal},
         Filter, FilterValue,
     },
+    errors::GraphError,
 };
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{
     borrow::Cow,
     fmt,
@@ -148,6 +149,26 @@ pub enum Operator {
     NotContains,
 }
 
+impl Display for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let op_str = match self {
+            Operator::Equal => "EQUAL",
+            Operator::NotEqual => "NOT_EQUAL",
+            Operator::GreaterThanOrEqual => "GREATER_THAN_OR_EQUAL",
+            Operator::LessThanOrEqual => "LESS_THAN_OR_EQUAL",
+            Operator::GreaterThan => "GREATER_THAN",
+            Operator::LessThan => "LESS_THAN",
+            Operator::IsNone => "IS_NONE",
+            Operator::IsSome => "IS_SOME",
+            Operator::IsIn => "IS_IN",
+            Operator::IsNotIn => "IS_NOT_IN",
+            Operator::Contains => "CONTAINS",
+            Operator::NotContains => "NOT_CONTAINS",
+        };
+        write!(f, "{op_str}")
+    }
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFilter {
     pub node: Option<NodeFieldFilter>,
@@ -219,7 +240,7 @@ impl NodeFilter {
 pub struct NodeFieldFilter {
     pub field: NodeField,
     pub operator: Operator,
-    pub value: String,
+    pub value: Value,
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
@@ -291,6 +312,33 @@ pub enum TemporalType {
     Latest,
 }
 
+fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
+    let prop = Prop::try_from(value.clone())?;
+    match (prop, operator) {
+        (Prop::List(list), Operator::IsIn | Operator::IsNotIn) => {
+            let strings: Vec<String> = list
+                .iter()
+                .map(|p| match p {
+                    Prop::Str(s) => Ok(s.to_string()),
+                    _ => Err(GraphError::InvalidGqlFilter(format!(
+                        "Invalid field value {:?} or operator {}",
+                        value, operator
+                    ))),
+                })
+                .collect::<Result<_, _>>()?;
+
+            Ok(FilterValue::Set(Arc::new(
+                strings.iter().cloned().collect(),
+            )))
+        }
+        (Prop::Str(p), _) => Ok(FilterValue::Single(p.to_string())),
+        _ => Err(GraphError::InvalidGqlFilter(format!(
+            "Invalid field value {:?} or operator {}",
+            value, operator
+        ))),
+    }
+}
+
 impl TryFrom<NodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
 
@@ -300,7 +348,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
         if let Some(node) = filter.node {
             exprs.push(CompositeNodeFilter::Node(Filter {
                 field_name: node.field.to_string(),
-                field_value: FilterValue::Single(node.value),
+                field_value: field_value(node.value, node.operator)?,
                 operator: node.operator.into(),
             }));
         }
@@ -376,7 +424,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
         if let Some(src) = filter.src {
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "src".to_string(),
-                field_value: FilterValue::Single(src.value),
+                field_value: field_value(src.value, src.operator)?,
                 operator: src.operator.into(),
             }));
         }
@@ -384,7 +432,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
         if let Some(dst) = filter.dst {
             exprs.push(CompositeEdgeFilter::Edge(Filter {
                 field_name: "dst".to_string(),
-                field_value: FilterValue::Single(dst.value),
+                field_value: field_value(dst.value, dst.operator)?,
                 operator: dst.operator.into(),
             }));
         }

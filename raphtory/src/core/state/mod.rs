@@ -38,7 +38,7 @@ mod state_test {
                 (Some(va), Some(vb)) => assert_eq!(*expected, usize::max(*va, *vb)),
                 (Some(va), None) => assert_eq!(*expected, *va),
                 (None, Some(vb)) => assert_eq!(*expected, *vb),
-                (None, None) => assert!(false, "value should exist in either a or b"),
+                (None, None) => panic!("value should exist in either a or b"),
             }
         }
     }

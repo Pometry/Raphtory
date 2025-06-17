@@ -14,6 +14,15 @@ B = TypeVar("B")
 PORT = 1737
 
 
+def sort_dict_recursive(d) -> dict:
+    if isinstance(d, dict):
+        return {key: sort_dict_recursive(d[key]) for key in sorted(d)}
+    elif isinstance(d, list):
+        return [sort_dict_recursive(v) for v in d]
+    else:
+        return d
+
+
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):
@@ -106,20 +115,35 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 def run_graphql_test(query, expected_output, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
-
         response = client.query(query)
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
-        assert response_dict == expected_output
+        assert (
+            response_dict == expected_output
+        ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
+
+
+def run_group_graphql_test(queries_and_expected_outputs, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+
+        for query, expected_output in queries_and_expected_outputs:
+            response = client.query(query)
+            response_dict = json.loads(response) if isinstance(response, str) else response
+            assert (
+                sort_dict_recursive(response_dict) == sort_dict_recursive(expected_output)
+            ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
@@ -137,7 +161,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, expected_error_message in queries_and_expected_error_messages:
@@ -150,3 +174,9 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             assert (
                 error_message == expected_error_message
             ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
+def assert_set_eq(left, right):
+    """Check if two lists are the same set and same length"""
+    assert len(left) == len(right)
+    assert set(left) == set(right)

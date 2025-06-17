@@ -107,7 +107,7 @@ where
                 None
             }
         })
-        .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
+        .kmerge_by(|e1, e2| e1.time_and_index().unwrap() < e2.time_and_index().unwrap())
         .map(|edge| {
             if edge.src().node == evv.node {
                 star_event(neigh_map[&edge.dst().node], 1, edge.time().unwrap())
@@ -148,7 +148,7 @@ where
             .iter()
             .flat_map(|e| e.explode())
             .merge_by(inc.iter().flat_map(|e| e.explode()), |e1, e2| {
-                e1.time_and_index() < e2.time_and_index()
+                e1.time_and_index().unwrap() < e2.time_and_index().unwrap()
             })
             .filter_map(|e| {
                 if e.src().node != e.dst().node {
@@ -247,7 +247,9 @@ where
                                     .flat_map(|edge| edge.explode())
                                     .collect::<Vec<_>>()
                             })
-                            .kmerge_by(|e1, e2| e1.time_and_index() < e2.time_and_index())
+                            .kmerge_by(|e1, e2| {
+                                e1.time_and_index().unwrap() < e2.time_and_index().unwrap()
+                            })
                             .map(|e| {
                                 let (src_id, dst_id) = (e.src().node, e.dst().node);
                                 let (uid, _vid) = (u.node, v.node);

@@ -79,7 +79,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -93,6 +93,7 @@ impl PyGraphServer {
         auth_public_key: Option<String>,
         auth_enabled_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
+        create_index: Option<bool>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
@@ -123,6 +124,10 @@ impl PyGraphServer {
         if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
             app_config_builder =
                 app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
+        }
+        #[cfg(feature = "search")]
+        if let Some(create_index) = create_index {
+            app_config_builder = app_config_builder.with_create_index(create_index);
         }
         let app_config = Some(app_config_builder.build());
 

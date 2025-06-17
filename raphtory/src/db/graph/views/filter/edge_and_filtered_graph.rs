@@ -1,27 +1,26 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable, InheritCoreOps,
-                    InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, InternalLayerOps, ListOps, NodeList,
-                    Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, EdgeHistoryFilter, EdgeList, Immutable, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalLayerOps, ListOps, NodeList, Static,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, model::AndFilter},
+        graph::views::filter::{internal::CreateEdgeFilter, model::AndFilter},
     },
-    prelude::{GraphViewOps, Layer},
+    errors::GraphError,
+    prelude::GraphViewOps,
 };
-use raphtory_api::core::{
-    entities::{LayerIds, EID},
-    storage::timeindex::TimeIndexEntry,
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, EID, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
 };
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
@@ -32,7 +31,7 @@ pub struct EdgeAndFilteredGraph<G, L, R> {
     layer_ids: LayerIds,
 }
 
-impl<L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps for AndFilter<L, R> {
+impl<L: CreateEdgeFilter, R: CreateEdgeFilter> CreateEdgeFilter for AndFilter<L, R> {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
         = EdgeAndFilteredGraph<G, L::EdgeFiltered<'graph, G>, R::EdgeFiltered<'graph, G>>
     where
@@ -65,7 +64,7 @@ impl<G, L, R> Base for EdgeAndFilteredGraph<G, L, R> {
 impl<G, L, R> Static for EdgeAndFilteredGraph<G, L, R> {}
 impl<G, L, R> Immutable for EdgeAndFilteredGraph<G, L, R> {}
 
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritCoreOps for EdgeAndFilteredGraph<G, L, R> {}
+impl<G, L, R> InheritCoreGraphOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for EdgeAndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeFilterOps for EdgeAndFilteredGraph<G, L, R> {}
@@ -76,23 +75,12 @@ impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeHistoryFilter
 {
 }
 
-impl<G, L, R> InternalLayerOps for EdgeAndFilteredGraph<G, L, R>
+impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for EdgeAndFilteredGraph<G, L, R>
 where
     G: InternalLayerOps,
 {
     fn layer_ids(&self) -> &LayerIds {
         &self.layer_ids
-    }
-
-    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
-        Ok(self
-            .layer_ids
-            .intersect(&self.graph.layer_ids_from_names(key)?))
-    }
-
-    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.layer_ids
-            .intersect(&self.graph.valid_layer_ids_from_names(key))
     }
 }
 
@@ -191,14 +179,22 @@ impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeAndFilteredGra
         self.left.edges_filtered() || self.right.edges_filtered()
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        self.left.edge_history_filtered() || self.right.edge_history_filtered()
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.left.edge_list_trusted() && self.right.edge_list_trusted()
     }
 
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.left.filter_edge_history(eid, t, layer_ids)
+            && self.right.filter_edge_history(eid, t, layer_ids)
+    }
+
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.filter_edge(edge.clone(), layer_ids)
-            && self.right.filter_edge(edge.clone(), layer_ids)
+        self.left.filter_edge(edge, layer_ids) && self.right.filter_edge(edge, layer_ids)
     }
 }

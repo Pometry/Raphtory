@@ -1,18 +1,22 @@
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Direction, PropType,
-        PropUnwrap,
-    },
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::state::{Index, NodeState},
         graph::nodes::Nodes,
     },
-    prelude::{EdgeViewOps, NodeViewOps, Prop},
+    errors::GraphError,
+    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, Prop},
 };
 use indexmap::IndexSet;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{PropType, PropUnwrap},
+        VID,
+    },
+    Direction,
+};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
@@ -170,9 +174,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         }
 
         let edges = match direction {
-            Direction::OUT => g.node(node_vid.clone()).unwrap().out_edges(),
-            Direction::IN => g.node(node_vid.clone()).unwrap().in_edges(),
-            Direction::BOTH => g.node(node_vid.clone()).unwrap().edges(),
+            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
+            Direction::IN => g.node(node_vid).unwrap().in_edges(),
+            Direction::BOTH => g.node(node_vid).unwrap().edges(),
         };
 
         // Replace this loop with your actual logic to iterate over the outgoing edges

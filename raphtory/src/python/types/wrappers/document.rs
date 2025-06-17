@@ -80,8 +80,8 @@ impl Repr for PyDocument {
             DocumentEntity::Edge(edge) => repr.add_field("entity", edge),
         };
         with_entity
-            .add_field("content", &self.content())
-            .add_field("embedding", &self.embedding())
+            .add_field("content", self.content())
+            .add_field("embedding", self.embedding())
             .finish()
     }
 }

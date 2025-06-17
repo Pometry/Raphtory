@@ -2,11 +2,12 @@ use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::{internal::CoreGraphOps, DynamicGraph},
+        api::view::DynamicGraph,
         graph::views::filter::node_type_filtered_graph::NodeTypeFilteredGraph,
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 
 #[derive(ResolvedObject)]
@@ -125,10 +126,11 @@ impl NodeSchema {
 #[cfg(test)]
 mod test {
     use itertools::Itertools;
-    use raphtory::{core::utils::errors::GraphError, db::api::view::IntoDynamic, prelude::*};
+    use raphtory::{db::api::view::IntoDynamic, prelude::*};
 
     use crate::model::schema::{graph_schema::GraphSchema, node_schema::PropertySchema};
     use pretty_assertions::assert_eq;
+    use raphtory::errors::GraphError;
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {

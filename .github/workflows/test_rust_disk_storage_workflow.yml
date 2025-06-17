@@ -70,7 +70,7 @@ jobs:
           RUSTFLAGS: -Awarnings ${{ matrix.flags }}
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --all --no-default-features --features "storage" --cargo-profile test-ci
+          cargo nextest run --all --no-default-features --features "storage" --cargo-profile build-fast
       - name: Check all features
         env:
           RUSTFLAGS: -Awarnings

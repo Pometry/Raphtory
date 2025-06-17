@@ -1,19 +1,17 @@
-use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
-
-use crate::{
-    core::utils::errors::{GraphError, GraphResult},
-    db::api::view::StaticGraphViewOps,
-};
-
 use super::{
     cache::VectorCache,
     db::{EdgeDb, EntityDb, NodeDb},
     template::DocumentTemplate,
     vectorised_graph::VectorisedGraph,
+};
+use crate::{
+    db::api::view::StaticGraphViewOps,
+    errors::{GraphError, GraphResult},
+};
+use serde::{Deserialize, Serialize};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
 };
 
 #[derive(Serialize, Deserialize)]

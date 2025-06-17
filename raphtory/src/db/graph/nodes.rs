@@ -2,26 +2,21 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::LazyNodeState,
-            storage::graph::storage_ops::GraphStorage,
+            state::{Index, LazyNodeState, NodeOp},
             view::{
-                internal::{OneHopFilter, Static},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                internal::{FilterOps, NodeList, OneHopFilter, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
+                IntoDynBoxed, IntoDynamic,
             },
         },
-        graph::{edges::NestedEdges, node::NodeView, path::PathFromGraph},
+        graph::{create_node_type_filter, edges::NestedEdges, node::NodeView, path::PathFromGraph},
     },
     prelude::*,
 };
-
-use crate::db::{
-    api::{
-        state::{Index, NodeOp},
-        view::internal::is_view_compatible,
-    },
-    graph::{create_node_type_filter, views::node_subgraph::NodeSubgraph},
+use raphtory_storage::{
+    core_ops::is_view_compatible,
+    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
 };
-use either::Either;
 use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,
@@ -132,13 +127,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilt
     for Nodes<'graph, G, GH>
 {
 }
-// impl<
-//         'graph,
-//         G: GraphViewOps<'graph>,
-//         GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
-//     > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
-// {
-// }
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
+    > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
     for Nodes<'graph, G, GH>
@@ -165,19 +160,24 @@ where
         }
     }
 
+    pub fn node_list(&self) -> NodeList {
+        match self.nodes.clone() {
+            None => self.graph.node_list(),
+            Some(elems) => NodeList::List { elems },
+        }
+    }
+
     pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
         let g = self.graph.core_graph().lock();
+        let view = self.graph.clone();
         let node_types_filter = self.node_types_filter.clone();
-        match self.nodes.clone() {
-            None => Either::Left(g.into_nodes_par(self.graph.clone(), node_types_filter)),
-            Some(nodes) => {
-                let gs = NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes,
-                };
-                Either::Right(g.into_nodes_par(gs, node_types_filter))
-            }
-        }
+        self.node_list().into_par_iter().filter(move |&vid| {
+            let node = g.core_node(vid);
+            node_types_filter
+                .as_ref()
+                .is_none_or(|type_filter| type_filter[node.node_type_id()])
+                && view.filter_node(node.as_ref())
+        })
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH> {
@@ -193,16 +193,14 @@ where
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        match self.nodes.clone() {
-            None => g.into_nodes_iter(self.graph.clone(), node_types_filter),
-            Some(nodes) => {
-                let gs = NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes,
-                };
-                g.into_nodes_iter(gs, node_types_filter)
-            }
-        }
+        let view = self.graph.clone();
+        self.node_list().into_iter().filter(move |&vid| {
+            let node = g.core_node(vid);
+            node_types_filter
+                .as_ref()
+                .is_none_or(|type_filter| type_filter[node.node_type_id()])
+                && view.filter_node(node.as_ref())
+        })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = NodeView<&G, &GH>> + use<'_, 'graph, G, GH> {
@@ -210,7 +208,7 @@ where
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
-    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<G, GH>> {
+    pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<'graph, G, GH>> {
         let base_graph = self.base_graph.clone();
         let g = self.graph.clone();
         self.iter_refs()
@@ -225,15 +223,31 @@ where
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, v))
     }
 
-    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<G, GH>> + 'graph {
+    pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, G, GH>> + 'graph {
         self.par_iter_refs().map(move |n| {
             NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), n)
         })
     }
 
     /// Returns the number of nodes in the graph.
+    #[inline]
     pub fn len(&self) -> usize {
-        self.iter().count()
+        match self.nodes.as_ref() {
+            None => {
+                if self.is_list_filtered() {
+                    self.par_iter_refs().count()
+                } else {
+                    self.graph.node_list().len()
+                }
+            }
+            Some(nodes) => {
+                if self.is_filtered() {
+                    self.par_iter_refs().count()
+                } else {
+                    nodes.len()
+                }
+            }
+        }
     }
 
     /// Returns true if the graph contains no nodes.
@@ -241,7 +255,7 @@ where
         self.iter().next().is_none()
     }
 
-    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<G, GH>> {
+    pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<'graph, G, GH>> {
         let vid = self.graph.internalise_node(node.as_node_ref())?;
         self.contains(vid).then(|| {
             NodeView::new_one_hop_filtered(self.base_graph.clone(), self.graph.clone(), vid)
@@ -271,12 +285,12 @@ where
     ) -> Nodes<'graph, G, GH> {
         let index: Index<_> = nodes
             .into_iter()
-            .filter_map(|n| (&self.graph).node(n).map(|n| n.node))
+            .filter_map(|n| self.graph.node(n).map(|n| n.node))
             .collect();
         self.indexed(index)
     }
 
-    pub fn collect(&self) -> Vec<NodeView<G, GH>> {
+    pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
         self.iter_owned().collect()
     }
 
@@ -286,6 +300,12 @@ where
 
     pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
         self.graph.node_meta().get_prop_id(prop_name, false)
+    }
+
+    fn is_list_filtered(&self) -> bool {
+        self.node_types_filter.is_some()
+            || self.graph.edge_history_filtered()
+            || !self.graph.node_list_trusted()
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -318,7 +338,7 @@ where
     type BaseGraph = G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
@@ -411,7 +431,7 @@ where
     G: GraphViewOps<'graph> + 'graph,
     GH: GraphViewOps<'graph> + 'graph,
 {
-    type Item = NodeView<G, GH>;
+    type Item = NodeView<'graph, G, GH>;
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -421,14 +441,30 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::prelude::*;
+    use crate::{
+        prelude::*,
+        test_utils::{build_graph, build_graph_strat},
+    };
+    use proptest::{proptest, sample::subsequence};
+
     #[test]
     fn test_id_filter() {
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         assert_eq!(graph.nodes().id(), [0, 1]);
+        assert_eq!(graph.nodes().id_filter([0]).len(), 1);
         assert_eq!(graph.nodes().id_filter([0]).id(), [0]);
         assert_eq!(graph.nodes().id_filter([0]).degree(), [1]);
+    }
+
+    #[test]
+    fn test_indexed() {
+        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = Graph::from(build_graph(&graph));
+            let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
+            let nodes = graph.nodes().id_filter(nodes);
+            assert_eq!(nodes.id(), expected_node_ids);
+        })
     }
 }

@@ -1,6 +1,12 @@
+use super::{
+    cache::VectorCache,
+    db::{EdgeDb, NodeDb},
+    storage::{edge_vectors_path, node_vectors_path, VectorMeta},
+};
 use crate::{
-    core::utils::errors::GraphResult,
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
+    errors::GraphResult,
+    prelude::GraphViewOps,
     vectors::{
         db::EntityDb, embeddings::compute_embeddings, template::DocumentTemplate,
         vectorised_graph::VectorisedGraph,
@@ -9,12 +15,6 @@ use crate::{
 use async_trait::async_trait;
 use std::path::Path;
 use tracing::info;
-
-use super::{
-    cache::VectorCache,
-    db::{EdgeDb, NodeDb},
-    storage::{edge_vectors_path, node_vectors_path, VectorMeta},
-};
 
 #[async_trait]
 pub trait Vectorisable<G: StaticGraphViewOps> {

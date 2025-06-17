@@ -1,14 +1,12 @@
-use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
-
-use crate::{core::utils::errors::GraphResult, vectors::Embedding};
+use super::cache::VectorCache;
+use crate::{errors::GraphResult, vectors::Embedding};
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
 use futures_util::{future::BoxFuture, Stream, StreamExt};
+use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
 use tracing::info;
-
-use super::cache::VectorCache;
 
 const CHUNK_SIZE: usize = 1000;
 

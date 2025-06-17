@@ -5,6 +5,7 @@ use crate::{
             edge::GqlEdge,
             edges::GqlEdges,
             filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
             property::GqlProperties,
@@ -21,12 +22,7 @@ use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::{
-            GraphError, GraphError::MismatchedIntervalTypes, InvalidPathReason::PathNotParsable,
-        },
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
             properties::dyn_props::DynProperties,
@@ -42,6 +38,7 @@ use raphtory::{
             },
         },
     },
+    errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
 use std::{
@@ -74,17 +71,6 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-        }
-    }
-
-    async fn execute_search<F, R>(&self, search_fn: F) -> Result<R, GraphError>
-    where
-        F: FnOnce() -> Result<R, GraphError>,
-    {
-        if self.graph.is_indexed() {
-            search_fn()
-        } else {
-            Err(GraphError::IndexMissing)
         }
     }
 }
@@ -167,7 +153,7 @@ impl GqlGraph {
                             .rolling(window_duration, Some(step_duration))?,
                         self_clone.path.clone(),
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlGraphWindowSet::new(
                     self_clone.graph.rolling(window_duration, None)?,
@@ -176,7 +162,7 @@ impl GqlGraph {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlGraphWindowSet::new(
                         self_clone
                             .graph
@@ -263,7 +249,7 @@ impl GqlGraph {
     }
 
     async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.path.created_async().await
+        self.path.last_opened_async().await
     }
 
     async fn last_updated(&self) -> Result<i64, GraphError> {
@@ -437,7 +423,9 @@ impl GqlGraph {
             .path
             .get_original_path()
             .to_str()
-            .ok_or(PathNotParsable(self.path.to_error_path()))?
+            .ok_or(InvalidPathReason::PathNotParsable(
+                self.path.to_error_path(),
+            ))?
             .to_owned())
     }
 
@@ -449,7 +437,9 @@ impl GqlGraph {
                 .get_original_path()
                 .parent()
                 .and_then(|p| p.to_str().map(|s| s.to_string()))
-                .ok_or(PathNotParsable(self_clone.path.to_error_path()))?
+                .ok_or(InvalidPathReason::PathNotParsable(
+                    self_clone.path.to_error_path(),
+                ))?
                 .to_owned())
         })
         .await
@@ -551,30 +541,48 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
+    async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
+        #[cfg(feature = "search")]
+        {
+            let index_spec = self.graph.get_index_spec()?;
+            let props = index_spec.props(&self.graph);
+
+            Ok(GqlIndexSpec {
+                node_const_props: props.node_const_props,
+                node_temp_props: props.node_temp_props,
+                edge_const_props: props.edge_const_props,
+                edge_temp_props: props.edge_temp_props,
+            })
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
+    }
+
     async fn search_nodes(
         &self,
         filter: NodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>, GraphError> {
-        let self_clone = self.clone();
-        spawn(async move {
-            filter.validate()?;
-            let f: CompositeNodeFilter = filter.try_into()?;
-            self_clone
-                .execute_search(|| {
-                    Ok(self_clone
-                        .graph
-                        .search_nodes(f, limit, offset)
-                        .into_iter()
-                        .flatten()
-                        .map(|vv| vv.into())
-                        .collect())
-                })
-                .await
-        })
-        .await
-        .unwrap()
+        #[cfg(feature = "search")]
+        {
+            let self_clone = self.clone();
+            spawn(async move {
+                filter.validate()?;
+                let f: CompositeNodeFilter = filter.try_into()?;
+                let nodes = self_clone.graph.search_nodes(f, limit, offset)?;
+                let result = nodes.into_iter().map(|vv| vv.into()).collect();
+                Ok(result)
+            })
+            .await
+            .unwrap()
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
     }
 
     async fn search_edges(
@@ -583,24 +591,23 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>, GraphError> {
-        let self_clone = self.clone();
-        spawn(async move {
-            filter.validate()?;
-            let f: CompositeEdgeFilter = filter.try_into()?;
-            self_clone
-                .execute_search(|| {
-                    Ok(self_clone
-                        .graph
-                        .search_edges(f, limit, offset)
-                        .into_iter()
-                        .flatten()
-                        .map(|vv| vv.into())
-                        .collect())
-                })
-                .await
-        })
-        .await
-        .unwrap()
+        #[cfg(feature = "search")]
+        {
+            let self_clone = self.clone();
+            spawn(async move {
+                filter.validate()?;
+                let f: CompositeEdgeFilter = filter.try_into()?;
+                let edges = self_clone.graph.search_edges(f, limit, offset)?;
+                let result = edges.into_iter().map(|vv| vv.into()).collect();
+                Ok(result)
+            })
+            .await
+            .unwrap()
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
     }
 
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {

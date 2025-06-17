@@ -17,18 +17,14 @@ pub mod python;
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        config::app_config::AppConfig,
+        config::app_config::{AppConfig, AppConfigBuilder},
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
-    use serde_json::Value;
-
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
             api::view::{IntoDynamic, MaterializedGraph},
@@ -38,7 +34,7 @@ mod graphql_test {
         serialise::GraphFolder,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
         fs,
@@ -46,6 +42,7 @@ mod graphql_test {
     use tempfile::tempdir;
 
     #[tokio::test]
+    #[cfg(feature = "search")]
     async fn test_search_nodes_gql() {
         let graph = Graph::new();
 
@@ -107,7 +104,8 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let config = AppConfigBuilder::new().with_create_index(true).build();
+        let data = Data::new(tmp_dir.path(), &config);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -132,14 +130,18 @@ mod graphql_test {
                           node: {
                                 field: NODE_NAME,
                                 operator: EQUAL,
-                                value: "N1"
+                                value: {
+                                  str: "N1"
+                                }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
                             operator: NOT_EQUAL,
-                            value: "air_nomads"
+                            value: {
+                              str: "air_nomads"
+                            }
                           }
                         },
                         {

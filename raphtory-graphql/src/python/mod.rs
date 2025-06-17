@@ -1,12 +1,12 @@
 use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
-use async_graphql::{dynamic::ValueAccessor, Value as GraphqlValue};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
     types::{PyDict, PyList, PyNone},
     IntoPyObjectExt,
 };
-use raphtory::{db::api::view::MaterializedGraph, python::utils::errors::adapt_err_value};
+use raphtory::db::api::view::MaterializedGraph;
+use raphtory_api::python::error::adapt_err_value;
 use serde_json::{Map, Number, Value as JsonValue};
 
 pub mod client;
@@ -16,23 +16,6 @@ pub mod server;
 const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
 const RUNNING_SERVER_CONSUMED_MSG: &str =
     "Running server object has already been used, please create another one from scratch";
-
-pub(crate) fn adapt_graphql_value(value: &ValueAccessor, py: Python) -> PyObject {
-    match value.as_value() {
-        GraphqlValue::Number(number) => {
-            if number.is_f64() {
-                number.as_f64().unwrap().into_py_any(py).unwrap()
-            } else if number.is_u64() {
-                number.as_u64().unwrap().into_py_any(py).unwrap()
-            } else {
-                number.as_i64().unwrap().into_py_any(py).unwrap()
-            }
-        }
-        GraphqlValue::String(value) => value.into_py_any(py).unwrap(),
-        GraphqlValue::Boolean(value) => value.into_py_any(py).unwrap(),
-        value => panic!("graphql input value {value} has an unsupported type"),
-    }
-}
 
 pub(crate) fn translate_from_python(value: Bound<PyAny>) -> PyResult<JsonValue> {
     if let Ok(value) = value.extract::<i64>() {

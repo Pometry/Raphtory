@@ -10,10 +10,8 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    python::utils::{errors::adapt_err_value, execute_async_task},
-};
+use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
+use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, fs::File, io::Read, path::Path};

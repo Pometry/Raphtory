@@ -1,34 +1,29 @@
 use super::time_from_input;
 use crate::{
-    core::{
-        entities::{nodes::node_ref::AsNodeRef, LayerIds},
-        utils::errors::GraphError::{self, EdgeExistsError, NodeExistsError},
-    },
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            mutation::internal::{
-                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-            },
-            properties::internal::{TemporalPropertiesOps, TemporalPropertiesRowView},
+            properties::internal::TemporalPropertiesOps,
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{AdditionOps, EdgeViewOps, GraphViewOps, NodeViewOps},
+    errors::{into_graph_err, GraphError},
+    prelude::{
+        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+    },
 };
 use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+    property_addition_ops::InternalPropertyAdditionOps,
+};
 use std::{borrow::Borrow, fmt::Debug};
 
-pub trait ImportOps:
-    StaticGraphViewOps
-    + InternalAdditionOps
-    + InternalDeletionOps
-    + InternalPropertyAdditionOps
-    + InternalMaterialize
-{
+pub trait ImportOps: Sized {
     /// Imports a single node into the graph.
     ///
     /// # Arguments
@@ -43,9 +38,9 @@ pub trait ImportOps:
     /// A `Result` which is `Ok` if the node was successfully imported, and `Err` otherwise.
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     /// Imports a single node into the graph.
     ///
@@ -67,10 +62,10 @@ pub trait ImportOps:
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         new_id: V,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
     /// Imports multiple nodes into the graph.
     ///
@@ -86,7 +81,7 @@ pub trait ImportOps:
     /// A `Result` which is `Ok` if the nodes were successfully imported, and `Err` otherwise.
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         merge: bool,
     ) -> Result<(), GraphError>;
 
@@ -110,7 +105,7 @@ pub trait ImportOps:
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
         merge: bool,
     ) -> Result<(), GraphError>;
@@ -203,19 +198,15 @@ pub trait ImportOps:
 }
 
 impl<
-        G: StaticGraphViewOps
-            + InternalAdditionOps
-            + InternalDeletionOps
-            + InternalPropertyAdditionOps
-            + InternalMaterialize,
+        G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     > ImportOps for G
 {
     fn import_node<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         merge: bool,
-    ) -> Result<NodeView<G, G>, GraphError> {
-        import_node_internal(&self, node, node.id(), merge)
+    ) -> Result<NodeView<'static, G, G>, GraphError> {
+        import_node_internal(self, node, node.id(), merge)
     }
 
     fn import_node_as<
@@ -225,16 +216,16 @@ impl<
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        node: &NodeView<GHH, GH>,
+        node: &NodeView<'a, GHH, GH>,
         new_id: V,
         merge: bool,
-    ) -> Result<NodeView<Self, Self>, GraphError> {
-        import_node_internal(&self, node, new_id, merge)
+    ) -> Result<NodeView<'static, Self, Self>, GraphError> {
+        import_node_internal(self, node, new_id, merge)
     }
 
     fn import_nodes<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         merge: bool,
     ) -> Result<(), GraphError> {
         let nodes: Vec<_> = nodes.into_iter().collect();
@@ -253,7 +244,7 @@ impl<
         V: AsNodeRef + Clone + Debug,
     >(
         &self,
-        nodes: impl IntoIterator<Item = impl Borrow<NodeView<GHH, GH>>>,
+        nodes: impl IntoIterator<Item = impl Borrow<NodeView<'a, GHH, GH>>>,
         new_ids: impl IntoIterator<Item = V>,
         merge: bool,
     ) -> Result<(), GraphError> {
@@ -270,7 +261,7 @@ impl<
         edge: &EdgeView<GHH, GH>,
         merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, edge.src().id(), edge.dst().id(), merge)
+        import_edge_internal(self, edge, edge.src().id(), edge.dst().id(), merge)
     }
 
     fn import_edge_as<
@@ -284,7 +275,7 @@ impl<
         new_id: (V, V),
         merge: bool,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        import_edge_internal(&self, edge, new_id.0, new_id.1, merge)
+        import_edge_internal(self, edge, new_id.0, new_id.1, merge)
     }
 
     fn import_edges<'a, GHH: GraphViewOps<'a>, GH: GraphViewOps<'a>>(
@@ -323,30 +314,30 @@ impl<
 
 fn import_node_internal<
     'a,
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     GHH: GraphViewOps<'a>,
     GH: GraphViewOps<'a>,
     V: AsNodeRef + Clone + Debug,
 >(
     graph: &G,
-    node: &NodeView<GHH, GH>,
+    node: &NodeView<'a, GHH, GH>,
     id: V,
     merge: bool,
-) -> Result<NodeView<G, G>, GraphError> {
+) -> Result<NodeView<'static, G, G>, GraphError> {
+    let id = id.as_node_ref();
     if !merge {
-        if let Some(existing_node) = graph.node(&id) {
-            return Err(NodeExistsError(existing_node.id()));
+        if let Some(existing_node) = graph.node(id) {
+            return Err(GraphError::NodeExistsError(existing_node.id()));
         }
     }
 
     let node_internal = match node.node_type().as_str() {
-        None => graph.resolve_node(&id)?.inner(),
+        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
         Some(node_type) => {
-            let (node_internal, _) = graph.resolve_node_and_type(&id, node_type)?.inner();
+            let (node_internal, _) = graph
+                .resolve_node_and_type(id, node_type)
+                .map_err(into_graph_err)?
+                .inner();
             node_internal.inner()
         }
     };
@@ -362,25 +353,24 @@ fn import_node_internal<
                 let prop_id = graph.resolve_node_property(key, prop.dtype(), false);
                 prop_id.map(|prop_id| (prop_id.inner(), prop))
             })
-            .collect::<Result<Vec<_>, _>>()?;
-        graph.internal_add_node(t, node_internal, &props)?;
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(into_graph_err)?;
+        graph
+            .internal_add_node(t, node_internal, &props)
+            .map_err(into_graph_err)?;
     }
 
     graph
-        .node(&id)
+        .node(node_internal)
         .expect("node added")
         .add_constant_properties(node.properties().constant())?;
 
-    Ok(graph.node(&id).unwrap())
+    Ok(graph.node(node_internal).unwrap())
 }
 
 fn import_edge_internal<
     'a,
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + AdditionOps + DeletionOps + PropertyAdditionOps + InternalMaterialize,
     GHH: GraphViewOps<'a>,
     GH: GraphViewOps<'a>,
     V: AsNodeRef + Clone + Debug,
@@ -391,14 +381,11 @@ fn import_edge_internal<
     dst_id: V,
     merge: bool,
 ) -> Result<EdgeView<G, G>, GraphError> {
-    // Preserve all layers even if they are empty (except the default layer)
-    for layer in edge.graph.unique_layers().skip(1) {
-        graph.resolve_layer(Some(&layer))?;
-    }
-
+    let src_id = src_id.as_node_ref();
+    let dst_id = dst_id.as_node_ref();
     if !merge && graph.has_edge(&src_id, &dst_id) {
-        if let Some(existing_edge) = graph.edge(&src_id, &dst_id) {
-            return Err(EdgeExistsError(
+        if let Some(existing_edge) = graph.edge(src_id, dst_id) {
+            return Err(GraphError::EdgeExistsError(
                 existing_edge.src().id(),
                 existing_edge.dst().id(),
             ));
@@ -407,14 +394,7 @@ fn import_edge_internal<
 
     // Add edges first to ensure associated nodes are present
     for ee in edge.explode_layers() {
-        let layer_id = ee.edge.layer().expect("exploded layers");
-        let layer_ids = LayerIds::One(layer_id);
-        let layer_name = graph.get_layer_name(layer_id);
-        let layer_name: Option<&str> = if layer_id == 0 {
-            None
-        } else {
-            Some(&layer_name)
-        };
+        let layer_name = ee.layer_name().expect("exploded layers");
 
         for ee in ee.explode() {
             graph.add_edge(
@@ -422,24 +402,27 @@ fn import_edge_internal<
                 &src_id,
                 &dst_id,
                 ee.properties().temporal().collect_properties(),
-                layer_name,
+                Some(&layer_name),
             )?;
         }
 
-        if graph.include_deletions() {
-            for t in edge.graph.edge_deletion_history(edge.edge, &layer_ids) {
-                let ti = time_from_input(graph, t.t())?;
-                let src_node = graph.resolve_node(&src_id)?.inner();
-                let dst_node = graph.resolve_node(&dst_id)?.inner();
-                let layer = graph.resolve_layer(layer_name)?.inner();
-                graph.internal_delete_edge(ti, src_node, dst_node, layer)?;
-            }
+        for (t, _) in edge.deletions_hist() {
+            let ti = time_from_input(graph, t.t())?;
+            let src_node = graph.resolve_node(src_id).map_err(into_graph_err)?.inner();
+            let dst_node = graph.resolve_node(dst_id).map_err(into_graph_err)?.inner();
+            let layer = graph
+                .resolve_layer(Some(&layer_name))
+                .map_err(into_graph_err)?
+                .inner();
+            graph
+                .internal_delete_edge(ti, src_node, dst_node, layer)
+                .map_err(into_graph_err)?;
         }
 
         graph
             .edge(&src_id, &dst_id)
             .expect("edge added")
-            .add_constant_properties(ee.properties().constant(), layer_name)?;
+            .add_constant_properties(ee.properties().constant(), Some(&layer_name))?;
     }
 
     Ok(graph.edge(&src_id, &dst_id).unwrap())

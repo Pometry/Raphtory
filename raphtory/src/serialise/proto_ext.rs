@@ -3,7 +3,7 @@ use super::proto::{
     prop_type::{Array as ArrayType, Scalar as ScalarType},
 };
 use crate::{
-    core::{prop_array::PropArray, utils::errors::GraphError, Prop, PropType},
+    errors::GraphError,
     serialise::proto::{
         self,
         graph_update::{
@@ -21,13 +21,19 @@ use crate::{
 };
 use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
-    entities::{GidRef, EID, VID},
+    entities::{
+        properties::prop::{Prop, PropType},
+        GidRef, EID, VID,
+    },
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, TimeIndexEntry},
     },
 };
 use std::{borrow::Borrow, collections::HashMap, sync::Arc};
+
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::properties::prop::PropArray;
 
 fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
     let val = match p_type {
@@ -55,7 +61,7 @@ fn as_proto_prop_type(p_type: &PropType) -> Option<SPropType> {
 fn as_proto_prop_type2(p_type: &PropType) -> Option<PType> {
     match p_type {
         PropType::Array(tpe) => {
-            let prop_type = as_proto_prop_type(&tpe)?;
+            let prop_type = as_proto_prop_type(tpe)?;
             Some(PType {
                 kind: Some(proto::prop_type::p_type::Kind::Array(ArrayType {
                     p_type: prop_type.into(),
@@ -97,7 +103,7 @@ pub fn as_prop_type(p_type: SPropType) -> Option<PropType> {
         SPropType::F64 => Some(PropType::F64),
         SPropType::Bool => Some(PropType::Bool),
         SPropType::List => Some(PropType::List(Box::new(PropType::Empty))),
-        SPropType::Map => Some(PropType::Map(HashMap::new())),
+        SPropType::Map => Some(PropType::Map(HashMap::new().into())),
         SPropType::NdTime => Some(PropType::NDTime),
         SPropType::DTime => Some(PropType::DTime),
         SPropType::Document => None,
@@ -652,14 +658,8 @@ fn as_prop_value(value: Option<&prop::Value>) -> Result<Option<Prop>, GraphError
                 nanos,
             } = ndt;
             let ndt = NaiveDateTime::new(
-                NaiveDate::from_ymd_opt(*year as i32, *month as u32, *day as u32).unwrap(),
-                NaiveTime::from_hms_nano_opt(
-                    *hour as u32,
-                    *minute as u32,
-                    *second as u32,
-                    *nanos as u32,
-                )
-                .unwrap(),
+                NaiveDate::from_ymd_opt(*year as i32, *month, *day).unwrap(),
+                NaiveTime::from_hms_nano_opt(*hour, *minute, *second, *nanos).unwrap(),
             );
             Some(Prop::NDTime(ndt))
         }
@@ -723,12 +723,12 @@ fn as_proto_prop(prop: &Prop) -> proto::Prop {
 
             let proto_ndt = prop::NdTime {
                 year: year as u32,
-                month: month as u32,
-                day: day as u32,
-                hour: hour as u32,
-                minute: minute as u32,
-                second: second as u32,
-                nanos: nanos as u32,
+                month: month,
+                day: day,
+                hour: hour,
+                minute: minute,
+                second: second,
+                nanos: nanos,
             };
             Some(prop::Value::NdTime(proto_ndt))
         }

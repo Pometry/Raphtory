@@ -1,26 +1,19 @@
-use std::path::Path;
-
 use super::*;
 use crate::{
-    core::utils::iter::GenLockedIter,
-    db::{
-        api::{
-            storage::graph::edges::edge_storage_ops::EdgeStorageOps,
-            view::internal::{CoreGraphOps, TimeSemantics},
-        },
-        graph::edge::EdgeView,
-    },
+    core::utils::iter::GenLockedIter, db::graph::edge::EdgeView, errors::GraphError,
     serialise::parquet::model::ParquetDelEdge,
 };
 use arrow_schema::{DataType, Field};
 use model::ParquetCEdge;
 use raphtory_api::{
-    core::{
-        entities::{LayerIds, EID},
-        storage::timeindex::TimeIndexIntoOps,
-    },
+    core::{entities::EID, storage::timeindex::TimeIndexOps},
     iter::IntoDynBoxed,
 };
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+};
+use std::path::Path;
 
 pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,
@@ -42,16 +35,15 @@ pub(crate) fn encode_edge_tprop(
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000;
-            let all_layers = LayerIds::All;
 
             for edge_rows in edges
                 .into_iter()
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.edge_exploded(edge_ref, &all_layers)
+                    EdgeView::new(g, edge_ref).explode()
                 })
-                .map(|edge| ParquetTEdge(EdgeView::new(g, edge)))
+                .map(ParquetTEdge)
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
@@ -104,7 +96,7 @@ pub(crate) fn encode_edge_deletions(
                         let edge = g_edges.edge(eid);
                         let edge_ref = edge.out_ref();
                         GenLockedIter::from(edge, |edge| {
-                            edge.deletions(layer_id).into_iter().into_dyn_boxed()
+                            edge.deletions(layer_id).iter().into_dyn_boxed()
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,
@@ -154,10 +146,7 @@ pub(crate) fn encode_edge_cprop(
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    layers
-                        .clone()
-                        .into_iter()
-                        .map(move |l_id| edge_ref.at_layer(l_id))
+                    layers.clone().map(move |l_id| edge_ref.at_layer(l_id))
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

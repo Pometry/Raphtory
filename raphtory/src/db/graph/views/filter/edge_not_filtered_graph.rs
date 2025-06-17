@@ -1,23 +1,26 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, model::NotFilter},
+        graph::views::filter::{internal::CreateEdgeFilter, model::NotFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::{
+    core::{
+        entities::{LayerIds, ELID},
+        storage::timeindex::TimeIndexEntry,
+    },
+    inherit::Base,
+};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgeNotFilteredGraph<G, T> {
@@ -25,7 +28,7 @@ pub struct EdgeNotFilteredGraph<G, T> {
     filter: T,
 }
 
-impl<T: InternalEdgeFilterOps> InternalEdgeFilterOps for NotFilter<T> {
+impl<T: CreateEdgeFilter> CreateEdgeFilter for NotFilter<T> {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
         = EdgeNotFilteredGraph<G, T::EdgeFiltered<'graph, G>>
     where
@@ -51,7 +54,7 @@ impl<G, T> Base for EdgeNotFilteredGraph<G, T> {
 impl<G, T> Static for EdgeNotFilteredGraph<G, T> {}
 impl<G, T> Immutable for EdgeNotFilteredGraph<G, T> {}
 
-impl<'graph, G: GraphViewOps<'graph>, T> InheritCoreOps for EdgeNotFilteredGraph<G, T> {}
+impl<'graph, G: GraphViewOps<'graph>, T> InheritCoreGraphOps for EdgeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritStorageOps for EdgeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritLayerOps for EdgeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritListOps for EdgeNotFilteredGraph<G, T> {}
@@ -70,13 +73,22 @@ impl<'graph, G: GraphViewOps<'graph>, T: EdgeFilterOps> EdgeFilterOps
         true
     }
 
+    fn edge_history_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
     }
 
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids)
+            && !self.filter.filter_edge_history(eid, t, layer_ids)
+    }
+
     #[inline]
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids) && !self.filter.filter_edge(edge.clone(), layer_ids)
+        self.graph.filter_edge(edge, layer_ids) && !self.filter.filter_edge(edge, layer_ids)
     }
 }

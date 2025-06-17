@@ -11,11 +11,11 @@ use crate::model::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::{state::Index, view::DynamicGraph},
         graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::core::entities::VID;
@@ -87,7 +87,7 @@ impl GqlNodes {
                             .nn
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlNodesWindowSet::new(
                     self_clone.nn.rolling(window_duration, None)?,
@@ -95,7 +95,7 @@ impl GqlNodes {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlNodesWindowSet::new(
                         self_clone
                             .nn

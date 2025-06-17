@@ -3,7 +3,10 @@ use crate::{
     db::{
         api::{
             state::node_state_ops::NodeStateOps,
-            view::{internal::NodeList, DynamicGraph, IntoDynBoxed, IntoDynamic},
+            view::{
+                internal::{FilterOps, NodeList},
+                DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{node::NodeView, nodes::Nodes},
     },
@@ -92,6 +95,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         self.index.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.index.is_empty()
+    }
+
     #[inline]
     pub fn contains(&self, key: &K) -> bool {
         self.index.contains(key)
@@ -134,6 +141,14 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values.par_iter().eq(other)
+    }
+}
+
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
+    PartialEq<&[RHS]> for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &&[RHS]) -> bool {
+        self.values.par_iter().eq(*other)
     }
 }
 
@@ -287,7 +302,7 @@ impl<
         GH: GraphViewOps<'graph>,
     > IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
+    type Item = (NodeView<'graph, G, GH>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -350,7 +365,7 @@ impl<
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<&'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -396,6 +411,7 @@ impl<
     ) -> impl ParallelIterator<
         Item = (
             NodeView<
+                'a,
                 &'a <Self as NodeStateOps<'graph>>::BaseGraph,
                 &'a <Self as NodeStateOps<'graph>>::Graph,
             >,

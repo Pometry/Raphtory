@@ -2,17 +2,25 @@ use crate::{
     core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        },
         view::internal::{
-            Base, CoreGraphOps, EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-            InheritTimeSemantics, InternalLayerOps, NodeFilterOps, Static,
+            EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
+    storage::core_ops::InheritCoreGraphOps,
+};
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
 };
 use rayon::prelude::*;
 use roaring::RoaringTreemap;
@@ -21,17 +29,16 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::view::internal::InheritStorageOps;
-
 #[derive(Clone)]
 pub struct CachedView<G> {
     pub(crate) graph: G,
+    pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
     pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap)]>,
 }
 
 impl<G> Static for CachedView<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for CachedView<G> {
+impl<G: Debug> Debug for CachedView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MaskedGraph")
             .field("graph", &self.graph as &dyn Debug)
@@ -49,7 +56,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
@@ -62,6 +69,13 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for CachedView<G>
 impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
     pub fn new(graph: G) -> Self {
         let mut layered_masks = vec![];
+        let global_nodes_mask = Arc::new(
+            graph
+                .nodes()
+                .iter()
+                .map(|node| node.node.as_u64())
+                .collect(),
+        );
         for l_name in graph.unique_layers() {
             let l_id = graph.get_layer_id(&l_name).unwrap();
             let layer_g = graph.layers(l_name).unwrap();
@@ -97,6 +111,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
 
         Self {
             graph,
+            global_nodes_mask,
             layered_mask: layered_masks.into(),
         }
     }
@@ -111,8 +126,25 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         self.graph.edge_list_trusted()
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        let layer = eid.layer();
+        if layer_ids.contains(&layer) {
+            self.layered_mask
+                .get(layer)
+                .is_some_and(|(_, edges)| edges.contains(eid.edge.as_u64()))
+                && self.graph.filter_edge_history(eid, t, layer_ids)
+        } else {
+            false
+        }
     }
 
     #[inline]
@@ -130,26 +162,23 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for CachedView<G> {
-    fn nodes_filtered(&self) -> bool {
-        self.graph.nodes_filtered()
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered()
     }
-    fn node_list_trusted(&self) -> bool {
-        self.graph.node_list_trusted()
+    fn internal_node_list_trusted(&self) -> bool {
+        self.graph.internal_node_list_trusted()
     }
 
-    fn edge_filter_includes_node_filter(&self) -> bool {
+    fn edge_and_node_filter_independent(&self) -> bool {
         true
     }
 
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self
-                .layered_mask
-                .iter()
-                .any(|(nodes, _)| nodes.contains(node.vid().as_u64())),
+            LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
                 .get(*id)
@@ -283,7 +312,7 @@ mod test {
             });
         }
 
-        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| v.len() > 0 ))| {
+        proptest!(|(edge_list in any::<Vec<(u8, u8, i16, u8)>>().prop_filter("greater than 3",|v| !v.is_empty() ))| {
             check(&edge_list);
         })
     }
@@ -322,21 +351,24 @@ mod test {
 
         mod test_nodes_filters_cached_view_graph {
             use crate::{
-                core::Prop,
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::{
+                        assertions::{
+                            assert_filter_nodes_results, assert_search_nodes_results,
+                            TestGraphVariants, TestVariants,
+                        },
+                        views::{
+                            cached_view::test::test_filters_cached_view::{
+                                CachedGraphTransformer, WindowedCachedGraphTransformer,
+                            },
+                            filter::model::PropertyFilterOps,
+                        },
+                    },
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
-
-            use crate::db::graph::assertions::{
-                assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-                TestVariants,
-            };
-
-            use crate::db::graph::views::cached_view::test::test_filters_cached_view::{
-                CachedGraphTransformer, WindowedCachedGraphTransformer,
-            };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let node_data = vec![
@@ -364,8 +396,6 @@ mod test {
 
                 graph
             }
-
-            use crate::prelude::NodeViewOps;
 
             #[test]
             fn test_nodes_filters() {
@@ -431,7 +461,6 @@ mod test {
 
         mod test_edges_filter_cached_view_graph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::{
@@ -448,6 +477,7 @@ mod test {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edge_data = vec![

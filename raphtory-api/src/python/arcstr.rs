@@ -12,7 +12,7 @@ impl<'py> IntoPyObject<'py> for ArcStr {
     }
 }
 
-impl<'py, 'a> IntoPyObject<'py> for &'a ArcStr {
+impl<'py> IntoPyObject<'py> for &ArcStr {
     type Target = PyString;
     type Output = Bound<'py, Self::Target>;
     type Error = Infallible;

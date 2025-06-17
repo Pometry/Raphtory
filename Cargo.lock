@@ -2002,6 +2002,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_utils"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccfae181bab5ab6c5478b2ccb69e4c68a02f8c3ec72f6616bfec9dbc599d2ee0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "deunicode"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3028,6 +3039,15 @@ name = "is_terminal_polyfill"
 version = "1.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
+
+[[package]]
+name = "iter-enum"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c52f2d5e063459674b4735f21870dd911e0d96dbfebb984650068195c2df838"
+dependencies = [
+ "derive_utils",
+]
 
 [[package]]
 name = "itertools"
@@ -4651,6 +4671,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "proptest-derive"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ee1c9ac207483d5e7db4940700de86a9aae46ef90c48b57f99fe7edb8345e49"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "prost"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4982,9 +5013,6 @@ version = "0.15.1"
 dependencies = [
  "ahash",
  "arrow-array",
- "arrow-buffer",
- "arrow-data",
- "arrow-ipc",
  "arrow-json",
  "arrow-schema",
  "arroy",
@@ -5001,7 +5029,6 @@ dependencies = [
  "dotenv",
  "either",
  "enum_dispatch",
- "fake",
  "flate2",
  "futures-util",
  "glam",
@@ -5009,16 +5036,15 @@ dependencies = [
  "heed",
  "indexmap 2.9.0",
  "indoc",
+ "iter-enum",
  "itertools 0.13.0",
  "kdam",
- "lock_api",
  "memmap2 0.9.5",
  "minijinja",
  "minijinja-contrib",
  "moka",
  "neo4rs",
  "num",
- "num-bigint",
  "num-integer",
  "num-traits",
  "numpy",
@@ -5034,6 +5060,7 @@ dependencies = [
  "pometry-storage",
  "pretty_assertions",
  "proptest",
+ "proptest-derive",
  "prost",
  "prost-build",
  "prost-types",
@@ -5045,6 +5072,8 @@ dependencies = [
  "rand 0.8.5",
  "rand_distr",
  "raphtory-api",
+ "raphtory-core",
+ "raphtory-storage",
  "rayon",
  "regex",
  "reqwest",
@@ -5069,21 +5098,31 @@ dependencies = [
 name = "raphtory-api"
 version = "0.15.1"
 dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "arrow-schema",
+ "bigdecimal",
  "bytemuck",
  "chrono",
  "dashmap",
+ "display-error-chain",
+ "iter-enum",
+ "itertools 0.13.0",
  "lock_api",
+ "minijinja",
  "num-traits",
  "parking_lot",
  "polars-arrow",
  "proptest",
  "pyo3",
+ "pyo3-arrow",
  "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
+ "serde_json",
  "sorted_vector_map",
  "thiserror 2.0.12",
  "tracing",
@@ -5110,6 +5149,30 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "raphtory-core"
+version = "0.15.1"
+dependencies = [
+ "bigdecimal",
+ "chrono",
+ "dashmap",
+ "either",
+ "iter-enum",
+ "itertools 0.13.0",
+ "lock_api",
+ "once_cell",
+ "ouroboros",
+ "parking_lot",
+ "proptest",
+ "pyo3",
+ "raphtory-api",
+ "rayon",
+ "regex",
+ "rustc-hash 2.1.1",
+ "serde",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -5141,7 +5204,6 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -5174,6 +5236,7 @@ dependencies = [
  "pyo3",
  "raphtory",
  "raphtory-api",
+ "raphtory-storage",
  "rayon",
  "reqwest",
  "rustc-hash 2.1.1",
@@ -5200,6 +5263,26 @@ dependencies = [
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
+]
+
+[[package]]
+name = "raphtory-storage"
+version = "0.15.1"
+dependencies = [
+ "bigdecimal",
+ "either",
+ "iter-enum",
+ "itertools 0.13.0",
+ "num-traits",
+ "polars-arrow",
+ "pometry-storage",
+ "proptest",
+ "raphtory-api",
+ "raphtory-core",
+ "rayon",
+ "serde",
+ "tempfile",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

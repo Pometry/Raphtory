@@ -1,6 +1,5 @@
 use super::datetimeformat::datetimeformat;
 use crate::{
-    core::Prop,
     db::{
         api::properties::TemporalPropertyView,
         graph::{edge::EdgeView, node::NodeView},
@@ -22,8 +21,8 @@ struct PropUpdate {
     value: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<G>>> for Value {
-    fn from(value: TemporalPropertyView<NodeView<G>>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<NodeView<'graph, G>>> for Value {
+    fn from(value: TemporalPropertyView<NodeView<'graph, G>>) -> Self {
         value
             .iter()
             .map(|(time, value)| PropUpdate {
@@ -72,8 +71,8 @@ struct NodeTemplateContext {
     temporal_properties: Value,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext {
-    fn from(value: NodeView<G>) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplateContext {
+    fn from(value: NodeView<'graph, G>) -> Self {
         Self {
             name: value.name(),
             node_type: value.node_type(),
@@ -98,33 +97,6 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<G>> for NodeTemplateContext 
     }
 }
 
-// FIXME: this is eagerly allocating a lot of stuff, we should implement Object instead for Prop
-impl From<Prop> for Value {
-    fn from(value: Prop) -> Self {
-        match value {
-            Prop::Bool(value) => Value::from(value),
-            Prop::F32(value) => Value::from(value),
-            Prop::F64(value) => Value::from(value),
-            Prop::I32(value) => Value::from(value),
-            Prop::I64(value) => Value::from(value),
-            Prop::U8(value) => Value::from(value),
-            Prop::U16(value) => Value::from(value),
-            Prop::U32(value) => Value::from(value),
-            Prop::U64(value) => Value::from(value),
-            Prop::Str(value) => Value::from(value.0.to_owned()),
-            Prop::DTime(value) => Value::from(value.timestamp_millis()),
-            Prop::NDTime(value) => Value::from(value.and_utc().timestamp_millis()),
-            Prop::Array(value) => Value::from(value.to_vec_u8()),
-            Prop::List(value) => value.iter().cloned().collect(),
-            Prop::Map(value) => value
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.clone()))
-                .collect(),
-            Prop::Decimal(value) => Value::from(value.to_string()),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DocumentTemplate {
     pub node_template: Option<String>,
@@ -135,7 +107,7 @@ impl DocumentTemplate {
     /// A function that translate a node into an iterator of documents
     pub(crate) fn node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<G>,
+        node: NodeView<'graph, G>,
     ) -> Option<String> {
         let template = self.node_template.as_str()?;
         let mut env = Environment::new();

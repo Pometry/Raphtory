@@ -2,7 +2,7 @@ use datafusion::{
     common::DFSchemaRef,
     logical_expr::{Expr, LogicalPlan, TableScan, UserDefinedLogicalNodeCore},
 };
-use raphtory::{core::Direction, disk_graph::DiskGraphStorage};
+use raphtory::{api::core::Direction, prelude::DiskGraphStorage};
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(Debug, PartialEq, Hash, Eq)]

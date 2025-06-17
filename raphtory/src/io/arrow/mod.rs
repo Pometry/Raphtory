@@ -19,7 +19,7 @@ mod test {
     #[test]
     fn load_edges_from_pretend_df() {
         let df = DFView {
-            names: vec!["src", "dst", "time", "prop1", "prop2"]
+            names: ["src", "dst", "time", "prop1", "prop2"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -118,7 +118,7 @@ mod test {
     #[test]
     fn load_nodes_from_pretend_df() {
         let df = DFView {
-            names: vec!["id", "name", "time", "node_type"]
+            names: ["id", "name", "time", "node_type"]
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
@@ -149,7 +149,7 @@ mod test {
             df,
             "time",
             "id",
-            &*vec!["name"],
+            &["name"],
             &[],
             None,
             Some("node_type"),

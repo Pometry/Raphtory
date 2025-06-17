@@ -1,7 +1,5 @@
 import pytest
-
 from raphtory import Graph, PersistentGraph
-
 from utils import run_graphql_test
 
 
@@ -66,10 +64,42 @@ def create_test_graph(g):
     )
     return g
 
-
 EVENT_GRAPH = create_test_graph(Graph())
-
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_graph_edge_no_sort(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+            list {
+              src {
+                id
+              }
+              dst {
+                id
+              }
+            }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "list": [
+                    {"src": {"id": "a"}, "dst": {"id": "d"}},
+                    {"src": {"id": "b"}, "dst": {"id": "d"}},
+                    {"src": {"id": "c"}, "dst": {"id": "d"}},
+                    {"src": {"id": "a"}, "dst": {"id": "b"}},
+                    {"src": {"id": "b"}, "dst": {"id": "c"}},
+                ]
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -200,6 +230,7 @@ def test_graph_edge_sort_by_earliest_time(graph):
               dst {
                 id
               }
+              earliestTime
             }
           }
         }
@@ -211,11 +242,11 @@ def test_graph_edge_sort_by_earliest_time(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
+                        {"src": {"id": "c"}, "dst": {"id": "d"}, "earliestTime": 1},
+                        {"src": {"id": "a"}, "dst": {"id": "b"}, "earliestTime": 1},
+                        {"src": {"id": "b"}, "dst": {"id": "d"}, "earliestTime": 2},
+                        {"src": {"id": "a"}, "dst": {"id": "d"}, "earliestTime": 3},
+                        {"src": {"id": "b"}, "dst": {"id": "c"}, "earliestTime": 4},
                     ]
                 }
             }

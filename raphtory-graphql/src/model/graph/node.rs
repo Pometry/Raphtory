@@ -1,6 +1,6 @@
 use crate::model::graph::{
     edges::GqlEdges,
-    filtering::NodeViewCollection,
+    filtering::{NodeFilter, NodeViewCollection},
     nodes::GqlNodes,
     path_from_node::GqlPathFromNode,
     property::GqlProperties,
@@ -11,11 +11,11 @@ use crate::model::graph::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     algorithms::components::{in_component, out_component},
-    core::utils::errors::{GraphError, GraphError::MismatchedIntervalTypes},
     db::{
         api::{properties::dyn_props::DynProperties, view::*},
-        graph::node::NodeView,
+        graph::{node::NodeView, views::filter::model::node_filter::CompositeNodeFilter},
     },
+    errors::GraphError,
     prelude::NodeStateOps,
 };
 use tokio::task::spawn_blocking;
@@ -23,19 +23,19 @@ use tokio::task::spawn_blocking;
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
 pub struct GqlNode {
-    pub(crate) vv: NodeView<DynamicGraph>,
+    pub(crate) vv: NodeView<'static, DynamicGraph>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for GqlNode
+    From<NodeView<'static, G, GH>> for GqlNode
 {
-    fn from(value: NodeView<G, GH>) -> Self {
+    fn from(value: NodeView<'static, G, GH>) -> Self {
         Self {
-            vv: NodeView {
-                base_graph: value.base_graph.into_dynamic(),
-                graph: value.graph.into_dynamic(),
-                node: value.node,
-            },
+            vv: NodeView::new_one_hop_filtered(
+                value.base_graph.into_dynamic(),
+                value.graph.into_dynamic(),
+                value.node,
+            ),
         }
     }
 }
@@ -92,7 +92,7 @@ impl GqlNode {
                             .vv
                             .rolling(window_duration, Some(step_duration))?,
                     )),
-                    Epoch(_) => Err(MismatchedIntervalTypes),
+                    Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlNodeWindowSet::new(
                     self_clone.vv.rolling(window_duration, None)?,
@@ -100,7 +100,7 @@ impl GqlNode {
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
-                    Duration(_) => Err(MismatchedIntervalTypes),
+                    Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlNodeWindowSet::new(
                         self_clone
                             .vv
@@ -379,5 +379,23 @@ impl GqlNode {
 
     async fn out_neighbours(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.vv.out_neighbours())
+    }
+
+    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        spawn_blocking(move || {
+            filter.validate()?;
+            let filter: CompositeNodeFilter = filter.try_into()?;
+            let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
+            Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
+        })
+        .await
+        .unwrap()
+    }
+}
+
+impl GqlNode {
+    fn update<N: Into<NodeView<'static, DynamicGraph>>>(&self, node: N) -> Self {
+        Self { vv: node.into() }
     }
 }

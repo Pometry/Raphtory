@@ -84,12 +84,8 @@
 //! If you are interested in contributing, please see
 //! our [GitHub repository](https://github.com/Raphtory/raphtory)
 pub mod algorithms;
-pub mod core;
 pub mod db;
 pub mod graphgen;
-
-#[cfg(feature = "storage")]
-pub mod disk_graph;
 
 #[cfg(all(feature = "python", not(doctest)))]
 // no doctests in python as the docstrings are python not rust format
@@ -107,13 +103,24 @@ pub mod vectors;
 #[cfg(feature = "io")]
 pub mod io;
 
+pub mod api;
+pub mod core;
+pub mod errors;
 #[cfg(feature = "proto")]
 pub mod serialise;
+pub mod storage;
 
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
-        core::{IntoProp, Prop, PropUnwrap},
+        api::core::{
+            entities::{
+                layers::Layer,
+                properties::prop::{IntoProp, IntoPropList, IntoPropMap, Prop, PropUnwrap},
+                GID,
+            },
+            input::input_node::InputNode,
+        },
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
@@ -121,21 +128,20 @@ pub mod prelude {
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
                 view::{
-                    EdgePropertyFilterOps,
-                    EdgeViewOps, // ExplodedEdgePropertyFilterOps,
-                    GraphViewOps,
-                    Layer,
-                    LayerOps,
-                    NodePropertyFilterOps,
-                    NodeViewOps,
-                    ResetFilter,
+                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
+                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
                     TimeOps,
                 },
             },
             graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
         },
     };
-    pub use raphtory_api::core::{entities::GID, input::input_node::InputNode};
+
+    #[cfg(feature = "storage")]
+    pub use {
+        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
+        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
+    };
 
     #[cfg(feature = "proto")]
     pub use crate::serialise::{
@@ -144,7 +150,7 @@ pub mod prelude {
     };
 
     #[cfg(feature = "search")]
-    pub use crate::db::api::view::SearchableGraphOps;
+    pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
 
 #[cfg(feature = "storage")]
@@ -154,13 +160,15 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 
 #[cfg(test)]
 mod test_utils {
-    use crate::{core::DECIMAL_MAX, prelude::*};
+    use crate::{db::api::storage::storage::Storage, prelude::*};
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
-    use raphtory_api::core::PropType;
-    use std::collections::HashMap;
+    use proptest_derive::Arbitrary;
+    use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
 
@@ -176,13 +184,11 @@ mod test_utils {
             $crate::test_utils::test_disk_graph($graph, $test);
         };
     }
+
     #[cfg(feature = "storage")]
     pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         let test_dir = TempDir::new().unwrap();
-        let disk_graph = graph
-            .persist_as_disk_graph(test_dir.path())
-            .unwrap()
-            .into_graph();
+        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
         test(&disk_graph)
     }
 
@@ -202,10 +208,27 @@ mod test_utils {
         )
     }
 
-    pub(crate) fn prop(p_type: &PropType) -> impl Strategy<Value = Prop> {
+    #[derive(Debug, Arbitrary, PartialOrd, PartialEq, Eq, Ord)]
+    pub(crate) enum Update {
+        Addition(String, i64),
+        Deletion,
+    }
+
+    pub(crate) fn build_edge_list_with_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = HashMap<(u64, u64), Vec<(i64, Update)>>> {
+        proptest::collection::hash_map(
+            (0..num_nodes, 0..num_nodes),
+            proptest::collection::vec(any::<(i64, Update)>(), 0..=len),
+            0..=len,
+        )
+    }
+
+    pub(crate) fn prop(p_type: &PropType) -> BoxedStrategy<Prop> {
         match p_type {
-            PropType::Str => any::<String>().prop_map(|s| Prop::str(s)).boxed(),
-            PropType::I64 => any::<i64>().prop_map(|i| Prop::I64(i)).boxed(),
+            PropType::Str => any::<String>().prop_map(Prop::str).boxed(),
+            PropType::I64 => any::<i64>().prop_map(Prop::I64).boxed(),
             PropType::F64 => any::<f64>().prop_map(Prop::F64).boxed(),
             PropType::U8 => any::<u8>().prop_map(Prop::U8).boxed(),
             PropType::Bool => any::<bool>().prop_map(Prop::Bool).boxed(),
@@ -238,21 +261,22 @@ mod test_utils {
                 .prop_map(|props| Prop::List(props.into()))
                 .boxed(),
             PropType::Map(p_types) => {
-                let prop_types: Vec<BoxedStrategy<(String, Prop)>> = p_types
-                    .clone()
-                    .into_iter()
-                    .map(|(name, p_type)| {
-                        let pt_strat = prop(&p_type)
-                            .prop_map(move |prop| (name.clone(), prop.clone()))
-                            .boxed();
-                        pt_strat
+                let key_val: Vec<_> = p_types
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                let len = key_val.len();
+                let samples = proptest::sample::subsequence(key_val, 0..=len);
+                samples
+                    .prop_flat_map(|key_vals| {
+                        let props: Vec<_> = key_vals
+                            .into_iter()
+                            .map(|(key, val_type)| {
+                                prop(&val_type).prop_map(move |val| (key.clone(), val))
+                            })
+                            .collect();
+                        props.prop_map(Prop::map)
                     })
-                    .collect_vec();
-
-                let props = proptest::sample::select(prop_types).prop_flat_map(|prop| prop);
-
-                proptest::collection::vec(props, 1..10)
-                    .prop_map(|props| Prop::map(props))
                     .boxed()
             }
             PropType::Decimal { scale } => {
@@ -280,7 +304,7 @@ mod test_utils {
 
         leaf.prop_recursive(3, 10, 10, |inner| {
             let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-                .prop_map(|map| PropType::map(map));
+                .prop_map(PropType::map);
             let list = inner
                 .clone()
                 .prop_map(|p_type| PropType::List(Box::new(p_type)));
@@ -291,16 +315,73 @@ mod test_utils {
     #[derive(Debug, Clone)]
     pub struct GraphFixture {
         pub nodes: NodeFixture,
-        pub no_props_edges: Vec<(u64, u64, i64)>,
-        pub edges: Vec<(u64, u64, i64, Vec<(String, Prop)>, Option<&'static str>)>,
-        pub edge_deletions: Vec<(u64, u64, i64)>,
-        pub edge_const_props: HashMap<(u64, u64), Vec<(String, Prop)>>,
+        pub edges: EdgeFixture,
+    }
+
+    impl GraphFixture {
+        pub fn edges(
+            &self,
+        ) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
+            self.edges.iter()
+        }
+
+        pub fn nodes(&self) -> impl Iterator<Item = (u64, &NodeUpdatesFixture)> {
+            self.nodes.iter()
+        }
     }
 
     #[derive(Debug, Default, Clone)]
-    pub struct NodeFixture {
-        pub nodes: Vec<(u64, i64, Vec<(String, Prop)>)>,
-        pub node_const_props: HashMap<u64, Vec<(String, Prop)>>,
+    pub struct NodeFixture(pub HashMap<u64, NodeUpdatesFixture>);
+
+    impl FromIterator<(u64, NodeUpdatesFixture)> for NodeFixture {
+        fn from_iter<T: IntoIterator<Item = (u64, NodeUpdatesFixture)>>(iter: T) -> Self {
+            Self(iter.into_iter().collect())
+        }
+    }
+
+    impl NodeFixture {
+        pub fn iter(&self) -> impl Iterator<Item = (u64, &NodeUpdatesFixture)> {
+            self.0.iter().map(|(k, v)| (*k, v))
+        }
+    }
+
+    #[derive(Debug, Default, Clone)]
+    pub struct PropUpdatesFixture {
+        pub t_props: Vec<(i64, Vec<(String, Prop)>)>,
+        pub c_props: Vec<(String, Prop)>,
+    }
+
+    #[derive(Debug, Default, Clone)]
+    pub struct NodeUpdatesFixture {
+        pub props: PropUpdatesFixture,
+        pub node_type: Option<&'static str>,
+    }
+
+    #[derive(Debug, Default, Clone)]
+    pub struct EdgeUpdatesFixture {
+        pub props: PropUpdatesFixture,
+        pub deletions: Vec<i64>,
+    }
+
+    #[derive(Debug, Default, Clone)]
+    pub struct EdgeFixture(pub HashMap<(u64, u64, Option<&'static str>), EdgeUpdatesFixture>);
+
+    impl EdgeFixture {
+        pub fn iter(
+            &self,
+        ) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
+            self.0.iter().map(|(k, v)| (*k, v))
+        }
+    }
+
+    impl FromIterator<((u64, u64, Option<&'static str>), EdgeUpdatesFixture)> for EdgeFixture {
+        fn from_iter<
+            T: IntoIterator<Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture)>,
+        >(
+            iter: T,
+        ) -> Self {
+            Self(iter.into_iter().collect())
+        }
     }
 
     impl<V, T, I: IntoIterator<Item = (V, T, Vec<(String, Prop)>)>> From<I> for NodeFixture
@@ -309,15 +390,28 @@ mod test_utils {
         i64: TryFrom<T>,
     {
         fn from(value: I) -> Self {
-            Self {
-                nodes: value
+            Self(
+                value
                     .into_iter()
                     .filter_map(|(node, time, props)| {
-                        Some((node.try_into().ok()?, time.try_into().ok()?, props))
+                        Some((node.try_into().ok()?, (time.try_into().ok()?, props)))
+                    })
+                    .into_group_map()
+                    .into_iter()
+                    .map(|(k, t_props)| {
+                        (
+                            k,
+                            NodeUpdatesFixture {
+                                props: PropUpdatesFixture {
+                                    t_props,
+                                    ..Default::default()
+                                },
+                                node_type: None,
+                            },
+                        )
                     })
                     .collect(),
-                node_const_props: HashMap::new(),
-            }
+            )
         }
     }
 
@@ -325,10 +419,16 @@ mod test_utils {
         fn from(node_fix: NodeFixture) -> Self {
             Self {
                 nodes: node_fix,
-                edges: vec![],
-                edge_deletions: vec![],
-                no_props_edges: vec![],
-                edge_const_props: HashMap::new(),
+                edges: Default::default(),
+            }
+        }
+    }
+
+    impl From<EdgeFixture> for GraphFixture {
+        fn from(edges: EdgeFixture) -> Self {
+            GraphFixture {
+                nodes: Default::default(),
+                edges,
             }
         }
     }
@@ -340,173 +440,149 @@ mod test_utils {
         i64: TryFrom<T>,
     {
         fn from(edges: I) -> Self {
+            let edges = edges
+                .into_iter()
+                .filter_map(|(src, dst, t, props, layer)| {
+                    Some((
+                        (src.try_into().ok()?, dst.try_into().ok()?, layer),
+                        (t.try_into().ok()?, props),
+                    ))
+                })
+                .into_group_map()
+                .into_iter()
+                .map(|(k, t_props)| {
+                    (
+                        k,
+                        EdgeUpdatesFixture {
+                            props: PropUpdatesFixture {
+                                t_props,
+                                c_props: vec![],
+                            },
+                            deletions: vec![],
+                        },
+                    )
+                })
+                .collect();
             Self {
-                edges: edges
-                    .into_iter()
-                    .filter_map(|(src, dst, t, props, layer)| {
-                        Some((
-                            src.try_into().ok()?,
-                            dst.try_into().ok()?,
-                            t.try_into().ok()?,
-                            props,
-                            layer,
-                        ))
-                    })
-                    .collect(),
-                no_props_edges: vec![],
-                edge_deletions: vec![],
-                edge_const_props: HashMap::new(),
+                edges: EdgeFixture(edges),
                 nodes: Default::default(),
             }
         }
     }
 
-    fn make_props(
-        schema: HashMap<String, PropType>,
-    ) -> (
-        BoxedStrategy<Vec<(String, Prop)>>,
-        BoxedStrategy<Vec<(String, Prop)>>,
-    ) {
-        let mut iter = schema.iter();
-
-        // split in half, one temporal one constant
-        let t_prop_s = (&mut iter)
-            .take(schema.len() / 2)
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect::<Vec<_>>();
-        let c_prop_s = iter
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect::<Vec<_>>();
-
-        let num_tprops = t_prop_s.len();
-        let num_cprops = c_prop_s.len();
-
-        let t_props =
-            proptest::sample::subsequence(t_prop_s, 0..=num_tprops).prop_flat_map(|schema| {
-                schema
-                    .into_iter()
-                    .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
-                    .collect::<Vec<_>>()
-            });
-        let c_props =
-            proptest::sample::subsequence(c_prop_s, 0..=num_cprops).prop_flat_map(|schema| {
-                schema
-                    .into_iter()
-                    .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
-                    .collect::<Vec<_>>()
-            });
-        (t_props.boxed(), c_props.boxed())
+    pub fn make_node_type() -> impl Strategy<Value = Option<&'static str>> {
+        proptest::sample::select(vec![None, Some("one"), Some("two")])
     }
+
+    pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
+        proptest::sample::subsequence(vec!["_default", "one", "two"], 0..=3)
+    }
+
+    pub fn build_window() -> impl Strategy<Value = (i64, i64)> {
+        any::<(i64, i64)>()
+    }
+
+    fn make_props(schema: Vec<(String, PropType)>) -> impl Strategy<Value = Vec<(String, Prop)>> {
+        let num_props = schema.len();
+        proptest::sample::subsequence(schema, 0..=num_props).prop_flat_map(|schema| {
+            schema
+                .into_iter()
+                .map(|(k, v)| prop(&v).prop_map(move |prop| (k.clone(), prop)))
+                .collect::<Vec<_>>()
+        })
+    }
+
+    fn prop_schema(len: usize) -> impl Strategy<Value = Vec<(String, PropType)>> {
+        proptest::collection::hash_map(0..len, prop_type(), 0..=len)
+            .prop_map(|v| v.into_iter().map(|(k, p)| (k.to_string(), p)).collect())
+    }
+
+    fn t_props(
+        schema: Vec<(String, PropType)>,
+        len: usize,
+    ) -> impl Strategy<Value = Vec<(i64, Vec<(String, Prop)>)>> {
+        proptest::collection::vec((any::<i64>(), make_props(schema)), 0..=len)
+    }
+
+    fn prop_updates(
+        schema: Vec<(String, PropType)>,
+        len: usize,
+    ) -> impl Strategy<Value = PropUpdatesFixture> {
+        let t_props = t_props(schema.clone(), len);
+        let c_props = make_props(schema);
+        (t_props, c_props).prop_map(|(t_props, c_props)| {
+            if t_props.is_empty() {
+                PropUpdatesFixture {
+                    t_props,
+                    c_props: vec![],
+                }
+            } else {
+                PropUpdatesFixture { t_props, c_props }
+            }
+        })
+    }
+
+    fn node_updates(
+        schema: Vec<(String, PropType)>,
+        len: usize,
+    ) -> impl Strategy<Value = NodeUpdatesFixture> {
+        (prop_updates(schema, len), make_node_type())
+            .prop_map(|(props, node_type)| NodeUpdatesFixture { props, node_type })
+    }
+
+    fn edge_updates(
+        schema: Vec<(String, PropType)>,
+        len: usize,
+        deletions: bool,
+    ) -> impl Strategy<Value = EdgeUpdatesFixture> {
+        let del_len = if deletions { len } else { 0 };
+        (
+            prop_updates(schema, len),
+            proptest::collection::vec(i64::MIN..i64::MAX, 0..=del_len),
+        )
+            .prop_map(|(props, deletions)| EdgeUpdatesFixture { props, deletions })
+    }
+
     pub(crate) fn build_nodes_dyn(
-        nodes: Vec<u64>,
+        num_nodes: usize,
         len: usize,
     ) -> impl Strategy<Value = NodeFixture> {
-        proptest::collection::hash_map(r"\w{1,10}", prop_type(), 2..3).prop_flat_map(
-            move |schema| {
-                let (t_props, c_props) = make_props(schema);
-
-                proptest::collection::vec(
-                    (
-                        proptest::sample::select(nodes.clone()),
-                        i64::MIN..i64::MAX,
-                        t_props,
-                        c_props,
-                    ),
-                    0..=len,
-                )
-                .prop_map(|edges| {
-                    let const_props = edges
-                        .iter()
-                        .into_group_map_by(|(src, _, _, _)| src)
-                        .iter()
-                        .map(|(&src, &ref b)| {
-                            let c_props = b
-                                .iter()
-                                .flat_map(|(_, _, _, c)| c.clone())
-                                .collect::<Vec<_>>();
-                            (*src, c_props)
-                        })
-                        .collect::<HashMap<_, _>>();
-
-                    let nodes = edges
-                        .into_iter()
-                        .map(|(node, time, t_props, _)| (node, time, t_props))
-                        .collect::<Vec<_>>();
-
-                    NodeFixture {
-                        nodes,
-                        node_const_props: const_props,
-                    }
-                })
-            },
-        )
+        let schema = prop_schema(len);
+        schema.prop_flat_map(move |schema| {
+            proptest::collection::hash_map(
+                0..num_nodes as u64,
+                node_updates(schema.clone(), len),
+                0..=len,
+            )
+            .prop_map(NodeFixture)
+        })
     }
 
     pub(crate) fn build_edge_list_dyn(
         len: usize,
         num_nodes: usize,
         del_edges: bool,
-    ) -> impl Strategy<Value = GraphFixture> {
+    ) -> impl Strategy<Value = EdgeFixture> {
         let num_nodes = num_nodes as u64;
-        let edges = proptest::collection::hash_map(any::<String>(), prop_type(), 0..10)
-            .prop_flat_map(move |schema| {
-                let (t_props, c_props) = make_props(schema);
 
-                proptest::collection::vec(
-                    (
-                        0..num_nodes,
-                        0..num_nodes,
-                        i64::MIN..i64::MAX,
-                        t_props,
-                        c_props,
-                        proptest::sample::select(vec![Some("a"), Some("b"), None]),
-                    ),
-                    0..=len,
-                )
-                .prop_flat_map(move |edges| {
-                    let no_props = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=len,
-                    );
-                    let del_len = if del_edges { len } else { 0 };
-                    let del_edges = proptest::collection::vec(
-                        (0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX),
-                        0..=del_len,
-                    );
-                    (no_props, del_edges).prop_map(move |(no_prop_edges, del_edges)| {
-                        let edges = edges.clone();
-                        let const_props = edges
-                            .iter()
-                            .into_group_map_by(|(src, dst, _, _, _, _)| (src, dst))
-                            .iter()
-                            .map(|(&a, &ref b)| {
-                                let (src, dst) = a;
-                                let c_props = b
-                                    .iter()
-                                    .flat_map(|(_, _, _, _, c, _)| c.clone())
-                                    .collect::<Vec<_>>();
-                                ((*src, *dst), c_props)
-                            })
-                            .collect::<HashMap<_, _>>();
+        let schema = prop_schema(len);
+        schema.prop_flat_map(move |schema| {
+            proptest::collection::hash_map(
+                (
+                    0..num_nodes,
+                    0..num_nodes,
+                    proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                ),
+                edge_updates(schema.clone(), len, del_edges),
+                0..=len,
+            )
+            .prop_map(EdgeFixture)
+        })
+    }
 
-                        let edges = edges
-                            .into_iter()
-                            .map(|(src, dst, time, t_props, _, layer)| {
-                                (src, dst, time, t_props, layer)
-                            })
-                            .collect::<Vec<_>>();
-
-                        GraphFixture {
-                            edges,
-                            edge_const_props: const_props,
-                            edge_deletions: del_edges,
-                            no_props_edges: no_prop_edges,
-                            nodes: Default::default(),
-                        }
-                    })
-                })
-            });
-        edges
+    pub(crate) fn build_props_dyn(len: usize) -> impl Strategy<Value = PropUpdatesFixture> {
+        let schema = prop_schema(len);
+        schema.prop_flat_map(move |schema| prop_updates(schema, len))
     }
 
     pub(crate) fn build_graph_strat(
@@ -514,36 +590,9 @@ mod test_utils {
         num_nodes: usize,
         del_edges: bool,
     ) -> impl Strategy<Value = GraphFixture> {
-        build_edge_list_dyn(len, num_nodes, del_edges).prop_flat_map(|g_fixture| {
-            let mut nodes = g_fixture
-                .edges
-                .iter()
-                .flat_map(|(src, dst, _, _, _)| [*src, *dst])
-                .collect_vec();
-            nodes.sort_unstable();
-            nodes.dedup();
-
-            if nodes.is_empty() {
-                Just(g_fixture).boxed()
-            } else {
-                let GraphFixture {
-                    edges,
-                    edge_const_props,
-                    no_props_edges,
-                    edge_deletions,
-                    ..
-                } = g_fixture;
-                build_nodes_dyn(nodes, 10)
-                    .prop_map(move |nodes_f| GraphFixture {
-                        nodes: nodes_f,
-                        edges: edges.clone(),
-                        edge_deletions: edge_deletions.clone(),
-                        no_props_edges: no_props_edges.clone(),
-                        edge_const_props: edge_const_props.clone(),
-                    })
-                    .boxed()
-            }
-        })
+        let nodes = build_nodes_dyn(num_nodes, len);
+        let edges = build_edge_list_dyn(len, num_nodes, del_edges);
+        (nodes, edges).prop_map(|(nodes, edges)| GraphFixture { nodes, edges })
     }
 
     pub(crate) fn build_node_props(
@@ -576,41 +625,85 @@ mod test_utils {
         g
     }
 
-    pub(crate) fn build_graph<'a>(graph_fix: impl Into<GraphFixture>) -> Graph {
-        let g = Graph::new();
-        let graph_fix = graph_fix.into();
-        for (src, dst, time) in &graph_fix.no_props_edges {
-            g.add_edge(*time, *src, *dst, NO_PROPS, None).unwrap();
-        }
-        for (src, dst, time, props, layer) in &graph_fix.edges {
-            g.add_edge(*time, src, dst, props.clone(), *layer).unwrap();
-        }
-        for (src, dst, time) in &graph_fix.edge_deletions {
-            if let Some(edge) = g.edge(*src, *dst) {
-                edge.delete(*time, None).unwrap();
+    pub(crate) fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
+        let g = Arc::new(Storage::default());
+        for ((src, dst, layer), updates) in graph_fix.edges() {
+            for (t, props) in updates.props.t_props.iter() {
+                g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
+            }
+            if let Some(e) = g.edge(src, dst) {
+                if !updates.props.c_props.is_empty() {
+                    e.add_constant_properties(updates.props.c_props.clone(), layer)
+                        .unwrap();
+                }
+            }
+            for t in updates.deletions.iter() {
+                g.delete_edge(*t, src, dst, layer).unwrap();
             }
         }
 
-        for ((src, dst), props) in graph_fix.edge_const_props {
-            let edge = g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
-            edge.update_constant_properties(props, None).unwrap();
-        }
-        for (node, t, t_props) in &graph_fix.nodes.nodes {
-            if let Some(n) = g.node(*node) {
-                n.add_updates(*t, t_props.clone()).unwrap();
-            } else {
-                g.add_node(0, *node, t_props.clone(), None).unwrap();
+        for (node, updates) in graph_fix.nodes() {
+            for (t, props) in updates.props.t_props.iter() {
+                g.add_node(*t, node, props.clone(), None).unwrap();
             }
-        }
-        for (node, c_props) in &graph_fix.nodes.node_const_props {
-            if let Some(n) = g.node(*node) {
-                n.update_constant_properties(c_props.clone()).unwrap();
-            } else {
-                let node = g.add_node(0, *node, NO_PROPS, None).unwrap();
-                node.update_constant_properties(c_props.clone()).unwrap();
+            if let Some(node) = g.node(node) {
+                node.add_constant_properties(updates.props.c_props.clone())
+                    .unwrap();
+                if let Some(node_type) = updates.node_type {
+                    node.set_node_type(node_type).unwrap();
+                }
             }
         }
 
+        g
+    }
+
+    pub(crate) fn build_graph_layer(
+        graph_fix: &GraphFixture,
+        layers: impl Into<Layer>,
+    ) -> Arc<Storage> {
+        let g = Arc::new(Storage::default());
+        let layers = layers.into();
+
+        for ((src, dst, layer), updates) in graph_fix.edges() {
+            // properties always exist in the graph
+            for (_, props) in updates.props.t_props.iter() {
+                for (key, value) in props {
+                    g.resolve_edge_property(key, value.dtype(), false).unwrap();
+                }
+            }
+            for (key, value) in updates.props.c_props.iter() {
+                g.resolve_edge_property(key, value.dtype(), true).unwrap();
+            }
+
+            if layers.contains(layer.unwrap_or("_default")) {
+                for (t, props) in updates.props.t_props.iter() {
+                    g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
+                }
+                if let Some(e) = g.edge(src, dst) {
+                    if !updates.props.c_props.is_empty() {
+                        e.add_constant_properties(updates.props.c_props.clone(), layer)
+                            .unwrap();
+                    }
+                }
+                for t in updates.deletions.iter() {
+                    g.delete_edge(*t, src, dst, layer).unwrap();
+                }
+            }
+        }
+
+        for (node, updates) in graph_fix.nodes() {
+            for (t, props) in updates.props.t_props.iter() {
+                g.add_node(*t, node, props.clone(), None).unwrap();
+            }
+            if let Some(node) = g.node(node) {
+                node.add_constant_properties(updates.props.c_props.clone())
+                    .unwrap();
+                if let Some(node_type) = updates.node_type {
+                    node.set_node_type(node_type).unwrap();
+                }
+            }
+        }
         g
     }
 

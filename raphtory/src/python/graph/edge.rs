@@ -5,7 +5,6 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::Properties,
@@ -16,6 +15,7 @@ use crate::{
         },
         graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
     python::{types::repr::Repr, utils::PyTime},
 };
@@ -338,7 +338,7 @@ impl PyEdge {
     ///     str: The name of the layer
     #[getter]
     pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
-        self.edge.layer_name().map(|v| v.clone())
+        self.edge.layer_name()
     }
 
     /// Gets the datetime of an exploded edge.
@@ -387,12 +387,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
             )
         } else {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={}, layer(s)=[{}])",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={{{}}}, layer(s)=[{}])",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
                 latest_time,
-                format!("{{{properties}}}"),
+                properties,
                 layer_names_prev
             )
         }

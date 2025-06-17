@@ -10,6 +10,7 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
+    prelude::GraphViewOps,
 };
 use std::collections::HashSet;
 

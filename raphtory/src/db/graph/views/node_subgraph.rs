@@ -3,21 +3,26 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         state::Index,
-        storage::graph::{
-            edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-            nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-        },
         view::internal::{
-            Base, EdgeFilterOps, EdgeList, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-            InheritLayerOps, InheritMaterialize, InheritNodeHistoryFilter, InheritTimeSemantics,
-            ListOps, NodeFilterOps, NodeList, Static,
+            EdgeFilterOps, EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
+use raphtory_storage::{
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+};
 use std::fmt::{Debug, Formatter};
-
-use crate::db::api::view::internal::InheritStorageOps;
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
@@ -27,7 +32,7 @@ pub struct NodeSubgraph<G> {
 
 impl<G> Static for NodeSubgraph<G> {}
 
-impl<'graph, G: Debug + 'graph> Debug for NodeSubgraph<G> {
+impl<G: Debug> Debug for NodeSubgraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NodeSubgraph")
             .field("graph", &self.graph as &dyn Debug)
@@ -46,7 +51,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for NodeSubgraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for NodeSubgraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeSubgraph<G> {}
@@ -57,14 +62,18 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeSubgraph<
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {
-        let nodes = nodes
+        let nodes: Index<_> = nodes
             .into_iter()
-            .flat_map(|v| graph.internalise_node(v.as_node_ref()));
-        let nodes = if graph.nodes_filtered() {
-            Index::from_iter(nodes.filter(|n| graph.has_node(*n)))
-        } else {
-            Index::from_iter(nodes)
+            .flat_map(|v| graph.internalise_node(v.as_node_ref()))
+            .collect();
+        let filter = NodeSubgraph {
+            graph: &graph,
+            nodes: nodes.clone(),
         };
+        let nodes: Index<_> = nodes
+            .into_iter()
+            .filter(|vid| filter.has_node(*vid))
+            .collect();
         Self { graph, nodes }
     }
 }
@@ -76,8 +85,20 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 
     #[inline]
+    fn edge_history_filtered(&self) -> bool {
+        self.graph.edge_history_filtered()
+    }
+
+    #[inline]
     fn edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge_history(eid, t, layer_ids) && {
+            let core_edge = self.core_edge(eid.edge);
+            self.nodes.contains(&core_edge.src()) && self.nodes.contains(&core_edge.dst())
+        }
     }
 
     #[inline]
@@ -88,22 +109,21 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for NodeSubgraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeFilterOps for NodeSubgraph<G> {
-    fn nodes_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
         true
     }
-    // FIXME: should use list version and make this true
-    fn node_list_trusted(&self) -> bool {
+    fn internal_node_list_trusted(&self) -> bool {
         true
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
+    fn edge_and_node_filter_independent(&self) -> bool {
+        self.graph.edge_and_node_filter_independent()
     }
     #[inline]
-    fn filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_node(node, layer_ids) && self.nodes.contains(&node.vid())
     }
 }
 
@@ -125,12 +145,15 @@ mod subgraph_tests {
         algorithms::{
             components::weakly_connected_components, motifs::triangle_count::triangle_count,
         },
-        db::graph::graph::assert_graph_equal,
+        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
         test_storage,
+        test_utils::{build_graph, build_graph_strat},
     };
     use ahash::HashSet;
     use itertools::Itertools;
+    use proptest::{proptest, sample::subsequence};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::BTreeSet;
 
     #[test]
@@ -254,18 +277,11 @@ mod subgraph_tests {
             db::{
                 api::view::StaticGraphViewOps,
                 graph::{
-                    assertions::{ApplyFilter, GraphTransformer, TestGraphVariants},
-                    views::{
-                        filter::{
-                            internal::{InternalEdgeFilterOps, InternalNodeFilterOps},
-                            model::{AsEdgeFilter, AsNodeFilter},
-                        },
-                        node_subgraph::NodeSubgraph,
-                        window_graph::WindowedGraph,
-                    },
+                    assertions::{GraphTransformer, TestGraphVariants},
+                    views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
                 },
             },
-            prelude::{AdditionOps, GraphViewOps, NodeViewOps, TimeOps},
+            prelude::{GraphViewOps, NodeViewOps, TimeOps},
         };
         use std::ops::Range;
 
@@ -298,7 +314,6 @@ mod subgraph_tests {
 
         mod test_nodes_filters_node_subgraph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::{
@@ -314,8 +329,9 @@ mod subgraph_tests {
                         },
                     },
                 },
-                prelude::{AdditionOps, NodeViewOps, PropertyFilter},
+                prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let nodes = vec![
@@ -462,7 +478,6 @@ mod subgraph_tests {
 
         mod test_edges_filters_node_subgraph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::{
@@ -479,6 +494,7 @@ mod subgraph_tests {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -629,5 +645,33 @@ mod subgraph_tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn nodes_without_updates_are_filtered() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        let expected = Graph::new();
+        expected.resolve_layer(None).unwrap();
+        let subgraph = g.subgraph([0]);
+        assert_graph_equal(&subgraph, &expected);
+    }
+
+    #[test]
+    fn materialize_proptest() {
+        proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = Graph::from(build_graph(&graph));
+            let subgraph = graph.subgraph(nodes);
+            assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
+        })
+    }
+
+    #[test]
+    fn materialize_persistent_proptest() {
+        proptest!(|(graph in build_graph_strat(10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+            let graph = PersistentGraph::from(build_graph(&graph));
+            let subgraph = graph.subgraph(nodes);
+            assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
+        })
     }
 }

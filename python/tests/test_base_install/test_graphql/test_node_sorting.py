@@ -167,7 +167,7 @@ def test_graph_nodes_sort_by_earliest_time_reversed(graph):
     run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_latest_time(graph):
     query = """
         {
@@ -186,32 +186,6 @@ def test_graph_nodes_sort_by_latest_time(graph):
         "graph": {
             "nodes": {
                 "sorted": {"list": [{"id": "d"}, {"id": "b"}, {"id": "a"}, {"id": "c"}]}
-            }
-        }
-    }
-    run_graphql_test(query, expected_output, graph)
-
-
-@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
-def test_graph_nodes_sort_by_latest_time(graph):
-    query = """
-        {
-          graph(path: "g") {
-            nodes {
-              sorted(sortBys: [{time: LATEST}]) {
-                list {
-                  id
-                }
-              }
-            }
-          }
-        }
-    """
-    # In the persistent graph all nodes will have the same latest_time
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "sorted": {"list": [{"id": "a"}, {"id": "b"}, {"id": "d"}, {"id": "c"}]}
             }
         }
     }

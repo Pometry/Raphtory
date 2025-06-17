@@ -1,4 +1,5 @@
-use crate::{core::utils::errors::GraphResult, vectors::Embedding};
+use super::embeddings::EmbeddingFunction;
+use crate::{errors::GraphResult, vectors::Embedding};
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
 use moka::sync::Cache;
@@ -10,8 +11,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-use super::embeddings::EmbeddingFunction;
 
 const MAX_DISK_ITEMS: usize = 1_000_000;
 const MAX_VECTOR_DIM: usize = 8960;
@@ -39,7 +38,7 @@ impl VectorStore {
         let max_size =
             (MAX_DISK_ITEMS * (MAX_VECTOR_DIM * 4 + MAX_TEXT_LENGTH)) / page_size * page_size;
 
-        let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(&path) }?;
+        let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(path) }?;
         let mut wtxn = env.write_txn().unwrap();
         let db: VectorDb = env.create_database(&mut wtxn, None)?;
         wtxn.commit()?;
@@ -140,7 +139,7 @@ impl VectorCache {
         let hash = hash(text);
         self.cache.get(&hash)?;
         let entry = self.store.get(&hash)?;
-        if &entry.key == text {
+        if entry.key == text {
             Some(entry.value)
         } else {
             None
@@ -178,7 +177,7 @@ impl VectorCache {
                 None => Some(text.clone()),
             })
             .collect();
-        let mut fresh_vectors: VecDeque<_> = if misses.len() > 0 {
+        let mut fresh_vectors: VecDeque<_> = if !misses.is_empty() {
             self.function.call(misses).await?.into()
         } else {
             vec![].into()

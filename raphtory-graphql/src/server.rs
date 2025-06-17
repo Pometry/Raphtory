@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     config::app_config::{load_config, AppConfig},
@@ -22,7 +20,7 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::{
-    core::utils::errors::GraphResult,
+    errors::GraphResult,
     vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
 };
 use serde_json::json;
@@ -335,10 +333,6 @@ async fn server_termination(mut internal_signal: Receiver<()>, tp: Option<TP>) {
 
 #[cfg(test)]
 mod server_tests {
-    extern crate chrono;
-
-    use std::path::Path;
-
     use crate::server::GraphServer;
     use chrono::prelude::*;
     use raphtory::{
