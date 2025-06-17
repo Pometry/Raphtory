@@ -17,7 +17,6 @@ use dynamic_graphql::{
     App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
     Result, Upload,
 };
-use futures_util::TryFutureExt;
 use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
@@ -253,7 +252,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let g: MaterializedGraph = url_decode_graph(graph)?;
         if overwrite {
-            let _ignored = data.delete_graph(path);
+            let _ignored = data.delete_graph(path).await;
         }
         data.insert_graph(path, g).await?;
         Ok(path.to_owned())
@@ -290,7 +289,7 @@ impl Mut {
         #[cfg(feature = "search")]
         {
             let data = ctx.data_unchecked::<Data>();
-            let graph = data.get_graph(path)?.0.graph;
+            let graph = data.get_graph(path).await?.0.graph;
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;
