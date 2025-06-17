@@ -25,21 +25,23 @@ pub fn check_edges_support<
     ES: EdgeSegmentOps<Extension = EXT>,
     EXT: Clone + Default + Send + Sync,
 >(
-    edges: Vec<(impl Into<VID>, impl Into<VID>)>,
+    edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
     check_load: bool,
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, EXT>,
 ) {
     let mut edges = edges
         .into_iter()
-        .map(|(src, dst)| (src.into(), dst.into()))
+        .map(|(src, dst, layer_id)|
+            (src.into(), dst.into(), layer_id)
+        )
         .collect::<Vec<_>>();
 
     let graph_dir = tempfile::tempdir().unwrap();
     let graph = make_graph(graph_dir.path());
     let mut nodes = HashSet::new();
 
-    for (src, dst) in &edges {
+    for (src, dst, _) in &edges {
         nodes.insert(*src);
         nodes.insert(*dst);
     }
@@ -47,16 +49,34 @@ pub fn check_edges_support<
     if par_load {
         edges
             .par_iter()
-            .try_for_each(|(src, dst)| {
-                let _ = graph.add_edge(0, *src, *dst)?;
+            .try_for_each(|(src, dst, layer_id)| {
+                let lsn = 0;
+                let timestamp = 0;
+
+                if let Some(layer_id) = layer_id {
+                    let mut session = graph.write_session(*src, *dst, None);
+                    let _ = session.internal_add_edge(timestamp, *src, *dst, lsn, *layer_id, []);
+                } else {
+                    let _ = graph.add_edge(timestamp, *src, *dst)?;
+                }
+
                 Ok::<_, DBV4Error>(())
             })
             .expect("Failed to add edge");
     } else {
         edges
             .iter()
-            .try_for_each(|(src, dst)| {
-                let _ = graph.add_edge(0, *src, *dst)?;
+            .try_for_each(|(src, dst, layer_id)| {
+                let lsn = 0;
+                let timestamp = 0;
+
+                if let Some(layer_id) = layer_id {
+                    let mut session = graph.write_session(*src, *dst, None);
+                    let _ = session.internal_add_edge(timestamp, *src, *dst, lsn, *layer_id, []);
+                } else {
+                    let _ = graph.add_edge(timestamp, *src, *dst)?;
+                }
+
                 Ok::<_, DBV4Error>(())
             })
             .expect("Failed to add edge");
@@ -73,69 +93,80 @@ pub fn check_edges_support<
         EXT: Clone + Default,
     >(
         stage: &str,
-        es: &[(VID, VID)],
+        expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
         graph: &GraphStore<NS, ES, EXT>,
     ) {
         let nodes = graph.nodes();
         let edges = graph.edges();
-        let layer_id = 0;
 
-        if !es.is_empty() {
+        if !expected_edges.is_empty() {
             assert!(nodes.pages().count() > 0, "{stage}");
         }
 
-        let mut expected_graph: HashMap<VID, (Vec<VID>, Vec<VID>)> = es
-            .iter()
-            .chunk_by(|(src, _)| *src)
-            .into_iter()
-            .map(|(src, edges)| {
-                let mut out: Vec<_> = edges.map(|(_, dst)| *dst).collect();
-                out.sort_unstable();
-                out.dedup();
-                (src, (out, vec![]))
-            })
-            .collect::<HashMap<_, _>>();
+        // Group edges by layer_id first
+        let mut edges_by_layer: HashMap<usize, Vec<(VID, VID)>> = HashMap::new();
+        for (src, dst, layer_id) in expected_edges {
+            edges_by_layer
+                .entry(layer_id.unwrap_or(0)) // Default layer_id to 0
+                .or_default()
+                .push((*src, *dst));
+        }
 
-        let mut edges_sorted_by_dest = es.to_vec();
-        edges_sorted_by_dest.sort_unstable_by_key(|(_, dst)| *dst);
+        // For each layer, build the expected graph structure
+        for (layer_id, layer_edges) in edges_by_layer {
+            let mut expected_graph: HashMap<VID, (Vec<VID>, Vec<VID>)> = layer_edges
+                .iter()
+                .chunk_by(|(src, _)| *src)
+                .into_iter()
+                .map(|(src, edges)| {
+                    let mut out: Vec<_> = edges.map(|(_, dst)| *dst).collect();
+                    out.sort_unstable();
+                    out.dedup();
+                    (src, (out, vec![]))
+                })
+                .collect::<HashMap<_, _>>();
 
-        // now inbounds
-        edges_sorted_by_dest
-            .iter()
-            .chunk_by(|(_, dst)| *dst)
-            .into_iter()
-            .for_each(|(dst, edges)| {
-                let mut edges: Vec<_> = edges.map(|(src, _)| *src).collect();
-                edges.sort_unstable();
-                edges.dedup();
-                let (_, inb) = expected_graph.entry(dst).or_default();
-                *inb = edges;
-            });
+            let mut edges_sorted_by_dest = layer_edges.clone();
+            edges_sorted_by_dest.sort_unstable_by_key(|(_, dst)| *dst);
 
-        for (n, (exp_out, exp_inb)) in expected_graph {
-            let entry = nodes.node(n);
+            // now inbounds
+            edges_sorted_by_dest
+                .iter()
+                .chunk_by(|(_, dst)| *dst)
+                .into_iter()
+                .for_each(|(dst, edges)| {
+                    let mut edges: Vec<_> = edges.map(|(src, _)| *src).collect();
+                    edges.sort_unstable();
+                    edges.dedup();
+                    let (_, inb) = expected_graph.entry(dst).or_default();
+                    *inb = edges;
+                });
 
-            let adj = entry.as_ref();
-            let out_nbrs: Vec<_> = adj.out_nbrs_sorted(layer_id).collect();
-            assert_eq!(out_nbrs, exp_out, "{stage} node: {:?}", n);
+            for (n, (exp_out, exp_inb)) in expected_graph {
+                let entry = nodes.node(n);
 
-            let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(layer_id).collect();
-            assert_eq!(in_nbrs, exp_inb, "{stage} node: {:?}", n);
+                let adj = entry.as_ref();
+                let out_nbrs: Vec<_> = adj.out_nbrs_sorted(layer_id).collect();
+                assert_eq!(out_nbrs, exp_out, "{stage} node: {:?} layer: {}", n, layer_id);
 
-            for (exp_dst, eid) in adj.out_edges(0) {
-                let elid = ELID::new(eid, layer_id);
-                let (src, dst) = edges.get_edge(elid).unwrap();
+                let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(layer_id).collect();
+                assert_eq!(in_nbrs, exp_inb, "{stage} node: {:?} layer: {}", n, layer_id);
 
-                assert_eq!(src, n, "{stage}");
-                assert_eq!(dst, exp_dst, "{stage}");
-            }
+                for (exp_dst, eid) in adj.out_edges(layer_id) {
+                    let elid = ELID::new(eid, layer_id);
+                    let (src, dst) = edges.get_edge(elid).unwrap();
 
-            for (exp_src, eid) in adj.inb_edges(0) {
-                let elid = ELID::new(eid, layer_id);
-                let (src, dst) = edges.get_edge(elid).unwrap();
+                    assert_eq!(src, n, "{stage} layer: {}", layer_id);
+                    assert_eq!(dst, exp_dst, "{stage} layer: {}", layer_id);
+                }
 
-                assert_eq!(src, exp_src, "{stage}");
-                assert_eq!(dst, n, "{stage}");
+                for (exp_src, eid) in adj.inb_edges(layer_id) {
+                    let elid = ELID::new(eid, layer_id);
+                    let (src, dst) = edges.get_edge(elid).unwrap();
+
+                    assert_eq!(src, exp_src, "{stage} layer: {}", layer_id);
+                    assert_eq!(dst, n, "{stage} layer: {}", layer_id);
+                }
             }
         }
     }

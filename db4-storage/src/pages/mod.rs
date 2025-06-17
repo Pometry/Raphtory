@@ -532,6 +532,10 @@ mod test {
         chunk_size: usize,
         par_load: bool,
     ) {
+        // Set optional layer_id to None
+        let layer_id = None;
+        let edges = edges.into_iter().map(|(src, dst)| (src, dst, layer_id)).collect();
+
         check_edges_support(edges, par_load, false, |graph_dir| {
             Layer::new(graph_dir, chunk_size, chunk_size)
         })
