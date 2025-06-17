@@ -1,11 +1,9 @@
-use crate::{
-    db::api::view::internal::{
-        time_semantics::{
-            filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
-            time_semantics_ops::NodeTimeSemanticsOps,
-        },
-        EdgeTimeSemanticsOps, GraphView,
+use crate::db::api::view::internal::{
+    time_semantics::{
+        filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
+        time_semantics_ops::NodeTimeSemanticsOps,
     },
+    EdgeTimeSemanticsOps, GraphView,
 };
 use either::Either;
 use itertools::Itertools;

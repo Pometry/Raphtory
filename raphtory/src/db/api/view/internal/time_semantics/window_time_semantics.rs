@@ -1,10 +1,8 @@
-use crate::{
-    db::api::view::internal::{
-        time_semantics::{
-            base_time_semantics::BaseTimeSemantics, time_semantics_ops::NodeTimeSemanticsOps,
-        },
-        EdgeTimeSemanticsOps, GraphView,
+use crate::db::api::view::internal::{
+    time_semantics::{
+        base_time_semantics::BaseTimeSemantics, time_semantics_ops::NodeTimeSemanticsOps,
     },
+    EdgeTimeSemanticsOps, GraphView,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds},
