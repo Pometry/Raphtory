@@ -231,13 +231,11 @@ pub(crate) mod data_tests {
     };
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
-    use std::{collections::HashMap, fs, fs::File, io, path::Path};
+    use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
+    use tokio::time::sleep;
+
     #[cfg(feature = "storage")]
-    use {
-        raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage},
-        std::path::PathBuf,
-        std::{thread, time::Duration},
-    };
+    use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 
     #[cfg(feature = "storage")]
     fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
@@ -272,6 +270,12 @@ pub(crate) mod data_tests {
         Ok(())
     }
 
+    fn create_graph_folder(path: &Path) {
+        fs::create_dir_all(path).unwrap();
+        File::create(path.join(".raph")).unwrap();
+        File::create(path.join("graph")).unwrap();
+    }
+
     pub(crate) fn save_graphs_to_work_dir(
         work_dir: &Path,
         graphs: &HashMap<String, MaterializedGraph>,
@@ -284,6 +288,7 @@ pub(crate) mod data_tests {
             if let GraphStorage::Disk(dg) = graph.core_graph() {
                 let disk_graph_path = dg.graph_dir();
                 copy_dir_recursive(disk_graph_path, &folder.get_graph_path())?;
+                File::create(folder.get_meta_path())?;
             } else {
                 graph.encode(folder)?;
             }
@@ -334,28 +339,8 @@ pub(crate) mod data_tests {
         }
     }
 
-    #[cfg(feature = "storage")]
-    fn list_top_level_files_and_dirs(path: &Path) -> io::Result<Vec<String>> {
-        let mut entries_vec = Vec::new();
-        let entries = fs::read_dir(path)?;
-
-        for entry in entries {
-            let entry = entry?;
-            let entry_path = entry.path();
-
-            if let Some(file_name) = entry_path.file_name() {
-                if let Some(file_str) = file_name.to_str() {
-                    entries_vec.push(file_str.to_string());
-                }
-            }
-        }
-
-        Ok(entries_vec)
-    }
-
-    #[test]
-    #[cfg(feature = "storage")]
-    fn test_save_graphs_to_work_dir() {
+    #[tokio::test]
+    async fn test_save_graphs_to_work_dir() {
         let tmp_graph_dir = tempfile::tempdir().unwrap();
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
@@ -368,27 +353,32 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        let graph2 = DiskGraphStorage::from_graph(&graph, &tmp_graph_dir.path().join("test_dg"))
+        #[cfg(feature = "storage")]
+        let graph2: MaterializedGraph = graph
+            .persist_as_disk_graph(tmp_graph_dir.path())
             .unwrap()
-            .into_graph()
             .into();
 
         let graph: MaterializedGraph = graph.into();
-        let graphs = HashMap::from([
-            ("test_g".to_string(), graph),
-            ("test_dg".to_string(), graph2),
-        ]);
 
-        save_graphs_to_work_dir(&tmp_work_dir.path(), &graphs).unwrap();
+        let mut graphs = HashMap::new();
 
-        let mut graphs = list_top_level_files_and_dirs(&tmp_work_dir.path()).unwrap();
-        graphs.sort();
-        assert_eq!(graphs, vec!["test_dg", "test_g"]);
+        graphs.insert("test_g".to_string(), graph);
+
+        #[cfg(feature = "storage")]
+        graphs.insert("test_dg".to_string(), graph2);
+
+        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
+
+        let data = Data::new(tmp_work_dir.path(), &Default::default());
+
+        for graph in graphs.keys() {
+            assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
+        }
     }
 
-    #[cfg(feature = "storage")]
-    #[test]
-    fn test_eviction() {
+    #[tokio::test]
+    async fn test_eviction() {
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
@@ -400,12 +390,6 @@ pub(crate) mod data_tests {
             .unwrap();
 
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-
-        let disk_graph_path = tmp_work_dir.path().join("test_dg");
-        fs::create_dir(&disk_graph_path).unwrap();
-        File::create(disk_graph_path.join(".raph")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
-
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
         let configs = AppConfigBuilder::new()
@@ -415,26 +399,21 @@ pub(crate) mod data_tests {
 
         let data = Data::new(tmp_work_dir.path(), &configs);
 
-        assert!(!data.cache.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
+        assert!(!data.cache.contains_key(Path::new("test_g")));
+        assert!(!data.cache.contains_key(Path::new("test_g2")));
 
         // Test size based eviction
-        let _ = data.get_graph("test_dg");
-        assert!(data.cache.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
+        data.get_graph("test_g2").await.unwrap();
+        assert!(data.cache.contains_key(Path::new("test_g2")));
+        assert!(!data.cache.contains_key(Path::new("test_g")));
 
-        let _ = data.get_graph("test_g");
-        assert!(data.cache.contains_key(&PathBuf::from("test_g")));
+        data.get_graph("test_g").await.unwrap();
+        assert!(data.cache.contains_key(Path::new("test_g")));
+        assert!(!data.cache.contains_key(Path::new("test_g2")));
 
-        thread::sleep(Duration::from_secs(3));
-        assert!(!data.cache.contains_key(&PathBuf::from("test_dg")));
-        assert!(!data.cache.contains_key(&PathBuf::from("test_g")));
-    }
-
-    fn create_graph_folder(path: &Path) {
-        fs::create_dir_all(path).unwrap();
-        File::create(path.join(".raph")).unwrap();
-        File::create(path.join("graph")).unwrap();
+        sleep(Duration::from_secs(3)).await;
+        assert!(!data.cache.contains_key(Path::new("test_g")));
+        assert!(!data.cache.contains_key(Path::new("test_g2")));
     }
 
     #[tokio::test]
