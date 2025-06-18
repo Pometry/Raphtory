@@ -33,6 +33,7 @@ use session::WriteSession;
 
 pub mod edge_page;
 pub mod edge_store;
+pub mod layer_counter;
 pub mod locked;
 pub mod node_page;
 pub mod node_store;
@@ -134,42 +135,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
             event_id: AtomicUsize::new(t_len),
             _ext: ext,
         })
-    }
-
-    pub fn layer(
-        graph_dir: impl AsRef<Path>,
-        max_page_len_nodes: usize,
-        max_page_len_edges: usize,
-        node_meta: Arc<Meta>,
-        edge_meta: Arc<Meta>,
-    ) -> Self {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
-        let ext = EXT::default();
-
-        let nodes = Arc::new(NodeStorageInner::layer(
-            nodes_path,
-            max_page_len_nodes,
-            &node_meta,
-            ext.clone(),
-        ));
-        let edges = Arc::new(EdgeStorageInner::layer(
-            edges_path,
-            max_page_len_edges,
-            &edge_meta,
-            ext.clone(),
-        ));
-
-        Self {
-            nodes: nodes.clone(),
-            edges: edges.clone(),
-            edge_meta,
-            node_meta,
-            earliest: AtomicI64::new(0),
-            latest: AtomicI64::new(0),
-            event_id: AtomicUsize::new(0),
-            _ext: ext,
-        }
     }
 
     pub fn new(
@@ -518,7 +483,8 @@ mod test {
         Layer, NodeEntryOps, NodeRefOps,
         pages::test_utils::{
             AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
-            check_graph_with_props_support, edges_strat, make_edges, make_nodes,
+            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
+            make_nodes,
         },
     };
     use chrono::{DateTime, NaiveDateTime, Utc};
@@ -529,6 +495,23 @@ mod test {
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,
+        chunk_size: usize,
+        par_load: bool,
+    ) {
+        // Set optional layer_id to None
+        let layer_id = None;
+        let edges = edges
+            .into_iter()
+            .map(|(src, dst)| (src, dst, layer_id))
+            .collect();
+
+        check_edges_support(edges, par_load, false, |graph_dir| {
+            Layer::new(graph_dir, chunk_size, chunk_size)
+        })
+    }
+
+    fn check_edges_with_layers(
+        edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, layer_id
         chunk_size: usize,
         par_load: bool,
     ) {
@@ -588,6 +571,21 @@ mod test {
     }
 
     #[test]
+    fn test_storage_with_layers() {
+        let edges_strat = edges_strat_with_layers(10);
+
+        proptest!(|(edges in edges_strat, chunk_size in 1usize .. 100)|{
+            check_edges_with_layers(edges, chunk_size, false);
+        });
+    }
+
+    #[test]
+    fn test_storage_with_layers_1() {
+        let edges = vec![(VID(4), VID(0), Some(1)), (VID(0), VID(0), Some(6))];
+        check_edges_with_layers(edges, 4, false);
+    }
+
+    #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
         let g = Layer::new(graph_dir.path(), 32, 32);
@@ -611,10 +609,6 @@ mod test {
         };
 
         check(&g);
-        // drop(g);
-        //
-        // let g = GraphStore::<NoOpStrategy>::load(graph_dir.path()).unwrap();
-        // check(&g);
     }
 
     #[test]

@@ -1,21 +1,23 @@
-use crate::{LocalPOS, NodeSegmentOps, segments::node::MemNodeSegment};
+use crate::{
+    LocalPOS, NodeSegmentOps, pages::layer_counter::LayerCounter, segments::node::MemNodeSegment,
+};
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
 use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
-use std::{ops::DerefMut, sync::atomic::AtomicUsize};
+use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
     pub page: &'a NS,
     pub writer: MP, // TODO: rename to m_segment
-    pub global_num_nodes: &'a AtomicUsize,
+    pub l_counter: &'a LayerCounter,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
-    pub fn new(page: &'a NS, global_num_nodes: &'a AtomicUsize, writer: MP) -> Self {
+    pub fn new(page: &'a NS, global_num_nodes: &'a LayerCounter, writer: MP) -> Self {
         Self {
             page,
             writer,
-            global_num_nodes,
+            l_counter: global_num_nodes,
         }
     }
 
@@ -52,13 +54,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        self.writer.as_mut()[layer_id].set_lsn(lsn);
-        let is_new_node = self.writer.add_outbound_edge(t, src_pos, dst, e_id);
+        let is_new_node = self.writer.add_outbound_edge(t, src_pos, dst, e_id, lsn);
 
         if is_new_node && !self.page.check_node(src_pos, layer_id) {
-            self.page.increment_num_nodes();
-            self.global_num_nodes
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.l_counter.increment(layer_id);
         }
     }
 
@@ -93,14 +92,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         let e_id = e_id.into();
         let layer = e_id.layer();
-        self.writer.as_mut()[layer].set_lsn(lsn);
         let dst_pos = dst_pos.into();
-        let is_new_node = self.writer.add_inbound_edge(t, dst_pos, src, e_id);
+        let is_new_node = self.writer.add_inbound_edge(t, dst_pos, src, e_id, lsn);
 
         if is_new_node && !self.page.check_node(dst_pos, layer) {
-            self.page.increment_num_nodes();
-            self.global_num_nodes
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.l_counter.increment(layer);
         }
     }
 

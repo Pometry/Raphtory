@@ -137,7 +137,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 }
 
-pub trait NodeSegmentOps: Send + Sync {
+pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     type Extension;
 
     type Entry<'a>: NodeEntryOps<'a>
@@ -173,9 +173,13 @@ pub trait NodeSegmentOps: Send + Sync {
 
     fn head_mut(&self) -> RwLockWriteGuard<MemNodeSegment>;
 
-    fn num_nodes(&self) -> usize;
+    fn num_nodes(&self) -> usize {
+        self.layer_num_nodes(0)
+    }
 
-    fn increment_num_nodes(&self) -> usize;
+    fn num_layers(&self) -> usize;
+
+    fn layer_num_nodes(&self, layer_id: usize) -> usize;
 
     fn notify_write(
         &self,

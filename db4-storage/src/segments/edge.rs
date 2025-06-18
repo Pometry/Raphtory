@@ -66,6 +66,18 @@ impl MemEdgeSegment {
         }
     }
 
+    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<MemPageEntry> {
+        if layer_id >= self.layers.len() {
+            let max_page_len = self.layers[0].max_page_len();
+            let segment_id = self.layers[0].segment_id();
+            let meta = self.layers[0].meta().clone();
+            self.layers.resize_with(layer_id + 1, || {
+                SegmentContainer::new(segment_id, max_page_len, meta.clone())
+            });
+        }
+        &mut self.layers[layer_id]
+    }
+
     pub fn est_size(&self) -> usize {
         self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
     }
