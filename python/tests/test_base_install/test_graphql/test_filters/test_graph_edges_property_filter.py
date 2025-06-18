@@ -92,7 +92,7 @@ def test_graph_edge_property_filter_equal_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for Equal operator"
+    expected_error_message = "Invalid filter: Operator EQUAL requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -237,7 +237,7 @@ def test_graph_edge_property_filter_not_equal_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for NotEqual operator"
+    expected_error_message = "Invalid filter: Operator NOT_EQUAL requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -384,7 +384,7 @@ def test_graph_edge_property_filter_greater_than_or_equal_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for GreaterThanOrEqual operator"
+    expected_error_message = "Invalid filter: Operator GREATER_THAN_OR_EQUAL requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -536,7 +536,7 @@ def test_graph_edge_property_filter_less_than_or_equal_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for LessThanOrEqual operator"
+    expected_error_message = "Invalid filter: Operator LESS_THAN_OR_EQUAL requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -683,7 +683,7 @@ def test_graph_edge_property_filter_greater_than_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for GreaterThan operator"
+    expected_error_message = "Invalid filter: Operator GREATER_THAN requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -830,7 +830,7 @@ def test_graph_edge_property_filter_less_than_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for LessThan operator"
+    expected_error_message = "Invalid filter: Operator LESS_THAN requires a value"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1158,7 +1158,7 @@ def test_graph_edge_property_filter_is_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for IsIn operator"
+    expected_error_message = "Invalid filter: Operator IS_IN requires a list"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1186,7 +1186,7 @@ def test_graph_edge_property_filter_is_in_type_error():
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Str"
+        "Invalid filter: Operator IS_IN requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, EVENT_GRAPH)
 
@@ -1200,7 +1200,7 @@ def test_graph_edge_property_filter_is_in_type_error_persistent_graph():
               property: {
                   name: "prop1"
                   operator: IS_IN
-                  value: { str: "shivam" }
+                  value: { list: []}
             }
           }
         ) {
@@ -1371,7 +1371,7 @@ def test_graph_edge_property_filter_is_not_in_no_value_error(graph):
       }
     }
     """
-    expected_error_message = "Expected a value for IsNotIn operator"
+    expected_error_message = "Invalid filter: Operator IS_NOT_IN requires a list"
     run_graphql_error_test(query, expected_error_message, graph)
 
 
@@ -1399,7 +1399,7 @@ def test_graph_edge_property_filter_is_not_in_type_error():
     }
     """
     expected_error_message = (
-        "Wrong type for property eprop1: expected I64 but actual type is Str"
+        "Invalid filter: Operator IS_NOT_IN requires a list value, got Str(shivam)"
     )
     run_graphql_error_test(query, expected_error_message, EVENT_GRAPH)
 
@@ -1413,7 +1413,7 @@ def test_graph_edge_property_filter_is_not_in_type_error_persistent_graph():
               property: {
                   name: "eprop1"
                   operator: IS_NOT_IN
-                  value: { str: "shivam" }
+                  value: { list: []}
             }
           }
         ) {

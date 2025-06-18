@@ -46,6 +46,19 @@ pub trait NodeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph;
 
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize;
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize;
+
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

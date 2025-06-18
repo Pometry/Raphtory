@@ -2262,6 +2262,14 @@ class Node(object):
             int: The earliest time that the node exists as an integer.
         """
 
+    def edge_history_count(self) -> int:
+        """
+        Get the number of edge events for this node
+
+        Returns:
+            int: The number of edge events
+        """
+
     @property
     def edges(self) -> Edges:
         """
@@ -2802,6 +2810,14 @@ class Nodes(object):
 
         Returns:
             EarliestTimeView: a view of the earliest active times
+        """
+
+    def edge_history_count(self):
+        """
+        Return the number of edge updates for each node
+
+        Returns:
+            EdgeHistoryCountView: a view of the edge history counts
         """
 
     @property
@@ -3770,6 +3786,9 @@ class PathFromGraph(object):
     @property
     def earliest_time(self):
         """the node earliest times"""
+
+    def edge_history_count(self):
+        """Returns the number of edge updates for each node"""
 
     @property
     def edges(self) -> NestedEdges:

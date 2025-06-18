@@ -104,6 +104,25 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count(node, view))
+    }
+
+    #[inline]
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count_window(node, view, w))
+    }
+
+    #[inline]
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

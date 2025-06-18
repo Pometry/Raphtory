@@ -265,6 +265,10 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.history()).await
     }
 
+    async fn edge_history_count(&self) -> usize {
+        self.vv.edge_history_count()
+    }
+
     async fn is_active(&self) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.is_active()).await
@@ -346,7 +350,6 @@ impl GqlNode {
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            filter.validate()?;
             let filter: CompositeNodeFilter = filter.try_into()?;
             let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
             Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
