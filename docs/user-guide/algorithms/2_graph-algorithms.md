@@ -8,17 +8,19 @@ The following examples cover three `graphwide` algorithms:
 
 To run an algorithm you simply need to import the algorithm package, choose an algorithm to run, and give it your graph.
 
-```python
-from raphtory import algorithms as rp
+=== ":fontawesome-brands-python: Python"
 
-density = rp.directed_graph_density(lotr_graph)
-clustering_coefficient = rp.global_clustering_coefficient(lotr_graph)
-reciprocity = rp.global_reciprocity(lotr_graph)
+    ```python
+    from raphtory import algorithms as rp
 
-print(f"The graph's density is {density}")
-print(f"The graph's clustering coefficient is {clustering_coefficient}")
-print(f"The graph's reciprocity is {reciprocity}")
-```
+    density = rp.directed_graph_density(lotr_graph)
+    clustering_coefficient = rp.global_clustering_coefficient(lotr_graph)
+    reciprocity = rp.global_reciprocity(lotr_graph)
+
+    print(f"The graph's density is {density}")
+    print(f"The graph's clustering coefficient is {clustering_coefficient}")
+    print(f"The graph's reciprocity is {reciprocity}")
+    ```
 
 !!! Output
 

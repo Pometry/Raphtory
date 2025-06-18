@@ -8,23 +8,25 @@ In the below example we call `to_networkx()` on the network traffic graph, keepi
 !!! info 
     The resulting graph is a networkx `MultiDiGraph` since Raphtory graphs are both directed and have multiple edges between nodes.
 
-We call `to_networkx()` again, disabling the property and update history and reprint `ServerA` to show the difference.   
+We call `to_networkx()` again, disabling the property and update history and reprint `ServerA` to show the difference.
 
-```python
-nx_g = traffic_graph.to_networkx()
+=== ":fontawesome-brands-python: Python"
 
-print("Networkx graph:")
-print(nx_g)
-print()
-print("Full property history of ServerA:")
-print(nx_g.nodes["ServerA"])
-print()
+    ```python
+    nx_g = traffic_graph.to_networkx()
 
-nx_g = traffic_graph.to_networkx(include_property_history=False)
+    print("Networkx graph:")
+    print(nx_g)
+    print()
+    print("Full property history of ServerA:")
+    print(nx_g.nodes["ServerA"])
+    print()
 
-print("Only the latest properties of ServerA:")
-print(nx_g.nodes["ServerA"])
-```
+    nx_g = traffic_graph.to_networkx(include_property_history=False)
+
+    print("Only the latest properties of ServerA:")
+    print(nx_g.nodes["ServerA"])
+    ```
 
 !!! Output
 
@@ -45,25 +47,27 @@ Once converted into a networkX graph you have access to their full suite of func
 
 In the code snippet below we use this functionality to draw a network traffic graph, labelling the nodes with their Server ID. For more information, see the [networkx](https://networkx.org/documentation/stable/reference/drawing.html) documentation.
 
-```python
-# mkdocs: render
-import matplotlib.pyplot as plt
-import networkx as nx
+=== ":fontawesome-brands-python: Python"
 
-from raphtory import Graph
-import pandas as pd
+    ```python
+    # mkdocs: render
+    import matplotlib.pyplot as plt
+    import networkx as nx
 
-server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
-server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
+    from raphtory import Graph
+    import pandas as pd
 
-traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
-    time="timestamp",
-    src="source",
-    dst="destination",
-)
+    server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+    server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
-nx_g = traffic_graph.to_networkx()
-nx.draw(nx_g, with_labels=True, node_color="lightblue", edge_color="gray")
-```
+    traffic_graph = Graph()
+    traffic_graph.load_edges_from_pandas(
+        df=server_edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+    )
+
+    nx_g = traffic_graph.to_networkx()
+    nx.draw(nx_g, with_labels=True, node_color="lightblue", edge_color="gray")
+    ```

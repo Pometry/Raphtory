@@ -14,47 +14,49 @@ You can fetch a nodes property object and call the following functions to access
 
 In addition, the `Properties` class also has two attributes `constant` and `temporal` which have all of the above functions, but are restricted to only the properties which fall within their respective categories. The semantics for `ConstantProperties` are exactly the same as described above. However, `TemporalProperties` allow you to do much more, as described in the next section.
 
-```python
-from raphtory import Graph
+=== ":fontawesome-brands-python: Python"
 
-property_g = Graph()
-# Create the node and add a variety of temporal properties
-v = property_g.add_node(
-    timestamp=1,
-    id="User",
-    properties={"count": 1, "greeting": "hi", "encrypted": True},
-)
-property_g.add_node(
-    timestamp=2,
-    id="User",
-    properties={"count": 2, "balance": 0.6, "encrypted": False},
-)
-property_g.add_node(
-    timestamp=3,
-    id="User",
-    properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
-)
-# Add some constant properties
-v.add_constant_properties(
-    properties={
-        "inner data": {"name": "bob", "value list": [1, 2, 3]},
-        "favourite greetings": ["hi", "hello", "howdy"],
-    },
-)
-# Call all of the functions on the properties object
-properties = v.properties
-print("Property keys:", properties.keys())
-print("Property values:", properties.values())
-print("Property tuples:", properties.items())
-print("Latest value of balance:", properties.get("balance"))
-print("Property keys:", properties.as_dict(), "\n")
+    ```python
+    from raphtory import Graph
 
-# Access the keys of the constant and temporal properties individually
-constant_properties = properties.constant
-temporal_properties = properties.temporal
-print("Constant property keys:", constant_properties.keys())
-print("Constant property keys:", temporal_properties.keys())
-```
+    property_g = Graph()
+    # Create the node and add a variety of temporal properties
+    v = property_g.add_node(
+        timestamp=1,
+        id="User",
+        properties={"count": 1, "greeting": "hi", "encrypted": True},
+    )
+    property_g.add_node(
+        timestamp=2,
+        id="User",
+        properties={"count": 2, "balance": 0.6, "encrypted": False},
+    )
+    property_g.add_node(
+        timestamp=3,
+        id="User",
+        properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
+    )
+    # Add some constant properties
+    v.add_constant_properties(
+        properties={
+            "inner data": {"name": "bob", "value list": [1, 2, 3]},
+            "favourite greetings": ["hi", "hello", "howdy"],
+        },
+    )
+    # Call all of the functions on the properties object
+    properties = v.properties
+    print("Property keys:", properties.keys())
+    print("Property values:", properties.values())
+    print("Property tuples:", properties.items())
+    print("Latest value of balance:", properties.get("balance"))
+    print("Property keys:", properties.as_dict(), "\n")
+
+    # Access the keys of the constant and temporal properties individually
+    constant_properties = properties.constant
+    temporal_properties = properties.temporal
+    print("Constant property keys:", constant_properties.keys())
+    print("Constant property keys:", temporal_properties.keys())
+    ```
 
 !!! Output
 
@@ -86,15 +88,17 @@ Temporal properties have a history, this means that you can do more than just lo
 
 In the code below, we call a subset of these functions on the `Weight` property of the edge between `FELIPE` and `MAKO` in our previous monkey graph example.
 
-```python
-properties = g.edge("FELIPE", "MAKO").properties.temporal
-print("Property keys:", properties.keys())
-weight_prop = properties.get("Weight")
-print("Weight property history:", weight_prop.items())
-print("Average interaction weight:", weight_prop.mean())
-print("Total interactions:", weight_prop.count())
-print("Total interaction weight:", weight_prop.sum())
-```
+=== ":fontawesome-brands-python: Python"
+
+    ```python
+    properties = g.edge("FELIPE", "MAKO").properties.temporal
+    print("Property keys:", properties.keys())
+    weight_prop = properties.get("Weight")
+    print("Weight property history:", weight_prop.items())
+    print("Average interaction weight:", weight_prop.mean())
+    print("Total interactions:", weight_prop.count())
+    print("Total interaction weight:", weight_prop.sum())
+    ```
 
 !!! Output
 

@@ -11,31 +11,33 @@ Following this we access the history to get the earliest and latest update times
 !!!info 
     Note that we call `e.src.name` because `src` and `dst` return a node object, instead of just an id or name.
 
-```python
-e = g.edge("FELIPE", "MAKO")
-e_reversed = g.edge("MAKO", "FELIPE")
-e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
-e_reversed_history = [
-    date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
-]
+=== ":fontawesome-brands-python: Python"
 
-print(
-    f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
-)
-print(
-    f"and has updates between {e.earliest_date_time} and {e.latest_date_time} at the following times: {e_history}\n"
-)
-print(
-    f"The edge from {e_reversed.src.name} to {e_reversed.dst.name} covers the following layers: {e_reversed.layer_names}"
-)
-print(
-    f"and has updates between {e_reversed.earliest_date_time} and {e_reversed.latest_date_time} at the following times: {e_reversed_history}"
-)
-```
+    ```python
+    e = g.edge("FELIPE", "MAKO")
+    e_reversed = g.edge("MAKO", "FELIPE")
+    e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
+    e_reversed_history = [
+        date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
+    ]
+
+    print(
+        f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
+    )
+    print(
+        f"and has updates between {e.earliest_date_time} and {e.latest_date_time} at the following times: {e_history}\n"
+    )
+    print(
+        f"The edge from {e_reversed.src.name} to {e_reversed.dst.name} covers the following layers: {e_reversed.layer_names}"
+    )
+    print(
+        f"and has updates between {e_reversed.earliest_date_time} and {e_reversed.latest_date_time} at the following times: {e_reversed_history}"
+    )
+    ```
 
 !!! Output
 
-    ```
+    ```output
     The edge from FELIPE to MAKO covers the following layers: ['Touching', 'Grooming', 'Resting', 'Playing with', 'Grunting-Lipsmacking', 'Embracing', 'Carrying']
     and has updates between 2019-06-13 14:50:00+00:00 and 2019-07-09 11:17:00+00:00 at the following times: ['2019-06-13 14:50:00', '2019-06-13 14:54:00', '2019-06-19 09:11:00', '2019-06-20 15:08:00', '2019-06-20 15:08:00', '2019-06-20 15:09:00', '2019-06-21 11:47:00', '2019-06-24 10:58:00', '2019-06-24 10:58:00', '2019-06-24 10:59:00', '2019-06-24 10:59:00', '2019-06-24 10:59:00', '2019-06-24 10:59:00', '2019-06-24 10:59:00', '2019-06-24 15:41:00', '2019-06-24 15:41:00', '2019-06-24 15:41:00', '2019-06-24 15:42:00', '2019-06-27 13:53:00', '2019-06-28 10:18:00', '2019-06-28 10:19:00', '2019-07-01 08:46:00', '2019-07-03 10:16:00', '2019-07-03 10:16:00', '2019-07-03 10:17:00', '2019-07-03 10:17:00', '2019-07-03 10:18:00', '2019-07-09 11:17:00']
 
@@ -57,28 +59,30 @@ In the code below you can see an example of each of these functions. We first ca
     
     Singular functions such as `.layer_name` or `.time` can be called on exploded edges and plural functions such as `.layer_names` and `.history()` can be called on standard edges.
 
-```python
-print("Update history per layer:")
-for e in g.edge("FELIPE", "MAKO").explode_layers():
-    e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
-    print(
-        f"{e.src.name} interacted with {e.dst.name} with the following behaviour '{e.layer_name}' at this times: {e_history}"
-    )
+=== ":fontawesome-brands-python: Python"
 
-print()
-print("Individual updates as edges:")
-for e in g.edge("FELIPE", "MAKO").explode():
-    print(
-        f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
-    )
+    ```python
+    print("Update history per layer:")
+    for e in g.edge("FELIPE", "MAKO").explode_layers():
+        e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
+        print(
+            f"{e.src.name} interacted with {e.dst.name} with the following behaviour '{e.layer_name}' at this times: {e_history}"
+        )
 
-print()
-print("Individual updates for 'Touching' and 'Carrying:")
-for e in g.edge("FELIPE", "MAKO").layers(["Touching", "Carrying"]).explode():
-    print(
-        f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
-    )
-```
+    print()
+    print("Individual updates as edges:")
+    for e in g.edge("FELIPE", "MAKO").explode():
+        print(
+            f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
+        )
+
+    print()
+    print("Individual updates for 'Touching' and 'Carrying:")
+    for e in g.edge("FELIPE", "MAKO").layers(["Touching", "Carrying"]).explode():
+        print(
+            f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
+        )
+    ```
 
 !!! Output
 

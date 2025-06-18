@@ -8,27 +8,29 @@ Once a graph has been created by direct updates or by ingesting a dataframe you 
 
 In the example below we ingest the edge dataframe from the [last section](3_dataframes.md), save this graph and reload it into a second graph. These are both printed to show they contain the same data.
 
-```python
-from raphtory import Graph
-import pandas as pd
+=== ":fontawesome-brands-python: Python"
 
-edges_df = pd.read_csv("data/network_traffic_edges.csv")
-edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+    ```python
+    from raphtory import Graph
+    import pandas as pd
 
-g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
-    time="timestamp",
-    src="source",
-    dst="destination",
-    properties=["data_size_MB"],
-    layer_col="transaction_type",
-)
-g.save_to_file("/tmp/saved_graph") 
-loaded_graph = Graph.load_from_file("/tmp/saved_graph")
-print(g)
-print(loaded_graph)
-```
+    edges_df = pd.read_csv("data/network_traffic_edges.csv")
+    edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+
+    g = Graph()
+    g.load_edges_from_pandas(
+        df=edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
+        layer_col="transaction_type",
+    )
+    g.save_to_file("/tmp/saved_graph") 
+    loaded_graph = Graph.load_from_file("/tmp/saved_graph")
+    print(g)
+    print(loaded_graph)
+    ```
 
 !!! Output
 

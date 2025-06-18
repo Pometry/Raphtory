@@ -4,23 +4,25 @@ If you prefer to initially manipulate your data in a `dataframe` before converti
 ## Creating a graph from dataframes
 In the example below we are ingesting some network traffic data which includes different types of interactions between servers. First we read the data from disk into two dataframes, one for the server information (nodes) and one for the server interactions (edges). Then we convert the timestamp column to datetime objects. Finally, the two dataframes are printed out so you can see the headers and values.
 
-```python
-from raphtory import Graph
-import pandas as pd
+=== ":fontawesome-brands-python: Python"
 
-edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
-edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+    ```python
+    from raphtory import Graph
+    import pandas as pd
 
-nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
-nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
+    edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+    edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 
-pd.set_option('display.max_columns', None)  # so all columns are printed
-print("--- Edge Dataframe ---")
-print(f"{edges_df.head(2)}\n")
-print()
-print("--- Node Dataframe ---")
-print(f"{nodes_df.head(2)}\n")
-```
+    nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
+    nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
+
+    pd.set_option('display.max_columns', None)  # so all columns are printed
+    print("--- Edge Dataframe ---")
+    print(f"{edges_df.head(2)}\n")
+    print()
+    print("--- Node Dataframe ---")
+    print(f"{nodes_df.head(2)}\n")
+    ```
 
 !!! Output
 
@@ -74,33 +76,35 @@ For the parameters for the nodes, we specify:
 
 The resulting graph and an example node/edge are then printed to show the data fully converted.
 
-```python
-g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
-    time="timestamp",
-    src="source",
-    dst="destination",
-    properties=["data_size_MB"],
-    layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-)
-g.load_nodes_from_pandas(
-    df=nodes_df,
-    time="timestamp",
-    id="server_id",
-    properties=["OS_version", "primary_function", "uptime_days"],
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+=== ":fontawesome-brands-python: Python"
 
-)
+    ```python
+    g = Graph()
+    g.load_edges_from_pandas(
+        df=edges_df,
+        time="timestamp",
+        src="source",
+        dst="destination",
+        properties=["data_size_MB"],
+        layer_col="transaction_type",
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    )
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        time="timestamp",
+        id="server_id",
+        properties=["OS_version", "primary_function", "uptime_days"],
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
 
-print("The resulting graphs and example node/edge:")
-print(g)
-print(g.node("ServerA"))
-print(g.edge("ServerA", "ServerB"))
-```
+    )
+
+    print("The resulting graphs and example node/edge:")
+    print(g)
+    print(g.node("ServerA"))
+    print(g.edge("ServerA", "ServerB"))
+    ```
 
 !!! Output
 
@@ -119,44 +123,46 @@ Below we break the ingestion into a four stage process, adding the constant prop
 !!! warning 
     Constant properties can only be added to nodes and edges which are part of the graph. If you attempt to add a constant property without first adding the node/edge then Raphtory will throw an error.
 
-```python
-g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
-    src="source",
-    dst="destination",
-    time="timestamp",
-    properties=["data_size_MB"],
-    layer_col="transaction_type",
-)
+=== ":fontawesome-brands-python: Python"
 
-g.load_nodes_from_pandas(
-    df=nodes_df,
-    id="server_id",
-    time="timestamp",
-    properties=["OS_version", "primary_function", "uptime_days"],
-)
+    ```python
+    g = Graph()
+    g.load_edges_from_pandas(
+        df=edges_df,
+        src="source",
+        dst="destination",
+        time="timestamp",
+        properties=["data_size_MB"],
+        layer_col="transaction_type",
+    )
 
-g.load_edge_props_from_pandas(
-    df=edges_df,
-    src="source",
-    dst="destination",
-    layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-)
+    g.load_nodes_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        time="timestamp",
+        properties=["OS_version", "primary_function", "uptime_days"],
+    )
 
-g.load_node_props_from_pandas(
-    df=nodes_df,
-    id="server_id",
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-)
+    g.load_edge_props_from_pandas(
+        df=edges_df,
+        src="source",
+        dst="destination",
+        layer_col="transaction_type",
+        constant_properties=["is_encrypted"],
+        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    )
 
-print(g)
-print(g.node("ServerA"))
-print(g.edge("ServerA", "ServerB"))
-```
+    g.load_node_props_from_pandas(
+        df=nodes_df,
+        id="server_id",
+        constant_properties=["server_name", "hardware_type"],
+        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    )
+
+    print(g)
+    print(g.node("ServerA"))
+    print(g.edge("ServerA", "ServerB"))
+    ```
 
 !!! Output
 

@@ -12,18 +12,20 @@ For these examples we are going to use the [One graph to rule them all](https://
 
 This dataset is a simple edge list, consisting of the source character, destination character and the sentence they occurred together in (which we use as a timestamp). The dataframe for this can be seen in the output below.
 
-```python
-from raphtory import Graph
-import pandas as pd
+=== ":fontawesome-brands-python: Python"
 
-df = pd.read_csv("docs/data/lotr.csv")
-print(df)
+    ```python
+    from raphtory import Graph
+    import pandas as pd
 
-lotr_graph = Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
-)
-```
+    df = pd.read_csv("docs/data/lotr.csv")
+    print(df)
+
+    lotr_graph = Graph()
+    lotr_graph.load_edges_from_pandas(
+        df=df,time="time", src="src", dst="dst"
+    )
+    ```
 
 !!! Output
 

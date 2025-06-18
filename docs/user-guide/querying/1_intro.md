@@ -11,23 +11,25 @@ In the below code loads this dataset into a dataframe and does a small amount of
 - Agonistic (negative interaction) → `-1` 
 - Other (neutral interaction) → `0`
 
-```python
-import pandas as pd
+=== ":fontawesome-brands-python: Python"
 
-edges_df = pd.read_csv(
-    "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
-)
-edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
-edges_df.dropna(axis=0, inplace=True)
-edges_df["Weight"] = edges_df["Category"].apply(
-    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
-)
-print(edges_df.head())
-```
+    ```python
+    import pandas as pd
+
+    edges_df = pd.read_csv(
+        "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    )
+    edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+    edges_df.dropna(axis=0, inplace=True)
+    edges_df["Weight"] = edges_df["Category"].apply(
+        lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+    )
+    print(edges_df.head())
+    ```
 
 !!! Output
 
-    ```python
+    ```output
                   DateTime   Actor Recipient  Behavior     Category  Weight
     15 2019-06-13 09:50:00  ANGELE    FELIPE  Grooming  Affiliative       1
     17 2019-06-13 09:50:00  ANGELE    FELIPE  Grooming  Affiliative       1
@@ -38,24 +40,26 @@ print(edges_df.head())
 
 Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`. 
 
-```python
-import raphtory as rp
+=== ":fontawesome-brands-python: Python"
 
-g = rp.Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
-    src="Actor",
-    dst="Recipient",
-    time="DateTime",
-    layer_col="Behavior",
-    properties=["Weight"],
-)
-print(g)
-```
+    ```python
+    import raphtory as rp
+
+    g = rp.Graph()
+    g.load_edges_from_pandas(
+        df=edges_df,
+        src="Actor",
+        dst="Recipient",
+        time="DateTime",
+        layer_col="Behavior",
+        properties=["Weight"],
+    )
+    print(g)
+    ```
 
 !!! Output
 
-    ```python
+    ```output
     Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=1560419400000, latest_time=1562756700000)
     ```
  

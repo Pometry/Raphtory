@@ -8,22 +8,24 @@ The second category of algorithms are `node centric` which return a value for ea
 
 Raphtory's implementation returns the score for each node. These are **continuous values**, meaning we can discover the most important characters in our Lord of the Rings dataset via `top_k()`.
 
-In the example below we first get the result of an individual character (Gandalf), followed by the values of the top 5 most important characters. 
+In the example below we first get the result of an individual character (Gandalf), followed by the values of the top 5 most important characters.
 
-```python
-from raphtory import algorithms as rp
+=== ":fontawesome-brands-python: Python"
 
-results = rp.pagerank(lotr_graph)
+    ```python
+    from raphtory import algorithms as rp
 
-# Getting the results for an individual character (Gandalf)
-gandalf_rank = results.get("Gandalf")
-print(f"Gandalf's ranking is {gandalf_rank}\n")
+    results = rp.pagerank(lotr_graph)
 
-# Getting the top 5 most important characters and printing out their scores
-top_5 = results.top_k(5)
-for rank, (node, score) in enumerate(top_5.items(),1):
-    print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
-```
+    # Getting the results for an individual character (Gandalf)
+    gandalf_rank = results.get("Gandalf")
+    print(f"Gandalf's ranking is {gandalf_rank}\n")
+
+    # Getting the top 5 most important characters and printing out their scores
+    top_5 = results.top_k(5)
+    for rank, (node, score) in enumerate(top_5.items(),1):
+        print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
+    ```
 
 !!! Output
 
@@ -51,25 +53,27 @@ In the example below we first run the algorithm and print the result so we can s
 
 Next we take the results and group the nodes by these IDs and calculate the size of the largest component. Almost all nodes are within this component (134 of the 139), as is typical for social networks.
 
-```python
-from raphtory import algorithms as rp
+=== ":fontawesome-brands-python: Python"
 
-results = rp.weakly_connected_components(lotr_graph)
+    ```python
+    from raphtory import algorithms as rp
 
-print(f"{results}\n")
+    results = rp.weakly_connected_components(lotr_graph)
 
-# Group the components together
-components = results.groups()
+    print(f"{results}\n")
 
-# Get the size of each component
-component_sizes = {key: len(value) for key, value in components}
-# Get the key for the largest component
-largest_component = max(component_sizes, key=component_sizes.get)
-# Print the size of the largest component
-print(
-    f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph."
-)
-```
+    # Group the components together
+    components = results.groups()
+
+    # Get the size of each component
+    component_sizes = {key: len(value) for key, value in components}
+    # Get the key for the largest component
+    largest_component = max(component_sizes, key=component_sizes.get)
+    # Print the size of the largest component
+    print(
+        f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph."
+    )
+    ```
 
 !!! Output
 
