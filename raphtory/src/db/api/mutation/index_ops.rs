@@ -97,7 +97,6 @@ impl<G: AdditionOps> IndexMutationOps for G {
     }
 
     fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
-        let path = path.join("index");
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.persist_index_to_disk(&path)?;

@@ -22,7 +22,7 @@ use crate::{
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
         fields,
-        graph_index::GraphIndex,
+        graph_index::{GraphIndex, Index},
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
     },
@@ -37,12 +37,12 @@ use tantivy::{
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
-    index: &'a GraphIndex,
+    index: &'a Index,
     query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> NodeFilterExecutor<'a> {
-    pub fn new(index: &'a GraphIndex) -> Self {
+    pub fn new(index: &'a Index) -> Self {
         Self {
             index,
             query_builder: QueryBuilder::new(index),
