@@ -10,12 +10,31 @@ Raphtory's implementation returns the score for each node. These are **continuou
 
 In the example below we first get the result of an individual character (Gandalf), followed by the values of the top 5 most important characters. 
 
-{{code_block('getting-started/algorithms','pagerank',['Graph'])}}
+```python
+from raphtory import algorithms as rp
+
+results = rp.pagerank(lotr_graph)
+
+# Getting the results for an individual character (Gandalf)
+gandalf_rank = results.get("Gandalf")
+print(f"Gandalf's ranking is {gandalf_rank}\n")
+
+# Getting the top 5 most important characters and printing out their scores
+top_5 = results.top_k(5)
+for rank, (node, score) in enumerate(top_5.items(),1):
+    print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
+```
 
 !!! Output
 
-    ```python exec="on" result="text" session="algorithms"
-    --8<-- "python/getting-started/algorithms.py:pagerank"
+    ```output
+    Gandalf's ranking is 0.015810830531114203
+
+    Rank 1: Aragorn with a score of 0.09526
+    Rank 2: Faramir with a score of 0.06148
+    Rank 3: Elrond with a score of 0.04042
+    Rank 4: Boromir with a score of 0.03468
+    Rank 5: Legolas with a score of 0.03323
     ```
 
 ## Discrete Results: Connected Components
@@ -32,10 +51,30 @@ In the example below we first run the algorithm and print the result so we can s
 
 Next we take the results and group the nodes by these IDs and calculate the size of the largest component. Almost all nodes are within this component (134 of the 139), as is typical for social networks.
 
-{{code_block('getting-started/algorithms','connectedcomponents',['Graph'])}}
+```python
+from raphtory import algorithms as rp
+
+results = rp.weakly_connected_components(lotr_graph)
+
+print(f"{results}\n")
+
+# Group the components together
+components = results.groups()
+
+# Get the size of each component
+component_sizes = {key: len(value) for key, value in components}
+# Get the key for the largest component
+largest_component = max(component_sizes, key=component_sizes.get)
+# Print the size of the largest component
+print(
+    f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph."
+)
+```
 
 !!! Output
 
-    ```python exec="on" result="text" session="algorithms"
-    --8<-- "python/getting-started/algorithms.py:connectedcomponents"
+    ```output
+    NodeState(Frodo: 0, Elrond: 0, Gandalf: 0, Isildur: 0, Shadowfax: 0, Imrahil: 0, Nazgûl: 0, Gollum: 0, Gimli: 0, Aragorn: 0, ...)
+
+    The largest component contains 134 of the 139 nodes in the graph.
     ```

@@ -8,11 +8,34 @@ To enable these types of interactions to be represented, we provide an additiona
 
 The example below shows how to create and manipulate a *PersistentGraph* in Raphtory.
 
-{{code_block('getting-started/persistent-graph','simple_graph',['Graph'])}}
+=== ":fontawesome-brands-python: Python"
+
+    ```python
+    from raphtory import PersistentGraph
+
+    G = PersistentGraph()
+
+    # new friendship
+    G.add_edge(1, "Alice", "Bob")
+
+    # additional friend
+    G.add_edge(3, "Bob", "Charlie")
+
+    # a dispute
+    G.delete_edge(5, "Alice", "Bob")
+
+    # a resolution
+    G.add_edge(10, "Alice", "Bob")
+
+    print(f"G's edges are {G.edges}")
+    print(f"G's exploded edges are {G.edges.explode()}")
+    ```
+
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/persistent-graph"
-    --8<-- "python/getting-started/persistent-graph.py:simple_graph"
+    ```output
+    G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))
+    G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=10, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))
     ```
 
 Here we have a graph with two edges: one connecting Alice and Bob, and one connecting Bob and Charlie, and three _exploded edges_, one for each activation of Alice and Bob's edge and the activation of Bob and Charlie's edge. If an edge is not explicitly deleted, it is assumed to last forever (or at least until an integer max value).

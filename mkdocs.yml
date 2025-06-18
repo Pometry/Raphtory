@@ -27,6 +27,7 @@ theme:
     - navigation.tabs.sticky
     - navigation.footer
     - content.tabs.link
+    - content.code.copy
   icon:
     repo: fontawesome/brands/github
 extra_css:

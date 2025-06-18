@@ -29,22 +29,22 @@ To run the GraphQL server with `.run()`, create a python file `run_server.py` wi
 
 === ":fontawesome-brands-python: Python"
 
-```python
-from raphtory import graphql
+    ```python
+    from raphtory import graphql
 
-import argparse
-parser = argparse.ArgumentParser(description="For passing the working_dir")
-parser.add_argument(
-    "--working_dir",
-    type=str,
-    help="path for the working directory of the raphtory server",
-)
-args = parser.parse_args()
+    import argparse
+    parser = argparse.ArgumentParser(description="For passing the working_dir")
+    parser.add_argument(
+        "--working_dir",
+        type=str,
+        help="path for the working directory of the raphtory server",
+    )
+    args = parser.parse_args()
 
-server = graphql.GraphServer(args.working_dir)
+    server = graphql.GraphServer(args.working_dir)
 
-server.run()
-```
+    server.run()
+    ```
 
 To run the server:
 
@@ -58,15 +58,15 @@ It is also possible to start the server in Python with `.start()`. Below is an e
 
 === ":fontawesome-brands-python: Python"
 
-```python
-tmp_work_dir = tempfile.mkdtemp()
-with GraphServer(tmp_work_dir, tracing=True).start():
-    client = RaphtoryClient("http://localhost:1736")
-    client.send_graph(path="g", graph=new_graph)
+    ```python
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, tracing=True).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.send_graph(path="g", graph=new_graph)
 
-    query = """{graph(path: "g") {nodes {list {name}}}}"""
-    client.query(query)
-```
+        query = """{graph(path: "g") {nodes {list {name}}}}"""
+        client.query(query)
+    ```
 
 You can set the port in `RaphtoryClient()` to the port the GraphQL server should run on.
 

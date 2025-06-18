@@ -6,9 +6,32 @@ To handle these corner cases Raphtory provides the `subgraph()` function which t
 
 In the below example we demonstrate this by looking at the neighbours of `FELIPE` in the full graph, compared to a subgraph of `FELIPE`, `LIPS`, `NEKKE`, `LOME` and `BOBO`. We also show how that `subgraph()` can be combined with other view functions, in this case a window between the 17th and 18th of June.
 
-{{code_block('getting-started/querying','subgraph',[])}}
+```python
+temp = g.count_nodes()
+print(f"There are {temp} monkeys in the whole graph")
+
+subgraph = g.subgraph(["FELIPE", "LIPS", "NEKKE", "LOME", "BOBO"])
+print(f"There are {subgraph.count_nodes()} monkeys in the subgraph")
+neighbours = g.node("FELIPE").neighbours.name.collect()
+print(f"FELIPE has the following neighbours in the full graph: {neighbours}")
+neighbours = subgraph.node("FELIPE").neighbours.name.collect()
+print(f"FELIPE has the following neighbours in the subgraph: {neighbours}")
+start_day = datetime.strptime("2019-06-17", "%Y-%m-%d")
+end_day = datetime.strptime("2019-06-18", "%Y-%m-%d")
+neighbours = (
+    subgraph.node("FELIPE").window(start_day, end_day).neighbours.name.collect()
+)
+print(
+    f"FELIPE has the following neighbours in the subgraph between {start_day} and {end_day}: {neighbours}"
+)
+```
+
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/querying"
-    --8<-- "python/getting-started/querying.py:subgraph"
+    ```output
+    There are 22 monkeys in the whole graph
+    There are 5 monkeys in the subgraph
+    FELIPE has the following neighbours in the full graph: ['MALI', 'LOME', 'NEKKE', 'PETOULETTE', 'EWINE', 'ANGELE', 'VIOLETTE', 'BOBO', 'MAKO', 'FEYA', 'LIPS', 'ATMOSPHERE', 'FANA', 'MUSE', 'HARLEM', 'PIPO', 'ARIELLE', 'SELF']
+    FELIPE has the following neighbours in the subgraph: ['LOME', 'NEKKE', 'BOBO', 'LIPS']
+    FELIPE has the following neighbours in the subgraph between 2019-06-17 00:00:00 and 2019-06-18 00:00:00: ['NEKKE']
     ```
