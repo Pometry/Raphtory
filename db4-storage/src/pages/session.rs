@@ -61,6 +61,7 @@ impl<
         let e_id = edge.inner();
         let layer = e_id.layer();
 
+        // TODO: Is this right?
         // let edge_writer = self
         //     .edge_writer
         //     .as_mut()
