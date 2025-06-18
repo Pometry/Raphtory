@@ -233,7 +233,7 @@ impl Mut {
             MaterializedGraph::decode_from_bytes(&buf)?
         };
         if overwrite {
-            let _ignored = data.delete_graph(&path);
+            let _ignored = data.delete_graph(&path).await;
         }
         data.insert_graph(&path, graph).await?;
         Ok(path)
