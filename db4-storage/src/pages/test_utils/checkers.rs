@@ -4,9 +4,10 @@ use std::{
 };
 
 use itertools::Itertools;
-use raphtory_api::core::{entities::properties::{
-    prop::Prop, tprop::TPropOps,
-}, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::properties::{prop::Prop, tprop::TPropOps},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_core::{
     entities::{ELID, VID},
     storage::timeindex::TimeIndexOps,
@@ -23,7 +24,7 @@ use super::fixtures::{AddEdge, Fixture, NodeFixture};
 pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT: Clone + Default + Send + Sync,
+    EXT: Clone + Default + Send + Sync + std::fmt::Debug,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
@@ -53,12 +54,10 @@ pub fn check_edges_support<
 
                 if let Some(layer_id) = layer_id {
                     let mut session = graph.write_session(*src, *dst, None);
-                    let eid = session.add_static_edge(*src, *dst, lsn).inner();
-                    let elid = eid.with_layer(*layer_id);
+                    let eid = session.add_static_edge(*src, *dst, lsn);
+                    let elid = eid.map(|eid| eid.with_layer(*layer_id));
 
-                    session.add_edge_into_layer(
-                        timestamp, *src, *dst, MaybeNew::Existing(elid), lsn, []
-                    );
+                    session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
                 } else {
                     let _ = graph.add_edge(timestamp, *src, *dst)?;
                 }
@@ -79,7 +78,12 @@ pub fn check_edges_support<
                     let elid = eid.with_layer(*layer_id);
 
                     session.add_edge_into_layer(
-                        timestamp, *src, *dst, MaybeNew::Existing(elid), lsn, []
+                        timestamp,
+                        *src,
+                        *dst,
+                        MaybeNew::Existing(elid),
+                        lsn,
+                        [],
                     );
                 } else {
                     let _ = graph.add_edge(timestamp, *src, *dst)?;
@@ -98,7 +102,7 @@ pub fn check_edges_support<
     fn check<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
-        EXT: Clone + Default,
+        EXT: Clone + Default + std::fmt::Debug,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
@@ -155,10 +159,18 @@ pub fn check_edges_support<
 
                 let adj = entry.as_ref();
                 let out_nbrs: Vec<_> = adj.out_nbrs_sorted(layer_id).collect();
-                assert_eq!(out_nbrs, exp_out, "{stage} node: {:?} layer: {}", n, layer_id);
+                assert_eq!(
+                    out_nbrs, exp_out,
+                    "{stage} node: {:?} layer: {}",
+                    n, layer_id
+                );
 
                 let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(layer_id).collect();
-                assert_eq!(in_nbrs, exp_inb, "{stage} node: {:?} layer: {}", n, layer_id);
+                assert_eq!(
+                    in_nbrs, exp_inb,
+                    "{stage} node: {:?} layer: {}",
+                    n, layer_id
+                );
 
                 for (exp_dst, eid) in adj.out_edges(layer_id) {
                     let elid = ELID::new(eid, layer_id);

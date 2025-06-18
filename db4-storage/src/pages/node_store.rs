@@ -1,6 +1,6 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    LocalPOS, NodeSegmentOps, ReadLockedNS, error::DBV4Error, segments::node::MemNodeSegment,
+    error::DBV4Error, pages::layer_counter::LayerCounter, segments::node::MemNodeSegment, LocalPOS, NodeSegmentOps, ReadLockedNS
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
@@ -14,10 +14,12 @@ use std::{
     },
 };
 
+// graph // (nodes|edges) // graph segments // layers // chunks
+
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
-    num_nodes: AtomicUsize,
+    layer_counter: LayerCounter,
     nodes_path: PathBuf,
     max_page_len: usize,
     prop_meta: Arc<Meta>,
@@ -43,25 +45,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         }
     }
 
-    pub fn layer(
-        nodes_path: impl AsRef<Path>,
-        max_page_len: usize,
-        meta: &Arc<Meta>,
-        ext: EXT,
-    ) -> Self {
-        Self {
-            pages: boxcar::Vec::new(),
-            num_nodes: AtomicUsize::new(0),
-            nodes_path: nodes_path.as_ref().to_path_buf(),
-            max_page_len,
-            prop_meta: meta.clone(),
-            ext,
-        }
-    }
     pub fn new(nodes_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
         Self {
             pages: boxcar::Vec::new(),
-            num_nodes: AtomicUsize::new(0),
+            layer_counter: LayerCounter::new(),
             nodes_path: nodes_path.as_ref().to_path_buf(),
             max_page_len,
             prop_meta: Arc::new(Meta::new()),
@@ -106,11 +93,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
-        NodeWriter::new(segment, &self.num_nodes, head)
+        NodeWriter::new(segment, &self.layer_counter, head)
     }
 
     pub fn num_nodes(&self) -> usize {
-        self.num_nodes.load(atomic::Ordering::Relaxed)
+        self.layer_counter.get(0)
+    }
+
+    pub fn layer_num_nodes(&self, layer_id: usize) -> usize {
+        self.layer_counter.get(layer_id)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<NS>> {
@@ -120,12 +111,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     pub fn nodes_path(&self) -> &Path {
         &self.nodes_path
     }
-
-    // pub fn iter<'a>(&'a self) -> impl Iterator<Item = NodeStorageRef<'a>> + 'a {
-    //     self.pages()
-    //         .iter()
-    //         .flat_map(|(_, node_segment)| node_segment.iter(self.max_page_len))
-    // }
 
     pub fn load(
         nodes_path: impl AsRef<Path>,
@@ -180,16 +165,23 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             )));
         }
 
-        let num_nodes = pages
-            .iter()
-            .map(|(_, page)| page.num_nodes())
-            .sum::<usize>();
+        let mut layer_counts = vec![];
+
+        for (_, page) in pages.iter() {
+            for layer_id in 0..page.num_layers() {
+                let count = page.layer_num_nodes(layer_id);
+                if layer_counts.len() <= layer_id {
+                    layer_counts.resize(layer_id + 1, 0);
+                }
+                layer_counts[layer_id] += count;
+            }
+        }
 
         Ok(Self {
             pages,
             nodes_path: nodes_path.to_path_buf(),
             max_page_len,
-            num_nodes: AtomicUsize::new(num_nodes),
+            layer_counter: LayerCounter::from(layer_counts),
             prop_meta: meta,
             ext,
         })

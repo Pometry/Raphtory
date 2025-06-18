@@ -1,17 +1,17 @@
 use crate::{
     LocalPOS, NodeSegmentOps,
-    pages::{node_page::writer::NodeWriter, resolve_pos},
+    pages::{layer_counter::LayerCounter, node_page::writer::NodeWriter, resolve_pos},
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
-use std::{ops::DerefMut, sync::atomic::AtomicUsize};
+use std::ops::DerefMut;
 
 pub struct LockedNodePage<'a, NS> {
     page_id: usize,
     max_page_len: usize,
-    num_nodes: &'a AtomicUsize,
+    layer_counter: &'a LayerCounter,
     page: &'a NS,
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
 }
@@ -19,14 +19,14 @@ pub struct LockedNodePage<'a, NS> {
 impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
     pub fn new(
         page_id: usize,
-        num_nodes: &'a AtomicUsize,
+        layer_counter: &'a LayerCounter,
         max_page_len: usize,
         page: &'a NS,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {
         Self {
             page_id,
-            num_nodes,
+            layer_counter,
             max_page_len,
             page,
             lock,
@@ -35,7 +35,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
 
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
-        NodeWriter::new(self.page, self.num_nodes, self.lock.deref_mut())
+        NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
     }
 
     #[inline(always)]

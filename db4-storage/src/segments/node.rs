@@ -13,7 +13,7 @@ use raphtory_core::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    sync::{Arc, atomic, atomic::AtomicUsize},
+    sync::Arc,
 };
 
 use super::{HasRow, SegmentContainer};
@@ -79,6 +79,22 @@ impl AsMut<[SegmentContainer<AdjEntry>]> for MemNodeSegment {
 }
 
 impl MemNodeSegment {
+    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<AdjEntry> {
+        if layer_id >= self.layers.len() {
+            let max_page_len = self.layers[0].max_page_len();
+            let segment_id = self.layers[0].segment_id();
+            let meta = self.layers[0].meta().clone();
+            self.layers.resize_with(layer_id + 1, || {
+                SegmentContainer::new(segment_id, max_page_len, meta.clone())
+            });
+        }
+        &mut self.layers[layer_id]
+    }
+
+    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<AdjEntry>> {
+        self.layers.get(layer_id)
+    }
+
     pub fn lsn(&self) -> u64 {
         self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
     }
@@ -89,7 +105,7 @@ impl MemNodeSegment {
 
     #[inline(always)]
     fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
-        self.layers[layer_id]
+        self.layers.get(layer_id)?
             .get(&n)
             .map(|AdjEntry { adj, .. }| adj)
     }
@@ -132,11 +148,15 @@ impl MemNodeSegment {
         src_pos: LocalPOS,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
+        lsn: u64,
     ) -> bool {
         let dst = dst.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let add_out = self.layers[layer_id].reserve_local_row(src_pos).map_either(
+        let layer = self.get_or_create_layer(layer_id);
+        layer.set_lsn(lsn);
+
+        let add_out = layer.reserve_local_row(src_pos).map_either(
             |row| {
                 row.adj.add_edge_out(dst, e_id.edge);
                 row.row()
@@ -160,13 +180,16 @@ impl MemNodeSegment {
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
+        lsn: u64,
     ) -> bool {
         let src = src.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
 
-        let add_in = self.layers[layer_id].reserve_local_row(dst_pos).map_either(
+        let layer = self.get_or_create_layer(layer_id);
+        layer.set_lsn(lsn);
+        let add_in = layer.reserve_local_row(dst_pos).map_either(
             |row| {
                 row.adj.add_edge_into(src, e_id.edge);
                 row.row()
@@ -244,10 +267,10 @@ impl MemNodeSegment {
     }
 }
 
+#[derive(Debug)]
 pub struct NodeSegmentView<EXT = ()> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
-    num_nodes: AtomicUsize,
     _ext: EXT,
 }
 
@@ -292,7 +315,6 @@ impl NodeSegmentOps for NodeSegmentView {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
                 .into(),
             segment_id: page_id,
-            num_nodes: AtomicUsize::new(0),
             _ext: (),
         }
     }
@@ -311,14 +333,6 @@ impl NodeSegmentOps for NodeSegmentView {
 
     fn head_mut(&self) -> parking_lot::RwLockWriteGuard<MemNodeSegment> {
         self.inner.write()
-    }
-
-    fn num_nodes(&self) -> usize {
-        self.num_nodes.load(atomic::Ordering::Relaxed)
-    }
-
-    fn increment_num_nodes(&self) -> usize {
-        self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
     fn notify_write(
@@ -355,5 +369,15 @@ impl NodeSegmentOps for NodeSegmentView {
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {
         let pos = pos.into();
         MemNodeEntry::new(pos, self.head())
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_num_nodes(&self, layer_id: usize) -> usize {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
     }
 }

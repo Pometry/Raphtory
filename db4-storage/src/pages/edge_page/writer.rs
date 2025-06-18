@@ -66,8 +66,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
         self.writer
             .insert_static_edge_internal(edge_pos, src, dst, layer_id);
-        // self.est_size = self.page.increment_size(size_of::<(VID, VID)>())
-        //     + self.writer.as_ref().t_prop_est_size();
         edge_pos
     }
 
