@@ -1,6 +1,5 @@
 use crate::model::graph::namespace::Namespace;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct Namespaces {
@@ -20,25 +19,16 @@ impl Namespaces {
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<Namespace> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
-            self_clone
-                .namespaces
-                .iter()
-                .map(|n| n.clone())
-                .skip(start)
-                .take(limit)
-                .collect()
-        })
-        .await
-        .unwrap()
+        let start = offset * limit;
+        self.namespaces
+            .iter()
+            .skip(start)
+            .take(limit)
+            .cloned()
+            .collect()
     }
 
     async fn count(&self) -> usize {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.namespaces.iter().count())
-            .await
-            .unwrap()
+        self.namespaces.len()
     }
 }

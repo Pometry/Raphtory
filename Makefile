@@ -15,21 +15,30 @@ build-all: rust-build
 rust-test:
 	cargo test -q
 
-test-all: rust-test
-	cd python && pytest
-
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
 
 run-graphql:
 	cargo run --release -p raphtory-graphql
 
-rust-test-all:
-	cargo test --all --no-default-features
-	cargo check -p raphtory --no-default-features --features "io"
-	cargo check -p raphtory --no-default-features --features "python"
-	cargo check -p raphtory --no-default-features --features "search"
-	cargo check -p raphtory --no-default-features --features "vectors"
+rust-test-all: activate-storage
+	cargo test --all --features=storage
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+
+rust-test-all-public:
+	cargo test --all
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
+
+
+python-test: activate-storage
+	cd python && tox run -e ALL
+
+python-test-public:
+	cd python && tox run
+
+test-all: rust-test-all python-test
+
+test-all-public: rust-test-all-public python-test-public
 
 activate-storage:
 	./scripts/activate_private_storage.py

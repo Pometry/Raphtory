@@ -1,7 +1,8 @@
-use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
+use crate::{
+    model::graph::property::GqlProperty, paths::ExistingGraphFolder, rayon::blocking_compute,
+};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct MetaGraph {
@@ -17,10 +18,7 @@ impl MetaGraph {
 #[ResolvedObjectFields]
 impl MetaGraph {
     async fn name(&self) -> Option<String> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.get_graph_name().ok())
-            .await
-            .unwrap()
+        self.folder.get_graph_name().ok()
     }
     async fn path(&self) -> String {
         self.folder.get_original_path_str().to_owned()
@@ -36,12 +34,11 @@ impl MetaGraph {
     }
     async fn metadata(&self) -> Result<GqlGraphMetadata, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let metadata = self_clone.folder.read_metadata()?;
             Ok(GqlGraphMetadata::from(metadata))
         })
         .await
-        .unwrap()
     }
 }
 

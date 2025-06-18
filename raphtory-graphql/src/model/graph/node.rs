@@ -1,12 +1,15 @@
-use crate::model::graph::{
-    edges::GqlEdges,
-    filtering::{NodeFilter, NodeViewCollection},
-    nodes::GqlNodes,
-    path_from_node::GqlPathFromNode,
-    property::GqlProperties,
-    windowset::GqlNodeWindowSet,
-    WindowDuration,
-    WindowDuration::{Duration, Epoch},
+use crate::{
+    model::graph::{
+        edges::GqlEdges,
+        filtering::{NodeFilter, NodeViewCollection},
+        nodes::GqlNodes,
+        path_from_node::GqlPathFromNode,
+        property::GqlProperties,
+        windowset::GqlNodeWindowSet,
+        WindowDuration,
+        WindowDuration::{Duration, Epoch},
+    },
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -18,7 +21,6 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
@@ -58,16 +60,12 @@ impl GqlNode {
     }
     async fn layers(&self, names: Vec<String>) -> GqlNode {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.valid_layers(names).into())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.valid_layers(names).into()).await
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> GqlNode {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.exclude_valid_layers(names).into())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.exclude_valid_layers(names).into()).await
     }
 
     async fn layer(&self, name: String) -> GqlNode {
@@ -83,47 +81,37 @@ impl GqlNode {
         window: WindowDuration,
         step: Option<WindowDuration>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match window {
+        match window {
             Duration(window_duration) => match step {
                 Some(step) => match step {
                     Duration(step_duration) => Ok(GqlNodeWindowSet::new(
-                        self_clone
-                            .vv
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.vv.rolling(window_duration, Some(step_duration))?,
                     )),
                     Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlNodeWindowSet::new(
-                    self_clone.vv.rolling(window_duration, None)?,
+                    self.vv.rolling(window_duration, None)?,
                 )),
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
                     Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlNodeWindowSet::new(
-                        self_clone
-                            .vv
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.vv.rolling(window_duration, Some(step_duration))?,
                     )),
                 },
                 None => Ok(GqlNodeWindowSet::new(
-                    self_clone.vv.rolling(window_duration, None)?,
+                    self.vv.rolling(window_duration, None)?,
                 )),
             },
-        })
-        .await
-        .unwrap()
+        }
     }
 
     async fn expanding(&self, step: WindowDuration) -> Result<GqlNodeWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match step {
-            Duration(step) => Ok(GqlNodeWindowSet::new(self_clone.vv.expanding(step)?)),
-            Epoch(step) => Ok(GqlNodeWindowSet::new(self_clone.vv.expanding(step)?)),
-        })
-        .await
-        .unwrap()
+        match step {
+            Duration(step) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step)?)),
+            Epoch(step) => Ok(GqlNodeWindowSet::new(self.vv.expanding(step)?)),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> GqlNode {
@@ -136,9 +124,7 @@ impl GqlNode {
 
     async fn latest(&self) -> GqlNode {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.latest().into())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.latest().into()).await
     }
 
     async fn snapshot_at(&self, time: i64) -> GqlNode {
@@ -147,9 +133,7 @@ impl GqlNode {
 
     async fn snapshot_latest(&self) -> GqlNode {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.snapshot_latest().into())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.snapshot_latest().into()).await
     }
 
     async fn before(&self, time: i64) -> GqlNode {
@@ -250,30 +234,22 @@ impl GqlNode {
 
     async fn earliest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.earliest_time())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.earliest_time()).await
     }
 
     async fn first_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.history().first().cloned())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.history().first().cloned()).await
     }
 
     async fn latest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.latest_time())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.latest_time()).await
     }
 
     async fn last_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.history().last().cloned())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.history().last().cloned()).await
     }
 
     async fn start(&self) -> Option<i64> {
@@ -286,9 +262,7 @@ impl GqlNode {
 
     async fn history(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.history())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.history()).await
     }
 
     async fn edge_history_count(&self) -> usize {
@@ -297,9 +271,7 @@ impl GqlNode {
 
     async fn is_active(&self) -> bool {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.is_active())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.is_active()).await
     }
 
     ////////////////////////
@@ -324,41 +296,31 @@ impl GqlNode {
 
     async fn degree(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.degree())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.degree()).await
     }
 
     /// Returns the number edges with this node as the source
 
     async fn out_degree(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.out_degree())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.out_degree()).await
     }
 
     /// Returns the number edges with this node as the destination
 
     async fn in_degree(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.vv.in_degree())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.vv.in_degree()).await
     }
 
     async fn in_component(&self) -> GqlNodes {
         let self_clone = self.clone();
-        spawn_blocking(move || GqlNodes::new(in_component(self_clone.vv.clone()).nodes()))
-            .await
-            .unwrap()
+        blocking_compute(move || GqlNodes::new(in_component(self_clone.vv.clone()).nodes())).await
     }
 
     async fn out_component(&self) -> GqlNodes {
         let self_clone = self.clone();
-        spawn_blocking(move || GqlNodes::new(out_component(self_clone.vv.clone()).nodes()))
-            .await
-            .unwrap()
+        blocking_compute(move || GqlNodes::new(out_component(self_clone.vv.clone()).nodes())).await
     }
 
     async fn edges(&self) -> GqlEdges {
@@ -387,13 +349,12 @@ impl GqlNode {
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let filter: CompositeNodeFilter = filter.try_into()?;
             let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
             Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
         })
         .await
-        .unwrap()
     }
 }
 

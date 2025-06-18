@@ -1,12 +1,15 @@
-use crate::model::{
-    graph::{
-        edge::GqlEdge,
-        filtering::EdgesViewCollection,
-        windowset::GqlEdgesWindowSet,
-        WindowDuration,
-        WindowDuration::{Duration, Epoch},
+use crate::{
+    model::{
+        graph::{
+            edge::GqlEdge,
+            filtering::EdgesViewCollection,
+            windowset::GqlEdgesWindowSet,
+            WindowDuration,
+            WindowDuration::{Duration, Epoch},
+        },
+        sorting::{EdgeSortBy, SortByTime},
     },
-    sorting::{EdgeSortBy, SortByTime},
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -20,7 +23,6 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
@@ -56,30 +58,20 @@ impl GqlEdges {
     }
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(names)))
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(names)))
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
     async fn layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.ee.valid_layers(name))
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.ee.exclude_valid_layers(name))
     }
 
     async fn rolling(
@@ -87,47 +79,37 @@ impl GqlEdges {
         window: WindowDuration,
         step: Option<WindowDuration>,
     ) -> Result<GqlEdgesWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match window {
+        match window {
             Duration(window_duration) => match step {
                 Some(step) => match step {
                     Duration(step_duration) => Ok(GqlEdgesWindowSet::new(
-                        self_clone
-                            .ee
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.ee.rolling(window_duration, Some(step_duration))?,
                     )),
                     Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_duration, None)?,
+                    self.ee.rolling(window_duration, None)?,
                 )),
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
                     Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlEdgesWindowSet::new(
-                        self_clone
-                            .ee
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.ee.rolling(window_duration, Some(step_duration))?,
                     )),
                 },
                 None => Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_duration, None)?,
+                    self.ee.rolling(window_duration, None)?,
                 )),
             },
-        })
-        .await
-        .unwrap()
+        }
     }
 
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match step {
-            Duration(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
-            Epoch(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
-        })
-        .await
-        .unwrap()
+        match step {
+            Duration(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
+            Epoch(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -250,7 +232,7 @@ impl GqlEdges {
 
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let sorted: Arc<[_]> = self_clone
                 .ee
                 .iter()
@@ -308,7 +290,6 @@ impl GqlEdges {
             ))
         })
         .await
-        .unwrap()
     }
 
     ////////////////////////
@@ -329,25 +310,20 @@ impl GqlEdges {
 
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.iter().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ee.len()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone.iter().skip(start).take(limit).collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.iter().collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.iter().collect()).await
     }
 }

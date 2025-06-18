@@ -2,12 +2,12 @@ use crate::{
     data::get_relative_path,
     model::graph::{meta_graph::MetaGraph, meta_graphs::MetaGraphs, namespaces::Namespaces},
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::errors::InvalidPathReason;
 use std::path::PathBuf;
-use tokio::task::spawn_blocking;
 use walkdir::WalkDir;
 
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
@@ -61,7 +61,7 @@ impl Namespace {
 impl Namespace {
     async fn graphs(&self) -> MetaGraphs {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             MetaGraphs::new(
                 self_clone
                     .get_all_graph_folders()
@@ -78,38 +78,23 @@ impl Namespace {
             )
         })
         .await
-        .unwrap()
     }
     async fn path(&self) -> Result<String, InvalidPathReason> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            get_relative_path(
-                self_clone.base_dir.clone(),
-                self_clone.current_dir.as_path(),
-                true,
-            )
-        })
-        .await
-        .unwrap()
+        get_relative_path(self.base_dir.clone(), self.current_dir.as_path(), true)
     }
 
     async fn parent(&self) -> Option<Namespace> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            let parent = self_clone.current_dir.parent()?.to_path_buf();
-            if parent.starts_with(&self_clone.base_dir) {
-                Some(Namespace::new(self_clone.base_dir.clone(), parent))
-            } else {
-                None
-            }
-        })
-        .await
-        .unwrap()
+        let parent = self.current_dir.parent()?.to_path_buf();
+        if parent.starts_with(&self.base_dir) {
+            Some(Namespace::new(self.base_dir.clone(), parent))
+        } else {
+            None
+        }
     }
 
     async fn children(&self) -> Namespaces {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             Namespaces::new(
                 WalkDir::new(&self_clone.current_dir)
                     .max_depth(1)
@@ -135,6 +120,5 @@ impl Namespace {
             )
         })
         .await
-        .unwrap()
     }
 }

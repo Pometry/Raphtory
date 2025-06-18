@@ -4,13 +4,13 @@ use crate::{
         path_from_node::GqlPathFromNode,
     },
     paths::ExistingGraphFolder,
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{DynamicGraph, WindowSet},
     graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
 };
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "GraphWindowSet")]
@@ -28,14 +28,12 @@ impl GqlGraphWindowSet {
 impl GqlGraphWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlGraph> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -46,12 +44,11 @@ impl GqlGraphWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlGraph> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .ws
                 .clone()
@@ -59,7 +56,6 @@ impl GqlGraphWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 }
 
@@ -80,14 +76,12 @@ impl GqlNodeWindowSet {
 impl GqlNodeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -98,14 +92,11 @@ impl GqlNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|n| n.into()).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|n| n.into()).collect()).await
     }
 }
 
@@ -124,14 +115,12 @@ impl GqlNodesWindowSet {
 impl GqlNodesWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNodes> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -142,14 +131,11 @@ impl GqlNodesWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlNodes> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|n| GqlNodes::new(n)).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|n| GqlNodes::new(n)).collect()).await
     }
 }
 
@@ -168,14 +154,12 @@ impl GqlPathFromNodeWindowSet {
 impl GqlPathFromNodeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlPathFromNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -186,12 +170,11 @@ impl GqlPathFromNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlPathFromNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .ws
                 .clone()
@@ -199,7 +182,6 @@ impl GqlPathFromNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 }
 
@@ -218,14 +200,12 @@ impl GqlEdgeWindowSet {
 impl GqlEdgeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -236,14 +216,11 @@ impl GqlEdgeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|e| e.into()).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|e| e.into()).collect()).await
     }
 }
 
@@ -262,14 +239,12 @@ impl GqlEdgesWindowSet {
 impl GqlEdgesWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
     async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdges> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let start = offset * limit;
             self_clone
                 .ws
@@ -280,13 +255,10 @@ impl GqlEdgesWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdges> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|e| GqlEdges::new(e)).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|e| GqlEdges::new(e)).collect()).await
     }
 }

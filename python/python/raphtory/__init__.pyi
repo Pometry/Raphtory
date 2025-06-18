@@ -3342,6 +3342,14 @@ class PathFromNode(object):
     def earliest_time(self):
         """the node earliest times"""
 
+    def edge_history_count(self):
+        """
+        Get the number of edge updates for each node
+
+        Returns:
+            UsizeIterable:
+        """
+
     @property
     def edges(self) -> Edges:
         """
