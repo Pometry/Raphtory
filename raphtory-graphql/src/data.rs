@@ -294,9 +294,9 @@ pub(crate) mod data_tests {
         Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[cfg(feature = "storage")]
-    fn test_get_disk_graph_from_path() {
+    async fn test_get_disk_graph_from_path() {
         let tmp_graph_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
@@ -314,11 +314,11 @@ pub(crate) mod data_tests {
         let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
 
         let data = Data::new(&base_path, &Default::default());
-        let res = data.get_graph("test_dg").unwrap().0;
+        let res = data.get_graph("test_dg").await.unwrap().0;
         assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
 
         // Dir path doesn't exists
-        let res = data.get_graph("test_dg1");
+        let res = data.get_graph("test_dg1").await;
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.to_string().contains("Graph not found"));
@@ -327,7 +327,7 @@ pub(crate) mod data_tests {
         // Dir path exists but is not a disk graph path
         // let tmp_graph_dir = tempfile::tempdir().unwrap();
         // let res = read_graph_from_path(base_path, "");
-        let res = data.get_graph("");
+        let res = data.get_graph("").await;
         assert!(res.is_err());
         if let Err(err) = res {
             assert!(err.to_string().contains("Graph not found"));

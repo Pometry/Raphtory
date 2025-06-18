@@ -224,16 +224,16 @@ mod cache_tests {
         let vector_a: Embedding = [1.0].into();
         let vector_b: Embedding = [0.5].into();
 
-        assert_eq!(cache.get("a"), None);
-        assert_eq!(cache.get("b"), None);
+        assert_eq!(cache.get("a").await, None);
+        assert_eq!(cache.get("b").await, None);
 
-        cache.insert("a".to_owned(), vector_a.clone());
-        assert_eq!(cache.get("a"), Some(vector_a.clone()));
-        assert_eq!(cache.get("b"), None);
+        cache.insert("a".to_owned(), vector_a.clone()).await;
+        assert_eq!(cache.get("a").await, Some(vector_a.clone()));
+        assert_eq!(cache.get("b").await, None);
 
-        cache.insert("b".to_owned(), vector_b.clone());
-        assert_eq!(cache.get("a"), Some(vector_a));
-        assert_eq!(cache.get("b"), Some(vector_b));
+        cache.insert("b".to_owned(), vector_b.clone()).await;
+        assert_eq!(cache.get("a").await, Some(vector_a));
+        assert_eq!(cache.get("b").await, Some(vector_b));
     }
 
     #[tokio::test]
@@ -247,7 +247,12 @@ mod cache_tests {
     async fn test_cache() {
         test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
         let dir = tempdir().unwrap();
-        test_abstract_cache(VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap()).await;
+        test_abstract_cache(
+            VectorCache::on_disk(dir.path(), placeholder_embedding)
+                .await
+                .unwrap(),
+        )
+        .await;
     }
 
     #[tokio::test]
@@ -256,11 +261,15 @@ mod cache_tests {
         let dir = tempdir().unwrap();
 
         {
-            let cache = VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap();
-            cache.insert("a".to_owned(), vector.clone());
+            let cache = VectorCache::on_disk(dir.path(), placeholder_embedding)
+                .await
+                .unwrap();
+            cache.insert("a".to_owned(), vector.clone()).await;
         } // here the heed env gets closed
 
-        let loaded_from_disk = VectorCache::on_disk(dir.path(), placeholder_embedding).unwrap();
-        assert_eq!(loaded_from_disk.get("a"), Some(vector))
+        let loaded_from_disk = VectorCache::on_disk(dir.path(), placeholder_embedding)
+            .await
+            .unwrap();
+        assert_eq!(loaded_from_disk.get("a").await, Some(vector))
     }
 }

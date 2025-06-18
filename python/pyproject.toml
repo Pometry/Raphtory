@@ -37,7 +37,7 @@ test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytes
 tox = ["nbmake"]
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["extension-module"]
 python-source = "python"
 include = ["motif-images/*"]
 
