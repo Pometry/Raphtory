@@ -7,7 +7,7 @@ use std::{
 use crate::{
     error::DBV4Error,
     pages::{GraphStore, ReadLockedGraphStore},
-    segments::{edge::EdgeSegmentView, node::NodeSegmentView},
+    segments::{edge::EdgeSegmentView, edge_entry::{MemEdgeEntry, MemEdgeRef}, node::NodeSegmentView, node_entry::{MemNodeEntry, MemNodeRef}},
 };
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
@@ -18,6 +18,8 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
+use crate::pages::edge_store::ReadLockedEdgeStorage;
+use crate::pages::node_store::ReadLockedNodeStorage;
 
 // pub mod loaders;
 pub mod pages;
@@ -30,6 +32,14 @@ pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
 pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
+
+pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NodeSegmentView, P>;
+pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<EdgeSegmentView, P>;
+
+pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
+pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+pub type NodeEntryRef<'a> = MemNodeRef<'a>;
+pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
     type Extension;
@@ -144,6 +154,10 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     where
         Self: 'a;
 
+    type EntryRef<'a>: NodeRefOps<'a>
+    where
+        Self: 'a;
+
     fn latest(&self) -> Option<TimeIndexEntry>;
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
@@ -221,6 +235,14 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
 pub struct ReadLockedNS<NS> {
     ns: Arc<NS>,
     head: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+}
+
+impl <EXT: Send + Sync + Clone, NS:NodeSegmentOps<Extension = EXT>> ReadLockedNS<NS> {
+
+    pub fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> NS::EntryRef<'a> {
+        self.ns.entry(pos)
+    }
+
 }
 
 pub trait NodeEntryOps<'a> {

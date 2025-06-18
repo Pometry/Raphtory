@@ -73,11 +73,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         }
     }
 
-    pub fn nodes(&self) -> &NodeStorageInner<NS, EXT> {
+    pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
         &self.nodes
     }
 
-    pub fn edges(&self) -> &EdgeStorageInner<ES, EXT> {
+    pub fn edges(&self) -> &Arc<EdgeStorageInner<ES, EXT>> {
         &self.edges
     }
 

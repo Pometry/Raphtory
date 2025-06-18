@@ -4,6 +4,7 @@ use raphtory_api::core::entities::{
     LayerIds, EID, VID,
 };
 use raphtory_core::entities::edges::edge_store::MemEdge;
+use storage::{EdgeEntry, EdgeEntryRef};
 use std::ops::Range;
 
 #[cfg(feature = "storage")]
@@ -40,7 +41,7 @@ macro_rules! for_all_iter {
 
 #[derive(Copy, Clone, Debug)]
 pub enum EdgeStorageRef<'a> {
-    Mem(MemEdge<'a>),
+    Mem(EdgeEntryRef<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskEdge<'a>),
 }

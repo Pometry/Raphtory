@@ -5,6 +5,7 @@ use crate::{EdgeEntryOps, EdgeRefOps, LocalPOS};
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
 
+#[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {
     pos: LocalPOS,
     es: MES,
@@ -39,7 +40,7 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> EdgeEntryOps<'a> for Mem
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct MemEdgeRef<'a> {
     pos: LocalPOS,
     es: &'a MemEdgeSegment,

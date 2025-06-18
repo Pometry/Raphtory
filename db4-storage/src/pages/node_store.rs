@@ -30,6 +30,16 @@ pub struct ReadLockedNodeStorage<NS, EXT> {
     locked_pages: Box<[ReadLockedNS<NS>]>,
 }
 
+impl <NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedNodeStorage<NS, EXT> {
+
+    pub fn node(&self, node: impl Into<VID>) -> NS::Entry<'_> {
+        let (page_id, pos) = self.storage.resolve_pos(node);
+        let locked_page = self.locked_pages[page_id];
+        locked_page.entry_ref(pos)
+    }
+
+}
+
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_pages = self
@@ -70,6 +80,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     //             .collect(),
     //     )
     // }
+    
+    pub fn num_layers(&self) -> usize {
+        self.layer_counter.len()
+    }
 
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
         let (page_id, pos) = self.resolve_pos(node);

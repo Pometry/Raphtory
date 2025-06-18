@@ -1,5 +1,4 @@
 use std::{
-    ops::Deref,
     path::{Path, PathBuf},
     sync::{
         atomic::{self, AtomicUsize},
@@ -7,14 +6,13 @@ use std::{
     },
 };
 
+// use crate::entries::node::UnlockedNodeEntry;
 use raphtory_api::core::{entities::properties::meta::Meta, input::input_node::InputNode};
 use raphtory_core::entities::{
     graph::logical_to_physical::Mapping, nodes::node_ref::NodeRef,
     properties::graph_meta::GraphMeta, GidRef, VID,
 };
-use storage::{persist::strategy::PersistentStrategy, Extension, Layer, ES, NS};
-
-use crate::entries::node::{LockedNodeEntry, UnlockedNodeEntry};
+use storage::{persist::strategy::PersistentStrategy, Extension, Layer, ReadLockedLayer, ES, NS};
 
 pub mod entries;
 pub mod mutation;
@@ -29,8 +27,7 @@ pub struct TemporalGraph<EXT = Extension> {
     max_page_len_nodes: usize,
     max_page_len_edges: usize,
 
-    static_graph: Arc<Layer<EXT>>,
-    layers: boxcar::Vec<Arc<Layer<EXT>>>,
+    storage: Arc<Layer<EXT>>,
 
     edge_meta: Arc<Meta>,
     node_meta: Arc<Meta>,
@@ -39,38 +36,17 @@ pub struct TemporalGraph<EXT = Extension> {
     graph_meta: Arc<GraphMeta>,
 }
 
-#[derive(Debug)]
-pub struct ReadLockedTemporalGraph<EXT = Extension> {
-    pub graph: Arc<TemporalGraph<EXT>>,
-    static_graph: storage::ReadLockedLayer<EXT>,
-    locked_layers: Box<[storage::ReadLockedLayer<EXT>]>,
-}
-
-impl<EXT> ReadLockedTemporalGraph<EXT> {
-    pub fn graph(&self) -> &Arc<TemporalGraph<EXT>> {
-        &self.graph
-    }
-
-    pub fn node(&self, vid: VID) -> LockedNodeEntry<EXT> {
-        LockedNodeEntry::new(vid, self)
-    }
-
-    pub fn inner(&self) -> &TemporalGraph<EXT> {
-        &self.graph
-    }
-}
-
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    pub fn node(&self, vid: VID) -> UnlockedNodeEntry<EXT> {
-        UnlockedNodeEntry::new(vid, self)
-    }
+    // pub fn node(&self, vid: VID) -> UnlockedNodeEntry<EXT> {
+    //     UnlockedNodeEntry::new(vid, self)
+    // }
 
     pub fn read_event_counter(&self) -> usize {
         self.event_counter.load(atomic::Ordering::Relaxed)
     }
 
-    pub fn static_graph(&self) -> &Arc<Layer<EXT>> {
-        &self.static_graph
+    pub fn storage(&self) -> &Arc<Layer<EXT>> {
+        &self.storage
     }
 
     pub fn graph_meta(&self) -> &Arc<GraphMeta> {
@@ -78,7 +54,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn num_layers(&self) -> usize {
-        self.layers.count()
+        self.storage.nodes().num_layers()
     }
 
     #[inline]
@@ -95,29 +71,16 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
-        self.static_graph.nodes().num_nodes()
+        self.storage.nodes().num_nodes()
     }
 
     #[inline]
     pub fn internal_num_edges(&self) -> usize {
-        self.static_graph.edges().num_edges()
+        self.storage.edges().num_edges()
     }
 
-    pub fn read_locked(self: &Arc<Self>) -> ReadLockedTemporalGraph<EXT> {
-        let locked_layers = self
-            .layers
-            .iter()
-            .map(|(_, layer)| layer.read_locked())
-            .collect::<Box<_>>();
-        ReadLockedTemporalGraph {
-            graph: self.clone(),
-            static_graph: self.static_graph.read_locked(),
-            locked_layers,
-        }
-    }
-
-    pub fn layers(&self) -> &boxcar::Vec<Arc<Layer<EXT>>> {
-        &self.layers
+    pub fn read_locked(self: &Arc<Self>) -> ReadLockedLayer<EXT> {
+        self.storage.read_locked()
     }
 
     pub fn edge_meta(&self) -> &Arc<Meta> {

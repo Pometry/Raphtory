@@ -25,6 +25,10 @@ impl LayerCounter {
         }
         Self { layers }
     }
+    
+    pub fn len(&self) -> usize {
+        self.layers.count()
+    }
 
     pub fn increment(&self, layer_id: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);

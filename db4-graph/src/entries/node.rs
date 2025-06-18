@@ -1,6 +1,6 @@
 use raphtory_core::entities::VID;
 
-use crate::{ReadLockedTemporalGraph, TemporalGraph};
+use crate::TemporalGraph;
 
 #[derive(Debug, Copy, Clone)]
 pub struct LockedNodeEntry<'a, EXT> {

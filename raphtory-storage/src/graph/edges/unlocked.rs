@@ -3,9 +3,10 @@ use raphtory_core::{
     entities::graph::tgraph_storage::GraphStorage, storage::raw_edges::EdgeRGuard,
 };
 use rayon::prelude::*;
+use storage::{Extension, Layer};
 
 #[derive(Copy, Clone, Debug)]
-pub struct UnlockedEdges<'a>(pub(crate) &'a GraphStorage);
+pub struct UnlockedEdges<'a, EXT = Extension>(pub(crate) &'a Layer<EXT>);
 
 impl<'a> UnlockedEdges<'a> {
     pub fn iter(self) -> impl Iterator<Item = EdgeRGuard<'a>> + 'a {

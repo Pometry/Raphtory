@@ -6,6 +6,7 @@ use crate::graph::{
 use raphtory_api::core::entities::{LayerIds, EID};
 use raphtory_core::storage::raw_edges::LockedEdges;
 use rayon::iter::ParallelIterator;
+use storage::{Extension, ReadLockedEdges};
 use std::sync::Arc;
 
 #[cfg(feature = "storage")]
@@ -13,7 +14,7 @@ use crate::disk::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
 use crate::graph::variants::storage_variants2::StorageVariants2;
 
 pub enum EdgesStorage {
-    Mem(Arc<LockedEdges>),
+    Mem(Arc<ReadLockedEdges<Extension>>),
     #[cfg(feature = "storage")]
     Disk(DiskEdges),
 }
@@ -74,9 +75,9 @@ impl EdgesStorage {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum EdgesStorageRef<'a> {
-    Mem(&'a LockedEdges),
-    Unlocked(UnlockedEdges<'a>),
+pub enum EdgesStorageRef<'a, EXT = Extension> {
+    Mem(&'a ReadLockedEdges<EXT>),
+    Unlocked(UnlockedEdges<'a, EXT>),
     #[cfg(feature = "storage")]
     Disk(DiskEdgesRef<'a>),
 }

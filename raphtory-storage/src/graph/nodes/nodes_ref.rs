@@ -1,19 +1,16 @@
-use std::sync::Arc;
-
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
-use db4_graph::{ReadLockedTemporalGraph, TemporalGraph};
 use raphtory_api::core::entities::VID;
 use rayon::iter::ParallelIterator;
-use storage::Extension;
+use storage::{Extension, ReadLockedNodes};
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a, EXT = Extension> {
-    Mem(&'a ReadLockedTemporalGraph<EXT>),
-    Unlocked(ReadLockedTemporalGraph<EXT>),
+    Mem(&'a ReadLockedNodes<EXT>),
+    Unlocked(ReadLockedNodes<EXT>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }

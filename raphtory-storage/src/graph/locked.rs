@@ -3,44 +3,45 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::graph::{logical_to_physical::InvalidNodeId, tgraph::TemporalGraph},
+    entities::graph::logical_to_physical::InvalidNodeId,
     storage::{
-        raw_edges::{LockedEdges, WriteLockedEdges},
-        ReadLockedStorage, WriteLockedNodes,
+        raw_edges::WriteLockedEdges,
+        WriteLockedNodes,
     },
 };
 use std::sync::Arc;
-use storage::ReadLockedLayer;
+use db4_graph::TemporalGraph;
+use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
 #[derive(Debug)]
 pub struct LockedGraph {
-    pub(crate) nodes: Arc<ReadLockedStorage>,
-    pub(crate) edges: Arc<LockedEdges>,
+    pub(crate) nodes: Arc<ReadLockedNodes<Extension>>,
+    pub(crate) edges: Arc<ReadLockedEdges<Extension>>,
     pub graph: Arc<TemporalGraph>,
 }
 
-impl<'de> serde::Deserialize<'de> for LockedGraph {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        TemporalGraph::deserialize(deserializer).map(|graph| LockedGraph::new(Arc::new(graph)))
-    }
-}
-
-impl serde::Serialize for LockedGraph {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.graph.serialize(serializer)
-    }
-}
+// impl<'de> serde::Deserialize<'de> for LockedGraph {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: serde::Deserializer<'de>,
+//     {
+//         TemporalGraph::deserialize(deserializer).map(|graph| LockedGraph::new(Arc::new(graph)))
+//     }
+// }
+//
+// impl serde::Serialize for LockedGraph {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: serde::Serializer,
+//     {
+//         self.graph.serialize(serializer)
+//     }
+// }
 
 impl LockedGraph {
     pub fn new(graph: Arc<TemporalGraph>) -> Self {
-        let nodes = Arc::new(graph.storage.nodes_read_lock());
-        let edges = Arc::new(graph.storage.edges_read_lock());
+        let nodes = Arc::new(graph.storage().nodes().locked());
+        let edges = Arc::new(graph.storage().edges().locked());
         Self {
             nodes,
             edges,

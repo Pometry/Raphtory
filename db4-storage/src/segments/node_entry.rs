@@ -38,7 +38,7 @@ impl<'a, MNS: Deref<Target = MemNodeSegment>> NodeEntryOps<'a> for MemNodeEntry<
         }
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct MemNodeRef<'a> {
     pos: LocalPOS,
     ns: &'a MemNodeSegment,
