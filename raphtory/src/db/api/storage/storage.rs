@@ -222,6 +222,10 @@ impl AtomicAdditionOps for StorageWriteSession<'_> {
     ) -> MaybeNew<ELID> {
         todo!()
     }
+
+    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+        todo!("set_node_id is not implemented for StorageWriteSession");
+    }
 }
 
 impl<'a> SessionAdditionOps for StorageWriteSession<'a> {

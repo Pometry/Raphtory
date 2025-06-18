@@ -221,4 +221,19 @@ impl<
             }
         }
     }
+
+    pub fn store_node_id(&mut self, id: GidRef, vid: impl Into<VID>) -> Result<(), DBV4Error> {
+        // node ids go to const props in layer 0
+        let layer = 0;
+        let prop_name = NODE_ID_CONST_PROP_NAME;
+        let prop_val = match id {
+            GidRef::U64(id) => Prop::U64(id),
+            GidRef::Str(id) => Prop::Str(id.into()),
+        };
+        let props = vec![(prop_name, prop_val)];
+
+        self.graph.update_node_const_props(vid, layer, props)?;
+
+        Ok(())
+    }
 }
