@@ -1,6 +1,7 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    error::DBV4Error, pages::layer_counter::LayerCounter, segments::node::MemNodeSegment, LocalPOS, NodeSegmentOps, ReadLockedNS
+    LocalPOS, NodeSegmentOps, ReadLockedNS, error::DBV4Error, pages::layer_counter::LayerCounter,
+    segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
@@ -8,10 +9,7 @@ use raphtory_core::entities::{EID, VID};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{self, AtomicUsize},
-    },
+    sync::Arc,
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
