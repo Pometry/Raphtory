@@ -89,6 +89,21 @@ pub fn edges_strat(size: usize) -> impl Strategy<Value = Vec<(VID, VID)>> {
     })
 }
 
+pub fn edges_strat_with_layers(size: usize) -> impl Strategy<Value = Vec<(VID, VID, usize)>> {
+    const MAX_LAYERS: usize = 16;
+
+    (1..=size).prop_flat_map(|num_nodes| {
+        let num_edges = 0..(num_nodes * num_nodes);
+        let srcs = (0usize..num_nodes).prop_map(VID);
+        let dsts = (0usize..num_nodes).prop_map(VID);
+        let layer_ids = (0usize..MAX_LAYERS).prop_map(|i| i as usize);
+
+        num_edges.prop_flat_map(move |num_edges| {
+            collection::vec((srcs.clone(), dsts.clone(), layer_ids.clone()), num_edges as usize)
+        })
+    })
+}
+
 pub fn build_raw_edges(
     len: usize,
     num_nodes: usize,

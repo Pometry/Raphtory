@@ -518,7 +518,8 @@ mod test {
         Layer, NodeEntryOps, NodeRefOps,
         pages::test_utils::{
             AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
-            check_graph_with_props_support, edges_strat, make_edges, make_nodes,
+            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
+            make_nodes,
         },
     };
     use chrono::{DateTime, NaiveDateTime, Utc};
@@ -535,6 +536,21 @@ mod test {
         // Set optional layer_id to None
         let layer_id = None;
         let edges = edges.into_iter().map(|(src, dst)| (src, dst, layer_id)).collect();
+
+        check_edges_support(edges, par_load, false, |graph_dir| {
+            Layer::new(graph_dir, chunk_size, chunk_size)
+        })
+    }
+
+    fn check_edges_with_layers(
+        edges: Vec<(impl Into<VID>, impl Into<VID>, usize)>, // src, dst, layer_id
+        chunk_size: usize,
+        par_load: bool,
+    ) {
+        let edges = edges
+            .into_iter()
+            .map(|(src, dst, layer_id)| (src, dst, Some(layer_id)))
+            .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
             Layer::new(graph_dir, chunk_size, chunk_size)
@@ -589,6 +605,15 @@ mod test {
     fn test_one_edge() {
         let edges = vec![(2, 2)];
         check_edges(edges, 2, false);
+    }
+
+    #[test]
+    fn test_storage_with_layers() {
+        let edges_strat = edges_strat_with_layers(10);
+
+        proptest!(|(edges in edges_strat, chunk_size in 1usize .. 100)|{
+            check_edges_with_layers(edges, chunk_size, false);
+        });
     }
 
     #[test]

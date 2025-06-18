@@ -4,9 +4,9 @@ use std::{
 };
 
 use itertools::Itertools;
-use raphtory_api::core::entities::properties::{
+use raphtory_api::core::{entities::properties::{
     prop::Prop, tprop::TPropOps,
-};
+}, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{ELID, VID},
     storage::timeindex::TimeIndexOps,
@@ -32,9 +32,7 @@ pub fn check_edges_support<
 ) {
     let mut edges = edges
         .into_iter()
-        .map(|(src, dst, layer_id)|
-            (src.into(), dst.into(), layer_id)
-        )
+        .map(|(src, dst, layer_id)| (src.into(), dst.into(), layer_id))
         .collect::<Vec<_>>();
 
     let graph_dir = tempfile::tempdir().unwrap();
@@ -55,7 +53,12 @@ pub fn check_edges_support<
 
                 if let Some(layer_id) = layer_id {
                     let mut session = graph.write_session(*src, *dst, None);
-                    let _ = session.internal_add_edge(timestamp, *src, *dst, lsn, *layer_id, []);
+                    let eid = session.add_static_edge(*src, *dst, lsn).inner();
+                    let elid = eid.with_layer(*layer_id);
+
+                    session.add_edge_into_layer(
+                        timestamp, *src, *dst, MaybeNew::Existing(elid), lsn, []
+                    );
                 } else {
                     let _ = graph.add_edge(timestamp, *src, *dst)?;
                 }
@@ -72,7 +75,12 @@ pub fn check_edges_support<
 
                 if let Some(layer_id) = layer_id {
                     let mut session = graph.write_session(*src, *dst, None);
-                    let _ = session.internal_add_edge(timestamp, *src, *dst, lsn, *layer_id, []);
+                    let eid = session.add_static_edge(*src, *dst, lsn).inner();
+                    let elid = eid.with_layer(*layer_id);
+
+                    session.add_edge_into_layer(
+                        timestamp, *src, *dst, MaybeNew::Existing(elid), lsn, []
+                    );
                 } else {
                     let _ = graph.add_edge(timestamp, *src, *dst)?;
                 }

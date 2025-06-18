@@ -61,10 +61,12 @@ impl<
         let e_id = edge.inner();
         let layer = e_id.layer();
 
-        let edge_writer = self
-            .edge_writer
-            .as_mut()
-            .expect("Internal Error: Edge writer is not set");
+        // let edge_writer = self
+        //     .edge_writer
+        //     .as_mut()
+        //     .expect("Internal Error: Edge writer is not set");
+
+        let mut edge_writer = self.graph.edge_writer(e_id.edge);
 
         let node_max_page_len =
             self.node_writers.get_mut_src().writer.as_ref()[layer].max_page_len();
