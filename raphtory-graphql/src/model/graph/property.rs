@@ -17,8 +17,13 @@ use raphtory_api::core::{
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
-use std::{collections::HashMap, convert::TryFrom, fmt, sync::Arc};
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
 #[derive(InputObject, Clone, Debug)]
 pub struct ObjectEntry {
