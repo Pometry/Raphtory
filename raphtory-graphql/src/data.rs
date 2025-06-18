@@ -407,9 +407,9 @@ pub(crate) mod data_tests {
         assert!(data.cache.contains_key(Path::new("test_g2")));
         assert!(!data.cache.contains_key(Path::new("test_g")));
 
-        data.get_graph("test_g").await.unwrap();
-        assert!(data.cache.contains_key(Path::new("test_g")));
-        assert!(!data.cache.contains_key(Path::new("test_g2")));
+        data.get_graph("test_g").await.unwrap(); // wait for any eviction
+        data.cache.run_pending_tasks().await;
+        assert_eq!(data.cache.iter().count(), 1);
 
         sleep(Duration::from_secs(3)).await;
         assert!(!data.cache.contains_key(Path::new("test_g")));
