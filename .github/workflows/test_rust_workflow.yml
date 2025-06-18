@@ -49,9 +49,9 @@ jobs:
         with:
           cache-all-crates: true
       - name: Install nextest
-        uses: taiki-e/install-action@v2.53.0
+        uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: nextest@0.9.99
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
