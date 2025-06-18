@@ -19,10 +19,23 @@ impl Namespaces {
         self.namespaces.clone()
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<Namespace> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<Namespace> {
         let self_clone = self.clone();
         spawn_blocking(move || {
-            let start = offset * limit;
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .namespaces
                 .iter()
