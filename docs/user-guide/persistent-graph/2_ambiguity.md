@@ -16,18 +16,24 @@ For a *link-stream* graph there is a natural way to construct the graph regardle
 
 ## Order of resolving additions and deletions
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import PersistentGraph
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(1, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
+G.add_edge(3, "Alice", "Bob")
+G.delete_edge(7, "Alice", "Bob")
 
-    G.add_edge(1, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
-    G.add_edge(3, "Alice", "Bob")
-    G.delete_edge(7, "Alice", "Bob")
+print(G.edges.explode())
+```
+///
 
-    print(G.edges.explode())
-    ```
+
+```{.python continuation hide}
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))"
+```
 
 Here two edges between Alice and Bob overlap in time: one starting at time 1 and ending at time 5, another starting at time 3 and ending at time 7. 
 
@@ -49,16 +55,17 @@ In this example, the order is: edge addition at time 1, edge addition at time 3,
 
 Adding edges without a deletion afterwards results in an edge which lasts forever, while deleting an edge without a prior addition does not effect the history. However, hanging deletions are tracked as an object and if the history is later modified to add the corresponding edge at an earlier time the delete will become valid and occur as expected.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import PersistentGraph
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
-
-    G.delete_edge(5, "Alice", "Bob")
-    print(f"G's edges are {G.edges.explode()}")
-    G.add_edge(1, "Alice", "Bob")
-    print(f"G's edges are {G.edges.explode()}")
-    ```
+G.delete_edge(5, "Alice", "Bob")
+print(f"G's edges are {G.edges.explode()}")
+G.add_edge(1, "Alice", "Bob")
+print(f"G's edges are {G.edges.explode()}")
+```
+///
 
 Which results in the following:
 !!! Output
@@ -74,16 +81,17 @@ If the update times to an edge are all distinct from each other, the graph that 
 
 In the following, it is impossible to infer what the intended update order is so a tie-break is required.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import PersistentGraph
+G1 = PersistentGraph()
 
-    ```python
-    G1 = PersistentGraph()
+G1.add_edge(1, 1, 2, properties={"message":"hi"})
+G1.delete_edge(1, 1, 2)
 
-    G1.add_edge(1, 1, 2, properties={"message":"hi"})
-    G1.delete_edge(1, 1, 2)
-
-    print(f"G1's edges are {G1.edges.explode()}")
-    ```
+print(f"G1's edges are {G1.edges.explode()}")
+```
+///
 
 !!! Output
 
@@ -99,18 +107,19 @@ Layering allows different types of interaction to exist, and edges on different 
 
 Consider an example without layers:
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import PersistentGraph
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(1, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
+G.add_edge(3, "Alice", "Bob")
+G.delete_edge(7, "Alice", "Bob")
 
-    G.add_edge(1, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
-    G.add_edge(3, "Alice", "Bob")
-    G.delete_edge(7, "Alice", "Bob")
-
-    print(G.edges.explode())
-    ```
+print(G.edges.explode())
+```
+///
 
 !!! Output
 
@@ -120,9 +129,9 @@ Consider an example without layers:
 
 Now take a look at a  modified example with layers:
 
-=== ":fontawesome-brands-python: Python"
-
+/// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import PersistentGraph
 G = PersistentGraph()
 
 G.add_edge(1, "Alice", "Bob", layer="colleagues")
@@ -132,6 +141,7 @@ G.delete_edge(7, "Alice", "Bob", layer="friends")
 
 print(G.edges.explode())
 ```
+///
 
 !!! Output
 

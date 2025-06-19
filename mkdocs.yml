@@ -79,6 +79,7 @@ markdown_extensions:
       check_paths: true
       dedent_subsections: true
   - footnotes
+  - markdown_hide_code
 repo_url: https://github.com/pometry/raphtory
 repo_name: pometry/raphtory
 nav:
