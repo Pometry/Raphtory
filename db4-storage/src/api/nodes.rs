@@ -4,14 +4,27 @@ use std::{
     sync::Arc,
 };
 
+use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
+use raphtory_api::{
+    core::{
+        Direction,
+        entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps},
+    },
+    iter::IntoDynBoxed,
+};
 use raphtory_core::{
-    entities::{EID, VID},
+    entities::{EID, LayerIds, Multiple, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    utils::iter::GenLockedIter,
 };
 
-use crate::{LocalPOS, error::DBV4Error, segments::node::MemNodeSegment};
+use crate::{
+    LocalPOS,
+    error::DBV4Error,
+    segments::node::MemNodeSegment,
+    utils::{Iter3, Iter4},
+};
 
 pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     type Extension;
@@ -101,7 +114,7 @@ pub struct ReadLockedNS<NS: NodeSegmentOps> {
     head: NS::ArcLockedSegment,
 }
 
-pub trait NodeEntryOps<'a> {
+pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     type Ref<'b>: NodeRefOps<'b>
     where
         'a: 'b,
@@ -110,6 +123,19 @@ pub trait NodeEntryOps<'a> {
     fn as_ref<'b>(&'b self) -> Self::Ref<'b>
     where
         'a: 'b;
+
+    fn into_edges<'b: 'a>(
+        self,
+        layers: &'b LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self: Sized,
+    {
+        GenLockedIter::from((self, layers), |(e, layers)| {
+            e.as_ref().edges_iter(layers, dir).into_dyn_boxed()
+        })
+    }
 }
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
@@ -117,13 +143,74 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
 
     type TProps: TPropOps<'a>;
 
-    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
-    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
-    fn out_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn out_edges_sorted(
+        self,
+        layer_id: usize,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
-    fn inb_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
+    fn inb_edges_sorted(
+        self,
+        layer_id: usize,
+    ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
+
+    fn vid(&self) -> VID;
+
+    fn edges_dir(
+        self,
+        layer_id: usize,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self: Sized,
+    {
+        let src_pid = self.vid();
+        match dir {
+            Direction::OUT => Iter3::I(
+                self.out_edges(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v)),
+            ),
+            Direction::IN => Iter3::J(
+                self.inb_edges(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+            ),
+            Direction::BOTH => Iter3::K(
+                self.out_edges(layer_id)
+                    .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v))
+                    .merge_by(
+                        self.inb_edges(layer_id)
+                            .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
+                        |e1, e2| e1.remote() < e2.remote(),
+                    )
+                    .dedup(),
+            ),
+        }
+    }
+
+    fn edges_iter<'b>(
+        self,
+        layers_ids: &'b LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
+    where
+        Self: Sized,
+    {
+        match layers_ids {
+            LayerIds::One(layer_id) => Iter4::I(self.edges_dir(*layer_id, dir)),
+            LayerIds::All => Iter4::J(self.edges_dir(0, dir)),
+            LayerIds::Multiple(layers) => Iter4::K(
+                layers
+                    .into_iter()
+                    .map(|layer_id| self.edges_dir(layer_id, dir))
+                    .kmerge_by(|e1, e2| e1.remote() < e2.remote())
+                    .dedup(),
+            ),
+            LayerIds::None => Iter4::L(std::iter::empty()),
+        }
+    }
 
     fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where

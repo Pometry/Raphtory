@@ -1,10 +1,11 @@
 use std::ops::Range;
 
-use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_core::{
     entities::nodes::node_store::PropTimestamps,
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
 };
+
+use crate::utils::Iter2;
 
 #[derive(Clone, Debug)]
 pub enum MemAdditions<'a> {
@@ -51,10 +52,4 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
             MemAdditions::Window(window) => window.len(),
         }
     }
-}
-
-#[derive(Clone, Debug, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
-pub enum Iter2<I1, I2> {
-    I1(I1),
-    I2(I2),
 }

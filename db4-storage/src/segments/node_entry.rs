@@ -25,7 +25,9 @@ impl<'a, MNS: Deref<Target = MemNodeSegment>> MemNodeEntry<'a, MNS> {
     }
 }
 
-impl<'a, MNS: Deref<Target = MemNodeSegment>> NodeEntryOps<'a> for MemNodeEntry<'a, MNS> {
+impl<'a, MNS: Deref<Target = MemNodeSegment> + Send + Sync + 'a> NodeEntryOps<'a>
+    for MemNodeEntry<'a, MNS>
+{
     type Ref<'b>
         = MemNodeRef<'b>
     where
@@ -57,6 +59,10 @@ impl<'a> MemNodeRef<'a> {
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = MemAdditions<'a>;
     type TProps = TPropCell<'a>;
+
+    fn vid(&self) -> VID {
+        self.ns.to_vid(self.pos)
+    }
 
     fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
         self.ns.out_edges(self.pos, layer_id)

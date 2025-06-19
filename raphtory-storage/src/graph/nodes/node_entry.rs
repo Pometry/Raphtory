@@ -15,7 +15,10 @@ use raphtory_api::{
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use std::borrow::Cow;
-use storage::{api::nodes::NodeEntryOps, NodeEntry, NodeEntryRef};
+use storage::{
+    api::nodes::{NodeEntryOps, NodeRefOps},
+    NodeEntry, NodeEntryRef,
+};
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::node::DiskNode;
@@ -66,11 +69,11 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 }
 
 impl<'b> NodeStorageEntry<'b> {
-    pub fn into_edges_iter(
+    pub fn into_edges_iter<'a: 'b>(
         self,
-        layers: &LayerIds,
+        layers: &'a LayerIds,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
         match self {
             NodeStorageEntry::Mem(entry) => StorageVariants3::Mem(entry.edges_iter(layers, dir)),
             NodeStorageEntry::Unlocked(entry) => {
@@ -81,27 +84,27 @@ impl<'b> NodeStorageEntry<'b> {
         }
     }
 
-    pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
-        match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
-            NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.as_ref().node().const_prop_ids())
-            })),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
-        }
-    }
+    // pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
+    //     match self {
+    //         NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
+    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
+    //             Box::new(e.as_ref().node().const_prop_ids())
+    //         })),
+    //         #[cfg(feature = "storage")]
+    //         NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
+    //     }
+    // }
 
-    pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
-        match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
-            NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.as_ref().temporal_prop_ids())
-            })),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
-        }
-    }
+    // pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+    //     match self {
+    //         NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
+    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
+    //             Box::new(e.as_ref().temporal_prop_ids())
+    //         })),
+    //         #[cfg(feature = "storage")]
+    //         NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
+    //     }
+    // }
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {

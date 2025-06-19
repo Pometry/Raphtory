@@ -5,12 +5,12 @@ use super::{
 };
 use crate::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     error::DBV4Error,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
-    entities::{GidRef, EID, ELID, VID},
+    entities::{EID, ELID, GidRef, VID},
     storage::timeindex::AsTime,
 };
 

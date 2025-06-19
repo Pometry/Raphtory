@@ -26,13 +26,24 @@ use crate::{
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
+    segment_id: usize,
+    max_page_len: usize,
     layers: Vec<SegmentContainer<AdjEntry>>,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
     fn from(inner: I) -> Self {
+        let layers = inner.into_iter().collect::<Vec<_>>();
+        assert!(
+            !layers.is_empty(),
+            "MemNodeSegment must have at least one layer"
+        );
+        let segment_id = layers[0].segment_id();
+        let max_page_len = layers[0].max_page_len();
         Self {
-            layers: inner.into_iter().collect(),
+            segment_id,
+            max_page_len,
+            layers,
         }
     }
 }
@@ -104,6 +115,10 @@ impl MemNodeSegment {
         self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
     }
 
+    pub fn to_vid(&self, pos: LocalPOS) -> VID {
+        pos.as_vid(self.segment_id, self.max_page_len)
+    }
+
     #[inline(always)]
     fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
         self.layers
@@ -142,6 +157,8 @@ impl MemNodeSegment {
 
     pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         Self {
+            segment_id,
+            max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
     }

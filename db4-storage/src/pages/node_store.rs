@@ -64,7 +64,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
     ) -> impl rayon::iter::ParallelIterator<
         Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
     > + '_ {
-        
         (0..self.len()).into_par_iter().map(move |i| {
             let vid = VID(i);
             self.node_ref(vid)

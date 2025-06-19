@@ -1,11 +1,6 @@
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-    sync::Arc,
-};
+use std::path::Path;
 
 use crate::{
-    error::DBV4Error,
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
@@ -17,22 +12,15 @@ use crate::{
         node_entry::{MemNodeEntry, MemNodeRef},
     },
 };
-use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::{
-    entities::{
-        EID, VID,
-        properties::{meta::Meta, prop::Prop, tprop::TPropOps},
-    },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-};
+use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
+pub mod api;
 pub mod pages;
 pub mod persist;
 pub mod properties;
 pub mod segments;
-
-pub mod api;
+pub mod utils;
 
 pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
