@@ -212,6 +212,10 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
         }
     }
 
+
+    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, impl Iterator<Item = (usize, Option<Prop>)>)> + 'a;
+
+
     fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,

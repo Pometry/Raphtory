@@ -70,12 +70,6 @@ impl<'a> NodeStorageRef<'a> {
     }
 }
 
-impl<'a> From<NodePtr<'a>> for NodeStorageRef<'a> {
-    fn from(value: NodePtr<'a>) -> Self {
-        NodeStorageRef::Mem(value)
-    }
-}
-
 #[cfg(feature = "storage")]
 impl<'a> From<DiskNode<'a>> for NodeStorageRef<'a> {
     fn from(value: DiskNode<'a>) -> Self {

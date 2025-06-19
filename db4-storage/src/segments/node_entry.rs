@@ -4,8 +4,8 @@ use crate::{
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
-use raphtory_core::entities::properties::tprop::TPropCell;
-use std::ops::Deref;
+use raphtory_core::{entities::properties::tprop::TPropCell, storage::timeindex::TimeIndexEntry};
+use std::{iter::Empty, ops::Deref};
 
 use super::additions::MemAdditions;
 
@@ -92,5 +92,16 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.as_ref()[layer_id]
             .t_prop(self.pos, prop_id)
             .unwrap_or_default()
+    }
+    
+    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, impl Iterator<Item = (usize, Option<Prop>)>)> + 'a {
+        // self.ns.as_ref().iter().enumerate().flat_map(|(layer_id, layer)| {
+        //     let rows = layer.t_prop_rows(self.pos);
+        // }).flat_map(|t_prop| {
+        //     t_prop.
+        // })
+
+        //TODO
+        std::iter::empty::<(_, _, Empty<_>)>()
     }
 }

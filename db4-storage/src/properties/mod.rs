@@ -315,12 +315,14 @@ impl<'a> PropEntry<'a> {
     }
 
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
-        let t_cell = self
-            .properties
+        let t_cell = self.t_cell();
+        Some(TPropCell::new(t_cell, self.properties.t_column(prop_id)))
+    }
+
+    pub fn t_cell(self) -> &'a TCell<Option<usize>> {
+        self.properties
             .t_index
             .get(self.row)
-            .map_or(&TCell::Empty, |ts| &ts.props_ts);
-
-        Some(TPropCell::new(t_cell, self.properties.t_column(prop_id)))
+            .map_or(&TCell::Empty, |ts| &ts.props_ts)
     }
 }

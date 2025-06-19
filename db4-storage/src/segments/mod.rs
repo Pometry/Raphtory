@@ -212,6 +212,17 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
+    pub fn t_prop_rows(&self, item_id: impl Into<LocalPOS>) -> &TCell<Option<usize>> {
+        let item_id = item_id.into();
+        self.data
+            .get(&item_id)
+            .map(|entry| {
+                let prop_entry = self.properties.get_entry(entry.row());
+                prop_entry.t_cell()
+            })
+            .unwrap_or(&TCell::Empty)
+    }
+
     pub fn c_prop(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<Prop> {
         let item_id = item_id.into();
         self.data.get(&item_id).and_then(|entry| {
