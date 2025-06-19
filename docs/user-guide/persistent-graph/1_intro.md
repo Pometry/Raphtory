@@ -8,28 +8,28 @@ To enable these types of interactions to be represented, we provide an additiona
 
 The example below shows how to create and manipulate a *PersistentGraph* in Raphtory.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import PersistentGraph
 
-    ```python
-    from raphtory import PersistentGraph
+G = PersistentGraph()
 
-    G = PersistentGraph()
+# new friendship
+G.add_edge(1, "Alice", "Bob")
 
-    # new friendship
-    G.add_edge(1, "Alice", "Bob")
+# additional friend
+G.add_edge(3, "Bob", "Charlie")
 
-    # additional friend
-    G.add_edge(3, "Bob", "Charlie")
+# a dispute
+G.delete_edge(5, "Alice", "Bob")
 
-    # a dispute
-    G.delete_edge(5, "Alice", "Bob")
+# a resolution
+G.add_edge(10, "Alice", "Bob")
 
-    # a resolution
-    G.add_edge(10, "Alice", "Bob")
-
-    print(f"G's edges are {G.edges}")
-    print(f"G's exploded edges are {G.edges.explode()}")
-    ```
+print(f"G's edges are {G.edges}")
+print(f"G's exploded edges are {G.edges.explode()}")
+```
+///
 
 !!! Output
 

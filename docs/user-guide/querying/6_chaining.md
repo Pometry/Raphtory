@@ -13,15 +13,15 @@ You can continue this chain indefinitely with any functions in the `Node`, `Edge
 
 The following example gets the names of all the monkeys, the names of their two-hop neighbours, and zips these together before printing the result.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    node_names = g.nodes.name
-    two_hop_neighbours = g.nodes.neighbours.neighbours.name.collect()
-    combined = zip(node_names, two_hop_neighbours)
-    for name, two_hop_neighbour in combined:
-        print(f"{name} has the following two hop neighbours {two_hop_neighbour}")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+node_names = g.nodes.name
+two_hop_neighbours = g.nodes.neighbours.neighbours.name.collect()
+combined = zip(node_names, two_hop_neighbours)
+for name, two_hop_neighbour in combined:
+    print(f"{name} has the following two hop neighbours {two_hop_neighbour}")
+```
+///
 
 !!! Output
 
@@ -55,34 +55,34 @@ To demonstrate some more complex questions that you could ask using Raphtory, th
 
 First we sum the `Weight` value of each of `Felipe's` out-neighbours to rank them by the number of positive interactions he has initiated with them. Following this we can find the most annoying monkey by ranking globally who, on average, has had the most negative interactions initiated against them.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+v = g.node("FELIPE")
+neighbours_weighted = list(
+    zip(
+        v.out_edges.dst.name,
+        v.out_edges.properties.temporal.get("Weight").values().sum(),
+    )
+)
+sorted_weights = sorted(neighbours_weighted, key=lambda v: v[1], reverse=True)
+print(f"Felipe's favourite baboons in descending order are {sorted_weights}")
 
-    ```python
-    v = g.node("FELIPE")
-    neighbours_weighted = list(
-        zip(
-            v.out_edges.dst.name,
-            v.out_edges.properties.temporal.get("Weight").values().sum(),
-        )
+annoying_monkeys = list(
+    zip(
+        g.nodes.name,
+        g.nodes.in_edges.properties.temporal.get("Weight")
+        .values()
+        .sum()  # sum the weights within each edge
+        .mean()  # average the summed weights for each monkey
+        .collect(),
     )
-    sorted_weights = sorted(neighbours_weighted, key=lambda v: v[1], reverse=True)
-    print(f"Felipe's favourite baboons in descending order are {sorted_weights}")
-
-    annoying_monkeys = list(
-        zip(
-            g.nodes.name,
-            g.nodes.in_edges.properties.temporal.get("Weight")
-            .values()
-            .sum()  # sum the weights within each edge
-            .mean()  # average the summed weights for each monkey
-            .collect(),
-        )
-    )
-    most_annoying = sorted(annoying_monkeys, key=lambda v: v[1])[0]
-    print(
-        f"{most_annoying[0]} is the most annoying monkey with an average score of {most_annoying[1]}"
-    )
-    ```
+)
+most_annoying = sorted(annoying_monkeys, key=lambda v: v[1])[0]
+print(
+    f"{most_annoying[0]} is the most annoying monkey with an average score of {most_annoying[1]}"
+)
+```
+///
 
 !!! Output
 

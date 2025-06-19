@@ -18,23 +18,23 @@ In the example below we print the degree of `Lome` across the full dataset, befo
 !!! note
     In this code example we have called the `before()` on the graph and `after()` on the node. This is important, as there are some subtle differences in where these functions are called, which are discussed [below](2_time.md#traversing-the-graph-with-views).
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+v = g.node("LOME")
 
-    ```python
-    v = g.node("LOME")
+print(f"Across the full dataset {v.name} interacted with {v.degree()} other monkeys.")
 
-    print(f"Across the full dataset {v.name} interacted with {v.degree()} other monkeys.")
+v_before = g.before(1560428239000).node("LOME")  # 13/06/2019 12:17:19 as epoch
+print(
+    f"Between {v_before.start_date_time} and {v_before.end_date_time}, {v_before.name} interacted with {v_before.degree()} other monkeys."
+)
 
-    v_before = g.before(1560428239000).node("LOME")  # 13/06/2019 12:17:19 as epoch
-    print(
-        f"Between {v_before.start_date_time} and {v_before.end_date_time}, {v_before.name} interacted with {v_before.degree()} other monkeys."
-    )
-
-    v_after = g.node("LOME").after("2019-06-30 9:07:31")
-    print(
-        f"Between {v_after.start_date_time} and {v_after.end_date_time}, {v_after.name} interacted with {v_after.degree()} other monkeys."
-    )
-    ```
+v_after = g.node("LOME").after("2019-06-30 9:07:31")
+print(
+    f"Between {v_after.start_date_time} and {v_after.end_date_time}, {v_after.name} interacted with {v_after.degree()} other monkeys."
+)
+```
+///
 
 !!! Output
 
@@ -49,25 +49,25 @@ The `window()` function is a more general version of the functions above, allowi
 
 This is useful for digging into specific ranges of the history that you are interested in. In the below example, we look at the number of times `Lome` interacts wth `Nekke` within the full dataset and for one day between the 13th of June and the 14th of June. We use datetime objects in this example, but it would work exactly the same with string dates and epoch integers. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from datetime import datetime
 
-    ```python
-    from datetime import datetime
-
-    start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
-    end_day = datetime.strptime("2019-06-14", "%Y-%m-%d")
-    e = g.edge("LOME", "NEKKE")
-    print(
-        f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
-    )
-    e = e.window(start_day, end_day)
-    print(
-        f"Between {e.start_date_time} and {e.end_date_time}, {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
-    )
-    print(
-        f"Window start: {e.start_date_time}, First update: {e.earliest_date_time}, Last update: {e.latest_date_time}, Window End: {e.end_date_time}"
-    )
-    ```
+start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
+end_day = datetime.strptime("2019-06-14", "%Y-%m-%d")
+e = g.edge("LOME", "NEKKE")
+print(
+    f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
+)
+e = e.window(start_day, end_day)
+print(
+    f"Between {e.start_date_time} and {e.end_date_time}, {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
+)
+print(
+    f"Window start: {e.start_date_time}, First update: {e.earliest_date_time}, Last update: {e.latest_date_time}, Window End: {e.end_date_time}"
+)
+```
+///
 
 !!! Output
 
@@ -90,36 +90,36 @@ As an example of this, below we look at LOME's one hop neighbours before the 20t
 
 First we show calling `before()` on the `graph`. This works for the one hop neighbours, but when `after()` is applied the graph is empty as there is no overlap in dates between the two filters. Next we show calling `before()` on the `node` instead. In this case, once the neighbours have been reached the original filter is removed which allows `after()` to work as desired.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+first_day = datetime.strptime("2019-06-20", "%Y-%m-%d")
+second_day = datetime.strptime("2019-06-25", "%Y-%m-%d")
 
-    ```python
-    first_day = datetime.strptime("2019-06-20", "%Y-%m-%d")
-    second_day = datetime.strptime("2019-06-25", "%Y-%m-%d")
-
-    one_hop_neighbours = g.before(first_day).node("LOME").neighbours.name.collect()
-    two_hop_neighbours = (
-        g.before(first_day).node("LOME").neighbours.after(second_day).neighbours.collect()
-    )
-    print(
-        f"When the before is applied to the graph, LOME's one hop neighbours are: {one_hop_neighbours}"
-    )
-    print(
-        f"When the before is applied to the graph, LOME's two hop neighbours are: {two_hop_neighbours}"
-    )
-    one_hop_neighbours = g.node("LOME").before(first_day).neighbours.name.collect()
-    two_hop_neighbours = (
-        g.node("LOME")
-        .before(first_day)
-        .neighbours.after(second_day)
-        .neighbours.name.collect()
-    )
-    print(
-        f"When the before is applied to the node, LOME's one hop neighbours are: {one_hop_neighbours}"
-    )
-    print(
-        f"When the before is applied to the node, LOME's two hop neighbours are: {two_hop_neighbours}"
-    )
-    ```
+one_hop_neighbours = g.before(first_day).node("LOME").neighbours.name.collect()
+two_hop_neighbours = (
+    g.before(first_day).node("LOME").neighbours.after(second_day).neighbours.collect()
+)
+print(
+    f"When the before is applied to the graph, LOME's one hop neighbours are: {one_hop_neighbours}"
+)
+print(
+    f"When the before is applied to the graph, LOME's two hop neighbours are: {two_hop_neighbours}"
+)
+one_hop_neighbours = g.node("LOME").before(first_day).neighbours.name.collect()
+two_hop_neighbours = (
+    g.node("LOME")
+    .before(first_day)
+    .neighbours.after(second_day)
+    .neighbours.name.collect()
+)
+print(
+    f"When the before is applied to the node, LOME's one hop neighbours are: {one_hop_neighbours}"
+)
+print(
+    f"When the before is applied to the node, LOME's two hop neighbours are: {two_hop_neighbours}"
+)
+```
+///
 
 !!! Output
 
@@ -143,28 +143,28 @@ The example below demonstrates two case. In the first case, we increment through
 
 The second case shows the complexity of increments Raphtory can handle, stepping by `2 days, 3 hours, 12 minutes and 6 seconds` each time. We have additionally bounded this iterable using a window between the 13th and 23rd of June to demonstrate how these views may be chained.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+print(
+    f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}\n"
+)
 
-    ```python
+for expanding_g in g.expanding("1 week"):
     print(
-        f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}\n"
+        f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
     )
 
-    for expanding_g in g.expanding("1 week"):
-        print(
-            f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
-        )
-
-    print()
-    start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
-    end_day = datetime.strptime("2019-06-23", "%Y-%m-%d")
-    for expanding_g in g.window(start_day, end_day).expanding(
-        "2 days, 3 hours, 12 minutes and 6 seconds"
-    ):
-        print(
-            f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
-        )
-    ```
+print()
+start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
+end_day = datetime.strptime("2019-06-23", "%Y-%m-%d")
+for expanding_g in g.window(start_day, end_day).expanding(
+    "2 days, 3 hours, 12 minutes and 6 seconds"
+):
+    print(
+        f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
+    )
+```
+///
 
 !!! Output
 
@@ -189,15 +189,15 @@ You can use `rolling()` to create a rolling window instead of including all prio
 
 For example, below we take the code from [expanding](#expanding) and swap out the function for `rolling()`. In the first loop you can see both the start date and end date increase by seven days each time, and the number of monkey interactions sometimes decreases as older data is dropped from the window.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    print("Rolling 1 week")
-    for rolling_g in g.rolling(window="1 week"):
-        print(
-            f"From {rolling_g.start_date_time} to {rolling_g.end_date_time} there were {rolling_g.count_temporal_edges()} monkey interactions"
-        )
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+print("Rolling 1 week")
+for rolling_g in g.rolling(window="1 week"):
+    print(
+        f"From {rolling_g.start_date_time} to {rolling_g.end_date_time} there were {rolling_g.count_temporal_edges()} monkey interactions"
+    )
+```
+///
 
 !!! Output
 
@@ -215,21 +215,21 @@ If you want overlapping or fully disconnected windows, you can set a `step` smal
 
 As an example of how useful this can be, in the following example we plot the daily unique interactions of `Lome` via `matplotlib` in only 10 lines. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+importance = []
+time = []
+for rolling_lome in g.node("LOME").rolling("1 day"):
+    importance.append(rolling_lome.degree())
+    time.append(rolling_lome.end_date_time)
 
-    ```python
-    importance = []
-    time = []
-    for rolling_lome in g.node("LOME").rolling("1 day"):
-        importance.append(rolling_lome.degree())
-        time.append(rolling_lome.end_date_time)
-
-    plt.plot(time, importance, marker="o")
-    plt.xlabel("Date")
-    plt.xticks(rotation=45)
-    plt.ylabel("Daily Unique Interactions")
-    plt.title("Lome's daily interaction count")
-    plt.grid(True)
-    ```
+plt.plot(time, importance, marker="o")
+plt.xlabel("Date")
+plt.xticks(rotation=45)
+plt.ylabel("Daily Unique Interactions")
+plt.title("Lome's daily interaction count")
+plt.grid(True)
+```
+///
 
 ![lomesDailyInteractions](/assets/images/lomesDailyInteractions.svg)

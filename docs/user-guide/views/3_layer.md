@@ -14,35 +14,35 @@ An edge object by default will contain information on all layers between its sou
 
 Layer views can also be used in combination with any other view function. In the example below, we look at the total edge weight over the full graph, then restrict this to the `Grooming` and `Resting` layers and then reduce this further by applying a window between the 13th and 20th of June.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+total_weight = g.edges.properties.temporal.get("Weight").values().sum().sum()
+print(f"Total weight across all edges is {total_weight}.")
 
-    ```python
-    total_weight = g.edges.properties.temporal.get("Weight").values().sum().sum()
-    print(f"Total weight across all edges is {total_weight}.")
+total_weight = (
+    g.layers(["Grooming", "Resting"])
+    .edges.properties.temporal.get("Weight")
+    .values()
+    .sum()
+    .sum()
+)
+print(f"Total weight across Grooming and Resting is {total_weight}.")
 
-    total_weight = (
-        g.layers(["Grooming", "Resting"])
-        .edges.properties.temporal.get("Weight")
-        .values()
-        .sum()
-        .sum()
-    )
-    print(f"Total weight across Grooming and Resting is {total_weight}.")
-
-    start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
-    end_day = datetime.strptime("2019-06-20", "%Y-%m-%d")
-    total_weight = (
-        g.layers(["Grooming", "Resting"])
-        .window(start_day, end_day)
-        .edges.properties.temporal.get("Weight")
-        .values()
-        .sum()
-        .sum()
-    )
-    print(
-        f"Total weight across Grooming and Resting between {start_day} and {end_day} is {total_weight}."
-    )
-    ```
+start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
+end_day = datetime.strptime("2019-06-20", "%Y-%m-%d")
+total_weight = (
+    g.layers(["Grooming", "Resting"])
+    .window(start_day, end_day)
+    .edges.properties.temporal.get("Weight")
+    .values()
+    .sum()
+    .sum()
+)
+print(
+    f"Total weight across Grooming and Resting between {start_day} and {end_day} is {total_weight}."
+)
+```
+///
 
 !!! Output
 
@@ -58,19 +58,19 @@ Similar to the [time based filters](2_time.md#traversing-the-graph-with-views), 
 
 Expanding on the example from [the time views](2_time.md#traversing-the-graph-with-views), if you wanted to look at which neighbours LOME has groomed, followed by who those monkeys have rested with, then you could write the following query.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    two_hop_neighbours = set(
-        g.node("LOME")
-        .layer("Grooming")
-        .neighbours.layer("Resting")
-        .neighbours.name.collect()
-    )
-    print(
-        f"When the Grooming layer is applied to the node, LOME's two hop neighbours are: {two_hop_neighbours}"
-    )
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+two_hop_neighbours = set(
+    g.node("LOME")
+    .layer("Grooming")
+    .neighbours.layer("Resting")
+    .neighbours.name.collect()
+)
+print(
+    f"When the Grooming layer is applied to the node, LOME's two hop neighbours are: {two_hop_neighbours}"
+)
+```
+///
 
 !!! Output
 

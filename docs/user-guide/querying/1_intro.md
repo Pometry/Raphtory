@@ -11,21 +11,22 @@ In the below code loads this dataset into a dataframe and does a small amount of
 - Agonistic (negative interaction) → `-1` 
 - Other (neutral interaction) → `0`
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
 
-    ```python
-    import pandas as pd
+```python
+import pandas as pd
 
-    edges_df = pd.read_csv(
-        "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
-    )
-    edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
-    edges_df.dropna(axis=0, inplace=True)
-    edges_df["Weight"] = edges_df["Category"].apply(
-        lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
-    )
-    print(edges_df.head())
-    ```
+edges_df = pd.read_csv(
+    "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+print(edges_df.head())
+```
+///
 
 !!! Output
 
@@ -40,22 +41,22 @@ In the below code loads this dataset into a dataframe and does a small amount of
 
 Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+import raphtory as rp
 
-    ```python
-    import raphtory as rp
-
-    g = rp.Graph()
-    g.load_edges_from_pandas(
-        df=edges_df,
-        src="Actor",
-        dst="Recipient",
-        time="DateTime",
-        layer_col="Behavior",
-        properties=["Weight"],
-    )
-    print(g)
-    ```
+g = rp.Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
+print(g)
+```
+///
 
 !!! Output
 

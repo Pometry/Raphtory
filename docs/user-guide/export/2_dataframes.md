@@ -9,17 +9,17 @@ To explore the use of `to_df()` on the nodes we can first we call the function w
 
 To demonstrate flags, we call `to_df()` again, this time enabling the property history and utilising datetime timestamps. The output for this can also be seen below.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    df = traffic_graph.nodes.to_df()
-    print("--- to_df with default parameters --- ")
-    print(f"{df}\n")
-    print()
-    df = traffic_graph.nodes.to_df(include_property_history=True, convert_datetime=True)
-    print("--- to_df with property history and datetime conversion ---")
-    print(f"{df}\n")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+df = traffic_graph.nodes.to_df()
+print("--- to_df with default parameters --- ")
+print(f"{df}\n")
+print()
+df = traffic_graph.nodes.to_df(include_property_history=True, convert_datetime=True)
+print("--- to_df with property history and datetime conversion ---")
+print(f"{df}\n")
+```
+///
 
 !!! Output
 
@@ -98,21 +98,21 @@ Finally, we call `to_df()` again, turning off the property history and exploding
 
     We have further reduced the graph to only one layer (`Grunting-Lipsmacking`) to reduce the output size.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+subgraph = monkey_graph.subgraph(["ANGELE", "FELIPE"])
+df = subgraph.edges.to_df()
+print("Interactions between Angele and Felipe:")
+print(f"{df}\n")
 
-    ```python
-    subgraph = monkey_graph.subgraph(["ANGELE", "FELIPE"])
-    df = subgraph.edges.to_df()
-    print("Interactions between Angele and Felipe:")
-    print(f"{df}\n")
-
-    grunting_graph = subgraph.layer("Grunting-Lipsmacking")
-    print(grunting_graph)
-    print(grunting_graph.edges)
-    df = grunting_graph.edges.to_df()
-    print("Exploding the grunting-Lipsmacking layer")
-    print(df)
-    ```
+grunting_graph = subgraph.layer("Grunting-Lipsmacking")
+print(grunting_graph)
+print(grunting_graph.edges)
+df = grunting_graph.edges.to_df()
+print("Exploding the grunting-Lipsmacking layer")
+print(df)
+```
+///
 
 !!! Output
 

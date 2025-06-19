@@ -11,29 +11,29 @@ Following this we access the history to get the earliest and latest update times
 !!!info 
     Note that we call `e.src.name` because `src` and `dst` return a node object, instead of just an id or name.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+e = g.edge("FELIPE", "MAKO")
+e_reversed = g.edge("MAKO", "FELIPE")
+e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
+e_reversed_history = [
+    date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
+]
 
-    ```python
-    e = g.edge("FELIPE", "MAKO")
-    e_reversed = g.edge("MAKO", "FELIPE")
-    e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
-    e_reversed_history = [
-        date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
-    ]
-
-    print(
-        f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
-    )
-    print(
-        f"and has updates between {e.earliest_date_time} and {e.latest_date_time} at the following times: {e_history}\n"
-    )
-    print(
-        f"The edge from {e_reversed.src.name} to {e_reversed.dst.name} covers the following layers: {e_reversed.layer_names}"
-    )
-    print(
-        f"and has updates between {e_reversed.earliest_date_time} and {e_reversed.latest_date_time} at the following times: {e_reversed_history}"
-    )
-    ```
+print(
+    f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
+)
+print(
+    f"and has updates between {e.earliest_date_time} and {e.latest_date_time} at the following times: {e_history}\n"
+)
+print(
+    f"The edge from {e_reversed.src.name} to {e_reversed.dst.name} covers the following layers: {e_reversed.layer_names}"
+)
+print(
+    f"and has updates between {e_reversed.earliest_date_time} and {e_reversed.latest_date_time} at the following times: {e_reversed_history}"
+)
+```
+///
 
 !!! Output
 
@@ -59,30 +59,30 @@ In the code below you can see an example of each of these functions. We first ca
     
     Singular functions such as `.layer_name` or `.time` can be called on exploded edges and plural functions such as `.layer_names` and `.history()` can be called on standard edges.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+print("Update history per layer:")
+for e in g.edge("FELIPE", "MAKO").explode_layers():
+    e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
+    print(
+        f"{e.src.name} interacted with {e.dst.name} with the following behaviour '{e.layer_name}' at this times: {e_history}"
+    )
 
-    ```python
-    print("Update history per layer:")
-    for e in g.edge("FELIPE", "MAKO").explode_layers():
-        e_history = [date.strftime("%Y-%m-%d %H:%M:%S") for date in e.history_date_time()]
-        print(
-            f"{e.src.name} interacted with {e.dst.name} with the following behaviour '{e.layer_name}' at this times: {e_history}"
-        )
+print()
+print("Individual updates as edges:")
+for e in g.edge("FELIPE", "MAKO").explode():
+    print(
+        f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
+    )
 
-    print()
-    print("Individual updates as edges:")
-    for e in g.edge("FELIPE", "MAKO").explode():
-        print(
-            f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
-        )
-
-    print()
-    print("Individual updates for 'Touching' and 'Carrying:")
-    for e in g.edge("FELIPE", "MAKO").layers(["Touching", "Carrying"]).explode():
-        print(
-            f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
-        )
-    ```
+print()
+print("Individual updates for 'Touching' and 'Carrying:")
+for e in g.edge("FELIPE", "MAKO").layers(["Touching", "Carrying"]).explode():
+    print(
+        f"At {e.date_time} {e.src.name} interacted with {e.dst.name} in the following manner: '{e.layer_name}'"
+    )
+```
+///
 
 !!! Output
 

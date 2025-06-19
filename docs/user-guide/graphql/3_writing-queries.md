@@ -12,52 +12,52 @@ Here are some example queries to get you started:
 
 ### List of all the nodes
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
-
-    ```
-    query {
-        graph(path: "your_graph") {
-            nodes {
-                list {
-                    name
-                }
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+query {
+    graph(path: "your_graph") {
+        nodes {
+            list {
+                name
             }
         }
     }
-    ```
+}
+```
+///
 
 ## List of all the edges, with specific node properties 
 
 To find nodes with `age`:
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
-
-    ```
-    query {
-        graph(path: "your_graph") {
-            edges {
-                list {
-                    src {
-                        name
-                        properties {
-                            get(key:"age") {
-                                value
-                            }
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+query {
+    graph(path: "your_graph") {
+        edges {
+            list {
+                src {
+                    name
+                    properties {
+                        get(key:"age") {
+                            value
                         }
                     }
-                    dst {
-                        name
-                        properties {
-                            get(key:"age") {
-                                value
-                            }
+                }
+                dst {
+                    name
+                    properties {
+                        get(key:"age") {
+                            value
                         }
                     }
                 }
             }
         }
     }
-    ```
+}
+```
+///
 
 This will return something like this:
 
@@ -98,50 +98,50 @@ All the queries that can be done in Python can also be done in GraphQL.
 
 Here is an example:
 
-=== ":fontawesome-brands-python: Python"
-
-    ``` python
-    g.node("Ben").properties.get("age")
-
-    ```
-
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
-
-    ``` graphql
-    query {
-        graph(path: "your_graph") {
-            node(name: "Ben") {
-                properties {
-                    get(key: "age") {
-                        value
-                    }
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+``` graphql
+query {
+    graph(path: "your_graph") {
+        node(name: "Ben") {
+            properties {
+                get(key: "age") {
+                    value
                 }
             }
         }
     }
-    ```
+}
+```
+///
+
+/// tab | :fontawesome-brands-python: Python
+``` python
+g.node("Ben").properties.get("age")
+
+```
+///
 
 ## Querying GraphQL in Python
 
 It is possible to send GraphQL queries in Python without the in-browser IDE. This can be useful if you want to update your Raphtory graph in Python. This example shows you how to do this with the Raphtory client:
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+with GraphServer(work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
 
-    ```python
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-
-        query = """{graph(path: "graph") { created lastOpened lastUpdated }}"""
-        result = client.query(query)
-    ```
+    query = """{graph(path: "graph") { created lastOpened lastUpdated }}"""
+    result = client.query(query)
+```
+///
 
 Pass your graph object string into the `client.query()` method to execute the GraphQL query and retrieve the result in a python dictionary object.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    {'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+{'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
+```
+///
 
 ## Mutation Queries
 
@@ -179,27 +179,27 @@ There are additional methods to mutate the graph exclusive to Python such as sen
 
 You can send a graph to the server and overwrite an existing graph if needed.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+tmp_work_dir = tempfile.mkdtemp()
+with GraphServer(tmp_work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
 
-    ```python
-    tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-
-        g = Graph()
-        g.add_edge(1, "bob", "emma")
-        g.add_edge(2, "sally", "tony")
-        client.send_graph(path="g", graph=g, overwrite=True)
-    ```
+    g = Graph()
+    g.add_edge(1, "bob", "emma")
+    g.add_edge(2, "sally", "tony")
+    client.send_graph(path="g", graph=g, overwrite=True)
+```
+///
 
 To check your query:
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    query = """{graph(path: "g") {nodes {list {name}}}}"""
-    client.query(query)
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+query = """{graph(path: "g") {nodes {list {name}}}}"""
+client.query(query)
+```
+///
 
 This should return:
 
@@ -224,12 +224,12 @@ This should return:
 
 You can retrieve graphs from a "path" on the server which returns a Python Raphtory graph object.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    g = client.receive_graph("path/to/graph")
-    g.edge("sally", "tony")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+g = client.receive_graph("path/to/graph")
+g.edge("sally", "tony")
+```
+///
 
 ## Creating a new graph
 
@@ -238,22 +238,22 @@ This is an example of how to create a new graph in the server.
 The first parameter is the path of the graph to be created and the second parameter is the type of graph that should be created, this will either be _EVENT_ or _PERSISTENT_.
 An explanation of the different types of graph can be found [here](../../user-guide/persistent-graph/1_intro.md)
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```graphql
+mutation {
+    newGraph(path: "new_graph", graphType: PERSISTENT)
+}
+```
+///
 
-    ```graphql
-    mutation {
-        newGraph(path: "new_graph", graphType: PERSISTENT)
-    }
-    ```
-
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-        client.new_graph("path/to/new_graph", "EVENT")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+work_dir = tempfile.mkdtemp()
+with GraphServer(work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
+    client.new_graph("path/to/new_graph", "EVENT")
+```
+///
 
 The returning result to confirm that a new graph has been created:
 
@@ -271,22 +271,22 @@ The returning result to confirm that a new graph has been created:
 
 It is possible to move a graph to a new path on the server.
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```graphql
+mutation {
+    moveGraph(path: "graph", newPath: "new_path")
+}
+```
+///
 
-    ```graphql
-    mutation {
-        moveGraph(path: "graph", newPath: "new_path")
-    }
-    ```
-
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-        client.move_graph("path/to/graph", "path/to/new_path)
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+work_dir = tempfile.mkdtemp()
+with GraphServer(work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
+    client.move_graph("path/to/graph", "path/to/new_path)
+```
+///
 
 The returning GraphQL result to confirm that the graph has been moved:
 
@@ -304,22 +304,22 @@ The returning GraphQL result to confirm that the graph has been moved:
 
 It is possible to copy a graph to a new path on the server.
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```graphql
+mutation {
+    copyGraph(path: "graph", newPath: "new_path")
+}
+```
+///
 
-    ```graphql
-    mutation {
-        copyGraph(path: "graph", newPath: "new_path")
-    }
-    ```
-
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-        client.copy_graph("path/to/graph", "path/to/new_path)
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+work_dir = tempfile.mkdtemp()
+with GraphServer(work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
+    client.copy_graph("path/to/graph", "path/to/new_path)
+```
+///
 
 The returning GraphQL result to confirm that the graph has been copied:
 
@@ -337,22 +337,22 @@ The returning GraphQL result to confirm that the graph has been copied:
 
 It is possible to delete a graph on the server.
 
-=== "![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL"
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```graphql
+mutation {
+    deleteGraph(path: "graph")
+}
+```
+///
 
-    ```graphql
-    mutation {
-        deleteGraph(path: "graph")
-    }
-    ```
-
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
-        client.delete_graph("graph")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+work_dir = tempfile.mkdtemp()
+with GraphServer(work_dir).start():
+    client = RaphtoryClient("http://localhost:1736")
+    client.delete_graph("graph")
+```
+///
 
 The returning GraphQL result to confirm that the graph has been deleted:
 
@@ -369,21 +369,22 @@ The returning GraphQL result to confirm that the graph has been deleted:
 ## Updating the graph
 
 It is possible to update the graph using the `remote_graph()` method.
-=== ":fontawesome-brands-python: Python"
 
-    ```python
-    work_dir = tempfile.mkdtemp()
-        with GraphServer(work_dir).start():
-            client = RaphtoryClient("http://localhost:1736")
-            client.new_graph("path/to/event_graph", "EVENT")
-            rg = client.remote_graph("path/to/event_graph")
-            rg.add_edge(1, "sally", "tony", layer="friendship")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.new_graph("path/to/event_graph", "EVENT")
+        rg = client.remote_graph("path/to/event_graph")
+        rg.add_edge(1, "sally", "tony", layer="friendship")
+```
+///
 
 Once you have updated the graph, for example by adding an edge, you can receive a graph by using `receive_graph()` and specifying the path of the graph you would like to receive.
 
-=== ":fontawesome-brands-python: Python"
-
-    ```python
-    g = client.receive_graph("path/to/event_graph")
-    ```
+/// tab | :fontawesome-brands-python: Python
+```python
+g = client.receive_graph("path/to/event_graph")
+```
+///

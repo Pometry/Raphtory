@@ -10,23 +10,23 @@ To add a node we need a unique `id` to represent it and an update `timestamp` to
     If your data doesn't have any timestamps, you can just set a constant value like `1` for all additions into the graph.  
 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
 
-    ```python
-    from raphtory import Graph
+g = Graph()
+v = g.add_node(timestamp=1, id=10)
 
-    g = Graph()
-    v = g.add_node(timestamp=1, id=10)
-
-    print(g)
-    print(v)
-    ```
+print(g)
+print(v)
+```
+///
 
 Printing out the graph and the returned node we can see the update was successful and the earliest/latest time has been updated.
 
 !!! Output
 
-    ```python
+    ```output
     Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)
     Node(name=10, earliest_time=1, latest_time=1)
     ```
@@ -38,21 +38,21 @@ All graphs in raphtory are [directed](https://en.wikipedia.org/wiki/Directed_gra
 
 As an example of this below we are adding an edge to the graph from `15` to `16` at timestamp `1`.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
 
-    ```python
-    from raphtory import Graph
+g = Graph()
+e = g.add_edge(timestamp=1, src=15, dst=16)
 
-    g = Graph()
-    e = g.add_edge(timestamp=1, src=15, dst=16)
-
-    print(g)
-    print(e)
-    ```
+print(g)
+print(e)
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)
     Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])
     ```
@@ -65,25 +65,25 @@ The `add_node()` and `add_edge()` functions will also accept strings for their `
 
 In this example, we are adding two nodes to the graph `User 1` and `User 2` and an edge between them. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
 
-    ```python
-    from raphtory import Graph
+g = Graph()
 
-    g = Graph()
+g.add_node(timestamp=123, id="User 1")
+g.add_node(timestamp=456, id="User 2")
+g.add_edge(timestamp=789, src="User 1", dst="User 2")
 
-    g.add_node(timestamp=123, id="User 1")
-    g.add_node(timestamp=456, id="User 2")
-    g.add_edge(timestamp=789, src="User 1", dst="User 2")
-
-    print(g.node("User 1"))
-    print(g.node("User 2"))
-    print(g.edge("User 1", "User 2"))
-    ```
+print(g.node("User 1"))
+print(g.node("User 2"))
+print(g.edge("User 1", "User 2"))
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     Node(name=User 1, earliest_time=123, latest_time=789)
     Node(name=User 2, earliest_time=456, latest_time=789)
     Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])
@@ -97,27 +97,27 @@ While integer based timestamps can represent both [logical time](https://en.wiki
 
 In the example below the node `10` is added into the graph at `2021-02-03 14:01:00` and `2021-01-01 12:32:00`. The first timestamp is kept as a string, with Raphtory internally handling the conversion, and the second has been converted into a python datetime object before ingestion. This datetime object can also have a timezone, with Raphtory storing everything internally in UTC.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
+from datetime import datetime
 
-    ```python
-    from raphtory import Graph
-    from datetime import datetime
+g = Graph()
+g.add_node(timestamp="2021-02-03 14:01:00", id=10)
 
-    g = Graph()
-    g.add_node(timestamp="2021-02-03 14:01:00", id=10)
+# Create a python datetime object
+datetime_obj = datetime(2021, 1, 1, 12, 32, 0, 0)
+g.add_node(timestamp=datetime_obj, id=10)
 
-    # Create a python datetime object
-    datetime_obj = datetime(2021, 1, 1, 12, 32, 0, 0)
-    g.add_node(timestamp=datetime_obj, id=10)
-
-    print(g)
-    print(g.node(id=10).history())
-    print(g.node(id=10).history_date_time())
-    ```
+print(g)
+print(g.node(id=10).history())
+print(g.node(id=10).history_date_time())
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)
     [1609504320000 1612360860000]
     [datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]
@@ -137,64 +137,64 @@ In the example below, we are using all of these functions to add a mixture of pr
 !!! warning
     Please note that once a `property key` is associated with one of the above types for a given node/edge/graph, attempting to add a value of a different type under the same key will result in an error. For `Lists` the values must all be the same type and for `Dictionaries` the values for each key must always be the same type.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
+from datetime import datetime
 
-    ```python
-    from raphtory import Graph
-    from datetime import datetime
+g = Graph()
 
-    g = Graph()
+# Primitive type properties added to a node
+g.add_node(
+    timestamp=1,
+    id="User 1",
+    properties={"count": 1, "greeting": "hi", "encrypted": True},
+)
+g.add_node(
+    timestamp=2,
+    id="User 1",
+    properties={"count": 2, "balance": 0.6, "encrypted": False},
+)
+g.add_node(
+    timestamp=3,
+    id="User 1",
+    properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
+)
 
-    # Primitive type properties added to a node
-    g.add_node(
-        timestamp=1,
-        id="User 1",
-        properties={"count": 1, "greeting": "hi", "encrypted": True},
-    )
-    g.add_node(
-        timestamp=2,
-        id="User 1",
-        properties={"count": 2, "balance": 0.6, "encrypted": False},
-    )
-    g.add_node(
-        timestamp=3,
-        id="User 1",
-        properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
-    )
+# Dictionaries and Lists added to a graph
+g.add_properties(
+    timestamp=1,
+    properties={
+        "inner data": {"name": "bob", "value list": [1, 2, 3]},
+        "favourite greetings": ["hi", "hello", "howdy"],
+    },
+)
+datetime_obj = datetime.strptime("2021-01-01 12:32:00", "%Y-%m-%d %H:%M:%S")
+g.add_properties(
+    timestamp=2,
+    properties={
+        "inner data": {
+            "date of birth": datetime_obj,
+            "fruits": {"apple": 5, "banana": 3},
+        }
+    },
+)
 
-    # Dictionaries and Lists added to a graph
-    g.add_properties(
-        timestamp=1,
-        properties={
-            "inner data": {"name": "bob", "value list": [1, 2, 3]},
-            "favourite greetings": ["hi", "hello", "howdy"],
-        },
-    )
-    datetime_obj = datetime.strptime("2021-01-01 12:32:00", "%Y-%m-%d %H:%M:%S")
-    g.add_properties(
-        timestamp=2,
-        properties={
-            "inner data": {
-                "date of birth": datetime_obj,
-                "fruits": {"apple": 5, "banana": 3},
-            }
-        },
-    )
+# Weight list on an edge
+g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1,2,3]})
 
-    # Weight list on an edge
-    g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1,2,3]})
-
-    # Printing everything out
-    v = g.node(id="User 1")
-    e = g.edge(src="User 1", dst="User 2")
-    print(g)
-    print(v)
-    print(e)
-    ```
+# Printing everything out
+v = g.node(id="User 1")
+e = g.edge(src="User 1", dst="User 2")
+print(g)
+print(v)
+print(e)
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=4, properties=Properties({inner data: {fruits: {apple: 5, banana: 3}, date of birth: 2021-01-01 12:32:00}, favourite greetings: [hi, hello, howdy]}))
     Node(name=User 1, earliest_time=1, latest_time=4, properties=Properties({count: 2, greeting: hello, encrypted: true, balance: 0.9}))
     Edge(source=User 1, target=User 2, earliest_time=4, latest_time=4, properties={weights: [1, 2, 3]}, layer(s)=[_default])
@@ -209,30 +209,31 @@ Alongside the `temporal` properties which have a value history, Raphtory also pr
 
 In the example below, three different constant properties are added to the `graph`, `node` and `edge`. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
 
-    ```python
-    from raphtory import Graph
-    from datetime import datetime
+```python
+from raphtory import Graph
+from datetime import datetime
 
-    g = Graph()
-    v = g.add_node(timestamp=1, id="User 1")
-    e = g.add_edge(timestamp=2, src="User 1", dst="User 2")
+g = Graph()
+v = g.add_node(timestamp=1, id="User 1")
+e = g.add_edge(timestamp=2, src="User 1", dst="User 2")
 
-    g.add_constant_properties(properties={"name": "Example Graph"})
-    v.add_constant_properties(
-        properties={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
-    )
-    e.add_constant_properties(properties={"data source": "https://link-to-repo.com"})
+g.add_constant_properties(properties={"name": "Example Graph"})
+v.add_constant_properties(
+    properties={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
+)
+e.add_constant_properties(properties={"data source": "https://link-to-repo.com"})
 
-    print(g)
-    print(v)
-    print(e)
-    ```
+print(g)
+print(v)
+print(e)
+```
+///
 
 !!! output
 
-    ```python
+    ```output
     Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({name: Example Graph}))
     Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({date of birth: 1990-02-03 00:00:00}))
     Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, properties={data source: https://link-to-repo.com}, layer(s)=[_default])
@@ -247,57 +248,57 @@ The `add_edge()` function takes a second optional parameter, `layer` that allows
 
 You can see this in the example below where we add five updates between `Person 1` and `Person 2` across the layers `Friends`, `Co Workers` and `Family`. When we query the history of the `weight` property on the edge we initially get all of the values back. However, by applying the [`layers()` graph view](../views/3_layer.md) we can return only updates from `Co Workers` and `Family`. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
 
-    ```python
-    from raphtory import Graph
+g = Graph()
+g.add_edge(
+    timestamp=1,
+    src="Person 1",
+    dst="Person 2",
+    properties={"weight": 10},
+    layer="Friends",
+)
+g.add_edge(
+    timestamp=2,
+    src="Person 1",
+    dst="Person 2",
+    properties={"weight": 13},
+    layer="Friends",
+)
+g.add_edge(
+    timestamp=3,
+    src="Person 1",
+    dst="Person 2",
+    properties={"weight": 20},
+    layer="Co Workers",
+)
+g.add_edge(
+    timestamp=4,
+    src="Person 1",
+    dst="Person 2",
+    properties={"weight": 17},
+    layer="Friends",
+)
+g.add_edge(
+    timestamp=5,
+    src="Person 1",
+    dst="Person 2",
+    properties={"weight": 35},
+    layer="Family",
+)
 
-    g = Graph()
-    g.add_edge(
-        timestamp=1,
-        src="Person 1",
-        dst="Person 2",
-        properties={"weight": 10},
-        layer="Friends",
-    )
-    g.add_edge(
-        timestamp=2,
-        src="Person 1",
-        dst="Person 2",
-        properties={"weight": 13},
-        layer="Friends",
-    )
-    g.add_edge(
-        timestamp=3,
-        src="Person 1",
-        dst="Person 2",
-        properties={"weight": 20},
-        layer="Co Workers",
-    )
-    g.add_edge(
-        timestamp=4,
-        src="Person 1",
-        dst="Person 2",
-        properties={"weight": 17},
-        layer="Friends",
-    )
-    g.add_edge(
-        timestamp=5,
-        src="Person 1",
-        dst="Person 2",
-        properties={"weight": 35},
-        layer="Family",
-    )
-
-    unlayered_edge = g.edge("Person 1", "Person 2")
-    layered_edge = g.layers(["Co Workers", "Family"]).edge("Person 1", "Person 2")
-    print(unlayered_edge.properties.temporal.get("weight").values())
-    print(layered_edge.properties.temporal.get("weight").values())
-    ```
+unlayered_edge = g.edge("Person 1", "Person 2")
+layered_edge = g.layers(["Co Workers", "Family"]).edge("Person 1", "Person 2")
+print(unlayered_edge.properties.temporal.get("weight").values())
+print(layered_edge.properties.temporal.get("weight").values())
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     [10 13 20 17 35]
     [20 35]
     ```

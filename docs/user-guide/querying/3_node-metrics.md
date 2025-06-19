@@ -6,19 +6,19 @@ Nodes can be accessed by storing the object returned from a call to `add_node()`
 
 Nodes have functions for querying their earliest and latest update time (as an epoch or datetime) as well as for accessing their full history (using `history()` or `history_date_time()`). In the code below we create a node object for the monkey `Felipe` and see when their updates occurred. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+v = g.node("FELIPE")
+print(
+    f"{v.name}'s first interaction was at {v.earliest_date_time} and their last interaction was at {v.latest_date_time}\n"
+)
+history = v.history_date_time()
+# We format the returned datetime objects here to make the list more readable
+history_formatted = [date.strftime("%Y-%m-%d %H:%M:%S") for date in history]
 
-    ```python
-    v = g.node("FELIPE")
-    print(
-        f"{v.name}'s first interaction was at {v.earliest_date_time} and their last interaction was at {v.latest_date_time}\n"
-    )
-    history = v.history_date_time()
-    # We format the returned datetime objects here to make the list more readable
-    history_formatted = [date.strftime("%Y-%m-%d %H:%M:%S") for date in history]
-
-    print(f"{v.name} had interactions at the following times: {history_formatted}\n")
-    ```
+print(f"{v.name} had interactions at the following times: {history_formatted}\n")
+```
+///
 
 
 !!! Output
@@ -42,28 +42,28 @@ In the code below we call a selection of these functions to show the sort of que
 
     The final section of the code makes use of `v.neighbours.name.collect()` - this is a chain of functions which are run on each node in the `PathFromNode` iterable. We will discuss these sort of operations more in [Chaining functions](../querying/6_chaining.md). 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+v = g.node("FELIPE")
+v_name = v.name
+in_degree = v.in_degree()
+out_degree = v.out_degree()
+in_edges = v.in_edges
+neighbours = v.neighbours
+neighbour_names = v.neighbours.name.collect()
 
-    ```python
-    v = g.node("FELIPE")
-    v_name = v.name
-    in_degree = v.in_degree()
-    out_degree = v.out_degree()
-    in_edges = v.in_edges
-    neighbours = v.neighbours
-    neighbour_names = v.neighbours.name.collect()
-
-    print(
-        f"{v_name} has {in_degree} incoming interactions and {out_degree} outgoing interactions.\n"
-    )
-    print(in_edges)
-    print(neighbours, "\n")
-    print(f"{v_name} interacted with the following baboons {neighbour_names}")
-    ```
+print(
+    f"{v_name} has {in_degree} incoming interactions and {out_degree} outgoing interactions.\n"
+)
+print(in_edges)
+print(neighbours, "\n")
+print(f"{v_name} interacted with the following baboons {neighbour_names}")
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     FELIPE has 17 incoming interactions and 18 outgoing interactions.
 
     Edges(Edge(source=MALI, target=FELIPE, earliest_time=1561117140000, latest_time=1562753160000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Presenting]), Edge(source=LOME, target=FELIPE, earliest_time=1560421260000, latest_time=1562149080000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Playing with, Presenting, Chasing]), Edge(source=NEKKE, target=FELIPE, earliest_time=1560443040000, latest_time=1562596380000, properties={Weight: 1}, layer(s)=[Touching, Resting, Presenting, Grunting-Lipsmacking, Embracing]), Edge(source=PETOULETTE, target=FELIPE, earliest_time=1561628220000, latest_time=1562252940000, properties={Weight: 1}, layer(s)=[Resting]), Edge(source=EWINE, target=FELIPE, earliest_time=1560523260000, latest_time=1562585640000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Presenting, Avoiding]), Edge(source=ANGELE, target=FELIPE, earliest_time=1560419400000, latest_time=1562753640000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Presenting, Grunting-Lipsmacking, Submission, Copulating]), Edge(source=VIOLETTE, target=FELIPE, earliest_time=1560439920000, latest_time=1561373760000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Presenting]), Edge(source=BOBO, target=FELIPE, earliest_time=1560423360000, latest_time=1561543080000, properties={Weight: -1}, layer(s)=[Presenting, Grunting-Lipsmacking, Avoiding]), Edge(source=MAKO, target=FELIPE, earliest_time=1560937320000, latest_time=1562679600000, properties={Weight: 1}, layer(s)=[Grooming, Resting, Playing with, Presenting, Grunting-Lipsmacking, Embracing]), Edge(source=FEYA, target=FELIPE, earliest_time=1560853500000, latest_time=1562586000000, properties={Weight: 1}, layer(s)=[Resting, Presenting]), ...)

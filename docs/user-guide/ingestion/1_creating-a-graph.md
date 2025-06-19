@@ -8,14 +8,14 @@ There are many ways to get data into Raphtory and start running analysis. In thi
 
 To get started we first need to create a graph to store our data. Printing this graph will show it as empty with no nodes, edges or update times.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
 
-    ```python
-    from raphtory import Graph
-
-    g = Graph()
-    print(g)
-    ```
+g = Graph()
+print(g)
+```
+///
 
 !!! Output
 

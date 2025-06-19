@@ -11,65 +11,65 @@ By default, exporting will include all properties and all update history. Howeve
 
 The following example reuses the network traffic dataset from the [ingestion tutorial](../ingestion/3_dataframes.md) and the monkey interaction network from the [querying tutorial](../querying/1_intro.md). In the below code example you can get a refresher of what these datasets looks like. 
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
+import pandas as pd
 
-    ```python
-    from raphtory import Graph
-    import pandas as pd
+server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
-    server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
-    server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
+server_nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
+server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
-    server_nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
-    server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
+print("Network Traffic Edges:")
+print(f"{server_edges_df}\n")
+print("Network Traffic Servers:")
+print(f"{server_nodes_df}\n")
 
-    print("Network Traffic Edges:")
-    print(f"{server_edges_df}\n")
-    print("Network Traffic Servers:")
-    print(f"{server_nodes_df}\n")
+traffic_graph = Graph()
+traffic_graph.load_edges_from_pandas(
+    df=server_edges_df,
+    src="source",
+    dst="destination",
+    time="timestamp",
+    properties=["data_size_MB"],
+    layer_col="transaction_type",
+    constant_properties=["is_encrypted"],
+    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+)
+traffic_graph.load_nodes_from_pandas(
+    df=server_nodes_df,
+    id="server_id",
+    time="timestamp",
+    properties=["OS_version", "primary_function", "uptime_days"],
+    constant_properties=["server_name", "hardware_type"],
+    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+)
 
-    traffic_graph = Graph()
-    traffic_graph.load_edges_from_pandas(
-        df=server_edges_df,
-        src="source",
-        dst="destination",
-        time="timestamp",
-        properties=["data_size_MB"],
-        layer_col="transaction_type",
-        constant_properties=["is_encrypted"],
-        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-    )
-    traffic_graph.load_nodes_from_pandas(
-        df=server_nodes_df,
-        id="server_id",
-        time="timestamp",
-        properties=["OS_version", "primary_function", "uptime_days"],
-        constant_properties=["server_name", "hardware_type"],
-        shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-    )
+monkey_edges_df = pd.read_csv(
+    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+monkey_edges_df["DateTime"] = pd.to_datetime(monkey_edges_df["DateTime"])
+monkey_edges_df.dropna(axis=0, inplace=True)
+monkey_edges_df["Weight"] = monkey_edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
 
-    monkey_edges_df = pd.read_csv(
-        "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
-    )
-    monkey_edges_df["DateTime"] = pd.to_datetime(monkey_edges_df["DateTime"])
-    monkey_edges_df.dropna(axis=0, inplace=True)
-    monkey_edges_df["Weight"] = monkey_edges_df["Category"].apply(
-        lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
-    )
+print("Monkey Interactions:")
+print(f"{monkey_edges_df}\n")
 
-    print("Monkey Interactions:")
-    print(f"{monkey_edges_df}\n")
-
-    monkey_graph = Graph()
-    monkey_graph.load_edges_from_pandas(
-        df=monkey_edges_df,
-        src="Actor",
-        dst="Recipient",
-        time="DateTime",
-        layer_col="Behavior",
-        properties=["Weight"],
-    )
-    ```
+monkey_graph = Graph()
+monkey_graph.load_edges_from_pandas(
+    df=monkey_edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
+```
+///
 
 !!! Output
 

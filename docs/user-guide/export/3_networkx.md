@@ -10,23 +10,24 @@ In the below example we call `to_networkx()` on the network traffic graph, keepi
 
 We call `to_networkx()` again, disabling the property and update history and reprint `ServerA` to show the difference.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
 
-    ```python
-    nx_g = traffic_graph.to_networkx()
+```python
+nx_g = traffic_graph.to_networkx()
 
-    print("Networkx graph:")
-    print(nx_g)
-    print()
-    print("Full property history of ServerA:")
-    print(nx_g.nodes["ServerA"])
-    print()
+print("Networkx graph:")
+print(nx_g)
+print()
+print("Full property history of ServerA:")
+print(nx_g.nodes["ServerA"])
+print()
 
-    nx_g = traffic_graph.to_networkx(include_property_history=False)
+nx_g = traffic_graph.to_networkx(include_property_history=False)
 
-    print("Only the latest properties of ServerA:")
-    print(nx_g.nodes["ServerA"])
-    ```
+print("Only the latest properties of ServerA:")
+print(nx_g.nodes["ServerA"])
+```
+///
 
 !!! Output
 
@@ -47,27 +48,28 @@ Once converted into a networkX graph you have access to their full suite of func
 
 In the code snippet below we use this functionality to draw a network traffic graph, labelling the nodes with their Server ID. For more information, see the [networkx](https://networkx.org/documentation/stable/reference/drawing.html) documentation.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
 
-    ```python
-    # mkdocs: render
-    import matplotlib.pyplot as plt
-    import networkx as nx
+```python
+# mkdocs: render
+import matplotlib.pyplot as plt
+import networkx as nx
 
-    from raphtory import Graph
-    import pandas as pd
+from raphtory import Graph
+import pandas as pd
 
-    server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
-    server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
+server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
-    traffic_graph = Graph()
-    traffic_graph.load_edges_from_pandas(
-        df=server_edges_df,
-        time="timestamp",
-        src="source",
-        dst="destination",
-    )
+traffic_graph = Graph()
+traffic_graph.load_edges_from_pandas(
+    df=server_edges_df,
+    time="timestamp",
+    src="source",
+    dst="destination",
+)
 
-    nx_g = traffic_graph.to_networkx()
-    nx.draw(nx_g, with_labels=True, node_color="lightblue", edge_color="gray")
-    ```
+nx_g = traffic_graph.to_networkx()
+nx.draw(nx_g, with_labels=True, node_color="lightblue", edge_color="gray")
+```
+///

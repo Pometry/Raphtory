@@ -11,29 +11,29 @@ Functionality with the same name is available for the *PersistentGraph*. This sh
 
 ## Querying an instant of the graph with `at()`
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(2, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
 
-    G.add_edge(2, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
+# before the edge is added
+print(f"At time 0: {G.at(0).nodes} {G.at(0).edges.explode()}")
 
-    # before the edge is added
-    print(f"At time 0: {G.at(0).nodes} {G.at(0).edges.explode()}")
+# at the instant the edge is added
+print(f"At time 2: {G.at(2).nodes} {G.at(2).edges.explode()}")
 
-    # at the instant the edge is added
-    print(f"At time 2: {G.at(2).nodes} {G.at(2).edges.explode()}")
+# while the graph is active
+print(f"At time 3: {G.at(3).nodes} {G.at(3).edges.explode()}")
 
-    # while the graph is active
-    print(f"At time 3: {G.at(3).nodes} {G.at(3).edges.explode()}")
+# the instant the edge is deleted
+print(f"At time 5: {G.at(5).nodes} {G.at(5).edges.explode()}")
 
-    # the instant the edge is deleted
-    print(f"At time 5: {G.at(5).nodes} {G.at(5).edges.explode()}")
-
-    # after the edge is deleted
-    print(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}")
-    ```
+# after the edge is deleted
+print(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}")
+```
+///
 
 !!! Output
 
@@ -53,29 +53,29 @@ Crucially, this means that while performing a node count on a `Graph` will count
 
 ## Getting the graph before a certain point with `before()`
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(2, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
 
-    G.add_edge(2, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
+# before the edge is added
+print(f"Before time 1: {G.before(1).nodes} {G.before(1).edges.explode()}")
 
-    # before the edge is added
-    print(f"Before time 1: {G.before(1).nodes} {G.before(1).edges.explode()}")
+# at the instant the edge is added
+print(f"Before time 2: {G.before(2).nodes} {G.before(2).edges.explode()}")
 
-    # at the instant the edge is added
-    print(f"Before time 2: {G.before(2).nodes} {G.before(2).edges.explode()}")
+# while the graph is active
+print(f"Before time 3: {G.before(3).nodes} {G.before(3).edges.explode()}")
 
-    # while the graph is active
-    print(f"Before time 3: {G.before(3).nodes} {G.before(3).edges.explode()}")
+# the instant the edge is deleted
+print(f"Before time 5: {G.before(5).nodes} {G.before(5).edges.explode()}")
 
-    # the instant the edge is deleted
-    print(f"Before time 5: {G.before(5).nodes} {G.before(5).edges.explode()}")
-
-    # after the edge is deleted
-    print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
-    ```
+# after the edge is deleted
+print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
+```
+///
 
 !!! Output
 
@@ -91,29 +91,29 @@ Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), cr
 
 ## Getting the graph after a certain point with `after()`
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(2, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
 
-    G.add_edge(2, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
+# before the edge is added
+print(f"After time 1: {G.after(1).nodes} {G.after(1).edges.explode()}")
 
-    # before the edge is added
-    print(f"After time 1: {G.after(1).nodes} {G.after(1).edges.explode()}")
+# at the instant the edge is added
+print(f"After time 2: {G.after(2).nodes} {G.after(2).edges.explode()}")
 
-    # at the instant the edge is added
-    print(f"After time 2: {G.after(2).nodes} {G.after(2).edges.explode()}")
+# while the graph is active
+print(f"After time 3: {G.after(3).nodes} {G.after(3).edges.explode()}")
 
-    # while the graph is active
-    print(f"After time 3: {G.after(3).nodes} {G.after(3).edges.explode()}")
+# the instant the edge is deleted
+print(f"After time 5: {G.after(5).nodes} {G.after(5).edges.explode()}")
 
-    # the instant the edge is deleted
-    print(f"After time 5: {G.after(5).nodes} {G.after(5).edges.explode()}")
-
-    # after the edge is deleted
-    print(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}")
-    ```
+# after the edge is deleted
+print(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}")
+```
+///
 
 !!! Output
 
@@ -129,32 +129,32 @@ Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), cr
 
 ## Windowing the graph with `window()`
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+G = PersistentGraph()
 
-    ```python
-    G = PersistentGraph()
+G.add_edge(2, "Alice", "Bob")
+G.delete_edge(5, "Alice", "Bob")
 
-    G.add_edge(2, "Alice", "Bob")
-    G.delete_edge(5, "Alice", "Bob")
+# Touching the start time of the edge
+print(f"Window 0,2: {G.window(0,2).nodes} {G.window(0,2).edges.explode()}")
 
-    # Touching the start time of the edge
-    print(f"Window 0,2: {G.window(0,2).nodes} {G.window(0,2).edges.explode()}")
+# Overlapping the start of the edge
+print(f"Window 0,4: {G.window(0,4).nodes} {G.window(0,4).edges.explode()}")
 
-    # Overlapping the start of the edge
-    print(f"Window 0,4: {G.window(0,4).nodes} {G.window(0,4).edges.explode()}")
+# Fully inside the edge time
+print(f"Window 3,4: {G.window(3,4).nodes} {G.window(3,4).edges.explode()}")
 
-    # Fully inside the edge time
-    print(f"Window 3,4: {G.window(3,4).nodes} {G.window(3,4).edges.explode()}")
+# Touching the end of the edge
+print(f"Window 5,8: {G.window(5,8).nodes} {G.window(5,8).edges.explode()}")
 
-    # Touching the end of the edge
-    print(f"Window 5,8: {G.window(5,8).nodes} {G.window(5,8).edges.explode()}")
+# Fully containing the edge
+print(f"Window 1,8: {G.window(1,8).nodes} {G.window(1,8).edges.explode()}")
 
-    # Fully containing the edge
-    print(f"Window 1,8: {G.window(1,8).nodes} {G.window(1,8).edges.explode()}")
-
-    # after the edge is deleted
-    print(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}")
-    ```
+# after the edge is deleted
+print(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}")
+```
+///
 
 !!! Output
 

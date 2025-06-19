@@ -11,34 +11,34 @@ Using `count_temporal_edges()` is useful if you want to imagine each edge update
 !!! info
     The property APIs are the same for the graph, nodes and edges, these are discussed together in [Property queries](../querying/5_properties.md).
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+print("Stats on the graph structure:")
 
-    ```python
-    print("Stats on the graph structure:")
+number_of_nodes = g.count_nodes()
+number_of_edges = g.count_edges()
+total_interactions = g.count_temporal_edges()
+unique_layers = g.unique_layers
 
-    number_of_nodes = g.count_nodes()
-    number_of_edges = g.count_edges()
-    total_interactions = g.count_temporal_edges()
-    unique_layers = g.unique_layers
-
-    print("Number of nodes (Baboons):", number_of_nodes)
-    print("Number of unique edges (src,dst,layer):", number_of_edges)
-    print("Total interactions (edge updates):", total_interactions)
-    print("Unique layers:", unique_layers, "\n")
+print("Number of nodes (Baboons):", number_of_nodes)
+print("Number of unique edges (src,dst,layer):", number_of_edges)
+print("Total interactions (edge updates):", total_interactions)
+print("Unique layers:", unique_layers, "\n")
 
 
-    print("Stats on the graphs time range:")
+print("Stats on the graphs time range:")
 
-    earliest_datetime = g.earliest_date_time
-    latest_datetime = g.latest_date_time
-    earliest_epoch = g.earliest_time
-    latest_epoch = g.latest_time
+earliest_datetime = g.earliest_date_time
+latest_datetime = g.latest_date_time
+earliest_epoch = g.earliest_time
+latest_epoch = g.latest_time
 
-    print("Earliest datetime:", earliest_datetime)
-    print("Latest datetime:", latest_datetime)
-    print("Earliest time (Unix Epoch):", earliest_epoch)
-    print("Latest time (Unix Epoch):", latest_epoch)
-    ```
+print("Earliest datetime:", earliest_datetime)
+print("Latest datetime:", latest_datetime)
+print("Earliest time (Unix Epoch):", earliest_epoch)
+print("Latest time (Unix Epoch):", latest_epoch)
+```
+///
 
 !!! Output
 
@@ -65,27 +65,27 @@ Three types of functions are provided for accessing the nodes and edges within a
 
 All of these functions are shown in the code below and will appear in several other examples throughout this tutorial.
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```python
+print("Checking if specific nodes and edges are in the graph:")
+if g.has_node(id="LOME"):
+    print("Lomme is in the graph")
+if g.layer("Playing with").has_edge(src="LOME", dst="NEKKE"):
+    print("Lomme has played with Nekke \n")
 
-    ```python
-    print("Checking if specific nodes and edges are in the graph:")
-    if g.has_node(id="LOME"):
-        print("Lomme is in the graph")
-    if g.layer("Playing with").has_edge(src="LOME", dst="NEKKE"):
-        print("Lomme has played with Nekke \n")
+print("Getting individual nodes and edges:")
+print(g.node("LOME"))
+print(g.edge("LOME", "NEKKE"), "\n")
 
-    print("Getting individual nodes and edges:")
-    print(g.node("LOME"))
-    print(g.edge("LOME", "NEKKE"), "\n")
-
-    print("Getting iterators over all nodes and edges:")
-    print(g.nodes)
-    print(g.edges)
-    ```
+print("Getting iterators over all nodes and edges:")
+print(g.nodes)
+print(g.edges)
+```
+///
 
 !!! Output
 
-    ```python
+    ```output
     Checking if specific nodes and edges are in the graph:
     Lomme is in the graph
     Lomme has played with Nekke 
