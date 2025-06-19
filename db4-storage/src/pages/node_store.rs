@@ -1,6 +1,9 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    LocalPOS, NodeSegmentOps, ReadLockedNS, error::DBV4Error, pages::layer_counter::LayerCounter,
+    LocalPOS,
+    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    error::DBV4Error,
+    pages::layer_counter::LayerCounter,
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -25,31 +28,32 @@ pub struct NodeStorageInner<NS, EXT> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedNodeStorage<NS, EXT> {
+pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<NodeStorageInner<NS, EXT>>,
-    locked_pages: Box<[ReadLockedNS<NS>]>,
+    locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl <NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedNodeStorage<NS, EXT> {
-
-    pub fn node(&self, node: impl Into<VID>) -> NS::Entry<'_> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNodeStorage<NS, EXT> {
+    pub fn node_ref(
+        &self,
+        node: impl Into<VID>,
+    ) -> <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_> {
         let (page_id, pos) = self.storage.resolve_pos(node);
-        let locked_page = self.locked_pages[page_id];
+        let locked_page = &self.locked_segments[page_id];
         locked_page.entry_ref(pos)
     }
-
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
-        let locked_pages = self
+        let locked_segments = self
             .pages
             .iter()
             .map(|(_, segment)| segment.locked())
             .collect::<Box<_>>();
         ReadLockedNodeStorage {
             storage: self.clone(),
-            locked_pages,
+            locked_segments,
         }
     }
 
@@ -80,7 +84,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     //             .collect(),
     //     )
     // }
-    
+
     pub fn num_layers(&self) -> usize {
         self.layer_counter.len()
     }

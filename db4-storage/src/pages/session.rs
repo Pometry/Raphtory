@@ -4,7 +4,9 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
 use crate::{
-    error::DBV4Error, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, EdgeSegmentOps, NodeSegmentOps
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    error::DBV4Error,
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{

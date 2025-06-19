@@ -8,7 +8,8 @@ use std::{
 };
 
 use crate::{
-    EdgeSegmentOps, LocalPOS, NodeSegmentOps,
+    LocalPOS,
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     properties::props_meta_writer::PropsMetaWriter,
@@ -54,7 +55,11 @@ pub struct GraphStore<NS, ES, EXT> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedGraphStore<NS, ES, EXT> {
+pub struct ReadLockedGraphStore<
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    EXT,
+> {
     nodes: ReadLockedNodeStorage<NS, EXT>,
     edges: ReadLockedEdgeStorage<ES, EXT>,
     graph: Arc<GraphStore<NS, ES, EXT>>,
@@ -480,7 +485,8 @@ pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: usize) -> (usize, 
 mod test {
     use super::GraphStore;
     use crate::{
-        Layer, NodeEntryOps, NodeRefOps,
+        Layer,
+        api::nodes::{NodeEntryOps, NodeRefOps},
         pages::test_utils::{
             AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
             check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,

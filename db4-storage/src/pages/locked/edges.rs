@@ -1,7 +1,8 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 use crate::{
-    EdgeSegmentOps, LocalPOS,
+    LocalPOS,
+    api::edges::EdgeSegmentOps,
     pages::{edge_page::writer::EdgeWriter, resolve_pos},
     segments::edge::MemEdgeSegment,
 };

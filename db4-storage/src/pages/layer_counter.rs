@@ -5,7 +5,7 @@ pub struct LayerCounter {
     layers: boxcar::Vec<AtomicUsize>,
 }
 
-impl <I: IntoIterator<Item = usize>> From<I> for LayerCounter {
+impl<I: IntoIterator<Item = usize>> From<I> for LayerCounter {
     fn from(iter: I) -> Self {
         let counts = iter.into_iter().map(|c| AtomicUsize::new(c)).collect();
         let layers = boxcar::Vec::from(counts);
@@ -25,7 +25,7 @@ impl LayerCounter {
         }
         Self { layers }
     }
-    
+
     pub fn len(&self) -> usize {
         self.layers.count()
     }

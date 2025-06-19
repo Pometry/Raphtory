@@ -18,7 +18,8 @@ use std::{
 
 use super::{HasRow, SegmentContainer};
 use crate::{
-    LocalPOS, NodeSegmentOps,
+    LocalPOS,
+    api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::DBV4Error,
     segments::node_entry::{MemNodeEntry, MemNodeRef},
 };
@@ -278,10 +279,26 @@ pub struct NodeSegmentView<EXT = ()> {
     _ext: EXT,
 }
 
+#[derive(Debug)]
+pub struct ArcLockedSegmentView {
+    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
+}
+
+impl LockedNSSegment for ArcLockedSegmentView {
+    type EntryRef<'a> = MemNodeRef<'a>;
+
+    fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
+        let pos = pos.into();
+        MemNodeRef::new(pos, &self.inner)
+    }
+}
+
 impl NodeSegmentOps for NodeSegmentView {
     type Extension = ();
 
     type Entry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
+
+    type ArcLockedSegment = ArcLockedSegmentView;
 
     fn latest(&self) -> Option<TimeIndexEntry> {
         self.head().latest()
@@ -373,6 +390,12 @@ impl NodeSegmentOps for NodeSegmentView {
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {
         let pos = pos.into();
         MemNodeEntry::new(pos, self.head())
+    }
+
+    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
+        ArcLockedSegmentView {
+            inner: self.inner.read_arc(),
+        }
     }
 
     fn num_layers(&self) -> usize {

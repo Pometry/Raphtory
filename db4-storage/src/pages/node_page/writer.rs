@@ -1,5 +1,6 @@
 use crate::{
-    LocalPOS, NodeSegmentOps, pages::layer_counter::LayerCounter, segments::node::MemNodeSegment,
+    LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::LayerCounter,
+    segments::node::MemNodeSegment,
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
 use raphtory_core::{entities::ELID, storage::timeindex::AsTime};

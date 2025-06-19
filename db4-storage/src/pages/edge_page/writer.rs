@@ -1,6 +1,6 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
-use crate::{EdgeSegmentOps, LocalPOS, segments::edge::MemEdgeSegment};
+use crate::{LocalPOS, api::edges::EdgeSegmentOps, segments::edge::MemEdgeSegment};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::storage::timeindex::AsTime;
 

@@ -6,8 +6,16 @@ use std::{
 
 use crate::{
     error::DBV4Error,
-    pages::{GraphStore, ReadLockedGraphStore},
-    segments::{edge::EdgeSegmentView, edge_entry::{MemEdgeEntry, MemEdgeRef}, node::NodeSegmentView, node_entry::{MemNodeEntry, MemNodeRef}},
+    pages::{
+        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
+        node_store::ReadLockedNodeStorage,
+    },
+    segments::{
+        edge::EdgeSegmentView,
+        edge_entry::{MemEdgeEntry, MemEdgeRef},
+        node::NodeSegmentView,
+        node_entry::{MemNodeEntry, MemNodeRef},
+    },
 };
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
@@ -18,14 +26,13 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
-use crate::pages::edge_store::ReadLockedEdgeStorage;
-use crate::pages::node_store::ReadLockedNodeStorage;
 
-// pub mod loaders;
 pub mod pages;
 pub mod persist;
 pub mod properties;
 pub mod segments;
+
+pub mod api;
 
 pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
@@ -40,269 +47,6 @@ pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNo
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
-
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
-    type Extension;
-
-    type Entry<'a>: EdgeEntryOps<'a>
-    where
-        Self: 'a;
-
-    fn latest(&self) -> Option<TimeIndexEntry>;
-    fn earliest(&self) -> Option<TimeIndexEntry>;
-
-    fn t_len(&self) -> usize;
-
-    fn load(
-        page_id: usize,
-        max_page_len: usize,
-        meta: Arc<Meta>,
-        path: impl AsRef<Path>,
-        ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
-    where
-        Self: Sized;
-
-    fn new(
-        page_id: usize,
-        max_page_len: usize,
-        meta: Arc<Meta>,
-        path: impl AsRef<Path>,
-        ext: Self::Extension,
-    ) -> Self;
-
-    fn segment_id(&self) -> usize;
-
-    fn num_edges(&self) -> usize;
-
-    fn head(&self) -> RwLockReadGuard<MemEdgeSegment>;
-
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
-
-    fn head_mut(&self) -> RwLockWriteGuard<MemEdgeSegment>;
-
-    fn try_head_mut(&self) -> Option<RwLockWriteGuard<MemEdgeSegment>>;
-
-    fn notify_write(
-        &self,
-        head_lock: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), DBV4Error>;
-
-    fn increment_num_edges(&self) -> usize;
-
-    fn contains_edge(
-        &self,
-        edge_pos: LocalPOS,
-        layer_id: usize,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
-    ) -> bool;
-
-    fn get_edge(
-        &self,
-        edge_pos: LocalPOS,
-        layer_id: usize,
-        locked_head: impl Deref<Target = MemEdgeSegment>,
-    ) -> Option<(VID, VID)>;
-
-    fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a>;
-
-    fn locked(self: &Arc<Self>) -> ReadLockedES<Self>
-    where
-        Self: Sized,
-    {
-        ReadLockedES {
-            es: self.clone(),
-            head: self.head_arc(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ReadLockedES<ES> {
-    es: Arc<ES>,
-    head: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
-}
-
-pub trait EdgeEntryOps<'a> {
-    type Ref<'b>: EdgeRefOps<'b>
-    where
-        'a: 'b,
-        Self: 'b;
-
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b;
-}
-
-pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps<'a>;
-    type TProps: TPropOps<'a>;
-
-    fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
-
-    fn additions(self, layer_id: usize) -> Self::Additions;
-
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
-
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
-}
-
-pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
-    type Extension;
-
-    type Entry<'a>: NodeEntryOps<'a>
-    where
-        Self: 'a;
-
-    type EntryRef<'a>: NodeRefOps<'a>
-    where
-        Self: 'a;
-
-    fn latest(&self) -> Option<TimeIndexEntry>;
-    fn earliest(&self) -> Option<TimeIndexEntry>;
-
-    fn t_len(&self) -> usize;
-
-    fn load(
-        page_id: usize,
-        max_page_len: usize,
-        meta: Arc<Meta>,
-        path: impl AsRef<Path>,
-        ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
-    where
-        Self: Sized;
-    fn new(
-        page_id: usize,
-        max_page_len: usize,
-        meta: Arc<Meta>,
-        path: impl AsRef<Path>,
-        ext: Self::Extension,
-    ) -> Self;
-
-    fn segment_id(&self) -> usize;
-
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
-    fn head(&self) -> RwLockReadGuard<MemNodeSegment>;
-
-    fn head_mut(&self) -> RwLockWriteGuard<MemNodeSegment>;
-
-    fn num_nodes(&self) -> usize {
-        self.layer_num_nodes(0)
-    }
-
-    fn num_layers(&self) -> usize;
-
-    fn layer_num_nodes(&self, layer_id: usize) -> usize;
-
-    fn notify_write(
-        &self,
-        head_lock: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), DBV4Error>;
-
-    fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
-
-    fn get_out_edge(
-        &self,
-        pos: LocalPOS,
-        dst: impl Into<VID>,
-        layer_id: usize,
-        locked_head: impl Deref<Target = MemNodeSegment>,
-    ) -> Option<EID>;
-
-    fn get_inb_edge(
-        &self,
-        pos: LocalPOS,
-        src: impl Into<VID>,
-        layer_id: usize,
-        locked_head: impl Deref<Target = MemNodeSegment>,
-    ) -> Option<EID>;
-
-    fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a>;
-
-    fn locked(self: &Arc<Self>) -> ReadLockedNS<Self>
-    where
-        Self: Sized,
-    {
-        ReadLockedNS {
-            ns: self.clone(),
-            head: self.head_arc(),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ReadLockedNS<NS> {
-    ns: Arc<NS>,
-    head: ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>,
-}
-
-impl <EXT: Send + Sync + Clone, NS:NodeSegmentOps<Extension = EXT>> ReadLockedNS<NS> {
-
-    pub fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> NS::EntryRef<'a> {
-        self.ns.entry(pos)
-    }
-
-}
-
-pub trait NodeEntryOps<'a> {
-    type Ref<'b>: NodeRefOps<'b>
-    where
-        'a: 'b,
-        Self: 'b;
-
-    fn as_ref<'b>(&'b self) -> Self::Ref<'b>
-    where
-        'a: 'b;
-}
-
-pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps<'a>;
-
-    type TProps: TPropOps<'a>;
-
-    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
-
-    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
-
-    fn out_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
-
-    fn inb_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a;
-
-    fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
-    where
-        Self: Sized,
-    {
-        self.out_edges(layer_id).map(|(v, _)| v)
-    }
-
-    fn inb_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
-    where
-        Self: Sized,
-    {
-        self.inb_edges(layer_id).map(|(v, _)| v)
-    }
-
-    fn out_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
-    where
-        Self: Sized,
-    {
-        self.out_edges_sorted(layer_id).map(|(v, _)| v)
-    }
-
-    fn inb_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
-    where
-        Self: Sized,
-    {
-        self.inb_edges_sorted(layer_id).map(|(v, _)| v)
-    }
-
-    fn additions(self, layer_id: usize) -> Self::Additions;
-
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
-
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
-}
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};

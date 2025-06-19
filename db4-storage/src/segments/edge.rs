@@ -13,7 +13,13 @@ use raphtory_api::core::entities::{
 };
 use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
 
-use crate::{EdgeSegmentOps, LocalPOS, error::DBV4Error, properties::PropMutEntry};
+use crate::{
+    LocalPOS,
+    api::edges::{EdgeSegmentOps, LockedESegment},
+    error::DBV4Error,
+    properties::PropMutEntry,
+    segments::edge_entry::MemEdgeRef,
+};
 
 use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 
@@ -251,10 +257,29 @@ pub struct EdgeSegmentView<EXT = ()> {
     _ext: EXT,
 }
 
+#[derive(Debug)]
+pub struct ArcLockedSegmentView {
+    inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
+}
+
+impl LockedESegment for ArcLockedSegmentView {
+    type EntryRef<'a> = MemEdgeRef<'a>;
+
+    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
+    where
+        Self: 'a,
+    {
+        let edge_pos = edge_pos.into();
+        MemEdgeRef::new(edge_pos, &self.inner)
+    }
+}
+
 impl EdgeSegmentOps for EdgeSegmentView {
     type Extension = ();
 
     type Entry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
+
+    type ArcLockedSegment = ArcLockedSegmentView;
 
     fn latest(&self) -> Option<TimeIndexEntry> {
         self.head().latest()
@@ -353,5 +378,11 @@ impl EdgeSegmentOps for EdgeSegmentView {
     fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a> {
         let edge_pos = edge_pos.into();
         MemEdgeEntry::new(edge_pos, self.head())
+    }
+
+    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
+        ArcLockedSegmentView {
+            inner: self.head_arc(),
+        }
     }
 }

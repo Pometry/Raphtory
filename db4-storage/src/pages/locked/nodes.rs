@@ -1,5 +1,6 @@
 use crate::{
-    LocalPOS, NodeSegmentOps,
+    LocalPOS,
+    api::nodes::NodeSegmentOps,
     pages::{layer_counter::LayerCounter, node_page::writer::NodeWriter, resolve_pos},
     segments::node::MemNodeSegment,
 };

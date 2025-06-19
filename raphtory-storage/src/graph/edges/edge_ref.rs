@@ -4,8 +4,8 @@ use raphtory_api::core::entities::{
     LayerIds, EID, VID,
 };
 use raphtory_core::entities::edges::edge_store::MemEdge;
-use storage::{EdgeEntry, EdgeEntryRef};
 use std::ops::Range;
+use storage::{EdgeEntry, EdgeEntryRef};
 
 #[cfg(feature = "storage")]
 use crate::{disk::graph_impl::DiskEdge, graph::variants::storage_variants2::StorageVariants2};

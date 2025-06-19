@@ -9,7 +9,10 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    EdgeSegmentOps, LocalPOS, ReadLockedES, error::DBV4Error, segments::edge::MemEdgeSegment,
+    LocalPOS,
+    api::edges::{EdgeSegmentOps, LockedESegment},
+    error::DBV4Error,
+    segments::edge::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -29,9 +32,20 @@ pub struct EdgeStorageInner<ES, EXT> {
 }
 
 #[derive(Debug)]
-pub struct ReadLockedEdgeStorage<ES, EXT> {
+pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<EdgeStorageInner<ES, EXT>>,
-    locked_pages: Box<[ReadLockedES<ES>]>,
+    locked_pages: Box<[ES::ArcLockedSegment]>,
+}
+
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, EXT> {
+    pub fn edge_ref(
+        &self,
+        e_id: impl Into<EID>,
+    ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> {
+        let (page_id, pos) = self.storage.resolve_pos(e_id.into());
+        let locked_page = &self.locked_pages[page_id];
+        locked_page.entry_ref(pos)
+    }
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> {

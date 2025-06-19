@@ -6,8 +6,8 @@ use raphtory_api::core::entities::{
     properties::{prop::Prop, tprop::TPropOps},
     LayerIds, EID, VID,
 };
-use storage::{EdgeEntry, EdgeEntryRef, EdgeEntryOps};
 use std::ops::Range;
+use storage::{EdgeEntry, EdgeEntryOps, EdgeEntryRef};
 
 #[cfg(feature = "storage")]
 use crate::disk::graph_impl::DiskEdge;

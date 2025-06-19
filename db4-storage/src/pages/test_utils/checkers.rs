@@ -15,8 +15,12 @@ use raphtory_core::{
 use rayon::prelude::*;
 
 use crate::{
-    EdgeEntryOps, EdgeRefOps, EdgeSegmentOps, NodeEntryOps, NodeRefOps, NodeSegmentOps,
-    error::DBV4Error, pages::GraphStore,
+    api::{
+        edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
+        nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
+    },
+    error::DBV4Error,
+    pages::GraphStore,
 };
 
 use super::fixtures::{AddEdge, Fixture, NodeFixture};

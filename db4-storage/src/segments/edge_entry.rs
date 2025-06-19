@@ -1,7 +1,10 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::{VID, properties::tprop::TPropCell};
 
-use crate::{EdgeEntryOps, EdgeRefOps, LocalPOS};
+use crate::{
+    LocalPOS,
+    api::edges::{EdgeEntryOps, EdgeRefOps},
+};
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
 

@@ -192,8 +192,10 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_node<'a>(&'a self, vid: VID) -> NodeStorageEntry<'a> {
         match self {
-            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.node(vid)),
-            GraphStorage::Unlocked(storage) => NodeStorageEntry::Unlocked(storage.node(vid)),
+            GraphStorage::Mem(storage) => NodeStorageEntry::Mem(storage.nodes.node_ref(vid)),
+            GraphStorage::Unlocked(storage) => {
+                NodeStorageEntry::Unlocked(storage.storage().nodes().node(vid))
+            }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodeStorageEntry::Disk(DiskNode::new(&storage.inner, vid))
@@ -228,8 +230,10 @@ impl GraphStorage {
     #[inline(always)]
     pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry {
         match self {
-            GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.get_mem(eid)),
-            GraphStorage::Unlocked(storage) => EdgeStorageEntry::Unlocked(storage.edge_entry(eid)),
+            GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.edge_ref(eid)),
+            GraphStorage::Unlocked(storage) => {
+                EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid))
+            }
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => EdgeStorageEntry::Disk(storage.inner.edge(eid)),
         }
@@ -625,7 +629,7 @@ impl GraphStorage {
 
     pub fn node_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Mem(storage) => storage.graph().node_meta(),
+            GraphStorage::Mem(storage) => storage.graph.node_meta(),
             GraphStorage::Unlocked(storage) => storage.node_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.node_meta(),
@@ -634,7 +638,7 @@ impl GraphStorage {
 
     pub fn edge_meta(&self) -> &Meta {
         match self {
-            GraphStorage::Mem(storage) => storage.graph().edge_meta(),
+            GraphStorage::Mem(storage) => storage.graph.edge_meta(),
             GraphStorage::Unlocked(storage) => storage.edge_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.edge_meta(),
@@ -643,7 +647,7 @@ impl GraphStorage {
 
     pub fn graph_meta(&self) -> &GraphMeta {
         match self {
-            GraphStorage::Mem(storage) => storage.graph().graph_meta(),
+            GraphStorage::Mem(storage) => storage.graph.graph_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_meta(),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => storage.graph_meta(),

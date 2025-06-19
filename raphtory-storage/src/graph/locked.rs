@@ -1,16 +1,13 @@
+use db4_graph::TemporalGraph;
 use raphtory_api::core::{
     entities::{GidRef, VID},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::graph::logical_to_physical::InvalidNodeId,
-    storage::{
-        raw_edges::WriteLockedEdges,
-        WriteLockedNodes,
-    },
+    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::Arc;
-use db4_graph::TemporalGraph;
 use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
 
 #[derive(Debug)]

@@ -6,8 +6,8 @@ use crate::graph::{
 use raphtory_api::core::entities::{LayerIds, EID};
 use raphtory_core::storage::raw_edges::LockedEdges;
 use rayon::iter::ParallelIterator;
-use storage::{Extension, ReadLockedEdges};
 use std::sync::Arc;
+use storage::{Extension, ReadLockedEdges};
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};

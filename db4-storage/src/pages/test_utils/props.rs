@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use itertools::Itertools;
 use proptest::{collection, prelude::*};
 use raphtory_api::core::entities::properties::{
     prop::{DECIMAL_MAX, Prop, PropType},
     tprop::TPropOps,
 };
-use chrono::{DateTime, NaiveDateTime, Utc};
-use bigdecimal::BigDecimal;
-use itertools::Itertools;
+use std::collections::HashMap;
 
 pub fn prop_type() -> impl Strategy<Value = PropType> {
     let leaf = proptest::sample::select(&[

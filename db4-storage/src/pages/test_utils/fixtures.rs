@@ -1,7 +1,7 @@
-use std::collections::HashMap;
 use proptest::{collection, prelude::*};
-use raphtory_core::entities::VID;
 use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_core::entities::VID;
+use std::collections::HashMap;
 
 use super::props::{make_props, prop_type};
 
@@ -89,7 +89,9 @@ pub fn edges_strat(size: usize) -> impl Strategy<Value = Vec<(VID, VID)>> {
     })
 }
 
-pub fn edges_strat_with_layers(size: usize) -> impl Strategy<Value = Vec<(VID, VID, Option<usize>)>> {
+pub fn edges_strat_with_layers(
+    size: usize,
+) -> impl Strategy<Value = Vec<(VID, VID, Option<usize>)>> {
     const MAX_LAYERS: usize = 16;
 
     (1..=size).prop_flat_map(|num_nodes| {
@@ -99,7 +101,10 @@ pub fn edges_strat_with_layers(size: usize) -> impl Strategy<Value = Vec<(VID, V
         let layer_ids = (1usize..MAX_LAYERS).prop_map(|i| Some(i as usize));
 
         num_edges.prop_flat_map(move |num_edges| {
-            collection::vec((srcs.clone(), dsts.clone(), layer_ids.clone()), num_edges as usize)
+            collection::vec(
+                (srcs.clone(), dsts.clone(), layer_ids.clone()),
+                num_edges as usize,
+            )
         })
     })
 }
