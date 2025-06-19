@@ -3,8 +3,8 @@ use crate::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     segments::node::MemNodeSegment,
 };
-use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
-use raphtory_core::{entities::properties::tprop::TPropCell, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{entities::{properties::prop::Prop, EID, VID}, Direction};
+use raphtory_core::{entities::{properties::tprop::TPropCell, LayerIds}, storage::timeindex::TimeIndexEntry};
 use std::{iter::Empty, ops::Deref};
 
 use super::additions::MemAdditions;
@@ -103,5 +103,16 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
         //TODO
         std::iter::empty::<(_, _, Empty<_>)>()
+    }
+    
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
+        match layers {
+            LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
+            LayerIds::All => self.ns.degree(self.pos, 0, dir),
+            LayerIds::None => 0,
+            layers => {
+                self.edges_iter(layers, dir).count()
+            }
+        } 
     }
 }

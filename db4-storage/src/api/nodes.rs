@@ -249,4 +249,6 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
     fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+
+    fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 }
