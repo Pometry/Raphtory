@@ -2,6 +2,9 @@ site_name: Raphtory API Docs
 site_url: !ENV READTHEDOCS_CANONICAL_URL
 
 theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.png
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -9,7 +12,6 @@ theme:
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-
     # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
@@ -17,9 +19,6 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
     - primary: custom
-  name: material
-  custom_dir: docs/overrides
-  logo: assets/logo.png
   features:
     - navigation.tracking
     - navigation.instant
@@ -71,8 +70,7 @@ markdown_extensions:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.superfences
-  - pymdownx.tabbed:
-      alternate_style: true
+  - pymdownx.blocks.tab
   - pymdownx.snippets:
       base_path: [ ".", "docs/src/" ]
       check_paths: true

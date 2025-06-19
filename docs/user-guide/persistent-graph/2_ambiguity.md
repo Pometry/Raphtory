@@ -2,6 +2,18 @@
 
 For a *link-stream* graph there is a natural way to construct the graph regardless of the order the updates come in. However, for a *PersistentGraph* where deletions are possible this becomes more difficult. The following examples illustrate this.
 
+/// tab | :fontawesome-brands-python: Python
+```python
+'foo'
+```
+///
+
+/// tab | :fontawesome-brands-rust: Rust
+```rust
+'bar'
+```
+///
+
 ## Order of resolving additions and deletions
 
 === ":fontawesome-brands-python: Python"
