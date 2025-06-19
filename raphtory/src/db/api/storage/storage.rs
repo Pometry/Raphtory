@@ -17,14 +17,13 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     ops::Deref,
-    path::PathBuf,
     sync::Arc,
 };
 use tracing::info;
 
 #[cfg(feature = "search")]
 use crate::search::graph_index::MutableGraphIndex;
-use crate::{db::api::view::IndexSpec, errors::GraphError, serialise::GraphFolder};
+use crate::{db::api::view::IndexSpec, errors::GraphError};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
@@ -42,6 +41,7 @@ use raphtory_storage::{
 #[cfg(feature = "proto")]
 use {
     crate::serialise::incremental::{GraphWriter, InternalCache},
+    crate::serialise::GraphFolder,
     once_cell::sync::OnceCell,
 };
 

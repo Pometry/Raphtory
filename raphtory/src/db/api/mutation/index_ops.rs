@@ -4,10 +4,7 @@ use crate::{
     prelude::AdditionOps,
     serialise::GraphFolder,
 };
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::Path};
 use zip::ZipArchive;
 
 pub trait IndexMutationOps: Sized + AdditionOps {

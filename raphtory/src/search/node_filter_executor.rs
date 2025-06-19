@@ -22,7 +22,7 @@ use crate::{
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
         fields,
-        graph_index::{GraphIndex, Index},
+        graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
     },
