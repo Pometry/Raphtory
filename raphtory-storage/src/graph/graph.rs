@@ -180,8 +180,8 @@ impl GraphStorage {
     #[inline(always)]
     pub fn core_nodes(&self) -> NodesStorage {
         match self {
-            GraphStorage::Mem(storage) => NodesStorage::Mem(storage.clone()),
-            GraphStorage::Unlocked(storage) => NodesStorage::Mem(storage.read_locked().into()),
+            GraphStorage::Mem(storage) => NodesStorage::Mem(storage.nodes.clone()),
+            GraphStorage::Unlocked(storage) => NodesStorage::Mem(storage.read_locked().nodes.clone()),
             #[cfg(feature = "storage")]
             GraphStorage::Disk(storage) => {
                 NodesStorage::Disk(DiskNodesOwned::new(storage.inner.clone()))

@@ -3,7 +3,6 @@ use crate::graph::{
     nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
     variants::storage_variants2::StorageVariants2,
 };
-use db4_graph::{entries::node::LockedNodeEntry, ReadLockedTemporalGraph};
 use raphtory_api::{
     core::{
         entities::{
@@ -18,16 +17,22 @@ use raphtory_api::{
 };
 use raphtory_core::storage::node_entry::NodePtr;
 use std::{borrow::Cow, ops::Range};
-use storage::Extension;
+use storage::NodeEntryRef;
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::node::DiskNode;
 
 #[derive(Copy, Clone, Debug)]
 pub enum NodeStorageRef<'a> {
-    Mem(LockedNodeEntry<'a, Extension>),
+    Mem(NodeEntryRef<'a>),
     #[cfg(feature = "storage")]
     Disk(DiskNode<'a>),
+}
+
+impl<'a> From<NodeEntryRef<'a>> for NodeStorageRef<'a> {
+    fn from(value: NodeEntryRef<'a>) -> Self {
+        NodeStorageRef::Mem(value)
+    }
 }
 
 impl<'a> NodeStorageRef<'a> {

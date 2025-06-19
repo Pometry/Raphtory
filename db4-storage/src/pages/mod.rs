@@ -60,17 +60,17 @@ pub struct ReadLockedGraphStore<
     ES: EdgeSegmentOps<Extension = EXT>,
     EXT,
 > {
-    nodes: ReadLockedNodeStorage<NS, EXT>,
-    edges: ReadLockedEdgeStorage<ES, EXT>,
-    graph: Arc<GraphStore<NS, ES, EXT>>,
+    pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
+    pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
+    pub graph: Arc<GraphStore<NS, ES, EXT>>,
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Default>
     GraphStore<NS, ES, EXT>
 {
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
-        let nodes = self.nodes.locked();
-        let edges = self.edges.locked();
+        let nodes = self.nodes.locked().into();
+        let edges = self.edges.locked().into();
         ReadLockedGraphStore {
             nodes,
             edges,

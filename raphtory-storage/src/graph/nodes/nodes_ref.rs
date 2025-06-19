@@ -8,9 +8,9 @@ use storage::{Extension, ReadLockedNodes};
 use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
 
 #[derive(Debug)]
-pub enum NodesStorageEntry<'a, EXT = Extension> {
-    Mem(&'a ReadLockedNodes<EXT>),
-    Unlocked(ReadLockedNodes<EXT>),
+pub enum NodesStorageEntry<'a> {
+    Mem(&'a ReadLockedNodes<Extension>),
+    Unlocked(ReadLockedNodes<Extension>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }
@@ -29,8 +29,8 @@ macro_rules! for_all_variants {
 impl<'a> NodesStorageEntry<'a> {
     pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.node(vid)),
-            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.node(vid)),
+            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.node_ref(vid)),
+            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.node_ref(vid)),
             #[cfg(feature = "storage")]
             NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }

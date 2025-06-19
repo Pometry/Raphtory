@@ -9,6 +9,7 @@ use crate::{
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_core::entities::{EID, VID};
+use rayon::prelude::*;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -41,6 +42,33 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
         let (page_id, pos) = self.storage.resolve_pos(node);
         let locked_page = &self.locked_segments[page_id];
         locked_page.entry_ref(pos)
+    }
+
+    pub fn len(&self) -> usize {
+        self.storage.num_nodes()
+    }
+
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<
+        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+    > + '_ {
+        (0..self.len()).map(move |i| {
+            let vid = VID(i);
+            self.node_ref(vid)
+        })
+    }
+
+    pub fn par_iter(
+        &self,
+    ) -> impl rayon::iter::ParallelIterator<
+        Item = <<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>,
+    > + '_ {
+        
+        (0..self.len()).into_par_iter().map(move |i| {
+            let vid = VID(i);
+            self.node_ref(vid)
+        })
     }
 }
 
