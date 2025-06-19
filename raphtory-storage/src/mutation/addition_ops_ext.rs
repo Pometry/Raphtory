@@ -65,7 +65,18 @@ impl<
         self.layer.as_mut().map(|layer| {
             layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
         });
+
         eid
+    }
+
+    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+        match id {
+            NodeRef::External(id) => {
+                let vid = vid.into();
+                self.static_session.store_node_id(id, vid)
+            }
+            NodeRef::Internal(id) => Ok(()),
+        }
     }
 }
 

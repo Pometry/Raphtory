@@ -4,14 +4,15 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
 use crate::{
-    EdgeSegmentOps, NodeSegmentOps,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    error::DBV4Error, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, EdgeSegmentOps, NodeSegmentOps
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
-    entities::{EID, ELID, VID},
+    entities::{GidRef, EID, ELID, VID},
     storage::timeindex::AsTime,
 };
+
+const NODE_ID_CONST_PROP_NAME: &str = "_raphtory_node_id";
 
 pub struct WriteSession<
     'a,
@@ -220,5 +221,20 @@ impl<
                 MaybeNew::New(edge_id)
             }
         }
+    }
+
+    pub fn store_node_id(&mut self, id: GidRef, vid: impl Into<VID>) -> Result<(), DBV4Error> {
+        // node ids go to const props in layer 0
+        let layer = 0;
+        let prop_name = NODE_ID_CONST_PROP_NAME;
+        let prop_val = match id {
+            GidRef::U64(id) => Prop::U64(id),
+            GidRef::Str(id) => Prop::Str(id.into()),
+        };
+        let props = vec![(prop_name, prop_val)];
+
+        self.graph.update_node_const_props(vid, layer, props)?;
+
+        Ok(())
     }
 }

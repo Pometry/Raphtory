@@ -66,6 +66,7 @@ pub trait InternalAdditionOps {
 }
 
 pub trait AtomicAdditionOps: Send + Sync {
+    /// add edge update
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
@@ -75,6 +76,9 @@ pub trait AtomicAdditionOps: Send + Sync {
         layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
+
+    /// Sets id as a const prop within the node
+    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>);
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -147,6 +151,10 @@ impl AtomicAdditionOps for TGWriteSession<'_> {
         _props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         todo!("Atomic addition operations are not implemented for TGWriteSession");
+    }
+
+    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+        todo!("set_node_id is not implemented for TGWriteSession");
     }
 }
 

@@ -91,7 +91,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
     /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
-    /// ```    
+    /// ```
     fn add_edge<
         V: AsNodeRef,
         T: TryIntoInputTime,
@@ -242,6 +242,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let mut add_edge_op = self.atomic_add_edge(src_id, dst_id, None, layer_id);
 
         let edge = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
+
+        add_edge_op.store_node_id(src.as_node_ref(), src_id);
+        add_edge_op.store_node_id(dst.as_node_ref(), dst_id);
 
         Ok(EdgeView::new(
             self.clone(),
