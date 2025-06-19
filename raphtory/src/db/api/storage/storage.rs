@@ -24,7 +24,7 @@ use tracing::info;
 
 #[cfg(feature = "search")]
 use crate::search::graph_index::MutableGraphIndex;
-use crate::{db::api::view::IndexSpec, errors::GraphError};
+use crate::{db::api::view::IndexSpec, errors::GraphError, serialise::GraphFolder};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
@@ -139,7 +139,7 @@ impl Storage {
 
     pub(crate) fn get_or_load_index(
         &self,
-        path: PathBuf,
+        path: &GraphFolder,
     ) -> Result<&RwLock<GraphIndex>, GraphError> {
         self.index.get_or_try_init(|| {
             let index = GraphIndex::load_from_path(&path)?;
@@ -152,7 +152,7 @@ impl Storage {
         index_spec: IndexSpec,
     ) -> Result<&RwLock<GraphIndex>, GraphError> {
         let index = self.index.get_or_try_init(|| {
-            let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
+            let cached_graph_path = self.get_cache().map(|cache| cache.folder.clone());
             let index = GraphIndex::create(&self.graph, false, cached_graph_path)?;
             Ok::<_, GraphError>(RwLock::new(index))
         })?;
@@ -184,7 +184,7 @@ impl Storage {
         self.index.get()
     }
 
-    pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
         if let Some(index) = self.get_index() {
             if index.read().path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
@@ -195,7 +195,7 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
         if let Some(index) = self.get_index() {
             if index.read().path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);

@@ -64,11 +64,11 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
 
 pub trait StableDecode: InternalStableDecode + StaticGraphViewOps + AdditionOps {
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let folder = path.into();
-        let graph = Self::decode_from_path(&folder)?;
+        let mut folder = path.into();
+        let graph = Self::decode_from_path(&mut folder)?;
 
         #[cfg(feature = "search")]
-        graph.load_index(&folder.root_folder)?;
+        graph.load_index(&folder)?;
 
         Ok(graph)
     }
@@ -84,7 +84,7 @@ pub trait InternalStableDecode: Sized {
         Self::decode_from_proto(&graph)
     }
 
-    fn decode_from_path(path: &GraphFolder) -> Result<Self, GraphError> {
+    fn decode_from_path(path: &mut GraphFolder) -> Result<Self, GraphError> {
         let bytes = path.read_graph()?;
         let graph = Self::decode_from_bytes(bytes.as_ref())?;
         Ok(graph)

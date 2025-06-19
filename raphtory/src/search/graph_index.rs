@@ -7,6 +7,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
+    serialise::GraphFolder,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
@@ -42,7 +43,7 @@ impl Index {
 #[derive(Clone)]
 pub struct ImmutableGraphIndex {
     pub(crate) index: Index,
-    pub(crate) path: Arc<PathBuf>,
+    pub(crate) path: Arc<GraphFolder>,
     pub index_spec: Arc<IndexSpec>,
 }
 
@@ -72,24 +73,26 @@ impl MutableGraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &Path) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
         let source_path = self
             .path
             .as_ref()
-            .map(|p| p.path().join("index"))
-            .ok_or(GraphError::GraphIndexIsMissing)?;
-        let path = path.join("index");
+            .ok_or(GraphError::GraphIndexIsMissing)?
+            .path();
+        let path = path.get_base_path().join("index");
         let path = path.as_path();
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
 
-        copy_dir_recursive(source_path.as_path(), temp_path)?;
+        copy_dir_recursive(source_path, temp_path)?;
 
         // Always overwrite the existing graph index when persisting, since the in-memory
         // working index may have newer updates. The persisted index is decoupled from the
         // active one, and changes remain in memory unless explicitly saved.
         // This behavior mirrors how the in-memory graph works — updates are not persisted
         // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
+        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
+        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
         if path.exists() {
             fs::remove_dir_all(path)
                 .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
@@ -102,28 +105,27 @@ impl MutableGraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk_zip(&self, path: &Path) -> Result<(), GraphError> {
-        let index_path = &path.join("index");
-
-        let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
-
-        if index_path.exists() {
-            fs::remove_dir_all(index_path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(index_path.clone()))?;
-        }
-
-        let file = File::options().read(true).write(true).open(path)?;
-
+    pub(crate) fn persist_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .open(path.get_base_path())?;
         let mut zip = ZipWriter::new_append(file)?;
 
-        for entry in WalkDir::new(source_path.path())
+        let source_path = self
+            .path
+            .as_ref()
+            .ok_or(GraphError::GraphIndexIsMissing)?
+            .path();
+
+        for entry in WalkDir::new(source_path)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
         {
             let rel_path = entry
                 .path()
-                .strip_prefix(source_path.path())
+                .strip_prefix(source_path)
                 .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
 
             let zip_entry_name = PathBuf::from("index")
@@ -249,13 +251,13 @@ impl GraphIndex {
     pub fn create(
         graph: &GraphStorage,
         create_in_ram: bool,
-        cached_graph_path: Option<&Path>,
+        cached_graph_path: Option<GraphFolder>,
     ) -> Result<Self, GraphError> {
         let dir = if !create_in_ram {
             let temp_dir = match cached_graph_path {
                 // Creates index in a temp dir within cache graph dir.
                 // The intention is to avoid creating index in a tmp dir that could be on another file system.
-                Some(path) => TempDir::new_in(path)?,
+                Some(path) => TempDir::new_in(path.get_base_path())?,
                 None => TempDir::new()?,
             };
 
@@ -284,12 +286,13 @@ impl GraphIndex {
         }))
     }
 
-    pub fn load_from_path(path: &PathBuf) -> Result<GraphIndex, GraphError> {
-        let index_path = path.join("index");
-
-        if index_path.is_file() {
-            unzip(&index_path, path)?;
-        }
+    pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
+        let tmp_path = TempDir::new()?;
+        let mut index_path = path.get_index_path();
+        if path.prefer_zip_format {
+            index_path = tmp_path.keep();
+            unzip(&path.get_base_path(), index_path.as_path())?
+        };
 
         // Load directly from disk without copying
         let node_index = NodeIndex::load_from_path(&index_path.join("nodes"))?;
@@ -314,13 +317,13 @@ impl GraphIndex {
 
     pub fn make_mutable_if_needed(&mut self) -> Result<(), GraphError> {
         if let GraphIndex::Immutable(immutable) = self {
-            let temp_dir = TempDir::new_in(immutable.path.as_ref())?;
-            let temp_path = temp_dir.path().join("index");
+            let temp_dir = TempDir::new_in(&immutable.path.get_base_path())?;
+            let temp_path = temp_dir.path();
 
-            copy_dir_recursive(&immutable.path.join("index"), temp_path.as_path())?;
+            copy_dir_recursive(&immutable.path.get_index_path(), temp_path)?;
 
-            let node_index = NodeIndex::load_from_path(&temp_path.as_path().join("nodes"))?;
-            let edge_index = EdgeIndex::load_from_path(&temp_path.as_path().join("edges"))?;
+            let node_index = NodeIndex::load_from_path(&temp_path.join("nodes"))?;
+            let edge_index = EdgeIndex::load_from_path(&temp_path.join("edges"))?;
 
             let index_spec = immutable.index_spec.clone();
 
@@ -345,7 +348,7 @@ impl GraphIndex {
 
     pub fn path(&self) -> Option<&Path> {
         match self {
-            GraphIndex::Immutable(i) => Some(i.path.as_path()),
+            GraphIndex::Immutable(i) => Some(i.path.get_base_path()),
             GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path()),
         }
     }
@@ -363,11 +366,11 @@ impl GraphIndex {
 }
 
 fn get_node_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
-    path.as_ref().map(|p| p.path().join("index").join("nodes"))
+    path.as_ref().map(|p| p.path().join("nodes"))
 }
 
 fn get_edge_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
-    path.as_ref().map(|p| p.path().join("index").join("edges"))
+    path.as_ref().map(|p| p.path().join("edges"))
 }
 
 fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), GraphError> {

@@ -29,11 +29,13 @@ use tracing::info;
 
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";
+const INDEX_PATH: &str = "index";
+const VECTORS_PATH: &str = "vectors";
 
 #[derive(Clone, Debug)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
-    prefer_zip_format: bool,
+    pub(crate) prefer_zip_format: bool,
 }
 
 pub enum GraphReader {
@@ -70,7 +72,11 @@ impl GraphFolder {
 
     // TODO: make private once possible
     pub fn get_vectors_path(&self) -> PathBuf {
-        self.root_folder.join("vectors")
+        self.root_folder.join(VECTORS_PATH)
+    }
+
+    pub fn get_index_path(&self) -> PathBuf {
+        self.root_folder.join(INDEX_PATH)
     }
 
     // TODO: make private once possible
@@ -78,13 +84,14 @@ impl GraphFolder {
         &self.root_folder
     }
 
-    pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
+    pub fn read_graph(&mut self) -> Result<GraphReader, io::Error> {
         if self.root_folder.is_file() {
             let file = File::open(&self.root_folder)?;
             let mut archive = ZipArchive::new(file)?;
             let mut entry = archive.by_name(GRAPH_FILE_NAME)?;
             let mut buf = vec![];
             entry.read_to_end(&mut buf)?;
+            self.prefer_zip_format = true;
             Ok(GraphReader::Zip(buf))
         } else {
             let file = File::open(self.get_graph_path())?;
@@ -106,9 +113,9 @@ impl GraphFolder {
     #[cfg(feature = "search")]
     fn write_index(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
         if self.prefer_zip_format {
-            graph.persist_index_to_disk_zip(&self.root_folder)
+            graph.persist_index_to_disk_zip(&self)
         } else {
-            graph.persist_index_to_disk(&self.root_folder)
+            graph.persist_index_to_disk(&self)
         }
     }
 
