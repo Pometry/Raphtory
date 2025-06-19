@@ -22,9 +22,15 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::filter::model::{
-            property_filter::{PropertyFilter, PropertyRef},
-            ComposableFilter, EdgeFilter, EdgeFilterOps,
+        db::graph::{
+            graph::{assert_edges_equal, assert_graph_equal},
+            views::{
+                deletion_graph::PersistentGraph,
+                filter::model::{
+                    property_filter::{PropertyFilter, PropertyRef},
+                    ComposableFilter, EdgeFilter, EdgeFilterOps,
+                },
+            },
         },
         prelude::*,
         test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -33,7 +39,7 @@ mod test {
     use proptest::{arbitrary::any, proptest};
 
     #[test]
-    fn test_edge_filter_on_edges() {
+    fn test_edge_filter() {
         use crate::db::graph::views::filter::model::PropertyFilterOps;
 
         let g = Graph::new();
@@ -58,6 +64,55 @@ mod test {
                 .collect::<Vec<_>>(),
             vec!["John->David"]
         );
+
+        let g_expected = Graph::new();
+        g_expected
+            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["John->David"]
+        );
+        assert_graph_equal(&filtered_edges, &g_expected);
+    }
+
+    #[test]
+    fn test_edge_filter_persistent() {
+        use crate::db::graph::views::filter::model::PropertyFilterOps;
+
+        let g = PersistentGraph::new();
+        g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
+            .unwrap();
+        g.add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+        g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
+            .unwrap();
+
+        let filter_expr = EdgeFilter::dst()
+            .name()
+            .eq("David")
+            .and(PropertyFilter::property("band").eq("Dead & Company"));
+        let filtered_edges = g.filter_edges(filter_expr).unwrap();
+
+        let g_expected = PersistentGraph::new();
+        g_expected
+            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["John->David"]
+        );
+        assert_graph_equal(&filtered_edges, &g_expected);
     }
 
     #[test]
