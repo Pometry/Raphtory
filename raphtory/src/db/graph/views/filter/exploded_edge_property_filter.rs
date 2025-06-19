@@ -4,10 +4,9 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                time_semantics::filtered_edge::FilteredEdgeStorageOps, EdgeFilterOps,
-                EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, Static,
+                EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
+                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
             },
         },
         graph::views::filter::internal::InternalExplodedEdgeFilterOps,
@@ -18,7 +17,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{EID, ELID},
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+        storage::timeindex::TimeIndexEntry,
     },
     inherit::Base,
 };

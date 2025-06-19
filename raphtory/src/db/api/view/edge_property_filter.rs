@@ -1,12 +1,8 @@
 use crate::{
-    db::{
-        api::view::internal::{InternalMaterialize, OneHopFilter},
-        graph::views::filter::internal::CreateEdgeFilter,
-    },
+    db::{api::view::internal::OneHopFilter, graph::views::filter::internal::CreateEdgeFilter},
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::GraphType;
 
 pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_edges<F: CreateEdgeFilter>(
