@@ -23,17 +23,22 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 mod test {
     use crate::{
         db::graph::{
-            graph::{assert_edges_equal, assert_graph_equal},
+            graph::{
+                assert_edges_equal, assert_graph_equal, assert_persistent_materialize_graph_equal,
+            },
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{
                     property_filter::{PropertyFilter, PropertyRef},
-                    ComposableFilter, EdgeFilter, EdgeFilterOps,
+                    ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterBuilder,
+                    PropertyFilterOps,
                 },
             },
         },
         prelude::*,
-        test_utils::{build_edge_list, build_graph_from_edge_list},
+        test_utils::{
+            build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
+        },
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
@@ -284,6 +289,49 @@ mod test {
                     assert!(!filtered.has_edge(e.src(), e.dst()));
                 }
             }
+        })
+    }
+
+    #[test]
+    fn test_graph_materialise_window() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
+            let g = build_graph_from_edge_list(&edges);
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gwf = g.window(start, end)
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gwfm = gwf.materialize().unwrap();
+            assert_graph_equal(&gwf, &gwfm);
+
+            let gfw = g
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v)).unwrap()
+                .window(start, end);
+            let gfwm = gfw.materialize().unwrap();
+            assert_graph_equal(&gfw, &gfwm);
+        })
+    }
+
+    #[test]
+    fn test_persistent_graph_materialise_window() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
+            let g = build_graph_from_edge_list(&edges);
+            let g = g.persistent_graph();
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gwf = g.window(start, end)
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gwfm = gwf.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gwf, &gwfm);
+
+            let gfw = g
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v)).unwrap()
+                .window(start, end);
+            let gfwm = gfw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gfw, &gfwm);
         })
     }
 }
