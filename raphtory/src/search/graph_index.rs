@@ -79,7 +79,7 @@ impl MutableGraphIndex {
             .as_ref()
             .ok_or(GraphError::GraphIndexIsMissing)?
             .path();
-        let path = path.get_base_path().join("index");
+        let path = path.get_index_path();
         let path = path.as_path();
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
