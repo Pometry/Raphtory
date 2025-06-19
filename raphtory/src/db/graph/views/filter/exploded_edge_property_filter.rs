@@ -22,7 +22,10 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef,
+    layer_ops::InternalLayerOps,
+};
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -138,9 +141,11 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        let time_semantics = self.graph.edge_time_semantics();
         self.graph.filter_edge(edge, layer_ids)
-            && edge
-                .filtered_additions_iter(self, layer_ids)
-                .any(|(_, additions)| !additions.is_empty())
+            && time_semantics
+                .edge_exploded(edge, self, self.layer_ids())
+                .next()
+                .is_some()
     }
 }
