@@ -120,7 +120,7 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        for_all_iter!(self, node => node.tprop(prop_id))
+        for_all_iter!(self, node => node.t_prop(&LayerIds::All, prop_id))
     }
 
     fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
@@ -144,11 +144,11 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        for_all!(self, node => NodeStorageOps::find_edge(node, dst, layer_ids))
+        for_all!(self, node => node.find_edge(dst, layer_ids))
     }
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
-        for_all!(self, node => node.prop(prop_id))
+        for_all!(self, node => node.c_prop(prop_id))
     }
 
     fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {

@@ -326,7 +326,10 @@ pub fn check_graph_with_nodes_support<
 
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
-            let actual_props = node_entry.t_prop(0, prop_id).iter_t().collect::<Vec<_>>();
+            let actual_props = node_entry
+                .t_prop(&LayerIds::One(0), prop_id)
+                .iter_t()
+                .collect::<Vec<_>>();
 
             assert_eq!(
                 actual_props, props,
@@ -442,8 +445,8 @@ pub fn check_graph_with_props_support<
                 .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
-            let layer_id = 0;
-            let actual_props = e.t_prop(layer_id, prop_id).iter_t().collect::<Vec<_>>();
+            let layer_id = LayerIds::One(0);
+            let actual_props = e.t_prop(&layer_id, prop_id).iter_t().collect::<Vec<_>>();
 
             assert_eq!(
                 actual_props, props,
@@ -459,7 +462,7 @@ pub fn check_graph_with_props_support<
                         .const_prop_meta()
                         .get_id(name)
                         .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
-                    let actual_props = e.c_prop(layer_id, prop_id);
+                    let actual_props = e.c_prop(0, prop_id);
                     assert_eq!(
                         actual_props.as_ref(),
                         Some(prop),

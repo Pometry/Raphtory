@@ -8,6 +8,7 @@ use raphtory_core::{
 
 use crate::utils::Iter4;
 
+// TODO: split the Node time operations into edge additions and property additions
 #[derive(Clone, Copy)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -38,7 +39,7 @@ where
     ) -> impl Iterator<Item = Self::TimeCell> + 'a;
     fn num_layers(&self) -> usize;
 
-    fn time_cells<B: Borrow<LayerIds> + 'a>(
+    fn time_cells<B: Borrow<LayerIds>>(
         self,
         layer_ids: B,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -59,18 +60,18 @@ where
         }
     }
 
-    fn into_iter(
+    fn into_iter<'b>(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: &'b LayerIds,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
         let iters = self.time_cells(layer_ids, range);
         iters.map(|cell| cell.iter()).kmerge()
     }
 
-    fn into_iter_rev(
+    fn into_iter_rev<'b>(
         self,
-        layer_ids: &'a LayerIds,
+        layer_ids: &'b LayerIds,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
         let iters = self.time_cells(layer_ids, range);
