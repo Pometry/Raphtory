@@ -115,9 +115,8 @@ query {
 ///
 
 /// tab | :fontawesome-brands-python: Python
-``` python
+```{.python notest}
 g.node("Ben").properties.get("age")
-
 ```
 ///
 
@@ -126,7 +125,10 @@ g.node("Ben").properties.get("age")
 It is possible to send GraphQL queries in Python without the in-browser IDE. This can be useful if you want to update your Raphtory graph in Python. This example shows you how to do this with the Raphtory client:
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory import graphql
+from raphtory.graphql import GraphServer
+
 with GraphServer(work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
 
@@ -137,11 +139,11 @@ with GraphServer(work_dir).start():
 
 Pass your graph object string into the `client.query()` method to execute the GraphQL query and retrieve the result in a python dictionary object.
 
-/// tab | :fontawesome-brands-python: Python
-```python
-{'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
-```
-///
+!!! Output
+    ```output
+    {'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
+    ```
+
 
 ## Mutation Queries
 
@@ -180,7 +182,8 @@ There are additional methods to mutate the graph exclusive to Python such as sen
 You can send a graph to the server and overwrite an existing graph if needed.
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
 tmp_work_dir = tempfile.mkdtemp()
 with GraphServer(tmp_work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -195,7 +198,7 @@ with GraphServer(tmp_work_dir).start():
 To check your query:
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 query = """{graph(path: "g") {nodes {list {name}}}}"""
 client.query(query)
 ```
@@ -225,7 +228,7 @@ This should return:
 You can retrieve graphs from a "path" on the server which returns a Python Raphtory graph object.
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 g = client.receive_graph("path/to/graph")
 g.edge("sally", "tony")
 ```
@@ -247,7 +250,9 @@ mutation {
 ///
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
+
 work_dir = tempfile.mkdtemp()
 with GraphServer(work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -280,7 +285,9 @@ mutation {
 ///
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
+
 work_dir = tempfile.mkdtemp()
 with GraphServer(work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -313,7 +320,9 @@ mutation {
 ///
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
+
 work_dir = tempfile.mkdtemp()
 with GraphServer(work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -346,7 +355,9 @@ mutation {
 ///
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
+
 work_dir = tempfile.mkdtemp()
 with GraphServer(work_dir).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -371,7 +382,9 @@ The returning GraphQL result to confirm that the graph has been deleted:
 It is possible to update the graph using the `remote_graph()` method.
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
+from raphtory.graphql import GraphServer
+
 work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -384,7 +397,7 @@ work_dir = tempfile.mkdtemp()
 Once you have updated the graph, for example by adding an edge, you can receive a graph by using `receive_graph()` and specifying the path of the graph you would like to receive.
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 g = client.receive_graph("path/to/event_graph")
 ```
 ///

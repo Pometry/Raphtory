@@ -14,10 +14,12 @@ In the below code loads this dataset into a dataframe and does a small amount of
 /// tab | :fontawesome-brands-python: Python
 
 ```python
+from raphtory import Graph
+from datetime import datetime
 import pandas as pd
 
 edges_df = pd.read_csv(
-    "data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -42,7 +44,7 @@ print(edges_df.head())
 Next we load this into Raphtory using the `load_edges_from_pandas` function, modelling it as a weighted multi-layer graph, with a layer per unique `behavior`. 
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python continuation}
 import raphtory as rp
 
 g = rp.Graph()

@@ -15,6 +15,29 @@ The following example gets the names of all the monkeys, the names of their two-
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 node_names = g.nodes.name
 two_hop_neighbours = g.nodes.neighbours.neighbours.name.collect()
 combined = zip(node_names, two_hop_neighbours)
@@ -57,6 +80,29 @@ First we sum the `Weight` value of each of `Felipe's` out-neighbours to rank the
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 v = g.node("FELIPE")
 neighbours_weighted = list(
     zip(

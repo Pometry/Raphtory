@@ -8,6 +8,10 @@ In the below example, we create a windowed view between the 17th and 18th of Jun
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import Graph
+from datetime import datetime
+g = Graph()
+
 start_time = datetime.strptime("2019-06-17", "%Y-%m-%d")
 end_time = datetime.strptime("2019-06-18", "%Y-%m-%d")
 windowed_view = g.window(start_time, end_time)

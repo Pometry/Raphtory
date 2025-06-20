@@ -13,6 +13,35 @@ We call `to_networkx()` again, disabling the property and update history and rep
 /// tab | :fontawesome-brands-python: Python
 
 ```python
+from raphtory import Graph
+import pandas as pd
+
+server_edges_df = pd.read_csv("../data/network_traffic_edges.csv")
+server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
+
+server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
+server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
+
+traffic_graph = Graph()
+traffic_graph.load_edges_from_pandas(
+    df=server_edges_df,
+    src="source",
+    dst="destination",
+    time="timestamp",
+    properties=["data_size_MB"],
+    layer_col="transaction_type",
+    constant_properties=["is_encrypted"],
+    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+)
+traffic_graph.load_nodes_from_pandas(
+    df=server_nodes_df,
+    id="server_id",
+    time="timestamp",
+    properties=["OS_version", "primary_function", "uptime_days"],
+    constant_properties=["server_name", "hardware_type"],
+    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+)
+
 nx_g = traffic_graph.to_networkx()
 
 print("Networkx graph:")
@@ -58,7 +87,7 @@ import networkx as nx
 from raphtory import Graph
 import pandas as pd
 
-server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+server_edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
 traffic_graph = Graph()

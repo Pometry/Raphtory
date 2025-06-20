@@ -13,6 +13,7 @@ Functionality with the same name is available for the *PersistentGraph*. This sh
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import PersistentGraph
 G = PersistentGraph()
 
 G.add_edge(2, "Alice", "Bob")
@@ -55,6 +56,7 @@ Crucially, this means that while performing a node count on a `Graph` will count
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import PersistentGraph
 G = PersistentGraph()
 
 G.add_edge(2, "Alice", "Bob")
@@ -93,6 +95,7 @@ Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), cr
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import PersistentGraph
 G = PersistentGraph()
 
 G.add_edge(2, "Alice", "Bob")
@@ -131,6 +134,7 @@ print(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}")
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import PersistentGraph
 G = PersistentGraph()
 
 G.add_edge(2, "Alice", "Bob")

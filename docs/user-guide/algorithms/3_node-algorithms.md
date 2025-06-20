@@ -13,6 +13,15 @@ In the example below we first get the result of an individual character (Gandalf
 /// tab | :fontawesome-brands-python: Python
 ```python
 from raphtory import algorithms as rp
+from raphtory import Graph
+import pandas as pd
+
+df = pd.read_csv("../data/lotr.csv")
+
+lotr_graph = Graph()
+lotr_graph.load_edges_from_pandas(
+    df=df,time="time", src="src", dst="dst"
+)
 
 results = rp.pagerank(lotr_graph)
 
@@ -56,6 +65,15 @@ Next we take the results and group the nodes by these IDs and calculate the size
 /// tab | :fontawesome-brands-python: Python
 ```python
 from raphtory import algorithms as rp
+from raphtory import Graph
+import pandas as pd
+
+df = pd.read_csv("../data/lotr.csv")
+
+lotr_graph = Graph()
+lotr_graph.load_edges_from_pandas(
+    df=df,time="time", src="src", dst="dst"
+)
 
 results = rp.weakly_connected_components(lotr_graph)
 

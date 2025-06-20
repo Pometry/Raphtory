@@ -14,7 +14,7 @@ import pandas as pd
 from raphtory import algorithms as rp
 from raphtory import Graph
 
-df = pd.read_csv("docs/data/lotr.csv")
+df = pd.read_csv("../data/lotr.csv")
 lotr_graph = Graph()
 lotr_graph.load_edges_from_pandas(
     df=df, src="src", dst="dst", time="time"

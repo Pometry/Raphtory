@@ -16,6 +16,29 @@ Layer views can also be used in combination with any other view function. In the
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
+
 total_weight = g.edges.properties.temporal.get("Weight").values().sum().sum()
 print(f"Total weight across all edges is {total_weight}.")
 
@@ -60,6 +83,29 @@ Expanding on the example from [the time views](2_time.md#traversing-the-graph-wi
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
+
 two_hop_neighbours = set(
     g.node("LOME")
     .layer("Grooming")

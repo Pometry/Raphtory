@@ -13,7 +13,7 @@ In the example below we ingest the edge dataframe from the [last section](3_data
 from raphtory import Graph
 import pandas as pd
 
-edges_df = pd.read_csv("data/network_traffic_edges.csv")
+edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 
 g = Graph()
@@ -25,8 +25,8 @@ g.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
 )
-g.save_to_file("/tmp/saved_graph") 
-loaded_graph = Graph.load_from_file("/tmp/saved_graph")
+g.save_to_file("../tmp/saved_graph") 
+loaded_graph = Graph.load_from_file("../tmp/saved_graph")
 print(g)
 print(loaded_graph)
 ```

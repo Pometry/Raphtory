@@ -20,6 +20,29 @@ In the example below we print the degree of `Lome` across the full dataset, befo
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
+
 v = g.node("LOME")
 
 print(f"Across the full dataset {v.name} interacted with {v.degree()} other monkeys.")
@@ -51,7 +74,29 @@ This is useful for digging into specific ranges of the history that you are inte
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
 from datetime import datetime
+import matplotlib.pyplot as plt
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
 
 start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
 end_day = datetime.strptime("2019-06-14", "%Y-%m-%d")
@@ -92,6 +137,30 @@ First we show calling `before()` on the `graph`. This works for the one hop neig
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+import matplotlib.pyplot as plt
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 first_day = datetime.strptime("2019-06-20", "%Y-%m-%d")
 second_day = datetime.strptime("2019-06-25", "%Y-%m-%d")
 
@@ -145,6 +214,30 @@ The second case shows the complexity of increments Raphtory can handle, stepping
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+import matplotlib.pyplot as plt
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 print(
     f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}\n"
 )
@@ -191,6 +284,30 @@ For example, below we take the code from [expanding](#expanding) and swap out th
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+import matplotlib.pyplot as plt
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 print("Rolling 1 week")
 for rolling_g in g.rolling(window="1 week"):
     print(
@@ -217,6 +334,30 @@ As an example of how useful this can be, in the following example we plot the da
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+import matplotlib.pyplot as plt
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 importance = []
 time = []
 for rolling_lome in g.node("LOME").rolling("1 day"):

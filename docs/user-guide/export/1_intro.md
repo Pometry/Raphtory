@@ -16,10 +16,10 @@ The following example reuses the network traffic dataset from the [ingestion tut
 from raphtory import Graph
 import pandas as pd
 
-server_edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+server_edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 server_edges_df["timestamp"] = pd.to_datetime(server_edges_df["timestamp"])
 
-server_nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
+server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
 print("Network Traffic Edges:")
@@ -36,7 +36,7 @@ traffic_graph.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
     constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    shared_constant_properties={"datasource": "../data/network_traffic_edges.csv"},
 )
 traffic_graph.load_nodes_from_pandas(
     df=server_nodes_df,
@@ -44,11 +44,11 @@ traffic_graph.load_nodes_from_pandas(
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
     constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    shared_constant_properties={"datasource": "../data/network_traffic_edges.csv"},
 )
 
 monkey_edges_df = pd.read_csv(
-    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
 )
 monkey_edges_df["DateTime"] = pd.to_datetime(monkey_edges_df["DateTime"])
 monkey_edges_df.dropna(axis=0, inplace=True)

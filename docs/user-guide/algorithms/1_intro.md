@@ -17,7 +17,7 @@ This dataset is a simple edge list, consisting of the source character, destinat
 from raphtory import Graph
 import pandas as pd
 
-df = pd.read_csv("docs/data/lotr.csv")
+df = pd.read_csv("../data/lotr.csv")
 print(df)
 
 lotr_graph = Graph()

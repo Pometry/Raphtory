@@ -13,7 +13,7 @@ You will need some test data to complete the following examples. This can be you
 Once your data is loaded into a Raphtory graph, the graph needs to be saved into your working directory. This can be done with the following code, where `g` is your graph:
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 import os
 working_dir = "graphs/"
 
@@ -28,7 +28,7 @@ g.save_to_file(working_dir + "your_graph")
 To run the GraphQL server with `.run()`, create a python file `run_server.py` with the following code:
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 from raphtory import graphql
 
 import argparse
@@ -57,7 +57,7 @@ python run_server.py --working_dir ../your_working_dir
 It is also possible to start the server in Python with `.start()`. Below is an example of how to start the server and send a Raphtory graph to the server, where `new_graph` is your Raphtory graph object.
 
 /// tab | :fontawesome-brands-python: Python
-```python
+```{.python notest}
 tmp_work_dir = tempfile.mkdtemp()
 with GraphServer(tmp_work_dir, tracing=True).start():
     client = RaphtoryClient("http://localhost:1736")

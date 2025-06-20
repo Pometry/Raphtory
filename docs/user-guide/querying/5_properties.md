@@ -90,6 +90,29 @@ In the code below, we call a subset of these functions on the `Weight` property 
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
 properties = g.edge("FELIPE", "MAKO").properties.temporal
 print("Property keys:", properties.keys())
 weight_prop = properties.get("Weight")

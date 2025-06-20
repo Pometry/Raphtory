@@ -9,10 +9,10 @@ In the example below we are ingesting some network traffic data which includes d
 from raphtory import Graph
 import pandas as pd
 
-edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
+edges_df = pd.read_csv("../data/network_traffic_edges.csv")
 edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 
-nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
+nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
 pd.set_option('display.max_columns', None)  # so all columns are printed
@@ -78,7 +78,16 @@ The resulting graph and an example node/edge are then printed to show the data f
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import Graph
+import pandas as pd
 g = Graph()
+
+edges_df = pd.read_csv("../data/network_traffic_edges.csv")
+edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+
+nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
+nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
+
 g.load_edges_from_pandas(
     df=edges_df,
     time="timestamp",
@@ -87,7 +96,7 @@ g.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
     constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    shared_constant_properties={"datasource": "../data/network_traffic_edges.csv"},
 )
 g.load_nodes_from_pandas(
     df=nodes_df,
@@ -95,7 +104,7 @@ g.load_nodes_from_pandas(
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
     constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    shared_constant_properties={"datasource": "../data/network_traffic_edges.csv"},
 
 )
 
@@ -125,7 +134,16 @@ Below we break the ingestion into a four stage process, adding the constant prop
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+from raphtory import Graph
+import pandas as pd
 g = Graph()
+
+edges_df = pd.read_csv("../data/network_traffic_edges.csv")
+edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
+
+nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
+nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
+
 g.load_edges_from_pandas(
     df=edges_df,
     src="source",
