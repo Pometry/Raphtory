@@ -547,93 +547,78 @@ impl GqlGraph {
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
         let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());
         for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
-            }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(nodes) = view.subgraph {
-                count += 1;
-                return_view = return_view.subgraph(nodes).await;
-            }
-            if let Some(types) = view.subgraph_node_types {
-                count += 1;
-                return_view = return_view.subgraph_node_types(types).await;
-            }
-            if let Some(nodes) = view.exclude_nodes {
-                count += 1;
-                return_view = return_view.exclude_nodes(nodes).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-            if let Some(node_filter) = view.node_filter {
-                count += 1;
-                return_view = return_view.node_filter(node_filter).await?;
-            }
-            if let Some(edge_filter) = view.edge_filter {
-                count += 1;
-                return_view = return_view.edge_filter(edge_filter).await?;
-            }
-
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
+            use GraphViewCollection::*;
+            match view {
+                DefaultLayer(default) => {
+                    if default {
+                        return_view = return_view.default_layer().await;
+                    }
+                }
+                Latest(latest) => {
+                    if latest {
+                        return_view = return_view.latest().await;
+                    }
+                }
+                SnapshotLatest(snapshot_latest) => {
+                    if snapshot_latest {
+                        return_view = return_view.snapshot_latest().await;
+                    }
+                }
+                Layers(layers) => {
+                    return_view = return_view.layers(layers).await;
+                }
+                ExcludeLayers(exclude_layers) => {
+                    return_view = return_view.exclude_layers(exclude_layers).await;
+                }
+                Layer(layer) => {
+                    return_view = return_view.layer(layer).await;
+                }
+                ExcludeLayer(exclude_layer) => {
+                    return_view = return_view.exclude_layer(exclude_layer).await;
+                }
+                Subgraph(subgraph) => {
+                    return_view = return_view.subgraph(subgraph).await;
+                }
+                SubgraphNodeTypes(subgraph_node_types) => {
+                    return_view = return_view.subgraph_node_types(subgraph_node_types).await;
+                }
+                ExcludeNodes(exclude_nodes) => {
+                    return_view = return_view.exclude_nodes(exclude_nodes).await;
+                }
+                Window(window) => {
+                    return_view = return_view.window(window.start, window.end).await;
+                }
+                At(at) => {
+                    return_view = return_view.at(at).await;
+                }
+                SnapshotAt(snapshot_at) => {
+                    return_view = return_view.snapshot_at(snapshot_at).await;
+                }
+                Before(before) => {
+                    return_view = return_view.before(before).await;
+                }
+                After(after) => {
+                    return_view = return_view.after(after).await;
+                }
+                ShrinkWindow(shrink_window) => {
+                    return_view = return_view
+                        .shrink_window(shrink_window.start, shrink_window.end)
+                        .await;
+                }
+                ShrinkStart(shrink_start) => {
+                    return_view = return_view.shrink_start(shrink_start).await;
+                }
+                ShrinkEnd(shrink_end) => {
+                    return_view = return_view.shrink_end(shrink_end).await;
+                }
+                NodeFilter(node_filter) => {
+                    return_view = return_view.node_filter(node_filter).await?;
+                }
+                EdgeFilter(edge_filter) => {
+                    return_view = return_view.edge_filter(edge_filter).await?;
+                }
             }
         }
-
         Ok(return_view)
     }
 }
