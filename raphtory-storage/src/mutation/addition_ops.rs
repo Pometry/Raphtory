@@ -77,8 +77,8 @@ pub trait AtomicAdditionOps: Send + Sync {
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 
-    /// Sets id as a const prop within the node
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>);
+    /// Stores id as a const prop within the node
+    fn store_node_id_as_prop(&self, id: NodeRef, vid: impl Into<VID>);
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -153,7 +153,7 @@ impl AtomicAdditionOps for TGWriteSession<'_> {
         todo!("Atomic addition operations are not implemented for TGWriteSession");
     }
 
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+    fn store_node_id_as_prop(&self, id: NodeRef, vid: impl Into<VID>) {
         todo!("set_node_id is not implemented for TGWriteSession");
     }
 }

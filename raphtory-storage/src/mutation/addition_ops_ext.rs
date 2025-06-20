@@ -63,18 +63,21 @@ impl<
             .static_session
             .add_static_edge(src, dst, lsn)
             .map(|eid| eid.with_layer(0));
+
         self.layer.as_mut().map(|layer| {
             layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
         });
 
+        // TODO: consider storing node id as const prop here?
+
         eid
     }
 
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+    fn store_node_id_as_prop(&self, id: NodeRef, vid: impl Into<VID>) {
         match id {
             NodeRef::External(id) => {
                 let vid = vid.into();
-                self.static_session.store_node_id(id, vid)
+                self.static_session.store_node_id_as_prop(id, vid)
             }
             NodeRef::Internal(id) => Ok(()),
         }

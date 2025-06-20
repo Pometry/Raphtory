@@ -6,15 +6,14 @@ use super::{
 use crate::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
+    pages::NODE_ID_PROP_KEY,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{entities::properties::prop::{Prop, PropType}, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, ELID, GidRef, VID},
     storage::timeindex::AsTime,
 };
-
-const NODE_ID_CONST_PROP_NAME: &str = "_raphtory_node_id";
 
 pub struct WriteSession<
     'a,
@@ -63,6 +62,7 @@ impl<
         let dst = dst.into();
         let e_id = edge.inner();
         let layer = e_id.layer();
+
         assert!(layer > 0, "Edge must be in a layer greater than 0");
 
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
@@ -72,16 +72,19 @@ impl<
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
             let exists = Some(!edge.is_new());
+
             writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
         } else {
             let mut writer = self.graph.edge_writer(e_id.edge);
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
             let exists = Some(!edge.is_new());
+
             writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
         }
 
         let edge_id = edge.inner();
+
         if edge_id.layer() > 0 {
             if edge.is_new()
                 || self
@@ -225,17 +228,35 @@ impl<
         }
     }
 
-    pub fn store_node_id(&mut self, id: GidRef, vid: impl Into<VID>) -> Result<(), DBV4Error> {
-        // node ids go to const props in layer 0
+    pub fn store_node_id_as_prop(
+        &mut self,
+        id: GidRef,
+        vid: impl Into<VID>
+    ) -> Result<(), DBV4Error> {
+        // node_id goes to const props in layer 0
         let layer = 0;
-        let prop_name = NODE_ID_CONST_PROP_NAME;
-        let prop_val = match id {
-            GidRef::U64(id) => Prop::U64(id),
-            GidRef::Str(id) => Prop::Str(id.into()),
+        let prop_key = NODE_ID_PROP_KEY;
+        let (prop_val, prop_dtype) = match id {
+            GidRef::U64(id) => (Prop::U64(id), PropType::U64),
+            GidRef::Str(id) => (Prop::Str(id.into()), PropType::Str),
         };
-        let props = vec![(prop_name, prop_val)];
 
-        self.graph.update_node_const_props(vid, layer, props)?;
+        let prop_id = self.graph
+            .node_meta()
+            .const_prop_meta()
+            .get_and_validate(prop_key, prop_dtype)?
+            .ok_or_else(|| DBV4Error::GenericFailure(format!(
+                "node_id const prop not found for node {}",
+                id
+            )))?;
+
+        let props = vec![(prop_id, prop_val)];
+        let local_pos = self.graph.nodes().resolve_pos(vid).1;
+        let lsn = 0; // TODO: lsn should be passed in
+
+        self.node_writers
+            .get_mut_src()
+            .update_c_props(local_pos, layer, props, lsn);
 
         Ok(())
     }
