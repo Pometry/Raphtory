@@ -3,7 +3,7 @@ use std::ops::DerefMut;
 use db4_graph::TemporalGraph;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
+    entities::properties::{meta::Meta, prop::{Prop, PropType}},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -12,6 +12,7 @@ use raphtory_core::{
 };
 use storage::{
     pages::session::WriteSession,
+    pages::NODE_ID_PROP_KEY,
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
@@ -224,9 +225,14 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                     .get_or_init_vid(id, || {
                         self.node_count
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                            .into()
+                            .into();
+
+                        // When initializing a new node, reserve node id as a const prop.
+                        // Done here since the id type is not known until node creation.
+                        reserve_node_id_as_const_prop(self.node_meta(), id)
                     })
                     .map_err(MutationError::InvalidNodeId)?;
+
                 Ok(id)
             }
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
@@ -286,6 +292,24 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                 .and_then(|pmw| pmw.into_props_temporal())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
+        }
+    }
+}
+
+fn reserve_node_id_as_const_prop(
+    node_meta: &Meta,
+    id: GidRef
+) -> Result<MaybeNew<usize>, MutationError> {
+    match id {
+        GidRef::U64(id) => {
+            node_meta
+                .const_prop_meta()
+                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
+        }
+        GidRef::Str(id) => {
+            node_meta
+                .const_prop_meta()
+                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
         }
     }
 }
