@@ -2,9 +2,11 @@ use crate::{
     db::api::view::history::*,
     prelude::EdgeViewOps,
     python::{
-        graph::{edge::PyEdge, node::PyNode},
+        graph::{edge::PyEdge, node::PyNode, properties::PyTemporalProp},
         types::{
-            iterable::FromIterable, repr::iterator_repr, wrappers::iterators::PyBorrowingIterator,
+            iterable::FromIterable,
+            repr::{iterator_repr, Repr},
+            wrappers::iterators::PyBorrowingIterator,
         },
     },
 };
@@ -111,6 +113,15 @@ impl PyEdge {
     }
 }
 
+#[pymethods]
+impl PyTemporalProp {
+    pub fn get_history(&self) -> PyHistory {
+        PyHistory {
+            history: History::new(Arc::new(self.prop.clone())),
+        }
+    }
+}
+
 impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {
     fn from(history: History<T>) -> Self {
         Self {
@@ -126,5 +137,11 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<T> {
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         PyHistory::from(self).into_pyobject(py)
+    }
+}
+
+impl Repr for TimeIndexEntry {
+    fn repr(&self) -> String {
+        self.to_string()
     }
 }

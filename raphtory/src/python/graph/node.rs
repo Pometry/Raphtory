@@ -2,6 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
+    api::core::storage::timeindex::{TimeError, TimeIndexEntry},
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -170,7 +171,7 @@ impl PyNode {
     /// Returns:
     ///     int: The earliest time that the node exists as an integer.
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.node.earliest_time()
     }
 
@@ -179,7 +180,7 @@ impl PyNode {
     /// Returns:
     ///     datetime: The earliest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.node.earliest_date_time()
     }
 
@@ -188,7 +189,7 @@ impl PyNode {
     /// Returns:
     ///    int:  The latest time that the node exists as an integer.
     #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.node.latest_time()
     }
 
@@ -197,7 +198,7 @@ impl PyNode {
     /// Returns:
     ///     datetime: The latest datetime that the node exists as a Datetime.
     #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.node.latest_date_time()
     }
 
@@ -248,7 +249,7 @@ impl PyNode {
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.node.history();
+        let history = self.node.history().collect_timestamps();
         history.into_pyarray(py)
     }
 
@@ -257,7 +258,7 @@ impl PyNode {
     /// Returns:
     ///     List[datetime]: A list of timestamps of the event history of node.
     ///
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.node.history_date_time()
     }
 
@@ -600,7 +601,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.earliest_date_time()
@@ -624,7 +625,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>,
+        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.latest_date_time()
@@ -657,7 +658,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::HistoryOp<DynamicGraph>, Option<Vec<DateTime<Utc>>>>,
+        ops::Map<ops::HistoryOp<DynamicGraph>, Result<Vec<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
     > {
         self.nodes.history_date_time()
@@ -754,7 +755,7 @@ impl PyNodes {
                 ];
 
                 let start_point = 2;
-                let history = item.history();
+                let history = item.history().collect_timestamps();
 
                 create_row(
                     convert_datetime,

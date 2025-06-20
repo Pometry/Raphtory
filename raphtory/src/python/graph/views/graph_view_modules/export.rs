@@ -226,7 +226,7 @@ impl PyGraphView {
                         const_props_py.set_item(key, value)?;
                     }
                     properties.set_item("constant", const_props_py)?;
-                    let prop_hist = e.properties().temporal().histories();
+                    let prop_hist = e.properties().temporal().histories_timestamps();
                     let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
                     for (key, value) in prop_hist {
                         prop_hist_map.entry(key).or_default().push(value);

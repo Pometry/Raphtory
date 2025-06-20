@@ -1111,9 +1111,7 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history()
-                .map(|t| t.t())
-                .collect_vec(),
+                .history(),
             [1, 11]
         );
         assert_eq!(
@@ -1122,9 +1120,7 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history()
-                .map(|t| t.t())
-                .collect_vec(),
+                .history(),
             [10]
         );
 

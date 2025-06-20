@@ -509,7 +509,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history().next())
+                .flat_map(|prop| prop.history().iter().next())
                 .min()
                 .into_iter()
                 .chain(

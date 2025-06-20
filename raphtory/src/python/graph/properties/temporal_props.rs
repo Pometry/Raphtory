@@ -1,5 +1,4 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
@@ -8,6 +7,7 @@ use crate::{
         },
         view::internal::{DynamicGraph, Static},
     },
+    errors::GraphError,
     python::{
         graph::{
             history::PyHistory,
@@ -35,7 +35,10 @@ use pyo3::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
-    storage::arc_str::ArcStr,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
+    },
 };
 use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
@@ -123,15 +126,15 @@ impl PyTemporalProperties {
     /// Get the histories of all properties
     ///
     /// Returns:
-    ///     dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
+    ///     dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
+    fn histories(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
         self.props
             .iter()
             .map(|(k, v)| (k.clone(), v.iter().collect()))
             .collect()
     }
 
-    /// Get the histories of all properties
+    /// Get the histories of all properties. Throws error if conversion to datetime failed.
     ///
     /// Returns:
     ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
@@ -194,7 +197,7 @@ impl PyTemporalProperties {
 /// A view of a temporal property
 #[pyclass(name = "TemporalProperty", module = "raphtory", frozen)]
 pub struct PyTemporalProp {
-    prop: DynTemporalProperty,
+    pub prop: DynTemporalProperty,
 }
 
 #[derive(Clone, PartialEq)]
@@ -214,7 +217,7 @@ impl<'source> FromPyObject<'source> for PyTemporalPropCmp {
 
 impl From<&PyTemporalProp> for PyTemporalPropCmp {
     fn from(value: &PyTemporalProp) -> Self {
-        Self(value.items())
+        Self(value.prop.iter().map(|(t, p)| (t.t(), p)).collect())
     }
 }
 
@@ -224,9 +227,15 @@ impl From<Vec<(i64, Prop)>> for PyTemporalPropCmp {
     }
 }
 
+impl From<Vec<(TimeIndexEntry, Prop)>> for PyTemporalPropCmp {
+    fn from(value: Vec<(TimeIndexEntry, Prop)>) -> Self {
+        Self(value.into_iter().map(|(t, p)| (t.t(), p)).collect())
+    }
+}
+
 impl From<DynTemporalProperty> for PyTemporalPropCmp {
     fn from(value: DynTemporalProperty) -> Self {
-        PyTemporalPropCmp(value.iter().collect())
+        PyTemporalPropCmp(value.iter().map(|(t, p)| (t.0, p)).collect())
     }
 }
 
@@ -236,8 +245,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 impl PyTemporalProp {
     /// Get the timestamps at which the property was updated
     pub fn history(&self) -> PyHistory {
-        // TODO: Change this to history object?
-        self.prop.history().into()
+        self.prop.history().to_owned().into()
     }
 
     /// Get the timestamps at which the property was updated
@@ -251,7 +259,7 @@ impl PyTemporalProp {
     }
 
     /// List update timestamps and corresponding property values
-    pub fn items(&self) -> Vec<(i64, Prop)> {
+    pub fn items(&self) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.iter().collect()
     }
 
@@ -261,11 +269,11 @@ impl PyTemporalProp {
     }
 
     // List of ordered deduplicated property values
-    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
+    pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.ordered_dedupe(latest_time)
     }
 
-    /// List update timestamps and corresponding property values
+    /// List update datetimes and corresponding property values
     pub fn items_date_time(&self) -> Result<Vec<(DateTime<Utc>, Prop)>, GraphError> {
         Ok(self.prop.histories_date_time()?.collect())
     }
@@ -295,8 +303,8 @@ impl PyTemporalProp {
     /// Find the minimum property value and its associated time.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the minimum property value.
-    pub fn min(&self) -> Option<(i64, Prop)> {
+    ///     (TimeIndexEntry, Prop): A tuple containing the time and the minimum property value.
+    pub fn min(&self) -> Option<(TimeIndexEntry, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -313,8 +321,8 @@ impl PyTemporalProp {
     /// Find the maximum property value and its associated time.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the maximum property value.
-    pub fn max(&self) -> Option<(i64, Prop)> {
+    ///     (TimeIndexEntry, Prop): A tuple containing the time and the maximum property value.
+    pub fn max(&self) -> Option<(TimeIndexEntry, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
             |a, b| {
@@ -355,9 +363,9 @@ impl PyTemporalProp {
     /// Compute the median of all property values.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
-    pub fn median(&self) -> Option<(i64, Prop)> {
-        let mut sorted: Vec<(i64, Prop)> = self.prop.iter().collect();
+    ///     (TimeIndexEntry, Prop): A tuple containing the time and the median property value, or None if empty
+    pub fn median(&self) -> Option<(TimeIndexEntry, Prop)> {
+        let mut sorted: Vec<(TimeIndexEntry, Prop)> = self.prop.iter().collect();
         if !sorted.first()?.1.dtype().has_cmp() {
             return None;
         }

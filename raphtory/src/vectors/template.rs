@@ -10,14 +10,17 @@ use minijinja::{
     value::{Enumerator, Object},
     Environment, Template, Value,
 };
-use raphtory_api::core::storage::arc_str::{ArcStr, OptionAsStr};
+use raphtory_api::core::storage::{
+    arc_str::{ArcStr, OptionAsStr},
+    timeindex::TimeIndexEntry,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::error;
 
 #[derive(Debug)]
 struct PropUpdate {
-    time: i64,
+    time: TimeIndexEntry,
     value: Value,
 }
 
@@ -51,14 +54,14 @@ impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
 impl Object for PropUpdate {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
         match key.as_str()? {
-            "time" => Some(Value::from(self.time)),
+            "time" => Some(Value::from(self.time.0)),
             "value" => Some(self.value.clone()),
             _ => None,
         }
     }
 
     fn enumerate(self: &Arc<Self>) -> Enumerator {
-        Enumerator::Values(vec![self.time.into(), self.value.clone()])
+        Enumerator::Values(vec![self.time.0.into(), self.value.clone()])
     }
 }
 

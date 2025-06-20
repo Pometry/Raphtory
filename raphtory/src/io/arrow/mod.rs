@@ -14,7 +14,10 @@ mod test {
         prelude::*,
     };
     use polars_arrow::array::{PrimitiveArray, Utf8Array};
-    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use raphtory_api::core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::AsTime},
+    };
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -164,7 +167,7 @@ mod test {
             .map(|v| {
                 (
                     v.id(),
-                    v.latest_time(),
+                    v.latest_time().map(|t| t.t()),
                     v.properties()
                         .temporal()
                         .get("name")

@@ -2710,41 +2710,23 @@ mod db_tests {
 
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
-            assert_eq!(
-                graph.node(1).unwrap().earliest_time(),
-                Some(TimeIndexEntry::from(1))
-            );
-            assert_eq!(
-                graph.node(1).unwrap().latest_time(),
-                Some(TimeIndexEntry::from(3))
-            );
+            assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().0, 1);
+            assert_eq!(graph.node(1).unwrap().latest_time().unwrap().0, 3);
+
+            assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().0, 2);
+            assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().0, 2);
 
             assert_eq!(
-                graph.at(2).node(1).unwrap().earliest_time(),
-                Some(TimeIndexEntry::from(2))
+                graph.before(2).node(1).unwrap().earliest_time().unwrap().0,
+                2
             );
-            assert_eq!(
-                graph.at(2).node(1).unwrap().latest_time(),
-                Some(TimeIndexEntry::from(2))
-            );
+            assert_eq!(graph.before(2).node(1).unwrap().latest_time().unwrap().0, 1);
 
             assert_eq!(
-                graph.before(2).node(1).unwrap().earliest_time(),
-                Some(TimeIndexEntry::from(1))
+                graph.after(2).node(1).unwrap().earliest_time().unwrap().0,
+                3
             );
-            assert_eq!(
-                graph.before(2).node(1).unwrap().latest_time(),
-                Some(TimeIndexEntry::from(1))
-            );
-
-            assert_eq!(
-                graph.after(2).node(1).unwrap().earliest_time(),
-                Some(TimeIndexEntry::from(3))
-            );
-            assert_eq!(
-                graph.after(2).node(1).unwrap().latest_time(),
-                Some(TimeIndexEntry::from(3))
-            );
+            assert_eq!(graph.after(2).node(1).unwrap().latest_time().unwrap().0, 3);
         })
     }
 

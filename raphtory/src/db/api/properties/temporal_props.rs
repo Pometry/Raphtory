@@ -1,4 +1,3 @@
-use crate::db::api::{properties::internal::PropertiesOps, view::BoxedLIter};
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::core::{
@@ -13,7 +12,14 @@ use std::{
     sync::Arc,
 };
 
-use crate::errors::GraphError;
+use crate::{
+    db::api::{
+        properties::internal::PropertiesOps,
+        view::{history_ref::HistoryRef, BoxedLIter},
+    },
+    errors::GraphError,
+};
+use raphtory_api::core::storage::timeindex::AsTime;
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
@@ -23,7 +29,7 @@ pub struct TemporalPropertyView<P: PropertiesOps> {
     pub(crate) props: P,
 }
 
-impl<P: PropertiesOps> Debug for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> Debug for TemporalPropertyView<P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TemporalPropertyView")
             .field("history", &self.iter().collect::<Vec<_>>())
@@ -31,13 +37,13 @@ impl<P: PropertiesOps> Debug for TemporalPropertyView<P> {
     }
 }
 
-impl<P: PropertiesOps> PartialEq for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> PartialEq for TemporalPropertyView<P> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<P: PropertiesOps, RHS, V> PartialEq<RHS> for TemporalPropertyView<P>
+impl<P: PropertiesOps + Clone, RHS, V> PartialEq<RHS> for TemporalPropertyView<P>
 where
     for<'a> &'a RHS: IntoIterator<Item = &'a (TimeIndexEntry, V)>,
     V: Clone + Into<Prop>,
@@ -48,7 +54,7 @@ where
     }
 }
 
-impl<P: PropertiesOps> TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     pub(crate) fn new(props: P, key: usize) -> Self {
         TemporalPropertyView { props, id: key }
     }
@@ -65,8 +71,8 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
         self.id
     }
 
-    pub fn history(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.props.temporal_history_iter(self.id)
+    pub fn history(&self) -> HistoryRef<Self> {
+        HistoryRef::new(self)
     }
 
     pub fn history_rev(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -85,7 +91,7 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.history().zip(self.values())
+        self.history().iter().zip(self.values())
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
@@ -159,23 +165,23 @@ impl<P: PropertiesOps> TemporalPropertyView<P> {
     }
 }
 
-impl<P: PropertiesOps> IntoIterator for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> IntoIterator for TemporalPropertyView<P> {
     type Item = (TimeIndexEntry, Prop);
     type IntoIter = Zip<std::vec::IntoIter<TimeIndexEntry>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history().collect::<Vec<_>>();
+        let hist = self.history().iter().collect::<Vec<_>>();
         let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
 }
 
-impl<P: PropertiesOps> IntoIterator for &TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> IntoIterator for &TemporalPropertyView<P> {
     type Item = (TimeIndexEntry, Prop);
     type IntoIter = Zip<std::vec::IntoIter<TimeIndexEntry>, std::vec::IntoIter<Prop>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let hist = self.history().collect::<Vec<_>>();
+        let hist = self.history().iter().collect::<Vec<_>>();
         let vals = self.values().collect::<Vec<_>>();
         hist.into_iter().zip(vals)
     }
@@ -238,6 +244,16 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
             .collect()
     }
 
+    pub fn histories_timestamps(&self) -> Vec<(ArcStr, (i64, Prop))> {
+        self.iter()
+            .flat_map(|(k, v)| {
+                v.into_iter()
+                    .map(|(t, p)| (t.t(), p))
+                    .map(move |v| (k.clone(), v.clone()))
+            })
+            .collect()
+    }
+
     pub fn collect_properties(self) -> Vec<(ArcStr, Prop)> {
         self.iter()
             .flat_map(|(k, v)| v.latest().map(|v| (k.clone(), v)))
@@ -251,7 +267,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
     }
 }
 
-impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
     fn into_u8(self) -> Option<u8> {
         self.latest().into_u8()
     }
@@ -314,7 +330,7 @@ impl<P: PropertiesOps> PropUnwrap for TemporalPropertyView<P> {
 }
 
 #[cfg(feature = "arrow")]
-impl<P: PropertiesOps> PropArrayUnwrap for TemporalPropertyView<P> {
+impl<P: PropertiesOps + Clone> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
     }

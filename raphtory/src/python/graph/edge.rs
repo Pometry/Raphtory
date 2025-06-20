@@ -346,7 +346,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the datetime of an exploded edge
     #[getter]
-    pub fn date_time(&self) -> Result<DateTime<Utc>, GraphError> {
+    pub fn date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
         self.edge.date_time()
     }
 }

@@ -50,7 +50,7 @@ pub trait InternalHistoryOps: Send + Sync {
 }
 
 // FIXME: Doesn't support deletions of edges yet
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct History<T>(pub T);
 
 impl<T: InternalHistoryOps> History<T> {
@@ -119,16 +119,13 @@ impl<T: InternalHistoryOps> History<T> {
     }
 
     pub fn collect_timestamps(&self) -> Vec<i64> {
-        self.0
-            .iter()
-            .map(|x| x.t()) /*.dedup()*/
-            .collect_vec()
+        self.0.iter().map(|x| x.t()).collect_vec()
     }
 
     pub fn collect_date_times(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.0
             .iter()
-            .map(|x| x.dt()) /*.dedup()*/
+            .map(|x| x.dt())
             .collect::<Result<Vec<_>, TimeError>>()
     }
 
@@ -157,14 +154,18 @@ impl<T: InternalHistoryOps> History<T> {
     }
 }
 
+impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for History<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    TimeIndexEntry: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
 impl<T: InternalHistoryOps> PartialEq for History<T> {
     fn eq(&self, other: &Self) -> bool {
-        // Optimization: check latest_time first
-        if self.latest_time() != other.latest_time() {
-            return false;
-        }
-
-        // If latest_time was None for both, iter().eq(other.iter()) will correctly return true.
         self.iter().eq(other.iter())
     }
 }
@@ -182,6 +183,7 @@ impl<T: InternalHistoryOps> std::hash::Hash for History<T> {
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
 /// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
+#[derive(Debug, Clone, Copy)]
 pub struct MergedHistory<L, R> {
     left: L,
     right: R,
@@ -377,7 +379,6 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
         }
     }
 
-    //TODO: Do we want the first time the edge was ever seen or the first time the edge is seen in this context? Ex: GraphView/Window
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
@@ -413,11 +414,18 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
 
 // FIXME: Currently holds a vector of all the intervals, might not be efficient. can't hold an iterator because they can't be reused
 // Change to hold history object instead of vector, can call iterator to keep generating them
+// TODO: Change to hold T, intervals calculated in iter()
 pub struct Intervals(Vec<i64>);
 
 impl Intervals {
-    pub fn new(timestamps: &Vec<i64>) -> Self {
-        Intervals(timestamps.windows(2).map(|w| w[1] - w[0]).collect())
+    pub fn new(timestamps: impl IntoIterator<Item = i64>) -> Self {
+        Intervals(
+            timestamps
+                .into_iter()
+                .tuple_windows()
+                .map(|(w1, w2)| w2 - w1)
+                .collect(),
+        )
     }
 
     pub fn items(&self) -> &Vec<i64> {
@@ -466,41 +474,41 @@ mod tests {
 
     #[test]
     fn intervals() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 4, 10, 30];
-        let interval = Intervals::new(&timestamps);
+        let timestamps = [1, 4, 10, 30];
+        let interval = Intervals::new(timestamps);
         assert_eq!(interval.items(), &[3, 6, 20]);
         Ok(())
     }
 
     #[test]
     fn intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 4, 10, 30];
-        let interval = Intervals::new(&timestamps);
+        let timestamps = [1, 4, 10, 30];
+        let interval = Intervals::new(timestamps);
         assert_eq!(interval.mean(), Some(29f64 / 3f64));
-        let timestamps2 = vec![1];
-        let interval2 = Intervals::new(&timestamps2);
+        let timestamps2 = [1];
+        let interval2 = Intervals::new(timestamps2);
         assert_eq!(interval2.mean(), None);
         Ok(())
     }
 
     #[test]
     fn intervals_median() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 30, 31, 40]; // intervals are 29, 1, 9
-        let interval = Intervals::new(&timestamps);
+        let timestamps = [1, 30, 31, 40]; // intervals are 29, 1, 9
+        let interval = Intervals::new(timestamps);
         assert_eq!(interval.median(), Some(9.0));
-        let timestamps2 = vec![1];
-        let interval2 = Intervals::new(&timestamps2);
+        let timestamps2 = [1];
+        let interval2 = Intervals::new(timestamps2);
         assert_eq!(interval2.median(), None);
         Ok(())
     }
 
     #[test]
     fn intervals_max() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = vec![1, 30, 31, 40]; // intervals are 29, 1, 9
-        let interval = Intervals::new(&timestamps);
+        let timestamps = [1, 30, 31, 40]; // intervals are 29, 1, 9
+        let interval = Intervals::new(timestamps);
         assert_eq!(interval.max(), Some(29));
-        let timestamps2 = vec![1];
-        let interval2 = Intervals::new(&timestamps2);
+        let timestamps2 = [1];
+        let interval2 = Intervals::new(timestamps2);
         assert_eq!(interval2.max(), None);
         Ok(())
     }
@@ -531,14 +539,14 @@ mod tests {
         let dumbledore_node_history_object = History::new(dumbledore_node.clone());
         assert_eq!(
             dumbledore_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 0)]
+            vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 2)]
         );
 
         // create Harry node history object
         let harry_node_history_object = History::new(harry_node.clone());
         assert_eq!(
             harry_node_history_object.iter().collect_vec(),
-            vec![TimeIndexEntry::new(2, 0), TimeIndexEntry::new(3, 0)]
+            vec![TimeIndexEntry::new(2, 1), TimeIndexEntry::new(3, 2)]
         );
 
         // create edge history object
@@ -559,9 +567,9 @@ mod tests {
             composite_history_object.iter().collect_vec(),
             vec![
                 TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(2, 0),
-                TimeIndexEntry::new(3, 0),
-                TimeIndexEntry::new(3, 0),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(3, 2),
                 TimeIndexEntry::new(3, 2)
             ]
         );
@@ -652,9 +660,9 @@ mod tests {
             dumbledore_history.iter().collect_vec(),
             vec![
                 TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(3, 0),
-                TimeIndexEntry::new(4, 0),
-                TimeIndexEntry::new(5, 0)
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(5, 7)
             ]
         );
 
@@ -662,10 +670,10 @@ mod tests {
         assert_eq!(
             harry_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(2, 0),
-                TimeIndexEntry::new(3, 0),
-                TimeIndexEntry::new(4, 0),
-                TimeIndexEntry::new(5, 0)
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(5, 6)
             ]
         );
 
@@ -673,11 +681,11 @@ mod tests {
         assert_eq!(
             broom_history.iter().collect_vec(),
             vec![
-                TimeIndexEntry::new(4, 0),
-                TimeIndexEntry::new(4, 0),
-                TimeIndexEntry::new(4, 0),
-                TimeIndexEntry::new(5, 0),
-                TimeIndexEntry::new(5, 0)
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(5, 6),
+                TimeIndexEntry::new(5, 7)
             ]
         );
 

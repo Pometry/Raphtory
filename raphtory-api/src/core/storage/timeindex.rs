@@ -26,6 +26,18 @@ impl std::error::Error for TimeError {}
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub struct TimeIndexEntry(pub i64, pub usize);
 
+impl PartialEq<i64> for TimeIndexEntry {
+    fn eq(&self, other: &i64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl fmt::Display for TimeIndexEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TimeIndexEntry[{}, {}]", self.0, self.1)
+    }
+}
+
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
 
