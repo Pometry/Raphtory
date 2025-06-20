@@ -1,10 +1,17 @@
 use crate::{
-    LocalPOS,
+    LocalPOS, NodeAdditions,
     api::nodes::{NodeEntryOps, NodeRefOps},
+    gen_ts::{GenericTimeOps, WithTimeCells},
     segments::node::MemNodeSegment,
 };
-use raphtory_api::core::{entities::{properties::prop::Prop, EID, VID}, Direction};
-use raphtory_core::{entities::{properties::tprop::TPropCell, LayerIds}, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::{
+    Direction,
+    entities::{EID, VID, properties::prop::Prop},
+};
+use raphtory_core::{
+    entities::{LayerIds, nodes::node_store::PropTimestamps, properties::tprop::TPropCell},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+};
 use std::{iter::Empty, ops::Deref};
 
 use super::additions::MemAdditions;
@@ -56,8 +63,36 @@ impl<'a> MemNodeRef<'a> {
     }
 }
 
+impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
+    type TimeCell = MemAdditions<'a>;
+
+    fn layer_time_cells(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::once(
+            range
+                .map(|(start, end)| {
+                    MemAdditions::Window(
+                        self.ns.as_ref()[layer_id]
+                            .additions(self.pos)
+                            .range(start..end),
+                    )
+                })
+                .unwrap_or_else(|| {
+                    MemAdditions::Props(self.ns.as_ref()[layer_id].additions(self.pos))
+                }),
+        )
+    }
+
+    fn num_layers(&self) -> usize {
+        self.ns.as_ref().len()
+    }
+}
+
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
-    type Additions = MemAdditions<'a>;
+    type Additions = NodeAdditions<'a>;
     type TProps = TPropCell<'a>;
 
     fn vid(&self) -> VID {
@@ -80,8 +115,8 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn additions(self, layer_id: usize) -> Self::Additions {
-        MemAdditions::Props(self.ns.as_ref()[layer_id].additions(self.pos))
+    fn additions(self, layer_ids: &'a LayerIds) -> Self::Additions {
+        NodeAdditions::new(self, layer_ids)
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
@@ -93,8 +128,16 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             .t_prop(self.pos, prop_id)
             .unwrap_or_default()
     }
-    
-    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, impl Iterator<Item = (usize, Option<Prop>)>)> + 'a {
+
+    fn temp_prop_rows(
+        self,
+    ) -> impl Iterator<
+        Item = (
+            TimeIndexEntry,
+            usize,
+            impl Iterator<Item = (usize, Option<Prop>)>,
+        ),
+    > + 'a {
         // self.ns.as_ref().iter().enumerate().flat_map(|(layer_id, layer)| {
         //     let rows = layer.t_prop_rows(self.pos);
         // }).flat_map(|t_prop| {
@@ -104,15 +147,13 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         //TODO
         std::iter::empty::<(_, _, Empty<_>)>()
     }
-    
+
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         match layers {
             LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
             LayerIds::All => self.ns.degree(self.pos, 0, dir),
             LayerIds::None => 0,
-            layers => {
-                self.edges_iter(layers, dir).count()
-            }
-        } 
+            layers => self.edges_iter(layers, dir).count(),
+        }
     }
 }

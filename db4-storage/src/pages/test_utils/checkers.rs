@@ -9,7 +9,7 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{ELID, VID},
+    entities::{ELID, LayerIds, VID},
     storage::timeindex::TimeIndexOps,
 };
 use rayon::prelude::*;
@@ -259,7 +259,7 @@ pub fn check_graph_with_nodes_support<
         for (node, ts_expected) in ts_for_nodes {
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
-            let actual: Vec<_> = node_entry.additions(0).iter_t().collect();
+            let actual: Vec<_> = node_entry.additions(&LayerIds::One(0)).iter_t().collect();
             assert_eq!(
                 actual, ts_expected,
                 "Expected node additions for node ({node:?})",
@@ -477,7 +477,10 @@ pub fn check_graph_with_props_support<
         for (node_id, ts) in node_groups {
             let node = graph.nodes().node(node_id);
             let node_entry = node.as_ref();
-            let actual_additions_ts = node_entry.additions(0).iter_t().collect::<Vec<_>>();
+            let actual_additions_ts = node_entry
+                .additions(&LayerIds::One(0))
+                .iter_t()
+                .collect::<Vec<_>>();
 
             assert_eq!(
                 actual_additions_ts, ts,

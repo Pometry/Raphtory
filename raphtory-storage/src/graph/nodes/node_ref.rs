@@ -17,7 +17,7 @@ use raphtory_api::{
 };
 use raphtory_core::storage::node_entry::NodePtr;
 use std::{borrow::Cow, ops::Range};
-use storage::{NodeEntryRef, api::nodes::NodeRefOps};
+use storage::{api::nodes::NodeRefOps, NodeEntryRef};
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::node::DiskNode;
@@ -115,8 +115,8 @@ impl<'a> NodeStorageOps<'a> for NodeStorageRef<'a> {
         for_all!(self, node => node.degree(layers, dir))
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
-        for_all!(self, node => node.additions())
+    fn additions(self) -> storage::NodeAdditions<'a> {
+        for_all!(self, node => node.additions(&LayerIds::All))
     }
 
     fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {

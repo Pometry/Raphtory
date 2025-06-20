@@ -108,8 +108,7 @@ impl MemNodeSegment {
     }
 
     pub fn degree(&self, n: LocalPOS, layer_id: usize, dir: Direction) -> usize {
-        self.get_adj(n, layer_id)
-            .map_or(0, |adj| adj.degree(dir))
+        self.get_adj(n, layer_id).map_or(0, |adj| adj.degree(dir))
     }
 
     pub fn lsn(&self) -> u64 {

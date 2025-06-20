@@ -497,7 +497,10 @@ mod test {
     use core::panic;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
+    use raphtory_core::{
+        entities::{LayerIds, VID},
+        storage::timeindex::TimeIndexOps,
+    };
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,
@@ -610,7 +613,7 @@ mod test {
 
             let node = g.nodes().node(3);
             let node_entry = node.as_ref();
-            let actual: Vec<_> = node_entry.additions(0).iter_t().collect();
+            let actual: Vec<_> = node_entry.additions(&LayerIds::One(0)).iter_t().collect();
             assert_eq!(actual, vec![4]);
         };
 

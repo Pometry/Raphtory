@@ -1,11 +1,13 @@
 use std::path::Path;
 
 use crate::{
+    gen_ts::GenericTimeOps,
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
     segments::{
+        additions::MemAdditions,
         edge::EdgeSegmentView,
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
@@ -13,9 +15,11 @@ use crate::{
     },
 };
 use raphtory_api::core::entities::{EID, VID};
+use raphtory_core::entities::properties::tprop::TPropCell;
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
 pub mod api;
+pub mod gen_ts;
 pub mod pages;
 pub mod persist;
 pub mod properties;
@@ -35,6 +39,11 @@ pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNo
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
+
+pub type NodeAdditions<'a> = GenericTimeOps<'a, MemNodeRef<'a>>;
+pub type EdgeAdditions<'a> = GenericTimeOps<'a, MemEdgeRef<'a>>;
+pub type EdgeTProps<'a> = TPropCell<'a>;
+pub type NodeTProps<'a> = TPropCell<'a>;
 
 pub mod error {
     use std::{path::PathBuf, sync::Arc};

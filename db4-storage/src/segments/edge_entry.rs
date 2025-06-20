@@ -1,9 +1,13 @@
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_core::entities::{VID, properties::tprop::TPropCell};
+use raphtory_core::{
+    entities::{LayerIds, VID, properties::tprop::TPropCell},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+};
 
 use crate::{
-    LocalPOS,
+    EdgeAdditions, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
+    gen_ts::WithTimeCells,
 };
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
@@ -55,8 +59,36 @@ impl<'a> MemEdgeRef<'a> {
     }
 }
 
+impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
+    type TimeCell = MemAdditions<'a>;
+
+    fn layer_time_cells(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::once(
+            range
+                .map(|(start, end)| {
+                    MemAdditions::Window(
+                        self.es.as_ref()[layer_id]
+                            .additions(self.pos)
+                            .range(start..end),
+                    )
+                })
+                .unwrap_or_else(|| {
+                    MemAdditions::Props(self.es.as_ref()[layer_id].additions(self.pos))
+                }),
+        )
+    }
+
+    fn num_layers(&self) -> usize {
+        self.es.as_ref().len()
+    }
+}
+
 impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
-    type Additions = MemAdditions<'a>;
+    type Additions = EdgeAdditions<'a>;
 
     type TProps = TPropCell<'a>;
 
@@ -66,8 +98,8 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
             .map(|entry| (entry.src, entry.dst))
     }
 
-    fn additions(self, layer_id: usize) -> Self::Additions {
-        MemAdditions::Props(self.es.as_ref()[layer_id].additions(self.pos))
+    fn additions(self, layer_id: &'a LayerIds) -> Self::Additions {
+        EdgeAdditions::new(self, layer_id)
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {

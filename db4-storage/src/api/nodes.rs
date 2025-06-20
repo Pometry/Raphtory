@@ -212,9 +212,15 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
         }
     }
 
-
-    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, impl Iterator<Item = (usize, Option<Prop>)>)> + 'a;
-
+    fn temp_prop_rows(
+        self,
+    ) -> impl Iterator<
+        Item = (
+            TimeIndexEntry,
+            usize,
+            impl Iterator<Item = (usize, Option<Prop>)>,
+        ),
+    > + 'a;
 
     fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
@@ -244,7 +250,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
         self.inb_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn additions(self, layer_id: usize) -> Self::Additions;
+    fn additions(self, layers: &'a LayerIds) -> Self::Additions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 

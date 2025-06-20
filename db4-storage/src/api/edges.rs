@@ -7,7 +7,7 @@ use std::{
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use raphtory_core::{
-    entities::VID,
+    entities::{LayerIds, VID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
@@ -116,7 +116,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
 
-    fn additions(self, layer_id: usize) -> Self::Additions;
+    fn additions(self, layer_ids: &'a LayerIds) -> Self::Additions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
