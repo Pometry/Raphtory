@@ -107,7 +107,7 @@ impl Storage {
         }
     }
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "search")]
     #[inline]
     fn if_index(
         &self,
