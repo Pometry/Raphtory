@@ -642,64 +642,558 @@ def test_apply_view_before():
     run_graphql_test(query, correct, graph)
 
 
-# def test_apply_view_shrink_window():
-#     graph = Graph()
-#     create_graph_date(graph)
-#     query = """
-# {
-#   graph(path: "basic") {
-#     applyViews(views: [{shrinkWindow: {
-#       start: 1735689600000
-#       end: 1735776000000
-#     }}]) {
-#       latestTime
-#     }
-#     nodes {
-#   applyViews(views: [{shrinkWindow: {
-#       start: 1735689600000
-#       end: 1735776000000
-#     }}]) {
-#         page(limit: 1, offset: 0) {
-#           history
-#         }
-#       }
-#     }
-#     node(name: "2") {
-#        applyViews(views: [{shrinkWindow: {
-#       start: 1735689600000
-#       end: 1735776000000
-#     }}]) {
-#         history
-#       }
-#     }
-#     edges {
-#        applyViews(views: [{shrinkWindow: {
-#       start: 1735689600000
-#       end: 1735776000000
-#     }}]) {
-#         page(limit: 1, offset: 0) {
-#           src {
-#            name
-#             history
-#           }
-#           dst {
-#             history
-#           }
-#         }
-#       }
-#     }
-#     edge(src: "1", dst: "2") {
-#         applyViews(views: [{shrinkWindow: {
-#       start: 1735689600000
-#       end: 1735776000000
-#     }}]) {
-#         src {
-#           history
-#         }
-#       }
-#     }
-#   }
-# }"""
+def test_apply_view_after():
+    graph = Graph()
+    create_graph_epoch(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{after: 6}]) {
+      latestTime
+    }
+    nodes {
+      applyViews(views: [{after: 6}]) {
+        list {
+          history
+        }
+      }
+    }
+    node(name: "2") {
+      applyViews(views: [{after: 3}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{after: 6}]) {
+        list {
+          src {
+            history
+          }
+          dst {
+            history
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+      applyViews(views: [{after: 3}]) {
+        src {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"latestTime": None},
+            "nodes": {"applyViews": {"list": []}},
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {
+                    "list": [
+                        {"src": {"history": []}, "dst": {"history": []}},
+                        {"src": {"history": []}, "dst": {"history": []}},
+                        {"src": {"history": []}, "dst": {"history": []}},
+                    ]
+                }
+            },
+            "edge": {"applyViews": {"src": {"history": []}}},
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_shrink_window():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+      latestTime
+    }
+    nodes {
+      applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "2") {
+      applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+      applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}"""
+
+    correct = {
+        "graph": {
+            "applyViews": {"latestTime": 1736035200000},
+            "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+            },
+            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_shrink_start():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{shrinkStart:  173603520000}]) {
+      latestTime
+    }
+    nodes {
+     applyViews(views: [{shrinkStart:  173603520000}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "2") {
+     applyViews(views: [{shrinkStart:  173603520000}]) {
+        history
+      }
+    }
+    edges {
+   applyViews(views: [{shrinkStart:  173603520000}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+    applyViews(views: [{shrinkStart:  173603520000}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"latestTime": 1736035200000},
+            "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+            },
+            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_shrink_end():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "basic") {
+    applyViews(views: [{shrinkEnd:  1735776000000}]) {
+      latestTime
+    }
+    nodes {
+     applyViews(views: [{shrinkEnd:  1735776000000}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "2") {
+     applyViews(views: [{shrinkEnd:  1735776000000}]) {
+        history
+      }
+    }
+    edges {
+   applyViews(views: [{shrinkEnd:  1735776000000}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+    applyViews(views: [{shrinkEnd:  1735776000000}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"latestTime": 1735689600000},
+            "nodes": {"applyViews": {"list": [{"name": "1"}, {"name": "2"}]}},
+            "node": {"applyViews": {"history": [1735689600000]}},
+            "edges": {
+                "applyViews": {
+                    "list": [
+                        {"src": {"name": "1"}, "dst": {"name": "2"}},
+                    ]
+                }
+            },
+            "edge": {
+                "applyViews": {
+                    "src": {
+                        "history": [
+                            1735689600000,
+                        ]
+                    },
+                    "dst": {"history": []},
+                }
+            },
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_layers():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{layers: ["finds", "Person"]}]) {
+      earliestTime
+    }
+    nodes {
+      applyViews(views: [{layers: ["finds", "Person"]}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "1") {
+      applyViews(views: [{layers: ["finds", "Person"]}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{layers: ["finds", "Person"]}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+    applyViews(views: [{layers: ["finds", "Person"]}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"earliestTime": 1735689600000},
+            "nodes": {
+                "applyViews": {"list": [{"name": "1"}, {"name": "6"}, {"name": "7"}]}
+            },
+            "node": {"applyViews": {"history": [1735689600000]}},
+            "edges": {
+                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+            },
+            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_layer():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{layer: "Person"}]) {
+      earliestTime
+    }
+    nodes {
+     applyViews(views: [{layer: "Person"}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "1") {
+          applyViews(views: [{layer: "finds"}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{layer: "finds"}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "1", dst: "2") {
+  applyViews(views: [{layer: "met"}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}"""
+    correct = {
+        "graph": {
+            "applyViews": {"earliestTime": 1735689600000},
+            "nodes": {
+                "applyViews": {
+                    "list": [
+                        {"name": "1"},
+                    ]
+                }
+            },
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+            },
+            "edge": {
+                "applyViews": {
+                    "src": {
+                        "history": [
+                            1735689600000,
+                        ]
+                    },
+                    "dst": {
+                        "history": [
+                            1735689600000,
+                        ]
+                    },
+                }
+            },
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_exclude_layer():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{excludeLayer: "Person"}]) {
+      earliestTime
+    }
+    nodes {
+      applyViews(views: [{excludeLayer: "Person"}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "1") {
+      applyViews(views: [{excludeLayer: "Person"}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{excludeLayer: "finds"}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "6", dst: "7") {
+      applyViews(views: [{excludeLayer: "finds"}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"earliestTime": 1735689600000},
+            "nodes": {
+                "applyViews": {
+                    "list": [{"name": "2"}, {"name": "3"}, {"name": "6"}, {"name": "7"}]
+                }
+            },
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {
+                    "list": [
+                        {"src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"src": {"name": "1"}, "dst": {"name": "3"}},
+                    ]
+                }
+            },
+            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_exclude_layers():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{excludeLayers: ["Person", "finds"]}]) {
+      earliestTime
+    }
+    nodes {
+      applyViews(views: [{excludeLayers: ["Person"]}]) {
+        list {
+          name
+        }
+      }
+    }
+    node(name: "1") {
+      applyViews(views: [{excludeLayers: ["Person"]}]) {
+        history
+      }
+    }
+    edges {
+      applyViews(views: [{excludeLayers: ["finds", "met"]}]) {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+        }
+      }
+    }
+    edge(src: "6", dst: "7") {
+     applyViews(views: [{excludeLayers: ["finds"]}]) {
+        src {
+          history
+        }
+        dst {
+          history
+        }
+      }
+    }
+  }
+}
+"""
+    correct = {
+        "graph": {
+            "applyViews": {"earliestTime": 1735689600000},
+            "nodes": {
+                "applyViews": {
+                    "list": [{"name": "2"}, {"name": "3"}, {"name": "6"}, {"name": "7"}]
+                }
+            },
+            "node": {"applyViews": {"history": []}},
+            "edges": {
+                "applyViews": {
+                    "list": [
+                        {"src": {"name": "1"}, "dst": {"name": "3"}},
+                    ]
+                }
+            },
+            "edge": {
+                "applyViews": {
+                    "src": {"history": []},
+                    "dst": {"history": []},
+                }
+            },
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_type_filter():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{typeFilter: ["Person"]}]) {
+      latestTime
+    }
+  }
+}
+"""
+    correct = {"graph": {"nodes": {"applyViews": {"list": [{"name": "1"}]}}}}
+    run_graphql_test(query, correct, graph)
 
 
 def test_apply_view_exclude_nodes():
@@ -852,4 +1346,44 @@ def test_apply_view_edge_filter():
     correct = {
         "graph": {"applyViews": {"edges": {"list": [{"history": [1736035200000]}]}}}
     }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_subgraph():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{subgraph: ["1", "2"]}]) {
+      nodes {
+        list {
+          name
+        }
+      }
+    }
+  }
+}"""
+    correct = {
+        "graph": {"applyViews": {"nodes": {"list": [{"name": "1"}, {"name": "2"}]}}}
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_subgraph_node_types():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{subgraphNodeTypes: ["Person"]}]) {
+      nodes {
+        list {
+          name
+        }
+      }
+    }
+  }
+}"""
+    correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
