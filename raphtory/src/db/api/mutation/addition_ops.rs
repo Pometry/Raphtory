@@ -182,6 +182,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 v_id
             }
         };
+
         match v_id {
             New(id) => {
                 let properties = props.collect_properties(|name, dtype| {
@@ -190,9 +191,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                         .map_err(into_graph_err)?
                         .inner())
                 })?;
+
                 session
                     .internal_add_node(ti, id, &properties)
                     .map_err(into_graph_err)?;
+
                 Ok(NodeView::new_internal(self.clone(), id))
             }
             Existing(id) => {
@@ -240,15 +243,14 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
         let mut add_edge_op = self.atomic_add_edge(src_id, dst_id, None, layer_id);
+        let edge_id = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
 
-        let edge = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
-
-        add_edge_op.store_node_id(src.as_node_ref(), src_id);
-        add_edge_op.store_node_id(dst.as_node_ref(), dst_id);
+        add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);
+        add_edge_op.store_node_id_as_prop(dst.as_node_ref(), dst_id);
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge.inner().edge, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
         ))
     }
 }

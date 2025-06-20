@@ -3,7 +3,7 @@ use std::ops::DerefMut;
 use db4_graph::TemporalGraph;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
+    entities::properties::{meta::Meta, prop::{Prop, PropType}},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -12,6 +12,7 @@ use raphtory_core::{
 };
 use storage::{
     pages::session::WriteSession,
+    pages::NODE_ID_PROP_KEY,
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
@@ -62,20 +63,21 @@ impl<
             .static_session
             .add_static_edge(src, dst, lsn)
             .map(|eid| eid.with_layer(0));
-        self.layer.as_mut().map(|layer| {
-            layer.add_edge_into_layer(t, src, dst, eid, lsn, props);
-        });
+
+        self.static_session.add_edge_into_layer(t, src, dst, eid, lsn, props);
+
+        // TODO: consider storing node id as const prop here?
 
         eid
     }
 
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
         match id {
             NodeRef::External(id) => {
                 let vid = vid.into();
-                self.static_session.store_node_id(id, vid)
+                let _ = self.static_session.store_node_id_as_prop(id, vid);
             }
-            NodeRef::Internal(id) => Ok(()),
+            NodeRef::Internal(_) => (),
         }
     }
 }
@@ -222,11 +224,16 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                 let id = self
                     .logical_to_physical
                     .get_or_init_vid(id, || {
+                        // When initializing a new node, reserve node_id as a const prop.
+                        // Done here since the id type is not known until node creation.
+                        reserve_node_id_as_prop(self.node_meta(), id);
+
                         self.node_count
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                             .into()
                     })
                     .map_err(MutationError::InvalidNodeId)?;
+
                 Ok(id)
             }
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
@@ -262,12 +269,11 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Self::AtomicAddEdge<'_> {
-        let static_session = self.static_graph().write_session(src, dst, e_id);
-        let layer = &self.layers()[layer_id];
-        let layer = layer.write_session(src, dst, e_id);
+        let static_session = self.storage().write_session(src, dst, e_id);
+
         WriteS {
             static_session,
-            layer: Some(layer),
+            layer: None,
         }
     }
 
@@ -286,6 +292,28 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
                 .and_then(|pmw| pmw.into_props_temporal())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
+        }
+    }
+}
+
+fn reserve_node_id_as_prop(
+    node_meta: &Meta,
+    id: GidRef
+) -> usize {
+    match id {
+        GidRef::U64(_) => {
+            node_meta
+                .const_prop_meta()
+                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
+                .unwrap()
+                .inner()
+        }
+        GidRef::Str(_) => {
+            node_meta
+                .const_prop_meta()
+                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
+                .unwrap()
+                .inner()
         }
     }
 }
