@@ -105,7 +105,6 @@ mod test_index {
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
         };
-        use std::path::Path;
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -282,8 +281,9 @@ mod test_index {
         fn test_zip_encode_decode_index() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let tmp_file = tempfile::NamedTempFile::new().unwrap();
-            let folder = GraphFolder::new_as_zip(tmp_file.path());
+            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let zip_path = tmp_dir.path().join("graph.zip");
+            let folder = GraphFolder::new_as_zip(zip_path);
             graph.encode(&folder).unwrap();
 
             let graph = Graph::decode(folder).unwrap();
@@ -296,18 +296,24 @@ mod test_index {
         }
 
         #[test]
-        fn test_encoding_graph_zip_twice_overwrites_existing_graph_index_zip() {
+        fn test_encoding_graph_twice_to_same_graph_path_fails_zip() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let tmp_file = tempfile::NamedTempFile::new().unwrap();
-            let folder = GraphFolder::new_as_zip(tmp_file.path());
+            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let zip_path = tmp_dir.path().join("graph.zip");
+            let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
             graph
                 .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
                 .unwrap();
-            graph.encode(&folder).unwrap();
-            let graph = Graph::decode(folder).unwrap();
-            assert_search_results(&graph, &NodeFilter::name().eq("Ozai"), vec!["Ozai"]);
+            let result = graph.encode(folder);
+            match result {
+                Err(GraphError::IOError { source }) => {
+                    assert!(format!("{source}").contains("File exists"),);
+                }
+                Ok(_) => panic!("Expected error on second encode, got Ok"),
+                Err(e) => panic!("Unexpected error type: {:?}", e),
+            }
         }
 
         #[test]

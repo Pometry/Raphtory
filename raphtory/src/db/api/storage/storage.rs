@@ -107,6 +107,18 @@ impl Storage {
         }
     }
 
+    #[cfg(feature = "proto")]
+    #[inline]
+    fn if_index(
+        &self,
+        map_fn: impl FnOnce(&GraphIndex) -> Result<(), GraphError>,
+    ) -> Result<(), GraphError> {
+        if let Some(index) = self.index.get() {
+            map_fn(&index.read())?
+        };
+        Ok(())
+    }
+
     #[cfg(feature = "search")]
     #[inline]
     fn if_index_mut(
@@ -133,7 +145,7 @@ impl Storage {
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
+        let index = self.index.get().ok_or(GraphError::IndexNotCreated)?;
         Ok(index.read().index_spec())
     }
 
@@ -190,7 +202,7 @@ impl Storage {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            self.if_index_mut(|index| index.persist_to_disk(path))?;
+            self.if_index(|index| index.persist_to_disk(path))?;
         }
         Ok(())
     }
@@ -201,7 +213,7 @@ impl Storage {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            self.if_index_mut(|index| index.persist_to_disk_zip(path))?;
+            self.if_index(|index| index.persist_to_disk_zip(path))?;
         }
         Ok(())
     }

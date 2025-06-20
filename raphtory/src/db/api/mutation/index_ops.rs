@@ -77,7 +77,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
 
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                if path.prefer_zip_format {
+                if path.is_zip() {
                     if has_index(path.get_base_path())? {
                         storage.get_or_load_index(&path)?;
                     } else {

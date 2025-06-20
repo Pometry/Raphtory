@@ -73,84 +73,6 @@ impl MutableGraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let source_path = self
-            .path
-            .as_ref()
-            .ok_or(GraphError::GraphIndexIsMissing)?
-            .path();
-        let path = path.get_index_path();
-        let path = path.as_path();
-
-        let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
-
-        copy_dir_recursive(source_path, temp_path)?;
-
-        // Always overwrite the existing graph index when persisting, since the in-memory
-        // working index may have newer updates. The persisted index is decoupled from the
-        // active one, and changes remain in memory unless explicitly saved.
-        // This behavior mirrors how the in-memory graph works — updates are not persisted
-        // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
-        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
-        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
-        if path.exists() {
-            fs::remove_dir_all(path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
-        }
-
-        fs::rename(temp_path, path).map_err(|e| {
-            GraphError::IOErrorMsg(format!("Failed to rename temp index folder: {}", e))
-        })?;
-
-        Ok(())
-    }
-
-    pub(crate) fn persist_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let file = File::options()
-            .read(true)
-            .write(true)
-            .open(path.get_base_path())?;
-        let mut zip = ZipWriter::new_append(file)?;
-
-        let source_path = self
-            .path
-            .as_ref()
-            .ok_or(GraphError::GraphIndexIsMissing)?
-            .path();
-
-        for entry in WalkDir::new(source_path)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|e| e.path().is_file())
-        {
-            let rel_path = entry
-                .path()
-                .strip_prefix(source_path)
-                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
-
-            let zip_entry_name = PathBuf::from("index")
-                .join(rel_path)
-                .to_string_lossy()
-                .into_owned();
-            zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())
-                .map_err(|e| {
-                    GraphError::IOErrorMsg(format!("Failed to start zip file entry: {}", e))
-                })?;
-
-            let mut f = File::open(entry.path())
-                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to open index file: {}", e)))?;
-
-            std::io::copy(&mut f, &mut zip).map_err(|e| {
-                GraphError::IOErrorMsg(format!("Failed to write zip content: {}", e))
-            })?;
-        }
-
-        zip.finish()
-            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to finalize zip: {}", e)))?;
-
-        Ok(())
-    }
-
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
@@ -287,32 +209,97 @@ impl GraphIndex {
     }
 
     pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
-        let tmp_path = TempDir::new()?;
-        let mut index_path = path.get_index_path();
-        if path.prefer_zip_format {
-            index_path = tmp_path.keep();
-            unzip(&path.get_base_path(), index_path.as_path())?
-        };
+        if path.is_zip() {
+            let index_path = TempDir::new()?;
+            unzip_index(&path.get_base_path(), index_path.path())?;
 
-        // Load directly from disk without copying
-        let node_index = NodeIndex::load_from_path(&index_path.join("nodes"))?;
-        let edge_index = EdgeIndex::load_from_path(&index_path.join("edges"))?;
+            let (index, index_spec) = load_indexes(index_path.path())?;
 
-        let index_spec = IndexSpec {
-            node_const_props: node_index.resolve_const_props(),
-            node_temp_props: node_index.resolve_temp_props(),
-            edge_const_props: edge_index.resolve_const_props(),
-            edge_temp_props: edge_index.resolve_temp_props(),
-        };
+            Ok(GraphIndex::Mutable(MutableGraphIndex {
+                index,
+                path: Some(Arc::new(index_path)),
+                index_spec: Arc::new(RwLock::new(index_spec)),
+            }))
+        } else {
+            let index_path = path.get_index_path();
+            let (index, index_spec) = load_indexes(index_path.as_path())?;
 
-        Ok(GraphIndex::Immutable(ImmutableGraphIndex {
-            index: Index {
-                node_index,
-                edge_index,
-            },
-            path: Arc::new(path.clone()),
-            index_spec: Arc::new(index_spec),
-        }))
+            Ok(GraphIndex::Immutable(ImmutableGraphIndex {
+                index,
+                path: Arc::new(path.clone()),
+                index_spec: Arc::new(index_spec),
+            }))
+        }
+    }
+
+    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
+        let path = path.get_index_path();
+        let path = path.as_path();
+
+        let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
+
+        copy_dir_recursive(source_path, temp_path)?;
+
+        // Always overwrite the existing graph index when persisting, since the in-memory
+        // working index may have newer updates. The persisted index is decoupled from the
+        // active one, and changes remain in memory unless explicitly saved.
+        // This behavior mirrors how the in-memory graph works — updates are not persisted
+        // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
+        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
+        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
+        if path.exists() {
+            fs::remove_dir_all(path)
+                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
+        }
+
+        fs::rename(temp_path, path).map_err(|e| {
+            GraphError::IOErrorMsg(format!("Failed to rename temp index folder: {}", e))
+        })?;
+
+        Ok(())
+    }
+
+    pub(crate) fn persist_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .open(path.get_base_path())?;
+        let mut zip = ZipWriter::new_append(file)?;
+
+        let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
+
+        for entry in WalkDir::new(source_path)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_file())
+        {
+            let rel_path = entry
+                .path()
+                .strip_prefix(source_path)
+                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
+
+            let zip_entry_name = PathBuf::from("index")
+                .join(rel_path)
+                .to_string_lossy()
+                .into_owned();
+            zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())
+                .map_err(|e| {
+                    GraphError::IOErrorMsg(format!("Failed to start zip file entry: {}", e))
+                })?;
+
+            let mut f = File::open(entry.path())
+                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to open index file: {}", e)))?;
+
+            std::io::copy(&mut f, &mut zip).map_err(|e| {
+                GraphError::IOErrorMsg(format!("Failed to write zip content: {}", e))
+            })?;
+        }
+
+        zip.finish()
+            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to finalize zip: {}", e)))?;
+
+        Ok(())
     }
 
     pub fn make_mutable_if_needed(&mut self) -> Result<(), GraphError> {
@@ -427,7 +414,7 @@ fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), GraphErro
     Ok(())
 }
 
-fn unzip(source: &Path, destination: &Path) -> Result<(), GraphError> {
+fn unzip_index(source: &Path, destination: &Path) -> Result<(), GraphError> {
     let file = File::open(source)?;
     let mut archive = ZipArchive::new(file)?;
 
@@ -456,6 +443,26 @@ fn unzip(source: &Path, destination: &Path) -> Result<(), GraphError> {
     }
 
     Ok(())
+}
+
+fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
+    let node_index = NodeIndex::load_from_path(&index_path.join("nodes"))?;
+    let edge_index = EdgeIndex::load_from_path(&index_path.join("edges"))?;
+
+    let index_spec = IndexSpec {
+        node_const_props: node_index.resolve_const_props(),
+        node_temp_props: node_index.resolve_temp_props(),
+        edge_const_props: edge_index.resolve_const_props(),
+        edge_temp_props: edge_index.resolve_temp_props(),
+    };
+
+    Ok((
+        Index {
+            node_index,
+            edge_index,
+        },
+        index_spec,
+    ))
 }
 
 #[cfg(test)]
