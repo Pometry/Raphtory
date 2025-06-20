@@ -415,55 +415,70 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
 // FIXME: Currently holds a vector of all the intervals, might not be efficient. can't hold an iterator because they can't be reused
 // Change to hold history object instead of vector, can call iterator to keep generating them
 // TODO: Change to hold T, intervals calculated in iter()
-pub struct Intervals(Vec<i64>);
+#[derive(Debug, Clone, Copy)]
+pub struct Intervals<T>(T);
 
-impl Intervals {
-    pub fn new(timestamps: impl IntoIterator<Item = i64>) -> Self {
-        Intervals(
-            timestamps
-                .into_iter()
-                .tuple_windows()
-                .map(|(w1, w2)| w2 - w1)
-                .collect(),
-        )
+impl<T: InternalHistoryOps> Intervals<T> {
+    pub fn new(item: T) -> Self {
+        Intervals(item)
     }
 
-    pub fn items(&self) -> &Vec<i64> {
-        &self.0
+    pub fn items(&self) -> Vec<i64> {
+        self.iter().collect()
     }
 
-    pub fn iter(&self) -> Iter<i64> {
+    pub fn iter(&self) -> BoxedLIter<i64> {
         self.0.iter()
+            .map(|t| t.0)
+            .tuple_windows()
+            .map(|(w1, w2)| w2 - w1)
+            .into_dyn_boxed()
+    }
+
+    pub fn iter_rev(&self) -> BoxedLIter<i64> {
+        self.0.iter_rev()
+            .map(|t| t.0)
+            .tuple_windows()
+            .map(|(w1, w2)| w2 - w1)
+            .into_dyn_boxed()
     }
 
     pub fn mean(&self) -> Option<f64> {
         if self.0.is_empty() {
             return None;
         }
-        Some(self.0.iter().sum::<i64>() as f64 / self.0.len() as f64)
+        let (len, sum) = Self::count_and_sum(self.iter());
+        Some(sum as f64 / len as f64)
     }
 
     pub fn median(&self) -> Option<f64> {
         if self.0.is_empty() {
             return None;
         }
-        let mut intervals_copy = self.0.to_vec();
-        intervals_copy.sort_unstable();
+        let mut intervals: Vec<i64> = self.iter().collect();
+        intervals.sort_unstable();
 
-        let mid = intervals_copy.len() / 2;
-        if intervals_copy.len() % 2 == 0 {
-            Some((intervals_copy[mid - 1] as f64 + intervals_copy[mid] as f64) / 2.0)
+        let mid = intervals.len() / 2;
+        if intervals.len() % 2 == 0 {
+            Some((intervals[mid - 1] as f64 + intervals[mid] as f64) / 2.0)
         } else {
-            Some(intervals_copy[mid] as f64)
+            Some(intervals[mid] as f64)
         }
     }
 
     pub fn max(&self) -> Option<i64> {
-        self.0.iter().max().cloned()
+        self.iter().max()
     }
 
     pub fn min(&self) -> Option<i64> {
-        self.0.iter().min().cloned()
+        self.iter().min()
+    }
+
+    /// Returns (len, sum) of an iterator
+    fn count_and_sum(iter: BoxedLIter<i64>) -> (i64, i64) {
+        iter.fold((0i64, 0i64), |(count, sum), item| {
+            (count + 1, sum + item)
+        })
     }
 }
 
