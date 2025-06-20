@@ -1,24 +1,14 @@
 use crate::{
-    db::{
-        api::view::internal::{InternalMaterialize, OneHopFilter},
-        graph::views::filter::internal::CreateEdgeFilter,
-    },
+    db::{api::view::internal::OneHopFilter, graph::views::filter::internal::CreateEdgeFilter},
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::GraphType;
 
 pub trait EdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
     fn filter_edges<F: CreateEdgeFilter>(
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::FilteredGraph>>, GraphError> {
-        if matches!(
-            self.current_filter().graph_type(),
-            GraphType::PersistentGraph
-        ) {
-            return Err(GraphError::PropertyFilteringNotImplemented);
-        }
         Ok(self.one_hop_filtered(filter.create_edge_filter(self.current_filter().clone())?))
     }
 }
@@ -28,18 +18,29 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 #[cfg(test)]
 mod test {
     use crate::{
-        db::graph::views::filter::model::{
-            property_filter::{PropertyFilter, PropertyRef},
-            ComposableFilter, EdgeFilter, EdgeFilterOps,
+        db::graph::{
+            graph::{
+                assert_edges_equal, assert_graph_equal, assert_persistent_materialize_graph_equal,
+            },
+            views::{
+                deletion_graph::PersistentGraph,
+                filter::model::{
+                    property_filter::{PropertyFilter, PropertyRef},
+                    ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterBuilder,
+                    PropertyFilterOps,
+                },
+            },
         },
         prelude::*,
-        test_utils::{build_edge_list, build_graph_from_edge_list},
+        test_utils::{
+            build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window,
+        },
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
 
     #[test]
-    fn test_edge_filter_on_edges() {
+    fn test_edge_filter() {
         use crate::db::graph::views::filter::model::PropertyFilterOps;
 
         let g = Graph::new();
@@ -64,6 +65,55 @@ mod test {
                 .collect::<Vec<_>>(),
             vec!["John->David"]
         );
+
+        let g_expected = Graph::new();
+        g_expected
+            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["John->David"]
+        );
+        assert_graph_equal(&filtered_edges, &g_expected);
+    }
+
+    #[test]
+    fn test_edge_filter_persistent() {
+        use crate::db::graph::views::filter::model::PropertyFilterOps;
+
+        let g = PersistentGraph::new();
+        g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
+            .unwrap();
+        g.add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+        g.add_edge(2, "David", "Jimi", [("band", "Pink Floyd")], None)
+            .unwrap();
+
+        let filter_expr = EdgeFilter::dst()
+            .name()
+            .eq("David")
+            .and(PropertyFilter::property("band").eq("Dead & Company"));
+        let filtered_edges = g.filter_edges(filter_expr).unwrap();
+
+        let g_expected = PersistentGraph::new();
+        g_expected
+            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .unwrap();
+
+        assert_eq!(
+            filtered_edges
+                .edges()
+                .iter()
+                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+                .collect::<Vec<_>>(),
+            vec!["John->David"]
+        );
+        assert_graph_equal(&filtered_edges, &g_expected);
     }
 
     #[test]
@@ -235,6 +285,49 @@ mod test {
                     assert!(!filtered.has_edge(e.src(), e.dst()));
                 }
             }
+        })
+    }
+
+    #[test]
+    fn test_graph_materialise_window() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
+            let g = build_graph_from_edge_list(&edges);
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gwf = g.window(start, end)
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gwfm = gwf.materialize().unwrap();
+            assert_graph_equal(&gwf, &gwfm);
+
+            let gfw = g
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v)).unwrap()
+                .window(start, end);
+            let gfwm = gfw.materialize().unwrap();
+            assert_graph_equal(&gfw, &gfwm);
+        })
+    }
+
+    #[test]
+    fn test_persistent_graph_materialise_window() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
+            let g = build_graph_from_edge_list(&edges);
+            let g = g.persistent_graph();
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gwf = g.window(start, end)
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gwfm = gwf.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gwf, &gwfm);
+
+            let gfw = g
+                .filter_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v)).unwrap()
+                .window(start, end);
+            let gfwm = gfw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gfw, &gfwm);
         })
     }
 }
