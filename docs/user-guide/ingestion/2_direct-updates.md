@@ -22,6 +22,11 @@ print(v)
 ```
 ///
 
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)"
+assert str(v) == "Node(name=10, earliest_time=1, latest_time=1)"
+```
+
 Printing out the graph and the returned node we can see the update was successful and the earliest/latest time has been updated.
 
 !!! Output
@@ -49,6 +54,11 @@ print(g)
 print(e)
 ```
 ///
+
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)"
+assert str(e) == "Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])"
+```
 
 !!! Output
 
@@ -80,6 +90,12 @@ print(g.node("User 2"))
 print(g.edge("User 1", "User 2"))
 ```
 ///
+
+```{.python continuation hide}
+assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=123, latest_time=789)"
+assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=456, latest_time=789)"
+assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])"
+```
 
 !!! Output
 
@@ -114,6 +130,12 @@ print(g.node(id=10).history())
 print(g.node(id=10).history_date_time())
 ```
 ///
+
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)"
+assert str(g.node(id=10).history()) == "[1609504320000 1612360860000]"
+assert str(g.node(id=10).history_date_time()) == "[datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]"
+```
 
 !!! Output
 
@@ -192,6 +214,12 @@ print(e)
 ```
 ///
 
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=4, properties=Properties({inner data: {fruits: {apple: 5, banana: 3}, date of birth: 2021-01-01 12:32:00}, favourite greetings: [hi, hello, howdy]}))"
+assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=4, properties=Properties({count: 2, greeting: hello, encrypted: true, balance: 0.9}))"
+assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=4, latest_time=4, properties={weights: [1, 2, 3]}, layer(s)=[_default])"
+```
+
 !!! Output
 
     ```output
@@ -230,6 +258,12 @@ print(v)
 print(e)
 ```
 ///
+
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({name: Example Graph}))"
+assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({date of birth: 1990-02-03 00:00:00}))"
+assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, properties={data source: https://link-to-repo.com}, layer(s)=[_default])"
+```
 
 !!! output
 
@@ -295,6 +329,11 @@ print(unlayered_edge.properties.temporal.get("weight").values())
 print(layered_edge.properties.temporal.get("weight").values())
 ```
 ///
+
+```{.python continuation hide}
+assert str(unlayered_edge.properties.temporal.get("weight").values()) == "[10 13 20 17 35]"
+assert str(layered_edge.properties.temporal.get("weight").values()) == "[20 35]"
+```
 
 !!! Output
 
