@@ -161,8 +161,8 @@ pub enum GraphError {
     #[error("Failed to persist index.")]
     FailedToPersistIndex,
 
-    #[error("Graph index is missing")]
-    GraphIndexIsMissing,
+    #[error("Cannot persist RAM index")]
+    CannotPersistRamIndex,
 
     #[error("Failed to remove existing graph index: {0}")]
     FailedToRemoveExistingGraphIndex(PathBuf),
