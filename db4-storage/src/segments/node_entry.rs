@@ -1,7 +1,8 @@
 use crate::{
-    LocalPOS, NodeAdditions,
+    LocalPOS, NodeAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
-    gen_ts::{GenericTimeOps, WithTimeCells},
+    gen_t_props::WithTProps,
+    gen_ts::WithTimeCells,
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::{
@@ -9,7 +10,7 @@ use raphtory_api::core::{
     entities::{EID, VID, properties::prop::Prop},
 };
 use raphtory_core::{
-    entities::{LayerIds, nodes::node_store::PropTimestamps, properties::tprop::TPropCell},
+    entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use std::{iter::Empty, ops::Deref};
@@ -91,9 +92,29 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     }
 }
 
+impl<'a> WithTProps<'a> for MemNodeRef<'a> {
+    type TProp = TPropCell<'a>;
+
+    fn num_layers(&self) -> usize {
+        self.ns.as_ref().len()
+    }
+
+    fn into_t_props(
+        self,
+        layer_id: usize,
+        prop_id: usize,
+    ) -> impl Iterator<Item = Self::TProp> + 'a {
+        let node_pos = self.pos;
+        self.ns.as_ref()[layer_id]
+            .t_prop(node_pos, prop_id)
+            .into_iter()
+            .map(|t_prop| t_prop.into())
+    }
+}
+
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = NodeAdditions<'a>;
-    type TProps = TPropCell<'a>;
+    type TProps = NodeTProps<'a>;
 
     fn vid(&self) -> VID {
         self.ns.to_vid(self.pos)
@@ -123,10 +144,8 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
 
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
-        self.ns.as_ref()[layer_id]
-            .t_prop(self.pos, prop_id)
-            .unwrap_or_default()
+    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
+        NodeTProps::new(self, layer_id, prop_id)
     }
 
     fn temp_prop_rows(
@@ -155,5 +174,19 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             LayerIds::None => 0,
             layers => self.edges_iter(layers, dir).count(),
         }
+    }
+
+    fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef> {
+        let eid = match layers {
+            LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, *layer_id),
+            LayerIds::All => self.ns.get_out_edge(self.pos, dst, 0),
+            LayerIds::Multiple(layers) => layers
+                .iter()
+                .find_map(|layer_id| self.ns.get_out_edge(self.pos, dst, layer_id)),
+            LayerIds::None => None,
+        };
+
+        let src_id = self.ns.to_vid(self.pos);
+        eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
 }

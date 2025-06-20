@@ -120,5 +120,5 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps;
 }

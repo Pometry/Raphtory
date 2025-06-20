@@ -5,8 +5,9 @@ use raphtory_core::{
 };
 
 use crate::{
-    EdgeAdditions, LocalPOS,
+    EdgeAdditions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
+    gen_t_props::WithTProps,
     gen_ts::WithTimeCells,
 };
 
@@ -87,10 +88,30 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
     }
 }
 
+impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
+    type TProp = TPropCell<'a>;
+
+    fn num_layers(&self) -> usize {
+        self.es.as_ref().len()
+    }
+
+    fn into_t_props(
+        self,
+        layer_id: usize,
+        prop_id: usize,
+    ) -> impl Iterator<Item = Self::TProp> + 'a {
+        let edge_pos = self.pos;
+        self.es.as_ref()[layer_id]
+            .t_prop(edge_pos, prop_id)
+            .into_iter()
+            .map(|t_prop| t_prop.into())
+    }
+}
+
 impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Additions = EdgeAdditions<'a>;
 
-    type TProps = TPropCell<'a>;
+    type TProps = EdgeTProps<'a>;
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)> {
         self.es.as_ref()[layer_id]
@@ -106,9 +127,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         self.es.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
 
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
-        self.es.as_ref()[layer_id]
-            .t_prop(self.pos, prop_id)
-            .unwrap_or_default()
+    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
+        EdgeTProps::new(self, layer_id, prop_id)
     }
 }

@@ -14,7 +14,7 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 use raphtory_core::{
-    entities::{EID, LayerIds, Multiple, VID, edges::edge_ref::EdgeRef},
+    entities::{EID, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     utils::iter::GenLockedIter,
 };
@@ -254,7 +254,9 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps;
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
+
+    fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef>;
 }
