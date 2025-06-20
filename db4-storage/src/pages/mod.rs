@@ -43,8 +43,8 @@ pub mod session;
 pub mod test_utils;
 
 // Internal const props for node id and type
-const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
-const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
+pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
+pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
