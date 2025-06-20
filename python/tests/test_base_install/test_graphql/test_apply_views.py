@@ -1186,11 +1186,15 @@ def test_apply_view_type_filter():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{typeFilter: ["Person"]}]) {
-      latestTime
+      nodes {
+        applyViews(views: [{typeFilter: ["Person"]}]) {
+          list {
+            name
+          }
+        }
+      }
     }
   }
-}
 """
     correct = {"graph": {"nodes": {"applyViews": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
