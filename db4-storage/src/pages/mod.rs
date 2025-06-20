@@ -21,7 +21,7 @@ use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{meta::Meta, prop::{Prop, PropType}},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -41,6 +41,8 @@ pub mod node_store;
 pub mod session;
 #[cfg(feature = "test-utils")]
 pub mod test_utils;
+
+const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
@@ -163,6 +165,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         ));
         let edge_meta = edges.prop_meta();
         let node_meta = nodes.prop_meta();
+
+        // Reserve node_type as a const prop on init
+        let _ = node_meta
+            .const_prop_meta()
+            .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::Str);
+
         let graph_meta = GraphMeta {
             max_page_len_nodes,
             max_page_len_edges,
