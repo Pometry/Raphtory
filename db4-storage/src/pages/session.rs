@@ -6,7 +6,7 @@ use super::{
 use crate::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
-    pages::NODE_ID_PROP_KEY,
+    pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use raphtory_api::core::{entities::properties::prop::{Prop, PropType}, storage::dict_mapper::MaybeNew};
@@ -231,27 +231,55 @@ impl<
     pub fn store_node_id_as_prop(
         &mut self,
         id: GidRef,
-        vid: impl Into<VID>
+        vid: impl Into<VID>,
     ) -> Result<(), DBV4Error> {
-        // node_id goes to const props in layer 0
-        let layer = 0;
-        let prop_key = NODE_ID_PROP_KEY;
         let (prop_val, prop_dtype) = match id {
             GidRef::U64(id) => (Prop::U64(id), PropType::U64),
             GidRef::Str(id) => (Prop::Str(id.into()), PropType::Str),
         };
 
+        self.store_node_const_prop(
+            NODE_ID_PROP_KEY,
+            prop_val,
+            prop_dtype,
+            vid,
+        )
+    }
+
+    pub fn store_node_type_as_prop(
+        &mut self,
+        node_type: &str,
+        vid: impl Into<VID>,
+    ) -> Result<(), DBV4Error> {
+        let (prop_val, prop_dtype) = (Prop::Str(node_type.into()), PropType::Str);
+
+        self.store_node_const_prop(
+            NODE_TYPE_PROP_KEY,
+            prop_val,
+            prop_dtype,
+            vid,
+        )
+    }
+
+    fn store_node_const_prop(
+        &mut self,
+        prop_key: &str,
+        prop_val: Prop,
+        prop_dtype: PropType,
+        vid: impl Into<VID>,
+    ) -> Result<(), DBV4Error> {
+        let layer = 0;
         let prop_id = self.graph
             .node_meta()
             .const_prop_meta()
             .get_and_validate(prop_key, prop_dtype)?
             .ok_or_else(|| DBV4Error::GenericFailure(format!(
-                "node_id const prop not found for node {}",
-                id
+                "{} const prop not found",
+                prop_key
             )))?;
 
         let props = vec![(prop_id, prop_val)];
-        let local_pos = self.graph.nodes().resolve_pos(vid).1;
+        let (_, local_pos) = self.graph.nodes().resolve_pos(vid);
         let lsn = 0; // TODO: lsn should be passed in
 
         self.node_writers
