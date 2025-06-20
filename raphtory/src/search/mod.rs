@@ -99,8 +99,10 @@ mod test_index {
             },
             errors::GraphError,
             prelude::*,
+            search::graph_index::GraphIndex,
             serialise::GraphFolder,
         };
+        use parking_lot::{lock_api::RwLockReadGuard, RawRwLock};
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
@@ -314,6 +316,96 @@ mod test_index {
                 Ok(_) => panic!("Expected error on second encode, got Ok"),
                 Err(e) => panic!("Unexpected error type: {:?}", e),
             }
+        }
+
+        #[test]
+        fn test_immutable_graph_index_persistence() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
+
+            // This gives us immutable index
+            let graph = Graph::decode(path).unwrap();
+
+            // This tests that we are able to persist the immutable index
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let filter1 = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter1, vec!["Alice"]);
+        }
+
+        #[test]
+        fn test_mutable_graph_index_persistence() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
+
+            // This gives us immutable index
+            let graph = Graph::decode(path).unwrap();
+
+            // This converts immutable index to mutable index
+            graph
+                .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
+                .unwrap();
+
+            // This tests that we are able to persist the mutable index
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let filter = NodeFilter::name().eq("Ozai");
+            assert_search_results(&graph, &filter, vec!["Ozai"]);
+        }
+
+        #[test]
+        fn test_loading_zip_index_creates_mutable_index() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let zip_path = tmp_dir.path().join("graph.zip");
+            let folder = GraphFolder::new_as_zip(&zip_path);
+            graph.encode(&folder).unwrap();
+
+            let graph = Graph::decode(folder).unwrap();
+            let immutable = graph
+                .get_storage()
+                .unwrap()
+                .index
+                .get()
+                .unwrap()
+                .read()
+                .is_immutable();
+            assert! {!immutable};
+        }
+
+        #[test]
+        fn test_loading_index_creates_immutable_index() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let binding = tempfile::TempDir::new().unwrap();
+            let path = binding.path();
+            graph.encode(path).unwrap();
+
+            let graph = Graph::decode(path).unwrap();
+            let immutable = graph
+                .get_storage()
+                .unwrap()
+                .index
+                .get()
+                .unwrap()
+                .read()
+                .is_immutable();
+            assert! {immutable};
         }
 
         #[test]

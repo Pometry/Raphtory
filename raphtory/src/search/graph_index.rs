@@ -239,7 +239,7 @@ impl GraphIndex {
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
 
-        copy_dir_recursive(source_path, temp_path)?;
+        copy_dir_recursive(&source_path, temp_path)?;
 
         // Always overwrite the existing graph index when persisting, since the in-memory
         // working index may have newer updates. The persisted index is decoupled from the
@@ -269,14 +269,14 @@ impl GraphIndex {
 
         let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
 
-        for entry in WalkDir::new(source_path)
+        for entry in WalkDir::new(&source_path)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
         {
             let rel_path = entry
                 .path()
-                .strip_prefix(source_path)
+                .strip_prefix(&source_path)
                 .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
 
             let zip_entry_name = PathBuf::from("index")
@@ -326,6 +326,10 @@ impl GraphIndex {
         Ok(())
     }
 
+    pub fn is_immutable(&self) -> bool {
+        matches!(self, GraphIndex::Immutable(_))
+    }
+
     pub fn index(&self) -> &Index {
         match self {
             GraphIndex::Immutable(i) => &i.index,
@@ -333,10 +337,10 @@ impl GraphIndex {
         }
     }
 
-    pub fn path(&self) -> Option<&Path> {
+    pub fn path(&self) -> Option<PathBuf> {
         match self {
-            GraphIndex::Immutable(i) => Some(i.path.get_base_path()),
-            GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path()),
+            GraphIndex::Immutable(i) => Some(i.path.get_index_path()),
+            GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path().to_path_buf()),
         }
     }
 
