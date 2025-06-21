@@ -105,8 +105,8 @@ impl<'item, T: InternalHistoryOps> HistoryRef<'item, T> {
         self.iter().next().is_none()
     }
 
-    pub fn intervals(&self) -> Intervals {
-        Intervals::new(self.iter().map(|x| x.t()))
+    pub fn intervals(&self) -> Intervals<T> {
+        Intervals::new(self.0)
     }
 
     pub fn merge<R: InternalHistoryOps>(

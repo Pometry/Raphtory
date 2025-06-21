@@ -133,8 +133,8 @@ impl<T: InternalHistoryOps> History<T> {
         self.iter().next().is_none()
     }
 
-    pub fn intervals(&self) -> Intervals {
-        Intervals(self.iter().map(|x| x.t()).collect_vec())
+    pub fn intervals(&self) -> Intervals<T> {
+        Intervals::new(&self.0)
     }
 
     pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
@@ -412,14 +412,12 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     }
 }
 
-// FIXME: Currently holds a vector of all the intervals, might not be efficient. can't hold an iterator because they can't be reused
-// Change to hold history object instead of vector, can call iterator to keep generating them
-// TODO: Change to hold T, intervals calculated in iter()
+// Holds a reference to the inner item in history object
 #[derive(Debug, Clone, Copy)]
-pub struct Intervals<T>(T);
+pub struct Intervals<'item, T>(&'item T);
 
-impl<T: InternalHistoryOps> Intervals<T> {
-    pub fn new(item: T) -> Self {
+impl<'item, T: InternalHistoryOps> Intervals<'item, T> {
+    pub fn new(item: &'item T) -> Self {
         Intervals(item)
     }
 
@@ -428,7 +426,8 @@ impl<T: InternalHistoryOps> Intervals<T> {
     }
 
     pub fn iter(&self) -> BoxedLIter<i64> {
-        self.0.iter()
+        self.0
+            .iter()
             .map(|t| t.0)
             .tuple_windows()
             .map(|(w1, w2)| w2 - w1)
@@ -436,7 +435,8 @@ impl<T: InternalHistoryOps> Intervals<T> {
     }
 
     pub fn iter_rev(&self) -> BoxedLIter<i64> {
-        self.0.iter_rev()
+        self.0
+            .iter_rev()
             .map(|t| t.0)
             .tuple_windows()
             .map(|(w1, w2)| w2 - w1)
@@ -444,15 +444,18 @@ impl<T: InternalHistoryOps> Intervals<T> {
     }
 
     pub fn mean(&self) -> Option<f64> {
-        if self.0.is_empty() {
+        if self.iter().next().is_none() {
             return None;
         }
-        let (len, sum) = Self::count_and_sum(self.iter());
+        // count and sum in one pass of the iterator
+        let (len, sum) = self
+            .iter()
+            .fold((0i64, 0i64), |(count, sum), item| (count + 1, sum + item));
         Some(sum as f64 / len as f64)
     }
 
     pub fn median(&self) -> Option<f64> {
-        if self.0.is_empty() {
+        if self.iter().next().is_none() {
             return None;
         }
         let mut intervals: Vec<i64> = self.iter().collect();
@@ -473,13 +476,6 @@ impl<T: InternalHistoryOps> Intervals<T> {
     pub fn min(&self) -> Option<i64> {
         self.iter().min()
     }
-
-    /// Returns (len, sum) of an iterator
-    fn count_and_sum(iter: BoxedLIter<i64>) -> (i64, i64) {
-        iter.fold((0i64, 0i64), |(count, sum), item| {
-            (count + 1, sum + item)
-        })
-    }
 }
 
 #[cfg(test)]
@@ -489,41 +485,81 @@ mod tests {
 
     #[test]
     fn intervals() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = [1, 4, 10, 30];
-        let interval = Intervals::new(timestamps);
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        graph.add_node(4, "node", NO_PROPS, None).unwrap();
+        graph.add_node(10, "node", NO_PROPS, None).unwrap();
+        graph.add_node(30, "node", NO_PROPS, None).unwrap();
+        let interval = Intervals::new(&node);
         assert_eq!(interval.items(), &[3, 6, 20]);
+
+        // make sure there are no intervals (1 time entry)
+        let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+        let interval2 = Intervals::new(&node2);
+        assert_eq!(interval2.items(), Vec::<i64>::new());
+        Ok(())
+    }
+
+    #[test]
+    fn intervals_same_timestamp() -> Result<(), Box<dyn std::error::Error>> {
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        let interval = Intervals::new(&node);
+        assert_eq!(interval.items(), &[0]);
+
+        graph.add_node(2, "node", NO_PROPS, None).unwrap();
+        assert_eq!(interval.items(), &[0, 1]);
         Ok(())
     }
 
     #[test]
     fn intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = [1, 4, 10, 30];
-        let interval = Intervals::new(timestamps);
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        graph.add_node(4, "node", NO_PROPS, None).unwrap();
+        graph.add_node(10, "node", NO_PROPS, None).unwrap();
+        graph.add_node(30, "node", NO_PROPS, None).unwrap();
+        let interval = Intervals::new(&node);
         assert_eq!(interval.mean(), Some(29f64 / 3f64));
-        let timestamps2 = [1];
-        let interval2 = Intervals::new(timestamps2);
+
+        // make sure mean is None if there is no interval to be calculated (1 time entry)
+        let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+        let interval2 = Intervals::new(&node2);
         assert_eq!(interval2.mean(), None);
         Ok(())
     }
 
     #[test]
     fn intervals_median() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = [1, 30, 31, 40]; // intervals are 29, 1, 9
-        let interval = Intervals::new(timestamps);
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        graph.add_node(30, "node", NO_PROPS, None).unwrap();
+        graph.add_node(31, "node", NO_PROPS, None).unwrap();
+        graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
+        let interval = Intervals::new(&node);
         assert_eq!(interval.median(), Some(9.0));
-        let timestamps2 = [1];
-        let interval2 = Intervals::new(timestamps2);
+
+        // make sure median is None if there is no interval to be calculated (1 time entry)
+        let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+        let interval2 = Intervals::new(&node2);
         assert_eq!(interval2.median(), None);
         Ok(())
     }
 
     #[test]
     fn intervals_max() -> Result<(), Box<dyn std::error::Error>> {
-        let timestamps = [1, 30, 31, 40]; // intervals are 29, 1, 9
-        let interval = Intervals::new(timestamps);
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        graph.add_node(30, "node", NO_PROPS, None).unwrap();
+        graph.add_node(31, "node", NO_PROPS, None).unwrap();
+        graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
+        let interval = Intervals::new(&node);
         assert_eq!(interval.max(), Some(29));
-        let timestamps2 = [1];
-        let interval2 = Intervals::new(timestamps2);
+
+        // make sure max is None if there is no interval to be calculated (1 time entry)
+        let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+        let interval2 = Intervals::new(&node2);
         assert_eq!(interval2.max(), None);
         Ok(())
     }
@@ -705,14 +741,24 @@ mod tests {
         );
 
         // edge history objects
-        // let character_edge_history = HistoryImplemented::new(character_edge);
-        // character_edge_history.print("Character Edge History: ");
-        //
-        // let broom_harry_history = HistoryImplemented::new(broom_harry_edge);
-        // broom_harry_history.print("Broom-Harry History: ");
-        //
-        // let broom_dumbledore_history = HistoryImplemented::new(broom_dumbledore_edge);
-        // broom_dumbledore_history.print("Broom-Dumbledore History: ");
+        let character_edge_history = History::new(character_edge);
+        assert_eq!(
+            character_edge_history.collect_items(),
+            [TimeIndexEntry::new(3, 2)]
+        );
+
+        //normal history differs from "Magical Object Uses" history
+        let broom_harry_normal_history = History::new(broom_harry_normal_edge);
+        assert_eq!(
+            broom_harry_normal_history.collect_items(),
+            [TimeIndexEntry::new(5, 6)]
+        );
+
+        let broom_harry_magical_history = History::new(broom_harry_magical_edge);
+        assert_eq!(
+            broom_harry_magical_history.collect_items(),
+            [TimeIndexEntry::new(4, 4)]
+        );
 
         // make graphview using layer
         let magical_graph_view = graph.layers("Magical Object Uses").unwrap();
@@ -721,15 +767,43 @@ mod tests {
         let harry_node_magical_view = magical_graph_view.node(harry_node_id.clone()).unwrap();
         let broom_node_magical_view = magical_graph_view.node(broom_node_id.clone()).unwrap();
 
-        // FIXME: After applying the layer, the node still returns the same history information. Wait for new update
-        let harry_magical_history = History::new(harry_node_magical_view);
-        harry_magical_history.print("Harry Magical History: ");
+        // history of nodes are different when only applied to the "Magical Object Uses" layer
+        let dumbledore_magical_history = History::new(dumbledore_node_magical_view);
+        assert_eq!(
+            dumbledore_magical_history.collect_items(),
+            [TimeIndexEntry::new(1, 0), TimeIndexEntry::new(4, 5)]
+        );
 
-        let x = magical_graph_view
+        let harry_magical_history = History::new(harry_node_magical_view);
+        assert_eq!(
+            harry_magical_history.collect_items(),
+            [TimeIndexEntry::new(2, 1), TimeIndexEntry::new(4, 4)]
+        );
+
+        let broom_magical_history = History::new(broom_node_magical_view);
+        assert_eq!(
+            broom_magical_history.collect_items(),
+            [
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5)
+            ]
+        );
+
+        // edge retrieved from layered graph view is from that layer
+        let broom_dumbledore_magical_edge_retrieved = magical_graph_view
             .edge(broom_node_id, dumbledore_node_id)
             .unwrap();
 
-        println!("{:?}", x.layer_name());
+        let broom_dumbledore_magical_history =
+            History::new(broom_dumbledore_magical_edge_retrieved.clone());
+        assert_eq!(
+            broom_dumbledore_magical_history.collect_items(),
+            [TimeIndexEntry::new(4, 5)]
+        );
+
+        // Edge retrieved from LayeredGraphView using one layer, layer_name() returns "Err(LayerNameAPIError)"
+        println!("{:?}", broom_dumbledore_magical_edge_retrieved.layer_name());
 
         Ok(())
     }
