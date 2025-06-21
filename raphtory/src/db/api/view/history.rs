@@ -29,6 +29,7 @@ use crate::{
             node::NodeView,
         },
     },
+    errors::GraphError,
     prelude::*,
 };
 use chrono::{DateTime, Utc};
@@ -52,14 +53,6 @@ pub trait InternalHistoryOps: Send + Sync {
 // FIXME: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
 pub struct History<T>(pub T);
-
-impl<T: InternalHistoryOps> History<T> {
-    pub fn new(item: T) -> Self {
-        Self(item)
-    }
-
-    // see if there's a way to get secondary temporal information (two entries for the same time value)
-}
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -98,6 +91,10 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
 }
 
 impl<T: InternalHistoryOps> History<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+
     pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter()
     }
@@ -106,12 +103,26 @@ impl<T: InternalHistoryOps> History<T> {
         self.0.iter().map(|t| t.t()).into_dyn_boxed()
     }
 
+    pub fn iter_dt(&self) -> BoxedLIter<Result<DateTime<Utc>, GraphError>> {
+        self.0
+            .iter()
+            .map(|t| t.dt().map_err(GraphError::from))
+            .into_dyn_boxed()
+    }
+
     pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter_rev()
     }
 
     pub fn iter_rev_t(&self) -> BoxedLIter<i64> {
         self.0.iter_rev().map(|t| t.t()).into_dyn_boxed()
+    }
+
+    pub fn iter_rev_dt(&self) -> BoxedLIter<Result<DateTime<Utc>, GraphError>> {
+        self.0
+            .iter_rev()
+            .map(|t| t.dt().map_err(GraphError::from))
+            .into_dyn_boxed()
     }
 
     pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
@@ -312,7 +323,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let g = &self.graph;
         let e = self.edge;
-        if edge_valid_layer(&g, e) {
+        if edge_valid_layer(g, e) {
             match e.time() {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
@@ -790,7 +801,7 @@ mod tests {
             ]
         );
 
-        // edge retrieved from layered graph view is from that layer
+        // edge retrieved from layered graph view is from the layer
         let broom_dumbledore_magical_edge_retrieved = magical_graph_view
             .edge(broom_node_id, dumbledore_node_id)
             .unwrap();

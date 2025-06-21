@@ -7,6 +7,7 @@ use crate::{
         api::{
             properties::{internal::PropertiesOps, Properties},
             view::{
+                history::History,
                 internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
                 BoxableGraphView, IntoDynBoxed,
             },
@@ -141,7 +142,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     type Exploded: EdgeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::Graph>;
 
     /// List the activation timestamps for the edge
-    fn history(&self) -> Self::ValueType<Vec<i64>>;
+    fn history(&self) -> Self::ValueType<History<EdgeView<Self::Graph>>>;
 
     fn history_counts(&self) -> Self::ValueType<usize>;
 
@@ -224,30 +225,32 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     type Exploded = E::Exploded;
 
     /// list the activation timestamps for the edge
-    fn history(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| {
-            if edge_valid_layer(g, e) {
-                match e.time() {
-                    Some(t) => vec![t.t()],
-                    None => {
-                        let time_semantics = g.edge_time_semantics();
-                        let edge = g.core_edge(e.pid());
-                        match e.layer() {
-                            None => time_semantics
-                                .edge_history(edge.as_ref(), g, g.layer_ids())
-                                .map(|(ti, _)| ti.t())
-                                .collect(),
-                            Some(layer) => time_semantics
-                                .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
-                                .map(|(ti, _)| ti.t())
-                                .collect(),
-                        }
-                    }
-                }
-            } else {
-                vec![]
-            }
-        })
+    fn history(&self) -> Self::ValueType<History<EdgeView<Self::Graph>>> {
+        // self.map(|g, e| {
+        //     if edge_valid_layer(g, e) {
+        //         match e.time() {
+        //             Some(t) => vec![t.t()],
+        //             None => {
+        //                 let time_semantics = g.edge_time_semantics();
+        //                 let edge = g.core_edge(e.pid());
+        //                 match e.layer() {
+        //                     None => time_semantics
+        //                         .edge_history(edge.as_ref(), g, g.layer_ids())
+        //                         .map(|(ti, _)| ti.t())
+        //                         .collect(),
+        //                     Some(layer) => time_semantics
+        //                         .edge_history(edge.as_ref(), g, &LayerIds::One(layer))
+        //                         .map(|(ti, _)| ti.t())
+        //                         .collect(),
+        //                 }
+        //             }
+        //         }
+        //     } else {
+        //         vec![]
+        //     }
+        // })
+
+        self.map(|g, e| History::new(g.edge(e.src(), e.dst()).unwrap()))
     }
 
     fn history_counts(&self) -> Self::ValueType<usize> {
