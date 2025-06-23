@@ -588,7 +588,7 @@ impl GqlGraph {
                         return_view
                     }
                 }
-                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at),
+                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
                 GraphViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await

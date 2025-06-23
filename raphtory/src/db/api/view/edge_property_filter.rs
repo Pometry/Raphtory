@@ -19,9 +19,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for G {}
 mod test {
     use crate::{
         db::graph::{
-            graph::{
-                assert_edges_equal, assert_graph_equal, assert_persistent_materialize_graph_equal,
-            },
+            graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             views::{
                 deletion_graph::PersistentGraph,
                 filter::model::{

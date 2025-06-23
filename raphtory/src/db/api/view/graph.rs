@@ -37,7 +37,6 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
-    GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
