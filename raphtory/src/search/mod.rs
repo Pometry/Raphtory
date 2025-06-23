@@ -311,7 +311,7 @@ mod test_index {
             let result = graph.encode(folder);
             match result {
                 Err(GraphError::IOError { source }) => {
-                    assert!(format!("{source}").contains("File exists"),);
+                    assert!(format!("{source}").contains("File exists"), "{}", source);
                 }
                 Ok(_) => panic!("Expected error on second encode, got Ok"),
                 Err(e) => panic!("Unexpected error type: {:?}", e),
