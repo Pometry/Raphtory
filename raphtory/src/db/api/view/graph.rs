@@ -37,7 +37,6 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
-    GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -75,7 +74,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
-    fn valid(&self) -> Result<ValidGraph<Self>, GraphError>;
+    fn valid(&self) -> ValidGraph<Self>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
@@ -458,11 +457,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         CachedView::new(self.clone())
     }
 
-    fn valid(&self) -> Result<ValidGraph<Self>, GraphError> {
-        match self.graph_type() {
-            GraphType::EventGraph => Err(GraphError::EventGraphNoValidView),
-            GraphType::PersistentGraph => Ok(ValidGraph::new(self.clone())),
-        }
+    fn valid(&self) -> ValidGraph<Self> {
+        ValidGraph::new(self.clone())
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(

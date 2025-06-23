@@ -104,46 +104,90 @@ mod tests {
     use std::ops::Range;
 
     #[test]
-    fn test_valid_graph() -> Result<(), GraphError> {
+    fn test_valid_graph_persistent() -> Result<(), GraphError> {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
         g.delete_edge(10, 0, 1, None)?;
 
-        let expected_window = PersistentGraph::new();
-        expected_window.add_edge(0, 0, 1, NO_PROPS, None)?;
-
         assert_eq!(
-            g.window(0, 2).valid()?.edges().id().collect_vec(),
+            g.window(0, 2).valid().edges().id().collect_vec(),
             [(GID::U64(0), GID::U64(1))]
         );
-        assert!(g.valid()?.edges().is_empty());
+        assert!(g.valid().edges().is_empty());
         Ok(())
     }
 
     #[test]
-    fn materialize_prop_test() {
+    fn test_valid_graph_events() -> Result<(), GraphError> {
+        let g = Graph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None)?;
+        g.delete_edge(10, 0, 1, None)?;
+
+        assert_eq!(
+            g.window(0, 2).valid().edges().id().collect_vec(),
+            [(GID::U64(0), GID::U64(1))]
+        );
+        assert!(g.window(1, 20).valid().edges().is_empty()); // only deletion event in window, not valid
+        assert_eq!(
+            g.valid().edges().id().collect_vec(),
+            [(GID::U64(0), GID::U64(1))]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn materialize_prop_test_persistent() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
-            let g = PersistentGraph(build_graph(&graph_f)).valid().unwrap();
+            let g = PersistentGraph(build_graph(&graph_f)).valid();
             let gm = g.materialize().unwrap();
             assert_graph_equal(&g, &gm);
         })
     }
 
     #[test]
-    fn materialize_valid_window_prop_test() {
+    fn materialize_prop_test_events() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
+            let g = Graph::from(build_graph(&graph_f)).valid();
+            let gm = g.materialize().unwrap();
+            assert_graph_equal(&g, &gm);
+        })
+    }
+
+    #[test]
+    fn materialize_valid_window_persistent_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = PersistentGraph(build_graph(&graph_f));
-            let gvw = g.valid().unwrap().window(w.start, w.end);
+            let gvw = g.valid().window(w.start, w.end);
             let gmw = gvw.materialize().unwrap();
             assert_persistent_materialize_graph_equal(&gvw, &gmw);
         })
     }
 
     #[test]
-    fn materialize_window_valid_prop_test() {
+    fn materialize_valid_window_events_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+            let g = Graph::from(build_graph(&graph_f));
+            let gvw = g.valid().window(w.start, w.end);
+            let gmw = gvw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gvw, &gmw);
+        })
+    }
+
+    #[test]
+    fn materialize_window_valid_persistent_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = PersistentGraph(build_graph(&graph_f));
-            let gvw = g.window(w.start, w.end).valid().unwrap();
+            let gvw = g.window(w.start, w.end).valid();
+            let gmw = gvw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gvw, &gmw);
+        })
+    }
+
+    #[test]
+    fn materialize_window_valid_events_prop_test() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+            let g = Graph::from(build_graph(&graph_f));
+            let gvw = g.window(w.start, w.end).valid();
             let gmw = gvw.materialize().unwrap();
             assert_persistent_materialize_graph_equal(&gvw, &gmw);
         })
@@ -154,7 +198,7 @@ mod tests {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         g.delete_edge(1, 0, 1, None).unwrap();
-        let gv = g.valid().unwrap();
+        let gv = g.valid();
         let expected = PersistentGraph::new();
         expected.resolve_layer(None).unwrap();
         assert_graph_equal(&gv, &expected);
@@ -171,7 +215,7 @@ mod tests {
 
         let w = 1..11;
 
-        let gv = g.valid().unwrap();
+        let gv = g.valid();
         assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
 
         let gvw = gv.window(w.start, w.end);
@@ -189,7 +233,7 @@ mod tests {
         g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
         g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
         g.delete_edge(100, 0, 0, None).unwrap();
-        let gvw = g.valid().unwrap().window(2, 20);
+        let gvw = g.valid().window(2, 20);
         assert_eq!(gvw.node(0).unwrap().earliest_time(), Some(10));
         let gvwm = gvw.materialize().unwrap();
         println!("{:?}", gvwm);
@@ -204,7 +248,7 @@ mod tests {
             .unwrap();
         g.add_edge(781965068308597440, 0, 0, NO_PROPS, Some("b"))
             .unwrap();
-        let gv = g.valid().unwrap();
+        let gv = g.valid();
         assert_graph_equal(&gv, &g);
         let gvm = gv.materialize().unwrap();
         println!("{:?}", gvm);
@@ -219,7 +263,7 @@ mod tests {
         g.add_edge(1, 0, 1, NO_PROPS, None).unwrap();
         g.add_edge(2, 1, 0, NO_PROPS, None).unwrap();
         g.add_edge(3, 1, 0, NO_PROPS, Some("b")).unwrap();
-        let gw = g.valid().unwrap().window(0, 9);
+        let gw = g.valid().window(0, 9);
         let gwm = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gwm);
     }
@@ -234,7 +278,7 @@ mod tests {
             .add_constant_properties([("const_test", 2)], None)
             .unwrap();
 
-        let gw = g.valid().unwrap().window(-1, 1);
+        let gw = g.valid().window(-1, 1);
         assert_eq!(
             gw.edge(0, 1)
                 .unwrap()
@@ -265,7 +309,7 @@ mod tests {
         g.add_edge(2, 0, 2, NO_PROPS, None).unwrap();
         g.delete_edge(-10, 0, 1, None).unwrap();
 
-        let gv = g.valid().unwrap().window(-1, 10);
+        let gv = g.valid().window(-1, 10);
         let gvm = gv.materialize().unwrap();
         assert_graph_equal(&gv, &gvm);
         assert_eq!(gv.node(0).unwrap().earliest_time(), Some(0));
@@ -282,7 +326,7 @@ mod tests {
         g.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
         g.delete_edge(10, 5, 4, None).unwrap();
 
-        let gv = g.valid().unwrap().window(0, 20);
+        let gv = g.valid().window(0, 20);
         let expected = PersistentGraph::new();
         expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
@@ -304,7 +348,7 @@ mod tests {
         g.add_edge(10, 2, 1, NO_PROPS, Some("a")).unwrap();
         g.delete_edge(5, 2, 1, None).unwrap();
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
-        let gvw = g.valid().unwrap().window(0, 5);
+        let gvw = g.valid().window(0, 5);
         assert_eq!(gvw.count_nodes(), 0);
         let expected = PersistentGraph::new();
         expected.resolve_layer(None).unwrap();
@@ -324,10 +368,7 @@ mod tests {
         g.delete_edge(7891470373966857988, 9, 1, None).unwrap();
         g.add_edge(0, 2, 1, NO_PROPS, None).unwrap();
 
-        let gv = g
-            .window(-2925244660385668055, 7060945172792084486)
-            .valid()
-            .unwrap();
+        let gv = g.window(-2925244660385668055, 7060945172792084486).valid();
         assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap());
     }
 
@@ -335,7 +376,7 @@ mod tests {
     fn test_single_edge() {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-        let gwv = g.window(10, 11).valid().unwrap();
+        let gwv = g.window(10, 11).valid();
         let gm = gwv.materialize().unwrap();
         assert_persistent_materialize_graph_equal(&gwv, &gm);
     }

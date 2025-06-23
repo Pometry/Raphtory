@@ -631,6 +631,20 @@ class GraphView(object):
             list[str]: the names of all layers in the graph
         """
 
+    def valid(self) -> GraphView:
+        """
+        Return a view of the graph that only includes valid edges
+
+        Note:
+
+            The semantics for `valid` depend on the time semantics of the underlying graph.
+            In the case of a persistent graph, an edge is valid if its last update is an addition.
+            In the case of an event graph, an edge is valid if it has at least one addition event.
+
+        Returns:
+            GraphView: The filtered graph
+        """
+
     def valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
