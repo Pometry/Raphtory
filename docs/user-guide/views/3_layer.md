@@ -67,6 +67,10 @@ print(
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"Total weight across Grooming and Resting between {start_day} and {end_day} is {total_weight}.") == "Total weight across Grooming and Resting between 2019-06-13 00:00:00 and 2019-06-20 00:00:00 is 403."
+```
+
 !!! Output
 
     ```output

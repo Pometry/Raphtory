@@ -265,6 +265,10 @@ for expanding_g in g.window(start_day, end_day).expanding(
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}") == "The full range of time in the graph is 2019-06-13 09:50:00+00:00 to 2019-07-10 11:05:00+00:00"
+```
+
 !!! Output
 
     ```output

@@ -8,9 +8,28 @@ In the below example, we create a windowed view between the 17th and 18th of Jun
 
 /// tab | :fontawesome-brands-python: Python
 ```python
+import pandas as pd
 from raphtory import Graph
 from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
 g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+)
 
 start_time = datetime.strptime("2019-06-17", "%Y-%m-%d")
 end_time = datetime.strptime("2019-06-18", "%Y-%m-%d")
@@ -33,6 +52,11 @@ print(
 )
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"After the update the view had {windowed_view.count_temporal_edges()} edge updates") == "After the update the view had 132 edge updates"
+assert str(f"After the update the materialized graph had {materialized_graph.count_temporal_edges()} edge updates") == "After the update the materialized graph had 133 edge updates"
+```
 
 !!! Output
 

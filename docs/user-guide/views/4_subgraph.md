@@ -51,6 +51,10 @@ print(
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"FELIPE has the following neighbours in the subgraph between {start_day} and {end_day}: {neighbours}") == "FELIPE has the following neighbours in the subgraph between 2019-06-17 00:00:00 and 2019-06-18 00:00:00: ['NEKKE']"
+```
+
 !!! Output
 
     ```output
