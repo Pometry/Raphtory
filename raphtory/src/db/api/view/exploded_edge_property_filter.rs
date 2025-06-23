@@ -44,6 +44,7 @@ mod test {
             build_graph_from_edge_list, build_window, Update,
         },
     };
+    use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
@@ -403,6 +404,27 @@ mod test {
         let gfm = gf.materialize().unwrap();
 
         assert_graph_equal(&gf, &gfm); // check materialise is consistent
+    }
+
+    #[test]
+    fn test_persistent_graph_explode_semantics() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 0i64)], None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.add_edge(5, 0, 1, [("test", 5i64)], None).unwrap();
+        g.delete_edge(10, 0, 1, None).unwrap();
+
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").ne(2i64))
+            .unwrap();
+        assert_eq!(
+            gf.edges().explode().earliest_time().collect_vec(),
+            [Some(0i64), Some(5i64)]
+        );
+        assert_eq!(
+            gf.edges().explode().latest_time().collect_vec(),
+            [Some(2i64), Some(10i64)]
+        );
     }
 
     #[test]
