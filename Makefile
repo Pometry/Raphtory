@@ -31,7 +31,7 @@ rust-test-all-public:
 
 
 python-test: activate-storage
-	cd python && tox run -e ALL
+	cd python && tox run && tox run -e storage
 
 python-test-public:
 	cd python && tox run
