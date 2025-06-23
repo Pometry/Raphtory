@@ -25,28 +25,29 @@ use std::{
     sync::Arc,
 };
 
-#[derive(InputObject, Clone, Debug)]
-pub struct GraphViewCollection {
-    pub default_layer: Option<bool>,
-    pub layers: Option<Vec<String>>,
-    pub exclude_layers: Option<Vec<String>>,
-    pub layer: Option<String>,
-    pub exclude_layer: Option<String>,
-    pub subgraph: Option<Vec<String>>,
-    pub subgraph_node_types: Option<Vec<String>>,
-    pub exclude_nodes: Option<Vec<String>>,
-    pub window: Option<Window>,
-    pub at: Option<i64>,
-    pub latest: Option<bool>,
-    pub snapshot_at: Option<i64>,
-    pub snapshot_latest: Option<bool>,
-    pub before: Option<i64>,
-    pub after: Option<i64>,
-    pub shrink_window: Option<Window>,
-    pub shrink_start: Option<i64>,
-    pub shrink_end: Option<i64>,
-    pub node_filter: Option<NodeFilter>,
-    pub edge_filter: Option<EdgeFilter>,
+#[derive(OneOfInput, Clone, Debug)]
+pub enum GraphViewCollection {
+    DefaultLayer(bool),
+    Layers(Vec<String>),
+    ExcludeLayers(Vec<String>),
+    Layer(String),
+    ExcludeLayer(String),
+    Subgraph(Vec<String>),
+    SubgraphNodeTypes(Vec<String>),
+    ExcludeNodes(Vec<String>),
+    Valid(bool),
+    Window(Window),
+    At(i64),
+    Latest(bool),
+    SnapshotAt(i64),
+    SnapshotLatest(bool),
+    Before(i64),
+    After(i64),
+    ShrinkWindow(Window),
+    ShrinkStart(i64),
+    ShrinkEnd(i64),
+    NodeFilter(NodeFilter),
+    EdgeFilter(EdgeFilter),
 }
 
 #[derive(InputObject, Clone, Debug)]

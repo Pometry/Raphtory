@@ -27,6 +27,7 @@ use crate::{
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
         },
@@ -396,6 +397,20 @@ impl PyGraphView {
     ///    GraphView: Returns the subgraph
     fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
+    }
+
+    /// Return a view of the graph that only includes valid edges
+    ///
+    /// Note:
+    ///
+    ///     The semantics for `valid` depend on the time semantics of the underlying graph.
+    ///     In the case of a persistent graph, an edge is valid if its last update is an addition.
+    ///     In the case of an event graph, an edge is valid if it has at least one addition event.
+    ///
+    /// Returns:
+    ///     GraphView: The filtered graph
+    fn valid(&self) -> ValidGraph<DynamicGraph> {
+        self.graph.valid()
     }
 
     /// Applies the filters to the graph and retains the node ids and the edge ids
