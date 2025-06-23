@@ -21,7 +21,7 @@ use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{meta::Meta, prop::{Prop, PropType}},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -41,6 +41,10 @@ pub mod node_store;
 pub mod session;
 #[cfg(feature = "test-utils")]
 pub mod test_utils;
+
+// Internal const props for node id and type
+pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
+pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
@@ -163,6 +167,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         ));
         let edge_meta = edges.prop_meta();
         let node_meta = nodes.prop_meta();
+
+        // Reserve node_type as a const prop on init
+        let _ = node_meta
+            .const_prop_meta()
+            .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::Str);
+
         let graph_meta = GraphMeta {
             max_page_len_nodes,
             max_page_len_edges,
@@ -219,119 +229,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let elid = session.internal_add_edge(t, src, dst, lsn, 0, props);
         Ok(elid)
     }
-
-    /// Adds an edge if it doesn't exist yet, does nothing if the edge is there
-    // pub fn internal_add_edge<T: AsTime>(
-    //     &self,
-    //     t: T,
-    //     src: impl Into<VID>,
-    //     dst: impl Into<VID>,
-    //     lsn: u64,
-    //     props: impl IntoIterator<Item = (usize, Prop)>,
-    // ) -> Result<MaybeNew<EID>, DBV4Error> {
-    //     let src = src.into();
-    //     let dst = dst.into();
-
-    //     let (src_chunk, src_pos) = self.nodes.resolve_pos(src);
-    //     let (dst_chunk, dst_pos) = self.nodes.resolve_pos(dst);
-
-    //     self.nodes.grow(src_chunk.max(dst_chunk) + 1);
-
-    //     let src_page = &self.nodes.pages()[src_chunk];
-    //     // let dst_page = &self.nodes.pages()[dst_chunk];
-
-    //     let acquire_node_writers = || {
-    //         // let writer_pair = if src_chunk < dst_chunk {
-    //         //     let src_writer = src_page.writer::<S>();
-    //         //     let dst_writer = dst_page.writer::<S>();
-    //         //     WriterPair::Different {
-    //         //         writer_i: src_writer,
-    //         //         writer_j: dst_writer,
-    //         //     }
-    //         // } else if src_chunk > dst_chunk {
-    //         //     let dst_writer = dst_page.writer::<S>();
-    //         //     let src_writer = src_page.writer::<S>();
-    //         //     WriterPair::Different {
-    //         //         writer_i: src_writer,
-    //         //         writer_j: dst_writer,
-    //         //     }
-    //         // } else {
-    //         //     let writer = src_page.writer::<S>();
-    //         //     WriterPair::Same { writer }
-    //         // };
-    //         // writer_pair
-
-    //         // let mut loop_count = 0;
-    //         loop {
-    //             if src_chunk == dst_chunk {
-    //                 if let Some(writer) = self
-    //                     .nodes()
-    //                     .try_writer(src_chunk)
-    //                 {
-    //                     return WriterPair::Same { writer };
-    //                 }
-    //             } else {
-    //                 if let Some(writer_i) = self
-    //                     .nodes
-    //                     .try_writer(src_chunk, self.persistence.strategy())
-    //                 {
-    //                     if let Some(writer_j) = self
-    //                         .nodes
-    //                         .try_writer(dst_chunk, self.persistence.strategy())
-    //                     {
-    //                         return WriterPair::Different { writer_i, writer_j };
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     };
-
-    //     if let Some(e_id) = src_page.disk_get_out_edge(src_pos, dst) {
-    //         let mut edge_writer = self.edges.get_writer(e_id);
-    //         let (_, edge_pos) = self.edges.resolve_pos(e_id);
-    //         edge_writer.add_edge(t, Some(edge_pos), src, dst, props, lsn, None)?;
-
-    //         let mut node_writers = acquire_node_writers();
-    //         node_writers
-    //             .get_mut_i()
-    //             .update_timestamp(t, src_pos, e_id, lsn);
-    //         node_writers
-    //             .get_mut_j()
-    //             .update_timestamp(t, dst_pos, e_id, lsn);
-
-    //         Ok(MaybeNew::Existing(e_id))
-    //     } else {
-    //         let mut node_writers = acquire_node_writers();
-
-    //         if let Some(e_id) = node_writers.get_mut_i().get_out_edge(src_pos, dst) {
-    //             let mut edge_writer = self.edges.get_writer(e_id);
-    //             let (_, edge_pos) = self.edges.resolve_pos(e_id);
-
-    //             edge_writer.add_edge(t, Some(edge_pos), src, dst, props, lsn, None)?;
-    //             node_writers
-    //                 .get_mut_i()
-    //                 .update_timestamp(t, src_pos, e_id, lsn);
-    //             node_writers
-    //                 .get_mut_j()
-    //                 .update_timestamp(t, dst_pos, e_id, lsn);
-
-    //             Ok(MaybeNew::Existing(e_id))
-    //         } else {
-    //             let mut edge_writer = self.get_free_writer();
-    //             let edge_id = edge_writer.add_edge(t, None, src, dst, props, lsn, None)?;
-    //             let edge_id = edge_id.as_eid(edge_writer.segment_id(), self.edges.max_page_len());
-
-    //             node_writers
-    //                 .get_mut_i()
-    //                 .add_outbound_edge(t, src_pos, dst, edge_id, lsn);
-    //             node_writers
-    //                 .get_mut_j()
-    //                 .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
-
-    //             Ok(MaybeNew::New(edge_id))
-    //         }
-    //     }
-    // }
 
     fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, DBV4Error> {
         let input_time = t.try_into_input_time()?;

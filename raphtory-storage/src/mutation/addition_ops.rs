@@ -77,8 +77,8 @@ pub trait AtomicAdditionOps: Send + Sync {
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 
-    /// Sets id as a const prop within the node
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>);
+    /// Stores id as a const prop within the node
+    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>);
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -153,7 +153,7 @@ impl AtomicAdditionOps for TGWriteSession<'_> {
         todo!("Atomic addition operations are not implemented for TGWriteSession");
     }
 
-    fn store_node_id(&self, id: NodeRef, vid: impl Into<VID>) {
+    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
         todo!("set_node_id is not implemented for TGWriteSession");
     }
 }
@@ -297,8 +297,9 @@ impl InternalAdditionOps for GraphStorage {
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
-        let id = self.mutable()?.resolve_layer_inner(layer)?;
-        Ok(id)
+        // let id = self.mutable()?.resolve_layer_inner(layer)?;
+        // Ok(id)
+        todo!("remove this once we have a mutable graph storage");
     }
 
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
@@ -314,9 +315,10 @@ impl InternalAdditionOps for GraphStorage {
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        Ok(TGWriteSession {
-            tg: self.mutable()?,
-        })
+        // Ok(TGWriteSession {
+        //     tg: self.mutable()?,
+        // })
+        todo!("remove this once we have a mutable graph storage");
     }
 
     fn atomic_add_edge(
@@ -354,7 +356,8 @@ impl InternalAdditionOps for TemporalGraph {
     type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
-        Ok(WriteLockedGraph::new(self))
+        // Ok(WriteLockedGraph::new(self))
+        todo!("remove this once we have a mutable graph storage");
     }
 
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
