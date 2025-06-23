@@ -61,6 +61,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
         }
     }
 
+    pub fn edge_meta(&self) -> &Arc<Meta> {
+        &self.prop_meta
+    }
+
     pub fn layer(
         edges_path: impl AsRef<Path>,
         max_page_len: usize,

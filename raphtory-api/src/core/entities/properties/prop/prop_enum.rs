@@ -1,4 +1,7 @@
-use crate::core::{entities::properties::prop::PropType, storage::arc_str::ArcStr};
+use crate::core::{
+    entities::properties::prop::{prop_ref_enum::PropRef, PropType},
+    storage::arc_str::ArcStr,
+};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -44,6 +47,30 @@ pub enum Prop {
     #[cfg(feature = "arrow")]
     Array(PropArray),
     Decimal(BigDecimal),
+}
+
+impl<'a> From<PropRef<'a>> for Prop {
+    fn from(prop_ref: PropRef<'a>) -> Self {
+        match prop_ref {
+            PropRef::Str(s) => Prop::str(s),
+            PropRef::U8(u) => Prop::U8(u),
+            PropRef::U16(u) => Prop::U16(u),
+            PropRef::I32(i) => Prop::I32(i),
+            PropRef::I64(i) => Prop::I64(i),
+            PropRef::U32(u) => Prop::U32(u),
+            PropRef::U64(u) => Prop::U64(u),
+            PropRef::F32(f) => Prop::F32(f),
+            PropRef::F64(f) => Prop::F64(f),
+            PropRef::Bool(b) => Prop::Bool(b),
+            PropRef::List(v) => Prop::List(v.clone()),
+            PropRef::Map(m) => Prop::Map(m.clone()),
+            PropRef::NDTime(dt) => Prop::NDTime(dt.clone()),
+            PropRef::DTime(dt) => Prop::DTime(dt.clone()),
+            #[cfg(feature = "arrow")]
+            PropRef::Array(arr) => Prop::Array(arr.clone()),
+            PropRef::Decimal(d) => Prop::Decimal(d.clone()),
+        }
+    }
 }
 
 impl Hash for Prop {

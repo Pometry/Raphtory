@@ -103,6 +103,10 @@ impl MemNodeSegment {
         &mut self.layers[layer_id]
     }
 
+    pub fn node_meta(&self) -> &Arc<Meta> {
+        self.layers[0].meta()
+    }
+
     pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<AdjEntry>> {
         self.layers.get(layer_id)
     }

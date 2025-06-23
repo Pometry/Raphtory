@@ -1,34 +1,17 @@
-use crate::graph::{
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    variants::storage_variants3::StorageVariants3,
+use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    Direction,
 };
-use raphtory_api::{
-    core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            properties::{prop::Prop, tprop::TPropOps},
-            GidRef, LayerIds, VID,
-        },
-        Direction,
-    },
-    iter::BoxedLIter,
-};
-use raphtory_core::utils::iter::GenLockedIter;
-use std::borrow::Cow;
 use storage::{
-    api::nodes::{NodeEntryOps, NodeRefOps},
+    api::nodes::{self, NodeEntryOps},
+    utils::Iter2,
     NodeEntry, NodeEntryRef,
 };
-
-#[cfg(feature = "storage")]
-use crate::disk::storage_interface::node::DiskNode;
-use crate::graph::nodes::node_additions::NodeAdditions;
 
 pub enum NodeStorageEntry<'a> {
     Mem(NodeEntryRef<'a>),
     Unlocked(NodeEntry<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskNode<'a>),
 }
 
 impl<'a> From<NodeEntryRef<'a>> for NodeStorageEntry<'a> {
@@ -43,21 +26,12 @@ impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
     }
 }
 
-#[cfg(feature = "storage")]
-impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
-    fn from(value: DiskNode<'a>) -> Self {
-        NodeStorageEntry::Disk(value)
-    }
-}
-
 impl<'a> NodeStorageEntry<'a> {
     #[inline]
     pub fn as_ref(&self) -> NodeStorageRef {
         match self {
-            NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(*entry),
-            NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.as_ref()),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => NodeStorageRef::Disk(*node),
+            NodeStorageEntry::Mem(entry) => *entry,
+            NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
         }
     }
 }
@@ -75,12 +49,10 @@ impl<'b> NodeStorageEntry<'b> {
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
         match self {
-            NodeStorageEntry::Mem(entry) => StorageVariants3::Mem(entry.edges_iter(layers, dir)),
-            NodeStorageEntry::Unlocked(entry) => {
-                StorageVariants3::Unlocked(entry.into_edges(layers, dir))
+            NodeStorageEntry::Mem(entry) => {
+                Iter2::I1(nodes::NodeRefOps::edges_iter(entry, layers, dir))
             }
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => StorageVariants3::Disk(node.edges_iter(layers, dir)),
+            NodeStorageEntry::Unlocked(entry) => Iter2::I2(entry.into_edges(layers, dir)),
         }
     }
 
@@ -112,15 +84,30 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().degree(layers, dir)
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
-        self.as_ref().additions()
+    fn additions(self, layer_ids: &'a LayerIds) -> storage::NodeAdditions<'a> {
+        self.as_ref().additions(layer_ids)
     }
 
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.as_ref().tprop(prop_id)
+    fn tprop(self, layer_ids: &'a LayerIds, prop_id: usize) -> storage::NodeTProps<'a> {
+        self.as_ref().tprop(layer_ids, prop_id)
     }
 
-    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn tprops(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = (usize, storage::NodeTProps<'a>)> {
+        self.as_ref().tprops(layer_ids)
+    }
+
+    fn prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.as_ref().prop(layer_id, prop_id)
+    }
+
+    fn edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
         self.as_ref().edges_iter(layers, dir)
     }
 
@@ -136,19 +123,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().id()
     }
 
-    fn name(self) -> Option<Cow<'a, str>> {
-        self.as_ref().name()
-    }
-
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
-    }
-
-    fn prop(self, prop_id: usize) -> Option<Prop> {
-        self.as_ref().prop(prop_id)
-    }
-
-    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
-        self.as_ref().tprops()
     }
 }

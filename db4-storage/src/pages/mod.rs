@@ -21,7 +21,10 @@ use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::{Prop, PropType}},
+    entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropType},
+    },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -50,8 +53,6 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    edge_meta: Arc<Meta>,
-    node_meta: Arc<Meta>,
     earliest: AtomicI64,
     latest: AtomicI64,
     event_id: AtomicUsize,
@@ -91,11 +92,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
     }
 
     pub fn edge_meta(&self) -> &Meta {
-        &self.edge_meta
+        self.edges.edge_meta()
     }
 
     pub fn node_meta(&self) -> &Meta {
-        &self.node_meta
+        self.nodes.node_meta()
     }
 
     pub fn earliest(&self) -> i64 {
@@ -127,8 +128,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
             max_page_len_edges,
             ext.clone(),
         )?);
-        let edge_meta = edges.prop_meta().clone();
-        let node_meta = nodes.prop_meta().clone();
 
         let earliest = AtomicI64::new(edges.earliest().map(|t| t.t()).unwrap_or_default());
         let latest = AtomicI64::new(edges.latest().map(|t| t.t()).unwrap_or_default());
@@ -137,8 +136,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         Ok(Self {
             nodes,
             edges,
-            edge_meta,
-            node_meta,
             earliest,
             latest,
             event_id: AtomicUsize::new(t_len),
@@ -165,13 +162,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
             max_page_len_edges,
             ext.clone(),
         ));
-        let edge_meta = edges.prop_meta();
-        let node_meta = nodes.prop_meta();
-
         // Reserve node_type as a const prop on init
-        let _ = node_meta
+        let _ = nodes
+            .prop_meta()
             .const_prop_meta()
-            .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::Str);
+            .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::U64);
 
         let graph_meta = GraphMeta {
             max_page_len_nodes,
@@ -183,8 +178,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         Self {
             nodes: nodes.clone(),
             edges: edges.clone(),
-            edge_meta: edge_meta.clone(),
-            node_meta: node_meta.clone(),
             earliest: AtomicI64::new(0),
             latest: AtomicI64::new(0),
             event_id: AtomicUsize::new(0),
@@ -211,7 +204,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         _lsn: u64,
     ) -> Result<MaybeNew<ELID>, DBV4Error> {
         let t = self.as_time_index_entry(t)?;
-        let prop_writer = PropsMetaWriter::temporal(&self.edge_meta, props.into_iter())?;
+        let prop_writer = PropsMetaWriter::temporal(self.edge_meta(), props.into_iter())?;
         self.internal_add_edge(t, src, dst, 0, prop_writer.into_props_temporal()?)
     }
 
@@ -254,7 +247,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let (src, dst) = edge_writer
             .get_edge(layer, edge_pos)
             .expect("Internal Error, EID should be checked at this point!");
-        let prop_writer = PropsMetaWriter::constant(&self.edge_meta, props.into_iter())?;
+        let prop_writer = PropsMetaWriter::constant(self.edge_meta(), props.into_iter())?;
 
         edge_writer.update_c_props(edge_pos, src, dst, layer, prop_writer.into_props_const()?);
 
@@ -270,7 +263,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let node = node.into();
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
-        let prop_writer = PropsMetaWriter::constant(&self.node_meta, props.into_iter())?;
+        let prop_writer = PropsMetaWriter::constant(self.node_meta(), props.into_iter())?;
         node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?, 0); // TODO: LSN
         Ok(())
     }
@@ -288,7 +281,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, ES: EdgeSegmentOps<Extension = EXT>, E
         let t = self.as_time_index_entry(t)?;
 
         let mut node_writer = self.nodes.writer(segment);
-        let prop_writer = PropsMetaWriter::temporal(&self.node_meta, props.into_iter())?;
+        let prop_writer = PropsMetaWriter::temporal(self.node_meta(), props.into_iter())?;
         node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?, 0); // TODO: LSN
         Ok(())
     }

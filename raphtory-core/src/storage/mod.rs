@@ -15,7 +15,7 @@ use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::prop::PropArray;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{Prop, PropType},
+        properties::prop::{Prop, PropRef, PropType},
         GidRef, VID,
     },
     storage::arc_str::ArcStr,
@@ -386,6 +386,29 @@ impl PropColumn {
             PropColumn::NDTime(col) => col.get_opt(index).map(|prop| Prop::NDTime(*prop)),
             PropColumn::DTime(col) => col.get_opt(index).map(|prop| Prop::DTime(*prop)),
             PropColumn::Decimal(col) => col.get_opt(index).map(|prop| Prop::Decimal(prop.clone())),
+            PropColumn::Empty(_) => None,
+        }
+    }
+
+    pub fn get_ref(&self, index: usize) -> Option<PropRef> {
+        match self {
+            PropColumn::Bool(col) => col.get_opt(index).map(|prop| PropRef::Bool(*prop)),
+            PropColumn::I64(col) => col.get_opt(index).map(|prop| PropRef::I64(*prop)),
+            PropColumn::U32(col) => col.get_opt(index).map(|prop| PropRef::U32(*prop)),
+            PropColumn::U64(col) => col.get_opt(index).map(|prop| PropRef::U64(*prop)),
+            PropColumn::F32(col) => col.get_opt(index).map(|prop| PropRef::F32(*prop)),
+            PropColumn::F64(col) => col.get_opt(index).map(|prop| PropRef::F64(*prop)),
+            PropColumn::Str(col) => col.get_opt(index).map(|prop| PropRef::Str(prop.as_ref())),
+            #[cfg(feature = "arrow")]
+            PropColumn::Array(col) => col.get_opt(index).map(PropRef::Array),
+            PropColumn::U8(col) => col.get_opt(index).map(|prop| PropRef::U8(*prop)),
+            PropColumn::U16(col) => col.get_opt(index).map(|prop| PropRef::U16(*prop)),
+            PropColumn::I32(col) => col.get_opt(index).map(|prop| PropRef::I32(*prop)),
+            PropColumn::List(col) => col.get_opt(index).map(PropRef::List),
+            PropColumn::Map(col) => col.get_opt(index).map(PropRef::Map),
+            PropColumn::NDTime(col) => col.get_opt(index).map(PropRef::NDTime),
+            PropColumn::DTime(col) => col.get_opt(index).map(PropRef::DTime),
+            PropColumn::Decimal(col) => col.get_opt(index).map(PropRef::Decimal),
             PropColumn::Empty(_) => None,
         }
     }

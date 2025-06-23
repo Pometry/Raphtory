@@ -47,9 +47,12 @@ pub struct MemEdgeSegment {
 
 impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdgeSegment {
     fn from(inner: I) -> Self {
-        Self {
-            layers: inner.into_iter().collect(),
-        }
+        let layers: Vec<_> = inner.into_iter().collect();
+        assert!(
+            !layers.is_empty(),
+            "MemEdgeSegment must have at least one layer"
+        );
+        Self { layers }
     }
 }
 
@@ -70,6 +73,10 @@ impl MemEdgeSegment {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
         }
+    }
+
+    pub fn edge_meta(&self) -> &Arc<Meta> {
+        self.layers[0].meta()
     }
 
     pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<MemPageEntry> {

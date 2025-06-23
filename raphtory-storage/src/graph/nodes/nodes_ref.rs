@@ -29,8 +29,8 @@ macro_rules! for_all_variants {
 impl<'a> NodesStorageEntry<'a> {
     pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.node_ref(vid)),
-            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.node_ref(vid)),
+            NodesStorageEntry::Mem(store) => store.node_ref(vid),
+            NodesStorageEntry::Unlocked(store) => store.node_ref(vid),
             #[cfg(feature = "storage")]
             NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }

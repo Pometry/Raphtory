@@ -9,7 +9,10 @@ use crate::{
     pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
-use raphtory_api::core::{entities::properties::prop::{Prop, PropType}, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropType},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_core::{
     entities::{EID, ELID, GidRef, VID},
     storage::timeindex::AsTime,
@@ -238,12 +241,7 @@ impl<
             GidRef::Str(id) => (Prop::Str(id.into()), PropType::Str),
         };
 
-        self.store_node_const_prop(
-            NODE_ID_PROP_KEY,
-            prop_val,
-            prop_dtype,
-            vid,
-        )
+        self.store_node_const_prop(NODE_ID_PROP_KEY, prop_val, prop_dtype, vid)
     }
 
     pub fn store_node_type_as_prop(
@@ -253,12 +251,7 @@ impl<
     ) -> Result<(), DBV4Error> {
         let (prop_val, prop_dtype) = (Prop::Str(node_type.into()), PropType::Str);
 
-        self.store_node_const_prop(
-            NODE_TYPE_PROP_KEY,
-            prop_val,
-            prop_dtype,
-            vid,
-        )
+        self.store_node_const_prop(NODE_TYPE_PROP_KEY, prop_val, prop_dtype, vid)
     }
 
     fn store_node_const_prop(
@@ -269,14 +262,14 @@ impl<
         vid: impl Into<VID>,
     ) -> Result<(), DBV4Error> {
         let layer = 0;
-        let prop_id = self.graph
+        let prop_id = self
+            .graph
             .node_meta()
             .const_prop_meta()
             .get_and_validate(prop_key, prop_dtype)?
-            .ok_or_else(|| DBV4Error::GenericFailure(format!(
-                "{} const prop not found",
-                prop_key
-            )))?;
+            .ok_or_else(|| {
+                DBV4Error::GenericFailure(format!("{} const prop not found", prop_key))
+            })?;
 
         let props = vec![(prop_id, prop_val)];
         let (_, local_pos) = self.graph.nodes().resolve_pos(vid);

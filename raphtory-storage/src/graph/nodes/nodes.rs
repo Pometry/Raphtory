@@ -27,7 +27,7 @@ impl NodesStorage {
     #[inline]
     pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
         match self {
-            NodesStorage::Mem(storage) => NodeStorageRef::Mem(storage.node_ref(vid)),
+            NodesStorage::Mem(storage) => storage.node_ref(vid),
             #[cfg(feature = "storage")]
             NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
         }

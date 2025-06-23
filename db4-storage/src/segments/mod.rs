@@ -231,6 +231,16 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
+    pub fn c_prop_str(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<&str> {
+        let item_id = item_id.into();
+        self.data.get(&item_id).and_then(|entry| {
+            let prop_entry = self.properties.c_column(prop_id)?;
+            prop_entry
+                .get_ref(entry.row())
+                .and_then(|prop| prop.as_str())
+        })
+    }
+
     pub fn additions(&self, item_pos: LocalPOS) -> &PropTimestamps {
         self.data
             .get(&item_pos)

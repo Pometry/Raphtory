@@ -95,6 +95,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         }
     }
 
+    pub fn node_meta(&self) -> &Arc<Meta> {
+        &self.prop_meta
+    }
+
     // pub fn locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
     //     WriteLockedNodePages::new(
     //         self.pages

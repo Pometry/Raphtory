@@ -7,13 +7,16 @@ use crate::{
 };
 use raphtory_api::core::{
     Direction,
-    entities::{EID, VID, properties::prop::Prop},
+    entities::{
+        EID, VID,
+        properties::{meta::Meta, prop::Prop},
+    },
 };
 use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use std::{iter::Empty, ops::Deref};
+use std::{iter::Empty, ops::Deref, sync::Arc};
 
 use super::additions::MemAdditions;
 
@@ -116,6 +119,10 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     type Additions = NodeAdditions<'a>;
     type TProps = NodeTProps<'a>;
 
+    fn node_meta(&self) -> &Arc<Meta> {
+        self.ns.node_meta()
+    }
+
     fn vid(&self) -> VID {
         self.ns.to_vid(self.pos)
     }
@@ -142,6 +149,10 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.ns.as_ref()[layer_id].c_prop(self.pos, prop_id)
+    }
+
+    fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str> {
+        self.ns.as_ref()[layer_id].c_prop_str(self.pos, prop_id)
     }
 
     fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
