@@ -312,7 +312,7 @@ mod test_index {
             match result {
                 Err(GraphError::IOError { source }) => {
                     assert!(
-                        format!("{source}").to_lowercase().contains("File exists"),
+                        format!("{source}").to_lowercase().contains("file exists"),
                         "{}",
                         source
                     );
