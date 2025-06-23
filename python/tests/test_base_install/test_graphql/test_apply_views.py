@@ -666,19 +666,21 @@ def test_apply_view_after():
     edges {
       applyViews(views: [{after: 6}]) {
         list {
+        history
           src {
-            history
+            name
           }
           dst {
-            history
+            name
           }
         }
       }
     }
     edge(src: "1", dst: "2") {
       applyViews(views: [{after: 3}]) {
+       history
         src {
-          history
+          name
         }
       }
     }
@@ -693,13 +695,13 @@ def test_apply_view_after():
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"src": {"history": []}, "dst": {"history": []}},
-                        {"src": {"history": []}, "dst": {"history": []}},
-                        {"src": {"history": []}, "dst": {"history": []}},
-                    ]
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
+                    ],
                 }
             },
-            "edge": {"applyViews": {"src": {"history": []}}},
+            "edge": {"applyViews": {"history": [], "src": {"name": "1"}}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -729,6 +731,7 @@ def test_apply_view_shrink_window():
     edges {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
         list {
+        history
           src {
             name
           }
@@ -740,11 +743,12 @@ def test_apply_view_shrink_window():
     }
     edge(src: "1", dst: "2") {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
+        history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -757,9 +761,25 @@ def test_apply_view_shrink_window():
             "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
             "node": {"applyViews": {"history": []}},
             "edges": {
-                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+                "applyViews": {
+                    "list": [
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1736035200000],
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
+                    ]
+                }
             },
-            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+            "edge": {
+                "applyViews": {
+                    "history": [],
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -771,24 +791,25 @@ def test_apply_view_shrink_start():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{shrinkStart:  173603520000}]) {
+    applyViews(views: [{shrinkStart:  1736035200000}]) {
       latestTime
     }
     nodes {
-     applyViews(views: [{shrinkStart:  173603520000}]) {
+     applyViews(views: [{shrinkStart:  1736035200000}]) {
         list {
           name
         }
       }
     }
     node(name: "2") {
-     applyViews(views: [{shrinkStart:  173603520000}]) {
+     applyViews(views: [{shrinkStart:  1736035200000}]) {
         history
       }
     }
     edges {
-   applyViews(views: [{shrinkStart:  173603520000}]) {
+   applyViews(views: [{shrinkStart:  1736035200000}]) {
         list {
+           history
           src {
             name
           }
@@ -799,12 +820,13 @@ def test_apply_view_shrink_start():
       }
     }
     edge(src: "1", dst: "2") {
-    applyViews(views: [{shrinkStart:  173603520000}]) {
+    applyViews(views: [{shrinkStart:  1736035200000}]) {
+    history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -817,9 +839,25 @@ def test_apply_view_shrink_start():
             "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
             "node": {"applyViews": {"history": []}},
             "edges": {
-                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+                "applyViews": {
+                    "list": [
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1736035200000],
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
+                    ]
+                }
             },
-            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+            "edge": {
+                "applyViews": {
+                    "history": [],
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -830,7 +868,7 @@ def test_apply_view_shrink_end():
     create_graph_date(graph)
     query = """
 {
-  graph(path: "basic") {
+  graph(path: "g") {
     applyViews(views: [{shrinkEnd:  1735776000000}]) {
       latestTime
     }
@@ -849,6 +887,7 @@ def test_apply_view_shrink_end():
     edges {
    applyViews(views: [{shrinkEnd:  1735776000000}]) {
         list {
+        history
           src {
             name
           }
@@ -860,11 +899,12 @@ def test_apply_view_shrink_end():
     }
     edge(src: "1", dst: "2") {
     applyViews(views: [{shrinkEnd:  1735776000000}]) {
+    history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -879,18 +919,21 @@ def test_apply_view_shrink_end():
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"src": {"name": "1"}, "dst": {"name": "2"}},
+                        {
+                            "history": [1735689600000],
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "src": {
-                        "history": [
-                            1735689600000,
-                        ]
-                    },
-                    "dst": {"history": []},
+                    "history": [1735689600000],
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
                 }
             },
         }
@@ -911,17 +954,19 @@ def test_apply_view_layers():
       applyViews(views: [{layers: ["finds", "Person"]}]) {
         list {
           name
+          history
         }
       }
     }
     node(name: "1") {
-      applyViews(views: [{layers: ["finds", "Person"]}]) {
+      applyViews(views: [{layers: ["finds"]}]) {
         history
       }
     }
     edges {
       applyViews(views: [{layers: ["finds", "Person"]}]) {
         list {
+        history
           src {
             name
           }
@@ -932,12 +977,13 @@ def test_apply_view_layers():
       }
     }
     edge(src: "1", dst: "2") {
-    applyViews(views: [{layers: ["finds", "Person"]}]) {
+    applyViews(views: [{layers: ["finds", "met"]}]) {
+    history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -948,13 +994,35 @@ def test_apply_view_layers():
         "graph": {
             "applyViews": {"earliestTime": 1735689600000},
             "nodes": {
-                "applyViews": {"list": [{"name": "1"}, {"name": "6"}, {"name": "7"}]}
+                "applyViews": {
+                    "list": [
+                        {"history": [1735689600000], "name": "1"},
+                        {"history": [1736035200000], "name": "6"},
+                        {"history": [1736035200000], "name": "7"},
+                    ]
+                }
             },
-            "node": {"applyViews": {"history": [1735689600000]}},
+            "node": {"applyViews": {"history": []}},
             "edges": {
-                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+                "applyViews": {
+                    "list": [
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1736035200000],
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
+                    ]
+                }
             },
-            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+            "edge": {
+                "applyViews": {
+                    "history": [1735689600000],
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -972,18 +1040,20 @@ def test_apply_view_layer():
     nodes {
      applyViews(views: [{layer: "Person"}]) {
         list {
+          history
           name
         }
       }
     }
     node(name: "1") {
-          applyViews(views: [{layer: "finds"}]) {
+      applyViews(views: [{layer: "finds"}]) {
         history
       }
     }
     edges {
       applyViews(views: [{layer: "finds"}]) {
         list {
+        history
           src {
             name
           }
@@ -995,11 +1065,12 @@ def test_apply_view_layer():
     }
     edge(src: "1", dst: "2") {
   applyViews(views: [{layer: "met"}]) {
+  history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -1009,28 +1080,27 @@ def test_apply_view_layer():
         "graph": {
             "applyViews": {"earliestTime": 1735689600000},
             "nodes": {
-                "applyViews": {
-                    "list": [
-                        {"name": "1"},
-                    ]
-                }
+                "applyViews": {"list": [{"history": [1735689600000], "name": "1"}]}
             },
             "node": {"applyViews": {"history": []}},
             "edges": {
-                "applyViews": {"list": [{"src": {"name": "6"}, "dst": {"name": "7"}}]}
+                "applyViews": {
+                    "list": [
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
+                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1736035200000],
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
+                    ]
+                }
             },
             "edge": {
                 "applyViews": {
-                    "src": {
-                        "history": [
-                            1735689600000,
-                        ]
-                    },
-                    "dst": {
-                        "history": [
-                            1735689600000,
-                        ]
-                    },
+                    "history": [1735689600000],
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
                 }
             },
         }
@@ -1050,7 +1120,8 @@ def test_apply_view_exclude_layer():
     nodes {
       applyViews(views: [{excludeLayer: "Person"}]) {
         list {
-          name
+        name
+          history
         }
       }
     }
@@ -1062,6 +1133,7 @@ def test_apply_view_exclude_layer():
     edges {
       applyViews(views: [{excludeLayer: "finds"}]) {
         list {
+        history
           src {
             name
           }
@@ -1073,11 +1145,12 @@ def test_apply_view_exclude_layer():
     }
     edge(src: "6", dst: "7") {
       applyViews(views: [{excludeLayer: "finds"}]) {
+      history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -1089,19 +1162,44 @@ def test_apply_view_exclude_layer():
             "applyViews": {"earliestTime": 1735689600000},
             "nodes": {
                 "applyViews": {
-                    "list": [{"name": "2"}, {"name": "3"}, {"name": "6"}, {"name": "7"}]
+                    "list": [
+                        {
+                            "history": [1735689600000, 1735776000000, 1735862400000],
+                            "name": "2",
+                        },
+                        {
+                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "name": "3",
+                        },
+                        {"history": [1736035200000], "name": "6"},
+                        {"history": [1736035200000], "name": "7"},
+                    ]
                 }
             },
             "node": {"applyViews": {"history": []}},
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1735689600000, 1735776000000, 1735862400000],
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": []}, "dst": {"history": []}}},
+            "edge": {
+                "applyViews": {
+                    "history": [],
+                    "src": {"name": "6"},
+                    "dst": {"name": "7"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1119,7 +1217,8 @@ def test_apply_view_exclude_layers():
     nodes {
       applyViews(views: [{excludeLayers: ["Person"]}]) {
         list {
-          name
+        name
+          history
         }
       }
     }
@@ -1131,6 +1230,7 @@ def test_apply_view_exclude_layers():
     edges {
       applyViews(views: [{excludeLayers: ["finds", "met"]}]) {
         list {
+        history
           src {
             name
           }
@@ -1142,11 +1242,12 @@ def test_apply_view_exclude_layers():
     }
     edge(src: "6", dst: "7") {
      applyViews(views: [{excludeLayers: ["finds"]}]) {
+     history
         src {
-          history
+          name
         }
         dst {
-          history
+          name
         }
       }
     }
@@ -1158,21 +1259,47 @@ def test_apply_view_exclude_layers():
             "applyViews": {"earliestTime": 1735689600000},
             "nodes": {
                 "applyViews": {
-                    "list": [{"name": "2"}, {"name": "3"}, {"name": "6"}, {"name": "7"}]
+                    "list": [
+                        {
+                            "history": [],
+                            "name": "1",
+                        },
+                        {
+                            "history": [1735689600000, 1735776000000, 1735862400000],
+                            "name": "2",
+                        },
+                        {
+                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "name": "3",
+                        },
+                        {"history": [1736035200000], "name": "6"},
+                        {"history": [1736035200000], "name": "7"},
+                    ]
                 }
             },
             "node": {"applyViews": {"history": []}},
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"src": {"name": "1"}, "dst": {"name": "3"}},
+                        {
+                            "history": [1735776000000, 1735862400000],
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "src": {"history": []},
-                    "dst": {"history": []},
+                    "history": [],
+                    "src": {"name": "6"},
+                    "dst": {"name": "7"},
                 }
             },
         }
