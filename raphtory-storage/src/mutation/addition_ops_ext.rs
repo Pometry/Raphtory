@@ -3,7 +3,10 @@ use std::ops::DerefMut;
 use db4_graph::TemporalGraph;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::{Prop, PropType}},
+    entities::properties::{
+        meta::Meta,
+        prop::{Prop, PropType},
+    },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -11,8 +14,7 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    pages::session::WriteSession,
-    pages::NODE_ID_PROP_KEY,
+    pages::{session::WriteSession, NODE_ID_PROP_KEY},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
@@ -64,7 +66,8 @@ impl<
             .add_static_edge(src, dst, lsn)
             .map(|eid| eid.with_layer(0));
 
-        self.static_session.add_edge_into_layer(t, src, dst, eid, lsn, props);
+        self.static_session
+            .add_edge_into_layer(t, src, dst, eid, lsn, props);
 
         // TODO: consider storing node id as const prop here?
 
@@ -182,40 +185,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
-
-        let layer_id = id.inner();
-        if self.layers().get(layer_id).is_some() {
-            return Ok(id);
-        }
-        let count = self.layers().count();
-        if count >= layer_id + 1 {
-            // something has allocated the layer, wait for it to be added
-            while self.layers().get(layer_id).is_none() {
-                // wait for the layer to be created
-                std::thread::yield_now();
-            }
-            return Ok(id);
-        } else {
-            self.layers().reserve(2);
-            let layer_name = layer.unwrap_or("_default");
-            loop {
-                let new_layer_id = self.layers().push_with(|_| {
-                    Layer::new(
-                        self.graph_dir().join(format!("l_{}", layer_name)),
-                        self.max_page_len_nodes(),
-                        self.max_page_len_edges(),
-                    )
-                    .into()
-                });
-                if new_layer_id >= layer_id {
-                    while self.layers().get(new_layer_id).is_none() {
-                        // wait for the layer to be created
-                        std::thread::yield_now();
-                    }
-                    return Ok(id);
-                }
-            }
-        }
+        Ok(id)
     }
 
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
@@ -296,24 +266,17 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
     }
 }
 
-fn reserve_node_id_as_prop(
-    node_meta: &Meta,
-    id: GidRef
-) -> usize {
+fn reserve_node_id_as_prop(node_meta: &Meta, id: GidRef) -> usize {
     match id {
-        GidRef::U64(_) => {
-            node_meta
-                .const_prop_meta()
-                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
-                .unwrap()
-                .inner()
-        }
-        GidRef::Str(_) => {
-            node_meta
-                .const_prop_meta()
-                .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
-                .unwrap()
-                .inner()
-        }
+        GidRef::U64(_) => node_meta
+            .const_prop_meta()
+            .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
+            .unwrap()
+            .inner(),
+        GidRef::Str(_) => node_meta
+            .const_prop_meta()
+            .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
+            .unwrap()
+            .inner(),
     }
 }

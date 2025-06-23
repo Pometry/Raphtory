@@ -4,7 +4,6 @@ use crate::graph::{
     locked::LockedGraph,
     nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
 };
-use db4_graph::ReadLockedTemporalGraph;
 use raphtory_api::{
     core::{
         entities::{
