@@ -28,6 +28,7 @@ mod test {
             graph::{
                 graph::{
                     assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
+                    assert_persistent_materialize_graph_equal,
                 },
                 views::{
                     deletion_graph::PersistentGraph,
@@ -39,8 +40,8 @@ mod test {
         },
         prelude::*,
         test_utils::{
-            build_edge_list, build_edge_list_with_deletions, build_graph_from_edge_list,
-            build_window, Update,
+            build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
+            build_graph_from_edge_list, build_window, Update,
         },
     };
     use proptest::{arbitrary::any, proptest};
@@ -373,12 +374,9 @@ mod test {
             let filtered = g.filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             let left = filtered.window(start, end);
             let right = filtered.window(start, end).materialize().unwrap();
-            assert_edges_equal(&left.edges(), &right.edges());
-            // FIXME filtered_exploded_edges doesn't propagate timestamps to nodes assert_graph_equal(&filtered, &filtered.materialize().unwrap());
+            assert_graph_equal(&left, &right);
         })
     }
-
-    // FIXME: Semantics for materialised graph and filtering are not implemented properly, disabled for now
 
     #[test]
     fn test_persistent_graph() {
@@ -407,51 +405,65 @@ mod test {
         assert_graph_equal(&gf, &gfm); // check materialise is consistent
     }
 
-    // #[test]
-    // fn test_persistent_graph_materialise() {
-    //     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>())| {
-    //         let g = build_graph_from_edge_list(&edges);
-    //         let g = g.persistent_graph();
-    //         for (src, dst, t) in edge_deletions {
-    //             g.delete_edge(t, src, dst, None).unwrap();
-    //         }
-    //         let gf = g
-    //             .filter_exploded_edges(PropertyFilter::gt("int_prop", v))
-    //             .unwrap();
-    //         let gfm = gf.materialize().unwrap();
-    //         assert_graph_equal(&gf, &gfm)
-    //     })
-    // }
-    //
-    // #[test]
-    // fn test_persistent_graph_materialise_window() {
-    //     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
-    //         let g = build_graph_from_edge_list(&edges);
-    //         let g = g.persistent_graph();
-    //         for (src, dst, t) in edge_deletions {
-    //             if let Some(earliest) = g.edge(src, dst).and_then(|e| e.earliest_time()) {
-    //                 // FIXME: many known bugs with the windowing semantics for edges that are deleted first so don't make them for now
-    //                 if earliest <= t {
-    //                     g.delete_edge(t, src, dst, None).unwrap();
-    //                 }
-    //             }
-    //
-    //         }
-    //         let gwf = g.window(start, end)
-    //             .filter_exploded_edges(PropertyFilter::gt("int_prop", v))
-    //             .unwrap();
-    //
-    //
-    //         let gwfm = gwf.materialize().unwrap();
-    //         assert_graph_equal(&gwf, &gwfm);
-    //
-    //         let gfw = g
-    //             .filter_exploded_edges(PropertyFilter::gt("int_prop", v)).unwrap()
-    //             .window(start, end);
-    //         let gfwm = gfw.materialize().unwrap();
-    //         assert_graph_equal(&gfw, &gfwm);
-    //     })
-    // }
+    #[test]
+    fn test_persistent_graph_materialise() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>())| {
+            let g = build_graph_from_edge_list(&edges);
+            let g = g.persistent_graph();
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gf = g
+                .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gfm = gf.materialize().unwrap();
+            assert_graph_equal(&gf, &gfm)
+        })
+    }
+
+    #[test]
+    fn test_persistent_graph_materialise_window() {
+        proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
+            let g = build_graph_from_edge_list(&edges);
+            let g = g.persistent_graph();
+            for (src, dst, t) in edge_deletions {
+                g.delete_edge(t, src, dst, None).unwrap();
+            }
+            let gwf = g.window(start, end)
+                .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v))
+                .unwrap();
+            let gwfm = gwf.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gwf, &gwfm);
+
+            let gfw = g
+                .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(v)).unwrap()
+                .window(start, end);
+            let gfwm = gfw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&gfw, &gfwm);
+        })
+    }
+
+    #[test]
+    fn test_persistent_failure() {
+        let g = PersistentGraph::new();
+        g.add_edge(-1, 0, 1, [("test", Prop::I32(-1))], None)
+            .unwrap();
+        g.add_edge(0, 0, 1, [("test", Prop::I32(1))], None).unwrap();
+        let gwf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0))
+            .unwrap()
+            .window(-1, 0);
+        let gm = gwf.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&gwf, &gm);
+
+        let gfw = g
+            .window(-1, 0)
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0))
+            .unwrap();
+        assert_eq!(gfw.count_edges(), 0);
+        let gm = gfw.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&gfw, &gm);
+    }
 
     #[test]
     fn test_persistent_graph_only_deletion() {
