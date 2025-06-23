@@ -1,5 +1,5 @@
 use minijinja::{Environment, Value};
-use pyo3::{pyclass, pymethods};
+use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
@@ -322,4 +322,78 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
         .render(context)
         .map_err(|e| GraphError::JinjaError(e.to_string()))?;
     Ok(query)
+}
+
+#[derive(Clone, Serialize)]
+#[pyclass(name = "AllPropertySpec", module = "raphtory.graphql")]
+pub enum PyAllPropertySpec {
+    #[serde(rename = "ALL")]
+    All,
+    #[serde(rename = "ALL_CONSTANT")]
+    AllConstant,
+    #[serde(rename = "ALL_TEMPORAL")]
+    AllTemporal,
+}
+
+#[derive(Clone, Serialize)]
+#[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
+pub struct PySomePropertySpec {
+    pub constant: Vec<String>,
+    pub temporal: Vec<String>,
+}
+
+#[pymethods]
+impl PySomePropertySpec {
+    #[new]
+    #[pyo3(signature = (constant = vec![], temporal = vec![]))]
+    fn new(constant: Vec<String>, temporal: Vec<String>) -> Self {
+        Self { constant, temporal }
+    }
+}
+
+#[derive(Clone, Serialize)]
+#[pyclass(name = "PropsInput", module = "raphtory.graphql")]
+pub struct PyPropsInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub all: Option<PyAllPropertySpec>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub some: Option<PySomePropertySpec>,
+}
+
+#[pymethods]
+impl PyPropsInput {
+    #[new]
+    #[pyo3(signature = (all=None, some=None))]
+    fn new(all: Option<PyAllPropertySpec>, some: Option<PySomePropertySpec>) -> PyResult<Self> {
+        if all.is_none() && some.is_none() {
+            Err(PyValueError::new_err(
+                "PropsInput must have exactly one of 'all' or 'some'",
+            ))
+        } else {
+            Ok(Self { all, some })
+        }
+    }
+}
+
+#[derive(Clone, Serialize)]
+#[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql")]
+pub struct PyRemoteIndexSpec {
+    #[serde(rename = "nodeProps")]
+    pub node_props: PyPropsInput,
+
+    #[serde(rename = "edgeProps")]
+    pub edge_props: PyPropsInput,
+}
+
+#[pymethods]
+impl PyRemoteIndexSpec {
+    #[new]
+    #[pyo3(signature = (node_props, edge_props))]
+    fn new(node_props: PyPropsInput, edge_props: PyPropsInput) -> Self {
+        Self {
+            node_props,
+            edge_props,
+        }
+    }
 }
