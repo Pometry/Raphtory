@@ -182,6 +182,16 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
     }
 }
 
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for ValidGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
 impl PyGraphView {
