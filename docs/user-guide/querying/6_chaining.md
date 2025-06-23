@@ -130,6 +130,10 @@ print(
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"{most_annoying[0]} is the most annoying monkey with an average score of {most_annoying[1]}") == "EXTERNE is the most annoying monkey with an average score of -2.0"
+```
+
 !!! Output
 
     ```output

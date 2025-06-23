@@ -58,6 +58,10 @@ print(
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"The edge from {e.src.name} to {e.dst.name}") == "The edge from FELIPE to MAKO"
+```
+
 !!! Output
 
     ```output

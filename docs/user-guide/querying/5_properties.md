@@ -123,6 +123,12 @@ print("Total interaction weight:", weight_prop.sum())
 ```
 ///
 
+```{.python continuation hide}
+assert weight_prop.mean() == 0.9285714285714286
+assert weight_prop.count() == 28
+assert weight_prop.sum() == 26
+```
+
 !!! Output
 
     ```output

@@ -43,6 +43,10 @@ print(f"{v.name} had interactions at the following times: {history_formatted}\n"
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"{v.name}'s first interaction was at {v.earliest_date_time} and their last interaction was at {v.latest_date_time}") == "FELIPE's first interaction was at 2019-06-13 09:50:00+00:00 and their last interaction was at 2019-07-10 11:05:00+00:00"
+```
+
 
 !!! Output
 
@@ -106,6 +110,10 @@ print(neighbours, "\n")
 print(f"{v_name} interacted with the following baboons {neighbour_names}")
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"{v_name} has {in_degree} incoming interactions and {out_degree} outgoing interactions.") == "FELIPE has 17 incoming interactions and 18 outgoing interactions."
+```
 
 !!! Output
 

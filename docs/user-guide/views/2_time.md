@@ -104,15 +104,21 @@ e = g.edge("LOME", "NEKKE")
 print(
     f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
 )
-e = e.window(start_day, end_day)
+w = e.window(start_day, end_day)
 print(
-    f"Between {e.start_date_time} and {e.end_date_time}, {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
+    f"Between {w.start_date_time} and {w.end_date_time}, {w.src.name} interacted with {w.dst.name} {len(w.history())} times"
 )
 print(
-    f"Window start: {e.start_date_time}, First update: {e.earliest_date_time}, Last update: {e.latest_date_time}, Window End: {e.end_date_time}"
+    f"Window start: {w.start_date_time}, First update: {w.earliest_date_time}, Last update: {w.latest_date_time}, Window End: {w.end_date_time}"
 )
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times.") == "Across the full dataset LOME interacted with NEKKE 41 times."
+assert str(f"Between {w.start_date_time} and {w.end_date_time}, {w.src.name} interacted with {w.dst.name} {len(w.history())} times") == "Between 2019-06-13 00:00:00+00:00 and 2019-06-14 00:00:00+00:00, LOME interacted with NEKKE 8 times"
+assert str(f"Window start: {w.start_date_time}, First update: {w.earliest_date_time}, Last update: {w.latest_date_time}, Window End: {w.end_date_time}") == "Window start: 2019-06-13 00:00:00+00:00, First update: 2019-06-13 10:18:00+00:00, Last update: 2019-06-13 15:05:00+00:00, Window End: 2019-06-14 00:00:00+00:00"
+```
 
 !!! Output
 

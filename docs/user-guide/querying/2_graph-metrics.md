@@ -63,6 +63,12 @@ print("Latest time (Unix Epoch):", latest_epoch)
 ```
 ///
 
+```{.python continuation hide}
+assert number_of_nodes == 22
+assert number_of_edges == 290
+assert total_interactions == 3196
+```
+
 !!! Output
 
     ```output
@@ -128,6 +134,10 @@ print(g.nodes)
 print(g.edges)
 ```
 ///
+
+```{.python continuation hide}
+assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000)"
+```
 
 !!! Output
 

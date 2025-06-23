@@ -115,6 +115,10 @@ print(g.edge("ServerA", "ServerB"))
 ```
 ///
 
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+```
+
 !!! Output
 
     ```output
@@ -181,6 +185,10 @@ print(g.node("ServerA"))
 print(g.edge("ServerA", "ServerB"))
 ```
 ///
+
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+```
 
 !!! Output
 

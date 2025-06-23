@@ -60,6 +60,10 @@ print(g)
 ```
 ///
 
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=1560419400000, latest_time=1562756700000)"
+```
+
 !!! Output
 
     ```output
