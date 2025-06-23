@@ -23,7 +23,7 @@ def create_graph_date(g):
     ]
     g.add_node(dates[0], 1, {"where": "Berlin"}, "Person")
     g.add_edge(dates[0], 1, 2, {}, "met")
-    g.add_edge(dates[1], 1, 2)
+    g.add_edge(dates[1], 1, 2, {"where": "Facebook"}, "follows")
     g.add_edge(dates[2], 1, 2)
     g.add_edge(dates[1], 1, 3)
     g.add_edge(dates[2], 1, 3)
@@ -188,6 +188,27 @@ def test_apply_view_default_layer():
     correct = {
         "graph": {
             "applyViews": {"earliestTime": 1735689600000},
+            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
+            "edges": {
+                "applyViews": {
+                    "page": [
+                        {
+                            "dst": {
+                                "history": [1735689600000, 1735776000000, 1735862400000]
+                            },
+                            "src": {
+                                "history": [
+                                    1735689600000,
+                                    1735776000000,
+                                    1735862400000,
+                                    1735948800000,
+                                ]
+                            },
+                        }
+                    ]
+                }
+            },
+            "node": {"applyViews": {"history": [1735862400000]}},
             "nodes": {
                 "applyViews": {
                     "page": [
@@ -202,27 +223,6 @@ def test_apply_view_default_layer():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": [1735776000000, 1735862400000]}},
-            "edges": {
-                "applyViews": {
-                    "page": [
-                        {
-                            "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
-                            },
-                            "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
-                            },
-                        }
-                    ]
-                }
-            },
-            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1346,7 +1346,7 @@ def test_apply_view_exclude_nodes():
     run_graphql_test(query, correct, graph)
 
 
-def test_apply_view_multiple_arguments():
+def test_apply_view_too_many_arguments():
     graph = Graph()
     create_graph_date(graph)
     queries_and_exceptions = []
@@ -1517,4 +1517,106 @@ def test_apply_view_subgraph_node_types():
   }
 }"""
     correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_nodes_multiple_views():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "Person"}]) {
+      nodes {
+        list {
+          name
+          history
+        }
+      }
+    }
+  }
+}"""
+    correct = {
+        "graph": {
+            "applyViews": {
+                "nodes": {
+                    "list": [
+                        {
+                            "history": [1735689600000],
+                            "name": "1",
+                        },
+                    ]
+                }
+            },
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_edges_multiple_views():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "met"}]) {
+      edges {
+        list {
+          src {
+            name
+          }
+          dst {
+            name
+          }
+          history
+        }
+      }
+    }
+  }
+}"""
+    correct = {
+        "graph": {
+            "applyViews": {
+                "edges": {
+                    "list": [
+                        {
+                            "dst": {"name": "2"},
+                            "history": [1735689600000],
+                            "src": {"name": "1"},
+                        },
+                    ]
+                }
+            },
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_a_lot_of_views():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      nodes{
+         applyViews(views: [
+        {window: {start: 1735689600000, end: 1735862400000}},
+        {layer: "follows"},
+        {nodeFilter: {property: {name: "where", operator: EQUAL, value: {str: "Berlin"}}}},
+      ]) {
+      list {
+          name
+          history
+        }
+      }
+    }
+}
+}"""
+    correct = {
+        "graph": {
+            "nodes": {
+                "applyViews": {"list": [{"history": [1735689600000], "name": "1"}]}
+            }
+        }
+    }
     run_graphql_test(query, correct, graph)
