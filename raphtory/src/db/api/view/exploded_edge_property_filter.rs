@@ -27,7 +27,7 @@ mod test {
             api::view::exploded_edge_property_filter::ExplodedEdgePropertyFilterOps,
             graph::{
                 graph::{
-                    assert_edges_equal, assert_graph_equal, assert_node_equal, assert_nodes_equal,
+                    assert_graph_equal, assert_node_equal, assert_nodes_equal,
                     assert_persistent_materialize_graph_equal,
                 },
                 views::{
