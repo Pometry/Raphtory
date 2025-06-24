@@ -140,11 +140,6 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        let time_semantics = self.graph.edge_time_semantics();
         self.graph.filter_edge(edge, layer_ids)
-            && time_semantics
-                .edge_exploded(edge, self, self.layer_ids())
-                .next()
-                .is_some()
     }
 }
