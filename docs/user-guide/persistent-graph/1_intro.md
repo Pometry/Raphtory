@@ -31,6 +31,11 @@ print(f"G's exploded edges are {G.edges.explode()}")
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"G's edges are {G.edges}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))"
+assert str(f"G's exploded edges are {G.edges.explode()}") == "G's exploded edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=10, latest_time=10, layer(s)=[_default]), Edge(source=Bob, target=Charlie, earliest_time=3, latest_time=10, layer(s)=[_default]))"
+```
+
 !!! Output
 
     ```output

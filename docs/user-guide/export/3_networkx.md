@@ -58,6 +58,10 @@ print(nx_g.nodes["ServerA"])
 ```
 ///
 
+```{.python continuation hide}
+assert str(nx_g) == "MultiDiGraph with 5 nodes and 7 edges"
+```
+
 !!! Output
 
     ```output
@@ -80,7 +84,6 @@ In the code snippet below we use this functionality to draw a network traffic gr
 /// tab | :fontawesome-brands-python: Python
 
 ```python
-# mkdocs: render
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -102,3 +105,5 @@ nx_g = traffic_graph.to_networkx()
 nx.draw(nx_g, with_labels=True, node_color="lightblue", edge_color="gray")
 ```
 ///
+
+![networkX-example-graph](../../assets/images/networkX-example.png)

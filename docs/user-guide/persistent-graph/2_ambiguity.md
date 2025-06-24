@@ -55,6 +55,10 @@ print(f"G's edges are {G.edges.explode()}")
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"G's edges are {G.edges.explode()}") == "G's edges are Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[_default]))"
+```
+
 Which results in the following:
 !!! Output
 
@@ -80,6 +84,10 @@ G1.delete_edge(1, 1, 2)
 print(f"G1's edges are {G1.edges.explode()}")
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"G1's edges are {G1.edges.explode()}") == "G1's edges are Edges(Edge(source=1, target=2, earliest_time=1, latest_time=1, properties={message: hi}, layer(s)=[_default]))"
+```
 
 !!! Output
 
@@ -109,6 +117,10 @@ print(G.edges.explode())
 ```
 ///
 
+```{.python continuation hide}
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=3, layer(s)=[_default]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=5, layer(s)=[_default]))"
+```
+
 !!! Output
 
     ```output
@@ -130,6 +142,10 @@ G.delete_edge(7, "Alice", "Bob", layer="friends")
 print(G.edges.explode())
 ```
 ///
+
+```{.python continuation hide}
+assert str(G.edges.explode()) == "Edges(Edge(source=Alice, target=Bob, earliest_time=1, latest_time=5, layer(s)=[colleagues]), Edge(source=Alice, target=Bob, earliest_time=3, latest_time=7, layer(s)=[friends]))"
+```
 
 !!! Output
 

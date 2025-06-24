@@ -165,6 +165,11 @@ print(df)
 ```
 ///
 
+```{.python continuation hide}
+assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000)"
+assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560526320000, latest_time=1561042620000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=1560526320000, latest_time=1562253540000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
+```
+
 !!! Output
 
     ```output

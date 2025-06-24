@@ -31,6 +31,12 @@ print(f"The graph's reciprocity is {reciprocity}")
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"The graph's density is {density}") == "The graph's density is 0.03654467730163695"
+assert str(f"The graph's clustering coefficient is {clustering_coefficient}") == "The graph's clustering coefficient is 0.4163023913602468"
+assert str(f"The graph's reciprocity is {reciprocity}") == "The graph's reciprocity is 0.19115549215406563"
+```
+
 !!! Output
 
     ```output

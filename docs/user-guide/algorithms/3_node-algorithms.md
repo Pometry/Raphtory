@@ -36,10 +36,14 @@ for rank, (node, score) in enumerate(top_5.items(),1):
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"Gandalf's ranking is {gandalf_rank}") == "Gandalf's ranking is 0.015810830531114206"
+```
+
 !!! Output
 
     ```output
-    Gandalf's ranking is 0.015810830531114203
+    Gandalf's ranking is 0.015810830531114206
 
     Rank 1: Aragorn with a score of 0.09526
     Rank 2: Faramir with a score of 0.06148
@@ -92,6 +96,10 @@ print(
 )
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"The largest component contains {component_sizes[largest_component]} of the {lotr_graph.count_nodes()} nodes in the graph.") == "The largest component contains 134 of the 139 nodes in the graph."
+```
 
 !!! Output
 

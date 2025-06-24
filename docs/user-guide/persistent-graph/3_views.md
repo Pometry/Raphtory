@@ -36,6 +36,10 @@ print(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}")
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"At time 6: {G.at(6).nodes} {G.at(6).edges.explode()}") == "At time 6: Nodes() Edges()"
+```
+
 !!! Output
 
     ```output
@@ -79,6 +83,10 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ```
 ///
 
+```{.python continuation hide}
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=2, latest_time=5), Node(name=Bob, earliest_time=2, latest_time=5)) Edges(Edge(source=Alice, target=Bob, earliest_time=2, latest_time=5, layer(s)=[_default]))"
+```
+
 !!! Output
 
     ```output
@@ -117,6 +125,10 @@ print(f"After time 5: {G.after(5).nodes} {G.after(5).edges.explode()}")
 print(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}")
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"After time 6: {G.after(6).nodes} {G.after(6).edges.explode()}") == "After time 6: Nodes() Edges()"
+```
 
 !!! Output
 
@@ -159,6 +171,10 @@ print(f"Window 1,8: {G.window(1,8).nodes} {G.window(1,8).edges.explode()}")
 print(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}")
 ```
 ///
+
+```{.python continuation hide}
+assert str(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}") == "Window 6,10: Nodes() Edges()"
+```
 
 !!! Output
 
