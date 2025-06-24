@@ -1002,7 +1002,7 @@ def test_apply_view_layers():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": []}},
+            "node": {"applyViews": {"history": [1735689600000]}},
             "edges": {
                 "applyViews": {
                     "list": [
@@ -1038,7 +1038,7 @@ def test_apply_view_layer():
       earliestTime
     }
     nodes {
-     applyViews(views: [{layer: "Person"}]) {
+     applyViews(views: [{typeFilter: ["Person"]}]) {
         list {
           history
           name
@@ -1080,9 +1080,21 @@ def test_apply_view_layer():
         "graph": {
             "applyViews": {"earliestTime": 1735689600000},
             "nodes": {
-                "applyViews": {"list": [{"history": [1735689600000], "name": "1"}]}
+                "applyViews": {
+                    "list": [
+                        {
+                            "history": [
+                                1735689600000,
+                                1735776000000,
+                                1735862400000,
+                                1735948800000,
+                            ],
+                            "name": "1",
+                        }
+                    ]
+                }
             },
-            "node": {"applyViews": {"history": []}},
+            "node": {"applyViews": {"history": [1735689600000]}},
             "edges": {
                 "applyViews": {
                     "list": [
@@ -1164,6 +1176,15 @@ def test_apply_view_exclude_layer():
                 "applyViews": {
                     "list": [
                         {
+                            "history": [
+                                1735689600000,
+                                1735776000000,
+                                1735862400000,
+                                1735948800000,
+                            ],
+                            "name": "1",
+                        },
+                        {
                             "history": [1735689600000, 1735776000000, 1735862400000],
                             "name": "2",
                         },
@@ -1176,7 +1197,16 @@ def test_apply_view_exclude_layer():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": []}},
+            "node": {
+                "applyViews": {
+                    "history": [
+                        1735689600000,
+                        1735776000000,
+                        1735862400000,
+                        1735948800000,
+                    ]
+                }
+            },
             "edges": {
                 "applyViews": {
                     "list": [
@@ -1189,6 +1219,11 @@ def test_apply_view_exclude_layer():
                             "history": [1735776000000, 1735862400000, 1735948800000],
                             "src": {"name": "1"},
                             "dst": {"name": "3"},
+                        },
+                        {
+                            "history": [],
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
                         },
                     ]
                 }
@@ -1261,7 +1296,12 @@ def test_apply_view_exclude_layers():
                 "applyViews": {
                     "list": [
                         {
-                            "history": [],
+                            "history": [
+                                1735689600000,
+                                1735776000000,
+                                1735862400000,
+                                1735948800000,
+                            ],
                             "name": "1",
                         },
                         {
@@ -1277,7 +1317,16 @@ def test_apply_view_exclude_layers():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": []}},
+            "node": {
+                "applyViews": {
+                    "history": [
+                        1735689600000,
+                        1735776000000,
+                        1735862400000,
+                        1735948800000,
+                    ]
+                }
+            },
             "edges": {
                 "applyViews": {
                     "list": [
