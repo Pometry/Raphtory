@@ -25,6 +25,7 @@ pub mod gen_ts;
 pub mod pages;
 pub mod persist;
 pub mod properties;
+pub mod resolver;
 pub mod segments;
 pub mod utils;
 
