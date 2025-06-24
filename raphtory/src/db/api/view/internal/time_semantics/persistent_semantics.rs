@@ -544,11 +544,11 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.first_t())
+        e.additions_iter(view.layer_ids())
+            .flat_map(|(_, additions)| additions.first_t())
             .chain(
-                e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.first_t()),
+                e.deletions_iter(view.layer_ids())
+                    .flat_map(|(_, deletions)| deletions.first_t()),
             )
             .min()
     }
@@ -562,7 +562,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         if edge_alive_at_start(e, w.start, &view) {
             Some(w.start)
         } else {
-            e.filtered_updates_iter(&view, view.layer_ids())
+            e.updates_iter(view.layer_ids())
                 .flat_map(|(_, additions, deletions)| {
                     let window = interior_window(w.clone(), &deletions);
                     additions
