@@ -46,6 +46,7 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
@@ -189,6 +190,27 @@ mod test {
             let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
+    }
+
+    #[test]
+    fn test_filter_persistent_single_filtered_edge() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, [("test", 1i64)], None).unwrap();
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(1i64))
+            .unwrap();
+
+        assert_eq!(gf.count_edges(), 1);
+        assert_eq!(gf.count_temporal_edges(), 0);
+
+        let expected = PersistentGraph::new();
+        expected.delete_edge(0, 0, 0, None).unwrap();
+        //the property still exists!
+        expected
+            .resolve_edge_property("test", PropType::I64, false)
+            .unwrap();
+
+        assert_graph_equal(&gf, &expected);
     }
 
     #[test]
