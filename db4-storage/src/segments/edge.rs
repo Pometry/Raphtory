@@ -448,6 +448,18 @@ impl EdgeSegmentOps for EdgeSegmentView {
         MemEdgeEntry::new(edge_pos, self.head())
     }
 
+    fn layer_entry<'a, LP: Into<LocalPOS>>(
+        &'a self,
+        edge_pos: LP,
+        layer_id: usize,
+    ) -> Option<Self::Entry<'a>> {
+        let edge_pos = edge_pos.into();
+        let locked_head = self.head();
+        let layer = locked_head.as_ref().get(layer_id)?;
+        let has_edge = layer.items().get(edge_pos.0).is_some_and(|item| *item);
+        has_edge.then(|| MemEdgeEntry::new(edge_pos, locked_head))
+    }
+
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
         ArcLockedSegmentView {
             inner: self.head_arc(),

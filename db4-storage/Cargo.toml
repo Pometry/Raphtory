@@ -15,6 +15,7 @@ raphtory-api.workspace = true
 raphtory-core = {workspace = true}
 # db4-common = {path = "../db4-common"}
 
+ouroboros = {workspace = true}
 bitvec.workspace = true
 bigdecimal.workspace = true
 polars-arrow.workspace = true

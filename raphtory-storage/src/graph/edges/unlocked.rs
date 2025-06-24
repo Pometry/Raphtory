@@ -1,31 +1,33 @@
 use raphtory_api::core::entities::EID;
-use raphtory_core::{
-    entities::graph::tgraph_storage::GraphStorage, storage::raw_edges::EdgeRGuard,
-};
+use raphtory_core::storage::raw_edges::EdgeRGuard;
 use rayon::prelude::*;
 use storage::{Extension, Layer};
+
+use crate::graph::edges::edge_entry::EdgeStorageEntry;
 
 #[derive(Copy, Clone, Debug)]
 pub struct UnlockedEdges<'a>(pub(crate) &'a Layer<Extension>);
 
 impl<'a> UnlockedEdges<'a> {
-    pub fn iter(self) -> impl Iterator<Item = EdgeRGuard<'a>> + 'a {
-        let storage = self.0;
-        (0..storage.edges_len())
-            .map(EID)
-            .map(|eid| storage.edge_entry(eid))
+    pub fn iter(self, layer_id: usize) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
+        self.0
+            .edges()
+            .iter(layer_id)
+            .map(EdgeStorageEntry::Unlocked)
     }
 
-    pub fn par_iter(self) -> impl ParallelIterator<Item = EdgeRGuard<'a>> + 'a {
-        let storage = self.0;
-        (0..storage.edges_len())
-            .into_par_iter()
-            .map(EID)
-            .map(|eid| storage.edge_entry(eid))
+    pub fn par_iter(
+        self,
+        layer_id: usize,
+    ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + 'a {
+        self.0
+            .edges()
+            .par_iter(layer_id)
+            .map(EdgeStorageEntry::Unlocked)
     }
 
     #[inline]
     pub fn len(self) -> usize {
-        self.0.edges_len()
+        self.0.edges().num_edges()
     }
 }

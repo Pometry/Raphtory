@@ -4,9 +4,10 @@ use crate::graph::{
     variants::storage_variants3::StorageVariants3,
 };
 use raphtory_api::core::entities::{LayerIds, EID};
+use raphtory_core::utils::iter::GenLockedIter;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
-use storage::{Extension, ReadLockedEdges};
+use storage::{utils::Iter2, Extension, ReadLockedEdges};
 
 pub struct EdgesStorage {
     storage: Arc<ReadLockedEdges<Extension>>,
@@ -49,22 +50,10 @@ impl<'a> EdgesStorageRef<'a> {
         layers: &'a LayerIds,
     ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + Send + Sync + 'a {
         match self {
-            EdgesStorageRef::Mem(storage) => StorageVariants3::Mem(
-                storage
-                    .iter()
-                    .filter(move |e| e.has_layer(layers))
-                    .map(EdgeStorageEntry::Mem),
-            ),
-            EdgesStorageRef::Unlocked(edges) => StorageVariants3::Unlocked(
-                edges
-                    .iter()
-                    .filter(move |e| e.as_mem_edge().has_layer(layers))
-                    .map(EdgeStorageEntry::Unlocked),
-            ),
-            #[cfg(feature = "storage")]
-            EdgesStorageRef::Disk(storage) => {
-                StorageVariants3::Disk(storage.iter(layers).map(EdgeStorageEntry::Disk))
+            EdgesStorageRef::Mem(storage) => {
+                Iter2::I1(storage.iter(layers).map(EdgeStorageEntry::Mem))
             }
+            EdgesStorageRef::Unlocked(edges) => Iter2::I2(edges.iter(layers)),
         }
     }
 

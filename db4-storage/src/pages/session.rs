@@ -37,7 +37,7 @@ impl<
     MES: DerefMut<Target = MemEdgeSegment> + 'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT: Clone + Default,
+    EXT: Clone + Default + Send + Sync,
 > WriteSession<'a, MNS, MES, NS, ES, EXT>
 {
     pub fn new(

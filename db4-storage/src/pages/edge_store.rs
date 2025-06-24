@@ -41,7 +41,7 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEdgeStorage<ES, EXT> {
     pub fn edge_ref(
         &self,
         e_id: impl Into<EID>,
@@ -74,7 +74,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, 
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .pages
@@ -408,5 +408,25 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
                 }
             }
         }
+    }
+
+    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+        (0..self.pages.count())
+            .into_par_iter()
+            .filter_map(move |page_id| self.pages.get(page_id))
+            .flat_map(move |page| {
+                (0..page.num_edges())
+                    .into_par_iter()
+                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+            })
+    }
+
+    pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
+        (0..self.pages.count())
+            .filter_map(move |page_id| self.pages.get(page_id))
+            .flat_map(move |page| {
+                (0..page.num_edges())
+                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+            })
     }
 }
