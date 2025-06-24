@@ -151,61 +151,48 @@ impl GqlEdges {
     }
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
-        let mut return_view: GqlEdges = self.update(self.ee.clone());
+        let mut return_view: GqlEdges = GqlEdges::new(self.ee.clone());
         for view in views {
-            use EdgesViewCollection::*;
-            match view {
-                DefaultLayer(default) => {
-                    if default {
-                        return_view = return_view.default_layer().await;
+            return_view = match view {
+                EdgesViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
                     }
                 }
-                Latest(latest) => {
-                    if latest {
-                        return_view = return_view.latest().await;
+                EdgesViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotLatest(snapshot_latest) => {
+                EdgesViewCollection::SnapshotLatest(apply) => {
                     if snapshot_latest {
-                        return_view = return_view.snapshot_latest().await;
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotAt(at) => {
-                    return_view = return_view.snapshot_at(at).await;
+                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
+                EdgesViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
                 }
-                Layers(layers) => {
-                    return_view = return_view.layers(layers).await;
+                EdgesViewCollection::Layer(layer) => return_view.layer(layer).await,
+                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                EdgesViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
                 }
-                ExcludeLayers(layers) => {
-                    return_view = return_view.exclude_layers(layers).await;
+                EdgesViewCollection::At(at) => return_view.at(at).await,
+                EdgesViewCollection::Before(time) => return_view.before(time).await,
+                EdgesViewCollection::After(time) => return_view.after(time).await,
+                EdgesViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
                 }
-                Layer(layer) => {
-                    return_view = return_view.layer(layer).await;
-                }
-                ExcludeLayer(layer) => {
-                    return_view = return_view.exclude_layer(layer).await;
-                }
-                Window(window) => {
-                    return_view = return_view.window(window.start, window.end).await;
-                }
-                At(at) => {
-                    return_view = return_view.at(at).await;
-                }
-                Before(time) => {
-                    return_view = return_view.before(time).await;
-                }
-                After(time) => {
-                    return_view = return_view.after(time).await;
-                }
-                ShrinkWindow(window) => {
-                    return_view = return_view.shrink_window(window.start, window.end).await;
-                }
-                ShrinkStart(time) => {
-                    return_view = return_view.shrink_start(time).await;
-                }
-                ShrinkEnd(time) => {
-                    return_view = return_view.shrink_end(time).await;
-                }
+                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
             }
         }
 

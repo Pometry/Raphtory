@@ -171,65 +171,50 @@ impl GqlNodes {
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
         let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
         for view in views {
-            use NodesViewCollection::*;
-            match view {
-                DefaultLayer(default) => {
-                    if default {
-                        return_view = return_view.default_layer().await;
+            return_view = match view {
+                NodesViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
                     }
                 }
-                Layer(layer) => {
-                    return_view = return_view.layer(layer).await;
+                NodesViewCollection::Layer(layer) => return_view.layer(layer).await,
+                NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
+                NodesViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
                 }
-                ExcludeLayer(layer) => {
-                    return_view = return_view.exclude_layer(layer).await;
+                NodesViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
                 }
-                Layers(layers) => {
-                    return_view = return_view.layers(layers).await;
-                }
-                ExcludeLayers(layers) => {
-                    return_view = return_view.exclude_layers(layers).await;
-                }
-                Window(window) => {
-                    return_view = return_view.window(window.start, window.end).await;
-                }
-                At(at) => {
-                    return_view = return_view.at(at).await;
-                }
-                Latest(latest) => {
-                    if latest {
-                        return_view = return_view.latest().await;
+                NodesViewCollection::At(at) => return_view.at(at).await,
+                NodesViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotLatest(snapshot_latest) => {
-                    if snapshot_latest {
-                        return_view = return_view.snapshot_latest().await;
+                NodesViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotAt(at) => {
-                    return_view = return_view.snapshot_at(at).await;
+                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                NodesViewCollection::Before(time) => return_view.before(time).await,
+                NodesViewCollection::After(time) => return_view.after(time).await,
+                NodesViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
                 }
-                Before(time) => {
-                    return_view = return_view.before(time).await;
+                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodesViewCollection::NodeFilter(node_filter) => {
+                    return_view.node_filter(node_filter).await?
                 }
-                After(time) => {
-                    return_view = return_view.after(time).await;
-                }
-                ShrinkWindow(window) => {
-                    return_view = return_view.shrink_window(window.start, window.end).await;
-                }
-                ShrinkStart(time) => {
-                    return_view = return_view.shrink_start(time).await;
-                }
-                ShrinkEnd(time) => {
-                    return_view = return_view.shrink_end(time).await;
-                }
-                NodeFilter(node_filter) => {
-                    return_view = return_view.node_filter(node_filter).await?;
-                }
-                TypeFilter(types) => {
-                    return_view = return_view.type_filter(types).await;
-                }
+                NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
         }
 

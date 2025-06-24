@@ -157,64 +157,49 @@ impl GqlNode {
     }
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
-        let mut return_view: GqlNode = self.vv.clone().into();
+        let mut return_view: GqlNode = GqlNode::new(self.vv.clone());
         for view in views {
-            use NodeViewCollection::*;
-            match view {
-                DefaultLayer(default) => {
-                    if default {
-                        return_view = return_view.default_layer().await;
+            return_view = match view {
+                NodeViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
                     }
                 }
-                Latest(latest) => {
-                    if latest {
-                        return_view = return_view.latest().await;
+                NodeViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotLatest(snapshot_latest) => {
-                    if snapshot_latest {
-                        return_view = return_view.snapshot_latest().await;
+                NodeViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
                     }
                 }
-                SnapshotAt(at) => {
-                    return_view = return_view.snapshot_at(at).await;
+                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                NodeViewCollection::Layers(layers) => return_view.layers(layers).await,
+                NodeViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
                 }
-                Layers(layers) => {
-                    return_view = return_view.layers(layers).await;
+                NodeViewCollection::Layer(layer) => return_view.layer(layer).await,
+                NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                NodeViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
                 }
-                ExcludeLayers(layers) => {
-                    return_view = return_view.exclude_layers(layers).await;
+                NodeViewCollection::At(at) => return_view.at(at).await,
+                NodeViewCollection::Before(time) => return_view.before(time).await,
+                NodeViewCollection::After(time) => return_view.after(time).await,
+                NodeViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
                 }
-                Layer(layer) => {
-                    return_view = return_view.layer(layer).await;
-                }
-                ExcludeLayer(layer) => {
-                    return_view = return_view.exclude_layer(layer).await;
-                }
-                Window(window) => {
-                    return_view = return_view.window(window.start, window.end).await;
-                }
-                At(at) => {
-                    return_view = return_view.at(at).await;
-                }
-                Before(time) => {
-                    return_view = return_view.before(time).await;
-                }
-                After(time) => {
-                    return_view = return_view.after(time).await;
-                }
-                ShrinkWindow(window) => {
-                    return_view = return_view.shrink_window(window.start, window.end).await;
-                }
-                ShrinkStart(time) => {
-                    return_view = return_view.shrink_start(time).await;
-                }
-                ShrinkEnd(time) => {
-                    return_view = return_view.shrink_end(time).await;
-                }
-                NodeFilter(filter) => {
-                    return_view = return_view.node_filter(filter).await?;
-                }
+                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodeViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
             }
         }
         Ok(return_view)
