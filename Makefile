@@ -70,14 +70,14 @@ build-python: activate-storage
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
 
+install-mkdocs:
+	pip install mkdocs
+
 update-doc-deps: install-mkdocs
 	mkdocs get-deps > docs/requirements.txt
 
 install-doc-deps:
-	pip install -r docs/requirements.txt
-
-install-mkdocs:
-	pip install mkdocs
+	pip install -r docs/requirements.txt && pip install pytest pytest-markdown-docs markdown_hide_code 
 
 gen-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
