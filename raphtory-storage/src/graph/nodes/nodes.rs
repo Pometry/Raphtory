@@ -8,32 +8,23 @@ use storage::{Extension, ReadLockedNodes};
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::nodes::DiskNodesOwned;
 
-pub enum NodesStorage {
-    Mem(Arc<ReadLockedNodes<Extension>>),
-    #[cfg(feature = "storage")]
-    Disk(DiskNodesOwned),
+#[repr(transparent)]
+pub struct NodesStorage {
+    storage: Arc<ReadLockedNodes<Extension>>,
 }
 
 impl NodesStorage {
     #[inline]
     pub fn as_ref(&self) -> NodesStorageEntry {
-        match self {
-            NodesStorage::Mem(storage) => NodesStorageEntry::Mem(&storage),
-            #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodesStorageEntry::Disk(storage.as_ref()),
-        }
+        NodesStorageEntry::Mem(self.storage.as_ref())
     }
 
     #[inline]
     pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
-        match self {
-            NodesStorage::Mem(storage) => storage.node_ref(vid),
-            #[cfg(feature = "storage")]
-            NodesStorage::Disk(storage) => NodeStorageRef::Disk(storage.node(vid)),
-        }
+        self.storage.node_ref(vid)
     }
 
     pub fn len(&self) -> usize {
-        self.as_ref().len()
+        self.storage.len()
     }
 }

@@ -29,6 +29,8 @@ pub struct TemporalGraph<EXT = Extension> {
 
     storage: Arc<Layer<EXT>>,
 
+    // resolver
+    // node_type_resolver
     edge_meta: Arc<Meta>,
     node_meta: Arc<Meta>,
 

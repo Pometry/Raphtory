@@ -10,6 +10,7 @@ use raphtory_core::{
     entities::{LayerIds, VID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
+use rayon::iter::ParallelIterator;
 
 use crate::{LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
 
@@ -91,6 +92,16 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
     fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
     where
         Self: 'a;
+
+    fn edge_iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a;
+
+    fn edge_par_iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a;
 }
 
 #[derive(Debug)]

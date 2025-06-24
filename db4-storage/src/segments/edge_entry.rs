@@ -1,6 +1,6 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
-    entities::{LayerIds, VID, properties::tprop::TPropCell},
+    entities::{LayerIds, Multiple, VID, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
@@ -57,6 +57,16 @@ pub struct MemEdgeRef<'a> {
 impl<'a> MemEdgeRef<'a> {
     pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment) -> Self {
         Self { pos, es }
+    }
+
+    pub fn has_layers(&self, layer_ids: &Multiple) -> bool {
+        layer_ids.iter().any(|layer_id| {
+            self.es
+                .as_ref()
+                .get(layer_id)
+                .and_then(|entry| entry.items().get(self.pos.0))
+                .is_some_and(|item| *item)
+        })
     }
 }
 

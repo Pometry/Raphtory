@@ -11,7 +11,11 @@ use raphtory_api::core::entities::{
     VID,
     properties::{meta::Meta, prop::Prop},
 };
-use raphtory_core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_core::{
+    entities::LayerIds,
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use rayon::prelude::*;
 
 use crate::{
     LocalPOS,
@@ -19,6 +23,7 @@ use crate::{
     error::DBV4Error,
     properties::PropMutEntry,
     segments::edge_entry::MemEdgeRef,
+    utils::Iter4,
 };
 
 use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
@@ -269,6 +274,32 @@ pub struct ArcLockedSegmentView {
     inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
 }
 
+impl ArcLockedSegmentView {
+    fn edge_iter_layer<'a>(
+        &'a self,
+        layer_id: usize,
+    ) -> impl Iterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
+        self.inner
+            .layers
+            .get(layer_id)
+            .into_iter()
+            .flat_map(|layer| layer.items().iter_ones())
+            .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
+    }
+
+    fn edge_par_iter_layer<'a>(
+        &'a self,
+        layer_id: usize,
+    ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
+        self.inner
+            .layers
+            .get(layer_id)
+            .into_par_iter()
+            .flat_map(|layer| layer.items().iter_ones().par_bridge())
+            .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
+    }
+}
+
 impl LockedESegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
@@ -278,6 +309,36 @@ impl LockedESegment for ArcLockedSegmentView {
     {
         let edge_pos = edge_pos.into();
         MemEdgeRef::new(edge_pos, &self.inner)
+    }
+
+    fn edge_iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        match layer_ids {
+            LayerIds::None => Iter4::I(std::iter::empty()),
+            LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
+            LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
+            LayerIds::Multiple(multiple) => Iter4::L(
+                self.edge_iter_layer(0)
+                    .filter(|pos| pos.has_layers(multiple)),
+            ),
+        }
+    }
+
+    fn edge_par_iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+        match layer_ids {
+            LayerIds::None => Iter4::I(rayon::iter::empty()),
+            LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),
+            LayerIds::One(layer_id) => Iter4::K(self.edge_par_iter_layer(*layer_id)),
+            LayerIds::Multiple(multiple) => Iter4::L(
+                self.edge_par_iter_layer(0)
+                    .filter(|pos| pos.has_layers(multiple)),
+            ),
+        }
     }
 }
 

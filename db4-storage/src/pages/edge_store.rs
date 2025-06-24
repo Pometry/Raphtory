@@ -16,7 +16,11 @@ use crate::{
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
-use raphtory_core::{entities::ELID, storage::timeindex::TimeIndexEntry};
+use raphtory_core::{
+    entities::{ELID, LayerIds},
+    storage::timeindex::TimeIndexEntry,
+};
+use rayon::prelude::*;
 
 const N: usize = 32;
 
@@ -45,6 +49,28 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, 
         let (page_id, pos) = self.storage.resolve_pos(e_id.into());
         let locked_page = &self.locked_pages[page_id];
         locked_page.entry_ref(pos)
+    }
+
+    pub fn iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl Iterator<
+        Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'a>,
+    > + 'a {
+        self.locked_pages
+            .iter()
+            .flat_map(move |page| page.edge_iter(layer_ids))
+    }
+
+    pub fn par_iter<'a, 'b: 'a>(
+        &'a self,
+        layer_ids: &'b LayerIds,
+    ) -> impl ParallelIterator<
+        Item = <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'a>,
+    > + 'a {
+        self.locked_pages
+            .par_iter()
+            .flat_map(move |page| page.edge_par_iter(layer_ids))
     }
 }
 

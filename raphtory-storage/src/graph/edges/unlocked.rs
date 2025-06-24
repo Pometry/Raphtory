@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use storage::{Extension, Layer};
 
 #[derive(Copy, Clone, Debug)]
-pub struct UnlockedEdges<'a, EXT = Extension>(pub(crate) &'a Layer<EXT>);
+pub struct UnlockedEdges<'a>(pub(crate) &'a Layer<Extension>);
 
 impl<'a> UnlockedEdges<'a> {
     pub fn iter(self) -> impl Iterator<Item = EdgeRGuard<'a>> + 'a {

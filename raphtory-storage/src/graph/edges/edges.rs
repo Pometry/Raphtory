@@ -4,82 +4,43 @@ use crate::graph::{
     variants::storage_variants3::StorageVariants3,
 };
 use raphtory_api::core::entities::{LayerIds, EID};
-use raphtory_core::storage::raw_edges::LockedEdges;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 use storage::{Extension, ReadLockedEdges};
 
-#[cfg(feature = "storage")]
-use crate::disk::storage_interface::{edges::DiskEdges, edges_ref::DiskEdgesRef};
-use crate::graph::variants::storage_variants2::StorageVariants2;
-
-pub enum EdgesStorage {
-    Mem(Arc<ReadLockedEdges<Extension>>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdges),
+pub struct EdgesStorage {
+    storage: Arc<ReadLockedEdges<Extension>>,
 }
 
 impl EdgesStorage {
     #[inline]
     pub fn as_ref(&self) -> EdgesStorageRef {
-        match self {
-            EdgesStorage::Mem(storage) => EdgesStorageRef::Mem(storage),
-            #[cfg(feature = "storage")]
-            EdgesStorage::Disk(storage) => EdgesStorageRef::Disk(storage.as_ref()),
-        }
+        EdgesStorageRef::Mem(self.storage.as_ref())
     }
 
     pub fn edge(&self, eid: EID) -> EdgeStorageRef {
-        match self {
-            EdgesStorage::Mem(storage) => EdgeStorageRef::Mem(storage.get_mem(eid)),
-            #[cfg(feature = "storage")]
-            EdgesStorage::Disk(storage) => EdgeStorageRef::Disk(storage.get(eid)),
-        }
+        self.storage.edge_ref(eid)
     }
 
     pub fn iter<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> impl Iterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
-        match self {
-            EdgesStorage::Mem(storage) => {
-                StorageVariants2::Mem((0..storage.len()).map(EID).filter_map(|e| {
-                    let edge = storage.get_mem(e);
-                    edge.has_layer(layers).then_some(EdgeStorageRef::Mem(edge))
-                }))
-            }
-            #[cfg(feature = "storage")]
-            EdgesStorage::Disk(storage) => {
-                StorageVariants2::Disk(storage.as_ref().iter(layers).map(EdgeStorageRef::Disk))
-            }
-        }
+        self.storage.iter(layers)
     }
 
     pub fn par_iter<'a>(
         &'a self,
         layers: &'a LayerIds,
     ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + Sync + 'a {
-        match self {
-            EdgesStorage::Mem(storage) => StorageVariants2::Mem(
-                storage
-                    .par_iter()
-                    .filter(|e| e.has_layer(layers))
-                    .map(EdgeStorageRef::Mem),
-            ),
-            #[cfg(feature = "storage")]
-            EdgesStorage::Disk(storage) => {
-                StorageVariants2::Disk(storage.as_ref().par_iter(layers).map(EdgeStorageRef::Disk))
-            }
-        }
+        self.storage.par_iter(layers)
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum EdgesStorageRef<'a, EXT = Extension> {
-    Mem(&'a ReadLockedEdges<EXT>),
-    Unlocked(UnlockedEdges<'a, EXT>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdgesRef<'a>),
+pub enum EdgesStorageRef<'a> {
+    Mem(&'a ReadLockedEdges<Extension>),
+    Unlocked(UnlockedEdges<'a>),
 }
 
 impl<'a> EdgesStorageRef<'a> {
