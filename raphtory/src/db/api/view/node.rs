@@ -15,6 +15,8 @@ use itertools::Itertools;
 use raphtory_api::core::{storage::timeindex::TimeError, Direction};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::marker::PhantomData;
+use crate::db::api::view::history::HistoryDateTime;
+use crate::db::graph::node::NodeView;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -99,7 +101,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn history_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::HistoryOp<'graph, Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>,
+        ops::Map<ops::HistoryOp<'graph, Self::Graph>, HistoryDateTime<NodeView<'graph, Self::Graph>>>,
     >;
 
     //Returns true if the node has any updates within the current window, otherwise false
@@ -256,13 +258,13 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     fn history_date_time(
         &self,
     ) -> Self::ValueType<
-        ops::Map<ops::HistoryOp<'graph, Self::Graph>, Result<Vec<DateTime<Utc>>, TimeError>>,
+        ops::Map<ops::HistoryOp<'graph, Self::Graph>, HistoryDateTime<NodeView<'graph, Self::Graph>>>,
     > {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
             _phantom: PhantomData,
         }
-        .map(|h| h.collect_date_times());
+        .map(|h| h.dt());
         self.map(op)
     }
 

@@ -177,7 +177,7 @@ mod tests {
         let gvw = gv.window(w.start, w.end);
         assert_eq!(gvw.node(0).unwrap().earliest_time().unwrap().0, 10);
 
-        assert_eq!(gvw.node(0).unwrap().history().collect_timestamps(), [10]);
+        assert_eq!(gvw.node(0).unwrap().history().t().collect(), [10]);
 
         let gvwm = gvw.materialize().unwrap();
         assert_eq!(gvwm.node(0).unwrap().earliest_time().unwrap().0, 10);

@@ -40,19 +40,111 @@ use raphtory_api::core::{
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{iter, ops::Deref, slice::Iter, sync::Arc};
-// TODO: Do we want to implement gt, lt, etc?
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
-    // Option<> because they are options in time_semantics.rs
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
     fn latest_time(&self) -> Option<TimeIndexEntry>;
+    // override if we want more efficient implementation
+    fn len(&self) -> usize {
+        self.iter().count()
+    }
 }
 
-// FIXME: Doesn't support deletions of edges yet
+// TODO: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
 pub struct History<T>(pub T);
+
+impl<T: InternalHistoryOps + Clone> History<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+
+    // converts operations to return timestamps instead of TimeIndexEntry
+    pub fn t(&self) -> HistoryTimestamp<T> {
+        HistoryTimestamp(self.0.clone())
+    }
+
+    // converts operations to return date times instead of TimeIndexEntry
+    pub fn dt(&self) -> HistoryDateTime<T> {
+        HistoryDateTime(self.0.clone())
+    }
+
+    // converts operations to return secondary time information inside TimeIndexEntry
+    pub fn s(&self) -> HistorySecondary<T> {
+        HistorySecondary(self.0.clone())
+    }
+
+    pub fn intervals(&self) -> Intervals<T> {
+        Intervals(self.0.clone())
+    }
+
+    pub fn merge<R: InternalHistoryOps + Clone>(
+        self,
+        right: History<R>,
+    ) -> History<MergedHistory<T, R>> {
+        History::new(MergedHistory::new(self.0, right.0))
+    }
+
+    pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter()
+    }
+
+    pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter_rev()
+    }
+
+    pub fn collect(&self) -> Vec<TimeIndexEntry> {
+        self.0.iter().collect_vec()
+    }
+
+    pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
+        self.0.iter_rev().collect_vec()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
+
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.earliest_time()
+    }
+
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.latest_time()
+    }
+
+    pub fn print(&self, prelude: &str) {
+        println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
+    }
+}
+
+impl<T: InternalHistoryOps + Clone, L, I: Copy> PartialEq<L> for History<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    TimeIndexEntry: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
+impl<T: InternalHistoryOps + Clone> PartialEq for History<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<T: InternalHistoryOps + Clone> Eq for History<T> {}
+
+impl<T: InternalHistoryOps + Clone> std::hash::Hash for History<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for item in self.iter() {
+            item.hash(state);
+        }
+    }
+}
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -87,107 +179,6 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         T::latest_time(self)
-    }
-}
-
-impl<T: InternalHistoryOps> History<T> {
-    pub fn new(item: T) -> Self {
-        Self(item)
-    }
-
-    pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.0.iter()
-    }
-
-    pub fn iter_t(&self) -> BoxedLIter<i64> {
-        self.0.iter().map(|t| t.t()).into_dyn_boxed()
-    }
-
-    pub fn iter_dt(&self) -> BoxedLIter<Result<DateTime<Utc>, GraphError>> {
-        self.0
-            .iter()
-            .map(|t| t.dt().map_err(GraphError::from))
-            .into_dyn_boxed()
-    }
-
-    pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.0.iter_rev()
-    }
-
-    pub fn iter_rev_t(&self) -> BoxedLIter<i64> {
-        self.0.iter_rev().map(|t| t.t()).into_dyn_boxed()
-    }
-
-    pub fn iter_rev_dt(&self) -> BoxedLIter<Result<DateTime<Utc>, GraphError>> {
-        self.0
-            .iter_rev()
-            .map(|t| t.dt().map_err(GraphError::from))
-            .into_dyn_boxed()
-    }
-
-    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
-        self.0.iter().collect_vec()
-    }
-
-    pub fn collect_timestamps(&self) -> Vec<i64> {
-        self.0.iter().map(|x| x.t()).collect_vec()
-    }
-
-    pub fn collect_date_times(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.0
-            .iter()
-            .map(|x| x.dt())
-            .collect::<Result<Vec<_>, TimeError>>()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.iter().next().is_none()
-    }
-
-    pub fn intervals(&self) -> Intervals<T> {
-        Intervals::new(&self.0)
-    }
-
-    pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
-        History::new(MergedHistory::new(self.0, right.0))
-    }
-
-    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.0.earliest_time()
-    }
-
-    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.0.latest_time()
-    }
-
-    pub fn print(&self, prelude: &str) {
-        println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
-    }
-}
-
-impl<T: InternalHistoryOps, L, I: Copy> PartialEq<L> for History<T>
-where
-    for<'a> &'a L: IntoIterator<Item = &'a I>,
-    TimeIndexEntry: PartialEq<I>,
-{
-    fn eq(&self, other: &L) -> bool {
-        self.iter().eq(other.into_iter().copied())
-    }
-}
-
-impl<T: InternalHistoryOps> PartialEq for History<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.iter().eq(other.iter())
-    }
-}
-
-impl<T: InternalHistoryOps> Eq for History<T> {}
-
-impl<T: InternalHistoryOps> std::hash::Hash for History<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for item in self.iter() {
-            item.hash(state);
-        }
     }
 }
 
@@ -228,7 +219,8 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
 }
 
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
-/// TODO: Write benchmark to see performance hit of Boxes
+/// TODO: Write benchmark to see performance hit of Arcs
+#[derive(Clone)]
 pub struct CompositeHistory {
     history_objects: Vec<Arc<dyn InternalHistoryOps>>,
 }
@@ -423,12 +415,96 @@ impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
     }
 }
 
+// converts operations to return timestamps instead of TimeIndexEntry
+#[derive(Debug, Clone, Copy)]
+pub struct HistoryTimestamp<T>(T);
+
+impl<T: InternalHistoryOps> HistoryTimestamp<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+
+    pub fn iter(&self) -> BoxedLIter<i64> {
+        self.0.iter().map(|t| t.0).into_dyn_boxed()
+    }
+
+    pub fn iter_rev(&self) -> BoxedLIter<i64> {
+        self.0.iter_rev().map(|t| t.0).into_dyn_boxed()
+    }
+
+    pub fn collect(&self) -> Vec<i64> {
+        self.0.iter().map(|t| t.0).collect()
+    }
+
+    pub fn collect_rev(&self) -> Vec<i64> {
+        self.0.iter_rev().map(|t| t.0).collect()
+    }
+}
+
+// converts operations to return date times instead of TimeIndexEntry
+#[derive(Debug, Clone, Copy)]
+pub struct HistoryDateTime<T>(T);
+
+impl<T: InternalHistoryOps> HistoryDateTime<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+
+    pub fn iter(&self) -> BoxedLIter<Result<DateTime<Utc>, TimeError>> {
+        self.0.iter().map(|t| t.dt()).into_dyn_boxed()
+    }
+
+    pub fn iter_rev(&self) -> BoxedLIter<Result<DateTime<Utc>, TimeError>> {
+        self.0.iter_rev().map(|t| t.dt()).into_dyn_boxed()
+    }
+
+    pub fn collect(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
+        self.0
+            .iter()
+            .map(|x| x.dt())
+            .collect::<Result<Vec<_>, TimeError>>()
+    }
+
+    pub fn collect_rev(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
+        self.0
+            .iter_rev()
+            .map(|x| x.dt())
+            .collect::<Result<Vec<_>, TimeError>>()
+    }
+}
+
+// converts operations to return secondary time information inside TimeIndexEntry
+#[derive(Debug, Clone, Copy)]
+pub struct HistorySecondary<T>(T);
+
+impl<T: InternalHistoryOps> HistorySecondary<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+
+    pub fn iter(&self) -> BoxedLIter<usize> {
+        self.0.iter().map(|t| t.1).into_dyn_boxed()
+    }
+
+    pub fn iter_rev(&self) -> BoxedLIter<usize> {
+        self.0.iter_rev().map(|t| t.1).into_dyn_boxed()
+    }
+
+    pub fn collect(&self) -> Vec<usize> {
+        self.0.iter().map(|x| x.1).collect()
+    }
+
+    pub fn collect_rev(&self) -> Vec<usize> {
+        self.0.iter_rev().map(|x| x.1).collect()
+    }
+}
+
 // Holds a reference to the inner item in history object
 #[derive(Debug, Clone, Copy)]
-pub struct Intervals<'item, T>(&'item T);
+pub struct Intervals<T>(T);
 
-impl<'item, T: InternalHistoryOps> Intervals<'item, T> {
-    pub fn new(item: &'item T) -> Self {
+impl<T: InternalHistoryOps> Intervals<T> {
+    pub fn new(item: T) -> Self {
         Intervals(item)
     }
 
@@ -501,12 +577,12 @@ mod tests {
         graph.add_node(4, "node", NO_PROPS, None).unwrap();
         graph.add_node(10, "node", NO_PROPS, None).unwrap();
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
-        let interval = Intervals::new(&node);
+        let interval = Intervals(&node);
         assert_eq!(interval.items(), &[3, 6, 20]);
 
         // make sure there are no intervals (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
-        let interval2 = Intervals::new(&node2);
+        let interval2 = Intervals(&node2);
         assert_eq!(interval2.items(), Vec::<i64>::new());
         Ok(())
     }
@@ -516,7 +592,7 @@ mod tests {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(1, "node", NO_PROPS, None).unwrap();
-        let interval = Intervals::new(&node);
+        let interval = Intervals(&node);
         assert_eq!(interval.items(), &[0]);
 
         graph.add_node(2, "node", NO_PROPS, None).unwrap();
@@ -531,12 +607,12 @@ mod tests {
         graph.add_node(4, "node", NO_PROPS, None).unwrap();
         graph.add_node(10, "node", NO_PROPS, None).unwrap();
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
-        let interval = Intervals::new(&node);
+        let interval = Intervals(&node);
         assert_eq!(interval.mean(), Some(29f64 / 3f64));
 
         // make sure mean is None if there is no interval to be calculated (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
-        let interval2 = Intervals::new(&node2);
+        let interval2 = Intervals(&node2);
         assert_eq!(interval2.mean(), None);
         Ok(())
     }
@@ -548,12 +624,12 @@ mod tests {
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
         graph.add_node(31, "node", NO_PROPS, None).unwrap();
         graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
-        let interval = Intervals::new(&node);
+        let interval = Intervals(&node);
         assert_eq!(interval.median(), Some(9.0));
 
         // make sure median is None if there is no interval to be calculated (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
-        let interval2 = Intervals::new(&node2);
+        let interval2 = Intervals(&node2);
         assert_eq!(interval2.median(), None);
         Ok(())
     }
@@ -565,12 +641,12 @@ mod tests {
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
         graph.add_node(31, "node", NO_PROPS, None).unwrap();
         graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
-        let interval = Intervals::new(&node);
+        let interval = Intervals(&node);
         assert_eq!(interval.max(), Some(29));
 
         // make sure max is None if there is no interval to be calculated (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
-        let interval2 = Intervals::new(&node2);
+        let interval2 = Intervals(&node2);
         assert_eq!(interval2.max(), None);
         Ok(())
     }
@@ -754,20 +830,20 @@ mod tests {
         // edge history objects
         let character_edge_history = History::new(character_edge);
         assert_eq!(
-            character_edge_history.collect_items(),
+            character_edge_history.collect(),
             [TimeIndexEntry::new(3, 2)]
         );
 
         //normal history differs from "Magical Object Uses" history
         let broom_harry_normal_history = History::new(broom_harry_normal_edge);
         assert_eq!(
-            broom_harry_normal_history.collect_items(),
+            broom_harry_normal_history.collect(),
             [TimeIndexEntry::new(5, 6)]
         );
 
         let broom_harry_magical_history = History::new(broom_harry_magical_edge);
         assert_eq!(
-            broom_harry_magical_history.collect_items(),
+            broom_harry_magical_history.collect(),
             [TimeIndexEntry::new(4, 4)]
         );
 
@@ -781,19 +857,19 @@ mod tests {
         // history of nodes are different when only applied to the "Magical Object Uses" layer
         let dumbledore_magical_history = History::new(dumbledore_node_magical_view);
         assert_eq!(
-            dumbledore_magical_history.collect_items(),
+            dumbledore_magical_history.collect(),
             [TimeIndexEntry::new(1, 0), TimeIndexEntry::new(4, 5)]
         );
 
         let harry_magical_history = History::new(harry_node_magical_view);
         assert_eq!(
-            harry_magical_history.collect_items(),
+            harry_magical_history.collect(),
             [TimeIndexEntry::new(2, 1), TimeIndexEntry::new(4, 4)]
         );
 
         let broom_magical_history = History::new(broom_node_magical_view);
         assert_eq!(
-            broom_magical_history.collect_items(),
+            broom_magical_history.collect(),
             [
                 TimeIndexEntry::new(4, 3),
                 TimeIndexEntry::new(4, 4),
@@ -809,7 +885,7 @@ mod tests {
         let broom_dumbledore_magical_history =
             History::new(broom_dumbledore_magical_edge_retrieved.clone());
         assert_eq!(
-            broom_dumbledore_magical_history.collect_items(),
+            broom_dumbledore_magical_history.collect(),
             [TimeIndexEntry::new(4, 5)]
         );
 

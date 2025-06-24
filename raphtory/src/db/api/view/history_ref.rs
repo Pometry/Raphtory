@@ -17,7 +17,10 @@ use crate::{
                 ops::{node::NodeOp, EarliestTime},
             },
             view::{
-                history::{History, InternalHistoryOps, Intervals, MergedHistory},
+                history::{
+                    History, HistoryDateTime, HistorySecondary, HistoryTimestamp,
+                    InternalHistoryOps, Intervals, MergedHistory,
+                },
                 internal::{
                     filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
                     GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
@@ -67,45 +70,40 @@ impl<'item, T: InternalHistoryOps> HistoryRef<'item, T> {
     pub fn new(item: &'item T) -> Self {
         Self(item)
     }
-}
 
-impl<'item, T: InternalHistoryOps> HistoryRef<'item, T> {
-    pub fn iter(&self) -> BoxedLIter<'item, TimeIndexEntry> {
-        self.0.iter()
+    pub fn t(&self) -> HistoryTimestamp<&T> {
+        HistoryTimestamp::new(self.0)
     }
 
-    pub fn iter_t(&self) -> BoxedLIter<'item, i64> {
-        self.0.iter().map(|t| t.t()).into_dyn_boxed()
+    pub fn dt(&self) -> HistoryDateTime<&T> {
+        HistoryDateTime::new(self.0)
+    }
+
+    pub fn s(&self) -> HistorySecondary<&T> {
+        HistorySecondary::new(self.0)
+    }
+
+    pub fn iter(&self) -> BoxedLIter<'item, TimeIndexEntry> {
+        self.0.iter()
     }
 
     pub fn iter_rev(&self) -> BoxedLIter<'item, TimeIndexEntry> {
         self.0.iter_rev()
     }
 
-    pub fn iter_rev_t(&self) -> BoxedLIter<'item, i64> {
-        self.0.iter_rev().map(|t| t.t()).into_dyn_boxed()
-    }
-
-    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
+    pub fn collect(&self) -> Vec<TimeIndexEntry> {
         self.0.iter().collect_vec()
     }
 
-    pub fn collect_timestamps(&self) -> Vec<i64> {
-        self.0.iter().map(|x| x.t()).collect_vec()
-    }
-
-    pub fn collect_date_times(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.0
-            .iter()
-            .map(|x| x.dt())
-            .collect::<Result<Vec<_>, TimeError>>()
+    pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
+        self.0.iter_rev().collect_vec()
     }
 
     pub fn is_empty(&self) -> bool {
         self.iter().next().is_none()
     }
 
-    pub fn intervals(&self) -> Intervals<T> {
+    pub fn intervals(&self) -> Intervals<&T> {
         Intervals::new(self.0)
     }
 
