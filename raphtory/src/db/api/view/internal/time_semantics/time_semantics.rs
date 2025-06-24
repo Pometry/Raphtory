@@ -8,7 +8,7 @@ use crate::db::api::view::internal::{
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -189,6 +189,15 @@ impl NodeTimeSemanticsOps for TimeSemantics {
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {
+    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        for_all!(self, semantics => semantics.handle_edge_update_filter(t, eid, view))
+    }
+
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeStorageRef,

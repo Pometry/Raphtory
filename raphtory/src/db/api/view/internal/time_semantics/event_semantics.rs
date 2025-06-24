@@ -10,7 +10,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds,
+        LayerIds, ELID,
     },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
@@ -190,6 +190,16 @@ impl NodeTimeSemanticsOps for EventSemantics {
 }
 
 impl EdgeTimeSemanticsOps for EventSemantics {
+    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        view.filter_edge_history(eid, t, view.layer_ids())
+            .then_some((t, eid))
+    }
+
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeStorageRef,

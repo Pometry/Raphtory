@@ -132,7 +132,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
     fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
         self.graph.filter_edge_history(eid, t, layer_ids) && {
             if eid.is_deletion() {
-                self.filter(eid.edge, t.previous(), eid.layer())
+                true
             } else {
                 self.filter(eid.edge, t, eid.layer())
             }

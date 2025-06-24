@@ -1,5 +1,7 @@
 use crate::{
-    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    db::api::view::internal::{
+        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
+    },
     prelude::GraphViewOps,
 };
 use itertools::Itertools;
@@ -58,15 +60,20 @@ impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
             FilterState::Both => {
                 let nodes = view.core_nodes();
                 let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |(t, e)| {
-                    view.filter_edge_history(*e, *t, view.layer_ids()) && {
-                        let edge = edges.edge(e.edge);
-                        view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                            && view.internal_filter_node(
+                FilterVariants::Both(iter.filter_map(move |(t, e)| {
+                    let edge_time_semantics = view.edge_time_semantics();
+                    edge_time_semantics
+                        .handle_edge_update_filter(t, e, &view)
+                        .filter(|(_, e)| {
+                            let edge = edges.edge(e.edge);
+                            view.internal_filter_node(
+                                nodes.node_entry(edge.src()),
+                                view.layer_ids(),
+                            ) && view.internal_filter_node(
                                 nodes.node_entry(edge.dst()),
                                 view.layer_ids(),
                             )
-                    }
+                        })
                 }))
             }
             FilterState::Nodes => {
@@ -78,9 +85,12 @@ impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
                         && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
                 }))
             }
-            FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids())),
-            ),
+            FilterState::Edges | FilterState::BothIndependent => {
+                FilterVariants::Edges(iter.filter_map(move |(t, e)| {
+                    let edge_time_semantics = view.edge_time_semantics();
+                    edge_time_semantics.handle_edge_update_filter(t, e, &view)
+                }))
+            }
         }
     }
 
@@ -92,15 +102,20 @@ impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
             FilterState::Both => {
                 let nodes = view.core_nodes();
                 let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |(t, e)| {
-                    view.filter_edge_history(*e, *t, view.layer_ids()) && {
-                        let edge = edges.edge(e.edge);
-                        view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                            && view.internal_filter_node(
+                FilterVariants::Both(iter.filter_map(move |(t, e)| {
+                    let edge_time_semantics = view.edge_time_semantics();
+                    edge_time_semantics
+                        .handle_edge_update_filter(t, e, &view)
+                        .filter(|(_, e)| {
+                            let edge = edges.edge(e.edge);
+                            view.internal_filter_node(
+                                nodes.node_entry(edge.src()),
+                                view.layer_ids(),
+                            ) && view.internal_filter_node(
                                 nodes.node_entry(edge.dst()),
                                 view.layer_ids(),
                             )
-                    }
+                        })
                 }))
             }
             FilterState::Nodes => {
@@ -112,9 +127,12 @@ impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
                         && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
                 }))
             }
-            FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids())),
-            ),
+            FilterState::Edges | FilterState::BothIndependent => {
+                FilterVariants::Edges(iter.filter_map(move |(t, e)| {
+                    let edge_time_semantics = view.edge_time_semantics();
+                    edge_time_semantics.handle_edge_update_filter(t, e, &view)
+                }))
+            }
         }
     }
 }

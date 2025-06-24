@@ -1,6 +1,6 @@
 use crate::db::api::view::internal::GraphView;
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -120,6 +120,13 @@ pub trait NodeTimeSemanticsOps {
 }
 
 pub trait EdgeTimeSemanticsOps {
+    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)>;
+
     /// check if edge `e` should be included in window `w`
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,

@@ -16,13 +16,27 @@ use raphtory_storage::graph::edges::{
     edges::EdgesStorage,
 };
 use rayon::iter::ParallelIterator;
-use std::ops::Range;
+use std::{iter, ops::Range};
 
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G> {
     eid: ELID,
     time_index: TimeIndexRef<'graph>,
     view: G,
+}
+
+impl<'graph, G> FilteredEdgeTimeIndex<'graph, G> {
+    pub fn invert(self) -> InvertedFilteredEdgeTimeIndex<'graph, G> {
+        InvertedFilteredEdgeTimeIndex {
+            eid: self.eid,
+            time_index: self.time_index,
+            view: self.view,
+        }
+    }
+
+    pub fn unfiltered(self) -> TimeIndexRef<'graph> {
+        self.time_index
+    }
 }
 
 impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
@@ -88,6 +102,81 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             self.iter().count()
         } else {
             self.time_index.len()
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct InvertedFilteredEdgeTimeIndex<'graph, G> {
+    eid: ELID,
+    time_index: TimeIndexRef<'graph>,
+    view: G,
+}
+
+impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
+    for InvertedFilteredEdgeTimeIndex<'graph, G>
+{
+    type IndexType = TimeIndexEntry;
+    type RangeType = Self;
+
+    #[inline]
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        if self.view.edge_history_filtered() {
+            self.time_index
+                .range(w)
+                .iter()
+                .find(|t| {
+                    !self
+                        .view
+                        .filter_edge_history(self.eid, *t, self.view.layer_ids())
+                })
+                .is_some()
+        } else {
+            false
+        }
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        Self {
+            eid: self.eid,
+            time_index: self.time_index.range(w),
+            view: self.view.clone(),
+        }
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        if self.view.edge_history_filtered() {
+            let view = self.view.clone();
+            let eid = self.eid;
+            Either::Left(
+                self.time_index
+                    .iter()
+                    .filter(move |t| !view.filter_edge_history(eid, *t, view.layer_ids())),
+            )
+        } else {
+            Either::Right(iter::empty())
+        }
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        if self.view.edge_history_filtered() {
+            let view = self.view.clone();
+            let eid = self.eid;
+            Either::Left(
+                self.time_index
+                    .iter_rev()
+                    .filter(move |t| !view.filter_edge_history(eid, *t, view.layer_ids())),
+            )
+        } else {
+            Either::Right(iter::empty())
+        }
+    }
+
+    fn len(&self) -> usize {
+        if self.view.edge_history_filtered() {
+            self.iter().count()
+        } else {
+            0
         }
     }
 }

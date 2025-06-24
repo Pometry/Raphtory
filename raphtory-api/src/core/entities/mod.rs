@@ -136,6 +136,11 @@ impl ELID {
     pub fn is_deletion(&self) -> bool {
         self.layer_and_deletion & LAYER_FLAG != 0
     }
+
+    pub fn into_deletion(mut self) -> Self {
+        self.layer_and_deletion = self.layer_and_deletion | LAYER_FLAG;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
@@ -521,6 +526,11 @@ mod tests {
             let elid = EID(eid).with_layer(layer);
             prop_assert_eq!(elid.layer(), layer);
             prop_assert!(!elid.is_deletion());
+
+            let elid_deleted = elid.into_deletion();
+            prop_assert_eq!(elid_deleted.layer(), layer);
+            prop_assert_eq!(elid_deleted.edge, EID(eid));
+            prop_assert!(elid_deleted.is_deletion())
         })
     }
 
@@ -530,6 +540,7 @@ mod tests {
             let elid = EID(eid).with_layer_deletion(layer);
             prop_assert_eq!(elid.layer(), layer);
             prop_assert!(elid.is_deletion());
+            prop_assert_eq!(elid, elid.into_deletion());
         })
     }
 }

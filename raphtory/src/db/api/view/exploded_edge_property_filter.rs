@@ -85,16 +85,11 @@ mod test {
             g_filtered.resolve_layer(None).unwrap();
         }
         for ((src, dst), mut updates) in edges {
-            let mut keep = false;
-            updates.sort();
             for (t, update) in updates {
                 match update {
                     Update::Deletion => {
                         g.delete_edge(t, src, dst, None).unwrap();
-                        if keep {
-                            g_filtered.delete_edge(t, src, dst, None).unwrap();
-                        }
-                        keep = false;
+                        g_filtered.delete_edge(t, src, dst, None).unwrap();
                     }
                     Update::Addition(str_prop, int_prop) => {
                         g.add_edge(
@@ -108,8 +103,7 @@ mod test {
                             None,
                         )
                         .unwrap();
-                        keep = filter(int_prop);
-                        if keep {
+                        if filter(int_prop) {
                             g_filtered
                                 .add_edge(
                                     t,
@@ -122,6 +116,8 @@ mod test {
                                     None,
                                 )
                                 .unwrap();
+                        } else {
+                            g_filtered.delete_edge(t, src, dst, None).unwrap();
                         }
                     }
                 }
