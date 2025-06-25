@@ -9,10 +9,12 @@ use std::{
 // use crate::entries::node::UnlockedNodeEntry;
 use raphtory_api::core::{entities::properties::meta::Meta, input::input_node::InputNode};
 use raphtory_core::entities::{
-    graph::logical_to_physical::Mapping, nodes::node_ref::NodeRef,
-    properties::graph_meta::GraphMeta, GidRef, VID,
+    nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta, GidRef, VID,
 };
-use storage::{persist::strategy::PersistentStrategy, Extension, Layer, ReadLockedLayer, ES, NS};
+use storage::{
+    persist::strategy::PersistentStrategy, Extension, GIDResolver,
+    Layer, ReadLockedLayer, ES, NS,
+};
 
 pub mod entries;
 pub mod mutation;
@@ -20,8 +22,9 @@ pub mod mutation;
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
     graph_dir: PathBuf,
+
     // mapping between logical and physical ids
-    pub logical_to_physical: Mapping,
+    pub logical_to_physical: GIDResolver,
     pub node_count: AtomicUsize,
 
     max_page_len_nodes: usize,

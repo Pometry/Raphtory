@@ -15,6 +15,7 @@ use crate::{
     },
 };
 use raphtory_api::core::entities::{EID, VID};
+use raphtory_core::entities::graph::logical_to_physical::Mapping;
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
 pub mod api;
@@ -23,7 +24,6 @@ pub mod gen_ts;
 pub mod pages;
 pub mod persist;
 pub mod properties;
-pub mod resolver;
 pub mod segments;
 pub mod utils;
 
@@ -31,8 +31,10 @@ pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
-pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 
+pub type GIDResolver = Mapping;
+
+pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NodeSegmentView, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<EdgeSegmentView, P>;
 
