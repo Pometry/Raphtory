@@ -119,6 +119,13 @@ mod test {
                                 .unwrap();
                         } else {
                             g_filtered.delete_edge(t, src, dst, None).unwrap();
+                            // properties still exist after filtering
+                            g_filtered
+                                .resolve_edge_property("str_prop", PropType::Str, false)
+                                .unwrap();
+                            g_filtered
+                                .resolve_edge_property("int_prop", PropType::I64, false)
+                                .unwrap();
                         }
                     }
                 }
@@ -462,6 +469,20 @@ mod test {
     }
 
     #[test]
+    fn test_single_filtered_edge_persistent() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, [("test", 0i64)], None).unwrap();
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0i64))
+            .unwrap();
+        let gfm = gf.materialize().unwrap();
+        dbg!(&gfm);
+        assert_eq!(gf.node(0).unwrap().out_degree(), 1);
+        assert_eq!(gfm.node(0).unwrap().out_degree(), 1);
+        assert_graph_equal(&gf, &gfm);
+    }
+
+    #[test]
     fn test_persistent_graph_materialise_window() {
         proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
             let g = build_graph_from_edge_list(&edges);
@@ -513,19 +534,10 @@ mod test {
             .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(1i64))
             .unwrap()
             .window(-1, 1);
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfw.earliest_time(),
-            gfw.latest_time()
-        );
         let gfwm = gfw.materialize().unwrap();
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfwm.earliest_time(),
-            gfwm.latest_time()
-        );
-        assert!(gfw.node(0).is_none());
-        assert!(gfwm.node(0).is_none());
-        assert_eq!(gfw.earliest_time(), None);
+
+        // deletions are not filtered
+        assert_graph_equal(&g, &gfw);
+        assert_graph_equal(&gfw, &gfwm);
     }
 }

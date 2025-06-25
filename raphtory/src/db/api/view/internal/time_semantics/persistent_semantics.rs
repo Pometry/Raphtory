@@ -57,10 +57,7 @@ fn persisted_event<'a, G: GraphViewOps<'a>>(
     t: i64,
 ) -> Option<TimeIndexEntry> {
     let active_at_start = deletions.active_t(t..t.saturating_add(1))
-        || additions
-            .clone()
-            .unfiltered()
-            .active_t(t..t.saturating_add(1));
+        || additions.unfiltered().active_t(t..t.saturating_add(1));
     if active_at_start {
         return None;
     }
@@ -503,10 +500,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
-        view: G,
+        _view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph {
-        EventSemantics.edge_layers(e, view, layer_ids)
+        e.layer_ids_iter(layer_ids)
     }
 
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(
@@ -544,7 +541,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         let exclusive_start = w.start.saturating_add(1);
         e.filtered_updates_iter(view, layer_ids)
             .filter_map(move |(layer, additions, deletions)| {
-                if additions.active_t(exclusive_start..w.end)
+                if additions.unfiltered().active_t(exclusive_start..w.end)
                     || deletions.active_t(exclusive_start..w.end)
                     || alive_before(additions, deletions, exclusive_start)
                 {

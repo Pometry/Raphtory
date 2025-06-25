@@ -34,8 +34,8 @@ impl<'graph, G> FilteredEdgeTimeIndex<'graph, G> {
         }
     }
 
-    pub fn unfiltered(self) -> TimeIndexRef<'graph> {
-        self.time_index
+    pub fn unfiltered(&self) -> TimeIndexRef<'graph> {
+        self.time_index.clone()
     }
 }
 
