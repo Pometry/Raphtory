@@ -127,6 +127,13 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)>;
 
+    fn include_edge<'graph, G: GraphView + 'graph>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        layer_ids: &LayerIds,
+    ) -> bool;
+
     /// check if edge `e` should be included in window `w`
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,

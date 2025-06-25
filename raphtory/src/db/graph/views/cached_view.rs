@@ -3,9 +3,9 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+            Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalLayerOps, InternalNodeFilterOps, Static,
+            InternalEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -94,7 +94,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 .as_ref()
                 .par_iter(&LayerIds::All)
                 .filter(|edge| {
-                    graph.filter_edge(edge.as_ref(), layer_g.layer_ids())
+                    graph.internal_filter_edge(edge.as_ref(), layer_g.layer_ids())
                         && nodes.contains(edge.src().as_u64())
                         && nodes.contains(edge.dst().as_u64())
                 })
@@ -119,10 +119,10 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
 
 // FIXME: this should use the list version ideally
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for CachedView<G> {}
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
     #[inline]
-    fn edges_filtered(&self) -> bool {
-        self.graph.edges_filtered()
+    fn internal_edges_filtered(&self) -> bool {
+        self.graph.internal_edges_filtered()
     }
 
     #[inline]
@@ -131,24 +131,29 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        self.graph.edge_list_trusted()
+    fn internal_edge_list_trusted(&self) -> bool {
+        self.graph.internal_edge_list_trusted()
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
         let layer = eid.layer();
         if layer_ids.contains(&layer) {
             self.layered_mask
                 .get(layer)
                 .is_some_and(|(_, edges)| edges.contains(eid.edge.as_u64()))
-                && self.graph.filter_edge_history(eid, t, layer_ids)
+                && self.graph.internal_filter_edge_history(eid, t, layer_ids)
         } else {
             false
         }
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         let filter_fn =
             |(_, edges): &(RoaringTreemap, RoaringTreemap)| edges.contains(edge.eid().as_u64());
         match layer_ids {

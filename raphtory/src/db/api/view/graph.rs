@@ -161,61 +161,58 @@ pub trait SearchableGraphOps: Sized {
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
-            match graph.node_list() {
-                NodeList::All { .. } => Arc::new(move || {
-                    let edges = graph.core_graph().owned_edges();
-                    let layer_ids = graph.layer_ids().clone();
-                    let graph = graph.clone();
-                    GenLockedIter::from(
-                        (edges, layer_ids, graph),
-                        move |(edges, layer_ids, graph)| {
-                            let iter = edges.iter(layer_ids);
-                            match graph.filter_state() {
-                                FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
-                                FilterState::Both => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_edge(e, graph.layer_ids())
-                                            && graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed()
-                                }
-                                FilterState::Nodes => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed()
-                                }
-                                FilterState::Edges | FilterState::BothIndependent => iter
-                                    .filter_map(move |e| {
-                                        graph
-                                            .filter_edge(e, graph.layer_ids())
-                                            .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed(),
+        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
+            .node_list()
+        {
+            NodeList::All { .. } => Arc::new(move || {
+                let edges = graph.core_graph().owned_edges();
+                let layer_ids = graph.layer_ids().clone();
+                let graph = graph.clone();
+                GenLockedIter::from(
+                    (edges, layer_ids, graph),
+                    move |(edges, layer_ids, graph)| {
+                        let iter = edges.iter(layer_ids);
+                        match graph.filter_state() {
+                            FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
+                            FilterState::Both => {
+                                let nodes = graph.core_graph().core_nodes();
+                                iter.filter_map(move |e| {
+                                    (graph.filter_edge(e)
+                                        && graph.filter_node(nodes.node_entry(e.src()))
+                                        && graph.filter_node(nodes.node_entry(e.dst())))
+                                    .then_some(e.out_ref())
+                                })
+                                .into_dyn_boxed()
                             }
-                        },
-                    )
+                            FilterState::Nodes => {
+                                let nodes = graph.core_graph().core_nodes();
+                                iter.filter_map(move |e| {
+                                    (graph.filter_node(nodes.node_entry(e.src()))
+                                        && graph.filter_node(nodes.node_entry(e.dst())))
+                                    .then_some(e.out_ref())
+                                })
+                                .into_dyn_boxed()
+                            }
+                            FilterState::Edges | FilterState::BothIndependent => iter
+                                .filter_map(move |e| graph.filter_edge(e).then_some(e.out_ref()))
+                                .into_dyn_boxed(),
+                        }
+                    },
+                )
+                .into_dyn_boxed()
+            }),
+            NodeList::List { elems } => Arc::new(move || {
+                let cg = graph.core_graph().lock();
+                let graph = graph.clone();
+                elems
+                    .clone()
+                    .into_iter()
+                    .flat_map(move |node| {
+                        node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
+                    })
                     .into_dyn_boxed()
-                }),
-                NodeList::List { elems } => Arc::new(move || {
-                    let cg = graph.core_graph().lock();
-                    let graph = graph.clone();
-                    elems
-                        .clone()
-                        .into_iter()
-                        .flat_map(move |node| {
-                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
-                        })
-                        .into_dyn_boxed()
-                }),
-            };
+            }),
+        };
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
@@ -552,7 +549,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     .as_ref()
                     .par_iter(self.layer_ids())
                     .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
+                        self.filter_edge(e.as_ref())
                             && self.filter_node(nodes.node_entry(e.src()))
                             && self.filter_node(nodes.node_entry(e.dst()))
                     })
@@ -575,7 +572,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 edges
                     .as_ref()
                     .par_iter(self.layer_ids())
-                    .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
+                    .filter(|e| self.filter_edge(e.as_ref()))
                     .count()
             }
         }
@@ -597,7 +594,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     .as_ref()
                     .par_iter(layer_ids)
                     .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
+                        self.filter_edge(e.as_ref())
                             && self.filter_node(nodes.node_entry(e.src()))
                             && self.filter_node(nodes.node_entry(e.dst()))
                     })
@@ -619,7 +616,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             FilterState::Edges | FilterState::BothIndependent => core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
+                .filter(|e| self.filter_edge(e.as_ref()))
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum(),
         }
@@ -671,7 +668,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     return None;
                 }
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref()) {
                     return None;
                 }
                 if !self.filter_node(self.core_node(dst).as_ref()) {
@@ -691,7 +688,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             }
             FilterState::Edges | FilterState::BothIndependent => {
                 let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
+                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref()) {
                     return None;
                 }
                 Some(EdgeView::new(self.clone(), edge_ref))

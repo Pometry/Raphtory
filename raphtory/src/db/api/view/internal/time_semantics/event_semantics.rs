@@ -196,8 +196,21 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
-        view.filter_edge_history(eid, t, view.layer_ids())
+        view.internal_filter_edge_history(eid, t, view.layer_ids())
             .then_some((t, eid))
+    }
+
+    fn include_edge<'graph, G: GraphView + 'graph>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        edge.filtered_additions_iter(&view, layer_ids)
+            .any(|(_, additions)| !additions.is_empty())
+            || edge
+                .filtered_deletions_iter(view, layer_ids)
+                .any(|(_, deletions)| !deletions.is_empty())
     }
 
     fn include_edge_window<'graph, G: GraphView + 'graph>(
@@ -353,7 +366,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
     ) -> Option<i64> {
-        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+        view.internal_filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
             .then_some(t.t())
     }
 
@@ -517,7 +530,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
     ) -> bool {
-        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+        view.internal_filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
     fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
@@ -529,7 +542,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> bool {
         w.contains(&t.t())
-            && view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+            && view.internal_filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
     /// An exploded edge is valid with event semantics if it is active
@@ -587,7 +600,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_id: usize,
     ) -> Option<Prop> {
         let eid = e.eid();
-        if view.filter_edge_history(eid.with_layer(layer_id), t, view.layer_ids()) {
+        if view.internal_filter_edge_history(eid.with_layer(layer_id), t, view.layer_ids()) {
             e.temporal_prop_layer(layer_id, prop_id).at(&t)
         } else {
             None

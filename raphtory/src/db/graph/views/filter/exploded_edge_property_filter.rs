@@ -4,9 +4,9 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
-                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
+                EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
         graph::views::filter::internal::InternalExplodedEdgeFilterOps,
@@ -21,10 +21,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef,
-    layer_ops::InternalLayerOps,
-};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct ExplodedEdgePropertyFilteredGraph<G> {
@@ -116,8 +113,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics
     for ExplodedEdgePropertyFilteredGraph<G>
 {
 }
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilteredGraph<G> {
-    fn edges_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+    fn internal_edges_filtered(&self) -> bool {
         true
     }
 
@@ -125,12 +124,17 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
         true
     }
 
-    fn edge_list_trusted(&self) -> bool {
+    fn internal_edge_list_trusted(&self) -> bool {
         false
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids) && {
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_edge_history(eid, t, layer_ids) && {
             if eid.is_deletion() {
                 true
             } else {
@@ -139,7 +143,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ExplodedEdgePropertyFilt
         }
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_edge(edge, layer_ids)
     }
 }

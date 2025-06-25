@@ -4,9 +4,9 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, Static,
+                Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
@@ -85,9 +85,9 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilteredGraph<G> {
     #[inline]
-    fn edges_filtered(&self) -> bool {
+    fn internal_edges_filtered(&self) -> bool {
         true
     }
 
@@ -96,12 +96,17 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
     }
 
     #[inline]
-    fn edge_list_trusted(&self) -> bool {
+    fn internal_edge_list_trusted(&self) -> bool {
         false
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids) && {
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_edge_history(eid, t, layer_ids) && {
             let edge = self.core_edge(eid.edge);
             self.filter
                 .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge.as_ref())
@@ -109,8 +114,8 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgePropertyFilteredGrap
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_edge(edge, layer_ids) {
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_edge(edge, layer_ids) {
             self.filter
                 .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge)
         } else {

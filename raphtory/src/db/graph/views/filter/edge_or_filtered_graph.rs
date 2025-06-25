@@ -3,9 +3,9 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeFilterOps, EdgeHistoryFilter, Immutable, InheritLayerOps, InheritListOps,
-                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, Static,
+                EdgeHistoryFilter, Immutable, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateEdgeFilter, model::OrFilter},
@@ -141,10 +141,12 @@ where
     }
 }
 
-impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeOrFilteredGraph<G, L, R> {
+impl<G, L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps
+    for EdgeOrFilteredGraph<G, L, R>
+{
     #[inline]
-    fn edges_filtered(&self) -> bool {
-        self.left.edges_filtered() && self.right.edges_filtered()
+    fn internal_edges_filtered(&self) -> bool {
+        self.left.internal_edges_filtered() && self.right.internal_edges_filtered()
     }
 
     fn edge_history_filtered(&self) -> bool {
@@ -152,17 +154,23 @@ impl<G, L: EdgeFilterOps, R: EdgeFilterOps> EdgeFilterOps for EdgeOrFilteredGrap
     }
 
     #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        self.left.edge_list_trusted() && self.right.edge_list_trusted()
+    fn internal_edge_list_trusted(&self) -> bool {
+        self.left.internal_edge_list_trusted() && self.right.internal_edge_list_trusted()
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.left.filter_edge_history(eid, t, layer_ids)
-            || self.right.filter_edge_history(eid, t, layer_ids)
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.left.internal_filter_edge_history(eid, t, layer_ids)
+            || self.right.internal_filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.left.filter_edge(edge, layer_ids) || self.right.filter_edge(edge, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.left.internal_filter_edge(edge, layer_ids)
+            || self.right.internal_filter_edge(edge, layer_ids)
     }
 }

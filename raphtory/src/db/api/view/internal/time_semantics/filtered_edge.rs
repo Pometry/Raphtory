@@ -53,7 +53,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
                 .iter()
                 .find(|t| {
                     self.view
-                        .filter_edge_history(self.eid, *t, self.view.layer_ids())
+                        .internal_filter_edge_history(self.eid, *t, self.view.layer_ids())
                 })
                 .is_some()
         } else {
@@ -76,7 +76,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             Either::Left(
                 self.time_index
                     .iter()
-                    .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids())),
+                    .filter(move |t| view.internal_filter_edge_history(eid, *t, view.layer_ids())),
             )
         } else {
             Either::Right(self.time_index.iter())
@@ -90,7 +90,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             Either::Left(
                 self.time_index
                     .iter_rev()
-                    .filter(move |t| view.filter_edge_history(eid, *t, view.layer_ids())),
+                    .filter(move |t| view.internal_filter_edge_history(eid, *t, view.layer_ids())),
             )
         } else {
             Either::Right(self.time_index.iter_rev())
@@ -128,7 +128,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
                 .find(|t| {
                     !self
                         .view
-                        .filter_edge_history(self.eid, *t, self.view.layer_ids())
+                        .internal_filter_edge_history(self.eid, *t, self.view.layer_ids())
                 })
                 .is_some()
         } else {
@@ -151,7 +151,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             Either::Left(
                 self.time_index
                     .iter()
-                    .filter(move |t| !view.filter_edge_history(eid, *t, view.layer_ids())),
+                    .filter(move |t| !view.internal_filter_edge_history(eid, *t, view.layer_ids())),
             )
         } else {
             Either::Right(iter::empty())
@@ -165,7 +165,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             Either::Left(
                 self.time_index
                     .iter_rev()
-                    .filter(move |t| !view.filter_edge_history(eid, *t, view.layer_ids())),
+                    .filter(move |t| !view.internal_filter_edge_history(eid, *t, view.layer_ids())),
             )
         } else {
             Either::Right(iter::empty())
@@ -198,7 +198,7 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
         let eid = self.eid;
         self.props
             .iter()
-            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+            .filter(move |(t, _)| view.internal_filter_edge_history(eid, *t, view.layer_ids()))
     }
 
     fn iter_window(
@@ -209,13 +209,13 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
         let eid = self.eid;
         self.props
             .iter_window(r)
-            .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
+            .filter(move |(t, _)| view.internal_filter_edge_history(eid, *t, view.layer_ids()))
     }
 
     fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
         if self
             .view
-            .filter_edge_history(self.eid, *ti, self.view.layer_ids())
+            .internal_filter_edge_history(self.eid, *ti, self.view.layer_ids())
         {
             self.props.at(ti)
         } else {
@@ -357,7 +357,7 @@ impl FilteredEdgesStorageOps for EdgesStorage {
             FilterState::Both => {
                 let nodes = view.core_nodes();
                 FilterVariants::Both(par_iter.filter(move |&e| {
-                    view.filter_edge(e, layer_ids)
+                    view.filter_edge(e)
                         && view.filter_node(nodes.node_entry(e.src()))
                         && view.filter_node(nodes.node_entry(e.dst()))
                 }))
@@ -370,7 +370,7 @@ impl FilteredEdgesStorageOps for EdgesStorage {
                 }))
             }
             FilterState::Edges | FilterState::BothIndependent => {
-                FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e, layer_ids)))
+                FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e)))
             }
         }
     }

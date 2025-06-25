@@ -326,7 +326,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
                 let nodes = view.core_nodes();
                 let edges = view.core_edges();
                 FilterVariants::Both(iter.filter(move |e| {
-                    view.filter_edge(edges.edge(e.pid()), view.layer_ids())
+                    view.filter_edge(edges.edge(e.pid()))
                         && view.filter_node(nodes.node_entry(e.remote()))
                 }))
             }
@@ -338,9 +338,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             }
             FilterState::Edges | FilterState::BothIndependent => {
                 let edges = view.core_edges();
-                FilterVariants::Edges(
-                    iter.filter(move |e| view.filter_edge(edges.edge(e.pid()), view.layer_ids())),
-                )
+                FilterVariants::Edges(iter.filter(move |e| view.filter_edge(edges.edge(e.pid()))))
             }
         }
     }

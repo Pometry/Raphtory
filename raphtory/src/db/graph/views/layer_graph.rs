@@ -3,9 +3,9 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            EdgeFilterOps, Immutable, InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize,
+            Immutable, InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize,
             InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalLayerOps, Static,
+            InheritTimeSemantics, InternalEdgeFilterOps, InternalLayerOps, Static,
         },
     },
     prelude::GraphViewOps,
@@ -78,25 +78,31 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for LayeredGraph<G> {
-    fn edges_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All) || self.graph.edges_filtered()
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for LayeredGraph<G> {
+    fn internal_edges_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All) || self.graph.internal_edges_filtered()
     }
 
     fn edge_history_filtered(&self) -> bool {
         !matches!(self.layers, LayerIds::All) || self.graph.edge_history_filtered()
     }
 
-    fn edge_list_trusted(&self) -> bool {
-        matches!(self.layers, LayerIds::All) && self.graph.edge_list_trusted()
+    fn internal_edge_list_trusted(&self) -> bool {
+        matches!(self.layers, LayerIds::All) && self.graph.internal_edge_list_trusted()
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        layer_ids.contains(&eid.layer()) && self.graph.filter_edge_history(eid, t, layer_ids)
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        layer_ids.contains(&eid.layer())
+            && self.graph.internal_filter_edge_history(eid, t, layer_ids)
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        edge.has_layer(layer_ids) && self.graph.filter_edge(edge, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        edge.has_layer(layer_ids) && self.graph.internal_filter_edge(edge, layer_ids)
     }
 }
 

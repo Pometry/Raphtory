@@ -85,7 +85,7 @@ mod test {
         if !edges.iter().all(|(_, v)| v.is_empty()) {
             g_filtered.resolve_layer(None).unwrap();
         }
-        for ((src, dst), mut updates) in edges {
+        for ((src, dst), updates) in edges {
             for (t, update) in updates {
                 match update {
                     Update::Deletion => {

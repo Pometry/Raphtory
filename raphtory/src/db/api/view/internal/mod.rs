@@ -45,7 +45,7 @@ pub trait InheritViewOps: Base + Send + Sync {}
 pub trait BoxableGraphView:
     CoreGraphOps
     + ListOps
-    + EdgeFilterOps
+    + InternalEdgeFilterOps
     + InternalNodeFilterOps
     + InternalLayerOps
     + GraphTimeSemanticsOps
@@ -63,7 +63,7 @@ pub trait BoxableGraphView:
 impl<
         G: CoreGraphOps
             + ListOps
-            + EdgeFilterOps
+            + InternalEdgeFilterOps
             + InternalNodeFilterOps
             + InternalLayerOps
             + GraphTimeSemanticsOps

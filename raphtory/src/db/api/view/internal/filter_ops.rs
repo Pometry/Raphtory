@@ -1,9 +1,12 @@
-use crate::db::api::view::{internal::NodeTimeSemanticsOps, BoxableGraphView};
+use crate::db::api::view::{
+    internal::{EdgeTimeSemanticsOps, NodeTimeSemanticsOps},
+    BoxableGraphView,
+};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelIterator,
 };
-use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
+use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
 
 pub enum FilterState {
     Neither,
@@ -35,6 +38,12 @@ pub trait FilterOps {
     fn nodes_filtered(&self) -> bool;
 
     fn node_list_trusted(&self) -> bool;
+
+    fn filter_edge(&self, edge: EdgeStorageRef) -> bool;
+
+    fn edges_filtered(&self) -> bool;
+
+    fn edge_list_trusted(&self) -> bool;
 }
 
 impl<G: BoxableGraphView + Clone> FilterOps for G {
@@ -51,7 +60,10 @@ impl<G: BoxableGraphView + Clone> FilterOps for G {
 
     #[inline]
     fn filter_state(&self) -> FilterState {
-        match (self.internal_nodes_filtered(), self.edges_filtered()) {
+        match (
+            self.internal_nodes_filtered(),
+            self.internal_edges_filtered(),
+        ) {
             (false, false) => FilterState::Neither,
             (true, false) => FilterState::Nodes,
             (false, true) => {
@@ -79,5 +91,21 @@ impl<G: BoxableGraphView + Clone> FilterOps for G {
     #[inline]
     fn node_list_trusted(&self) -> bool {
         self.internal_node_list_trusted() && !self.edge_history_filtered()
+    }
+
+    fn filter_edge(&self, edge: EdgeStorageRef) -> bool {
+        self.internal_filter_edge(edge, self.layer_ids())
+            && (!self.edge_history_filtered() || {
+                let edge_time_semantics = self.edge_time_semantics();
+                edge_time_semantics.include_edge(edge, self, self.layer_ids())
+            })
+    }
+
+    fn edges_filtered(&self) -> bool {
+        self.internal_edges_filtered() || self.edge_history_filtered()
+    }
+
+    fn edge_list_trusted(&self) -> bool {
+        self.internal_edge_list_trusted()
     }
 }

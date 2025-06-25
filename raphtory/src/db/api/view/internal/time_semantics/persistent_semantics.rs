@@ -1,14 +1,11 @@
 use crate::{
-    db::{
-        api::view::internal::{
-            filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
-            time_semantics::{
-                event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
-                filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
-            },
-            EdgeTimeSemanticsOps, GraphView,
+    db::api::view::internal::{
+        filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        time_semantics::{
+            event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
+            filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        graph::views::filter::model::Filter,
+        EdgeTimeSemanticsOps, GraphView,
     },
     prelude::GraphViewOps,
 };
@@ -400,11 +397,30 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
-        if view.filter_edge_history(eid, t, view.layer_ids()) {
+        let layer_ids = view.layer_ids();
+        if !layer_ids.contains(&eid.layer()) {
+            return None;
+        }
+        if view.internal_edges_filtered() {
+            let edge = view.core_edge(eid.edge);
+            if !view.internal_filter_edge(edge.as_ref(), layer_ids) {
+                return None;
+            }
+        }
+        if view.internal_filter_edge_history(eid, t, view.layer_ids()) {
             Some((t, eid))
         } else {
             Some((t, eid.into_deletion()))
         }
+    }
+
+    fn include_edge<'graph, G: GraphView + 'graph>(
+        &self,
+        _edge: EdgeStorageRef,
+        _view: G,
+        _layer_ids: &LayerIds,
+    ) -> bool {
+        true // history filtering only maps additions to deletions and thus doesn't filter edges
     }
 
     fn include_edge_window<'graph, G: GraphViewOps<'graph>>(

@@ -198,6 +198,15 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all!(self, semantics => semantics.handle_edge_update_filter(t, eid, view))
     }
 
+    fn include_edge<'graph, G: GraphView + 'graph>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        for_all!(self, semantics => semantics.include_edge(edge, view, layer_ids))
+    }
+
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeStorageRef,

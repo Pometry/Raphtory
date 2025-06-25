@@ -47,10 +47,10 @@ use crate::{
             state::Index,
             view::{
                 internal::{
-                    EdgeFilterOps, EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps,
-                    GraphTimeSemanticsOps, Immutable, InheritLayerOps, InheritMaterialize,
-                    InheritStorageOps, InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList,
-                    Static, TimeSemantics,
+                    EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps, GraphTimeSemanticsOps,
+                    Immutable, InheritLayerOps, InheritMaterialize, InheritStorageOps,
+                    InternalEdgeFilterOps, InternalNodeFilterOps, ListOps, NodeHistoryFilter,
+                    NodeList, Static, TimeSemantics,
                 },
                 BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
@@ -484,10 +484,10 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for WindowedGraph<G> {
     #[inline]
-    fn edges_filtered(&self) -> bool {
-        self.window_is_empty() || self.graph.edges_filtered() || self.window_is_bounding()
+    fn internal_edges_filtered(&self) -> bool {
+        self.window_is_empty() || self.graph.internal_edges_filtered() || self.window_is_bounding()
     }
 
     #[inline]
@@ -495,19 +495,25 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
         self.graph.edge_history_filtered()
     }
     #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        self.window_is_empty() || (!self.window_is_bounding() && self.graph.edge_list_trusted())
+    fn internal_edge_list_trusted(&self) -> bool {
+        self.window_is_empty()
+            || (!self.window_is_bounding() && self.graph.internal_edge_list_trusted())
     }
 
     #[inline]
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids)
+    fn internal_filter_edge_history(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty()
-            && self.graph.filter_edge(edge, layer_ids)
+            && self.graph.internal_filter_edge(edge, layer_ids)
             && (!self.window_is_bounding()
                 || self.graph.edge_time_semantics().include_edge_window(
                     edge,

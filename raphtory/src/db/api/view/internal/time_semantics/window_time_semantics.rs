@@ -208,6 +208,16 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         self.semantics.handle_edge_update_filter(t, eid, view)
     }
 
+    fn include_edge<'graph, G: GraphView + 'graph>(
+        &self,
+        edge: EdgeStorageRef,
+        view: G,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.semantics
+            .include_edge_window(edge, view, layer_ids, self.window.clone())
+    }
+
     #[inline]
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,
