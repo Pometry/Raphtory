@@ -6,19 +6,69 @@ This `Properties` class offers several functions to access values in different f
 
 You can fetch a nodes property object and call the following functions to access data:
 
-* `keys()`: Returns all of the property keys (names).
-* `values()`: Returns the latest value for each property.
-* `items()`: Combines the `keys()` and `values()` into a list of tuples.
-* `get()`: Returns the latest value for a given key if the property exists or `None` if it does not.
-* `as_dict()`: Converts the `Properties` object into a standard python dictionary.
+- `keys()`: Returns all of the property keys (names).
+- `values()`: Returns the latest value for each property.
+- `items()`: Combines the `keys()` and `values()` into a list of tuples.
+- `get()`: Returns the latest value for a given key if the property exists or `None` if it does not.
+- `as_dict()`: Converts the `Properties` object into a standard python dictionary.
 
 In addition, the `Properties` class also has two attributes `constant` and `temporal` which have all of the above functions, but are restricted to only the properties which fall within their respective categories. The semantics for `ConstantProperties` are exactly the same as described above. However, `TemporalProperties` allow you to do much more, as described in the next section.
 
-{{code_block('getting-started/querying','properties',['Node'])}}
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
+
+property_g = Graph()
+# Create the node and add a variety of temporal properties
+v = property_g.add_node(
+    timestamp=1,
+    id="User",
+    properties={"count": 1, "greeting": "hi", "encrypted": True},
+)
+property_g.add_node(
+    timestamp=2,
+    id="User",
+    properties={"count": 2, "balance": 0.6, "encrypted": False},
+)
+property_g.add_node(
+    timestamp=3,
+    id="User",
+    properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
+)
+# Add some constant properties
+v.add_constant_properties(
+    properties={
+        "inner data": {"name": "bob", "value list": [1, 2, 3]},
+        "favourite greetings": ["hi", "hello", "howdy"],
+    },
+)
+# Call all of the functions on the properties object
+properties = v.properties
+print("Property keys:", properties.keys())
+print("Property values:", properties.values())
+print("Property tuples:", properties.items())
+print("Latest value of balance:", properties.get("balance"))
+print("Property keys:", properties.as_dict(), "\n")
+
+# Access the keys of the constant and temporal properties individually
+constant_properties = properties.constant
+temporal_properties = properties.temporal
+print("Constant property keys:", constant_properties.keys())
+print("Constant property keys:", temporal_properties.keys())
+```
+///
+
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/querying"
-    --8<-- "python/getting-started/querying.py:properties"
+    ```output
+    Property keys: ['count', 'greeting', 'encrypted', 'balance', 'inner data', 'favourite greetings']
+    Property values: [2, 'hello', True, 0.9, {'value list': [1, 2, 3], 'name': 'bob'}, ['hi', 'hello', 'howdy']]
+    Property tuples: [('count', 2), ('greeting', 'hello'), ('encrypted', True), ('balance', 0.9), ('inner data', {'value list': [1, 2, 3], 'name': 'bob'}), ('favourite greetings', ['hi', 'hello', 'howdy'])]
+    Latest value of balance: 0.9
+    Property keys: {'inner data': {'value list': [1, 2, 3], 'name': 'bob'}, 'balance': 0.9, 'favourite greetings': ['hi', 'hello', 'howdy'], 'greeting': 'hello', 'count': 2, 'encrypted': True} 
+
+    Constant property keys: ['inner data', 'favourite greetings']
+    Constant property keys: ['count', 'greeting', 'encrypted', 'balance']
     ```
     
 
@@ -38,10 +88,54 @@ Temporal properties have a history, this means that you can do more than just lo
 
 In the code below, we call a subset of these functions on the `Weight` property of the edge between `FELIPE` and `MAKO` in our previous monkey graph example.
 
-{{code_block('getting-started/querying','temporal_properties',['Edge'])}}
+/// tab | :fontawesome-brands-python: Python
+```python
+import pandas as pd
+from raphtory import Graph
+from datetime import datetime
+
+edges_df = pd.read_csv(
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+)
+edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
+edges_df.dropna(axis=0, inplace=True)
+edges_df["Weight"] = edges_df["Category"].apply(
+    lambda c: 1 if (c == "Affiliative") else (-1 if (c == "Agonistic") else 0)
+)
+
+g = Graph()
+g.load_edges_from_pandas(
+    df=edges_df,
+    src="Actor",
+    dst="Recipient",
+    time="DateTime",
+    layer_col="Behavior",
+    properties=["Weight"],
+) 
+
+properties = g.edge("FELIPE", "MAKO").properties.temporal
+print("Property keys:", properties.keys())
+weight_prop = properties.get("Weight")
+print("Weight property history:", weight_prop.items())
+print("Average interaction weight:", weight_prop.mean())
+print("Total interactions:", weight_prop.count())
+print("Total interaction weight:", weight_prop.sum())
+```
+///
+
+```{.python continuation hide}
+assert weight_prop.mean() == 0.9285714285714286
+assert weight_prop.count() == 28
+assert weight_prop.sum() == 26
+```
+
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/querying"
-    --8<-- "python/getting-started/querying.py:temporal_properties"
+    ```output
+    Property keys: ['Weight']
+    Weight property history: [(1560437400000, 1), (1560437640000, 1), (1560935460000, 1), (1561043280000, 0), (1561043280000, 1), (1561043340000, 1), (1561117620000, 1), (1561373880000, 1), (1561373880000, 1), (1561373940000, 1), (1561373940000, 0), (1561373940000, 1), (1561373940000, 1), (1561373940000, 1), (1561390860000, 1), (1561390860000, 1), (1561390860000, 1), (1561390920000, 1), (1561643580000, 1), (1561717080000, 1), (1561717140000, 1), (1561970760000, 1), (1562148960000, 1), (1562148960000, 1), (1562149020000, 1), (1562149020000, 1), (1562149080000, 1), (1562671020000, 1)]
+    Average interaction weight: 0.9285714285714286
+    Total interactions: 28
+    Total interaction weight: 26
     ```
 

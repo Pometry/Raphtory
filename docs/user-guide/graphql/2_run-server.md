@@ -12,24 +12,23 @@ You will need some test data to complete the following examples. This can be you
 
 Once your data is loaded into a Raphtory graph, the graph needs to be saved into your working directory. This can be done with the following code, where `g` is your graph:
 
-=== ":fontawesome-brands-python: Python"
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
+import os
+working_dir = "graphs/"
 
-    ```python
-    import os
-    working_dir = "graphs/"
-
-    if not os.path.exists(working_dir):
-        os.makedirs(working_dir)
-    g.save_to_file(working_dir + "your_graph")
-    ```
+if not os.path.exists(working_dir):
+    os.makedirs(working_dir)
+g.save_to_file(working_dir + "your_graph")
+```
+///
 
 ## Starting a server with .run()
 
 To run the GraphQL server with `.run()`, create a python file `run_server.py` with the following code:
 
-=== ":fontawesome-brands-python: Python"
-
-```python
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
 from raphtory import graphql
 
 import argparse
@@ -45,6 +44,7 @@ server = graphql.GraphServer(args.working_dir)
 
 server.run()
 ```
+///
 
 To run the server:
 
@@ -56,9 +56,8 @@ python run_server.py --working_dir ../your_working_dir
 
 It is also possible to start the server in Python with `.start()`. Below is an example of how to start the server and send a Raphtory graph to the server, where `new_graph` is your Raphtory graph object.
 
-=== ":fontawesome-brands-python: Python"
-
-```python
+/// tab | :fontawesome-brands-python: Python
+```{.python notest}
 tmp_work_dir = tempfile.mkdtemp()
 with GraphServer(tmp_work_dir, tracing=True).start():
     client = RaphtoryClient("http://localhost:1736")
@@ -67,6 +66,7 @@ with GraphServer(tmp_work_dir, tracing=True).start():
     query = """{graph(path: "g") {nodes {list {name}}}}"""
     client.query(query)
 ```
+///
 
 You can set the port in `RaphtoryClient()` to the port the GraphQL server should run on.
 

@@ -15,7 +15,7 @@ build:
   jobs:
     pre_install:
       - pip install mkdocs
-      - pip install $(mkdocs get-deps)
+      - pip install -r docs/requirements.txt
 
 mkdocs:
   configuration: mkdocs.yml

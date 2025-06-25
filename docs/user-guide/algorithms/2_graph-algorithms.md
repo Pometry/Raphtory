@@ -8,10 +8,39 @@ The following examples cover three `graphwide` algorithms:
 
 To run an algorithm you simply need to import the algorithm package, choose an algorithm to run, and give it your graph.
 
-{{code_block('getting-started/algorithms','global',['Graph'])}}
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import algorithms as rp
+from raphtory import Graph
+import pandas as pd
+
+df = pd.read_csv("../data/lotr.csv")
+
+lotr_graph = Graph()
+lotr_graph.load_edges_from_pandas(
+    df=df,time="time", src="src", dst="dst"
+)
+
+density = rp.directed_graph_density(lotr_graph)
+clustering_coefficient = rp.global_clustering_coefficient(lotr_graph)
+reciprocity = rp.global_reciprocity(lotr_graph)
+
+print(f"The graph's density is {density}")
+print(f"The graph's clustering coefficient is {clustering_coefficient}")
+print(f"The graph's reciprocity is {reciprocity}")
+```
+///
+
+```{.python continuation hide}
+assert str(f"The graph's density is {density}") == "The graph's density is 0.03654467730163695"
+assert str(f"The graph's clustering coefficient is {clustering_coefficient}") == "The graph's clustering coefficient is 0.4163023913602468"
+assert str(f"The graph's reciprocity is {reciprocity}") == "The graph's reciprocity is 0.19115549215406563"
+```
 
 !!! Output
 
-    ```python exec="on" result="text" session="algorithms"
-    --8<-- "python/getting-started/algorithms.py:global"
+    ```output
+    The graph's density is 0.03654467730163695
+    The graph's clustering coefficient is 0.4163023913602468
+    The graph's reciprocity is 0.19115549215406563
     ```

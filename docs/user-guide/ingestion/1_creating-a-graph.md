@@ -8,9 +8,21 @@ There are many ways to get data into Raphtory and start running analysis. In thi
 
 To get started we first need to create a graph to store our data. Printing this graph will show it as empty with no nodes, edges or update times.
 
-{{code_block('getting-started/ingestion','new_graph',['Graph'])}}
+/// tab | :fontawesome-brands-python: Python
+```python
+from raphtory import Graph
+
+g = Graph()
+print(g)
+```
+///
+
+```{.python continuation hide}
+assert str(g) == "Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None)"
+```
+
 !!! Output
 
-    ```python exec="on" result="text" session="getting-started/ingestion"
-    --8<-- "python/getting-started/ingestion.py:new_graph"
+    ```python
+    Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None)
     ```
