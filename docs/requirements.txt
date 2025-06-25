@@ -8,5 +8,6 @@ mkdocs-section-index
 mkdocstrings
 mkdocstrings-python
 pymdown-extensions
+markdown_hide_code
 pytest
 pytest-markdown-docs
