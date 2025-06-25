@@ -42,7 +42,6 @@ plugins:
         - docs/scripts/gen_docs_pages.py
   - literate-nav:
       nav_file: SUMMARY.md
-  - section-index
   - mkdocstrings:
       handlers:
         python:
