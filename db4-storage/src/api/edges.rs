@@ -27,6 +27,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
+    fn num_layers(&self) -> usize;
+    fn layer_count(&self, layer_id: usize) -> usize;
 
     fn load(
         page_id: usize,

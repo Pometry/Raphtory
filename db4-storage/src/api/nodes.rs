@@ -70,12 +70,12 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     fn head_mut(&self) -> RwLockWriteGuard<MemNodeSegment>;
 
     fn num_nodes(&self) -> usize {
-        self.layer_num_nodes(0)
+        self.layer_count(0)
     }
 
     fn num_layers(&self) -> usize;
 
-    fn layer_num_nodes(&self, layer_id: usize) -> usize;
+    fn layer_count(&self, layer_id: usize) -> usize;
 
     fn notify_write(
         &self,

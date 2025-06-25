@@ -96,6 +96,10 @@ impl MemEdgeSegment {
         &mut self.layers[layer_id]
     }
 
+    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<MemPageEntry>> {
+        self.layers.get(layer_id)
+    }
+
     pub fn est_size(&self) -> usize {
         self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
     }
@@ -464,5 +468,15 @@ impl EdgeSegmentOps for EdgeSegmentView {
         ArcLockedSegmentView {
             inner: self.head_arc(),
         }
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_count(&self, layer_id: usize) -> usize {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
     }
 }

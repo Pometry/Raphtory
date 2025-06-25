@@ -1,10 +1,7 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 use crate::{
-    LocalPOS,
-    api::edges::EdgeSegmentOps,
-    pages::{edge_page::writer::EdgeWriter, resolve_pos},
-    segments::edge::MemEdgeSegment,
+    api::edges::EdgeSegmentOps, pages::{edge_page::writer::EdgeWriter, layer_counter::LayerCounter, resolve_pos}, segments::edge::MemEdgeSegment, LocalPOS
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::EID;
@@ -14,7 +11,7 @@ pub struct LockedEdgePage<'a, ES> {
     page_id: usize,
     max_page_len: usize,
     page: &'a ES,
-    num_edges: &'a AtomicUsize,
+    num_edges: &'a LayerCounter,
     lock: RwLockWriteGuard<'a, MemEdgeSegment>,
 }
 
@@ -23,7 +20,7 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
         page_id: usize,
         max_page_len: usize,
         page: &'a ES,
-        num_edges: &'a AtomicUsize,
+        num_edges: &'a LayerCounter,
         lock: RwLockWriteGuard<'a, MemEdgeSegment>,
     ) -> Self {
         Self {
