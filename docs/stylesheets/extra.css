@@ -39,9 +39,15 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
         local("Geist")
 }
 
+@font-face {
+    font-family: 'Geist Mono';
+    src:
+        local("GeistMono")
+}
+
 
 :root {
-    --md-code-font: "Source Code Pro" !important;
+    --md-code-font: "GeistMono" !important;
 }
 
 .contributor_icon {
