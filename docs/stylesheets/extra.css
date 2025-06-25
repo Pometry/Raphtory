@@ -41,8 +41,7 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
 
 @font-face {
     font-family: 'Geist Mono';
-    src:
-        local("GeistMono")
+    src: local("GeistMono"), url('https://fonts.cdnfonts.com/css/geist-mono');
 }
 
 
