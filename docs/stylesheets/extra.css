@@ -1,8 +1,9 @@
 :root > * {
-    --md-primary-fg-color: #ff3663;
-    --md-primary-fg-color--light: #C2CCD6;
-    --md-primary-fg-color--dark: #103547;
-    --md-text-font: 'Proxima Nova', sans-serif;
+    /* For brand colours see https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=291-436&m=dev&vars=1 */
+    --md-primary-fg-color: #E3067A; /* brand-pink */
+    --md-primary-fg-color--light: #F7F7F7; /* grey-light*/
+    --md-primary-fg-color--dark: #17131b; /* dark 20%*/
+    --md-text-font: 'Geist';
 }
 
 
@@ -14,6 +15,13 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
     font-family: 'Proxima Nova', sans-serif;
     src: url('https://fonts.cdnfonts.com/css/proxima-nova-2')
 }
+
+@font-face {
+    font-family: 'Geist';
+    src:
+        local("Geist")
+}
+
 
 :root {
     --md-code-font: "Source Code Pro" !important;
