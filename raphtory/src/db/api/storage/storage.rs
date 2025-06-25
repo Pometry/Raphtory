@@ -394,7 +394,7 @@ impl InternalAdditionOps for Storage {
         match id {
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
             NodeRef::External(gid) => {
-                let id = self.resolve_node(id)?;
+                let id = self.graph.resolve_node(id)?;
 
                 #[cfg(feature = "proto")]
                 self.if_cache(|cache| cache.resolve_node(id, gid));
