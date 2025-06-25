@@ -65,8 +65,8 @@ pub struct WriteLockedGraph<'a> {
 
 impl<'a> WriteLockedGraph<'a> {
     pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
-        let nodes = graph.storage.nodes.write_lock();
-        let edges = graph.storage.edges.write_lock();
+        let nodes = graph.storage().nodes().write_lock();
+        let edges = graph.storage().edges().write_lock();
         Self {
             nodes,
             edges,
@@ -75,17 +75,17 @@ impl<'a> WriteLockedGraph<'a> {
     }
 
     pub fn num_nodes(&self) -> usize {
-        self.graph.storage.nodes.len()
+        self.graph.storage().nodes().len()
     }
     pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
         self.graph
             .logical_to_physical
-            .get_or_init(gid, || self.graph.storage.nodes.next_id())
+            .get_or_init(gid, || self.graph.storage().nodes().next_id())
     }
 
     pub fn resolve_node_type(&self, node_type: Option<&str>) -> MaybeNew<usize> {
         node_type
-            .map(|node_type| self.graph.node_meta.get_or_create_node_type_id(node_type))
+            .map(|node_type| self.graph.node_meta().get_or_create_node_type_id(node_type))
             .unwrap_or_else(|| MaybeNew::Existing(0))
     }
 
