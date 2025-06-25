@@ -8,7 +8,6 @@ use crate::{
         node_store::ReadLockedNodeStorage,
     },
     segments::{
-        additions::MemAdditions,
         edge::EdgeSegmentView,
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
@@ -16,7 +15,6 @@ use crate::{
     },
 };
 use raphtory_api::core::entities::{EID, VID};
-use raphtory_core::entities::properties::tprop::TPropCell;
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
 
 pub mod api;

@@ -216,7 +216,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
         for (_, page) in pages.iter() {
             for layer_id in 0..page.num_layers() {
-                let count = page.layer_num_nodes(layer_id);
+                let count = page.layer_count(layer_id);
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }

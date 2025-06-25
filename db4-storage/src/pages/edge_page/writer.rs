@@ -1,17 +1,17 @@
-use std::{ops::DerefMut, sync::atomic::AtomicUsize};
+use std::ops::DerefMut;
 
-use crate::{LocalPOS, api::edges::EdgeSegmentOps, segments::edge::MemEdgeSegment};
+use crate::{api::edges::EdgeSegmentOps, pages::layer_counter::LayerCounter, segments::edge::MemEdgeSegment, LocalPOS};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::storage::timeindex::AsTime;
 
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> {
     pub page: &'a ES,
     pub writer: MP,
-    pub global_num_edges: &'a AtomicUsize,
+    pub global_num_edges: &'a LayerCounter,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
-    pub fn new(global_num_edges: &'a AtomicUsize, page: &'a ES, writer: MP) -> Self {
+    pub fn new(global_num_edges: &'a LayerCounter, page: &'a ES, writer: MP) -> Self {
         Self {
             page,
             writer,
@@ -19,9 +19,9 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         }
     }
 
-    fn new_local_pos(&self) -> LocalPOS {
+    fn new_local_pos(&self, layer_id: usize) -> LocalPOS {
         let new_pos = LocalPOS(self.page.increment_num_edges());
-        self.increment_global_num_edges();
+        self.increment_layer_num_edges(layer_id);
         new_pos
     }
 
@@ -39,10 +39,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.writer.as_mut()[layer_id].set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
-            self.new_local_pos(); // increment the counts, this is triggered from the bulk loader
+            self.new_local_pos(layer_id); // increment the counts, this is triggered from the bulk loader
         }
 
-        let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
+        let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
         edge_pos
@@ -60,10 +60,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.writer.as_mut()[layer_id].set_lsn(lsn);
 
         if exists_hint == Some(false) && edge_pos.is_some() {
-            self.new_local_pos(); // increment the counts, this is triggered from the bulk loader
+            self.new_local_pos(layer_id); // increment the counts, this is triggered from the bulk loader
         }
 
-        let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos());
+        let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
             .insert_static_edge_internal(edge_pos, src, dst, layer_id);
         edge_pos
@@ -73,9 +73,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.page.segment_id()
     }
 
-    fn increment_global_num_edges(&self) {
-        self.global_num_edges
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    fn increment_layer_num_edges(&self, layer_id: usize) {
+        self.global_num_edges.increment(layer_id);
     }
 
     pub fn contains_edge(&self, pos: LocalPOS, layer_id: usize) -> bool {

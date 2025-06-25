@@ -27,6 +27,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
+    fn num_layers(&self) -> usize;
+    fn layer_count(&self, layer_id: usize) -> usize;
 
     fn load(
         page_id: usize,
@@ -81,6 +83,19 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
 
     fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a>;
 
+    fn layer_entry<'a, LP: Into<LocalPOS>>(
+        &'a self,
+        edge_pos: LP,
+        layer_id: usize,
+    ) -> Option<Self::Entry<'a>> {
+        let edge_pos = edge_pos.into();
+        if self.head().contains_edge(edge_pos, layer_id) {
+            Some(self.entry(edge_pos))
+        } else {
+            None
+        }
+    }
+
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 }
 
@@ -110,7 +125,7 @@ pub struct ReadLockedES<ES: EdgeSegmentOps> {
     head: ES::ArcLockedSegment,
 }
 
-pub trait EdgeEntryOps<'a> {
+pub trait EdgeEntryOps<'a>: Send + Sync {
     type Ref<'b>: EdgeRefOps<'b>
     where
         'a: 'b,

@@ -427,7 +427,7 @@ impl NodeSegmentOps for NodeSegmentView {
         self.head().layers.len()
     }
 
-    fn layer_num_nodes(&self, layer_id: usize) -> usize {
+    fn layer_count(&self, layer_id: usize) -> usize {
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())

@@ -30,7 +30,9 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> MemEdgeEntry<'a, MES> {
     }
 }
 
-impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> EdgeEntryOps<'a> for MemEdgeEntry<'a, MES> {
+impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryOps<'a>
+    for MemEdgeEntry<'a, MES>
+{
     type Ref<'b>
         = MemEdgeRef<'b>
     where

@@ -9,10 +9,7 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    LocalPOS,
-    api::edges::{EdgeSegmentOps, LockedESegment},
-    error::DBV4Error,
-    segments::edge::MemEdgeSegment,
+    api::edges::{EdgeSegmentOps, LockedESegment}, error::DBV4Error, pages::layer_counter::LayerCounter, segments::edge::MemEdgeSegment, LocalPOS
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -27,7 +24,7 @@ const N: usize = 32;
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
     pages: boxcar::Vec<Arc<ES>>,
-    num_edges: AtomicUsize,
+    layer_counter: LayerCounter,
     free_pages: Box<[RwLock<usize>; N]>,
     edges_path: PathBuf,
     max_page_len: usize,
@@ -41,7 +38,12 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEdgeStorage<ES, EXT> {
+
+    pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
+        &self.storage
+    }
+
     pub fn edge_ref(
         &self,
         e_id: impl Into<EID>,
@@ -74,7 +76,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> ReadLockedEdgeStorage<ES, 
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .pages
@@ -91,29 +93,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
         &self.prop_meta
     }
 
-    pub fn layer(
-        edges_path: impl AsRef<Path>,
-        max_page_len: usize,
-        meta: &Arc<Meta>,
-        ext: EXT,
-    ) -> Self {
-        let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
-        Self {
-            pages: boxcar::Vec::new(),
-            num_edges: AtomicUsize::new(0),
-            free_pages: free_pages.try_into().unwrap(),
-            edges_path: edges_path.as_ref().to_path_buf(),
-            max_page_len,
-            prop_meta: meta.clone(),
-            ext,
-        }
-    }
-
     pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         Self {
             pages: boxcar::Vec::new(),
-            num_edges: AtomicUsize::new(0),
+            layer_counter: LayerCounter::new(),
             free_pages: free_pages.try_into().unwrap(),
             edges_path: edges_path.as_ref().to_path_buf(),
             max_page_len,
@@ -230,13 +214,24 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
             lock
         });
 
-        let num_edges = pages.iter().map(|(_, page)| page.num_edges()).sum();
+
+        let mut layer_counts = vec![];
+
+        for (_, page) in pages.iter() {
+            for layer_id in 0..page.num_layers() {
+                let count = page.layer_count(layer_id);
+                if layer_counts.len() <= layer_id {
+                    layer_counts.resize(layer_id + 1, 0);
+                }
+                layer_counts[layer_id] += count;
+            }
+        }
 
         Ok(Self {
             pages,
             edges_path: edges_path.to_path_buf(),
             max_page_len,
-            num_edges: AtomicUsize::new(num_edges),
+            layer_counter: LayerCounter::from(layer_counts),
             free_pages: free_pages.try_into().unwrap(),
             prop_meta: meta,
             ext,
@@ -348,7 +343,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
     }
 
     pub fn num_edges(&self) -> usize {
-        self.num_edges.load(atomic::Ordering::Relaxed)
+        self.layer_counter.get(0)
+    }
+
+    pub fn num_edges_layer(&self, layer_id: usize) -> usize {
+        self.layer_counter.get(layer_id)
     }
 
     pub fn get_writer<'a>(
@@ -357,7 +356,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         let (chunk, _) = resolve_pos(e_id, self.max_page_len);
         let page = self.get_or_create_segment(chunk);
-        EdgeWriter::new(&self.num_edges, page, page.head_mut())
+        EdgeWriter::new(&self.layer_counter, page, page.head_mut())
     }
 
     pub fn try_get_writer<'a>(
@@ -367,7 +366,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
         let (segment_id, _) = resolve_pos(e_id, self.max_page_len);
         let page = self.get_or_create_segment(segment_id);
         let writer = page.head_mut();
-        Ok(EdgeWriter::new(&self.num_edges, page, writer))
+        Ok(EdgeWriter::new(&self.layer_counter, page, writer))
     }
 
     pub fn get_free_writer<'a>(
@@ -393,14 +392,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
             .next();
 
         if let Some((edge_page, writer)) = maybe_free_page {
-            EdgeWriter::new(&self.num_edges, edge_page, writer)
+            EdgeWriter::new(&self.layer_counter, edge_page, writer)
         } else {
             // not lucky, go wait on your slot
             loop {
                 let mut slot = self.free_pages[slot_idx].write();
                 match self.pages.get(*slot).map(|page| (page, page.head_mut())) {
                     Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len => {
-                        return EdgeWriter::new(&self.num_edges, edge_page, writer);
+                        return EdgeWriter::new(&self.layer_counter, edge_page, writer);
                     }
                     _ => {
                         *slot = self.push_new_page();
@@ -408,5 +407,25 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone> EdgeStorageInner<ES, EXT> 
                 }
             }
         }
+    }
+
+    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+        (0..self.pages.count())
+            .into_par_iter()
+            .filter_map(move |page_id| self.pages.get(page_id))
+            .flat_map(move |page| {
+                (0..page.num_edges())
+                    .into_par_iter()
+                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+            })
+    }
+
+    pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
+        (0..self.pages.count())
+            .filter_map(move |page_id| self.pages.get(page_id))
+            .flat_map(move |page| {
+                (0..page.num_edges())
+                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+            })
     }
 }

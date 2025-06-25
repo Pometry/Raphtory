@@ -14,6 +14,11 @@ pub struct NodesStorage {
 }
 
 impl NodesStorage {
+
+    pub fn new(storage: Arc<ReadLockedNodes<Extension>>) -> Self {
+        Self { storage }
+    }
+
     #[inline]
     pub fn as_ref(&self) -> NodesStorageEntry {
         NodesStorageEntry::Mem(self.storage.as_ref())

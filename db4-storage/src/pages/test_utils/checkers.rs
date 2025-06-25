@@ -106,7 +106,7 @@ pub fn check_edges_support<
     fn check<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
-        EXT: Clone + Default + std::fmt::Debug,
+        EXT: Clone + Send + Sync + Default + std::fmt::Debug,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
