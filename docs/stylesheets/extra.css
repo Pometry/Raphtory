@@ -1,9 +1,26 @@
 :root > * {
     /* For brand colours see https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=291-436&m=dev&vars=1 */
     --md-primary-fg-color: #E3067A; /* brand-pink */
-    --md-primary-fg-color--light: #F7F7F7; /* grey-light*/
-    --md-primary-fg-color--dark: #17131b; /* dark 20%*/
+    --md-primary-fg-color--light: #F7F7F7; /* grey-light */
+    --md-primary-fg-color--dark: #17131b; /* dark */
     --md-text-font: 'Geist';
+
+    --brand-color-grey: #E7E7E7;
+    --brand-color-white: #FFFFFF;
+    --brand-color-red: #F42848;
+    --brand-color-red-light: #FD768C;
+    --brand-red-lighter: #FFFEF2;
+    --brand-orange: #F97427;
+    --brand-orange-light: #FFBC96;
+    --brand-orange-lighter: #FFE9DC;
+    --brand-purple: #A403F4;
+    --brand-purple-light: #DCA8FF;
+    --brand-purple-lighter: #F2E6FA;
+    --brand-pink-light: #ED72B3;
+    --brand-pink-lighter: #FAD7EB;
+    --brand-mint: #3ED598;
+    --brand-mint-light: #96FAD1;
+    --brand-mint-lighter: #D1FAE3;
 }
 
 
