@@ -151,7 +151,7 @@ impl GqlEdges {
     }
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
-        let mut return_view: GqlEdges = GqlEdges::new(self.ee.clone());
+        let mut return_view: GqlEdges = self.update(self.ee.clone());
         for view in views {
             return_view = match view {
                 EdgesViewCollection::DefaultLayer(apply) => {

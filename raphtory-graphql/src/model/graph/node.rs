@@ -157,7 +157,7 @@ impl GqlNode {
     }
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
-        let mut return_view: GqlNode = GqlNode::new(self.vv.clone());
+        let mut return_view: GqlNode = self.vv.clone().into();
         for view in views {
             return_view = match view {
                 NodeViewCollection::DefaultLayer(apply) => {
