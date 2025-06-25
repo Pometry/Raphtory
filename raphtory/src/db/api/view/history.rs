@@ -40,6 +40,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{iter, ops::Deref, slice::Iter, sync::Arc};
+use crate::db::graph::nodes::Nodes;
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -210,44 +211,44 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter().next()
+        self.left.earliest_time().min(self.right.earliest_time())
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter_rev().next()
+        self.left.latest_time().max(self.right.latest_time())
     }
 }
 
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Arcs
 #[derive(Clone)]
-pub struct CompositeHistory {
-    history_objects: Vec<Arc<dyn InternalHistoryOps>>,
+pub struct CompositeHistory<'a> {
+    history_objects: Vec<Arc<dyn InternalHistoryOps + 'a>>,
 }
 
-impl CompositeHistory {
-    pub fn new(history_objects: Vec<Arc<dyn InternalHistoryOps>>) -> Self {
+impl<'a> CompositeHistory<'a> {
+    pub fn new(history_objects: Vec<Arc<dyn InternalHistoryOps + 'a>>) -> Self {
         Self { history_objects }
     }
 }
 
 // Note: All the items held by their respective History objects must already be of type Arc<T>
-pub fn compose_multiple_histories(
+pub fn compose_multiple_histories<'a>(
     objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>,
-) -> History<CompositeHistory> {
+) -> History<CompositeHistory<'a>> {
     History::new(CompositeHistory::new(
         objects.into_iter().map(|h| h.0).collect(),
     ))
 }
 
 // Note: Items supplied by the iterator must already be of type Arc<T>
-pub fn compose_history_from_items(
+pub fn compose_history_from_items<'a>(
     objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>,
-) -> History<CompositeHistory> {
+) -> History<CompositeHistory<'a>> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
-impl InternalHistoryOps for CompositeHistory {
+impl<'a> InternalHistoryOps for CompositeHistory<'a> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.history_objects
             .iter()
@@ -265,15 +266,19 @@ impl InternalHistoryOps for CompositeHistory {
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter().next()
+        self.history_objects.iter()
+            .filter_map(|history| history.earliest_time())
+            .min()
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter_rev().next()
+        self.history_objects.iter()
+            .filter_map(|history| history.latest_time())
+            .max()
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeView<'graph, G> {
+impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeView<'graph, G, GH> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
@@ -310,6 +315,25 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeV
         .apply(self.graph.core_graph(), self.node)
     }
 }
+
+// do we want this or a history function in Nodes
+// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps for Nodes<'graph, G, GH> {
+//     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+//         todo!()
+//     }
+//
+//     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+//         todo!()
+//     }
+//
+//     fn earliest_time(&self) -> Option<TimeIndexEntry> {
+//         todo!()
+//     }
+//
+//     fn latest_time(&self) -> Option<TimeIndexEntry> {
+//         todo!()
+//     }
+// }
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -571,7 +595,7 @@ mod tests {
     use crate::db::api::view::internal::CoreGraphOps;
 
     #[test]
-    fn intervals() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_intervals() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(4, "node", NO_PROPS, None).unwrap();
@@ -588,7 +612,7 @@ mod tests {
     }
 
     #[test]
-    fn intervals_same_timestamp() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_intervals_same_timestamp() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(1, "node", NO_PROPS, None).unwrap();
@@ -601,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_intervals_mean() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(4, "node", NO_PROPS, None).unwrap();
@@ -618,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn intervals_median() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_intervals_median() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
@@ -635,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn intervals_max() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_intervals_max() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
@@ -653,7 +677,7 @@ mod tests {
 
     // test nodes and edges
     #[test]
-    fn basic() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_basic() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
         let dumbledore_node = graph
             .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
