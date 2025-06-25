@@ -169,7 +169,7 @@ impl GqlEdges {
                     }
                 }
                 EdgesViewCollection::SnapshotLatest(apply) => {
-                    if snapshot_latest {
+                    if apply {
                         return_view.snapshot_latest().await
                     } else {
                         return_view
