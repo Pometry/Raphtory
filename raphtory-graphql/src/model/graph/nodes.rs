@@ -171,78 +171,50 @@ impl GqlNodes {
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
         let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
         for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
-            }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-            if let Some(types) = view.type_filter {
-                count += 1;
-                return_view = return_view.type_filter(types).await;
-            }
-            if let Some(node_filter) = view.node_filter {
-                count += 1;
-                return_view = return_view.node_filter(node_filter).await?;
-            }
-
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
+            return_view = match view {
+                NodesViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
+                    }
+                }
+                NodesViewCollection::Layer(layer) => return_view.layer(layer).await,
+                NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
+                NodesViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
+                }
+                NodesViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
+                }
+                NodesViewCollection::At(at) => return_view.at(at).await,
+                NodesViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                NodesViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                NodesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                NodesViewCollection::Before(time) => return_view.before(time).await,
+                NodesViewCollection::After(time) => return_view.after(time).await,
+                NodesViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
+                }
+                NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodesViewCollection::NodeFilter(node_filter) => {
+                    return_view.node_filter(node_filter).await?
+                }
+                NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
         }
 

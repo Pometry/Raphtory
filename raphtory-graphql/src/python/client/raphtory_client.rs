@@ -1,6 +1,8 @@
 use crate::{
     python::{
-        client::remote_graph::PyRemoteGraph, encode_graph, server::is_online,
+        client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
+        encode_graph,
+        server::is_online,
         translate_from_python, translate_map_to_python,
     },
     url_encode::url_decode_graph,
@@ -442,6 +444,48 @@ impl PyRaphtoryClient {
         PyRemoteGraph {
             path,
             client: self.clone(),
+        }
+    }
+
+    /// Create Index for graph on the server at 'path'
+    ///
+    /// Arguments:
+    ///   path (str): the path of the graph to be created
+    ///   index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+    ///   in_ram (bool): create index in ram
+    ///
+    /// Returns:
+    ///    None:
+    ///
+    #[pyo3(signature = (path, index_spec, in_ram = true))]
+    fn create_index(
+        &self,
+        path: String,
+        index_spec: PyRemoteIndexSpec,
+        in_ram: bool,
+    ) -> PyResult<()> {
+        let query = r#"
+            mutation CreateIndex($path: String!, $indexSpec: IndexSpecInput!, $inRam: Boolean!) {
+                createIndex(path: $path, indexSpec: $indexSpec, inRam: $inRam)
+            }
+        "#
+        .to_owned();
+
+        let variables = [
+            ("path".to_string(), json!(path)),
+            ("indexSpec".to_string(), json!(index_spec)),
+            ("inRam".to_string(), json!(in_ram)),
+        ]
+        .into_iter()
+        .collect();
+
+        let data = self.query_with_json_variables(query, variables)?;
+
+        match data.get("createIndex") {
+            Some(JsonValue::Bool(true)) => Ok(()),
+            _ => Err(PyException::new_err(format!(
+                "Failed to create index, server returned: {data:?}"
+            ))),
         }
     }
 }

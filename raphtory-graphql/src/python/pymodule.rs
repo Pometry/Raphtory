@@ -1,7 +1,8 @@
 use crate::python::{
     client::{
         raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge, remote_graph::PyRemoteGraph,
-        remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition, PyUpdate,
+        remote_node::PyRemoteNode, PyAllPropertySpec, PyEdgeAddition, PyNodeAddition, PyPropsInput,
+        PyRemoteIndexSpec, PySomePropertySpec, PyUpdate,
     },
     decode_graph, encode_graph,
     server::{running_server::PyRunningGraphServer, server::PyGraphServer},
@@ -19,6 +20,10 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     graphql_module.add_class::<PyNodeAddition>()?;
     graphql_module.add_class::<PyUpdate>()?;
     graphql_module.add_class::<PyEdgeAddition>()?;
+    graphql_module.add_class::<PyRemoteIndexSpec>()?;
+    graphql_module.add_class::<PyPropsInput>()?;
+    graphql_module.add_class::<PySomePropertySpec>()?;
+    graphql_module.add_class::<PyAllPropertySpec>()?;
 
     graphql_module.add_function(wrap_pyfunction!(encode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
