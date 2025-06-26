@@ -343,8 +343,8 @@ pub enum PyAllPropertySpec {
 /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 ///
 /// Arguments:
-///     constant (List[str]): Constant property names.
-///     temporal (List[str]): Temporal property names.
+///     constant (List[str]): Constant property names. Defaults to `[]`.
+///     temporal (List[str]): Temporal property names. Defaults to `[]`.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
@@ -366,8 +366,8 @@ impl PySomePropertySpec {
 /// Create a `PropsInput` by choosing to include all/some properties explicitly.
 ///
 /// Arguments:
-///     all (AllPropertySpec | None): Use a predefined spec to include all properties of a kind.
-///     some (SomePropertySpec | None): Explicitly list the properties to include.
+///     all (AllPropertySpec, Optional): Use a predefined spec to include all properties of a kind.
+///     some (SomePropertySpec, Optional): Explicitly list the properties to include.
 ///
 /// Raises:
 ///     ValueError: If neither `all` and `some` are specified.

@@ -164,7 +164,17 @@ class RaphtoryClient(object):
            None:
         """
 
-    def create_index(self, path, index_spec, in_ram=True): ...
+    def create_index(self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True):
+        """
+        Create Index for graph on the server at 'path'
+
+        Arguments:
+          path (str): the path of the graph to be created
+          index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+          in_ram (bool): create index in ram
+
+        """
+
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path `path` on the server
@@ -638,16 +648,14 @@ class PropsInput(object):
     Create a `PropsInput` by choosing to include all/some properties explicitly.
 
     Arguments:
-        all (AllPropertySpec | None): Use a predefined spec to include all properties of a kind.
-        some (SomePropertySpec | None): Explicitly list the properties to include.
+        all (AllPropertySpec, Optional): Use a predefined spec to include all properties of a kind.
+        some (SomePropertySpec, Optional): Explicitly list the properties to include.
 
     Raises:
         ValueError: If neither `all` and `some` are specified.
     """
 
-    def __new__(
-        cls, all: AllPropertySpec | None = None, some: SomePropertySpec | None = None
-    ) -> PropsInput:
+    def __new__(cls, all: Any = None, some: Any = None) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class SomePropertySpec(object):
@@ -655,8 +663,8 @@ class SomePropertySpec(object):
     Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 
     Arguments:
-        constant (List[str]): Constant property names.
-        temporal (List[str]): Temporal property names.
+        constant (List[str]): Constant property names. Defaults to `[]`.
+        temporal (List[str]): Temporal property names. Defaults to `[]`.
     """
 
     def __new__(
