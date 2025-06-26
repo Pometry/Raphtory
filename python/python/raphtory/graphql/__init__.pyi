@@ -164,7 +164,9 @@ class RaphtoryClient(object):
            None:
         """
 
-    def create_index(self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True):
+    def create_index(
+        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
+    ) -> None:
         """
         Create Index for graph on the server at 'path'
 
@@ -172,6 +174,9 @@ class RaphtoryClient(object):
           path (str): the path of the graph to be created
           index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
           in_ram (bool): create index in ram
+
+        Returns:
+           None:
 
         """
 

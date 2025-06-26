@@ -454,6 +454,9 @@ impl PyRaphtoryClient {
     ///   index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
     ///   in_ram (bool): create index in ram
     ///
+    /// Returns:
+    ///    None:
+    ///
     #[pyo3(signature = (path, index_spec, in_ram = true))]
     fn create_index(
         &self,
