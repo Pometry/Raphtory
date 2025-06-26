@@ -902,9 +902,10 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
-        let tmp_file = tempfile::NamedTempFile::new().unwrap();
-        g.encode(GraphFolder::new_as_zip(tmp_file.path())).unwrap();
-        let file = fs::File::open(&tmp_file).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let zip_path = tmp_dir.path().join("graph.zip");
+        g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
+        let file = fs::File::open(&zip_path).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
             content_type: Some("application/octet-stream".into()),
