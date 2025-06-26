@@ -200,4 +200,24 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         let src_id = self.ns.to_vid(self.pos);
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
+
+    fn layer_additions(self, layer_id: usize) -> Self::Additions {
+        NodeAdditions::new_with_layer(self, layer_id)
+    }
+
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps {
+        NodeTProps::new_with_layer(self, layer_id, prop_id)
+    }
+
+    fn internal_num_layers(&self) -> usize {
+        self.ns.as_ref().len()
+    }
+
+    fn has_layer_inner(self, layer_id: usize) -> bool {
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .and_then(|seg| seg.items().get(self.pos.0))
+            .map_or(false, |x| *x)
+    }
 }
