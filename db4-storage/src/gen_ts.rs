@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, ops::Range};
 
+use either::Either;
 use itertools::Itertools;
 use raphtory_core::{
     entities::LayerIds,
@@ -12,7 +13,7 @@ use crate::utils::Iter4;
 #[derive(Clone, Copy)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    layer_id: &'a LayerIds,
+    layer_id: Either<&'a LayerIds, usize>,
     node: Ref,
 }
 
@@ -20,7 +21,15 @@ impl<'a, Ref> GenericTimeOps<'a, Ref> {
     pub fn new(node: Ref, layer_id: &'a LayerIds) -> Self {
         Self {
             range: None,
-            layer_id,
+            layer_id: Either::Left(layer_id),
+            node,
+        }
+    }
+
+    pub fn new_with_layer(node: Ref, layer_id: usize) -> Self {
+        Self {
+            range: None,
+            layer_id: Either::Right(layer_id),
             node,
         }
     }
@@ -60,22 +69,33 @@ where
         }
     }
 
-    fn into_iter<'b>(
+    fn into_iter<B: Borrow<LayerIds>>(
         self,
-        layer_ids: &'b LayerIds,
+        layer_ids: B,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
         let iters = self.time_cells(layer_ids, range);
         iters.map(|cell| cell.iter()).kmerge()
     }
 
-    fn into_iter_rev<'b>(
+    fn into_iter_rev<B: Borrow<LayerIds>>(
         self,
-        layer_ids: &'b LayerIds,
+        layer_ids: B,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
         let iters = self.time_cells(layer_ids, range);
         iters.map(|cell| cell.iter_rev()).kmerge_by(|a, b| a > b)
+    }
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
+    pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + 'a {
+        match self.layer_id {
+            Either::Left(layer_ids) => Either::Left(self.node.time_cells(layer_ids, self.range)),
+            Either::Right(layer_id) => {
+                Either::Right(self.node.layer_time_cells(layer_id, self.range))
+            }
+        }
     }
 }
 
@@ -84,9 +104,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     type RangeType = Self;
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.node
-            .time_cells(self.layer_id, self.range)
-            .any(|t_cell| t_cell.active(w.clone()))
+        self.time_cells().any(|t_cell| t_cell.active(w.clone()))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -98,33 +116,32 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        Iterator::min(
-            self.node
-                .time_cells(self.layer_id, self.range)
-                .filter_map(|t_cell| t_cell.first()),
-        )
+        Iterator::min(self.time_cells().filter_map(|t_cell| t_cell.first()))
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        Iterator::max(
-            self.node
-                .time_cells(self.layer_id, self.range)
-                .filter_map(|t_cell| t_cell.last()),
-        )
+        Iterator::max(self.time_cells().filter_map(|t_cell| t_cell.last()))
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.node.into_iter(self.layer_id, self.range)
+        match self.layer_id {
+            Either::Left(layer_id) => Either::Left(self.node.into_iter(layer_id, self.range)),
+            Either::Right(layer_id) => {
+                Either::Right(self.node.into_iter(LayerIds::One(layer_id), self.range))
+            }
+        }
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.node.into_iter_rev(self.layer_id, self.range)
+        match self.layer_id {
+            Either::Left(layer_id) => Either::Left(self.node.into_iter_rev(layer_id, self.range)),
+            Either::Right(layer_id) => {
+                Either::Right(self.node.into_iter_rev(LayerIds::One(layer_id), self.range))
+            }
+        }
     }
 
     fn len(&self) -> usize {
-        self.node
-            .time_cells(self.layer_id, self.range)
-            .map(|t_cell| t_cell.len())
-            .sum()
+        self.time_cells().map(|t_cell| t_cell.len()).sum()
     }
 }
