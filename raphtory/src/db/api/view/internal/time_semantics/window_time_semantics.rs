@@ -324,7 +324,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_earliest_time_window(e, view, self.window.clone())
     }
@@ -335,7 +335,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics.edge_earliest_time_window(e, view, w)
     }
 
@@ -346,7 +346,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_exploded_earliest_time_window(e, view, t, layer, self.window.clone())
     }
@@ -359,7 +359,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
@@ -369,7 +369,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_latest_time_window(e, view, self.window.clone())
     }
@@ -380,7 +380,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics.edge_latest_time_window(e, view, w)
     }
 
@@ -391,7 +391,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_exploded_latest_time_window(e, view, t, layer, self.window.clone())
     }
@@ -404,7 +404,7 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.semantics
             .edge_exploded_latest_time_window(e, view, t, layer, w)
     }

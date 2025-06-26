@@ -339,12 +339,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.first_t())
+            .filter_map(|(_, additions)| additions.first())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.first_t()),
+                    .filter_map(|(_, deletions)| deletions.first()),
             )
             .min()
     }
@@ -354,12 +354,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range_t(w.clone()).first_t())
+            .filter_map(|(_, additions)| additions.range_t(w.clone()).first())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).first_t()),
+                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).first()),
             )
             .min()
     }
@@ -370,9 +370,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
-            .then_some(t.t())
+            .then_some(t)
     }
 
     fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
@@ -382,7 +382,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         if !w.contains(&t.t()) {
             return None;
         }
@@ -393,12 +393,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.last_t())
+            .filter_map(|(_, additions)| additions.last())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.last_t()),
+                    .filter_map(|(_, deletions)| deletions.last()),
             )
             .max()
     }
@@ -408,12 +408,12 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .filter_map(|(_, additions)| additions.range_t(w.clone()).last())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).last_t()),
+                    .filter_map(|(_, deletions)| deletions.range_t(w.clone()).last()),
             )
             .max()
     }
@@ -424,7 +424,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.edge_exploded_earliest_time(e, view, t, layer)
     }
 
@@ -435,7 +435,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         self.edge_exploded_earliest_time_window(e, view, t, layer, w)
     }
 

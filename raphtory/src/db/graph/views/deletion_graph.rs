@@ -528,13 +528,13 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         assert_eq!(e.earliest_time().unwrap(), 1); // time of first addition
-        assert_eq!(e.latest_time(), Some(1)); // not deleted so alive forever
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(1)); // not deleted so alive forever
         g.delete_edge(10, 1, 2, None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10); // deleted, so time of last deletion
 
         g.delete_edge(10, 3, 4, None).unwrap();
         let e = g.edge(3, 4).unwrap();
-        assert_eq!(e.earliest_time(), Some(10)); // only deleted, earliest and latest time are the same
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(10)); // only deleted, earliest and latest time are the same
         assert_eq!(e.latest_time().unwrap(), 10);
         g.add_edge(1, 3, 4, [("test", "test")], None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
@@ -768,8 +768,8 @@ mod test_deletions {
         let wg = g.window(3, 5);
 
         let e = wg.edge(1, 2).unwrap();
-        assert_eq!(e.earliest_time(), Some(3));
-        assert_eq!(e.latest_time(), Some(4));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(3));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(4));
         let n1 = wg.node(1).unwrap();
         assert_eq!(n1.earliest_time().unwrap().0, 3);
         assert_eq!(n1.latest_time().unwrap().0, 3);
@@ -813,8 +813,14 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        assert_eq!(e.latest_time(), Some(10));
-        assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(10));
+        assert_eq!(
+            e.explode()
+                .latest_time()
+                .map(|t| t.map(|t| t.t()))
+                .collect_vec(),
+            vec![Some(10)]
+        );
     }
 
     #[test]
@@ -932,6 +938,7 @@ mod test_deletions {
                 .unwrap()
                 .explode()
                 .latest_time()
+                .map(|t| t.map(|t| t.t()))
                 .collect_vec(),
             [Some(10)]
         );
@@ -949,7 +956,7 @@ mod test_deletions {
     ) {
         assert!(!e.is_valid());
         assert!(e.is_deleted());
-        let t = e.latest_time().unwrap_or(i64::MAX);
+        let t = e.latest_time().map(|t| t.t()).unwrap_or(i64::MAX);
         let g = e.graph.at(t); // latest view of the graph
         assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
@@ -1046,11 +1053,11 @@ mod test_deletions {
         assert_eq!(e.at(2).earliest_time(), None);
         assert_eq!(e.at(2).latest_time(), None);
         assert!(e.at(2).is_deleted());
-        assert_eq!(e.latest_time(), Some(2));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(2));
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(e.latest_time(), Some(4));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(4));
 
-        assert_eq!(e.window(0, 3).latest_time(), Some(2));
+        assert_eq!(e.window(0, 3).latest_time().map(|t| t.t()), Some(2));
     }
 
     #[test]
@@ -1156,7 +1163,12 @@ mod test_deletions {
         g.delete_edge(1, 1, 2, None).unwrap();
 
         assert_eq!(
-            g.edge(1, 2).unwrap().explode().latest_time().collect_vec(),
+            g.edge(1, 2)
+                .unwrap()
+                .explode()
+                .latest_time()
+                .map(|t| t.map(|t| t.t()))
+                .collect_vec(),
             [Some(1)]
         );
         assert_eq!(
@@ -1164,6 +1176,7 @@ mod test_deletions {
                 .unwrap()
                 .explode()
                 .earliest_time()
+                .map(|t| t.map(|t| t.t()))
                 .collect_vec(),
             [Some(1)]
         )
@@ -1279,8 +1292,11 @@ mod test_deletions {
     fn test_edge_earliest_latest_time_edge_deletion_only() {
         let g = PersistentGraph::new();
         g.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(g.edge(0, 1).unwrap().earliest_time(), Some(10));
-        assert_eq!(g.edge(0, 1).unwrap().latest_time(), Some(10));
+        assert_eq!(
+            g.edge(0, 1).unwrap().earliest_time().map(|t| t.t()),
+            Some(10)
+        );
+        assert_eq!(g.edge(0, 1).unwrap().latest_time().map(|t| t.t()), Some(10));
     }
 
     /// Repeated deletions are ignored, only the first one is relevant. Subsequent deletions do not
@@ -1293,7 +1309,11 @@ mod test_deletions {
         g.delete_edge(4, 0, 1, None).unwrap();
 
         let e = g.edge(0, 1).unwrap();
-        let ex_earliest_t = e.explode().earliest_time().collect_vec();
+        let ex_earliest_t = e
+            .explode()
+            .earliest_time()
+            .map(|t| t.map(|t| t.t()))
+            .collect_vec();
         assert_eq!(ex_earliest_t, [Some(0)]);
     }
 

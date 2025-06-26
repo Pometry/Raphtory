@@ -173,11 +173,11 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             if let Some(edge_earliest_time) =
                 edge_semantics.edge_earliest_time_window(edge.as_ref(), &view, w.clone())
             {
-                if edge_earliest_time <= w.start {
+                if edge_earliest_time.t() <= w.start {
                     return Some(TimeIndexEntry::start(w.start));
                 }
-                if edge_earliest_time < earliest.unwrap_or(w.end) {
-                    earliest = Some(edge_earliest_time);
+                if edge_earliest_time.t() < earliest.unwrap_or(w.end) {
+                    earliest = Some(edge_earliest_time.t());
                 }
             }
         }
@@ -548,12 +548,12 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         e.filtered_additions_iter(&view, view.layer_ids())
-            .filter_map(|(_, additions)| additions.first_t())
+            .filter_map(|(_, additions)| additions.first())
             .chain(
                 e.filtered_deletions_iter(&view, view.layer_ids())
-                    .filter_map(|(_, deletions)| deletions.first_t()),
+                    .filter_map(|(_, deletions)| deletions.first()),
             )
             .min()
     }
@@ -563,18 +563,18 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         if edge_alive_at_start(e, w.start, &view) {
-            Some(w.start)
+            Some(TimeIndexEntry::start(w.start))
         } else {
             e.filtered_updates_iter(&view, view.layer_ids())
                 .flat_map(|(_, additions, deletions)| {
                     let window = interior_window(w.clone(), &deletions);
                     additions
                         .range(window.clone())
-                        .first_t()
+                        .first()
                         .into_iter()
-                        .chain(deletions.range(window).first_t())
+                        .chain(deletions.range(window).first())
                 })
                 .min()
         }
@@ -586,7 +586,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         EventSemantics.edge_exploded_earliest_time(e, view, t, layer)
     }
 
@@ -597,7 +597,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         // past the end of the window
         if t.t() >= w.end {
             return None;
@@ -607,7 +607,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         let interior = interior_window(w.clone(), &deletions);
         // in the window
         if t >= interior.start {
-            return Some(t.t());
+            return Some(t);
         }
 
         let additions = e.filtered_additions(layer, &view);
@@ -617,7 +617,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         {
             None
         } else {
-            Some(w.start)
+            Some(TimeIndexEntry::start(w.start))
         }
     }
 
@@ -625,12 +625,12 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         if edge_alive_at_end(e, i64::MAX, &view) {
-            view.latest_time_global()
+            view.latest_time_global().map(TimeIndexEntry::end)
         } else {
             e.filtered_deletions_iter(&view, view.layer_ids())
-                .filter_map(|(_, d)| d.last_t())
+                .filter_map(|(_, d)| d.last())
                 .max()
         }
     }
@@ -640,13 +640,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         if edge_alive_at_end(e, w.end, &view) {
-            Some(w.end - 1)
+            Some(TimeIndexEntry::end(w.end - 1))
         } else {
             e.filtered_deletions_iter(&view, view.layer_ids())
                 .filter_map(|(_, deletions)| {
-                    deletions.range_t(w.start.saturating_add(1)..w.end).last_t()
+                    deletions.range_t(w.start.saturating_add(1)..w.end).last()
                 })
                 .max()
         }
@@ -658,16 +658,16 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         let deletions = e.filtered_deletions(layer, &view);
         let additions = e.filtered_additions(layer, &view);
         deletions
             .range(t.next()..TimeIndexEntry::MAX)
-            .first_t()
+            .first()
             .into_iter()
-            .chain(additions.range(t.next()..TimeIndexEntry::MAX).first_t())
+            .chain(additions.range(t.next()..TimeIndexEntry::MAX).first())
             .min()
-            .or_else(|| view.latest_time_global())
+            .or_else(|| view.latest_time_global().map(TimeIndexEntry::end))
     }
 
     fn edge_exploded_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -677,7 +677,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         // past the end of the window
         if t.t() >= w.end {
             return None;
@@ -696,7 +696,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .unwrap_or(w.end);
         // in the window
         if t >= w.start {
-            Some(end.t())
+            Some(end)
         } else {
             None
         }

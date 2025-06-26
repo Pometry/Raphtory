@@ -7,10 +7,9 @@ use crate::{
         internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
         time::internal::InternalTimeOps,
     },
-    errors::GraphError,
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::GraphType;
+use raphtory_api::{core::storage::timeindex::TimeError, GraphType};
 use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
 use std::{
     cmp::{max, min},
@@ -94,12 +93,12 @@ pub trait TimeOps<'graph>:
     /// Return the timestamp of the start of the view or None if the view start is unbounded.
     fn start(&self) -> Option<i64>;
 
-    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError>;
 
     /// Return the timestamp of the view or None if the view end is unbounded.
     fn end(&self) -> Option<i64>;
 
-    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError>;
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
@@ -174,18 +173,12 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         self.current_filter().view_end()
     }
 
-    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.start()
-            .map(|t| t.dt())
-            .transpose()
-            .map_err(GraphError::from)
+    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
+        self.start().map(|t| t.dt()).transpose()
     }
 
-    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.end()
-            .map(|t| t.dt())
-            .transpose()
-            .map_err(GraphError::from)
+    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
+        self.end().map(|t| t.dt()).transpose()
     }
 
     fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {

@@ -34,7 +34,10 @@ use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{properties::meta::PropMapper, EID},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{TimeError, TimeIndexEntry},
+        },
         Direction,
     },
     GraphType,
@@ -93,21 +96,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
 
     /// UTC DateTime of earliest activity in the graph
-    fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.earliest_time()
-            .map(|t| t.dt())
-            .transpose()
-            .map_err(GraphError::from)
+    fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
+        self.earliest_time().map(|t| t.dt()).transpose()
     }
     /// Timestamp of latest activity in the graph
     fn latest_time(&self) -> Option<TimeIndexEntry>;
 
     /// UTC DateTime of latest activity in the graph
-    fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
-        self.latest_time()
-            .map(|t| t.dt())
-            .transpose()
-            .map_err(GraphError::from)
+    fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
+        self.latest_time().map(|t| t.dt()).transpose()
     }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;

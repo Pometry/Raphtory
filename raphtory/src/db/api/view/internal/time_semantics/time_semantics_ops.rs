@@ -233,7 +233,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     /// Get the time of the earliest activity of an edge `e` in window `w`
     fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
@@ -241,7 +241,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     fn edge_exploded_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
@@ -249,7 +249,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
@@ -258,14 +258,14 @@ pub trait EdgeTimeSemanticsOps {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     /// Get the time of the latest activity of an edge
     fn edge_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     /// Get the time of the latest activity of an edge `e` in window `w`
     fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
@@ -273,7 +273,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     fn edge_exploded_latest_time<'graph, G: GraphView + 'graph>(
         &self,
@@ -281,7 +281,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
@@ -290,7 +290,7 @@ pub trait EdgeTimeSemanticsOps {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64>;
+    ) -> Option<TimeIndexEntry>;
 
     /// Get the edge deletions for use with materialize
     fn edge_deletion_history<'graph, G: GraphView + 'graph>(

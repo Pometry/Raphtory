@@ -1098,7 +1098,7 @@ mod views_test {
                 .edges()
                 .window(1, 9)
                 .earliest_time()
-                .map(|it| it.collect_vec())
+                .map(|it| it.map(|t| t.map(|t| t.t())).collect_vec())
                 .collect_vec();
             assert_eq!(
                 res,

@@ -2137,7 +2137,7 @@ mod db_tests {
             res = graph.after(1).edge(1, 2).unwrap().latest_time().unwrap();
             assert_eq!(res, 2);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .edges()
@@ -2146,7 +2146,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .edges()
@@ -2155,7 +2155,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .at(1)
@@ -2165,7 +2165,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![1, 1]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .before(1)
@@ -2175,7 +2175,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .after(1)
@@ -2185,7 +2185,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .at(1)
@@ -2195,7 +2195,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![1, 1]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .before(1)
@@ -2205,7 +2205,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .after(1)
@@ -2398,10 +2398,22 @@ mod db_tests {
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
-            let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-            let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+            let times_of_onetwo = graph.edge(1, 2).unwrap().history().t().collect();
+            let times_of_four = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 5)
+                .history()
+                .t()
+                .collect();
             let view = graph.window(2, 5);
-            let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
+            let windowed_times_of_four = view
+                .edge(1, 4)
+                .unwrap()
+                .window(2, 4)
+                .history()
+                .t()
+                .collect();
 
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
@@ -2425,14 +2437,44 @@ mod db_tests {
         graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-            let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-            let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
-            let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
+            let times_of_onetwo = graph.edge(1, 2).unwrap().history().t().collect();
+            let times_of_four = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 5)
+                .history()
+                .t()
+                .collect();
+            let times_of_outside_window = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 4)
+                .history()
+                .t()
+                .collect();
+            let times_of_four_higher = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(6, 11)
+                .history()
+                .t()
+                .collect();
 
             let view = graph.window(1, 11);
-            let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
-            let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
+            let windowed_times_of_four = view
+                .edge(1, 4)
+                .unwrap()
+                .window(2, 5)
+                .history()
+                .t()
+                .collect();
+            let windowed_times_of_four_higher = view
+                .edge(1, 4)
+                .unwrap()
+                .window(8, 11)
+                .history()
+                .t()
+                .collect();
 
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
@@ -3208,7 +3250,7 @@ mod db_tests {
                                 ee.earliest_time() == ee.latest_time(),
                                 format!("times mismatched for {:?}", ee),
                             ); // times are the same for exploded edge
-                            let t = ee.earliest_time().unwrap();
+                            let t = ee.earliest_time().unwrap().t();
                             check(
                                 ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
@@ -3323,7 +3365,7 @@ mod db_tests {
                 .earliest_time()
                 .flatten()
                 .min();
-            assert_eq!(earliest_time, Some(2));
+            assert_eq!(earliest_time.map(|t| t.t()), Some(2));
 
             // dst and src on edge reset the filter
             let degrees: Vec<_> = v

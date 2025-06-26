@@ -325,7 +325,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_earliest_time(e, view))
     }
 
@@ -335,7 +335,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_earliest_time_window(e, view, w))
     }
 
@@ -346,7 +346,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_earliest_time(e, view, t, layer))
     }
 
@@ -358,7 +358,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_earliest_time_window(e, view, t, layer, w))
     }
 
@@ -367,7 +367,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_latest_time(e, view))
     }
 
@@ -377,7 +377,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_latest_time_window(e, view, w))
     }
 
@@ -388,7 +388,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_latest_time(e, view, t, layer))
     }
 
@@ -400,7 +400,7 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_latest_time_window(e, view, t, layer, w))
     }
 

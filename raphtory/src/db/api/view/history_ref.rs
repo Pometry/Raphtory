@@ -110,7 +110,7 @@ impl<'item, T: InternalHistoryOps> HistoryRef<'item, T> {
     pub fn merge<R: InternalHistoryOps>(
         self,
         right: HistoryRef<'item, R>,
-    ) -> History<MergedHistory<&'item T, &'item R>> {
+    ) -> History<'item, MergedHistory<&'item T, &'item R>> {
         History::new(MergedHistory::new(self.0, right.0))
     }
 

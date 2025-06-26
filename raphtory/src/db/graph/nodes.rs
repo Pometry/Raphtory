@@ -25,7 +25,6 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use crate::db::api::view::history::{CompositeHistory, History, InternalHistoryOps};
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -328,14 +327,6 @@ where
                         .unwrap_or(true)
             })
             .is_some()
-    }
-    
-    pub fn history(&self) -> History<CompositeHistory<'graph>> {
-        let node_histories: Vec<_> = self
-            .iter_owned()
-            .map(|node| Arc::new(node) as Arc<dyn InternalHistoryOps + 'graph>)
-            .collect();
-        History::new(CompositeHistory::new(node_histories))
     }
 }
 

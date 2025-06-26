@@ -14,8 +14,10 @@ use crate::{
             },
             state::{
                 ops,
-                ops::{node::NodeOp, EarliestTime},
+                ops::{node::NodeOp, EarliestTime, HistoryOp},
+                LazyNodeState,
             },
+            view,
             view::{
                 internal::{
                     filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
@@ -27,6 +29,7 @@ use crate::{
         graph::{
             edge::{edge_valid_layer, EdgeView},
             node::NodeView,
+            nodes::Nodes,
         },
     },
     errors::GraphError,
@@ -34,13 +37,15 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::LayerIds,
-    storage::timeindex::{TimeError, TimeIndexOps},
+use raphtory_api::{
+    core::{
+        entities::LayerIds,
+        storage::timeindex::{TimeError, TimeIndexOps},
+    },
+    iter::BoxedIter,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{iter, ops::Deref, slice::Iter, sync::Arc};
-use crate::db::graph::nodes::Nodes;
+use std::{iter, marker::PhantomData, ops::Deref, slice::Iter, sync::Arc};
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -55,37 +60,38 @@ pub trait InternalHistoryOps: Send + Sync {
 
 // TODO: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
-pub struct History<T>(pub T);
+pub struct History<'a, T>(pub T, PhantomData<&'a T>);
 
-impl<T: InternalHistoryOps + Clone> History<T> {
+impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     pub fn new(item: T) -> Self {
-        Self(item)
+        Self(item, PhantomData)
     }
 
     // converts operations to return timestamps instead of TimeIndexEntry
-    pub fn t(&self) -> HistoryTimestamp<T> {
-        HistoryTimestamp(self.0.clone())
+    pub fn t(self) -> HistoryTimestamp<T> {
+        HistoryTimestamp(self.0)
     }
 
     // converts operations to return date times instead of TimeIndexEntry
-    pub fn dt(&self) -> HistoryDateTime<T> {
-        HistoryDateTime(self.0.clone())
+    pub fn dt(self) -> HistoryDateTime<T> {
+        HistoryDateTime(self.0)
     }
 
     // converts operations to return secondary time information inside TimeIndexEntry
-    pub fn s(&self) -> HistorySecondary<T> {
-        HistorySecondary(self.0.clone())
+    pub fn s(self) -> HistorySecondary<T> {
+        HistorySecondary(self.0)
     }
 
-    pub fn intervals(&self) -> Intervals<T> {
-        Intervals(self.0.clone())
+    pub fn intervals(self) -> Intervals<T> {
+        Intervals(self.0)
     }
 
-    pub fn merge<R: InternalHistoryOps + Clone>(
-        self,
-        right: History<R>,
-    ) -> History<MergedHistory<T, R>> {
+    pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
         History::new(MergedHistory::new(self.0, right.0))
+    }
+
+    fn into_iter_rev(self) -> BoxedLIter<'a, TimeIndexEntry> {
+        GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
     pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -121,7 +127,16 @@ impl<T: InternalHistoryOps + Clone> History<T> {
     }
 }
 
-impl<T: InternalHistoryOps + Clone, L, I: Copy> PartialEq<L> for History<T>
+impl<'a, T: InternalHistoryOps + 'a> IntoIterator for History<'a, T> {
+    type Item = TimeIndexEntry;
+    type IntoIter = BoxedLIter<'a, TimeIndexEntry>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self.0, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for History<'b, T>
 where
     for<'a> &'a L: IntoIterator<Item = &'a I>,
     TimeIndexEntry: PartialEq<I>,
@@ -131,15 +146,15 @@ where
     }
 }
 
-impl<T: InternalHistoryOps + Clone> PartialEq for History<T> {
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
     fn eq(&self, other: &Self) -> bool {
         self.iter().eq(other.iter())
     }
 }
 
-impl<T: InternalHistoryOps + Clone> Eq for History<T> {}
+impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
 
-impl<T: InternalHistoryOps + Clone> std::hash::Hash for History<T> {
+impl<'a, T: InternalHistoryOps + 'a> std::hash::Hash for History<'a, T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for item in self.iter() {
             item.hash(state);
@@ -234,8 +249,8 @@ impl<'a> CompositeHistory<'a> {
 
 // Note: All the items held by their respective History objects must already be of type Arc<T>
 pub fn compose_multiple_histories<'a>(
-    objects: impl IntoIterator<Item = History<Arc<dyn InternalHistoryOps>>>,
-) -> History<CompositeHistory<'a>> {
+    objects: impl IntoIterator<Item = History<'a, Arc<dyn InternalHistoryOps + 'a>>>,
+) -> History<'a, CompositeHistory<'a>> {
     History::new(CompositeHistory::new(
         objects.into_iter().map(|h| h.0).collect(),
     ))
@@ -243,8 +258,8 @@ pub fn compose_multiple_histories<'a>(
 
 // Note: Items supplied by the iterator must already be of type Arc<T>
 pub fn compose_history_from_items<'a>(
-    objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps>>,
-) -> History<CompositeHistory<'a>> {
+    objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps + 'a>>,
+) -> History<'a, CompositeHistory<'a>> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
@@ -266,19 +281,23 @@ impl<'a> InternalHistoryOps for CompositeHistory<'a> {
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.history_objects.iter()
+        self.history_objects
+            .iter()
             .filter_map(|history| history.earliest_time())
             .min()
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.history_objects.iter()
+        self.history_objects
+            .iter()
             .filter_map(|history| history.latest_time())
             .max()
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync> InternalHistoryOps for NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
+    InternalHistoryOps for NodeView<'graph, G, GH>
+{
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
@@ -316,24 +335,37 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
     }
 }
 
-// do we want this or a history function in Nodes
-// impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps for Nodes<'graph, G, GH> {
-//     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-//         todo!()
-//     }
-//
-//     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-//         todo!()
-//     }
-//
-//     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-//         todo!()
-//     }
-//
-//     fn latest_time(&self) -> Option<TimeIndexEntry> {
-//         todo!()
-//     }
-// }
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
+    for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
+{
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        // consuming the history objects is fine here because they get recreated on subsequent iter() calls
+        NodeStateOps::iter_values(self)
+            .map(|history| history.into_iter())
+            .kmerge()
+            .into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        // consuming the history objects is fine here because they get recreated on subsequent iter_rev() calls
+        NodeStateOps::iter_values(self)
+            .map(|history| history.into_iter_rev())
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        NodeStateOps::iter_values(self)
+            .filter_map(|history| history.earliest_time())
+            .min()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        NodeStateOps::iter_values(self)
+            .filter_map(|history| history.latest_time())
+            .max()
+    }
+}
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -407,15 +439,15 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter().next()
+        EdgeViewOps::earliest_time(self)
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.iter_rev().next()
+        EdgeViewOps::latest_time(self)
     }
 }
 
-impl<P: PropertiesOps + Clone> InternalHistoryOps for TemporalPropertyView<P> {
+impl<P: PropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.props
             .temporal_iter(self.id)

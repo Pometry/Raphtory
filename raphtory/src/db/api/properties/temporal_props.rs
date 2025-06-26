@@ -19,7 +19,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::core::storage::timeindex::{AsTime, TimeError};
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
@@ -79,7 +79,7 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
         self.props.temporal_history_iter_rev(self.id)
     }
 
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.props.temporal_history_date_time(self.id)
     }
     pub fn values(&self) -> BoxedLIter<Prop> {

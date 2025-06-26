@@ -709,7 +709,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 mod test_edge {
     use crate::{db::api::view::time::TimeOps, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
     use std::collections::HashMap;
 
     #[test]
@@ -844,6 +844,6 @@ mod test_edge {
     fn test_layers_earliest_time() {
         let g = Graph::new();
         let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
-        assert_eq!(e.earliest_time(), Some(1));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
     }
 }

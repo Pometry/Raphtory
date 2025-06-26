@@ -2,7 +2,7 @@ use crate::{
     api::core::storage::arc_str::ArcStr,
     core::{
         entities::{LayerIds, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::{TimeError, TimeIndexEntry},
     },
     db::{
         api::{
@@ -13,7 +13,6 @@ use crate::{
         },
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
-    errors::GraphError,
     prelude::*,
 };
 use chrono::{DateTime, Utc};
