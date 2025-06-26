@@ -68,7 +68,7 @@ pub trait StableDecode: InternalStableDecode + StaticGraphViewOps + AdditionOps 
         let graph = Self::decode_from_path(&folder)?;
 
         #[cfg(feature = "search")]
-        graph.load_index(&folder.root_folder)?;
+        graph.load_index(&folder)?;
 
         Ok(graph)
     }
