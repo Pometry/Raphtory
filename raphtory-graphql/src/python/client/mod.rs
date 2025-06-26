@@ -343,8 +343,8 @@ pub enum PyAllPropertySpec {
 /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 ///
 /// Arguments:
-///     constant (List[str]): Constant property names. Defaults to empty list.
-///     temporal (List[str]): Temporal property names. Defaults to empty list.
+///     constant (List[str]): Constant property names. Defaults to `[]`.
+///     temporal (List[str]): Temporal property names. Defaults to `[]`.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
