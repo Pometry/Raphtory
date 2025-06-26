@@ -374,8 +374,8 @@ impl PyNodeFilterOp {
     }
 }
 
-#[pyclass(frozen, name = "Node", module = "raphtory.filter")]
 #[derive(Clone)]
+#[pyclass(frozen, name = "Node", module = "raphtory.filter")]
 pub struct PyNodeFilter;
 
 #[pymethods]

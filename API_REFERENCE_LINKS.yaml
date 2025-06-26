@@ -1,0 +1,8 @@
+python:
+  Graph: /reference/raphtory/Graph/
+  Node: /reference/raphtory/Node/
+  Nodes: /reference/raphtory/Nodes/
+  Edge: /reference/raphtory/Edge/
+  Edges: /reference/raphtory/Edges/
+rust:
+  Graph: https://docs.rs/raphtory/latest/raphtory/db/graph/graph/struct.Graph.html

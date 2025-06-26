@@ -11,6 +11,8 @@ jobs:
     name: "Triggering ReadTheDocs server build"
     runs-on: ubuntu-latest
     steps:
+      - name: Run docs tests
+        run: make run-docs-tests
       - name: Trigger RTDs build
         uses: dfm/rtds-action@v1
         with:
