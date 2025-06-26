@@ -92,6 +92,7 @@ nav:
           - user-guide/ingestion/3_dataframes.md
           - user-guide/ingestion/4_saving.md
       - Querying:
+          - user-guide/querying/0_dummy_index.md
           - user-guide/querying/1_intro.md
           - user-guide/querying/2_graph-metrics.md
           - user-guide/querying/3_node-metrics.md
@@ -99,26 +100,31 @@ nav:
           - user-guide/querying/5_properties.md
           - user-guide/querying/6_chaining.md
       - Graph views:
+          - user-guide/views/0_dummy_index.md
           - user-guide/views/1_intro.md
           - user-guide/views/2_time.md
           - user-guide/views/3_layer.md
           - user-guide/views/4_subgraph.md
           - user-guide/views/5_materialize.md
       - Running Algorithms:
+          - user-guide/algorithms/0_dummy_index.md
           - user-guide/algorithms/1_intro.md
           - user-guide/algorithms/2_graph-algorithms.md
           - user-guide/algorithms/3_node-algorithms.md
           - user-guide/algorithms/4_view-algorithms.md
       - Exporting:
+          - user-guide/export/0_dummy_index.md
           - user-guide/export/1_intro.md
           - user-guide/export/2_dataframes.md
           - user-guide/export/3_networkx.md
       - GraphQL and User Interface:
+          - user-guide/graphql/0_dummy_index.md
           - user-guide/graphql/1_intro.md
           - user-guide/graphql/2_run-server.md
           - user-guide/graphql/3_writing-queries.md
           - user-guide/graphql/4_running-ui.md
       - Temporal graph representations:
+          - user-guide/persistent-graph/0_dummy_index.md
           - user-guide/persistent-graph/1_intro.md
           - user-guide/persistent-graph/2_ambiguity.md
           - user-guide/persistent-graph/3_views.md
