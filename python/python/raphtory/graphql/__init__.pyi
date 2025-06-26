@@ -653,14 +653,18 @@ class PropsInput(object):
     Create a `PropsInput` by choosing to include all/some properties explicitly.
 
     Arguments:
-        all (AllPropertySpec, Optional): Use a predefined spec to include all properties of a kind.
-        some (SomePropertySpec, Optional): Explicitly list the properties to include.
+        all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+        some (SomePropertySpec, optional): Explicitly list the properties to include.
 
     Raises:
         ValueError: If neither `all` and `some` are specified.
     """
 
-    def __new__(cls, all: Any = None, some: Any = None) -> PropsInput:
+    def __new__(
+        cls,
+        all: Optional[AllPropertySpec] = None,
+        some: Optional[SomePropertySpec] = None,
+    ) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class SomePropertySpec(object):
@@ -668,8 +672,8 @@ class SomePropertySpec(object):
     Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 
     Arguments:
-        constant (List[str]): Constant property names. Defaults to `[]`.
-        temporal (List[str]): Temporal property names. Defaults to `[]`.
+        constant (List[str]): Constant property names. Defaults to empty list.
+        temporal (List[str]): Temporal property names. Defaults to empty list.
     """
 
     def __new__(
