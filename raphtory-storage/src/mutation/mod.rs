@@ -53,7 +53,7 @@ pub enum MutationError {
         dst: String,
     },
     #[error("Storage error: {0}")]
-    DBV4Error(DBV4Error),
+    DBV4Error(#[from] DBV4Error),
 }
 
 pub trait InheritMutationOps: Base {}

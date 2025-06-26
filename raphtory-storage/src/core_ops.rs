@@ -36,10 +36,9 @@ pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> boo
 pub trait CoreGraphOps: Send + Sync {
     fn id_type(&self) -> Option<GidType> {
         match self.core_graph() {
-            GraphStorage::Mem(graph) => graph.inner().logical_to_physical.dtype(),
-            GraphStorage::Unlocked(graph) => graph.logical_to_physical.dtype(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.logical_to_physical.dtype()
+            }
         }
     }
 
@@ -56,10 +55,9 @@ pub trait CoreGraphOps: Send + Sync {
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
-            GraphStorage::Unlocked(graph) => graph.read_event_counter(),
-            GraphStorage::Mem(graph) => graph.inner().read_event_counter(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.read_event_counter()
+            }
         }
     }
 
@@ -166,9 +164,7 @@ pub trait CoreGraphOps: Send + Sync {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         let node = self.core_node(v);
-        node.name()
-            .map(|name| name.to_string())
-            .unwrap_or_else(|| node.id().to_str().to_string())
+        node.name().as_ref().to_owned()
     }
 
     /// Returns the type of node
@@ -232,7 +228,8 @@ pub trait CoreGraphOps: Send + Sync {
     /// The property value if it exists.
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
-        core_node_entry.prop(id)
+        // TODO: figure out how to expose the layer_id to the calling API
+        core_node_entry.prop(0, id)
     }
 
     /// Gets the keys of constant properties of a given node
@@ -243,9 +240,12 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The keys of the constant properties.
-    fn constant_node_prop_ids(&self, v: VID) -> BoxedLIter<usize> {
-        let core_node_entry = self.core_node(v);
-        core_node_entry.prop_ids()
+    fn constant_node_prop_ids(&self, _v: VID) -> BoxedLIter<usize> {
+        // property 0 = node type, property 1 = external node id
+        // on an empty graph, this will return an empty range
+        let end = self.node_meta().const_prop_meta().len();
+        let start = 2.min(end);
+        Box::new(start..end)
     }
 
     /// Returns a vector of all ids of temporal properties within the given node
@@ -256,9 +256,8 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The ids of the temporal properties
-    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        let core_node_entry = self.core_node(v);
-        core_node_entry.temporal_prop_ids()
+    fn temporal_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(0..self.node_meta().temporal_prop_meta().len())
     }
 }
 
