@@ -37,7 +37,7 @@ test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytes
 tox = ["nbmake"]
 
 [tool.maturin]
-features = ["extension-module"]
+features = ["extension-module"] # make sure to always specify this when building with private storage enabled
 python-source = "python"
 include = ["motif-images/*"]
 
