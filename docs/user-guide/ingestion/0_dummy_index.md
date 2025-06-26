@@ -1,0 +1,1 @@
+<meta http-equiv="refresh" content="0; url=/user-guide/ingestion/1_creating-a-graph/" />

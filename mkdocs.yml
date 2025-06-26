@@ -86,6 +86,7 @@ nav:
   - User Guide:
       - user-guide/installation.md
       - Getting data into Raphtory:
+          - user-guide/ingestion/0_dummy_index.md
           - user-guide/ingestion/1_creating-a-graph.md
           - user-guide/ingestion/2_direct-updates.md
           - user-guide/ingestion/3_dataframes.md
