@@ -324,26 +324,39 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
     Ok(query)
 }
 
+/// Specifies that **all** properties should be included when creating an index.
+/// Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "AllPropertySpec", module = "raphtory.graphql")]
 pub enum PyAllPropertySpec {
+    /// Include all properties (both constant and temporal).
     #[serde(rename = "ALL")]
     All,
+    /// Include only constant properties.
     #[serde(rename = "ALL_CONSTANT")]
     AllConstant,
+    /// Include only temporal properties.
     #[serde(rename = "ALL_TEMPORAL")]
     AllTemporal,
 }
 
+/// Specify a **subset** of property names to index, separated by constant and temporal types.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
+    /// Constant property names to include in the index.
     pub constant: Vec<String>,
+    /// Temporal property names to include in the index.
     pub temporal: Vec<String>,
 }
 
 #[pymethods]
 impl PySomePropertySpec {
+    /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+    ///
+    /// Args:
+    ///     constant (List[str]): Constant property names.
+    ///     temporal (List[str]): Temporal property names.
     #[new]
     #[pyo3(signature = (constant = vec![], temporal = vec![]))]
     fn new(constant: Vec<String>, temporal: Vec<String>) -> Self {
@@ -351,6 +364,7 @@ impl PySomePropertySpec {
     }
 }
 
+/// Input type for specifying which properties to include during indexing.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "PropsInput", module = "raphtory.graphql")]
 pub struct PyPropsInput {
@@ -363,6 +377,14 @@ pub struct PyPropsInput {
 
 #[pymethods]
 impl PyPropsInput {
+    /// Create a `PropsInput` by choosing to include all/some properties explicitly.
+    ///
+    /// Args:
+    ///     all (AllPropertySpec | None): Use a predefined spec to include all properties of a kind.
+    ///     some (SomePropertySpec | None): Explicitly list the properties to include.
+    ///
+    /// Raises:
+    ///     ValueError: If neither `all` and `some` are specified.
     #[new]
     #[pyo3(signature = (all=None, some=None))]
     fn new(all: Option<PyAllPropertySpec>, some: Option<PySomePropertySpec>) -> PyResult<Self> {
@@ -376,18 +398,25 @@ impl PyPropsInput {
     }
 }
 
+/// Top-level specification for indexing node and edge properties remotely via GraphQL.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql")]
 pub struct PyRemoteIndexSpec {
+    /// Property inclusion specification for nodes.
     #[serde(rename = "nodeProps")]
     pub node_props: PyPropsInput,
-
+    /// Property inclusion specification for edges.
     #[serde(rename = "edgeProps")]
     pub edge_props: PyPropsInput,
 }
 
 #[pymethods]
 impl PyRemoteIndexSpec {
+    /// Create a `RemoteIndexSpec` specifying which node and edge properties to index.
+    ///
+    /// Args:
+    ///     node_props (PropsInput): Property spec for nodes.
+    ///     edge_props (PropsInput): Property spec for edges.
     #[new]
     #[pyo3(signature = (node_props, edge_props))]
     fn new(node_props: PyPropsInput, edge_props: PyPropsInput) -> Self {

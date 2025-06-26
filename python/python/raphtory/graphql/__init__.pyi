@@ -164,6 +164,7 @@ class RaphtoryClient(object):
            None:
         """
 
+    def create_index(self, path, index_spec, in_ram=True): ...
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path `path` on the server
@@ -619,6 +620,54 @@ class RemoteEdgeAddition(object):
         updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
+
+class RemoteIndexSpec(object):
+    """Top-level specification for indexing node and edge properties remotely via GraphQL."""
+
+    def __new__(cls, node_props, edge_props) -> RemoteIndexSpec:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class PropsInput(object):
+    """Input type for specifying which properties to include during indexing."""
+
+    def __new__(cls, all=None, some=None) -> PropsInput:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class SomePropertySpec(object):
+    """Specify a **subset** of property names to index, separated by constant and temporal types."""
+
+    def __new__(cls, constant=..., temporal=...) -> SomePropertySpec:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class AllPropertySpec(object):
+    """
+    Specifies that **all** properties should be included when creating an index.
+    Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
 
 def encode_graph(graph: Graph | PersistentGraph) -> str:
     """

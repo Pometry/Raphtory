@@ -2,7 +2,14 @@ import pytest
 from raphtory import Graph, PersistentGraph
 from filters_setup import init_nodes_graph, init_edges_graph, create_test_graph
 from utils import run_group_graphql_test
-from raphtory.graphql import GraphServer, RaphtoryClient, RemoteIndexSpec, SomePropertySpec, AllPropertySpec, PropsInput
+from raphtory.graphql import (
+    GraphServer,
+    RaphtoryClient,
+    RemoteIndexSpec,
+    SomePropertySpec,
+    AllPropertySpec,
+    PropsInput,
+)
 import tempfile
 
 EVENT_GRAPH = init_nodes_graph(Graph())
@@ -134,9 +141,11 @@ def test_create_index_using_client(graph):
 
         spec = RemoteIndexSpec(
             node_props=PropsInput(all=AllPropertySpec.AllConstant),
-            edge_props=PropsInput(some=SomePropertySpec(constant=["p1"], temporal=["q1"]))
+            edge_props=PropsInput(
+                some=SomePropertySpec(constant=["p1"], temporal=["q1"])
+            ),
         )
-        client.create_index("g", spec, in_ram = True)
+        client.create_index("g", spec, in_ram=True)
 
         query = """query {
                      graph(path: "g") {
@@ -150,12 +159,12 @@ def test_create_index_using_client(graph):
                    }
                """
         assert client.query(query) == {
-                  "graph": {
-                      "getIndexSpec": {
-                          "edgeConstProps": ["p1"],
-                          "edgeTempProps": ["q1"],
-                          "nodeConstProps": ["p1"],
-                          "nodeTempProps": [],
-                      }
-                  }
-              }
+            "graph": {
+                "getIndexSpec": {
+                    "edgeConstProps": ["p1"],
+                    "edgeTempProps": ["q1"],
+                    "nodeConstProps": ["p1"],
+                    "nodeTempProps": [],
+                }
+            }
+        }
