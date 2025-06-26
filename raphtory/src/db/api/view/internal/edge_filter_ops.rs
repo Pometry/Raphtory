@@ -5,72 +5,107 @@ use raphtory_api::{
 };
 use raphtory_storage::graph::edges::edge_ref::EdgeStorageRef;
 
-pub trait InternalEdgeFilterOps {
-    /// If true, the edges from the underlying storage are filtered
-    fn internal_edges_filtered(&self) -> bool;
+pub trait InternalEdgeLayerFilterOps {
+    /// Set to true when filtering, used for optimisations
+    fn internal_edge_layer_filtered(&self) -> bool;
 
-    fn edge_history_filtered(&self) -> bool;
+    /// If true, all edges removed by this filter have also been removed from the edge list
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool;
 
-    /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
-    fn internal_edge_list_trusted(&self) -> bool;
+    /// Filter a layer for an edge
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool;
+}
 
-    fn internal_filter_edge_history(
+pub trait InternalExplodedEdgeFilterOps {
+    /// Set to true when filtering, used for optimisations
+    fn internal_exploded_edge_filtered(&self) -> bool;
+
+    /// If true, all edges removed by this filter have also been removed from the edge list
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool;
+
+    fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
         t: TimeIndexEntry,
         layer_ids: &LayerIds,
     ) -> bool;
+}
+
+pub trait InternalEdgeFilterOps {
+    /// If true, the edges from the underlying storage are filtered
+    fn internal_edges_filtered(&self) -> bool;
+
+    /// If true, all edges returned by `self.edge_list()` exist, otherwise it needs further filtering
+    fn internal_edge_list_trusted(&self) -> bool;
 
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool;
 }
 
+pub trait InheritAllEdgeFilterOps: Base {}
+
 pub trait InheritEdgeFilterOps: Base {}
 
-impl<G: InheritEdgeFilterOps> DelegateEdgeFilterOps for G
-where
-    G::Base: InternalEdgeFilterOps,
-{
-    type Internal = G::Base;
-
-    #[inline]
-    fn graph(&self) -> &Self::Internal {
-        self.base()
-    }
-}
-
-pub trait DelegateEdgeFilterOps {
-    type Internal: InternalEdgeFilterOps + ?Sized;
-
-    fn graph(&self) -> &Self::Internal;
-}
-
-impl<G: DelegateEdgeFilterOps> InternalEdgeFilterOps for G {
+impl<G: InheritAllEdgeFilterOps> InheritEdgeFilterOps for G {}
+impl<G: InheritEdgeFilterOps<Base: InternalEdgeFilterOps>> InternalEdgeFilterOps for G {
     #[inline]
     fn internal_edges_filtered(&self) -> bool {
-        self.graph().internal_edges_filtered()
+        self.base().internal_edges_filtered()
     }
-
-    #[inline]
-    fn edge_history_filtered(&self) -> bool {
-        self.graph().edge_history_filtered()
-    }
-
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
-        self.graph().internal_edge_list_trusted()
+        self.base().internal_edge_list_trusted()
+    }
+    #[inline]
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.base().internal_filter_edge(edge, layer_ids)
+    }
+}
+
+pub trait InheritEdgeLayerFilterOps: Base {}
+
+impl<G: InheritAllEdgeFilterOps> InheritEdgeLayerFilterOps for G {}
+
+impl<G: InheritEdgeLayerFilterOps<Base: InternalEdgeLayerFilterOps>> InternalEdgeLayerFilterOps
+    for G
+{
+    #[inline]
+    fn internal_edge_layer_filtered(&self) -> bool {
+        self.base().internal_edge_layer_filtered()
     }
 
-    fn internal_filter_edge_history(
+    #[inline]
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        self.base().internal_layer_filter_edge_list_trusted()
+    }
+
+    #[inline]
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.base().internal_filter_edge_layer(edge, layer)
+    }
+}
+
+pub trait InheritExplodedEdgeFilterOps: Base {}
+
+impl<G: InheritAllEdgeFilterOps> InheritExplodedEdgeFilterOps for G {}
+
+impl<G: InheritAllEdgeFilterOps<Base: InternalExplodedEdgeFilterOps>> InternalExplodedEdgeFilterOps
+    for G
+{
+    #[inline]
+    fn internal_exploded_edge_filtered(&self) -> bool {
+        self.base().internal_exploded_edge_filtered()
+    }
+    #[inline]
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
+        self.base().internal_exploded_filter_edge_list_trusted()
+    }
+    #[inline]
+    fn internal_filter_exploded_edge(
         &self,
         eid: ELID,
         t: TimeIndexEntry,
         layer_ids: &LayerIds,
     ) -> bool {
-        self.graph().internal_filter_edge_history(eid, t, layer_ids)
-    }
-
-    #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph().internal_filter_edge(edge, layer_ids)
+        self.base().internal_filter_exploded_edge(eid, t, layer_ids)
     }
 }

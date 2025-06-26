@@ -3,7 +3,7 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+            FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
             InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
         },
@@ -33,7 +33,7 @@ use std::{
 pub struct CachedView<G> {
     pub(crate) graph: G,
     pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
-    pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap)]>,
+    pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap, RoaringTreemap)]>,
 }
 
 impl<G> Static for CachedView<G> {}
@@ -90,20 +90,39 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
 
             let edges = layer_g.core_edges();
 
-            let edges = edges
+            let edges_chunks = edges
                 .as_ref()
                 .par_iter(&LayerIds::All)
                 .filter(|edge| {
-                    graph.internal_filter_edge(edge.as_ref(), layer_g.layer_ids())
+                    layer_g.filter_edge(edge.as_ref())
                         && nodes.contains(edge.src().as_u64())
                         && nodes.contains(edge.dst().as_u64())
                 })
                 .map(|edge| edge.eid().as_u64())
-                .collect::<Vec<_>>();
-            let edges: RoaringTreemap = edges.into_iter().collect();
+                .collect_vec_list();
+            let edges_filter: RoaringTreemap = edges_chunks.into_iter().flatten().collect();
+
+            let exploded_filter = if graph.internal_exploded_edge_filtered() {
+                edges.par_iter(&LayerIds::All).flat_map(|e| {
+                    edges_filter
+                        .contains(e.eid().as_u64())
+                        .then_some(e)
+                        .into_iter()
+                        .flat_map(|e| {})
+                })
+            } else {
+                RoaringTreemap::full();
+            };
 
             if layered_masks.len() < l_id + 1 {
-                layered_masks.resize(l_id + 1, (RoaringTreemap::new(), RoaringTreemap::new()));
+                layered_masks.resize(
+                    l_id + 1,
+                    (
+                        RoaringTreemap::new(),
+                        RoaringTreemap::new(),
+                        RoaringTreemap::new(),
+                    ),
+                );
             }
 
             layered_masks[l_id] = (nodes, edges);

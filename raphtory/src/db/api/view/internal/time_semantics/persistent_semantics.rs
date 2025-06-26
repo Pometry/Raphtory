@@ -634,13 +634,13 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        if edge_alive_at_end(e, i64::MAX, &view) {
-            view.latest_time_global()
-        } else {
-            e.filtered_deletions_iter(&view, view.layer_ids())
-                .filter_map(|(_, d)| d.last_t())
-                .max()
-        }
+        e.additions_iter(view.layer_ids())
+            .flat_map(|(_, additions)| additions.last_t())
+            .chain(
+                e.deletions_iter(view.layer_ids())
+                    .flat_map(|(_, deletions)| deletions.last_t()),
+            )
+            .max()
     }
 
     fn edge_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -649,14 +649,19 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        if edge_alive_at_end(e, w.end, &view) {
-            Some(w.end - 1)
+        let last_update_in_window = e
+            .additions_iter(view.layer_ids())
+            .flat_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .chain(
+                e.deletions_iter(view.layer_ids())
+                    .flat_map(|(_, deletions)| deletions.range_t(w.clone()).last_t()),
+            )
+            .max();
+
+        if last_update_in_window.is_some() {
+            last_update_in_window
         } else {
-            e.filtered_deletions_iter(&view, view.layer_ids())
-                .filter_map(|(_, deletions)| {
-                    deletions.range_t(w.start.saturating_add(1)..w.end).last_t()
-                })
-                .max()
+            edge_alive_at_end(e, w.start, &view).then_some(w.start)
         }
     }
 
