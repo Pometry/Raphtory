@@ -1,1 +1,0 @@
-<meta http-equiv="refresh" content="0; url={{ site_url }}/user-guide/ingestion/1_creating-a-graph/" />
