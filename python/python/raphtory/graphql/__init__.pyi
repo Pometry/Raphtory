@@ -622,21 +622,46 @@ class RemoteEdgeAddition(object):
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteIndexSpec(object):
-    """Top-level specification for indexing node and edge properties remotely via GraphQL."""
+    """
+    Create a `RemoteIndexSpec` specifying which node and edge properties to index.
 
-    def __new__(cls, node_props, edge_props) -> RemoteIndexSpec:
+    Arguments:
+        node_props (PropsInput): Property spec for nodes.
+        edge_props (PropsInput): Property spec for edges.
+    """
+
+    def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class PropsInput(object):
-    """Input type for specifying which properties to include during indexing."""
+    """
+    Create a `PropsInput` by choosing to include all/some properties explicitly.
 
-    def __new__(cls, all=None, some=None) -> PropsInput:
+    Arguments:
+        all (AllPropertySpec | None): Use a predefined spec to include all properties of a kind.
+        some (SomePropertySpec | None): Explicitly list the properties to include.
+
+    Raises:
+        ValueError: If neither `all` and `some` are specified.
+    """
+
+    def __new__(
+        cls, all: AllPropertySpec | None = None, some: SomePropertySpec | None = None
+    ) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class SomePropertySpec(object):
-    """Specify a **subset** of property names to index, separated by constant and temporal types."""
+    """
+    Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 
-    def __new__(cls, constant=..., temporal=...) -> SomePropertySpec:
+    Arguments:
+        constant (List[str]): Constant property names.
+        temporal (List[str]): Temporal property names.
+    """
+
+    def __new__(
+        cls, constant: List[str] = ..., temporal: List[str] = ...
+    ) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class AllPropertySpec(object):
