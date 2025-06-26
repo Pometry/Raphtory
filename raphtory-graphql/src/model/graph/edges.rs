@@ -153,75 +153,51 @@ impl GqlEdges {
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
         for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
-            }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
+            return_view = match view {
+                EdgesViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
+                EdgesViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
+                }
+                EdgesViewCollection::Layer(layer) => return_view.layer(layer).await,
+                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                EdgesViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
+                }
+                EdgesViewCollection::At(at) => return_view.at(at).await,
+                EdgesViewCollection::Before(time) => return_view.before(time).await,
+                EdgesViewCollection::After(time) => return_view.after(time).await,
+                EdgesViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
+                }
+                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
             }
         }
 
         Ok(return_view)
     }
-
     async fn explode(&self) -> Self {
         self.update(self.ee.explode())
     }
