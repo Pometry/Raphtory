@@ -142,7 +142,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     type Exploded: EdgeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::Graph>;
 
     /// List the activation timestamps for the edge
-    fn history(&self) -> Self::ValueType<History<EdgeView<Self::Graph>>>;
+    fn history(&self) -> Self::ValueType<History<'graph, EdgeView<Self::Graph>>>;
 
     fn history_counts(&self) -> Self::ValueType<usize>;
 
@@ -225,7 +225,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     type Exploded = E::Exploded;
 
     /// list the activation timestamps for the edge
-    fn history(&self) -> Self::ValueType<History<EdgeView<Self::Graph>>> {
+    fn history(&self) -> Self::ValueType<History<'graph, EdgeView<Self::Graph>>> {
         // self.map(|g, e| {
         //     if edge_valid_layer(g, e) {
         //         match e.time() {

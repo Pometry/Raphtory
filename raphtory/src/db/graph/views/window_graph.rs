@@ -1138,9 +1138,12 @@ mod views_test {
             assert_eq!(v.window(0, 2).history().t().collect(), windowed_history);
             assert_eq!(e.history(), full_history_1);
             assert_eq!(e.window(0, 2).history(), windowed_history);
-
             assert_eq!(
-                graph.edges().history().collect_vec(),
+                graph
+                    .edges()
+                    .history()
+                    .map(|history| history.t().collect())
+                    .collect_vec(),
                 [full_history_1.clone(), full_history_2.clone()]
             );
             assert_eq!(

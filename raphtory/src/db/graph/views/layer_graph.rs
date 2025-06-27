@@ -222,7 +222,7 @@ mod test_layers {
         println!("edge: {e1:?}");
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
-        let history = e1.layers("2").unwrap().history();
+        let history = e1.layers("2").unwrap().history().t().collect();
         println!("history: {:?}", history);
         assert!(e1.layers("2").unwrap().history().is_empty());
 

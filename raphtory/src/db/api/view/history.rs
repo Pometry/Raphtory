@@ -564,7 +564,7 @@ impl<T: InternalHistoryOps> Intervals<T> {
         Intervals(item)
     }
 
-    pub fn items(&self) -> Vec<i64> {
+    pub fn collect(&self) -> Vec<i64> {
         self.iter().collect()
     }
 
@@ -634,12 +634,12 @@ mod tests {
         graph.add_node(10, "node", NO_PROPS, None).unwrap();
         graph.add_node(30, "node", NO_PROPS, None).unwrap();
         let interval = Intervals(&node);
-        assert_eq!(interval.items(), &[3, 6, 20]);
+        assert_eq!(interval.collect(), &[3, 6, 20]);
 
         // make sure there are no intervals (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
         let interval2 = Intervals(&node2);
-        assert_eq!(interval2.items(), Vec::<i64>::new());
+        assert_eq!(interval2.collect(), Vec::<i64>::new());
         Ok(())
     }
 
@@ -649,10 +649,10 @@ mod tests {
         let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
         graph.add_node(1, "node", NO_PROPS, None).unwrap();
         let interval = Intervals(&node);
-        assert_eq!(interval.items(), &[0]);
+        assert_eq!(interval.collect(), &[0]);
 
         graph.add_node(2, "node", NO_PROPS, None).unwrap();
-        assert_eq!(interval.items(), &[0, 1]);
+        assert_eq!(interval.collect(), &[0, 1]);
         Ok(())
     }
 
@@ -947,6 +947,301 @@ mod tests {
 
         // Edge retrieved from LayeredGraphView using one layer, layer_name() returns "Err(LayerNameAPIError)"
         println!("{:?}", broom_dumbledore_magical_edge_retrieved.layer_name());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_lazy_node_state() -> Result<(), Box<dyn std::error::Error>> {
+        // generate graph
+        let graph = Graph::new();
+        let dumbledore_node = graph
+            .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+            .unwrap();
+        let dumbledore_node_id = dumbledore_node.id();
+
+        let harry_node = graph
+            .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+            .unwrap();
+        let harry_node_id = harry_node.id();
+
+        let character_edge = graph
+            .add_edge(
+                3,
+                "Dumbledore",
+                "Harry",
+                [("meeting", Prop::str("Character Co-occurrence"))],
+                None,
+            )
+            .unwrap();
+
+        // add broom node
+        let broom_node = graph
+            .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
+            .unwrap();
+        let broom_node_id = broom_node.id();
+
+        let broom_harry_magical_edge = graph
+            .add_edge(
+                4,
+                "Broom",
+                "Harry",
+                [("use", Prop::str("Flying on broom"))],
+                Some("Magical Object Uses"),
+            )
+            .unwrap();
+        let broom_harry_magical_edge_id = broom_harry_magical_edge.id();
+
+        let broom_dumbledore_magical_edge = graph
+            .add_edge(
+                4,
+                "Broom",
+                "Dumbledore",
+                [("use", Prop::str("Flying on broom"))],
+                Some("Magical Object Uses"),
+            )
+            .unwrap();
+        let broom_dumbledore_magical_edge_id = broom_dumbledore_magical_edge.id();
+
+        let broom_harry_normal_edge = graph
+            .add_edge(
+                5,
+                "Broom",
+                "Harry",
+                [("use", Prop::str("Cleaning with broom"))],
+                None,
+            )
+            .unwrap();
+        let broom_harry_normal_edge_id = broom_harry_normal_edge.id();
+
+        let broom_dumbledore_normal_edge = graph
+            .add_edge(
+                5,
+                "Broom",
+                "Dumbledore",
+                [("use", Prop::str("Cleaning with broom"))],
+                None,
+            )
+            .unwrap();
+        let broom_dumbledore_normal_edge_id = broom_dumbledore_normal_edge.id();
+
+        // Test basic LazyNodeState history operations
+        let all_nodes_history = graph.nodes().history();
+        let nodes_history_as_history = History::new(&all_nodes_history);
+
+        // history object orders them automatically bc of kmerge
+        let expected_history_all_ordered = [
+            TimeIndexEntry::new(1, 0),
+            TimeIndexEntry::new(2, 1),
+            TimeIndexEntry::new(3, 2),
+            TimeIndexEntry::new(3, 2),
+            TimeIndexEntry::new(4, 3),
+            TimeIndexEntry::new(4, 4),
+            TimeIndexEntry::new(4, 4),
+            TimeIndexEntry::new(4, 5),
+            TimeIndexEntry::new(4, 5),
+            TimeIndexEntry::new(5, 6),
+            TimeIndexEntry::new(5, 6),
+            TimeIndexEntry::new(5, 7),
+            TimeIndexEntry::new(5, 7),
+        ];
+
+        // lazy_node_state returns an iterator of history objects, not ordered
+        let expected_history_all_unordered = [
+            TimeIndexEntry::new(1, 0),
+            TimeIndexEntry::new(3, 2),
+            TimeIndexEntry::new(4, 5),
+            TimeIndexEntry::new(5, 7),
+            TimeIndexEntry::new(2, 1),
+            TimeIndexEntry::new(3, 2),
+            TimeIndexEntry::new(4, 4),
+            TimeIndexEntry::new(5, 6),
+            TimeIndexEntry::new(4, 3),
+            TimeIndexEntry::new(4, 4),
+            TimeIndexEntry::new(4, 5),
+            TimeIndexEntry::new(5, 6),
+            TimeIndexEntry::new(5, 7),
+        ];
+
+        // Test that the merged history contains all timestamps from all nodes
+        // Each operation adds a timestamp, so we should have timestamps from node additions and edge additions
+        assert!(!nodes_history_as_history.is_empty());
+        assert_eq!(
+            nodes_history_as_history.earliest_time().unwrap(),
+            TimeIndexEntry::new(1, 0)
+        );
+
+        assert_eq!(nodes_history_as_history, expected_history_all_ordered);
+        assert_eq!(
+            nodes_history_as_history.latest_time().unwrap(),
+            TimeIndexEntry::new(5, 7)
+        );
+
+        // Test collect_items method on LazyNodeState<HistoryOp>
+        let full_collected = all_nodes_history.collect_items();
+        assert!(!full_collected.is_empty());
+        assert_eq!(full_collected, expected_history_all_unordered);
+
+        // Test individual node history access via flatten()
+        let individual_histories: Vec<_> = all_nodes_history.flatten().collect();
+        assert_eq!(individual_histories.len(), 3); // We have 3 nodes
+
+        // Test timestamp conversion
+        let timestamps: Vec<_> = all_nodes_history.t().flat_map(|ts| ts.collect()).collect();
+        assert!(!timestamps.is_empty());
+        assert_eq!(timestamps, expected_history_all_unordered.map(|t| t.t()));
+
+        // Test intervals
+        let intervals: Vec<_> = all_nodes_history.intervals().collect();
+        assert_eq!(intervals.len(), 3); // One per node
+        assert_eq!(
+            intervals.iter().map(|i| i.collect()).collect::<Vec<_>>(),
+            vec!(vec![2, 1, 1], vec![1, 1, 1], vec![0, 0, 1, 0])
+        );
+
+        // Test windowed operations
+        let windowed_graph = graph.window(2, 4);
+        let windowed_nodes_history = windowed_graph.nodes().history();
+        let windowed_history_as_history = History::new(&windowed_nodes_history);
+
+        // Window should filter the timestamps
+        let windowed_collected = windowed_nodes_history.collect_items();
+
+        // Windowed should have fewer or equal timestamps
+        assert!(windowed_collected.len() <= full_collected.len());
+        assert_eq!(
+            windowed_collected,
+            [
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2)
+            ]
+        ); // unordered
+        assert_eq!(
+            windowed_history_as_history,
+            [
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
+                TimeIndexEntry::new(3, 2)
+            ]
+        ); // ordered
+
+        // Test layer-specific operations
+        let magical_layer_graph = graph.layers("Magical Object Uses").unwrap();
+        let magical_nodes_history = magical_layer_graph.nodes().history();
+        let magical_history_as_history = History::new(&magical_nodes_history);
+
+        // Should have different history than the full graph
+        let magical_collected = magical_nodes_history.collect_items();
+        assert_eq!(
+            magical_collected,
+            [
+                TimeIndexEntry::new(1, 0),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
+            ]
+        ); // unordered
+        assert_eq!(
+            magical_history_as_history,
+            [
+                TimeIndexEntry::new(1, 0),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(4, 5),
+            ]
+        ); // ordered
+
+        // Test earliest and latest time operations on LazyNodeState
+        let earliest_times = all_nodes_history.earliest_time();
+        let latest_times = all_nodes_history.latest_time();
+
+        // These return LazyNodeState with different operations
+        assert_eq!(
+            earliest_times
+                .iter_values()
+                .map(|t| t.unwrap())
+                .collect_vec(),
+            [
+                TimeIndexEntry::new(1, 0),
+                TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(4, 3)
+            ]
+        );
+
+        assert_eq!(
+            latest_times.iter_values().map(|t| t.unwrap()).collect_vec(),
+            [
+                TimeIndexEntry::new(5, 7),
+                TimeIndexEntry::new(5, 6),
+                TimeIndexEntry::new(5, 7)
+            ]
+        );
+
+        // Test that History trait methods work on LazyNodeState
+        let history_rev = nodes_history_as_history.iter_rev().collect::<Vec<_>>();
+
+        // Reverse should be the reverse of forward iteration
+        assert_eq!(
+            nodes_history_as_history,
+            history_rev.into_iter().rev().collect::<Vec<_>>()
+        );
+
+        // Test secondary time access
+        let secondary_times_lazy: Vec<_> =
+            all_nodes_history.s().flat_map(|s| s.collect()).collect();
+        let secondary_times_normal: Vec<_> = nodes_history_as_history.s().collect();
+        assert_eq!(
+            secondary_times_lazy,
+            [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]
+        ); // unordered
+        assert_eq!(
+            secondary_times_normal,
+            [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7]
+        ); // ordered
+
+        // Test combined window and layer filtering
+        let windowed_layered_graph = graph.window(3, 6).layers("Magical Object Uses").unwrap();
+        let windowed_layered_history = windowed_layered_graph.nodes().history();
+        let windowed_layered_history_as_history = History::new(&windowed_layered_history);
+        let windowed_layered_collected = windowed_layered_history.collect_items();
+
+        // Should be even more filtered
+        assert_eq!(
+            windowed_layered_collected,
+            [
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5)
+            ]
+        ); // unordered
+        assert_eq!(
+            windowed_layered_history_as_history,
+            [
+                TimeIndexEntry::new(4, 3),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
+                TimeIndexEntry::new(4, 5)
+            ]
+        ); // ordered
+
+        // Test iter and iter_rev on LazyNodeState directly (through InternalHistoryOps)
+        let direct_iter: Vec<TimeIndexEntry> =
+            InternalHistoryOps::iter(&all_nodes_history).collect();
+        let direct_iter_rev: Vec<_> = all_nodes_history.iter_rev().collect();
+        assert_eq!(
+            direct_iter,
+            direct_iter_rev.into_iter().rev().collect::<Vec<_>>()
+        );
 
         Ok(())
     }

@@ -3,10 +3,13 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{node::NodeOp, NodeOpFilter},
+                ops::{node::NodeOp, EarliestTime, HistoryOp, LatestTime, NodeOpFilter},
                 Index, NodeState, NodeStateOps,
             },
             view::{
+                history::{
+                    History, HistoryDateTime, HistorySecondary, HistoryTimestamp, Intervals,
+                },
                 internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
@@ -16,6 +19,7 @@ use crate::{
     prelude::*,
 };
 use indexmap::IndexSet;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
@@ -173,6 +177,48 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 None,
             )
         }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
+{
+    pub fn earliest_time(&self) -> LazyNodeState<EarliestTime<GH>, G, GH> {
+        self.nodes.earliest_time()
+    }
+
+    pub fn latest_time(&self) -> LazyNodeState<LatestTime<GH>, G, GH> {
+        self.nodes.latest_time()
+    }
+
+    pub fn flatten(&self) -> impl Iterator<Item = History<'graph, NodeView<'graph, GH, GH>>> {
+        self.compute().into_iter_values()
+    }
+
+    pub fn intervals(&self) -> impl Iterator<Item = Intervals<NodeView<'graph, GH, GH>>> {
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.intervals())
+    }
+
+    pub fn t(&self) -> impl Iterator<Item = HistoryTimestamp<NodeView<'graph, GH, GH>>> {
+        self.compute().into_iter_values().map(|history| history.t())
+    }
+
+    pub fn dt(&self) -> impl Iterator<Item = HistoryDateTime<NodeView<'graph, GH, GH>>> {
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.dt())
+    }
+
+    pub fn s(&self) -> impl Iterator<Item = HistorySecondary<NodeView<'graph, GH, GH>>> {
+        self.compute().into_iter_values().map(|history| history.s())
+    }
+
+    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
+        self.flatten()
+            .flat_map(|history| history.collect())
+            .collect()
     }
 }
 

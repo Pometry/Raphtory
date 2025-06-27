@@ -25,6 +25,10 @@ impl PyRaphtoryTime {
         self.time.dt()
     }
 
+    pub fn s(&self) -> usize {
+        self.time.i()
+    }
+
     /// Get the epoch timestamp of the time
     pub fn epoch(&self) -> i64 {
         self.time.t()
