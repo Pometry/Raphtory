@@ -9,7 +9,7 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    api::edges::{EdgeSegmentOps, LockedESegment}, error::DBV4Error, pages::layer_counter::LayerCounter, segments::edge::MemEdgeSegment, LocalPOS
+    api::edges::{EdgeSegmentOps, LockedESegment}, error::DBV4Error, pages::{layer_counter::LayerCounter, locked::edges::{LockedEdgePage, WriteLockedEdgePages}}, segments::edge::MemEdgeSegment, LocalPOS
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -307,22 +307,22 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         self.max_page_len
     }
 
-    // pub fn locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
-    //     WriteLockedEdgePages::new(
-    //         self.pages
-    //             .iter()
-    //             .map(|(page_id, page)| {
-    //                 LockedEdgePage::new(
-    //                     page_id,
-    //                     self.max_page_len,
-    //                     page.as_ref(),
-    //                     &self.num_edges,
-    //                     page.head_mut(),
-    //                 )
-    //             })
-    //             .collect(),
-    //     )
-    // }
+    pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
+        WriteLockedEdgePages::new(
+            self.pages
+                .iter()
+                .map(|(page_id, page)| {
+                    LockedEdgePage::new(
+                        page_id,
+                        self.max_page_len,
+                        page.as_ref(),
+                        &self.layer_counter,
+                        page.head_mut(),
+                    )
+                })
+                .collect(),
+        )
+    }
 
     pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
         let layer = e_id.layer();

@@ -1,6 +1,6 @@
 use std::ops::DerefMut;
 
-use db4_graph::TemporalGraph;
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{
@@ -18,15 +18,12 @@ use storage::{
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Layer, ES, NS,
+    Extension, ES, NS,
 };
 
-use crate::{
-    graph::locked::WriteLockedGraph,
-    mutation::{
-        addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
-        MutationError,
-    },
+use crate::mutation::{
+    addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
+    MutationError,
 };
 
 pub struct WriteS<
@@ -158,21 +155,23 @@ impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
     }
 }
 
-impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
-    for TemporalGraph<EXT>
-{
+impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
 
-    type WS<'a>
-        = UnlockedSession<'a, EXT>
-    where
-        EXT: 'a;
+    type WS<'a> = UnlockedSession<'a, Extension>;
 
-    type AtomicAddEdge<'a> =
-        WriteS<'a, RwLockWriteGuard<'a, MemNodeSegment>, RwLockWriteGuard<'a, MemEdgeSegment>, EXT>;
+    type AtomicAddEdge<'a> = WriteS<
+        'a,
+        RwLockWriteGuard<'a, MemNodeSegment>,
+        RwLockWriteGuard<'a, MemEdgeSegment>,
+        Extension,
+    >;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
-        todo!()
+    fn write_lock(
+        &self,
+    ) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+        let locked_g = self.write_locked_graph();
+        Ok(locked_g)
     }
 
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
@@ -193,7 +192,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> InternalAdditionOps
             NodeRef::External(id) => {
                 let id = self
                     .logical_to_physical
-                    .get_or_init_vid(id, || {
+                    .get_or_init(id, || {
                         // When initializing a new node, reserve node_id as a const prop.
                         // Done here since the id type is not known until node creation.
                         reserve_node_id_as_prop(self.node_meta(), id);

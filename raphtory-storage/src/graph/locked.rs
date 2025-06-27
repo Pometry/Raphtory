@@ -8,7 +8,7 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::Arc;
-use storage::{Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages}, Extension, ReadLockedEdges, ReadLockedNodes};
 
 #[derive(Debug)]
 pub struct LockedGraph {
@@ -57,47 +57,3 @@ impl Clone for LockedGraph {
     }
 }
 
-pub struct WriteLockedGraph<'a> {
-    pub nodes: WriteLockedNodes<'a>,
-    pub edges: WriteLockedEdges<'a>,
-    pub graph: &'a TemporalGraph,
-}
-
-// impl<'a> WriteLockedGraph<'a> {
-//     pub(crate) fn new(graph: &'a TemporalGraph) -> Self {
-//         let nodes = graph.storage.nodes.write_lock();
-//         let edges = graph.storage.edges.write_lock();
-//         Self {
-//             nodes,
-//             edges,
-//             graph,
-//         }
-//     }
-
-//     pub fn num_nodes(&self) -> usize {
-//         self.graph.storage.nodes.len()
-//     }
-//     pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
-//         self.graph
-//             .logical_to_physical
-//             .get_or_init(gid, || self.graph.storage.nodes.next_id())
-//     }
-
-//     pub fn resolve_node_type(&self, node_type: Option<&str>) -> MaybeNew<usize> {
-//         node_type
-//             .map(|node_type| self.graph.node_meta.get_or_create_node_type_id(node_type))
-//             .unwrap_or_else(|| MaybeNew::Existing(0))
-//     }
-
-//     pub fn num_shards(&self) -> usize {
-//         self.nodes.num_shards().max(self.edges.num_shards())
-//     }
-
-//     pub fn edges_mut(&mut self) -> &mut WriteLockedEdges<'a> {
-//         &mut self.edges
-//     }
-
-//     pub fn graph(&self) -> &TemporalGraph {
-//         self.graph
-//     }
-// }

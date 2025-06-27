@@ -226,6 +226,21 @@ impl<
         Ok(elid)
     }
 
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> Result<(), DBV4Error> {
+        let src = src.into();
+        let dst = dst.into();
+        let mut session = self.write_session(src, dst, None);
+        todo!("Implement internal_delete_edge");
+        // session.internal_delete_edge(t, src, dst, lsn, 0)?;
+        Ok(())
+    }
+
     fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, DBV4Error> {
         let input_time = t.try_into_input_time()?;
         let t = match input_time {

@@ -23,7 +23,13 @@ use raphtory_api::{
 };
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
-use std::{collections::HashMap, sync::atomic::Ordering};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 
 #[cfg(feature = "python")]
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
@@ -94,11 +100,6 @@ pub(crate) fn load_nodes_from_df<
 
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let cache_shards = cache.map(|cache| {
-        (0..write_locked_graph.num_shards())
-            .map(|_| cache.fork())
-            .collect::<Vec<_>>()
-    });
 
     let mut start_id = session
         .reserve_event_ids(df_view.num_rows)
@@ -147,12 +148,9 @@ pub(crate) fn load_nodes_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        let g = write_locked_graph.graph;
-        let update_time = |time| g.update_time(time);
+        let update_time = |time| write_locked_graph.update_time(time);
 
-        write_locked_graph
-            .nodes
-            .resize(write_locked_graph.num_nodes());
+        write_locked_graph.resize_chunks_to_num_nodes();
 
         write_locked_graph
             .nodes
@@ -168,44 +166,26 @@ pub(crate) fn load_nodes_from_df<
                     .zip(node_col.iter())
                     .enumerate()
                 {
-                    let shard_id = shard.shard_id();
-                    let node_exists = if let Some(mut_node) = shard.get_mut(*vid) {
-                        mut_node.init(*vid, gid);
-                        mut_node.node_type = *node_type;
+                    if let Some(mut_node) = shard.resolve_pos(*vid) {
+                        let mut writer = shard.writer();
+                        writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
+                        // mut_node.init(*vid, gid);
+                        // mut_node.node_type = *node_type;
                         t_props.clear();
                         t_props.extend(prop_cols.iter_row(idx));
 
                         c_props.clear();
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
-
-                        if let Some(caches) = cache_shards.as_ref() {
-                            let cache = &caches[shard_id];
-                            cache.add_node_update(
-                                TimeIndexEntry(time, start_id + idx),
-                                *vid,
-                                &t_props,
-                            );
-                            cache.add_node_cprops(*vid, &c_props);
-                        }
-
-                        for (id, prop) in c_props.drain(..) {
-                            mut_node.add_constant_prop(id, prop)?;
-                        }
-
-                        true
-                    } else {
-                        false
+                        writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
+                        writer.add_props(
+                            TimeIndexEntry(time, start_id + idx),
+                            mut_node,
+                            0,
+                            t_props.drain(..),
+                            0,
+                        );
                     };
-
-                    if node_exists {
-                        let t = TimeIndexEntry(time, start_id + idx);
-                        update_time(t);
-                        let prop_i = shard.t_prop_log_mut().push(t_props.drain(..))?;
-                        if let Some(mut_node) = shard.get_mut(*vid) {
-                            mut_node.update_t_prop_time(t, prop_i);
-                        }
-                    }
                 }
                 Ok::<_, GraphError>(())
             })?;
@@ -270,11 +250,6 @@ pub(crate) fn load_edges_from_df<
 
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let cache_shards = cache.map(|cache| {
-        (0..write_locked_graph.num_shards())
-            .map(|_| cache.fork())
-            .collect::<Vec<_>>()
-    });
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -337,15 +312,14 @@ pub(crate) fn load_edges_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph
-            .nodes
-            .resize(write_locked_graph.num_nodes());
+        write_locked_graph.resize_chunks_to_num_nodes();
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
         let g = write_locked_graph.graph;
-        let next_edge_id = || g.storage.edges.next_id();
+        let next_edge_id: Arc<AtomicUsize> = Arc::new(AtomicUsize::new(g.internal_num_edges()));
+        let next_edge_id = || next_edge_id.fetch_add(1, Ordering::Relaxed);
         let update_time = |time| g.update_time(time);
         write_locked_graph
             .nodes
@@ -364,17 +338,7 @@ pub(crate) fn load_edges_from_df<
                         src_node.init(*src, src_gid);
                         update_time(TimeIndexEntry(time, start_idx + row));
                         let eid = match src_node.find_edge_eid(*dst, &LayerIds::All) {
-                            None => {
-                                let eid = next_edge_id();
-                                if let Some(cache_shards) = cache_shards.as_ref() {
-                                    cache_shards[shard_id].resolve_edge(
-                                        MaybeNew::New(eid),
-                                        *src,
-                                        *dst,
-                                    );
-                                }
-                                eid
-                            }
+                            None => next_edge_id(),
                             Some(eid) => eid,
                         };
                         src_node.update_time(
@@ -442,12 +406,6 @@ pub(crate) fn load_edges_from_df<
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
 
-                        if let Some(caches) = cache_shards.as_ref() {
-                            let cache = &caches[shard_id];
-                            cache.add_edge_update(t, *eid, &t_props, *layer);
-                            cache.add_edge_cprops(*eid, *layer, &c_props);
-                        }
-
                         if !t_props.is_empty() || !c_props.is_empty() {
                             let edge_layer = edge.layer_mut(*layer);
 
@@ -465,11 +423,6 @@ pub(crate) fn load_edges_from_df<
             })?;
         if let Some(cache) = cache {
             cache.write()?;
-        }
-        if let Some(cache_shards) = cache_shards.as_ref() {
-            for cache in cache_shards {
-                cache.write()?;
-            }
         }
 
         start_idx += df.len();

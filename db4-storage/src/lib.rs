@@ -63,8 +63,6 @@ pub mod error {
         IO(#[from] std::io::Error),
         #[error("Serde error: {0}")]
         Serde(#[from] serde_json::Error),
-        // #[error("Load error: {0}")]
-        // LoadError(#[from] LoadError),
         #[error("Arrow-rs error: {0}")]
         ArrowRS(#[from] arrow_schema::ArrowError),
         #[error("Parquet error: {0}")]

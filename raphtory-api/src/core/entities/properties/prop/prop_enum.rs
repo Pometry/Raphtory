@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::properties::prop::{prop_ref_enum::PropRef, PropType},
+    entities::{properties::prop::{prop_ref_enum::PropRef, PropType}, GidRef},
     storage::arc_str::ArcStr,
 };
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
@@ -47,6 +47,15 @@ pub enum Prop {
     #[cfg(feature = "arrow")]
     Array(PropArray),
     Decimal(BigDecimal),
+}
+
+impl From<GidRef<'_>> for Prop {
+    fn from(value: GidRef<'_>) -> Self {
+        match value {
+            GidRef::U64(n) => Prop::U64(n),
+            GidRef::Str(s) => Prop::str(s),
+        }
+    }
 }
 
 impl<'a> From<PropRef<'a>> for Prop {

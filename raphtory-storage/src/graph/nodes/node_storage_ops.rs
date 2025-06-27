@@ -2,8 +2,8 @@ use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
     Direction,
 };
-use raphtory_core::entities::LayerVariants;
-use std::borrow::Cow;
+use raphtory_core::{entities::LayerVariants, storage::timeindex::TimeIndexEntry};
+use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
@@ -56,6 +56,15 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     ) -> impl Iterator<Item = (usize, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
+    }
+
+    fn temp_prop_rows_range(
+        self,
+        w: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)>;
+
+    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        self.temp_prop_rows_range(None)
     }
 }
 
@@ -121,4 +130,12 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         NodeRefOps::c_prop(self, layer_id, prop_id) 
     }
+
+    fn temp_prop_rows_range(
+            self,
+            w: Option<Range<TimeIndexEntry>>,
+        ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        NodeRefOps::temp_prop_rows(self, w)
+    }
+
 }

@@ -229,7 +229,8 @@ pub trait CoreGraphOps: Send + Sync {
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
         // TODO: figure out how to expose the layer_id to the calling API
-        core_node_entry.prop(0, id)
+        // core_node_entry.prop(0, id)
+        None
     }
 
     /// Gets the keys of constant properties of a given node
