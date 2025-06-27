@@ -35,11 +35,15 @@ fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
 
 fn bench_graph_init_index(c: &mut Criterion) {
     let graph = init_graph(Graph::new());
+
     let mut group = c.benchmark_group("index_init");
     group.sample_size(1000);
 
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
-        b.iter(|| graph.create_index().unwrap());
+        graph.drop_index().unwrap();
+        b.iter(|| {
+            graph.create_index().unwrap();
+        });
     });
 
     group.finish();

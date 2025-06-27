@@ -6,6 +6,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::ConstantPropertiesOps, Properties},
+            storage::storage::Storage,
             view::{internal::*, *},
         },
         graph::{
@@ -27,6 +28,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
+    search::{fallback_filter_edges, fallback_filter_nodes, searcher::Searcher},
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
@@ -961,14 +963,14 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index
-            .read()
-            .searcher()
-            .search_nodes(self, filter, limit, offset)
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_nodes(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
     }
 
     fn search_edges<F: AsEdgeFilter>(
@@ -977,19 +979,18 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index
-            .read()
-            .searcher()
-            .search_edges(self, filter, limit, offset)
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
     }
 
     fn is_indexed(&self) -> bool {
-        self.get_storage()
-            .map_or(false, |s| s.get_index().is_some())
+        self.get_storage().map_or(false, |s| s.is_indexed())
     }
 }
 
