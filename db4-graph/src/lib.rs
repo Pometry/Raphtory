@@ -26,7 +26,7 @@ use raphtory_core::{
 };
 use storage::{
     error::DBV4Error, persist::strategy::PersistentStrategy, Extension, Layer, ReadLockedLayer, ES,
-    NS, GIDResolver,
+    NS, resolver::GIDResolverOps, GIDResolver,
 };
 
 pub mod entries;
