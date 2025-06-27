@@ -224,7 +224,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
     }
 
     pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        self.graph.logical_to_physical.get_or_init_vid(gid, || {
+        self.graph.logical_to_physical.get_or_init(gid, || {
             VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
         })
     }

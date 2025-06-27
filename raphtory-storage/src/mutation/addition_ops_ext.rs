@@ -192,7 +192,7 @@ impl InternalAdditionOps for TemporalGraph {
             NodeRef::External(id) => {
                 let id = self
                     .logical_to_physical
-                    .get_or_init_vid(id, || {
+                    .get_or_init(id, || {
                         // When initializing a new node, reserve node_id as a const prop.
                         // Done here since the id type is not known until node creation.
                         reserve_node_id_as_prop(self.node_meta(), id);

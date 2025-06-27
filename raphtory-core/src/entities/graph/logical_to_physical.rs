@@ -159,54 +159,6 @@ impl Mapping {
         }
     }
 
-    // we assume pre validation of gids
-    pub fn get_or_init_vid<'a>(
-        &self,
-        gid: GidRef,
-        f_init: impl FnOnce() -> VID,
-    ) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        let map = self.map.get_or_init(|| match &gid {
-            GidRef::U64(_) => Map::U64(FxDashMap::default()),
-            GidRef::Str(_) => Map::Str(FxDashMap::default()),
-        });
-        match gid {
-            GidRef::U64(id) => map
-                .as_u64()
-                .map(|m| {
-                    m.get(&id)
-                        .map(|vid| MaybeNew::Existing(*vid))
-                        .unwrap_or_else(|| match m.entry(id) {
-                            Entry::Occupied(occupied_entry) => {
-                                MaybeNew::Existing(*occupied_entry.get())
-                            }
-                            Entry::Vacant(vacant_entry) => {
-                                let vid = f_init();
-                                vacant_entry.insert(vid);
-                                MaybeNew::New(vid)
-                            }
-                        })
-                })
-                .ok_or(InvalidNodeId::InvalidNodeIdU64(id)),
-            GidRef::Str(id) => map
-                .as_str()
-                .map(|m| {
-                    m.get(id)
-                        .map(|vid| MaybeNew::Existing(*vid))
-                        .unwrap_or_else(|| match m.entry(id.to_owned()) {
-                            Entry::Occupied(occupied_entry) => {
-                                MaybeNew::Existing(*occupied_entry.get())
-                            }
-                            Entry::Vacant(vacant_entry) => {
-                                let vid = f_init();
-                                vacant_entry.insert(vid);
-                                MaybeNew::New(vid)
-                            }
-                        })
-                })
-                .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into())),
-        }
-    }
-
     pub fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
