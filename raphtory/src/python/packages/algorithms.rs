@@ -58,10 +58,13 @@ use crate::{
     },
     core::utils::errors::GraphError,
     db::{
-        api::{state::NodeState, view::internal::DynamicGraph},
+        api::{
+            state::{NodeState, TypedNodeState},
+            view::internal::DynamicGraph,
+        },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::Graph,
+    prelude::{Graph, Prop},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
@@ -72,7 +75,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -636,7 +639,10 @@ pub fn balance(
 ///     NodeStateF64: Mapping of nodes to their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
-pub fn degree_centrality(graph: &PyGraphView) -> NodeState<'static, f64, DynamicGraph> {
+pub fn degree_centrality(
+    graph: &PyGraphView,
+) -> TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph> {
+    // NodeState<'static, f64, DynamicGraph> {
     degree_centrality_rs(&graph.graph)
 }
 

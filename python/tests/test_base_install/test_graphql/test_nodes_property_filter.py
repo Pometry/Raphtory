@@ -740,7 +740,7 @@ def test_node_property_filter_is_in_no_value(graph):
       }
     }
     """
-    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": []}} }}
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": []}}}}
     run_graphql_test(query, expected_output, graph())
 
 

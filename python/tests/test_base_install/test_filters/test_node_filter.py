@@ -20,7 +20,7 @@ def test_filter_nodes_for_node_name_ne():
     def check(graph):
         filter_expr = filter.Node.name() != "2"
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = ["1", "3", "4", "David Gilmour",  "Jimmy Page", "John Mayer"]
+        expected_ids = ["1", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check
@@ -47,7 +47,7 @@ def test_filter_nodes_for_node_name_not_in():
     def check(graph):
         filter_expr = filter.Node.name().is_not_in(["1"])
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = ["2", "3", "4", "David Gilmour",  "Jimmy Page", "John Mayer"]
+        expected_ids = ["2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check
@@ -69,7 +69,7 @@ def test_filter_nodes_for_node_type_ne():
     def check(graph):
         filter_expr = filter.Node.node_type() != "fire_nation"
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour",  "Jimmy Page", "John Mayer"]
+        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check
@@ -96,7 +96,7 @@ def test_filter_nodes_for_node_type_not_in():
     def check(graph):
         filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour",  "Jimmy Page", "John Mayer"]
+        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check
@@ -118,7 +118,7 @@ def test_filter_nodes_for_node_type_not_contains():
     def check(graph):
         filter_expr = filter.Node.node_type().not_contains("fire")
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = ["2", "4", "David Gilmour",  "Jimmy Page", "John Mayer"]
+        expected_ids = ["2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
     return check

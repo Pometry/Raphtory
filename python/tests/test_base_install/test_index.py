@@ -781,7 +781,9 @@ def test_search_edges_for_src_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.src().name().is_not_in(["N10", "N11", "N12", "N13", "N14"])
+    filter_expr = (
+        filter.Edge.src().name().is_not_in(["N10", "N11", "N12", "N13", "N14"])
+    )
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),

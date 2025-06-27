@@ -21,6 +21,7 @@ arrow-array = {workspace = true, features = ["chrono-tz"]}
 arrow-schema = {workspace = true}
 arrow-buffer = {workspace = true}
 arrow-data ={ workspace = true }
+serde_arrow = {workspace = true, features = ["arrow-53"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }

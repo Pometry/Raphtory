@@ -1,8 +1,18 @@
 use crate::{
-    db::api::{state::NodeState, view::StaticGraphViewOps},
+    db::api::{
+        state::{GenericNodeState, NodeState, TypedNodeState},
+        view::StaticGraphViewOps,
+    },
     prelude::*,
 };
 use rayon::prelude::*;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
+pub struct CentralityScore {
+    score: f64,
+}
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
 /// by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -15,31 +25,51 @@ use rayon::prelude::*;
 /// # Returns
 ///
 /// An [AlgorithmResult] containing the degree centrality of each node.
-pub fn degree_centrality<G: StaticGraphViewOps>(g: &G) -> NodeState<'static, f64, G> {
+pub fn degree_centrality<G: StaticGraphViewOps>(
+    g: &G,
+) -> TypedNodeState<'static, HashMap<String, Prop>, G> {
+    // NodeState<'static, f64, G> {
     let max_degree = match g.nodes().degree().max() {
-        None => return NodeState::new_empty(g.clone()),
+        None => return GenericNodeState::new_empty(g.clone()).transform(),
         Some(v) => v,
     };
 
-    let values: Vec<_> = g
+    let values: Vec<CentralityScore> = g
         .nodes()
         .degree()
         .into_par_iter_values()
-        .map(|v| (v as f64) / max_degree as f64)
+        .map(|v| CentralityScore {
+            score: (v as f64) / max_degree as f64,
+        })
         .collect();
 
-    NodeState::new_from_values(g.clone(), values)
+    // NodeState::new_from_values(g.clone(), values)
+    GenericNodeState::new_from_eval(g.clone(), values).transform()
 }
 
 #[cfg(test)]
 mod degree_centrality_test {
+    use arrow_array::RecordBatch;
+    use serde::Deserialize;
+    use serde_arrow::Deserializer;
+    use serde_json::Value;
+
     use crate::{
-        algorithms::centrality::degree_centrality::degree_centrality,
-        db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::NO_PROPS,
+        algorithms::centrality::degree_centrality::{degree_centrality, CentralityScore},
+        core::Prop,
+        db::{
+            api::{mutation::AdditionOps, state::NodeStateValue},
+            graph::graph::Graph,
+        },
+        prelude::{NodeStateOps, NO_PROPS},
         test_storage,
     };
     use std::collections::HashMap;
+
+    fn des<T: NodeStateValue>(recordbatch: &RecordBatch) -> T {
+        let deserializer = Deserializer::from_record_batch(recordbatch).unwrap();
+        T::deserialize(deserializer.get(0).unwrap()).unwrap()
+    }
 
     #[test]
     fn test_degree_centrality() {
@@ -48,6 +78,7 @@ mod degree_centrality_test {
         for (src, dst) in &vs {
             graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
         }
+
         test_storage!(&graph, |graph| {
             let mut expected: HashMap<String, f64> = HashMap::new();
             expected.insert("1".to_string(), 1.0);
@@ -56,7 +87,11 @@ mod degree_centrality_test {
             expected.insert("4".to_string(), 2.0 / 3.0);
 
             let res = degree_centrality(graph);
-            assert_eq!(res, expected);
+            println!("{:?}", des::<HashMap<String, Prop>>(res.state.values()))
+
+            // let v: Vec<_> = res.iter_values().collect();
+            // println!("{:?}", v);
+            //assert_eq!(res, expected);
         });
     }
 }

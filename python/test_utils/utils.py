@@ -15,6 +15,7 @@ PORT = 1737
 
 
 if "DISK_TEST_MARK" in os.environ:
+
     def with_disk_graph(func):
         def inner(graph):
             def inner2(graph, tmpdirname):
@@ -28,19 +29,27 @@ if "DISK_TEST_MARK" in os.environ:
         return inner
 
 else:
+
     def with_disk_graph(func):
         return func
 
 
 def with_disk_variants(init_fn, variants=None):
     if variants is None:
-        variants = ["graph", "persistent_graph", "event_disk_graph", "persistent_disk_graph"]
+        variants = [
+            "graph",
+            "persistent_graph",
+            "event_disk_graph",
+            "persistent_disk_graph",
+        ]
 
     def decorator(func):
         @wraps(func)
         def wrapper():
             check = func()
-            assert callable(check), f"Expected test function to return a callable, got {type(check)}"
+            assert callable(
+                check
+            ), f"Expected test function to return a callable, got {type(check)}"
 
             if "graph" in variants:
                 g = init_fn(Graph())
@@ -54,7 +63,10 @@ def with_disk_variants(init_fn, variants=None):
                 from raphtory import DiskGraphStorage
 
                 with tempfile.TemporaryDirectory() as tmpdir:
-                    if "event_disk_graph" in variants or "persistent_disk_graph" in variants:
+                    if (
+                        "event_disk_graph" in variants
+                        or "persistent_disk_graph" in variants
+                    ):
                         g = init_fn(Graph())
                         g.to_disk_graph(tmpdir)
                         disk = DiskGraphStorage.load_from_dir(tmpdir)
@@ -67,6 +79,7 @@ def with_disk_variants(init_fn, variants=None):
                         del disk
 
         return wrapper
+
     return decorator
 
 

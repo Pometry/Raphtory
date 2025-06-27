@@ -6847,3 +6847,91 @@ class NodeLayout(object):
         Returns:
              Iterator[list[float]]: Iterator over values
         """
+
+class NodeStateF64String(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(
+        self, node: NodeInput, default: Optional[Tuple[float, str]] = None
+    ) -> Optional[Tuple[float, str]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Tuple[float, str]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Tuple[float, str]]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Tuple[float, str]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Tuple[float, str]]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateF64String:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateF64String: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[Tuple[float, str]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Tuple[float, str]]: Iterator over values
+        """

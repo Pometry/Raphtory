@@ -40,7 +40,9 @@ def test_node_composite_filter():
         filter_expr1 = filter.Node.name() == "2"
         filter_expr2 = filter.Property("p2") == 2
         filter_expr3 = filter.Property("p9") <= 5
-        result_ids = sorted(graph.filter_nodes((filter_expr1 & filter_expr2) | filter_expr3).nodes.id)
+        result_ids = sorted(
+            graph.filter_nodes((filter_expr1 & filter_expr2) | filter_expr3).nodes.id
+        )
         expected_ids = ["1", "2"]
         assert result_ids == expected_ids
 
@@ -57,8 +59,9 @@ def test_not_node_composite_filter():
         assert result_ids == expected_ids
 
         result_ids = sorted(graph.filter_nodes(~(filter_expr1 & filter_expr2)).nodes.id)
-        expected_ids = sorted(["1", "3", "4", "David Gilmour",  "Jimmy Page", "John Mayer"])
+        expected_ids = sorted(
+            ["1", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        )
         assert result_ids == expected_ids
 
     return check
-
