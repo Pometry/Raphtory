@@ -16,7 +16,7 @@ use raphtory_core::{
     entities::{LayerIds, edges::edge_ref::EdgeRef, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use std::{iter::Empty, ops::Deref, sync::Arc};
+use std::{iter::Empty, ops::{Deref, Range}, sync::Arc};
 
 use super::additions::MemAdditions;
 
@@ -161,21 +161,17 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn temp_prop_rows(
         self,
+        w: Option<Range<TimeIndexEntry>>,
     ) -> impl Iterator<
         Item = (
             TimeIndexEntry,
             usize,
-            impl Iterator<Item = (usize, Option<Prop>)>,
+            Vec<(usize, Prop)>,
         ),
     > + 'a {
-        // self.ns.as_ref().iter().enumerate().flat_map(|(layer_id, layer)| {
-        //     let rows = layer.t_prop_rows(self.pos);
-        // }).flat_map(|t_prop| {
-        //     t_prop.
-        // })
-
-        //TODO
-        std::iter::empty::<(_, _, Empty<_>)>()
+        // TODO: Implement this properly
+        // For now, return empty iterator to satisfy the trait
+        std::iter::empty()
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
