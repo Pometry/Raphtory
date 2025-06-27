@@ -16,7 +16,7 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    ops::Deref,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 use tracing::info;
@@ -53,7 +53,7 @@ pub struct Storage {
     pub(crate) cache: OnceCell<GraphWriter>,
     #[cfg(feature = "search")]
     #[serde(skip)]
-    pub(crate) index: OnceCell<RwLock<GraphIndex>>,
+    pub(crate) index: RwLock<GraphIndex>,
     // vector index
 }
 
@@ -85,7 +85,7 @@ impl Storage {
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
             #[cfg(feature = "search")]
-            index: OnceCell::new(),
+            index: RwLock::new(GraphIndex::Empty),
         }
     }
 
@@ -95,7 +95,7 @@ impl Storage {
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
             #[cfg(feature = "search")]
-            index: OnceCell::new(),
+            index: RwLock::new(GraphIndex::Empty),
         }
     }
 
@@ -113,9 +113,7 @@ impl Storage {
         &self,
         map_fn: impl FnOnce(&GraphIndex) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        if let Some(index) = self.index.get() {
-            map_fn(&index.read())?
-        };
+        map_fn(&self.index.read())?;
         Ok(())
     }
 
@@ -125,19 +123,19 @@ impl Storage {
         &self,
         map_fn: impl FnOnce(&MutableGraphIndex) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        if let Some(index) = self.index.get() {
-            let guard = index.read();
-            if let GraphIndex::Mutable(m) = guard.deref() {
-                map_fn(m)?
-            } else {
+        let guard = self.index.read();
+        match guard.deref() {
+            GraphIndex::Empty => {}
+            GraphIndex::Mutable(i) => map_fn(i)?,
+            GraphIndex::Immutable(_) => {
                 drop(guard);
-                index.write().make_mutable_if_needed()?;
-                let guard = index.read();
-                if let GraphIndex::Mutable(m) = guard.deref() {
+                let mut guard = self.index.write();
+                guard.make_mutable_if_needed()?;
+                if let GraphIndex::Mutable(m) = guard.deref_mut() {
                     map_fn(m)?
                 }
             }
-        };
+        }
         Ok(())
     }
 }
@@ -145,60 +143,82 @@ impl Storage {
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        let index = self.index.get().ok_or(GraphError::IndexNotCreated)?;
-        Ok(index.read().index_spec())
+        Ok(self.index.read().index_spec())
     }
 
-    pub(crate) fn get_or_load_index(
-        &self,
-        path: &GraphFolder,
-    ) -> Result<&RwLock<GraphIndex>, GraphError> {
-        self.index.get_or_try_init(|| {
-            let index = GraphIndex::load_from_path(&path)?;
-            Ok(RwLock::new(index))
-        })
+    pub(crate) fn load_index_if_empty(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let guard = self.index.read();
+        match guard.deref() {
+            GraphIndex::Empty => {
+                drop(guard);
+                let mut guard = self.index.write();
+                if let e @ GraphIndex::Empty = guard.deref_mut() {
+                    let index = GraphIndex::load_from_path(&path)?;
+                    *e = index;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
-    pub(crate) fn get_or_create_index(
-        &self,
-        index_spec: IndexSpec,
-    ) -> Result<&RwLock<GraphIndex>, GraphError> {
-        let index = self.index.get_or_try_init(|| {
-            let cached_graph_path = self.get_cache().map(|cache| cache.folder.clone());
-            let index = GraphIndex::create(&self.graph, false, cached_graph_path)?;
-            Ok::<_, GraphError>(RwLock::new(index))
-        })?;
-
+    pub(crate) fn create_index_if_empty(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+        {
+            let guard = self.index.read();
+            match guard.deref() {
+                GraphIndex::Empty => {
+                    drop(guard);
+                    let mut guard = self.index.write();
+                    if let e @ GraphIndex::Empty = guard.deref_mut() {
+                        let cached_graph_path = self.get_cache().map(|cache| cache.folder.clone());
+                        let index = GraphIndex::create(&self.graph, false, cached_graph_path)?;
+                        *e = index;
+                    }
+                }
+                _ => {}
+            }
+        }
         self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
-
-        Ok(index)
+        Ok(())
     }
 
-    pub(crate) fn get_or_create_index_in_ram(
+    pub(crate) fn create_index_in_ram_if_empty(
         &self,
         index_spec: IndexSpec,
-    ) -> Result<&RwLock<GraphIndex>, GraphError> {
-        let index = self.index.get_or_try_init(|| {
-            let index = GraphIndex::create(&self.graph, true, None)?;
-            Ok::<_, GraphError>(RwLock::new(index))
-        })?;
-
-        if index.read().path().is_some() {
+    ) -> Result<(), GraphError> {
+        {
+            let guard = self.index.read();
+            match guard.deref() {
+                GraphIndex::Empty => {
+                    drop(guard);
+                    let mut guard = self.index.write();
+                    if let e @ GraphIndex::Empty = guard.deref_mut() {
+                        let index = GraphIndex::create(&self.graph, true, None)?;
+                        *e = index;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if self.index.read().path().is_some() {
             return Err(GraphError::OnDiskIndexAlreadyExists);
         }
-
         self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
-
-        Ok(index)
+        Ok(())
     }
 
-    pub(crate) fn get_index(&self) -> Option<&RwLock<GraphIndex>> {
-        self.index.get()
+    pub(crate) fn get_index(&self) -> &RwLock<GraphIndex> {
+        &self.index
+    }
+
+    pub(crate) fn is_indexed(&self) -> bool {
+        self.index.read().is_indexed()
     }
 
     pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        if let Some(index) = self.get_index() {
-            if index.read().path().is_none() {
+        let guard = self.get_index().read();
+        if guard.is_indexed() {
+            if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
@@ -208,13 +228,20 @@ impl Storage {
     }
 
     pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        if let Some(index) = self.get_index() {
-            if index.read().path().is_none() {
+        let guard = self.get_index().read();
+        if guard.is_indexed() {
+            if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
             self.if_index(|index| index.persist_to_disk_zip(path))?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn drop_index(&self) -> Result<(), GraphError> {
+        let mut guard = self.index.write();
+        *guard = GraphIndex::Empty;
         Ok(())
     }
 }

@@ -1,4 +1,16 @@
-use crate::{errors::GraphError, search::property_index::PropertyIndex};
+use crate::{
+    db::{
+        api::view::StaticGraphViewOps,
+        graph::{
+            edge::EdgeView,
+            node::NodeView,
+            views::filter::internal::{CreateEdgeFilter, CreateNodeFilter},
+        },
+    },
+    errors::GraphError,
+    prelude::{EdgePropertyFilterOps, GraphViewOps, NodePropertyFilterOps},
+    search::property_index::PropertyIndex,
+};
 use ahash::HashSet;
 use std::{fs::create_dir_all, path::PathBuf};
 use tantivy::{
@@ -88,6 +100,40 @@ fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
         .collect()
 }
 
+pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(
+    graph: &G,
+    filter: &(impl CreateNodeFilter + Clone),
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<NodeView<'static, G>>, GraphError> {
+    let filtered_nodes = graph
+        .filter_nodes(filter.clone())?
+        .nodes()
+        .iter()
+        .map(|n| NodeView::new_internal(graph.clone(), n.node))
+        .skip(offset)
+        .take(limit)
+        .collect();
+    Ok(filtered_nodes)
+}
+
+pub(crate) fn fallback_filter_edges<G: StaticGraphViewOps>(
+    graph: &G,
+    filter: &(impl CreateEdgeFilter + Clone),
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<EdgeView<G>>, GraphError> {
+    let filtered_edges = graph
+        .filter_edges(filter.clone())?
+        .edges()
+        .iter()
+        .map(|e| EdgeView::new(graph.clone(), e.edge))
+        .skip(offset)
+        .take(limit)
+        .collect();
+    Ok(filtered_edges)
+}
+
 #[cfg(test)]
 mod test_index {
     #[cfg(feature = "search")]
@@ -142,18 +188,16 @@ mod test_index {
             // No index persisted since it was never created
             let graph = init_graph(Graph::new());
 
-            let err = graph
-                .search_nodes(NodeFilter::name().eq("Alice"), 2, 0)
-                .expect_err("Expected error since index was not created");
-            assert!(matches!(err, GraphError::IndexNotCreated));
+            let filter = NodeFilter::name().eq("Alice");
+            assert_search_results(&graph, &filter, vec!["Alice"]);
 
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_none());
+            let is_indexed = graph.get_storage().unwrap().is_indexed();
+            assert!(!is_indexed);
         }
 
         #[test]
@@ -173,8 +217,8 @@ mod test_index {
 
             // Loaded index that was persisted
             let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
+            let is_indexed = graph.get_storage().unwrap().is_indexed();
+            assert!(is_indexed);
 
             assert_search_results(&graph, &filter, vec!["Alice"]);
         }
@@ -248,8 +292,8 @@ mod test_index {
 
             // Loaded index that was persisted
             let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
+            let is_indexed = graph.get_storage().unwrap().is_indexed();
+            assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
             assert_search_results(&graph, &filter2, Vec::<&str>::new());
 
@@ -273,8 +317,8 @@ mod test_index {
 
             // Should load the updated graph and index
             let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
+            let is_indexed = graph.get_storage().unwrap().is_indexed();
+            assert!(is_indexed);
             assert_search_results(&graph, &filter1, vec!["Alice"]);
             assert_search_results(&graph, &filter2, vec!["Tommy"]);
         }
@@ -381,14 +425,7 @@ mod test_index {
             graph.encode(&folder).unwrap();
 
             let graph = Graph::decode(folder).unwrap();
-            let immutable = graph
-                .get_storage()
-                .unwrap()
-                .index
-                .get()
-                .unwrap()
-                .read()
-                .is_immutable();
+            let immutable = graph.get_storage().unwrap().index.read().is_immutable();
             assert! {!immutable};
         }
 
@@ -401,14 +438,7 @@ mod test_index {
             graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
-            let immutable = graph
-                .get_storage()
-                .unwrap()
-                .index
-                .get()
-                .unwrap()
-                .read()
-                .is_immutable();
+            let immutable = graph.get_storage().unwrap().index.read().is_immutable();
             assert! {immutable};
         }
 
@@ -427,11 +457,10 @@ mod test_index {
             graph.encode(path).unwrap();
 
             let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_none());
+            let is_indexed = graph.get_storage().unwrap().is_indexed();
+            assert!(!is_indexed);
 
-            let results = graph.search_nodes(filter.clone(), 2, 0);
-            assert!(matches!(results, Err(GraphError::IndexNotCreated)));
+            assert_search_results(&graph, &filter, vec!["Alice"]);
         }
 
         #[test]
