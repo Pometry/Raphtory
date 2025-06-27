@@ -158,6 +158,16 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             lsn,
         );
     }
+
+    pub fn store_node_id(
+        &mut self,
+        pos: LocalPOS,
+        layer_id: usize,
+        gid: GidRef<'_>,
+        lsn: u64,
+    ) {
+        self.update_c_props(pos, layer_id, [(1, gid.into())], lsn);
+    }
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop

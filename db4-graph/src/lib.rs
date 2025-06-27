@@ -17,11 +17,8 @@ use raphtory_core::{
         graph::{
             logical_to_physical::{InvalidNodeId, Mapping},
             tgraph::InvalidLayer,
-            timer::{MinCounter, TimeCounterTrait},
-        },
-        nodes::node_ref::NodeRef,
-        properties::graph_meta::GraphMeta,
-        GidRef, LayerIds, VID,
+            timer::{MaxCounter, MinCounter, TimeCounterTrait},
+        }, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta, GidRef, LayerIds, EID, VID
     },
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
@@ -52,8 +49,8 @@ pub struct TemporalGraph<EXT = Extension> {
     event_counter: AtomicUsize,
     graph_meta: Arc<GraphMeta>,
 
-    earliest: MinCounter,
-    latest: MinCounter,
+    pub earliest: Arc<MinCounter>,
+    pub latest: Arc<MaxCounter>,
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
@@ -211,6 +208,7 @@ pub struct WriteLockedGraph<'a, EXT> {
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
     pub num_nodes: Arc<AtomicUsize>,
+    pub num_edges: Arc<AtomicUsize>,
 }
 
 impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
@@ -220,6 +218,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
             edges: graph.storage.edges().write_locked().into(),
             graph,
             num_nodes: Arc::new(AtomicUsize::new(graph.internal_num_nodes())),
+            num_edges: Arc::new(AtomicUsize::new(graph.internal_num_edges())),
         }
     }
 
@@ -227,6 +226,12 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
         self.graph.logical_to_physical.get_or_init(gid, || {
             VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
         })
+    }
+
+    pub fn next_edge_id(&self) -> usize {
+        self.graph
+            .event_counter
+            .fetch_add(1, atomic::Ordering::Relaxed)
     }
 
     pub fn num_nodes(&self) -> usize {
@@ -241,15 +246,21 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
 
     pub fn resize_chunks_to_num_nodes(&mut self) {
         let num_nodes = self.num_nodes();
-        self.graph.storage().nodes().grow_to_num_nodes(num_nodes);
+        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
+        self.graph.storage().nodes().grow(chunks_needed + 1);
         std::mem::take(&mut self.nodes);
         self.nodes = self.graph.storage.nodes().write_locked().into();
     }
 
-    #[inline]
-    pub fn update_time(&self, time: TimeIndexEntry) {
-        let t = time.t();
-        self.graph.earliest.update(t);
-        self.graph.latest.update(t);
+    pub fn resize_chunks_to_num_edges(&mut self) {
+        let num_edges = self.graph.internal_num_edges();
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
+        self.graph.storage().edges().grow(chunks_needed + 1);
+        std::mem::take(&mut self.edges);
+        self.edges = self.graph.storage.edges().write_locked().into();
+    }
+
+    pub fn earliest_latest(&self) -> (Arc<MinCounter>, Arc<MaxCounter>) {
+        (self.graph.earliest.clone(), self.graph.latest.clone())
     }
 }

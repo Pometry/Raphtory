@@ -56,6 +56,12 @@ pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
 }
 
+impl <ES> Default for WriteLockedEdgePages<'_, ES> {
+    fn default() -> Self {
+        Self { writers: Vec::new() }
+    }
+}
+
 impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> {
     pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
         Self { writers }

@@ -255,11 +255,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         self.get_or_create_segment(new_len - 1);
     }
 
-    pub fn grow_to_num_nodes(&self, num_nodes: usize) {
-        let chunks_needed = (num_nodes + self.max_page_len - 1) / self.max_page_len;
-        self.grow(chunks_needed);
-    }
-
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
         if let Some(segment) = self.pages.get(segment_id) {
             return segment;
