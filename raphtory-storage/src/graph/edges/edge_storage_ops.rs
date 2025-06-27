@@ -9,11 +9,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_core::{
-    entities::{edges::edge_store::MemEdge, properties::tprop::TProp},
-    storage::timeindex::{TimeIndex, TimeIndexWindow},
-};
+use raphtory_core::storage::timeindex::{TimeIndex, TimeIndexWindow};
 use std::ops::Range;
+use storage::api::edges::EdgeRefOps;
 
 #[derive(Clone)]
 pub enum TimeIndexRef<'a> {
@@ -130,7 +128,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + Send + Sync + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id)))
     }
@@ -138,7 +136,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.deletions(id)))
     }
@@ -146,14 +144,20 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            storage::EdgeAdditions<'a>,
+            storage::EdgeAdditions<'a>,
+        ),
+    > + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id), self.deletions(id)))
     }
 
-    fn additions(self, layer_id: usize) -> TimeIndexRef<'a>;
+    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a>;
 
-    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a>;
+    fn deletions(self, layer_id: usize) -> storage::EdgeAdditions<'a>;
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a;
 
@@ -178,42 +182,30 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     }
 }
 
-impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
+impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        match layer_ids {
-            LayerIds::None => false,
-            LayerIds::All => self
-                .additions_iter(&LayerIds::All)
-                .any(|(_, t_index)| t_index.active_t(w.clone())),
-            LayerIds::One(l_id) => self
-                .get_additions(*l_id)
-                .filter(|a| a.active_t(w))
-                .is_some(),
-            LayerIds::Multiple(layers) => layers
-                .iter()
-                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
-        }
+        EdgeRefOps::additions(self, layer_ids).active_t(w)
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => true,
-            LayerIds::One(id) => self.has_layer_inner(*id),
-            LayerIds::Multiple(ids) => ids.iter().any(|id| self.has_layer_inner(id)),
+            LayerIds::All => self.edge(0).is_some(),
+            LayerIds::One(id) => self.edge(*id).is_some(),
+            LayerIds::Multiple(ids) => self.has_layers(ids),
         }
     }
 
     fn src(self) -> VID {
-        self.edge_store().src
+        EdgeRefOps::src(&self)
     }
 
     fn dst(self) -> VID {
-        self.edge_store().dst
+        EdgeRefOps::dst(&self)
     }
 
     fn eid(self) -> EID {
-        self.eid()
+        EdgeRefOps::edge_id(&self)
     }
 
     fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
@@ -231,23 +223,20 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
         }
     }
 
-    fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        TimeIndexRef::Ref(self.get_additions(layer_id).unwrap_or(&TimeIndex::Empty))
+    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
+        EdgeRefOps::layer_additions(self, layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a> {
-        TimeIndexRef::Ref(self.get_deletions(layer_id).unwrap_or(&TimeIndex::Empty))
+    fn deletions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
+        EdgeRefOps::layer_additions(self, layer_id)
     }
 
     #[inline(always)]
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
-        self.props(layer_id)
-            .and_then(|props| props.temporal_prop(prop_id))
-            .unwrap_or(&TProp::Empty)
+        EdgeRefOps::layer_t_prop(self, layer_id, prop_id)
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        self.props(layer_id)
-            .and_then(|props| props.const_prop(prop_id).cloned())
+        EdgeRefOps::c_prop(self, layer_id, prop_id)
     }
 }

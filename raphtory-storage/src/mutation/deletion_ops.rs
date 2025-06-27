@@ -25,6 +25,29 @@ pub trait InternalDeletionOps {
     ) -> Result<(), Self::Error>;
 }
 
+impl <EXT> InternalDeletionOps for db4_graph::TemporalGraph<EXT> {
+    type Error = MutationError;
+
+    fn internal_delete_edge(
+        &self,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer: usize,
+    ) -> Result<MaybeNew<EID>, Self::Error> {
+        todo!()
+    }
+
+    fn internal_delete_existing_edge(
+        &self,
+        t: TimeIndexEntry,
+        eid: EID,
+        layer: usize,
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+}
+
 impl InternalDeletionOps for TemporalGraph {
     type Error = MutationError;
 

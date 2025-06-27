@@ -1,6 +1,6 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
-    entities::{LayerIds, Multiple, VID, properties::tprop::TPropCell},
+    entities::{EID, LayerIds, Multiple, VID, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
@@ -135,11 +135,43 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         EdgeAdditions::new(self, layer_id)
     }
 
+    fn layer_additions(self, layer_id: usize) -> Self::Additions {
+        EdgeAdditions::new_with_layer(self, layer_id)
+    }
+
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.es.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
 
     fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
         EdgeTProps::new(self, layer_id, prop_id)
+    }
+
+    fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
+        EdgeTProps::new_with_layer(self, layer_id, prop_id)
+    }
+
+    fn src(&self) -> VID {
+        self.es.as_ref()[0]
+            .get(&self.pos)
+            .map(|entry| entry.src)
+            .expect("Edge must have a source vertex")
+    }
+
+    fn dst(&self) -> VID {
+        self.es.as_ref()[0]
+            .get(&self.pos)
+            .map(|entry| entry.dst)
+            .expect("Edge must have a destination vertex")
+    }
+
+    fn edge_id(&self) -> EID {
+        let segment_id = self.es.as_ref()[0].segment_id();
+        let max_page_len = self.es.as_ref()[0].max_page_len();
+        self.pos.as_eid(segment_id, max_page_len)
+    }
+
+    fn internal_num_layers(self) -> usize {
+        self.es.as_ref().len()
     }
 }

@@ -223,7 +223,7 @@ impl AtomicAdditionOps for StorageWriteSession<'_> {
         todo!()
     }
 
-    fn store_node_id_as_prop(&self, id: NodeRef, vid: impl Into<VID>) {
+    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
         todo!("set_node_id is not implemented for StorageWriteSession");
     }
 }

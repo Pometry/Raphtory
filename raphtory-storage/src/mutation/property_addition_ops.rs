@@ -176,6 +176,63 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     }
 }
 
+impl <EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
+    type Error = MutationError;
+
+    fn internal_add_properties(
+        &self,
+        t: TimeIndexEntry,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_update_constant_properties(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_add_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_update_constant_node_properties(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_add_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn internal_update_constant_edge_properties(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), Self::Error> {
+        todo!()
+    }
+}
+
 impl InternalPropertyAdditionOps for GraphStorage {
     type Error = MutationError;
 
@@ -184,11 +241,11 @@ impl InternalPropertyAdditionOps for GraphStorage {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        self.mutable()?.internal_add_properties(t, props)
+        Ok(self.mutable()?.internal_add_properties(t, props)?)
     }
 
     fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        self.mutable()?.internal_add_constant_properties(props)
+        Ok(self.mutable()?.internal_add_constant_properties(props)?)
     }
 
     fn internal_update_constant_properties(

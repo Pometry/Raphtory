@@ -1,5 +1,6 @@
-use std::ops::Range;
+use std::{borrow::Borrow, ops::Range};
 
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
@@ -19,12 +20,12 @@ where
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a;
 
-    fn into_t_props_layers<'b>(
+    fn into_t_props_layers(
         self,
-        layers: &'b LayerIds,
+        layers: impl Borrow<LayerIds>,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a {
-        match layers {
+        match layers.borrow() {
             LayerIds::None => Iter4::I(std::iter::empty()),
             LayerIds::One(layer_id) => Iter4::J(self.into_t_props(*layer_id, prop_id)),
             LayerIds::All => Iter4::K(
@@ -44,7 +45,7 @@ where
 #[derive(Clone, Copy)]
 pub struct GenTProps<'a, Ref> {
     node: Ref,
-    layer_id: &'a LayerIds,
+    layer_id: Either<&'a LayerIds, usize>,
     prop_id: usize,
 }
 
@@ -52,7 +53,15 @@ impl<'a, Ref> GenTProps<'a, Ref> {
     pub fn new(node: Ref, layer_id: &'a LayerIds, prop_id: usize) -> Self {
         Self {
             node,
-            layer_id,
+            layer_id: Either::Left(layer_id),
+            prop_id,
+        }
+    }
+
+    pub fn new_with_layer(node: Ref, layer_id: usize, prop_id: usize) -> Self {
+        Self {
+            node,
+            layer_id: Either::Right(layer_id),
             prop_id,
         }
     }
@@ -60,7 +69,12 @@ impl<'a, Ref> GenTProps<'a, Ref> {
 
 impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + 'a {
-        self.node.into_t_props_layers(self.layer_id, prop_id)
+        match self.layer_id {
+            Either::Left(layer_ids) => {
+                Either::Left(self.node.into_t_props_layers(layer_ids, prop_id))
+            }
+            Either::Right(layer_id) => Either::Right(self.node.into_t_props(layer_id, prop_id)),
+        }
     }
 }
 

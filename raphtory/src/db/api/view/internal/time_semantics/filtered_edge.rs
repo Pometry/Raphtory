@@ -12,7 +12,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::edges::{
     edge_ref::EdgeStorageRef,
-    edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+    edge_storage_ops::EdgeStorageOps,
     edges::EdgesStorage,
 };
 use rayon::iter::ParallelIterator;
@@ -21,7 +21,7 @@ use std::ops::Range;
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G> {
     eid: ELID,
-    time_index: TimeIndexRef<'graph>,
+    time_index: storage::EdgeAdditions<'graph>,
     view: G,
 }
 

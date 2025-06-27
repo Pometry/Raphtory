@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Range},
     path::Path,
     sync::Arc,
 };
@@ -28,7 +28,7 @@ use crate::{
     LocalPOS,
     error::DBV4Error,
     segments::node::MemNodeSegment,
-    utils::{Iter3, Iter4},
+    utils::{Iter2, Iter3, Iter4},
 };
 
 pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
@@ -143,7 +143,7 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     }
 }
 
-pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
+pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a>;
 
     type TProps: TPropOps<'a>;
@@ -221,13 +221,42 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn temp_prop_rows(
         self,
-    ) -> impl Iterator<
-        Item = (
-            TimeIndexEntry,
-            usize,
-            impl Iterator<Item = (usize, Option<Prop>)>,
-        ),
-    > + 'a;
+        w: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> + 'a {
+        (0..self.internal_num_layers()).flat_map(move |layer_id| {
+            let w = w.clone();
+            let mut time_ordered_iter = (0..self.node_meta().temporal_prop_meta().len())
+                .map(move |prop_id| {
+                    self.temporal_prop_layer(layer_id, prop_id)
+                        .iter_inner(w.clone())
+                        .map(move |(t, prop)| (t, (prop_id, prop)))
+                })
+                .kmerge_by(|(t1, _), (t2, _)| t1 <= t2);
+
+            if let Some((mut current_time, (prop_id, prop))) = time_ordered_iter.next() {
+                let mut current_row = vec![(prop_id, prop)];
+                Iter2::I2(std::iter::from_fn(move || {
+                    while let Some((t, (prop_id, prop))) = time_ordered_iter.next() {
+                        if t == current_time {
+                            current_row.push((prop_id, prop));
+                        } else {
+                            let row = std::mem::take(&mut current_row);
+                            current_time = t;
+                            return Some((current_time, layer_id, row));
+                        }
+                    }
+                    if !current_row.is_empty() {
+                        let row = std::mem::take(&mut current_row);
+                        Some((current_time, layer_id, row))
+                    } else {
+                        None
+                    }
+                }))
+            } else {
+                Iter2::I1(std::iter::empty())
+            }
+        })
+    }
 
     fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
     where
@@ -259,11 +288,15 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn additions(self, layers: &'a LayerIds) -> Self::Additions;
 
+    fn layer_additions(self, layer_id: usize) -> Self::Additions;
+
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
     fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str>;
 
     fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps;
+
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 
     fn t_props(self, layer_id: &'a LayerIds) -> impl Iterator<Item = (usize, Self::TProps)> {
         (0..self.node_meta().temporal_prop_meta().len())
@@ -294,4 +327,8 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync {
             .map(|id| id as usize)
             .expect("Node type should be present")
     }
+
+    fn internal_num_layers(&self) -> usize;
+
+    fn has_layer_inner(self, layer_id: usize) -> bool;
 }
