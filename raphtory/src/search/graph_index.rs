@@ -166,7 +166,7 @@ impl Debug for GraphIndex {
                 .field("path", &m.path.as_ref().map(|p| p.path()))
                 .field("index_spec", &m.index_spec)
                 .finish(),
-            GraphIndex::Empty => f.debug_tuple("GraphIndex::Empty").finish(),
+            GraphIndex::Empty => f.debug_struct("GraphIndex::Empty").finish(),
         }
     }
 }
