@@ -6,6 +6,7 @@ use raphtory_api::core::{
 use raphtory_core::entities::graph::logical_to_physical::{Mapping};
 use crate::resolver::{GIDResolverOps, GIDResolverError};
 
+#[derive(Debug)]
 pub struct MappingResolver {
     mapping: Mapping,
 }

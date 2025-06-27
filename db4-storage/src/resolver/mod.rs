@@ -4,7 +4,7 @@ use raphtory_api::core::{
     entities::{GidRef, VID, GidType},
     storage::dict_mapper::MaybeNew,
 };
-use raphtory_core::entities::graph::logical_to_physical::{InvalidNodeId};
+use raphtory_core::entities::graph::logical_to_physical::InvalidNodeId;
 use crate::error::DBV4Error;
 
 pub mod mapping_resolver;
@@ -12,7 +12,7 @@ pub mod mapping_resolver;
 #[derive(thiserror::Error, Debug)]
 pub enum GIDResolverError {
     #[error(transparent)]
-    Database(#[from] DBV4Error),
+    DBV4Error(#[from] DBV4Error),
     #[error(transparent)]
     InvalidNodeId(#[from] InvalidNodeId),
 }

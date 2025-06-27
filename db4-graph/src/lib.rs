@@ -233,7 +233,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
 
         match result {
             Ok(vid) => Ok(vid),
-            Err(GIDResolverError::Database(e)) => panic!("Database error: {}", e),
+            Err(GIDResolverError::DBV4Error(e)) => panic!("Database error: {}", e),
             Err(GIDResolverError::InvalidNodeId(e)) => Err(e),
         }
     }

@@ -18,7 +18,7 @@ use raphtory_core::entities::{
     },
 };
 use std::sync::Arc;
-use storage::error::DBV4Error;
+use storage::{error::DBV4Error, resolver::GIDResolverError};
 use thiserror::Error;
 
 pub mod addition_ops;
@@ -54,6 +54,15 @@ pub enum MutationError {
     },
     #[error("Storage error: {0}")]
     DBV4Error(#[from] DBV4Error),
+}
+
+impl From<GIDResolverError> for MutationError {
+    fn from(error: GIDResolverError) -> Self {
+        match error {
+            GIDResolverError::DBV4Error(e) => MutationError::DBV4Error(e),
+            GIDResolverError::InvalidNodeId(e) => MutationError::InvalidNodeId(e),
+        }
+    }
 }
 
 pub trait InheritMutationOps: Base {}
