@@ -26,10 +26,11 @@ use raphtory_core::{
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use storage::{
-    error::DBV4Error, persist::strategy::PersistentStrategy, Extension,
-    Layer, ReadLockedLayer, ES,
-    NS, resolver::GIDResolverOps, GIDResolver,
     pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+    persist::strategy::PersistentStrategy,
+    resolver::{GIDResolverError, GIDResolverOps},
+    Extension, GIDResolver, Layer,
+    ReadLockedLayer, ES, NS
 };
 
 pub mod entries;
@@ -226,9 +227,15 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
     }
 
     pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        self.graph.logical_to_physical.get_or_init(gid, || {
+        let result = self.graph.logical_to_physical.get_or_init(gid, || {
             VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
-        })
+        });
+
+        match result {
+            Ok(vid) => Ok(vid),
+            Err(GIDResolverError::Database(e)) => panic!("Database error: {}", e),
+            Err(GIDResolverError::InvalidNodeId(e)) => Err(e),
+        }
     }
 
     pub fn num_nodes(&self) -> usize {
