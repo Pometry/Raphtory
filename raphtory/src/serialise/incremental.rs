@@ -306,7 +306,7 @@ impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> Cache
         cache.write()?;
         cache.folder.write_metadata(self)?;
         #[cfg(feature = "search")]
-        self.persist_index_to_disk(&cache.folder.root_folder)?;
+        self.persist_index_to_disk(&cache.folder)?;
         Ok(())
     }
 

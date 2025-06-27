@@ -962,7 +962,10 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             .get_storage()
             .and_then(|s| s.get_index())
             .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_nodes(self, filter, limit, offset)
+        index
+            .read()
+            .searcher()
+            .search_nodes(self, filter, limit, offset)
     }
 
     fn search_edges<F: AsEdgeFilter>(
@@ -975,7 +978,10 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             .get_storage()
             .and_then(|s| s.get_index())
             .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_edges(self, filter, limit, offset)
+        index
+            .read()
+            .searcher()
+            .search_edges(self, filter, limit, offset)
     }
 
     fn is_indexed(&self) -> bool {
