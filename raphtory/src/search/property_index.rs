@@ -20,7 +20,6 @@ use tantivy::{
 #[derive(Clone)]
 pub struct PropertyIndex {
     pub(crate) index: Arc<Index>,
-    pub(crate) reader: IndexReader,
     pub(crate) time_field: Option<Field>,
     pub(crate) secondary_time_field: Option<Field>,
     pub(crate) layer_field: Option<Field>,
@@ -83,11 +82,10 @@ impl PropertyIndex {
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
-        let (index, reader) = new_index(schema, path)?;
+        let index = new_index(schema, path)?;
 
         Ok(Self {
             index: Arc::new(index),
-            reader,
             time_field,
             secondary_time_field,
             layer_field,
@@ -111,17 +109,12 @@ impl PropertyIndex {
 
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path)?;
-        let reader = index
-            .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()?;
         let schema = index.schema();
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
         Ok(Self {
             index: Arc::new(index),
-            reader,
             time_field,
             secondary_time_field,
             layer_field,
@@ -157,7 +150,7 @@ impl PropertyIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.reader.searcher();
+        let searcher = self.get_reader()?.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
         println!("Total property doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
@@ -335,5 +328,14 @@ impl PropertyIndex {
             Some(layer_id),
             prop_value,
         )
+    }
+
+    pub(crate) fn get_reader(&self) -> Result<IndexReader, GraphError> {
+        let reader = self
+            .index
+            .reader_builder()
+            .reload_policy(tantivy::ReloadPolicy::Manual)
+            .try_into()?;
+        Ok(reader)
     }
 }

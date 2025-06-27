@@ -56,10 +56,7 @@ pub fn register_default_tokenizers(index: &Index) {
     index.tokenizers().register(TOKENIZER, tokenizer);
 }
 
-pub(crate) fn new_index(
-    schema: Schema,
-    path: &Option<PathBuf>,
-) -> Result<(Index, IndexReader), GraphError> {
+pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> Result<Index, GraphError> {
     let index_builder = Index::builder()
         .settings(IndexSettings::default())
         .schema(schema);
@@ -82,14 +79,9 @@ pub(crate) fn new_index(
         })?
     };
 
-    let reader = index
-        .reader_builder()
-        .reload_policy(tantivy::ReloadPolicy::Manual)
-        .try_into()?;
-
     register_default_tokenizers(&index);
 
-    Ok((index, reader))
+    Ok(index)
 }
 
 fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
@@ -145,14 +137,13 @@ mod test_index {
             },
             errors::GraphError,
             prelude::*,
-            search::graph_index::GraphIndex,
             serialise::GraphFolder,
         };
-        use parking_lot::{lock_api::RwLockReadGuard, RawRwLock};
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
         };
+        use std::{fs::File, path::PathBuf};
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -512,6 +503,34 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
+        }
+
+        #[test]
+        fn test_too_many_open_files_graph_index() {
+            use tempfile::TempDir;
+
+            let mut graphs = Vec::new();
+            let mut tempdirs = Vec::new();
+
+            for i in 0..1000 {
+                let graph = init_graph(Graph::new());
+                if let Err(e) = graph.create_index() {
+                    match &e {
+                        GraphError::IndexError { source } => {
+                            panic!("Hit file descriptor limit after {i} graphs. {:?}", source);
+                        }
+                        other => {
+                            panic!("Unexpected GraphError: {:?}", other);
+                        }
+                    }
+                }
+
+                let tmp_dir = TempDir::new().unwrap();
+                let path = tmp_dir.path().to_path_buf();
+                graph.cache(&path).unwrap();
+                graphs.push(graph);
+                tempdirs.push(tmp_dir);
+            }
         }
     }
 

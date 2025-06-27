@@ -133,7 +133,7 @@ impl NodeIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.entity_index.reader.searcher();
+        let searcher = self.entity_index.get_reader()?.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
         println!("Total node doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
@@ -292,11 +292,12 @@ impl NodeIndex {
     ) -> Result<(), GraphError> {
         // Initialize property indexes and get their writers
         let const_properties_index_path = path.as_deref().map(|p| p.join("const_properties"));
-        let mut const_writers = self.entity_index.initialize_node_const_property_indexes(
-            graph.node_meta().const_prop_meta(),
-            &const_properties_index_path,
-            &index_spec.node_const_props,
-        )?;
+        let mut const_writers: Vec<Option<IndexWriter>> =
+            self.entity_index.initialize_node_const_property_indexes(
+                graph.node_meta().const_prop_meta(),
+                &const_properties_index_path,
+                &index_spec.node_const_props,
+            )?;
 
         let temporal_properties_index_path = path.as_deref().map(|p| p.join("temporal_properties"));
         let mut temporal_writers = self
@@ -324,10 +325,10 @@ impl NodeIndex {
         self.entity_index.commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
-        // Reload readers
-        self.entity_index.reload_const_property_indexes()?;
-        self.entity_index.reload_temporal_property_indexes()?;
-        self.entity_index.reader.reload()?;
+        // Drop writers
+        drop(const_writers);
+        drop(temporal_writers);
+        drop(writer);
 
         Ok(())
     }
@@ -357,9 +358,6 @@ impl NodeIndex {
             props,
         )?;
 
-        self.entity_index.reload_temporal_property_indexes()?;
-        self.entity_index.reader.reload()?;
-
         Ok(())
     }
 
@@ -371,8 +369,6 @@ impl NodeIndex {
         let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         self.index_node_c(node_id, &mut const_writers, props)?;
-
-        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
@@ -393,8 +389,6 @@ impl NodeIndex {
 
         // Reindex the node's constant properties
         self.index_node_c(node_id, &mut const_writers, props)?;
-
-        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }

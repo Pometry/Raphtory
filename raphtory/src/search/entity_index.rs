@@ -24,7 +24,6 @@ use tantivy::{
 #[derive(Clone)]
 pub struct EntityIndex {
     pub(crate) index: Arc<Index>,
-    pub(crate) reader: IndexReader,
     pub(crate) const_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
 }
@@ -32,10 +31,9 @@ pub struct EntityIndex {
 impl EntityIndex {
     pub(crate) fn new(schema: Schema, path: &Option<PathBuf>) -> Result<Self, GraphError> {
         let path = path.as_ref().map(|p| p.join("fields"));
-        let (index, reader) = new_index(schema, &path)?;
+        let index = new_index(schema, &path)?;
         Ok(Self {
             index: Arc::new(index),
-            reader,
             const_property_indexes: Arc::new(RwLock::new(Vec::new())),
             temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
         })
@@ -46,11 +44,6 @@ impl EntityIndex {
 
         register_default_tokenizers(&index);
 
-        let reader = index
-            .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()?;
-
         let const_property_indexes =
             PropertyIndex::load_all(&path.join("const_properties"), is_edge)?;
         let temporal_property_indexes =
@@ -58,7 +51,6 @@ impl EntityIndex {
 
         Ok(Self {
             index: Arc::new(index),
-            reader,
             const_property_indexes: Arc::new(RwLock::new(const_property_indexes)),
             temporal_property_indexes: Arc::new(RwLock::new(temporal_property_indexes)),
         })
@@ -411,19 +403,12 @@ impl EntityIndex {
         Ok(())
     }
 
-    pub(crate) fn reload_const_property_indexes(&self) -> Result<(), GraphError> {
-        let indexes = self.const_property_indexes.read();
-        for index in indexes.iter().flatten() {
-            index.reader.reload()?;
-        }
-        Ok(())
-    }
-
-    pub(crate) fn reload_temporal_property_indexes(&self) -> Result<(), GraphError> {
-        let indexes = self.temporal_property_indexes.read();
-        for index in indexes.iter().flatten() {
-            index.reader.reload()?;
-        }
-        Ok(())
+    pub(crate) fn get_reader(&self) -> Result<IndexReader, GraphError> {
+        let reader = self
+            .index
+            .reader_builder()
+            .reload_policy(tantivy::ReloadPolicy::Manual)
+            .try_into()?;
+        Ok(reader)
     }
 }

@@ -124,7 +124,7 @@ impl EdgeIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.entity_index.reader.searcher();
+        let searcher = self.entity_index.get_reader()?.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
 
         println!("Total edge doc count: {}", top_docs.len());
@@ -353,10 +353,10 @@ impl EdgeIndex {
         self.entity_index.commit_writers(&mut temporal_writers)?;
         writer.commit()?;
 
-        // Reload readers
-        self.entity_index.reload_const_property_indexes()?;
-        self.entity_index.reload_temporal_property_indexes()?;
-        self.entity_index.reader.reload()?;
+        // Drop writers
+        drop(const_writers);
+        drop(temporal_writers);
+        drop(writer);
 
         Ok(())
     }
@@ -382,9 +382,6 @@ impl EdgeIndex {
             props,
         )?;
 
-        self.entity_index.reload_temporal_property_indexes()?;
-        self.entity_index.reader.reload()?;
-
         Ok(())
     }
 
@@ -397,8 +394,6 @@ impl EdgeIndex {
         let mut const_writers = self.entity_index.get_const_property_writers(props)?;
 
         self.index_edge_c(edge_id, layer_id, &mut const_writers, props)?;
-
-        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
@@ -420,8 +415,6 @@ impl EdgeIndex {
 
         // Reindex the edge's constant properties
         self.index_edge_c(edge_id, layer_id, &mut const_writers, props)?;
-
-        self.entity_index.reload_const_property_indexes()?;
 
         Ok(())
     }
