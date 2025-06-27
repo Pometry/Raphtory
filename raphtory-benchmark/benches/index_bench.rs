@@ -11,9 +11,7 @@ fn bench_graph_init_index(c: &mut Criterion) {
 
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
         graph.drop_index().unwrap();
-        b.iter(|| {
-            graph.create_index().unwrap();
-        });
+        b.iter(|| graph.create_index().unwrap());
     });
 
     group.finish();
@@ -31,10 +29,7 @@ fn bench_graph_index_load(c: &mut Criterion) {
     group.sample_size(100);
 
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
-        b.iter(|| {
-            let graph = Graph::decode(black_box(&path)).unwrap();
-            black_box(graph);
-        });
+        b.iter(|| Graph::decode(black_box(&path)).unwrap());
     });
 
     group.finish();
