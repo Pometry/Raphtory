@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import pandas.core.frame
+from networkx.classes import degree
 
 from raphtory import Graph
 from raphtory import algorithms
@@ -344,11 +345,13 @@ def test_degree_centrality():
     g.add_edge(0, 1, 4, {})
     g.add_edge(0, 2, 3, {})
     g.add_edge(0, 2, 4, {})
+    result = degree_centrality(g)
+    print(result["1"] == {"score": 1.0})
     assert degree_centrality(g) == {
-        "1": 1.0,
-        "2": 1.0,
-        "3": 2 / 3,
-        "4": 2 / 3,
+        "1": {"score": 1.0},
+        "2": {"score": 1.0},
+        "3": {"score": 2 / 3},
+        "4": {"score": 2 / 3},
     }
 
 
