@@ -241,7 +241,7 @@ impl MemNodeSegment {
             .get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
 
-        prop_mut_entry.append_edge_ts(ts, e_id);
+        prop_mut_entry.addition_timestamp(ts, e_id);
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) {

@@ -3,7 +3,10 @@ use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::DBV4Error,
-    pages::layer_counter::LayerCounter,
+    pages::{
+        layer_counter::LayerCounter,
+        locked::nodes::{LockedNodePage, WriteLockedNodePages},
+    },
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -99,22 +102,22 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         &self.prop_meta
     }
 
-    // pub fn locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
-    //     WriteLockedNodePages::new(
-    //         self.pages
-    //             .iter()
-    //             .map(|(page_id, page)| {
-    //                 LockedNodePage::new(
-    //                     page_id,
-    //                     &self.num_nodes,
-    //                     self.max_page_len,
-    //                     page.as_ref(),
-    //                     page.head_mut(),
-    //                 )
-    //             })
-    //             .collect(),
-    //     )
-    // }
+    pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
+        WriteLockedNodePages::new(
+            self.pages
+                .iter()
+                .map(|(page_id, page)| {
+                    LockedNodePage::new(
+                        page_id,
+                        &self.layer_counter,
+                        self.max_page_len,
+                        page.as_ref(),
+                        page.head_mut(),
+                    )
+                })
+                .collect(),
+        )
+    }
 
     pub fn num_layers(&self) -> usize {
         self.layer_counter.len()
@@ -250,6 +253,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn grow(&self, new_len: usize) {
         self.get_or_create_segment(new_len - 1);
+    }
+
+    pub fn grow_to_num_nodes(&self, num_nodes: usize) {
+        let chunks_needed = (num_nodes + self.max_page_len - 1) / self.max_page_len;
+        self.grow(chunks_needed);
     }
 
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {

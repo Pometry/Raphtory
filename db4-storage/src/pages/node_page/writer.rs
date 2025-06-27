@@ -3,7 +3,10 @@ use crate::{
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
-use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
+use raphtory_core::{
+    entities::{ELID, GidRef},
+    storage::timeindex::AsTime,
+};
 use std::ops::DerefMut;
 
 #[derive(Debug)]
@@ -128,7 +131,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let layer_id = e_id.layer();
         self.writer.as_mut()[layer_id].set_lsn(lsn);
         self.writer.update_timestamp(t, pos, e_id);
-        // self.est_size = self.page.increment_size(size_of::<(i64, i64)>());
     }
 
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
@@ -139,6 +141,22 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn get_inb_edge(&self, pos: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
         self.page
             .get_inb_edge(pos, src, layer_id, self.writer.deref())
+    }
+
+    pub fn store_node_id_and_node_type(
+        &mut self,
+        pos: LocalPOS,
+        layer_id: usize,
+        gid: GidRef<'_>,
+        node_type: usize,
+        lsn: u64,
+    ) {
+        self.update_c_props(
+            pos,
+            layer_id,
+            [(0, Prop::U64(node_type as u64)), (1, gid.into())],
+            lsn,
+        );
     }
 }
 

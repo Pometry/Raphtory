@@ -96,7 +96,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         _view: G,
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_window(TimeIndexEntry::range(w))
+        node.temp_prop_rows_range(Some(TimeIndexEntry::range(w)))
             .map(|(t, row)| {
                 (
                     t,

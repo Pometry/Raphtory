@@ -1,7 +1,8 @@
 use crate::{
-    graph::{graph::GraphStorage, locked::WriteLockedGraph},
+    graph::{graph::GraphStorage},
     mutation::MutationError,
 };
+use db4_graph::WriteLockedGraph;
 use raphtory_api::{
     core::{
         entities::{
@@ -17,6 +18,7 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::atomic::Ordering;
+use storage::Extension;
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -28,7 +30,9 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error>;
+    fn write_lock(
+        &self,
+    ) -> Result<WriteLockedGraph<Extension>, Self::Error>;
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error>;
     fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error>;
     /// map layer name to id and allocate a new layer if needed
@@ -284,7 +288,7 @@ impl InternalAdditionOps for GraphStorage {
     type WS<'b> = TGWriteSession<'b>;
     type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error>{
         self.mutable()?.write_lock()
     }
 
@@ -355,11 +359,10 @@ impl InternalAdditionOps for TemporalGraph {
     type WS<'b> = TGWriteSession<'b>;
     type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         // Ok(WriteLockedGraph::new(self))
         todo!("remove this once we have a mutable graph storage");
     }
-
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
         Ok(self.storage.nodes.write_lock())
     }
@@ -466,7 +469,7 @@ where
         G: 'a;
 
     #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         self.base().write_lock()
     }
 

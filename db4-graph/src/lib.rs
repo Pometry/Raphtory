@@ -8,25 +8,27 @@ use std::{
 
 // use crate::entries::node::UnlockedNodeEntry;
 use raphtory_api::core::{
-    entities::{
-        self,
-        properties::{meta::Meta, prop::Prop},
-    },
+    entities::{self, properties::meta::Meta},
     input::input_node::InputNode,
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        graph::{logical_to_physical::Mapping, tgraph::InvalidLayer},
+        graph::{
+            logical_to_physical::{InvalidNodeId, Mapping},
+            tgraph::InvalidLayer,
+            timer::{MinCounter, TimeCounterTrait},
+        },
         nodes::node_ref::NodeRef,
         properties::graph_meta::GraphMeta,
-        GidRef, LayerIds, EID, VID,
+        GidRef, LayerIds, VID,
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use storage::{
-    error::DBV4Error, persist::strategy::PersistentStrategy, Extension, Layer, ReadLockedLayer, ES,
-    NS,
+    pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+    persist::strategy::PersistentStrategy,
+    Extension, Layer, ReadLockedLayer, ES, NS,
 };
 
 pub mod entries;
@@ -49,6 +51,9 @@ pub struct TemporalGraph<EXT = Extension> {
 
     event_counter: AtomicUsize,
     graph_meta: Arc<GraphMeta>,
+
+    earliest: MinCounter,
+    latest: MinCounter,
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
@@ -194,5 +199,57 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
                 }
             }
         }
+    }
+
+    pub fn write_locked_graph<'a>(&'a self) -> WriteLockedGraph<'a, EXT> {
+        WriteLockedGraph::new(self)
+    }
+}
+
+pub struct WriteLockedGraph<'a, EXT> {
+    pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
+    pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
+    pub graph: &'a TemporalGraph<EXT>,
+    pub num_nodes: Arc<AtomicUsize>,
+}
+
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
+    pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
+        WriteLockedGraph {
+            nodes: graph.storage.nodes().write_locked().into(),
+            edges: graph.storage.edges().write_locked().into(),
+            graph,
+            num_nodes: Arc::new(AtomicUsize::new(graph.internal_num_nodes())),
+        }
+    }
+
+    pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
+        self.graph.logical_to_physical.get_or_init_vid(gid, || {
+            VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
+        })
+    }
+
+    pub fn num_nodes(&self) -> usize {
+        self.num_nodes.load(atomic::Ordering::Relaxed)
+    }
+
+    pub fn resolve_node_type(&self, node_type: Option<&str>) -> MaybeNew<usize> {
+        node_type
+            .map(|node_type| self.graph.node_meta.get_or_create_node_type_id(node_type))
+            .unwrap_or_else(|| MaybeNew::Existing(0))
+    }
+
+    pub fn resize_chunks_to_num_nodes(&mut self) {
+        let num_nodes = self.num_nodes();
+        self.graph.storage().nodes().grow_to_num_nodes(num_nodes);
+        std::mem::take(&mut self.nodes);
+        self.nodes = self.graph.storage.nodes().write_locked().into();
+    }
+
+    #[inline]
+    pub fn update_time(&self, time: TimeIndexEntry) {
+        let t = time.t();
+        self.graph.earliest.update(t);
+        self.graph.latest.update(t);
     }
 }

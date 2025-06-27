@@ -1,6 +1,9 @@
 use std::ops::DerefMut;
 
-use crate::{api::edges::EdgeSegmentOps, pages::layer_counter::LayerCounter, segments::edge::MemEdgeSegment, LocalPOS};
+use crate::{
+    LocalPOS, api::edges::EdgeSegmentOps, pages::layer_counter::LayerCounter,
+    segments::edge::MemEdgeSegment,
+};
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::storage::timeindex::AsTime;
 
@@ -46,6 +49,20 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.writer
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
         edge_pos
+    }
+
+    pub fn delete_edge<T: AsTime>(
+        &mut self,
+        t: T,
+        edge_pos: LocalPOS,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        layer_id: usize,
+        lsn: u64,
+    ) {
+        self.writer.as_mut()[layer_id].set_lsn(lsn);
+        self.writer
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }
 
     pub fn add_static_edge(

@@ -58,6 +58,12 @@ pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
 
+impl <'a, NS> Default for WriteLockedNodePages<'_, NS> {
+    fn default() -> Self {
+        Self { writers: Vec::new() }
+    }
+}
+
 impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> {
     pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
         Self { writers }

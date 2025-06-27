@@ -145,6 +145,27 @@ impl MemEdgeSegment {
         prop_entry.append_t_props(ts, props)
     }
 
+    pub fn delete_edge_internal<T: AsTime>(
+        &mut self,
+        t: T,
+        edge_pos: impl Into<LocalPOS>,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        layer_id: usize,
+    ) {
+        let edge_pos = edge_pos.into();
+        let src = src.into();
+        let dst = dst.into();
+        let t = TimeIndexEntry::new(t.t(), t.i());
+
+        // Ensure we have enough layers
+        self.ensure_layer(layer_id);
+
+        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let props = self.layers[layer_id].properties_mut();
+        props.get_mut_entry(local_row).deletion_timestamp(t, None);
+    }
+
     pub fn insert_static_edge_internal(
         &mut self,
         edge_pos: LocalPOS,

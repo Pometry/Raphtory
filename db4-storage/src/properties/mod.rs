@@ -13,12 +13,17 @@ use raphtory_core::{
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
 
+use crate::segments::edge;
+
 pub mod props_meta_writer;
 
 #[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
-    t_index: Vec<PropTimestamps>,
+
+    additions: Vec<PropTimestamps>,
+    deletions: Vec<PropTimestamps>,
+
     t_properties: TColumns,
     earliest: Option<TimeIndexEntry>,
     latest: Option<TimeIndexEntry>,
@@ -81,7 +86,7 @@ impl Properties {
     }
 
     pub(crate) fn temporal_index(&self, row: usize) -> Option<&PropTimestamps> {
-        self.t_index.get(row)
+        self.additions.get(row)
     }
 
     pub fn has_node_properties(&self) -> bool {
@@ -270,30 +275,41 @@ impl<'a> PropMutEntry<'a> {
             row
         };
 
-        if self.properties.t_index.len() <= self.row {
+        if self.properties.additions.len() <= self.row {
             self.properties
-                .t_index
+                .additions
                 .resize_with(self.row + 1, Default::default);
         }
-        let prop_timestamps = &mut self.properties.t_index[self.row];
+        let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.props_ts.set(t, Some(t_prop_row));
 
         self.properties.has_node_properties = true;
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn append_edge_ts(&mut self, t: TimeIndexEntry, edge_id: ELID) {
-        if self.properties.t_index.len() <= self.row {
+    pub(crate) fn addition_timestamp(&mut self, t: TimeIndexEntry, edge_id: ELID) {
+        if self.properties.additions.len() <= self.row {
             self.properties
-                .t_index
+                .additions
                 .resize_with(self.row + 1, Default::default);
         }
 
         self.properties.has_node_additions = true;
-        let prop_timestamps = &mut self.properties.t_index[self.row];
+        let prop_timestamps = &mut self.properties.additions[self.row];
         prop_timestamps.edge_ts.set(t, edge_id);
 
         self.properties.update_earliest_latest(t);
+    }
+
+    pub(crate) fn deletion_timestamp(&mut self, t:TimeIndexEntry, edge_id: Option<ELID>) {
+        if self.properties.deletions.len() <= self.row {
+            self.properties
+                .deletions
+                .resize_with(self.row + 1, Default::default);
+        }
+
+        let prop_timestamps = &mut self.properties.deletions[self.row];
+        prop_timestamps.edge_ts.set(t, edge_id.unwrap_or_default());
     }
 
     pub(crate) fn append_const_props(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
@@ -311,7 +327,7 @@ impl<'a> PropMutEntry<'a> {
 
 impl<'a> PropEntry<'a> {
     pub fn timestamps(self) -> Option<&'a PropTimestamps> {
-        self.properties.t_index.get(self.row)
+        self.properties.additions.get(self.row)
     }
 
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
@@ -321,7 +337,7 @@ impl<'a> PropEntry<'a> {
 
     pub fn t_cell(self) -> &'a TCell<Option<usize>> {
         self.properties
-            .t_index
+            .additions
             .get(self.row)
             .map_or(&TCell::Empty, |ts| &ts.props_ts)
     }

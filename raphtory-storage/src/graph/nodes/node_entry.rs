@@ -1,8 +1,11 @@
+use std::ops::Range;
+
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
     Direction,
 };
+use raphtory_core::storage::timeindex::TimeIndexEntry;
 use storage::{
     api::nodes::{self, NodeEntryOps},
     utils::Iter2,
@@ -129,5 +132,12 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.as_ref().constant_prop_layer(layer_id, prop_id)
+    }
+    
+    fn temp_prop_rows_range(
+        self,
+        w: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        self.as_ref().temp_prop_rows_range(w)
     }
 }

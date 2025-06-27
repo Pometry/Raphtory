@@ -18,6 +18,7 @@ homepage.workspace = true
 raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
 raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
 raphtory-storage = { path = "../raphtory-storage", version = "0.15.1" }
+db4-graph.workspace = true
 storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
