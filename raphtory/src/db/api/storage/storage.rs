@@ -146,7 +146,7 @@ impl Storage {
         Ok(self.index.read().index_spec())
     }
 
-    pub(crate) fn load_index(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn load_index_if_empty(&self, path: &GraphFolder) -> Result<(), GraphError> {
         let guard = self.index.read();
         match guard.deref() {
             GraphIndex::Empty => {
@@ -162,7 +162,7 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn create_index(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+    pub(crate) fn create_index_if_empty(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         {
             let guard = self.index.read();
             match guard.deref() {
@@ -182,7 +182,10 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn create_index_in_ram(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+    pub(crate) fn create_index_in_ram_if_empty(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<(), GraphError> {
         {
             let guard = self.index.read();
             match guard.deref() {

@@ -37,7 +37,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
     fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.create_index(index_spec)?;
+                storage.create_index_if_empty(index_spec)?;
                 Ok(())
             })
     }
@@ -53,7 +53,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.create_index_in_ram(index_spec)?;
+                storage.create_index_in_ram_if_empty(index_spec)?;
                 Ok(())
             })
     }
@@ -81,14 +81,14 @@ impl<G: AdditionOps> IndexMutationOps for G {
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 if path.is_zip() {
                     if has_index(path.get_base_path())? {
-                        storage.load_index(&path)?;
+                        storage.load_index_if_empty(&path)?;
                     } else {
                         return Ok(()); // Skip if no index in zip
                     }
                 } else {
                     let index_path = path.get_index_path();
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.load_index(&path)?;
+                        storage.load_index_if_empty(&path)?;
                     }
                 }
 
