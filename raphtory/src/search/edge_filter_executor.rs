@@ -3,18 +3,15 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             edge::EdgeView,
-            views::filter::{
-                internal::CreateEdgeFilter,
-                model::{
-                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-                    property_filter::{PropertyRef, Temporal},
-                    Filter,
-                },
+            views::filter::model::{
+                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+                property_filter::{PropertyRef, Temporal},
+                Filter,
             },
         },
     },
     errors::GraphError,
-    prelude::{EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,

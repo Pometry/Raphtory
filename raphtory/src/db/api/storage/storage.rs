@@ -7,7 +7,7 @@ use crate::{
         Base, InheritViewOps,
     },
 };
-use parking_lot::{lock_api::RwLockReadGuard, RawRwLock, RwLock};
+use parking_lot::RwLock;
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -127,7 +127,7 @@ impl Storage {
         match guard.deref() {
             GraphIndex::Empty => {}
             GraphIndex::Mutable(i) => map_fn(i)?,
-            GraphIndex::Immutable(i) => {
+            GraphIndex::Immutable(_) => {
                 drop(guard);
                 let mut guard = self.index.write();
                 guard.make_mutable_if_needed()?;

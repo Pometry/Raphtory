@@ -114,7 +114,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
 
     fn drop_index(&self) -> Result<(), GraphError> {
         self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |mut storage| {
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.drop_index()?;
                 Ok(())
             })

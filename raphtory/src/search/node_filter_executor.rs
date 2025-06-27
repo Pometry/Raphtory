@@ -3,18 +3,15 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::filter::{
-                internal::CreateNodeFilter,
-                model::{
-                    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                    property_filter::{PropertyRef, Temporal},
-                    Filter,
-                },
+            views::filter::model::{
+                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                property_filter::{PropertyRef, Temporal},
+                Filter,
             },
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
+    prelude::{GraphViewOps, NodeViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
