@@ -267,7 +267,12 @@ impl<
             .expect("Internal Error, EID should be checked at this point!");
         let prop_writer = PropsMetaWriter::constant(self.edge_meta(), props.into_iter())?;
 
-        edge_writer.update_c_props(edge_pos, src, dst, layer, prop_writer.into_props_const()?);
+        edge_writer.update_c_props(
+            edge_pos,
+            Some((src, dst)),
+            layer,
+            prop_writer.into_props_const()?,
+        );
 
         Ok(())
     }

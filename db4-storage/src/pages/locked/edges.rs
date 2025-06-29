@@ -1,7 +1,10 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 use crate::{
-    api::edges::EdgeSegmentOps, pages::{edge_page::writer::EdgeWriter, layer_counter::LayerCounter, resolve_pos}, segments::edge::MemEdgeSegment, LocalPOS
+    LocalPOS,
+    api::edges::EdgeSegmentOps,
+    pages::{edge_page::writer::EdgeWriter, layer_counter::LayerCounter, resolve_pos},
+    segments::edge::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::EID;
@@ -56,9 +59,11 @@ pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
 }
 
-impl <ES> Default for WriteLockedEdgePages<'_, ES> {
+impl<ES> Default for WriteLockedEdgePages<'_, ES> {
     fn default() -> Self {
-        Self { writers: Vec::new() }
+        Self {
+            writers: Vec::new(),
+        }
     }
 }
 

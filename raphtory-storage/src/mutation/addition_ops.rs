@@ -1,7 +1,4 @@
-use crate::{
-    graph::{graph::GraphStorage},
-    mutation::MutationError,
-};
+use crate::{graph::graph::GraphStorage, mutation::MutationError};
 use db4_graph::WriteLockedGraph;
 use raphtory_api::{
     core::{
@@ -30,9 +27,7 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    fn write_lock(
-        &self,
-    ) -> Result<WriteLockedGraph<Extension>, Self::Error>;
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error>;
     fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error>;
     fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error>;
     /// map layer name to id and allocate a new layer if needed
@@ -288,7 +283,7 @@ impl InternalAdditionOps for GraphStorage {
     type WS<'b> = TGWriteSession<'b>;
     type AtomicAddEdge<'a> = TGWriteSession<'a>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error>{
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         self.mutable()?.write_lock()
     }
 

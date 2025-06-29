@@ -1,5 +1,8 @@
 use crate::core::{
-    entities::{properties::prop::{prop_ref_enum::PropRef, PropType}, GidRef},
+    entities::{
+        properties::prop::{prop_ref_enum::PropRef, PropType},
+        GidRef,
+    },
     storage::arc_str::ArcStr,
 };
 use bigdecimal::{num_bigint::BigInt, BigDecimal};

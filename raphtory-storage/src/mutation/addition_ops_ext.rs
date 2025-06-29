@@ -167,9 +167,7 @@ impl InternalAdditionOps for TemporalGraph {
         Extension,
     >;
 
-    fn write_lock(
-        &self,
-    ) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
         Ok(locked_g)
     }

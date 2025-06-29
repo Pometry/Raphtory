@@ -3,7 +3,9 @@ use crate::entities::{nodes::node_store::NodeStore, properties::tprop::TPropCell
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        edges::edge_ref::EdgeRef, properties::{prop::Prop, tprop::TPropOps}, GidRef, LayerIds
+        edges::edge_ref::EdgeRef,
+        properties::{prop::Prop, tprop::TPropOps},
+        GidRef, LayerIds,
     },
     storage::timeindex::TimeIndexEntry,
     Direction,
@@ -134,7 +136,7 @@ impl<'a> NodePtr<'a> {
             .map(move |(t, row)| (*t, MemRow::new(self.t_props_log, *row)))
     }
 
-    pub fn id(&self) -> GidRef   {
+    pub fn id(&self) -> GidRef {
         self.node.global_id().into()
     }
 }

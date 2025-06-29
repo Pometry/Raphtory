@@ -7,7 +7,7 @@ use std::{
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use raphtory_core::{
-    entities::{LayerIds, EID, VID},
+    entities::{EID, LayerIds, VID},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use rayon::iter::ParallelIterator;
@@ -142,7 +142,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
 
-    fn has_layer_inner(self, layer_id: usize) -> bool{
+    fn has_layer_inner(self, layer_id: usize) -> bool {
         self.edge(layer_id).is_some()
     }
 

@@ -9,7 +9,14 @@ use std::{
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    api::edges::{EdgeSegmentOps, LockedESegment}, error::DBV4Error, pages::{layer_counter::LayerCounter, locked::edges::{LockedEdgePage, WriteLockedEdgePages}}, segments::edge::MemEdgeSegment, LocalPOS
+    LocalPOS,
+    api::edges::{EdgeSegmentOps, LockedESegment},
+    error::DBV4Error,
+    pages::{
+        layer_counter::LayerCounter,
+        locked::edges::{LockedEdgePage, WriteLockedEdgePages},
+    },
+    segments::edge::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
@@ -39,7 +46,6 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEdgeStorage<ES, EXT> {
-
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
@@ -213,7 +219,6 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             next_free_page += 1;
             lock
         });
-
 
         let mut layer_counts = vec![];
 

@@ -128,14 +128,13 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        NodeRefOps::c_prop(self, layer_id, prop_id) 
+        NodeRefOps::c_prop(self, layer_id, prop_id)
     }
 
     fn temp_prop_rows_range(
-            self,
-            w: Option<Range<TimeIndexEntry>>,
-        ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        self,
+        w: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
         NodeRefOps::temp_prop_rows(self, w)
     }
-
 }

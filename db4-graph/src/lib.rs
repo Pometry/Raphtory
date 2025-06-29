@@ -18,7 +18,10 @@ use raphtory_core::{
             logical_to_physical::{InvalidNodeId, Mapping},
             tgraph::InvalidLayer,
             timer::{MaxCounter, MinCounter, TimeCounterTrait},
-        }, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta, GidRef, LayerIds, EID, VID
+        },
+        nodes::node_ref::NodeRef,
+        properties::graph_meta::GraphMeta,
+        GidRef, LayerIds, EID, VID,
     },
     storage::timeindex::{AsTime, TimeIndexEntry},
 };

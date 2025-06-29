@@ -58,9 +58,11 @@ pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
 
-impl <'a, NS> Default for WriteLockedNodePages<'_, NS> {
+impl<'a, NS> Default for WriteLockedNodePages<'_, NS> {
     fn default() -> Self {
-        Self { writers: Vec::new() }
+        Self {
+            writers: Vec::new(),
+        }
     }
 }
 

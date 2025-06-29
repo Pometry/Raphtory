@@ -1,10 +1,8 @@
 use std::ops::Range;
 
-use crate::graph::edges::{
-    edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps}
-;
+use crate::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
-use raphtory_core::{entities::{LayerIds, EID, VID}};
+use raphtory_core::entities::{LayerIds, EID, VID};
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
 #[cfg(feature = "storage")]
@@ -72,11 +70,17 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>, storage::EdgeAdditions<'a>)> + 'a {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            storage::EdgeAdditions<'a>,
+            storage::EdgeAdditions<'a>,
+        ),
+    > + 'a {
         self.as_ref().updates_iter(layer_ids)
     }
 
-    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a>{
+    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
         self.as_ref().additions(layer_id)
     }
 

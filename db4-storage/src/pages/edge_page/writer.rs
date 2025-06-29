@@ -105,11 +105,14 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     pub fn update_c_props(
         &mut self,
         edge_pos: LocalPOS,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        src_dst: Option<(VID, VID)>,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
+        let (src, dst) = src_dst
+            .or_else(|| self.page.get_edge(edge_pos, layer_id, self.writer.deref()))
+            .expect("Edge must exist for updating properties");
+
         self.writer
             .update_const_properties(edge_pos, src, dst, layer_id, props);
     }

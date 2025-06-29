@@ -114,26 +114,26 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
     }
-    
+
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
         self.as_ref().layer_ids_iter(layer_ids)
     }
-    
+
     fn deletions(self, layer_id: usize) -> storage::NodeAdditions<'a> {
         self.as_ref().deletions(layer_id)
     }
-    
+
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
-    
+
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
-    
+
     fn temp_prop_rows_range(
         self,
         w: Option<Range<TimeIndexEntry>>,

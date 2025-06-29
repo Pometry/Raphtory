@@ -11,9 +11,7 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::{
-    edge_ref::EdgeStorageRef,
-    edge_storage_ops::EdgeStorageOps,
-    edges::EdgesStorage,
+    edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps, edges::EdgesStorage,
 };
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
