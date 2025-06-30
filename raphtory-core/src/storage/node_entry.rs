@@ -70,6 +70,7 @@ impl<'a> Debug for NodePtr<'a> {
             .field("gid", self.node.global_id())
             .field("vid", &self.node.vid)
             .field("node_type", &self.node.node_type)
+            .field("layers", &self.node.layers)
             .field(
                 "constant_properties",
                 &self

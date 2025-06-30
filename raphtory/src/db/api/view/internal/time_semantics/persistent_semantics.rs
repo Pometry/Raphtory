@@ -1,6 +1,7 @@
 use crate::{
     db::api::view::internal::{
         filtered_edge::{FilteredEdgeTimeIndex, InvertedFilteredEdgeTimeIndex},
+        filtered_node::NodeEdgeHistory,
         time_semantics::{
             event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
             filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
@@ -18,7 +19,6 @@ use raphtory_api::core::{
         LayerIds, ELID,
     },
     storage::timeindex::{AsTime, MergedTimeIndex, TimeIndexEntry, TimeIndexOps},
-    Direction,
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -82,6 +82,27 @@ fn edge_alive_at_start<'graph, G: GraphViewOps<'graph>>(
     // The semantics are tricky here, an edge is not alive at the start of the window if the last event at time t is a deletion
     e.filtered_updates_iter(&view, view.layer_ids())
         .any(|(_, additions, deletions)| alive_before(additions, deletions, t.saturating_add(1)))
+}
+
+fn node_has_valid_edges<'graph, G: GraphView>(
+    history: NodeEdgeHistory<'graph, G>,
+    t: TimeIndexEntry,
+) -> bool {
+    let mut deleted = AHashSet::new();
+    history
+        .range(TimeIndexEntry::MIN..t.next())
+        .history_rev()
+        .any(|(_, e)| {
+            // scan backwards in time over filtered history and keep track of deletions
+            let eid = e.edge;
+            let layer = e.layer();
+            if e.is_deletion() {
+                deleted.insert((eid, layer));
+                false
+            } else {
+                !deleted.contains(&(eid, layer))
+            }
+        })
 }
 
 fn merged_deletions<'graph, G: GraphViewOps<'graph>>(
@@ -159,10 +180,24 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        node.history(view)
-            .range_t(i64::MIN..w.end)
-            .first_t()
-            .map(|t| t.max(w.start))
+        let history = node.history(&view);
+        let prop_earliest = history.prop_history().range_t(i64::MIN..w.end).first_t();
+
+        if let Some(prop_earliest) = prop_earliest {
+            if prop_earliest <= w.start {
+                return Some(w.start);
+            }
+        }
+
+        if node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start)) {
+            return Some(w.start);
+        }
+
+        let edge_earliest = history
+            .edge_history()
+            .range_t(w.start.saturating_add(1)..w.end)
+            .first_t();
+        prop_earliest.into_iter().chain(edge_earliest).min()
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
@@ -171,10 +206,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        node.history(view)
-            .range_t(i64::MIN..w.end)
+        let history = node.history(&view);
+        history
+            .range_t(w.start.saturating_add(1)..w.end)
             .last_t()
-            .map(|t| t.max(w.start))
+            .or_else(|| {
+                (history
+                    .prop_history()
+                    .active_t(i64::MIN..w.start.saturating_add(1))
+                    || node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start)))
+                .then_some(w.start)
+            })
     }
 
     fn node_history<'graph, G: GraphViewOps<'graph>>(
@@ -291,24 +333,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             || history
                 .edge_history()
                 .active_t(w.start.saturating_add(1)..w.end)
-            || {
-                let mut deleted = AHashSet::new();
-                history
-                    .edge_history()
-                    .range_t(i64::MIN..w.start.saturating_add(1))
-                    .history_rev()
-                    .any(|(_, e)| {
-                        // scan backwards in time over filtered history and keep track of deletions
-                        let eid = e.edge;
-                        let layer = e.layer();
-                        if e.is_deletion() {
-                            deleted.insert((eid, layer));
-                            false
-                        } else {
-                            !deleted.contains(&(eid, layer))
-                        }
-                    })
-            }
+            || node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start))
     }
 
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
@@ -622,19 +647,20 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
+        let interior_window = w.start.saturating_add(1)..w.end;
         let last_update_in_window = e
             .additions_iter(view.layer_ids())
-            .flat_map(|(_, additions)| additions.range_t(w.clone()).last_t())
+            .flat_map(|(_, additions)| additions.range_t(interior_window.clone()).last_t())
             .chain(
                 e.deletions_iter(view.layer_ids())
-                    .flat_map(|(_, deletions)| deletions.range_t(w.clone()).last_t()),
+                    .flat_map(|(_, deletions)| deletions.range_t(interior_window.clone()).last_t()),
             )
             .max();
 
         if last_update_in_window.is_some() {
             last_update_in_window
         } else {
-            edge_alive_at_end(e, w.start, &view).then_some(w.start)
+            edge_alive_at_start(e, w.start, &view).then_some(w.start)
         }
     }
 
