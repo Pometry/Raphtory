@@ -3,15 +3,23 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritListOps,
-            InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalLayerOps, Static,
+            FilterOps, GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeFilterOps,
+            InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps,
+            InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+            InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+            InternalEdgeLayerFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
-use raphtory_storage::core_ops::InheritCoreGraphOps;
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::node_ref::NodeStorageRef,
+    },
+};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -58,7 +66,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
+impl<'graph, G: GraphView> InheritNodeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
@@ -72,7 +80,23 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InheritAllEdgeFilterOps for LayeredGraph<G> {}
+impl<G: GraphView> InternalEdgeLayerFilterOps for LayeredGraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All) || self.graph.internal_edge_layer_filtered()
+    }
+
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        matches!(self.layers, LayerIds::All) && self.graph.internal_layer_filter_edge_list_trusted()
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer) // actual layer filter handled upstream for optimisation
+    }
+}
+
+impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
+
+impl<G: GraphView> InheritExplodedEdgeFilterOps for LayeredGraph<G> {}
 
 #[cfg(test)]
 mod test_layers {

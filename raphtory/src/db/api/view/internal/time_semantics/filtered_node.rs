@@ -61,6 +61,9 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
             let nodes = view.core_nodes();
             let edges = view.core_edges();
             FilterVariants::Both(iter.filter_map(move |(t, e)| {
+                if !view.layer_ids().contains(&e.layer()) {
+                    return None;
+                }
                 let edge_time_semantics = view.edge_time_semantics();
                 edge_time_semantics
                     .handle_edge_update_filter(t, e, &view)
@@ -80,6 +83,9 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
             let nodes = view.core_nodes();
             let edges = view.core_edges();
             FilterVariants::Nodes(iter.filter(move |(_, e)| {
+                if !view.layer_ids().contains(&e.layer()) {
+                    return false;
+                }
                 let edge = edges.edge(e.edge);
                 view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
                     && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
@@ -87,6 +93,9 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
         }
         FilterState::Edges | FilterState::BothIndependent => {
             FilterVariants::Edges(iter.filter_map(move |(t, e)| {
+                if !view.layer_ids().contains(&e.layer()) {
+                    return None;
+                }
                 let edge_time_semantics = view.edge_time_semantics();
                 let mut update = edge_time_semantics.handle_edge_update_filter(t, e, &view);
                 if view.internal_edge_layer_filtered() || view.internal_edge_filtered() {
