@@ -62,6 +62,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
         let graph_dir = path.unwrap_or_else(random_temp_dir);
+        let gid_resolver_dir = graph_dir.join("gid_resolver");
         let storage = Layer::new_with_meta(
             graph_dir.clone(),
             DEFAULT_MAX_PAGE_LEN_NODES,
@@ -71,7 +72,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         );
         Self {
             graph_dir,
-            logical_to_physical: Mapping::new(),
+            logical_to_physical: GIDResolver::new(gid_resolver_dir).unwrap(),
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
