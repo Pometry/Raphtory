@@ -72,7 +72,7 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
                                 view.layer_ids(),
                             )
                             && view.internal_filter_edge_layer(edge, e.layer())
-                            && view.filter_edge(edge)
+                            && view.internal_filter_edge(edge, view.layer_ids())
                     })
             }))
         }
