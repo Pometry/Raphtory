@@ -25,7 +25,7 @@ pub trait GIDResolverOps {
     fn get_or_init(
         &self,
         gid: GidRef,
-        next_id: impl FnOnce() -> VID,
+        next_id: impl FnMut() -> VID,
     ) -> Result<MaybeNew<VID>, GIDResolverError>;
     fn validate_gids<'a>(
         &self,
