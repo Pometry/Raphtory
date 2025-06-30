@@ -1,18 +1,15 @@
 use std::path::Path;
 
 use crate::{
-    gen_t_props::GenTProps,
-    gen_ts::GenericTimeOps,
-    pages::{
-        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
-        node_store::ReadLockedNodeStorage,
-    },
-    segments::{
+    gen_t_props::GenTProps, gen_ts::GenericTimeOps, pages::{
+        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage,
+        GraphStore, ReadLockedGraphStore
+    }, resolver::mapping_resolver::MappingResolver, segments::{
         edge::EdgeSegmentView,
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
-    },
+    }
 };
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
@@ -25,14 +22,16 @@ pub mod persist;
 pub mod properties;
 pub mod segments;
 pub mod utils;
-// pub mod loaders;
+pub mod resolver;
 
 pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
-pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 
+pub type GIDResolver = MappingResolver;
+
+pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
 pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NodeSegmentView, P>;
 pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<EdgeSegmentView, P>;
 

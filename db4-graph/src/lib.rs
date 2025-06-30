@@ -30,7 +30,9 @@ use storage::{
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
     },
     persist::strategy::PersistentStrategy,
-    Extension, Layer, ReadLockedLayer, ES, NS,
+    resolver::{GIDResolverError, GIDResolverOps},
+    Extension, GIDResolver, Layer,
+    ReadLockedLayer, ES, NS
 };
 
 pub mod entries;
@@ -42,7 +44,7 @@ const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 1000;
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
     // mapping between logical and physical ids
-    pub logical_to_physical: Mapping,
+    pub logical_to_physical: GIDResolver,
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
@@ -247,9 +249,15 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
     }
 
     pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        self.graph.logical_to_physical.get_or_init(gid, || {
+        let result = self.graph.logical_to_physical.get_or_init(gid, || {
             VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
-        })
+        });
+
+        match result {
+            Ok(vid) => Ok(vid),
+            Err(GIDResolverError::DBV4Error(e)) => panic!("Database error: {}", e),
+            Err(GIDResolverError::InvalidNodeId(e)) => Err(e),
+        }
     }
 
     pub fn num_nodes(&self) -> usize {

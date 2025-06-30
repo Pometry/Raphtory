@@ -21,6 +21,7 @@ use storage::{
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, ES, NS,
+    resolver::{GIDResolverOps},
 };
 
 use crate::mutation::{
@@ -205,8 +206,7 @@ impl InternalAdditionOps for TemporalGraph {
                         self.node_count
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                             .into()
-                    })
-                    .map_err(MutationError::InvalidNodeId)?;
+                    })?;
 
                 Ok(id)
             }
@@ -226,10 +226,8 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
-        Ok(self
-            .logical_to_physical
-            .validate_gids(gids)
-            .map_err(MutationError::InvalidNodeId)?)
+        self.logical_to_physical.validate_gids(gids)?;
+        Ok(())
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
