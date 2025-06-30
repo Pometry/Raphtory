@@ -4,7 +4,7 @@ use crate::{
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::DBV4Error,
     pages::{
-        layer_counter::LayerCounter,
+        layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
     },
     segments::node::MemNodeSegment,
@@ -24,7 +24,7 @@ use std::{
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
-    layer_counter: LayerCounter,
+    layer_counter: Arc<GraphStats>,
     nodes_path: PathBuf,
     max_page_len: usize,
     prop_meta: Arc<Meta>,
@@ -88,12 +88,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn new(nodes_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
+        Self::new_with_meta(nodes_path, max_page_len, Meta::new(), ext)
+    }
+
+    pub fn new_with_meta(
+        nodes_path: impl AsRef<Path>,
+        max_page_len: usize,
+        node_meta: Meta,
+        ext: EXT,
+    ) -> Self {
         Self {
             pages: boxcar::Vec::new(),
-            layer_counter: LayerCounter::new(),
+            layer_counter: GraphStats::new().into(),
             nodes_path: nodes_path.as_ref().to_path_buf(),
             max_page_len,
-            prop_meta: Arc::new(Meta::new()),
+            prop_meta: node_meta.into(),
             ext,
         }
     }
@@ -152,6 +161,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn layer_num_nodes(&self, layer_id: usize) -> usize {
         self.layer_counter.get(layer_id)
+    }
+
+    pub fn stats(&self) -> &Arc<GraphStats> {
+        &self.layer_counter
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<NS>> {
@@ -231,7 +244,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             pages,
             nodes_path: nodes_path.to_path_buf(),
             max_page_len,
-            layer_counter: LayerCounter::from(layer_counts),
+            layer_counter: GraphStats::from(layer_counts).into(),
             prop_meta: meta,
             ext,
         })

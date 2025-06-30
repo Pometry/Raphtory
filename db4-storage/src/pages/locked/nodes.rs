@@ -1,7 +1,7 @@
 use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
-    pages::{layer_counter::LayerCounter, node_page::writer::NodeWriter, resolve_pos},
+    pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
     segments::node::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -12,7 +12,7 @@ use std::ops::DerefMut;
 pub struct LockedNodePage<'a, NS> {
     page_id: usize,
     max_page_len: usize,
-    layer_counter: &'a LayerCounter,
+    layer_counter: &'a GraphStats,
     page: &'a NS,
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
 }
@@ -20,7 +20,7 @@ pub struct LockedNodePage<'a, NS> {
 impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
     pub fn new(
         page_id: usize,
-        layer_counter: &'a LayerCounter,
+        layer_counter: &'a GraphStats,
         max_page_len: usize,
         page: &'a NS,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,

@@ -87,8 +87,12 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().degree(layers, dir)
     }
 
-    fn additions(self, layer_ids: usize) -> storage::NodeAdditions<'a> {
-        self.as_ref().additions(layer_ids)
+    fn layer_additions(self, layer_ids: usize) -> storage::NodeAdditions<'a> {
+        self.as_ref().layer_additions(layer_ids)
+    }
+
+    fn additions(self) -> storage::NodeAdditions<'a> {
+        self.as_ref().additions()
     }
 
     fn edges_iter(
@@ -139,5 +143,9 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         w: Option<Range<TimeIndexEntry>>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
         self.as_ref().temp_prop_rows_range(w)
+    }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
+        self.as_ref().tprop(prop_id)
     }
 }

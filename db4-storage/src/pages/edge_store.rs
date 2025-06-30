@@ -1,10 +1,7 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{self, AtomicUsize},
-    },
+    sync::Arc,
 };
 
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
@@ -13,7 +10,7 @@ use crate::{
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::DBV4Error,
     pages::{
-        layer_counter::LayerCounter,
+        layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
     },
     segments::edge::MemEdgeSegment,
@@ -31,7 +28,7 @@ const N: usize = 32;
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
     pages: boxcar::Vec<Arc<ES>>,
-    layer_counter: LayerCounter,
+    layer_counter: Arc<GraphStats>,
     free_pages: Box<[RwLock<usize>; N]>,
     edges_path: PathBuf,
     max_page_len: usize,
@@ -99,17 +96,30 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         &self.prop_meta
     }
 
-    pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
+    pub fn stats(&self) -> &Arc<GraphStats> {
+        &self.layer_counter
+    }
+
+    pub fn new_with_meta(
+        edges_path: impl AsRef<Path>,
+        max_page_len: usize,
+        edge_meta: Meta,
+        ext: EXT,
+    ) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         Self {
             pages: boxcar::Vec::new(),
-            layer_counter: LayerCounter::new(),
+            layer_counter: GraphStats::new().into(),
             free_pages: free_pages.try_into().unwrap(),
             edges_path: edges_path.as_ref().to_path_buf(),
             max_page_len,
-            prop_meta: Arc::new(Meta::new()),
+            prop_meta: edge_meta.into(),
             ext,
         }
+    }
+
+    pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
+        Self::new_with_meta(edges_path, max_page_len, Meta::new(), ext)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
@@ -236,7 +246,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             pages,
             edges_path: edges_path.to_path_buf(),
             max_page_len,
-            layer_counter: LayerCounter::from(layer_counts),
+            layer_counter: GraphStats::from(layer_counts).into(),
             free_pages: free_pages.try_into().unwrap(),
             prop_meta: meta,
             ext,

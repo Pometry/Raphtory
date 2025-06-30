@@ -16,7 +16,10 @@ use raphtory_api::{
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, locked::LockedGraph,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
@@ -41,20 +44,18 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_earliest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.earliest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_earliest_time()
+            }
         }
     }
 
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_latest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.latest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_latest_time()
+            }
         }
     }
 

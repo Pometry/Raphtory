@@ -1,7 +1,7 @@
 use std::ops::DerefMut;
 
 use crate::{
-    LocalPOS, api::edges::EdgeSegmentOps, pages::layer_counter::LayerCounter,
+    LocalPOS, api::edges::EdgeSegmentOps, pages::layer_counter::GraphStats,
     segments::edge::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
@@ -10,11 +10,11 @@ use raphtory_core::storage::timeindex::AsTime;
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> {
     pub page: &'a ES,
     pub writer: MP,
-    pub global_num_edges: &'a LayerCounter,
+    pub global_num_edges: &'a GraphStats,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
-    pub fn new(global_num_edges: &'a LayerCounter, page: &'a ES, writer: MP) -> Self {
+    pub fn new(global_num_edges: &'a GraphStats, page: &'a ES, writer: MP) -> Self {
         Self {
             page,
             writer,
@@ -54,13 +54,20 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     pub fn delete_edge<T: AsTime>(
         &mut self,
         t: T,
-        edge_pos: LocalPOS,
+        edge_pos: Option<LocalPOS>,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
         lsn: u64,
+        exists_hint: Option<bool>, // used when edge_pos is Some but the is not counted, this is used in the bulk loader
     ) {
         self.writer.as_mut()[layer_id].set_lsn(lsn);
+
+        if exists_hint == Some(false) && edge_pos.is_some() {
+            self.new_local_pos(layer_id); // increment the counts, this is triggered from the bulk loader
+        }
+
+        let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
         self.writer
             .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }

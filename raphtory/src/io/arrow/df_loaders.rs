@@ -20,7 +20,7 @@ use raphtory_api::{
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
 };
-use raphtory_core::{entities::graph::timer::TimeCounterTrait, storage::timeindex::AsTime};
+use raphtory_core::storage::timeindex::AsTime;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 use std::{
@@ -148,14 +148,13 @@ pub(crate) fn load_nodes_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        let (earliest, latest) = write_locked_graph.earliest_latest();
+        let node_stats = write_locked_graph.node_stats().clone();
         let update_time = |time: TimeIndexEntry| {
             let time = time.t();
-            earliest.update(time);
-            latest.update(time);
+            node_stats.update_time(time);
         };
 
-        write_locked_graph.resize_chunks_to_num_nodes();
+        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
 
         write_locked_graph
             .nodes
@@ -312,7 +311,7 @@ pub(crate) fn load_edges_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes();
+        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -322,12 +321,6 @@ pub(crate) fn load_edges_from_df<
         let next_edge_id: Arc<AtomicUsize> = write_locked_graph.num_edges.clone();
         let next_edge_id = || next_edge_id.fetch_add(1, Ordering::Relaxed);
 
-        let (earliest, latest) = write_locked_graph.earliest_latest();
-        let update_time = |time: TimeIndexEntry| {
-            let time = time.t();
-            earliest.update(time);
-            latest.update(time);
-        };
         write_locked_graph
             .nodes
             .par_iter_mut()
@@ -342,7 +335,6 @@ pub(crate) fn load_edges_from_df<
                 {
                     if let Some(src_pos) = locked_page.resolve_pos(*src) {
                         let t = TimeIndexEntry(time, start_idx + row);
-                        update_time(t);
                         let mut writer = locked_page.writer();
                         writer.store_node_id(src_pos, 0, src_gid, 0);
                         if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
@@ -390,7 +382,7 @@ pub(crate) fn load_edges_from_df<
             }
         });
 
-        write_locked_graph.resize_chunks_to_num_edges();
+        write_locked_graph.resize_chunks_to_num_edges(write_locked_graph.num_edges());
 
         write_locked_graph
             .edges
@@ -575,7 +567,7 @@ pub(crate) fn load_node_props_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes();
+        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
 
         write_locked_graph
             .nodes
@@ -701,7 +693,7 @@ pub(crate) fn load_edges_props_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes();
+        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);

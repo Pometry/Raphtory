@@ -3,7 +3,7 @@ use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
-    pages::{edge_page::writer::EdgeWriter, layer_counter::LayerCounter, resolve_pos},
+    pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
     segments::edge::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -14,7 +14,7 @@ pub struct LockedEdgePage<'a, ES> {
     page_id: usize,
     max_page_len: usize,
     page: &'a ES,
-    num_edges: &'a LayerCounter,
+    num_edges: &'a GraphStats,
     lock: RwLockWriteGuard<'a, MemEdgeSegment>,
 }
 
@@ -23,7 +23,7 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
         page_id: usize,
         max_page_len: usize,
         page: &'a ES,
-        num_edges: &'a LayerCounter,
+        num_edges: &'a GraphStats,
         lock: RwLockWriteGuard<'a, MemEdgeSegment>,
     ) -> Self {
         Self {
