@@ -36,6 +36,8 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
     #[test]
     fn test_edge_filter() {
@@ -327,5 +329,24 @@ mod test {
             let gfwm = gfw.materialize().unwrap();
             assert_persistent_materialize_graph_equal(&gfw, &gfwm);
         })
+    }
+
+    #[test]
+    fn test_single_unfiltered_edge_window_persistent() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
+        g.delete_edge(10, 0, 1, None).unwrap();
+        let gw = g
+            .filter_edges(PropertyFilterBuilder::new("test").gt(0i64))
+            .unwrap()
+            .window(0, 0);
+
+        assert_eq!(gw.count_edges(), 0);
+        let expected = PersistentGraph::new();
+        expected
+            .resolve_edge_property("test", PropType::I64, false)
+            .unwrap();
+        expected.resolve_layer(None).unwrap();
+        assert_graph_equal(&gw, &expected)
     }
 }

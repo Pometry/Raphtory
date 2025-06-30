@@ -5,7 +5,8 @@ use crate::{
             view::internal::{
                 Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
                 InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps, Static,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+                InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateEdgeFilter, model::NotFilter},
@@ -65,31 +66,56 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for EdgeNotFiltere
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for EdgeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for EdgeNotFilteredGraph<G, T> {}
 
+impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeLayerFilterOps> InternalEdgeLayerFilterOps
+    for EdgeNotFilteredGraph<G, T>
+{
+    fn internal_edge_layer_filtered(&self) -> bool {
+        true
+    }
+
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer)
+            && !self.filter.internal_filter_edge_layer(edge, layer)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, T: InternalExplodedEdgeFilterOps>
+    InternalExplodedEdgeFilterOps for EdgeNotFilteredGraph<G, T>
+{
+    fn internal_exploded_edge_filtered(&self) -> bool {
+        true
+    }
+
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn internal_filter_exploded_edge(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
+            && !self.filter.internal_filter_exploded_edge(eid, t, layer_ids)
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeFilterOps> InternalEdgeFilterOps
     for EdgeNotFilteredGraph<G, T>
 {
     #[inline]
-    fn internal_edges_filtered(&self) -> bool {
-        true
-    }
-
-    fn edge_history_filtered(&self) -> bool {
+    fn internal_edge_filtered(&self) -> bool {
         true
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
         false
-    }
-
-    fn internal_filter_edge_history(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph.internal_filter_edge_history(eid, t, layer_ids)
-            && !self.filter.internal_filter_edge_history(eid, t, layer_ids)
     }
 
     #[inline]

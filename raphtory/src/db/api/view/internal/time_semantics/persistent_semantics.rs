@@ -394,17 +394,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
-        let layer_ids = view.layer_ids();
-        if !layer_ids.contains(&eid.layer()) {
-            return None;
-        }
-        if view.internal_edges_filtered() {
-            let edge = view.core_edge(eid.edge);
-            if !view.internal_filter_edge(edge.as_ref(), layer_ids) {
-                return None;
-            }
-        }
-        if view.internal_filter_edge_history(eid, t, view.layer_ids()) {
+        if view.internal_filter_exploded_edge(eid, t, view.layer_ids()) {
             Some((t, eid))
         } else {
             Some((t, eid.into_deletion()))
@@ -415,7 +405,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         _edge: EdgeStorageRef,
         _view: G,
-        _layer_ids: &LayerIds,
+        _layer_id: usize,
     ) -> bool {
         true // history filtering only maps additions to deletions and thus doesn't filter edges
     }
@@ -424,18 +414,20 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
         // If an edge has any event in the interior (both end exclusive) of the window it is always included.
         // Additionally, the edge is included if the last event at or before the start of the window was an addition.
+        if w.is_empty() {
+            return false;
+        }
         let exclusive_start = w.start.saturating_add(1);
-        edge.filtered_updates_iter(&view, layer_ids)
-            .any(|(_, additions, deletions)| {
-                additions.active_t(exclusive_start..w.end)
-                    || deletions.active_t(exclusive_start..w.end)
-                    || alive_before(additions, deletions, exclusive_start)
-            })
+        let additions = edge.filtered_additions(layer_id, &view);
+        let deletions = edge.filtered_deletions(layer_id, &view);
+        additions.unfiltered().active_t(exclusive_start..w.end)
+            || deletions.active_t(exclusive_start..w.end)
+            || alive_before(additions, deletions, exclusive_start)
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
@@ -1090,8 +1082,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         prop_id: usize,
     ) -> Option<Prop> {
         let layer_filter = |layer| {
-            !view.edge_history_filtered()
-                || !e.filtered_additions(layer, &view).is_empty()
+            view.internal_filter_edge_layer(e, layer)
+                || !e.additions(layer).is_empty()
                 || !e.filtered_deletions(layer, &view).is_empty()
         };
 

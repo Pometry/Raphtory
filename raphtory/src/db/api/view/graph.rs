@@ -625,7 +625,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
-            if self.nodes_filtered() {
+            if self.filtered() {
                 let node = self.core_node(node_id);
                 self.filter_node(node.as_ref())
             } else {
@@ -644,7 +644,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
-        if self.nodes_filtered() {
+        if self.filtered() {
             let core_node = self.core_node(vid);
             if !self.filter_node(core_node.as_ref()) {
                 return None;

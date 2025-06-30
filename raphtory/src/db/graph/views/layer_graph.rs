@@ -3,21 +3,15 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            Immutable, InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize,
-            InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalEdgeFilterOps, InternalLayerOps, Static,
+            Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritListOps,
+            InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalLayerOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
-    inherit::Base,
-};
-use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-};
+use raphtory_api::inherit::Base;
+use raphtory_storage::core_ops::InheritCoreGraphOps;
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -78,33 +72,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for LayeredGraph<G> {
-    fn internal_edges_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All) || self.graph.internal_edges_filtered()
-    }
-
-    fn edge_history_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All) || self.graph.edge_history_filtered()
-    }
-
-    fn internal_edge_list_trusted(&self) -> bool {
-        matches!(self.layers, LayerIds::All) && self.graph.internal_edge_list_trusted()
-    }
-
-    fn internal_filter_edge_history(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        layer_ids.contains(&eid.layer())
-            && self.graph.internal_filter_edge_history(eid, t, layer_ids)
-    }
-
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        edge.has_layer(layer_ids) && self.graph.internal_filter_edge(edge, layer_ids)
-    }
-}
+impl<'graph, G: GraphViewOps<'graph>> InheritAllEdgeFilterOps for LayeredGraph<G> {}
 
 #[cfg(test)]
 mod test_layers {

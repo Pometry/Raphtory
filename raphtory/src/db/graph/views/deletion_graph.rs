@@ -149,7 +149,7 @@ impl InheritPropertiesOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}
 
-impl InheritEdgeFilterOps for PersistentGraph {}
+impl InheritAllEdgeFilterOps for PersistentGraph {}
 
 impl InheritNodeFilterOps for PersistentGraph {}
 

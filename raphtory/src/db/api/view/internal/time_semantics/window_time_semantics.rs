@@ -212,10 +212,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
     ) -> bool {
         self.semantics
-            .include_edge_window(edge, view, layer_ids, self.window.clone())
+            .include_edge_window(edge, view, layer_id, self.window.clone())
     }
 
     #[inline]
@@ -223,10 +223,10 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        self.semantics.include_edge_window(edge, view, layer_ids, w)
+        self.semantics.include_edge_window(edge, view, layer_id, w)
     }
 
     #[inline]

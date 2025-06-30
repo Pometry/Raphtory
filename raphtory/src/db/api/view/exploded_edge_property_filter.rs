@@ -1,14 +1,13 @@
 use crate::{
     db::{
-        api::view::internal::OneHopFilter,
-        graph::views::filter::internal::InternalExplodedEdgeFilterOps,
+        api::view::internal::OneHopFilter, graph::views::filter::internal::CreateExplodedEdgeFilter,
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
-    fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
+    fn filter_exploded_edges<F: CreateExplodedEdgeFilter>(
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>

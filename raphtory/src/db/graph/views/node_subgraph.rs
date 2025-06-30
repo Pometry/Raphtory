@@ -4,19 +4,17 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         state::Index,
         view::internal::{
-            EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
+            EdgeList, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+            InheritExplodedEdgeFilterOps, InheritLayerOps, InheritMaterialize,
             InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
-    inherit::Base,
-};
+use raphtory_api::inherit::Base;
 use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    core_ops::InheritCoreGraphOps,
     graph::{
         edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
@@ -78,15 +76,14 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for NodeSubgraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for NodeSubgraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> {
     #[inline]
-    fn internal_edges_filtered(&self) -> bool {
+    fn internal_edge_filtered(&self) -> bool {
         true
-    }
-
-    #[inline]
-    fn edge_history_filtered(&self) -> bool {
-        self.graph.edge_history_filtered()
     }
 
     #[inline]
@@ -94,23 +91,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> 
         false
     }
 
-    fn internal_filter_edge_history(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph.internal_filter_edge_history(eid, t, layer_ids) && {
-            let core_edge = self.core_edge(eid.edge);
-            self.nodes.contains(&core_edge.src()) && self.nodes.contains(&core_edge.dst())
-        }
-    }
-
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_edge(edge, layer_ids)
-            && self.nodes.contains(&edge.src())
+        self.nodes.contains(&edge.src())
             && self.nodes.contains(&edge.dst())
+            && self.graph.internal_filter_edge(edge, layer_ids)
     }
 }
 
@@ -123,8 +108,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> 
     }
 
     #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        self.graph.edge_and_node_filter_independent()
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
     }
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {

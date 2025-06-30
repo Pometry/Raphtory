@@ -1,9 +1,7 @@
 use crate::core::entities::LayerIds;
-use enum_dispatch::enum_dispatch;
 use raphtory_api::inherit::Base;
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 
-#[enum_dispatch]
 pub trait InternalNodeFilterOps {
     /// Check if GraphView filters nodes (i.e., there exists nodes in the underlying graph for which `filter_node` returns false
     fn internal_nodes_filtered(&self) -> bool;
@@ -16,7 +14,7 @@ pub trait InternalNodeFilterOps {
     /// If true, do not need to check src and dst of the edge separately, even if nodes are filtered
     /// (i.e., edge filter already makes sure there are no edges between non-existent nodes)
     /// This should be `false` when implementing `NodeFilterOps` without overriding the edge filter.
-    fn edge_and_node_filter_independent(&self) -> bool;
+    fn edge_filter_includes_node_filter(&self) -> bool;
 
     /// If `true`, node is included in the graph
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool;
@@ -39,8 +37,8 @@ where
     }
 
     #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        self.base().edge_and_node_filter_independent()
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.base().edge_filter_includes_node_filter()
     }
 
     #[inline]

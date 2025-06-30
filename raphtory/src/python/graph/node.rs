@@ -19,7 +19,7 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::InternalExplodedEdgeFilterOps,
+            views::filter::internal::CreateExplodedEdgeFilter,
         },
     },
     errors::GraphError,

@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
@@ -58,7 +58,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeNameFilteredGrap
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeNameFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for NodeNameFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritAllEdgeFilterOps for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeNameFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeNameFilteredGraph<G> {}
@@ -76,7 +76,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeNameFiltered
     }
 
     #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
+    fn edge_filter_includes_node_filter(&self) -> bool {
         false
     }
 

@@ -724,7 +724,7 @@ mod db_tests {
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
             );
-            assert!(!graph.internal_edges_filtered());
+            assert!(!graph.internal_edge_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());

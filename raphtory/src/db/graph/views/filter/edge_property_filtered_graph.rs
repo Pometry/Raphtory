@@ -4,9 +4,10 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
-                InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps, Static,
+                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
         graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
@@ -14,14 +15,8 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, LayerOps},
 };
-use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
-    inherit::Base,
-};
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::edges::edge_ref::EdgeStorageRef,
-};
+use raphtory_api::inherit::Base;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgePropertyFilteredGraph<G> {
@@ -85,32 +80,22 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgePropertyFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 
+impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps
+    for EdgePropertyFilteredGraph<G>
+{
+}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for EdgePropertyFilteredGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilteredGraph<G> {
     #[inline]
-    fn internal_edges_filtered(&self) -> bool {
-        true
-    }
-
-    fn edge_history_filtered(&self) -> bool {
+    fn internal_edge_filtered(&self) -> bool {
         true
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
         false
-    }
-
-    fn internal_filter_edge_history(
-        &self,
-        eid: ELID,
-        t: TimeIndexEntry,
-        layer_ids: &LayerIds,
-    ) -> bool {
-        self.graph.internal_filter_edge_history(eid, t, layer_ids) && {
-            let edge = self.core_edge(eid.edge);
-            self.filter
-                .matches_edge(&self.graph, self.t_prop_id, self.c_prop_id, edge.as_ref())
-        }
     }
 
     #[inline]

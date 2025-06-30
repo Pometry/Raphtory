@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::{CreateEdgeFilter, CreateNodeFilter, InternalExplodedEdgeFilterOps},
+            internal::{CreateEdgeFilter, CreateExplodedEdgeFilter, CreateNodeFilter},
             model::{
                 property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
                 InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
@@ -65,9 +65,9 @@ impl CreateEdgeFilter for PyPropertyFilter {
     }
 }
 
-impl InternalExplodedEdgeFilterOps for PyPropertyFilter {
+impl CreateExplodedEdgeFilter for PyPropertyFilter {
     type ExplodedEdgeFiltered<'graph, G>
-        = <PropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<'graph, G>
+        = <PropertyFilter as CreateExplodedEdgeFilter>::ExplodedEdgeFiltered<'graph, G>
     where
         G: GraphViewOps<'graph>,
         Self: 'graph;

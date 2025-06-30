@@ -202,19 +202,19 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
     ) -> bool {
-        for_all!(self, semantics => semantics.include_edge(edge, view, layer_ids))
+        for_all!(self, semantics => semantics.include_edge(edge, view, layer_id))
     }
 
     fn include_edge_window<'graph, G: GraphView + 'graph>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_ids, w))
+        for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_id, w))
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(

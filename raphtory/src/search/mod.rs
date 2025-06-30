@@ -99,10 +99,8 @@ mod test_index {
             },
             errors::GraphError,
             prelude::*,
-            search::graph_index::GraphIndex,
             serialise::GraphFolder,
         };
-        use parking_lot::{lock_api::RwLockReadGuard, RawRwLock};
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,

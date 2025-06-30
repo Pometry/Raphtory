@@ -131,7 +131,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
     ) -> bool;
 
     /// check if edge `e` should be included in window `w`
@@ -139,7 +139,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool;
 

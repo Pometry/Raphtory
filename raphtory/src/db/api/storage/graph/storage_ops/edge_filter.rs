@@ -10,7 +10,7 @@ use raphtory_storage::graph::edges::edge_ref::EdgeStorageRef;
 
 impl InternalEdgeFilterOps for GraphStorage {
     #[inline]
-    fn internal_edges_filtered(&self) -> bool {
+    fn internal_edge_filtered(&self) -> bool {
         false
     }
 
@@ -21,6 +21,10 @@ impl InternalEdgeFilterOps for GraphStorage {
 
     #[inline]
     fn internal_filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
+        true
+    }
+
+    fn node_filter_includes_edge_filter(&self) -> bool {
         true
     }
 }
@@ -43,6 +47,11 @@ impl InternalExplodedEdgeFilterOps for GraphStorage {
     ) -> bool {
         true
     }
+
+    #[inline]
+    fn node_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
 }
 
 impl InternalEdgeLayerFilterOps for GraphStorage {
@@ -58,6 +67,11 @@ impl InternalEdgeLayerFilterOps for GraphStorage {
 
     #[inline]
     fn internal_filter_edge_layer(&self, _edge: EdgeStorageRef, _layer: usize) -> bool {
+        true
+    }
+
+    #[inline]
+    fn node_filter_includes_edge_layer_filter(&self) -> bool {
         true
     }
 }

@@ -13,7 +13,7 @@ impl InternalNodeFilterOps for GraphStorage {
     }
 
     #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
+    fn edge_filter_includes_node_filter(&self) -> bool {
         true
     }
 
