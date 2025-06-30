@@ -159,29 +159,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<i64>,
     ) -> Option<i64> {
-        let additions = node.additions();
-        let mut earliest = additions.prop_events().next().map(|t| t.t());
-        if let Some(earliest) = earliest {
-            if earliest <= w.start {
-                return Some(w.start);
-            }
-        }
-
-        let edge_semantics = view.edge_time_semantics();
-        for e in node.edges_iter(view.layer_ids(), Direction::BOTH) {
-            let edge = view.core_edge(e.pid());
-            if let Some(edge_earliest_time) =
-                edge_semantics.edge_earliest_time_window(edge.as_ref(), &view, w.clone())
-            {
-                if edge_earliest_time <= w.start {
-                    return Some(w.start);
-                }
-                if edge_earliest_time < earliest.unwrap_or(w.end) {
-                    earliest = Some(edge_earliest_time);
-                }
-            }
-        }
-        earliest
+        node.history(view)
+            .range_t(i64::MIN..w.end)
+            .first_t()
+            .map(|t| t.max(w.start))
     }
 
     fn node_latest_time_window<'graph, G: GraphViewOps<'graph>>(
