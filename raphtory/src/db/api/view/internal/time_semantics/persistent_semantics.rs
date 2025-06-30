@@ -217,10 +217,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range().map(|(t, row)| {
+        node.temp_prop_rows().map(|(t, _, row)| {
             (
                 t,
-                row.into_iter().filter_map(|(i, v)| Some((i, v?))).collect(),
+                row
             )
         })
     }
@@ -259,11 +259,11 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .into_iter()
             .map(move |row| (TimeIndexEntry::start(start), row))
             .chain(
-                node.temp_prop_rows_window(TimeIndexEntry::range(w))
-                    .map(|(t, row)| {
+                node.temp_prop_rows_range(Some(TimeIndexEntry::range(w)))
+                    .map(|(t, _, row)| {
                         (
                             t,
-                            row.into_iter().filter_map(|(i, v)| Some((i, v?))).collect(),
+                            row
                         )
                     }),
             )

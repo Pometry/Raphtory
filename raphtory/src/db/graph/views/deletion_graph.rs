@@ -26,7 +26,6 @@ use raphtory_storage::{
     },
     mutation::InheritMutationOps,
 };
-use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
     iter,
@@ -42,7 +41,7 @@ use std::{
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}

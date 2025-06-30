@@ -247,13 +247,11 @@ pub trait InternalCache {
 
 impl InternalCache for Storage {
     fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.cache
-            .get_or_try_init(|| GraphWriter::new(path.clone()))?;
         Ok(())
     }
 
     fn get_cache(&self) -> Option<&GraphWriter> {
-        self.cache.get()
+        None
     }
 }
 

@@ -80,14 +80,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows().map(|(t, row)| {
-            (
-                t,
-                row.into_iter()
-                    .filter_map(|(id, prop)| Some((id, prop?)))
-                    .collect(),
-            )
-        })
+        node.temp_prop_rows().map(|(t, _, row)| (t, row))
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
@@ -97,14 +90,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         node.temp_prop_rows_range(Some(TimeIndexEntry::range(w)))
-            .map(|(t, row)| {
-                (
-                    t,
-                    row.into_iter()
-                        .filter_map(|(id, prop)| Some((id, prop?)))
-                        .collect(),
-                )
-            })
+            .map(|(t, _, row)| (t, row))
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(

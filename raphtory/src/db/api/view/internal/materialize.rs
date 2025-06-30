@@ -19,14 +19,13 @@ use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{core::entities::properties::prop::PropType, iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
-use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
 #[enum_dispatch(GraphTimeSemanticsOps)]
 #[enum_dispatch(TemporalPropertiesOps)]
 #[enum_dispatch(TemporalPropertyViewOps)]
 #[enum_dispatch(ConstantPropertiesOps)]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),

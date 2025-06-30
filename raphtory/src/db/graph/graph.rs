@@ -38,7 +38,6 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fmt::{Display, Formatter},
@@ -48,7 +47,7 @@ use std::{
 };
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
@@ -604,7 +603,7 @@ mod db_tests {
         utils::logging::global_info_logger,
     };
     use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
-    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+    use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps, mutation::addition_ops::InternalAdditionOps};
     use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
@@ -1710,12 +1709,12 @@ mod db_tests {
                     .nodes()
                     .node(VID(id))
                     .temp_prop_rows()
-                    .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+                    .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                     .collect::<Vec<_>>();
 
                 let expected = vec![(
                     TimeIndexEntry::new(id as i64, id),
-                    vec![Some(Prop::U64((id as u64) + 1))],
+                    vec![Prop::U64((id as u64) + 1)],
                 )];
                 assert_eq!(actual, expected);
             }
@@ -1741,21 +1740,21 @@ mod db_tests {
                     .core_graph()
                     .nodes()
                     .node(vid)
-                    .temp_prop_rows_window(range)
-                    .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+                    .temp_prop_rows_range(Some(range))
+                    .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                     .collect::<Vec<_>>()
             };
             let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
 
-            let expected = vec![(TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))])];
+            let expected = vec![(TimeIndexEntry::new(2, 2), vec![Prop::U64(3)])];
 
             assert_eq!(actual, expected);
 
             let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
             let expected = vec![
-                (TimeIndexEntry::new(0, 0), vec![Some(Prop::U64(1))]),
-                (TimeIndexEntry::new(1, 1), vec![Some(Prop::U64(2))]),
-                (TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))]),
+                (TimeIndexEntry::new(0, 0), vec![Prop::U64(1)]),
+                (TimeIndexEntry::new(1, 1), vec![Prop::U64(2)]),
+                (TimeIndexEntry::new(2, 2), vec![Prop::U64(3)]),
             ];
 
             assert_eq!(actual, expected);
