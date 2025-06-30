@@ -1,19 +1,27 @@
 use std::sync::atomic::AtomicUsize;
 
+use raphtory_core::entities::graph::timer::{MaxCounter, MinCounter, TimeCounterTrait};
+
 #[derive(Debug)]
-pub struct LayerCounter {
+pub struct GraphStats {
     layers: boxcar::Vec<AtomicUsize>,
+    earliest: MinCounter,
+    latest: MaxCounter,
 }
 
-impl<I: IntoIterator<Item = usize>> From<I> for LayerCounter {
+impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
         let counts = iter.into_iter().map(|c| AtomicUsize::new(c)).collect();
         let layers = boxcar::Vec::from(counts);
-        Self { layers }
+        Self {
+            layers,
+            earliest: MinCounter::new(),
+            latest: MaxCounter::new(),
+        }
     }
 }
 
-impl LayerCounter {
+impl GraphStats {
     pub fn new() -> Self {
         let layers = boxcar::Vec::new();
         for _ in 0..16 {
@@ -23,11 +31,28 @@ impl LayerCounter {
                 std::thread::yield_now();
             }
         }
-        Self { layers }
+        Self {
+            layers,
+            earliest: MinCounter::new(),
+            latest: MaxCounter::new(),
+        }
     }
 
     pub fn len(&self) -> usize {
         self.layers.count()
+    }
+
+    pub fn update_time(&self, t: i64) {
+        self.earliest.update(t);
+        self.latest.update(t);
+    }
+
+    pub fn earliest(&self) -> i64 {
+        self.earliest.get()
+    }
+
+    pub fn latest(&self) -> i64 {
+        self.latest.get()
     }
 
     pub fn increment(&self, layer_id: usize) -> usize {

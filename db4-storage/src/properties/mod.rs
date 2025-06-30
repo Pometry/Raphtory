@@ -301,7 +301,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn deletion_timestamp(&mut self, t:TimeIndexEntry, edge_id: Option<ELID>) {
+    pub(crate) fn deletion_timestamp(&mut self, t: TimeIndexEntry, edge_id: Option<ELID>) {
         if self.properties.deletions.len() <= self.row {
             self.properties
                 .deletions

@@ -1,7 +1,10 @@
 use std::{ops::DerefMut, sync::atomic::AtomicUsize};
 
 use crate::{
-    api::edges::EdgeSegmentOps, pages::{edge_page::writer::EdgeWriter, layer_counter::LayerCounter, resolve_pos}, segments::edge::MemEdgeSegment, LocalPOS
+    LocalPOS,
+    api::edges::EdgeSegmentOps,
+    pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
+    segments::edge::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::EID;
@@ -11,7 +14,7 @@ pub struct LockedEdgePage<'a, ES> {
     page_id: usize,
     max_page_len: usize,
     page: &'a ES,
-    num_edges: &'a LayerCounter,
+    num_edges: &'a GraphStats,
     lock: RwLockWriteGuard<'a, MemEdgeSegment>,
 }
 
@@ -20,7 +23,7 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
         page_id: usize,
         max_page_len: usize,
         page: &'a ES,
-        num_edges: &'a LayerCounter,
+        num_edges: &'a GraphStats,
         lock: RwLockWriteGuard<'a, MemEdgeSegment>,
     ) -> Self {
         Self {
@@ -54,6 +57,14 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
 }
 pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
+}
+
+impl<ES> Default for WriteLockedEdgePages<'_, ES> {
+    fn default() -> Self {
+        Self {
+            writers: Vec::new(),
+        }
+    }
 }
 
 impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> {

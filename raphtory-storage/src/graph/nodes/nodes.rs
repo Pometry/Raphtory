@@ -14,7 +14,6 @@ pub struct NodesStorage {
 }
 
 impl NodesStorage {
-
     pub fn new(storage: Arc<ReadLockedNodes<Extension>>) -> Self {
         Self { storage }
     }

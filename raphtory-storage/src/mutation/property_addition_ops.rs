@@ -176,7 +176,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     }
 }
 
-impl <EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
+impl<EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
     type Error = MutationError;
 
     fn internal_add_properties(

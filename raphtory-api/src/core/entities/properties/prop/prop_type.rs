@@ -308,9 +308,7 @@ pub fn check_for_unification(l: &PropType, r: &PropType) -> Option<bool> {
                         .and_then(|l_d_type| check_for_unification(r_d_type, l_d_type))
                 }));
             for check in inner_checks {
-                if !check {
-                    return Some(false);
-                } else {
+                if check {
                     return Some(true);
                 }
             }

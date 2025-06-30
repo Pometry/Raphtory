@@ -1,4 +1,5 @@
 use std::{
+    env::temp_dir,
     path::{Path, PathBuf},
     sync::{
         atomic::{self, AtomicUsize},
@@ -6,7 +7,6 @@ use std::{
     },
 };
 
-// use crate::entries::node::UnlockedNodeEntry;
 use raphtory_api::core::{
     entities::{self, properties::meta::Meta},
     input::input_node::InputNode,
@@ -17,16 +17,18 @@ use raphtory_core::{
         graph::{
             logical_to_physical::{InvalidNodeId, Mapping},
             tgraph::InvalidLayer,
-            timer::{MinCounter, TimeCounterTrait},
         },
         nodes::node_ref::NodeRef,
         properties::graph_meta::GraphMeta,
-        GidRef, LayerIds, VID,
+        GidRef, LayerIds, EID, VID,
     },
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+    pages::{
+        layer_counter::GraphStats,
+        locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+    },
     persist::strategy::PersistentStrategy,
     resolver::{GIDResolverError, GIDResolverOps},
     Extension, GIDResolver, Layer,
@@ -36,36 +38,48 @@ use storage::{
 pub mod entries;
 pub mod mutation;
 
+const DEFAULT_MAX_PAGE_LEN_NODES: usize = 1000;
+const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 1000;
+
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
-    graph_dir: PathBuf,
-
     // mapping between logical and physical ids
     pub logical_to_physical: GIDResolver,
     pub node_count: AtomicUsize,
-
-    max_page_len_nodes: usize,
-    max_page_len_edges: usize,
-
     storage: Arc<Layer<EXT>>,
+    pub graph_meta: Arc<GraphMeta>,
+    graph_dir: PathBuf,
+}
 
-    edge_meta: Arc<Meta>,
-    node_meta: Arc<Meta>,
-
-    event_counter: AtomicUsize,
-    graph_meta: Arc<GraphMeta>,
-
-    earliest: MinCounter,
-    latest: MinCounter,
+fn random_temp_dir() -> PathBuf {
+    temp_dir().join(format!("raphtory-{}", uuid::Uuid::new_v4()))
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    // pub fn node(&self, vid: VID) -> UnlockedNodeEntry<EXT> {
-    //     UnlockedNodeEntry::new(vid, self)
-    // }
+    pub fn new(path: Option<PathBuf>) -> Self {
+        Self::new_with_meta(path, Meta::new(), Meta::new())
+    }
+
+    pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
+        let graph_dir = path.unwrap_or_else(random_temp_dir);
+        let storage = Layer::new_with_meta(
+            graph_dir.clone(),
+            DEFAULT_MAX_PAGE_LEN_NODES,
+            DEFAULT_MAX_PAGE_LEN_EDGES,
+            node_meta,
+            edge_meta,
+        );
+        Self {
+            graph_dir,
+            logical_to_physical: Mapping::new(),
+            node_count: AtomicUsize::new(0),
+            storage: Arc::new(storage),
+            graph_meta: Arc::new(GraphMeta::default()),
+        }
+    }
 
     pub fn read_event_counter(&self) -> usize {
-        self.event_counter.load(atomic::Ordering::Relaxed)
+        self.storage().read_event_id()
     }
 
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
@@ -106,24 +120,26 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         self.storage.read_locked()
     }
 
-    pub fn edge_meta(&self) -> &Arc<Meta> {
-        &self.edge_meta
+    pub fn edge_meta(&self) -> &Meta {
+        self.storage().edge_meta()
     }
 
-    pub fn node_meta(&self) -> &Arc<Meta> {
-        &self.node_meta
+    pub fn node_meta(&self) -> &Meta {
+        self.storage().node_meta()
     }
 
     pub fn graph_dir(&self) -> &Path {
         &self.graph_dir
     }
 
-    pub fn max_page_len_nodes(&self) -> usize {
-        self.max_page_len_nodes
+    #[inline]
+    pub fn graph_earliest_time(&self) -> Option<i64> {
+        Some(self.storage().earliest()).filter(|t| *t != i64::MAX)
     }
 
-    pub fn max_page_len_edges(&self) -> usize {
-        self.max_page_len_edges
+    #[inline]
+    pub fn graph_latest_time(&self) -> Option<i64> {
+        Some(self.storage().latest()).filter(|t| *t != i64::MIN)
     }
 
     pub fn layer_ids(&self, key: entities::Layer) -> Result<LayerIds, InvalidLayer> {
@@ -131,19 +147,19 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             entities::Layer::None => Ok(LayerIds::None),
             entities::Layer::All => Ok(LayerIds::All),
             entities::Layer::Default => Ok(LayerIds::One(0)),
-            entities::Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
+            entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
                 None => Err(InvalidLayer::new(
                     id,
-                    Self::get_valid_layers(&self.edge_meta),
+                    Self::get_valid_layers(self.edge_meta()),
                 )),
             },
             entities::Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
                     .map(|id| {
-                        self.edge_meta.get_layer_id(id).ok_or_else(|| {
-                            InvalidLayer::new(id.clone(), Self::get_valid_layers(&self.edge_meta))
+                        self.edge_meta().get_layer_id(id).ok_or_else(|| {
+                            InvalidLayer::new(id.clone(), Self::get_valid_layers(self.edge_meta()))
                         })
                     })
                     .collect::<Result<Vec<_>, InvalidLayer>>()?;
@@ -178,14 +194,14 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             entities::Layer::None => LayerIds::None,
             entities::Layer::All => LayerIds::All,
             entities::Layer::Default => LayerIds::One(0),
-            entities::Layer::One(id) => match self.edge_meta.get_layer_id(&id) {
+            entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => LayerIds::One(id),
                 None => LayerIds::None,
             },
             entities::Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
-                    .flat_map(|id| self.edge_meta.get_layer_id(id))
+                    .flat_map(|id| self.edge_meta().get_layer_id(id))
                     .collect::<Vec<_>>();
                 let num_layers = self.num_layers();
                 let num_new_layers = new_layers.len();
@@ -207,6 +223,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn write_locked_graph<'a>(&'a self) -> WriteLockedGraph<'a, EXT> {
         WriteLockedGraph::new(self)
     }
+
+    pub fn update_time(&self, earliest: TimeIndexEntry) {
+        todo!()
+    }
 }
 
 pub struct WriteLockedGraph<'a, EXT> {
@@ -214,6 +234,7 @@ pub struct WriteLockedGraph<'a, EXT> {
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
     pub num_nodes: Arc<AtomicUsize>,
+    pub num_edges: Arc<AtomicUsize>,
 }
 
 impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
@@ -223,6 +244,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
             edges: graph.storage.edges().write_locked().into(),
             graph,
             num_nodes: Arc::new(AtomicUsize::new(graph.internal_num_nodes())),
+            num_edges: Arc::new(AtomicUsize::new(graph.internal_num_edges())),
         }
     }
 
@@ -242,23 +264,35 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
         self.num_nodes.load(atomic::Ordering::Relaxed)
     }
 
+    pub fn num_edges(&self) -> usize {
+        self.num_edges.load(atomic::Ordering::Relaxed)
+    }
+
     pub fn resolve_node_type(&self, node_type: Option<&str>) -> MaybeNew<usize> {
         node_type
-            .map(|node_type| self.graph.node_meta.get_or_create_node_type_id(node_type))
+            .map(|node_type| self.graph.node_meta().get_or_create_node_type_id(node_type))
             .unwrap_or_else(|| MaybeNew::Existing(0))
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self) {
-        let num_nodes = self.num_nodes();
-        self.graph.storage().nodes().grow_to_num_nodes(num_nodes);
+    pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {
+        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
+        self.graph.storage().nodes().grow(chunks_needed + 1);
         std::mem::take(&mut self.nodes);
         self.nodes = self.graph.storage.nodes().write_locked().into();
     }
 
-    #[inline]
-    pub fn update_time(&self, time: TimeIndexEntry) {
-        let t = time.t();
-        self.graph.earliest.update(t);
-        self.graph.latest.update(t);
+    pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
+        self.graph.storage().edges().grow(chunks_needed + 1);
+        std::mem::take(&mut self.edges);
+        self.edges = self.graph.storage.edges().write_locked().into();
+    }
+
+    pub fn edge_stats(&self) -> &Arc<GraphStats> {
+        self.graph.storage().edges().stats()
+    }
+
+    pub fn node_stats(&self) -> &Arc<GraphStats> {
+        self.graph.storage().nodes().stats()
     }
 }

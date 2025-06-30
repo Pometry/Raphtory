@@ -6,6 +6,8 @@ use raphtory_core::{entities::LayerVariants, storage::timeindex::TimeIndexEntry}
 use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, NodeEntryRef};
 
+static ALL_LAYERS: &LayerIds = &LayerIds::All;
+
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -32,7 +34,9 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
 
-    fn additions(self, layer_id: usize) -> storage::NodeAdditions<'a>;
+    fn layer_additions(self, layer_id: usize) -> storage::NodeAdditions<'a>;
+
+    fn additions(self) -> storage::NodeAdditions<'a>;
 
     fn deletions(self, layer_id: usize) -> storage::NodeAdditions<'a>;
 
@@ -46,6 +50,8 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
@@ -119,8 +125,16 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         NodeRefOps::layer_additions(self, layer_id)
     }
 
-    fn additions(self, layer_ids: usize) -> storage::NodeAdditions<'a> {
+    fn layer_additions(self, layer_ids: usize) -> storage::NodeAdditions<'a> {
         NodeRefOps::layer_additions(self, layer_ids)
+    }
+
+    fn additions(self) -> storage::NodeAdditions<'a> {
+        NodeRefOps::additions(self, ALL_LAYERS)
+    }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
+        NodeRefOps::t_prop(self, &ALL_LAYERS, prop_id)
     }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
@@ -128,14 +142,13 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     }
 
     fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        NodeRefOps::c_prop(self, layer_id, prop_id) 
+        NodeRefOps::c_prop(self, layer_id, prop_id)
     }
 
     fn temp_prop_rows_range(
-            self,
-            w: Option<Range<TimeIndexEntry>>,
-        ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        self,
+        w: Option<Range<TimeIndexEntry>>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
         NodeRefOps::temp_prop_rows(self, w)
     }
-
 }

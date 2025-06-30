@@ -10,7 +10,9 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{nodes::node_ref::NodeRef, GidRef, EID, ELID, VID},
+    entities::{
+        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
+    },
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
@@ -168,9 +170,7 @@ impl InternalAdditionOps for TemporalGraph {
         Extension,
     >;
 
-    fn write_lock(
-        &self,
-    ) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
         Ok(locked_g)
     }
@@ -185,6 +185,11 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
+        if let MaybeNew::New(id) = id {
+            if id > MAX_LAYER {
+                Err(TooManyLayers)?;
+            }
+        }
         Ok(id)
     }
 

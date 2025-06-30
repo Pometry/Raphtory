@@ -3,7 +3,7 @@ use std::{
     path::Path,
     sync::{
         Arc,
-        atomic::{self, AtomicI64, AtomicUsize},
+        atomic::{self, AtomicUsize},
     },
 };
 
@@ -29,7 +29,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{EID, ELID, VID},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::TimeIndexEntry,
     utils::time::{InputTime, TryIntoInputTime},
 };
 use serde::{Deserialize, Serialize};
@@ -53,8 +53,6 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
-    earliest: AtomicI64,
-    latest: AtomicI64,
     event_id: AtomicUsize,
     _ext: EXT,
 }
@@ -98,16 +96,23 @@ impl<
         self.edges.edge_meta()
     }
 
+    pub fn set_event_id(&self, event_id: usize) {
+        self.event_id.store(event_id, atomic::Ordering::Relaxed);
+    }
+
     pub fn node_meta(&self) -> &Meta {
         self.nodes.node_meta()
     }
 
     pub fn earliest(&self) -> i64 {
-        self.earliest.load(atomic::Ordering::Relaxed)
+        self.nodes
+            .stats()
+            .earliest()
+            .min(self.edges.stats().earliest())
     }
 
     pub fn latest(&self) -> i64 {
-        self.latest.load(atomic::Ordering::Relaxed)
+        self.nodes.stats().latest().max(self.edges.stats().latest())
     }
 
     pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, DBV4Error> {
@@ -132,37 +137,37 @@ impl<
             ext.clone(),
         )?);
 
-        let earliest = AtomicI64::new(edges.earliest().map(|t| t.t()).unwrap_or_default());
-        let latest = AtomicI64::new(edges.latest().map(|t| t.t()).unwrap_or_default());
         let t_len = edges.t_len();
 
         Ok(Self {
             nodes,
             edges,
-            earliest,
-            latest,
             event_id: AtomicUsize::new(t_len),
             _ext: ext,
         })
     }
 
-    pub fn new(
+    pub fn new_with_meta(
         graph_dir: impl AsRef<Path>,
         max_page_len_nodes: usize,
         max_page_len_edges: usize,
+        node_meta: Meta,
+        edge_meta: Meta,
     ) -> Self {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
         let ext = EXT::default();
 
-        let nodes = Arc::new(NodeStorageInner::new(
+        let nodes = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             max_page_len_nodes,
+            node_meta.into(),
             ext.clone(),
         ));
-        let edges = Arc::new(EdgeStorageInner::new(
+        let edges = Arc::new(EdgeStorageInner::new_with_meta(
             edges_path,
             max_page_len_edges,
+            edge_meta.into(),
             ext.clone(),
         ));
         // Reserve node_type as a const prop on init
@@ -176,16 +181,29 @@ impl<
             max_page_len_edges,
         };
 
-        write_graph_meta(&graph_dir, graph_meta);
+        write_graph_meta(&graph_dir, graph_meta)
+            .expect("Unrecoverable! Failed to write graph meta");
 
         Self {
-            nodes: nodes.clone(),
-            edges: edges.clone(),
-            earliest: AtomicI64::new(0),
-            latest: AtomicI64::new(0),
+            nodes,
+            edges,
             event_id: AtomicUsize::new(0),
             _ext: ext,
         }
+    }
+
+    pub fn new(
+        graph_dir: impl AsRef<Path>,
+        max_page_len_nodes: usize,
+        max_page_len_edges: usize,
+    ) -> Self {
+        Self::new_with_meta(
+            graph_dir,
+            max_page_len_nodes,
+            max_page_len_edges,
+            Meta::new(),
+            Meta::new(),
+        )
     }
 
     pub fn add_edge<T: TryIntoInputTime>(
@@ -251,6 +269,10 @@ impl<
             }
         };
         Ok(t)
+    }
+
+    pub fn read_event_id(&self) -> usize {
+        self.event_id.load(atomic::Ordering::Relaxed)
     }
 
     pub fn update_edge_const_props<PN: AsRef<str>>(

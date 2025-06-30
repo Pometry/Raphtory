@@ -1,11 +1,11 @@
 use crate::{
-    LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::LayerCounter,
+    LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::GraphStats,
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
 use raphtory_core::{
     entities::{ELID, GidRef},
-    storage::timeindex::AsTime,
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use std::ops::DerefMut;
 
@@ -13,11 +13,11 @@ use std::ops::DerefMut;
 pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
     pub page: &'a NS,
     pub writer: MP, // TODO: rename to m_segment
-    pub l_counter: &'a LayerCounter,
+    pub l_counter: &'a GraphStats,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
-    pub fn new(page: &'a NS, global_num_nodes: &'a LayerCounter, writer: MP) -> Self {
+    pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
         Self {
             page,
             writer,
@@ -55,6 +55,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let src_pos = src_pos.into();
+        if let Some(t) = t {
+            self.l_counter.update_time(t.t());
+        }
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
@@ -95,6 +98,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let e_id = e_id.into();
+        if let Some(t) = t {
+            self.l_counter.update_time(t.t());
+        }
         let layer = e_id.layer();
         let dst_pos = dst_pos.into();
         let is_new_node = self.writer.add_inbound_edge(t, dst_pos, src, e_id, lsn);
@@ -113,6 +119,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         self.writer.as_mut()[layer_id].set_lsn(lsn);
+        self.l_counter.update_time(t.t());
         self.writer.add_props(t, pos, layer_id, props);
     }
 
@@ -129,6 +136,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {
         let layer_id = e_id.layer();
+        self.l_counter.update_time(t.t());
         self.writer.as_mut()[layer_id].set_lsn(lsn);
         self.writer.update_timestamp(t, pos, e_id);
     }
@@ -157,6 +165,21 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             [(0, Prop::U64(node_type as u64)), (1, gid.into())],
             lsn,
         );
+    }
+
+    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GidRef<'_>, lsn: u64) {
+        self.update_c_props(pos, layer_id, [(1, gid.into())], lsn);
+    }
+
+    pub fn update_deletion_time(
+        &self,
+        t: TimeIndexEntry,
+        node: LocalPOS,
+        other: VID,
+        layer: ELID,
+        lsn: u64,
+    ) {
+        todo!()
     }
 }
 

@@ -8,7 +8,10 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use std::sync::Arc;
-use storage::{pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages}, Extension, ReadLockedEdges, ReadLockedNodes};
+use storage::{
+    pages::locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
+    Extension, ReadLockedEdges, ReadLockedNodes,
+};
 
 #[derive(Debug)]
 pub struct LockedGraph {
@@ -56,4 +59,3 @@ impl Clone for LockedGraph {
         }
     }
 }
-

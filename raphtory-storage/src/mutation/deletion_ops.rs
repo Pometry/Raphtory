@@ -25,7 +25,7 @@ pub trait InternalDeletionOps {
     ) -> Result<(), Self::Error>;
 }
 
-impl <EXT> InternalDeletionOps for db4_graph::TemporalGraph<EXT> {
+impl<EXT> InternalDeletionOps for db4_graph::TemporalGraph<EXT> {
     type Error = MutationError;
 
     fn internal_delete_edge(
