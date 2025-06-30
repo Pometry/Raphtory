@@ -41,11 +41,18 @@ where
 {
     type TimeCell: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
 
-    fn layer_time_cells(
+    fn t_props_time_cells(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+
+    fn additions_time_cells(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+
     fn num_layers(&self) -> usize;
 
     fn time_cells<B: Borrow<LayerIds>>(
@@ -55,16 +62,16 @@ where
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         match layer_ids.borrow() {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::One(layer_id) => Iter4::J(self.layer_time_cells(*layer_id, range)),
+            LayerIds::One(layer_id) => Iter4::J(self.t_props_time_cells(*layer_id, range)),
             LayerIds::All => Iter4::K(
                 (0..self.num_layers())
-                    .flat_map(move |layer_id| self.layer_time_cells(layer_id, range)),
+                    .flat_map(move |layer_id| self.t_props_time_cells(layer_id, range)),
             ),
             LayerIds::Multiple(layers) => Iter4::L(
                 layers
                     .clone()
                     .into_iter()
-                    .flat_map(move |layer_id| self.layer_time_cells(layer_id, range)),
+                    .flat_map(move |layer_id| self.t_props_time_cells(layer_id, range)),
             ),
         }
     }
@@ -93,7 +100,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
         match self.layer_id {
             Either::Left(layer_ids) => Either::Left(self.node.time_cells(layer_ids, self.range)),
             Either::Right(layer_id) => {
-                Either::Right(self.node.layer_time_cells(layer_id, self.range))
+                Either::Right(self.node.t_props_time_cells(layer_id, self.range))
             }
         }
     }

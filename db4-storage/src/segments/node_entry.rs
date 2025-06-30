@@ -70,23 +70,30 @@ impl<'a> MemNodeRef<'a> {
 impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     type TimeCell = MemAdditions<'a>;
 
-    fn layer_time_cells(
+    fn t_props_time_cells(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        let t_cell = MemAdditions::Props(self.ns.as_ref()[layer_id].additions(self.pos).props_ts());
         std::iter::once(
             range
-                .map(|(start, end)| {
-                    MemAdditions::Window(
-                        self.ns.as_ref()[layer_id]
-                            .additions(self.pos)
-                            .range(start..end),
-                    )
-                })
-                .unwrap_or_else(|| {
-                    MemAdditions::Props(self.ns.as_ref()[layer_id].additions(self.pos))
-                }),
+                .map(|(start, end)| t_cell.range(start..end))
+                .unwrap_or_else(|| t_cell),
+        )
+    }
+
+    fn additions_time_cells(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        let additions =
+            MemAdditions::Edges(self.ns.as_ref()[layer_id].additions(self.pos).edge_ts());
+        std::iter::once(
+            range
+                .map(|(start, end)| additions.range(start..end))
+                .unwrap_or_else(|| additions),
         )
     }
 
