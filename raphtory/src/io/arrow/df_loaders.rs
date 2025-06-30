@@ -422,12 +422,7 @@ pub(crate) fn load_edges_from_df<
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
 
-                        writer.update_c_props(
-                            eid_pos,
-                            Some((*src, *dst)),
-                            *layer,
-                            c_props.drain(..),
-                        );
+                        writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
                         writer.add_edge(
                             t,
                             Some(eid_pos),
@@ -737,9 +732,11 @@ pub(crate) fn load_edges_props_from_df<
             .par_iter_mut()
             .try_for_each(|shard| {
                 let mut c_props = vec![];
-                for (idx, (eid, layer)) in eid_col_resolved
+                for (idx, (((eid, layer), src), dst)) in eid_col_resolved
                     .iter()
                     .zip(layer_col_resolved.iter())
+                    .zip(&src_col_resolved)
+                    .zip(&dst_col_resolved)
                     .enumerate()
                 {
                     if let Some(eid_pos) = shard.resolve_pos(*eid) {
@@ -747,7 +744,7 @@ pub(crate) fn load_edges_props_from_df<
                         c_props.clear();
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
-                        writer.update_c_props(eid_pos, None, *layer, c_props.drain(..));
+                        writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
                     }
                 }
                 Ok::<(), GraphError>(())
