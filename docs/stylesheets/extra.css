@@ -1,6 +1,6 @@
-/* ####### */ 
-/* Imports */ 
-/* ####### */ 
+/* ####### */
+/* Imports */
+/* ####### */
 
 @font-face {
     font-family: 'Proxima Nova', sans-serif;
@@ -17,10 +17,11 @@
     font-family: 'Geist Mono';
     src: local("GeistMono"), url('https://fonts.cdnfonts.com/css/geist-mono');
 }
-/* ####### */ 
-/* Global */ 
-/* ####### */ 
-:root > * {
+
+/* ####### */
+/* Global */
+/* ####### */
+:root>* {
     /* For brand colours see https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=291-436&m=dev&vars=1 */
     --md-primary-fg-color: #E3067A; /* brand-color-pink */
     --md-primary-fg-color--light: #F7F7F7; /* brand-color-grey-light */
@@ -45,6 +46,7 @@
     --brand-mint-lighter: #D1FAE3;
 
     --gradient-red-pink-purple: linear-gradient(270deg, var(--brand-red) 0%, var(--md-primary-fg-color) 50%, var(--brand-purple) 100%);
+    --gradient-pink-purple-mint: linear-gradient(270deg, var(--md-primary-fg-color) 0%, var(--brand-purple) 50%, var(--brand-mint) 100%);
 
 }
 
@@ -76,14 +78,17 @@
     background-color: var(--md-code-bg-color);
 }
 
-/* ########### */ 
-/* Typesetting */ 
-/* ########### */ 
-span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
+/* ########### */
+/* Typesetting */
+/* ########### */
+span .md-typeset .emojione,
+.md-typeset .gemoji,
+.md-typeset .twemoji {
     vertical-align: text-bottom;
 }
 
-.md-typeset ol li, .md-typeset ul li {
+.md-typeset ol li,
+.md-typeset ul li {
     margin-bottom: 0em !important;
 }
 
@@ -95,39 +100,44 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
     margin-left: 0.8rem;
 }
 
-/* Rust */ 
+/* Rust */
 .md-typeset .admonition.rust,
 .md-typeset details.rust {
     border-color: rgb(205, 121, 44);
 }
 
-.md-typeset .rust > .admonition-title,
-.md-typeset .rust > summary {
+.md-typeset .rust>.admonition-title,
+.md-typeset .rust>summary {
     background-color: rgb(205, 121, 44, .1);
 }
 
-.md-typeset .rust > .admonition-title::before,
-.md-typeset .rust > summary::before {
+.md-typeset .rust>.admonition-title::before,
+.md-typeset .rust>summary::before {
     background-color: rgb(205, 121, 44);
     -webkit-mask-image: var(--md-admonition-icon--rust);
     mask-image: var(--md-admonition-icon--rust);
 }
 
-/* ####### */ 
-/* Homepage */ 
-/* ####### */ 
+/* ####### */
+/* Homepage */
+/* ####### */
 
-/* based on: src/templates/assets/stylesheets/main/modifiers/_grid.scss */ 
+/* based on: src/templates/assets/stylesheets/main/modifiers/_grid.scss */
 .md-typeset {
 
-  /* Grid container */  
-  .grid {
-    a {
-        /*color: var(--md-primary-fg-color);*/
-        background: var(--gradient-red-pink-purple);
-        background-clip: text;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        
-  }
+    /* Grid container */
+    .grid {
+        a {
+            /*color: var(--md-primary-fg-color);*/
+            background: var(--gradient-red-pink-purple);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    &.cards > :is(ul, ol) > li,
+    > .card {
+      border-radius: 8px;
+
+    }
+    }
 }
