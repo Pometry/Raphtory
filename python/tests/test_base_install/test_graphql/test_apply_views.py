@@ -1669,3 +1669,602 @@ def test_apply_view_a_lot_of_views():
         }
     }
     run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      nodes {
+        list {
+          neighbours {
+            applyViews(views: [{latest: true}]) {
+              list {
+              name
+              history}
+              }
+            }
+          }
+        }
+  }
+}"""
+
+    correct = {
+        "graph": {
+            "nodes": {
+                "list": [
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [
+                                    {"history": [], "name": "2"},
+                                    {"history": [], "name": "3"},
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {"list": [{"history": [], "name": "1"}]}
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {"list": [{"history": [], "name": "1"}]}
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [{"history": [1736035200000], "name": "7"}]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [{"history": [1736035200000], "name": "6"}]
+                            }
+                        }
+                    },
+                ]
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_latest():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {          
+      neighbours {
+            applyViews(views: [{latest: true}]) {
+                list {
+                  name
+                  history
+                }
+              }
+              
+            }
+          }
+        }
+}"""
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [], "name": "2"},
+                            {"history": [], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_layer():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "6") {
+          neighbours {
+            applyViews(views: [{layer: "finds"}]) {
+              list {
+              name
+              history}
+              }
+            }
+          
+        }
+  }
+}"""
+
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {"list": [{"history": [1736035200000], "name": "7"}]}
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_exclude_layer():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "6") {
+          neighbours {
+            applyViews(views: [{excludeLayer: "finds"}]) {
+              list {
+              name
+              history}
+              }
+            }
+          
+        }
+  }
+}"""
+
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {"applyViews": {"list": [{"history": [], "name": "7"}]}}
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_layers():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          neighbours {
+            applyViews(views: [{layers: ["met", "Person"]}]) {
+                list {
+                  name
+                  history
+                }
+              }
+            } 
+              }
+              }
+              }"""
+
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1735689600000], "name": "2"},
+                            {"history": [], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_exclude_layers():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          neighbours {
+            applyViews(views: [{excludeLayers: ["met", "Person"]}]) {
+                list {
+                  name
+                  history
+                }
+              }
+            } 
+              }
+              }
+              }"""
+
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1735776000000, 1735862400000], "name": "2"},
+                            {
+                                "history": [
+                                    1735776000000,
+                                    1735862400000,
+                                    1735948800000,
+                                ],
+                                "name": "3",
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_after():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          neighbours {
+            applyViews(views: [{after: 1735862400000}]) {
+                list {
+                  name
+                  history
+                }
+              }
+            }
+              }
+              }
+              }"""
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [], "name": "2"},
+                            {"history": [1735948800000], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_neighbours_before():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          neighbours {
+            applyViews(views: [{before: 1735862400000}]) {
+                list {
+                  name
+                  history
+                }
+              }
+            }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "neighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1735689600000, 1735776000000], "name": "2"},
+                            {"history": [1735776000000], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_in_neighbours_window():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          inNeighbours {
+          applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
+            list {
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {"graph": {"node": {"inNeighbours": {"applyViews": {"list": []}}}}}
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_out_neighbours_window():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          outNeighbours {
+          applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
+            list {
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "outNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1735689600000, 1735776000000], "name": "2"},
+                            {"history": [1735776000000], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_out_neighbours_shrink_window():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "6") {
+          outNeighbours {
+          applyViews(views: [{shrinkWindow: {start: 1735948800000, end: 1736035200000}}]) {
+            list {
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "outNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [], "name": "7"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_in_neighbours_shrink_start():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "7") {
+          inNeighbours {
+          applyViews(views: [{shrinkStart: 1735948800000}]) {
+            list {    
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "inNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1736035200000], "name": "6"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_in_neighbours_shrink_end():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "2") {
+          inNeighbours {
+          applyViews(views: [{shrinkEnd: 1735862400000}]) {
+            list {    
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "inNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {"history": [1735689600000, 1735776000000], "name": "1"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_in_neighbours_at():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "2") {
+          inNeighbours {
+          applyViews(views: [{at: 1735862400000}]) {
+            list {    
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "inNeighbours": {
+                    "applyViews": {"list": [{"history": [1735862400000], "name": "1"}]}
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_out_neighbours_snapshot_latest():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          outNeighbours {
+          applyViews(views: [{snapshotLatest: true}]) {
+            list {
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "outNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": [
+                                    1735689600000,
+                                    1735776000000,
+                                    1735862400000,
+                                ],
+                                "name": "2",
+                            },
+                            {
+                                "history": [
+                                    1735776000000,
+                                    1735862400000,
+                                    1735948800000,
+                                ],
+                                "name": "3",
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
+
+
+def test_apply_view_out_neighbours_snapshot_at():
+    graph = Graph()
+    create_graph_date(graph)
+    query = """
+{
+  graph(path: "g") {
+      node(name: "1") {
+          outNeighbours {
+          applyViews(views: [{snapshotAt: 1735862400000}]) {
+            list {
+              name
+              history
+            }
+            }
+          }
+        }
+        }
+        }"""
+    correct = {
+        "graph": {
+            "node": {
+                "outNeighbours": {
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": [
+                                    1735689600000,
+                                    1735776000000,
+                                    1735862400000,
+                                ],
+                                "name": "2",
+                            },
+                            {"history": [1735776000000, 1735862400000], "name": "3"},
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    run_graphql_test(query, correct, graph)
