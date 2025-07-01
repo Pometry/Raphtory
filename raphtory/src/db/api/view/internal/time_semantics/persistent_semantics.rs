@@ -333,7 +333,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             || history
                 .edge_history()
                 .active_t(w.start.saturating_add(1)..w.end)
-            || node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start))
+            || node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start))
     }
 
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
