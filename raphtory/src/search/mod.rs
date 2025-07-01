@@ -548,13 +548,12 @@ mod test_index {
 
         #[test]
         fn test_too_many_open_files_graph_index() {
-            use moka::sync::Cache;
             use tempfile::TempDir;
 
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().to_path_buf();
 
-            let graph_cache: Cache<usize, Graph> = Cache::new(100);
+            let mut graphs = vec![];
 
             for i in 0..1000 {
                 let graph = init_graph(Graph::new());
@@ -569,7 +568,7 @@ mod test_index {
                     }
                 }
                 graph.cache(&path.join(format!("graph {i}"))).unwrap();
-                graph_cache.insert(0, graph);
+                graphs.push(graph);
             }
         }
 
@@ -595,10 +594,6 @@ mod test_index {
                     }
                 }
             }
-
-            let tmp_dir = TempDir::new().unwrap();
-            let path = tmp_dir.path().to_path_buf();
-            graph.encode(&path).unwrap();
         }
 
         #[test]

@@ -13,7 +13,10 @@ use crate::{
     },
 };
 use parking_lot::RwLock;
-use raphtory_api::core::entities::properties::{meta::Meta, prop::PropType};
+use raphtory_api::core::entities::{
+    properties::{meta::Meta, prop::PropType, tprop::TPropOps},
+    LayerIds, EID,
+};
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
@@ -221,36 +224,23 @@ impl EntityIndex {
             let indexes = self.const_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                let locked_edges = graph.core_edges();
-                locked_edges
-                    .par_iter(&graph.layer_ids())
-                    .try_for_each(|e| {
-                        let e_ref = e.out_ref();
+                let e_ids = (0..graph.count_edges()).collect::<Vec<_>>();
+                e_ids.par_chunks(128).try_for_each(|e_ids| {
+                    for e_id in e_ids {
+                        let edge = graph.core_edge(EID(*e_id));
+                        for (layer_id, prop_value) in
+                            edge.constant_prop_iter(&LayerIds::All, prop_id)
                         {
-                            let edge = EdgeView::new(graph.clone(), e_ref);
-                            let edge_id = edge.edge.pid().as_u64();
-                            for edge in edge.explode_layers() {
-                                let layer_name = edge
-                                    .layer_name()
-                                    .map_err(|e| TantivyError::InternalError(e.to_string()))?
-                                    .to_string();
-
-                                if let Some(layer_id) = graph.get_layer_id(&layer_name) {
-                                    if let Some(prop_value) = edge.get_const_prop(prop_id) {
-                                        let prop_doc = prop_index
-                                            .create_edge_const_property_document(
-                                                edge_id,
-                                                layer_id,
-                                                prop_value.borrow(),
-                                            )?;
-                                        writer.add_document(prop_doc)?;
-                                    }
-                                };
-                            }
+                            let prop_doc = prop_index.create_edge_const_property_document(
+                                *e_id as u64,
+                                layer_id,
+                                prop_value.borrow(),
+                            )?;
+                            writer.add_document(prop_doc)?;
                         }
-                        Ok::<(), GraphError>(())
-                    })?;
-
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
                 writer.commit()?;
             }
         }
@@ -284,39 +274,27 @@ impl EntityIndex {
             let indexes = self.temporal_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                let locked_edges = graph.core_edges();
-                locked_edges
-                    .par_iter(&graph.layer_ids())
-                    .try_for_each(|e| {
-                        let e_ref = e.out_ref();
-                        {
-                            let edge = EdgeView::new(graph.clone(), e_ref);
-                            let edge_id = edge.edge.pid().as_u64();
-                            for edge in edge.explode_layers() {
-                                let layer_name = edge
-                                    .layer_name()
-                                    .map_err(|e| TantivyError::InternalError(e.to_string()))?
-                                    .to_string();
 
-                                if let Some(layer_id) = graph.get_layer_id(&layer_name) {
-                                    for edge in edge.explode() {
-                                        for (t, prop_value) in edge.temporal_iter(prop_id) {
-                                            let prop_doc = prop_index
-                                                .create_edge_temporal_property_document(
-                                                    t,
-                                                    edge_id,
-                                                    layer_id,
-                                                    &prop_value,
-                                                )?;
-                                            writer.add_document(prop_doc)?;
-                                        }
-                                    }
-                                };
+                let e_ids = (0..graph.count_edges()).collect::<Vec<_>>();
+                e_ids.par_chunks(128).try_for_each(|e_ids| {
+                    for e_id in e_ids {
+                        let edge = graph.core_edge(EID(*e_id));
+                        for (layer_id, prop_value) in
+                            edge.temporal_prop_iter(&LayerIds::All, prop_id)
+                        {
+                            for (t, prop_value) in prop_value.iter() {
+                                let prop_doc = prop_index.create_edge_temporal_property_document(
+                                    t,
+                                    *e_id as u64,
+                                    layer_id,
+                                    &prop_value,
+                                )?;
+                                writer.add_document(prop_doc)?;
                             }
                         }
-                        Ok::<(), GraphError>(())
-                    })?;
-
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
                 writer.commit()?;
             }
         }

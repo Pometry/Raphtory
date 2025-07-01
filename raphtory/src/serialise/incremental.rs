@@ -28,13 +28,11 @@ use std::{
     io::{Seek, SeekFrom, Write},
     mem,
     ops::DerefMut,
-    sync::Arc,
 };
 use tracing::instrument;
 
 #[derive(Debug)]
 pub struct GraphWriter {
-    writer: Arc<Mutex<File>>,
     proto_delta: Mutex<ProtoGraph>,
     pub(crate) folder: GraphFolder,
 }
@@ -55,7 +53,6 @@ impl GraphWriter {
     pub fn new(folder: GraphFolder) -> Result<Self, GraphError> {
         let file = folder.get_appendable_graph_file()?;
         Ok(Self {
-            writer: Arc::new(Mutex::new(file)),
             proto_delta: Default::default(),
             folder,
         })
@@ -64,7 +61,6 @@ impl GraphWriter {
     /// Get an independent writer pointing at the same underlying cache file
     pub fn fork(&self) -> Self {
         GraphWriter {
-            writer: self.writer.clone(),
             proto_delta: Default::default(),
             folder: self.folder.clone(),
         }
@@ -74,8 +70,7 @@ impl GraphWriter {
         let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
-            let mut writer = self.writer.lock();
-
+            let mut writer = self.folder.get_appendable_graph_file()?;
             if let Err(write_err) = try_write(&mut writer, &bytes) {
                 // If the write fails, try to put the updates back
                 let mut new_delta = self.proto_delta.lock();
@@ -338,7 +333,6 @@ mod test {
         drop(File::create(&graph_file_path).unwrap());
         let read_only = File::open(graph_file_path).unwrap();
         let cache = GraphWriter {
-            writer: Arc::new(read_only.into()),
             proto_delta: Default::default(),
             folder,
         };
