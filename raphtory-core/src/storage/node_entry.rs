@@ -80,6 +80,7 @@ impl<'a> Debug for NodePtr<'a> {
                     .collect_vec(),
             )
             .field("temporal_properties", &self.into_rows().collect_vec())
+            .field("additions", self.node.timestamps())
             .finish()
     }
 }
