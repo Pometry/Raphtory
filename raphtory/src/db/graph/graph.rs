@@ -607,7 +607,7 @@ mod db_tests {
         core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps,
         mutation::addition_ops::InternalAdditionOps,
     };
-    use rayon::join;
+    use rayon::{join, vec};
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -790,6 +790,18 @@ mod db_tests {
 
         assert_eq!(g.count_nodes(), unique_nodes_count);
         assert_eq!(g.count_edges(), unique_edge_count);
+    }
+
+    #[test]
+    fn simle_add_edge(){
+        let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
+
+        let g = Graph::new();
+        for &(t, src, dst) in edges.iter() {
+            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        assert!(edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst)))
     }
 
     #[quickcheck]

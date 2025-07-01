@@ -242,7 +242,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .inner();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        let mut add_edge_op = self.atomic_add_edge(src_id, dst_id, None, layer_id);
+        let mut add_edge_op = self.atomic_add_edge(src_id, dst_id, None, layer_id).map_err(into_graph_err)?;
         let edge_id = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
 
         add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);

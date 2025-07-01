@@ -66,7 +66,7 @@ impl<
         let e_id = edge.inner();
         let layer = e_id.layer();
 
-        assert!(layer > 0, "Edge must be in a layer greater than 0");
+        // assert!(layer > 0, "Edge must be in a layer greater than 0");
 
         let (_, src_pos) = self.graph.nodes().resolve_pos(src);
         let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);

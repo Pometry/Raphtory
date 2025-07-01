@@ -48,8 +48,7 @@ impl From<TemporalGraph> for GraphStorage {
 
 impl Default for GraphStorage {
     fn default() -> Self {
-        // GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
-        todo!("does this even make sense? GraphStorage::default() is not a valid graph, it should be created with a valid graph directory");
+        GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))
     }
 }
 

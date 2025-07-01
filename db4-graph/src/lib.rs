@@ -50,6 +50,12 @@ pub struct TemporalGraph<EXT = Extension> {
     graph_dir: PathBuf,
 }
 
+impl Default for TemporalGraph<Extension> {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
 fn random_temp_dir() -> PathBuf {
     temp_dir().join(format!("raphtory-{}", uuid::Uuid::new_v4()))
 }
@@ -61,6 +67,12 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
         let graph_dir = path.unwrap_or_else(random_temp_dir);
+        std::fs::create_dir_all(&graph_dir).unwrap_or_else(|_| {
+            panic!(
+                "Failed to create graph directory at {}",
+                graph_dir.display()
+            )
+        });
         let gid_resolver_dir = graph_dir.join("gid_resolver");
         let storage = Layer::new_with_meta(
             graph_dir.clone(),
@@ -104,6 +116,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
+    }
+
+    pub fn next_event_id(&self) -> usize {
+        self.storage().next_event_id()
     }
 
     #[inline]

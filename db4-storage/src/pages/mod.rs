@@ -275,6 +275,10 @@ impl<
         self.event_id.load(atomic::Ordering::Relaxed)
     }
 
+    pub fn next_event_id(&self) -> usize {
+        self.event_id.fetch_add(1, atomic::Ordering::Relaxed)
+    }
+
     pub fn update_edge_const_props<PN: AsRef<str>>(
         &self,
         eid: impl Into<ELID>,

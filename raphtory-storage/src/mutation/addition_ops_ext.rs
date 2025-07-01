@@ -36,11 +36,11 @@ pub struct WriteS<
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
 > {
     static_session: WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>,
-    layer: Option<WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>>,
 }
 
-pub struct UnlockedSession<'a, EXT> {
-    graph: &'a TemporalGraph<EXT>,
+#[derive(Clone, Copy, Debug)]
+pub struct UnlockedSession<'a> {
+    graph: &'a TemporalGraph<Extension>,
 }
 
 impl<
@@ -85,11 +85,11 @@ impl<
     }
 }
 
-impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
+impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     type Error = MutationError;
 
     fn next_event_id(&self) -> Result<usize, Self::Error> {
-        todo!()
+        Ok(self.graph.next_event_id())
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
@@ -161,7 +161,7 @@ impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
 
-    type WS<'a> = UnlockedSession<'a, Extension>;
+    type WS<'a> = UnlockedSession<'a>;
 
     type AtomicAddEdge<'a> = WriteS<
         'a,
@@ -229,7 +229,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        todo!()
+        Ok(UnlockedSession { graph: self })
     }
 
     fn atomic_add_edge(
@@ -237,14 +237,11 @@ impl InternalAdditionOps for TemporalGraph {
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-        layer_id: usize,
-    ) -> Self::AtomicAddEdge<'_> {
-        let static_session = self.storage().write_session(src, dst, e_id);
-
-        WriteS {
-            static_session,
-            layer: None,
-        }
+        _layer_id: usize,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        Ok(WriteS {
+            static_session: self.storage().write_session(src, dst, e_id),
+        })
     }
 
     fn validate_edge_props<PN: AsRef<str>>(

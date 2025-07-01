@@ -8,20 +8,27 @@ use crate::{
     },
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::{
     graph::graph::GraphStorage,
-    mutation::addition_ops::{AtomicAdditionOps, SessionAdditionOps, TGWriteSession},
+    mutation::{
+        addition_ops::{AtomicAdditionOps, SessionAdditionOps},
+        addition_ops_ext::{UnlockedSession, WriteS},
+    },
 };
 use std::{
     fmt::{Display, Formatter},
     path::PathBuf,
     sync::Arc,
 };
-use storage::Extension;
+use storage::{
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    Extension,
+};
 use tracing::info;
 
 use crate::{db::api::view::IndexSpec, errors::GraphError};
@@ -183,27 +190,33 @@ impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct StorageWriteSession<'a> {
-    session: TGWriteSession<'a>,
+    session: UnlockedSession<'a>,
     storage: &'a Storage,
 }
 
-impl AtomicAdditionOps for StorageWriteSession<'_> {
+pub struct AtomicAddEdgeSession<'a> {
+    session: WriteS<'a, RwLockWriteGuard<'a, MemNodeSegment>, RwLockWriteGuard<'a, MemEdgeSegment>, Extension>,
+    storage: &'a Storage,
+}
+
+impl AtomicAdditionOps for AtomicAddEdgeSession<'_> {
     fn internal_add_edge(
         &mut self,
-        _t: TimeIndexEntry,
-        _src: impl Into<VID>,
-        _dst: impl Into<VID>,
-        _lsn: u64,
-        _layer: usize,
-        _props: impl IntoIterator<Item = (usize, Prop)>,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        todo!()
+        self.session
+            .internal_add_edge(t, src, dst, lsn, layer, props)
     }
 
     fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
-        todo!("set_node_id is not implemented for StorageWriteSession");
+        self.session.store_node_id_as_prop(id, vid);
     }
 }
 
@@ -320,7 +333,7 @@ impl InternalAdditionOps for Storage {
     type Error = GraphError;
 
     type WS<'a> = StorageWriteSession<'a>;
-    type AtomicAddEdge<'a> = StorageWriteSession<'a>;
+    type AtomicAddEdge<'a> = AtomicAddEdgeSession<'a>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         Ok(self.graph.write_lock()?)
@@ -375,12 +388,12 @@ impl InternalAdditionOps for Storage {
         dst: VID,
         e_id: Option<EID>,
         layer_id: usize,
-    ) -> Self::AtomicAddEdge<'_> {
-        let session = self.graph.atomic_add_edge(src, dst, e_id, layer_id);
-        StorageWriteSession {
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        let session = self.graph.atomic_add_edge(src, dst, e_id, layer_id)?;
+        Ok(AtomicAddEdgeSession{
             session,
             storage: self,
-        }
+        })
     }
 
     fn validate_edge_props<PN: AsRef<str>>(
