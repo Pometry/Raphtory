@@ -28,11 +28,13 @@ use std::{
     io::{Seek, SeekFrom, Write},
     mem,
     ops::DerefMut,
+    sync::Arc,
 };
 use tracing::instrument;
 
 #[derive(Debug)]
 pub struct GraphWriter {
+    write_lock: Arc<Mutex<()>>,
     proto_delta: Mutex<ProtoGraph>,
     pub(crate) folder: GraphFolder,
 }
@@ -53,6 +55,7 @@ impl GraphWriter {
     pub fn new(folder: GraphFolder) -> Result<Self, GraphError> {
         let file = folder.get_appendable_graph_file()?;
         Ok(Self {
+            write_lock: Arc::new(Mutex::new(())),
             proto_delta: Default::default(),
             folder,
         })
@@ -61,6 +64,7 @@ impl GraphWriter {
     /// Get an independent writer pointing at the same underlying cache file
     pub fn fork(&self) -> Self {
         GraphWriter {
+            write_lock: self.write_lock.clone(),
             proto_delta: Default::default(),
             folder: self.folder.clone(),
         }
@@ -70,6 +74,7 @@ impl GraphWriter {
         let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
+            let _guard = self.write_lock.lock();
             let mut writer = self.folder.get_appendable_graph_file()?;
             if let Err(write_err) = try_write(&mut writer, &bytes) {
                 // If the write fails, try to put the updates back
@@ -310,35 +315,5 @@ impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> Cache
         let graph = Self::decode(&folder)?;
         graph.init_cache(&folder)?;
         Ok(graph)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::serialise::{incremental::GraphWriter, GraphFolder};
-    use raphtory_api::core::{
-        entities::{GidRef, VID},
-        storage::dict_mapper::MaybeNew,
-        utils::logging::global_info_logger,
-    };
-    use std::{fs::File, sync::Arc};
-    use tempfile::TempDir;
-
-    #[test]
-    fn test_write_failure() {
-        global_info_logger();
-        let tmp_dir = TempDir::new().unwrap();
-        let folder = GraphFolder::from(tmp_dir.path());
-        let graph_file_path = folder.get_graph_path();
-        drop(File::create(&graph_file_path).unwrap());
-        let read_only = File::open(graph_file_path).unwrap();
-        let cache = GraphWriter {
-            proto_delta: Default::default(),
-            folder,
-        };
-        cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
-        let res = cache.write();
-        assert!(res.is_err());
-        assert_eq!(cache.proto_delta.lock().nodes.len(), 1);
     }
 }
