@@ -12,7 +12,12 @@ use crate::{
     search::property_index::PropertyIndex,
 };
 use ahash::HashSet;
-use std::{fs::create_dir_all, path::PathBuf};
+use parking_lot::RwLockReadGuard;
+use raphtory_api::core::entities::properties::{
+    meta::PropMapper,
+    prop::{Prop, PropType},
+};
+use std::{fs::create_dir_all, path::PathBuf, sync::Arc};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -90,6 +95,37 @@ fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
         .enumerate()
         .filter_map(|(idx, opt)| opt.as_ref().map(|_| idx))
         .collect()
+}
+
+fn get_props<'a>(
+    props: &'a HashSet<usize>,
+    meta: &'a PropMapper,
+) -> impl Iterator<Item = (String, usize, PropType)> + 'a {
+    props.iter().filter_map(|prop_id| {
+        let prop_name = meta.get_name(*prop_id).to_string();
+        meta.get_dtype(*prop_id)
+            .map(|prop_type| (prop_name, *prop_id, prop_type))
+    })
+}
+
+// Filter props for which there already is a property index
+pub(crate) fn indexed_props(
+    props: &[(usize, Prop)],
+    indexes: &RwLockReadGuard<Vec<Option<PropertyIndex>>>,
+) -> Vec<(usize, Prop)> {
+    props
+        .iter()
+        .cloned()
+        .filter(|(id, _)| indexes.get(*id).map_or(false, |entry| entry.is_some()))
+        .collect()
+}
+
+pub(crate) fn get_reader(index: &Arc<Index>) -> Result<IndexReader, GraphError> {
+    let reader = index
+        .reader_builder()
+        .reload_policy(tantivy::ReloadPolicy::Manual)
+        .try_into()?;
+    Ok(reader)
 }
 
 pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(

@@ -1,16 +1,26 @@
 use crate::{
-    errors::GraphError,
-    search::{fields, new_index, property_index::PropertyIndex, register_default_tokenizers},
-};
-use ahash::HashSet;
-use parking_lot::{RwLock, RwLockReadGuard};
-use raphtory_api::core::{
-    entities::properties::{
-        meta::{Meta, PropMapper},
-        prop::Prop,
+    db::{
+        api::{
+            properties::internal::{ConstantPropertiesOps, TemporalPropertyViewOps},
+            view::IndexSpec,
+        },
+        graph::edge::EdgeView,
     },
-    storage::timeindex::TimeIndexEntry,
+    errors::GraphError,
+    prelude::{EdgeViewOps, GraphViewOps},
+    search::{
+        fields, get_props, new_index, property_index::PropertyIndex, register_default_tokenizers,
+    },
 };
+use parking_lot::RwLock;
+use raphtory_api::core::entities::properties::{meta::Meta, prop::PropType};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    layer_ops::InternalLayerOps,
+};
+use rayon::{iter::ParallelIterator, prelude::ParallelSlice};
 use std::{
     borrow::Borrow,
     path::{Path, PathBuf},
@@ -18,7 +28,7 @@ use std::{
 };
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
-    Index, IndexReader, IndexWriter, Term,
+    Index, TantivyError,
 };
 
 #[derive(Clone)]
@@ -64,290 +74,250 @@ impl EntityIndex {
         EntityIndex::load_from_path(path, true)
     }
 
-    fn get_property_writers(
+    fn init_prop_indexes(
         &self,
-        props: &[(usize, Prop)],
-        property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let indexes = property_indexes.read();
-
-        // Filter prop_ids for which there is a property index
-        let prop_ids = props
-            .iter()
-            .map(|(id, _)| *id)
-            .filter(|id| indexes.get(*id).map_or(false, |entry| entry.is_some()))
-            .collect::<Vec<usize>>();
-
-        let mut writers = Vec::new();
-        writers.resize_with(indexes.len(), || None);
-        for id in prop_ids {
-            let writer = indexes[id]
-                .as_ref()
-                .map(|index| index.index.writer(50_000_000))
-                .transpose()?;
-            writers[id] = writer;
-        }
-
-        Ok(writers)
-    }
-
-    pub(crate) fn get_const_property_writers(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.get_property_writers(props, &self.const_property_indexes)
-    }
-
-    pub(crate) fn get_temporal_property_writers(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.get_property_writers(props, &self.temporal_property_indexes)
-    }
-
-    // We initialize the property indexes per property as and when we discover a new property while processing each node and edge update.
-    // While when creating indexes for a graph already built, all nodes/edges properties are already known in advance,
-    // which is why create all the property indexes upfront.
-    fn initialize_property_indexes(
-        &self,
-        meta: &PropMapper,
-        property_indexes: &RwLock<Vec<Option<PropertyIndex>>>,
+        indexes: &Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+        prop_id: usize,
+        prop_name: String,
+        prop_type: PropType,
+        index_path: Option<PathBuf>,
         add_schema_fields: fn(&mut SchemaBuilder),
         new_property: fn(Schema, &Option<PathBuf>) -> Result<PropertyIndex, GraphError>,
-        path: &Option<PathBuf>,
-        props: &HashSet<usize>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        let mut indexes = property_indexes.write();
-        let mut writers: Vec<Option<IndexWriter>> = Vec::new();
-
-        let properties = props.into_iter().filter_map(|prop_id| {
-            let prop_name = meta.get_name(*prop_id).to_string();
-            meta.get_dtype(*prop_id)
-                .map(|prop_type| (prop_name, *prop_id, prop_type))
-        });
-
-        for (prop_name, prop_id, prop_type) in properties {
-            // Resize the vector if needed
-            if prop_id >= indexes.len() {
-                indexes.resize(prop_id + 1, None);
-            }
-            // Resize the writers if needed
-            if prop_id >= writers.len() {
-                writers.resize_with(prop_id + 1, || None);
-            }
-
-            // Create a new PropertyIndex if it doesn't exist
-            if indexes[prop_id].is_none() {
-                let mut schema_builder =
-                    PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
-                add_schema_fields(&mut schema_builder);
-                let schema = schema_builder.build();
-                let prop_index_path = path.as_deref().map(|p| p.join(prop_id.to_string()));
-                let property_index = new_property(schema, &prop_index_path)?;
-                let writer = property_index.index.writer(50_000_000)?;
-
-                writers[prop_id] = Some(writer);
-                indexes[prop_id] = Some(property_index);
-            }
-        }
-
-        Ok(writers)
-    }
-
-    pub(crate) fn initialize_node_const_property_indexes(
-        &self,
-        meta: &PropMapper,
-        path: &Option<PathBuf>,
-        node_const_props: &HashSet<usize>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.initialize_property_indexes(
-            meta,
-            &self.const_property_indexes,
-            |schema| {
-                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_node_property,
-            path,
-            node_const_props,
-        )
-    }
-
-    pub(crate) fn initialize_node_temporal_property_indexes(
-        &self,
-        meta: &PropMapper,
-        path: &Option<PathBuf>,
-        node_temp_props: &HashSet<usize>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.initialize_property_indexes(
-            meta,
-            &self.temporal_property_indexes,
-            |schema| {
-                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_node_property,
-            path,
-            node_temp_props,
-        )
-    }
-
-    pub(crate) fn initialize_edge_const_property_indexes(
-        &self,
-        meta: &PropMapper,
-        path: &Option<PathBuf>,
-        edge_const_props: &HashSet<usize>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.initialize_property_indexes(
-            meta,
-            &self.const_property_indexes,
-            |schema| {
-                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_edge_property,
-            path,
-            edge_const_props,
-        )
-    }
-
-    pub(crate) fn initialize_edge_temporal_property_indexes(
-        &self,
-        meta: &PropMapper,
-        path: &Option<PathBuf>,
-        edge_temp_props: &HashSet<usize>,
-    ) -> Result<Vec<Option<IndexWriter>>, GraphError> {
-        self.initialize_property_indexes(
-            meta,
-            &self.temporal_property_indexes,
-            |schema| {
-                schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
-                schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
-            },
-            PropertyIndex::new_edge_property,
-            path,
-            edge_temp_props,
-        )
-    }
-
-    // Filter props for which there already is a property index
-    fn filtered_props(
-        props: &[(usize, Prop)],
-        indexes: &RwLockReadGuard<Vec<Option<PropertyIndex>>>,
-    ) -> Vec<(usize, Prop)> {
-        props
-            .iter()
-            .cloned()
-            .filter(|(id, _)| indexes.get(*id).map_or(false, |entry| entry.is_some()))
-            .collect()
-    }
-
-    pub(crate) fn delete_const_properties_index_docs(
-        &self,
-        entity_id: u64,
-        writers: &mut [Option<IndexWriter>],
-        props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.const_property_indexes.read();
-        for (prop_id, _) in Self::filtered_props(props, &indexes) {
-            if let Some(Some(writer)) = writers.get(prop_id) {
-                if let Some(index) = &indexes[prop_id] {
-                    let term = Term::from_field_u64(index.entity_id_field, entity_id);
-                    writer.delete_term(term);
-                }
-            }
+        let mut indexes = indexes.write();
+        // Resize the vector if needed
+        if prop_id >= indexes.len() {
+            indexes.resize(prop_id + 1, None);
         }
-        self.commit_writers(writers)?;
+        // Create a new PropertyIndex if it doesn't exist
+        if indexes[prop_id].is_none() {
+            let mut schema_builder = PropertyIndex::schema_builder(&*prop_name, prop_type.clone());
+            add_schema_fields(&mut schema_builder);
+            let schema = schema_builder.build();
+            let prop_index_path = index_path.as_deref().map(|p| p.join(prop_id.to_string()));
+            let property_index = new_property(schema, &prop_index_path)?;
+            indexes[prop_id] = Some(property_index);
+        }
         Ok(())
     }
 
-    pub(crate) fn index_node_const_properties(
+    pub(crate) fn index_node_const_props(
         &self,
-        node_id: u64,
-        writers: &[Option<IndexWriter>],
-        props: &[(usize, Prop)],
+        graph: &GraphStorage,
+        index_spec: &IndexSpec,
+        path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
-        let indexes = self.const_property_indexes.read();
-        for (prop_id, prop_value) in Self::filtered_props(props, &indexes) {
-            if let Some(Some(writer)) = writers.get(prop_id) {
-                if let Some(index) = &indexes[prop_id] {
-                    let prop_doc =
-                        index.create_node_const_property_document(node_id, prop_value.borrow())?;
-                    writer.add_document(prop_doc)?;
-                }
+        let props = &index_spec.node_const_props;
+        let meta = graph.node_meta().const_prop_meta();
+        for (prop_name, prop_id, prop_type) in get_props(props, meta) {
+            self.init_prop_indexes(
+                &self.const_property_indexes,
+                prop_id,
+                prop_name,
+                prop_type,
+                path.as_deref().map(|p| p.join("const_properties")),
+                |schema| {
+                    schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+                },
+                PropertyIndex::new_node_property,
+            )?;
+
+            let indexes = self.const_property_indexes.read();
+            if let Some(prop_index) = &indexes[prop_id] {
+                let mut writer = prop_index.index.writer(50_000_000)?;
+                let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
+                v_ids.par_chunks(128).try_for_each(|v_ids| {
+                    for v_id in v_ids {
+                        if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
+                            let node_id = usize::from(node.node) as u64;
+                            if let Some(prop_value) = node.get_const_prop(prop_id) {
+                                let prop_doc = prop_index
+                                    .create_node_const_property_document(node_id, &prop_value)?;
+                                writer.add_document(prop_doc)?;
+                            }
+                        }
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
+
+                writer.commit()?;
             }
         }
         Ok(())
     }
 
-    pub(crate) fn index_node_temporal_properties(
+    pub(crate) fn index_node_temporal_props(
         &self,
-        time: TimeIndexEntry,
-        node_id: u64,
-        writers: &[Option<IndexWriter>],
-        props: &[(usize, Prop)],
+        graph: &GraphStorage,
+        index_spec: &IndexSpec,
+        path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
-        let indexes = self.temporal_property_indexes.read();
-        for (prop_id, prop) in Self::filtered_props(props, &indexes) {
-            if let Some(Some(writer)) = writers.get(prop_id) {
-                if let Some(index) = &indexes[prop_id] {
-                    let prop_doc = index.create_node_temporal_property_document(
-                        time,
-                        node_id,
-                        prop.borrow(),
-                    )?;
-                    writer.add_document(prop_doc)?;
-                }
+        let props = &index_spec.node_temp_props;
+        let meta = graph.node_meta().temporal_prop_meta();
+        for (prop_name, prop_id, prop_type) in get_props(props, meta) {
+            self.init_prop_indexes(
+                &self.temporal_property_indexes,
+                prop_id,
+                prop_name,
+                prop_type,
+                path.as_deref().map(|p| p.join("temporal_properties")),
+                |schema| {
+                    schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::NODE_ID, INDEXED | FAST | STORED);
+                },
+                PropertyIndex::new_node_property,
+            )?;
+
+            let indexes = self.temporal_property_indexes.read();
+            if let Some(prop_index) = &indexes[prop_id] {
+                let mut writer = prop_index.index.writer(50_000_000)?;
+                let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
+                v_ids.par_chunks(128).try_for_each(|v_ids| {
+                    for v_id in v_ids {
+                        if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
+                            let node_id = usize::from(node.node) as u64;
+                            for (t, prop_value) in node.temporal_iter(prop_id) {
+                                let prop_doc = prop_index.create_node_temporal_property_document(
+                                    t.into(),
+                                    node_id,
+                                    &prop_value,
+                                )?;
+                                writer.add_document(prop_doc)?;
+                            }
+                        }
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
+
+                writer.commit()?;
             }
         }
         Ok(())
     }
 
-    pub(crate) fn index_edge_const_properties(
+    pub(crate) fn index_edge_const_props(
         &self,
-        edge_id: u64,
-        layer_id: usize,
-        writers: &[Option<IndexWriter>],
-        props: &[(usize, Prop)],
+        graph: &GraphStorage,
+        index_spec: &IndexSpec,
+        path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
-        let indexes = self.const_property_indexes.read();
-        for (prop_id, prop_value) in Self::filtered_props(props, &indexes) {
-            if let Some(Some(writer)) = writers.get(prop_id) {
-                if let Some(index) = &indexes[prop_id] {
-                    let prop_doc = index.create_edge_const_property_document(
-                        edge_id,
-                        layer_id,
-                        prop_value.borrow(),
-                    )?;
-                    writer.add_document(prop_doc)?;
-                }
+        let props = &index_spec.edge_const_props;
+        let meta = graph.edge_meta().const_prop_meta();
+        for (prop_name, prop_id, prop_type) in get_props(props, meta) {
+            self.init_prop_indexes(
+                &self.const_property_indexes,
+                prop_id,
+                prop_name,
+                prop_type,
+                path.as_deref().map(|p| p.join("const_properties")),
+                |schema| {
+                    schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+                },
+                PropertyIndex::new_edge_property,
+            )?;
+
+            let indexes = self.const_property_indexes.read();
+            if let Some(prop_index) = &indexes[prop_id] {
+                let mut writer = prop_index.index.writer(50_000_000)?;
+                let locked_edges = graph.core_edges();
+                locked_edges
+                    .par_iter(&graph.layer_ids())
+                    .try_for_each(|e| {
+                        let e_ref = e.out_ref();
+                        {
+                            let edge = EdgeView::new(graph.clone(), e_ref);
+                            let edge_id = edge.edge.pid().as_u64();
+                            for edge in edge.explode_layers() {
+                                let layer_name = edge
+                                    .layer_name()
+                                    .map_err(|e| TantivyError::InternalError(e.to_string()))?
+                                    .to_string();
+
+                                if let Some(layer_id) = graph.get_layer_id(&layer_name) {
+                                    if let Some(prop_value) = edge.get_const_prop(prop_id) {
+                                        let prop_doc = prop_index
+                                            .create_edge_const_property_document(
+                                                edge_id,
+                                                layer_id,
+                                                prop_value.borrow(),
+                                            )?;
+                                        writer.add_document(prop_doc)?;
+                                    }
+                                };
+                            }
+                        }
+                        Ok::<(), GraphError>(())
+                    })?;
+
+                writer.commit()?;
             }
         }
         Ok(())
     }
 
-    pub(crate) fn index_edge_temporal_properties(
+    pub(crate) fn index_edge_temporal_props(
         &self,
-        time: TimeIndexEntry,
-        edge_id: u64,
-        layer_id: usize,
-        writers: &[Option<IndexWriter>],
-        props: &[(usize, Prop)],
+        graph: &GraphStorage,
+        index_spec: &IndexSpec,
+        path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
-        let indexes = self.temporal_property_indexes.read();
-        for (prop_id, prop) in Self::filtered_props(props, &indexes) {
-            if let Some(Some(writer)) = writers.get(prop_id) {
-                if let Some(index) = &indexes[prop_id] {
-                    let prop_doc = index.create_edge_temporal_property_document(
-                        time,
-                        edge_id,
-                        layer_id,
-                        prop.borrow(),
-                    )?;
-                    writer.add_document(prop_doc)?;
-                }
+        let props = &index_spec.edge_temp_props;
+        let meta = graph.edge_meta().temporal_prop_meta();
+        for (prop_name, prop_id, prop_type) in get_props(props, meta) {
+            self.init_prop_indexes(
+                &self.temporal_property_indexes,
+                prop_id,
+                prop_name,
+                prop_type,
+                path.as_deref().map(|p| p.join("temporal_properties")),
+                |schema| {
+                    schema.add_i64_field(fields::TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::SECONDARY_TIME, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::EDGE_ID, INDEXED | FAST | STORED);
+                    schema.add_u64_field(fields::LAYER_ID, INDEXED | FAST | STORED);
+                },
+                PropertyIndex::new_edge_property,
+            )?;
+
+            let indexes = self.temporal_property_indexes.read();
+            if let Some(prop_index) = &indexes[prop_id] {
+                let mut writer = prop_index.index.writer(50_000_000)?;
+                let locked_edges = graph.core_edges();
+                locked_edges
+                    .par_iter(&graph.layer_ids())
+                    .try_for_each(|e| {
+                        let e_ref = e.out_ref();
+                        {
+                            let edge = EdgeView::new(graph.clone(), e_ref);
+                            let edge_id = edge.edge.pid().as_u64();
+                            for edge in edge.explode_layers() {
+                                let layer_name = edge
+                                    .layer_name()
+                                    .map_err(|e| TantivyError::InternalError(e.to_string()))?
+                                    .to_string();
+
+                                if let Some(layer_id) = graph.get_layer_id(&layer_name) {
+                                    for edge in edge.explode() {
+                                        for (t, prop_value) in edge.temporal_iter(prop_id) {
+                                            let prop_doc = prop_index
+                                                .create_edge_temporal_property_document(
+                                                    t,
+                                                    edge_id,
+                                                    layer_id,
+                                                    &prop_value,
+                                                )?;
+                                            writer.add_document(prop_doc)?;
+                                        }
+                                    }
+                                };
+                            }
+                        }
+                        Ok::<(), GraphError>(())
+                    })?;
+
+                writer.commit()?;
             }
         }
         Ok(())
@@ -389,26 +359,5 @@ impl EntityIndex {
             &self.temporal_property_indexes,
             meta.temporal_prop_meta().get_id(prop_name),
         ))
-    }
-
-    pub(crate) fn commit_writers(
-        &self,
-        writers: &mut [Option<IndexWriter>],
-    ) -> Result<(), GraphError> {
-        for writer in writers {
-            if let Some(writer) = writer {
-                writer.commit()?;
-            }
-        }
-        Ok(())
-    }
-
-    pub(crate) fn get_reader(&self) -> Result<IndexReader, GraphError> {
-        let reader = self
-            .index
-            .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()?;
-        Ok(reader)
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     errors::GraphError,
     prelude::*,
-    search::{fields, new_index, TOKENIZER},
+    search::{fields, get_reader, new_index, TOKENIZER},
 };
 use raphtory_api::core::{
     entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
@@ -12,9 +12,9 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
-        FAST, INDEXED, STRING, TEXT,
+        FAST, INDEXED, STORED, STRING, TEXT,
     },
-    Document, Index, IndexReader, TantivyDocument,
+    Document, Index, TantivyDocument,
 };
 
 #[derive(Clone)]
@@ -150,7 +150,7 @@ impl PropertyIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.get_reader()?.searcher();
+        let searcher = get_reader(&self.index)?.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
         println!("Total property doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
@@ -328,14 +328,5 @@ impl PropertyIndex {
             Some(layer_id),
             prop_value,
         )
-    }
-
-    pub(crate) fn get_reader(&self) -> Result<IndexReader, GraphError> {
-        let reader = self
-            .index
-            .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()?;
-        Ok(reader)
     }
 }

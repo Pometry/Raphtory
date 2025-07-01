@@ -18,7 +18,7 @@ use crate::{
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_edges, fields,
+        fallback_filter_edges, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -102,7 +102,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let query = self.query_builder.build_property_query(pi, filter)?;
-        let reader = pi.get_reader()?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
@@ -124,7 +124,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         C: Collector<Fruit = HashSet<u64>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
-        let reader = pi.get_reader()?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
@@ -295,7 +295,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
-        let reader = edge_index.entity_index.get_reader()?;
+        let reader = get_reader(&edge_index.entity_index.index)?;
         let results = match query {
             Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset)?,
             None => fallback_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?,
