@@ -146,6 +146,8 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type Additions: TimeIndexOps<'a>;
 
+    type EdgeAdditions: TimeIndexOps<'a>;
+
     type TProps: TPropOps<'a>;
 
     fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
@@ -286,22 +288,15 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         self.inb_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn additions(self, layers: &'a LayerIds) -> Self::Additions;
+    fn edge_additions(self, layer_id: usize) -> Self::EdgeAdditions;
 
-    fn layer_additions(self, layer_id: usize) -> Self::Additions;
+    fn node_additions(self, layer_id: usize) -> Self::Additions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
     fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str>;
 
-    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps;
-
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps;
-
-    fn t_props(self, layer_id: &'a LayerIds) -> impl Iterator<Item = (usize, Self::TProps)> {
-        (0..self.node_meta().temporal_prop_meta().len())
-            .map(move |prop_id| (prop_id, self.t_prop(layer_id, prop_id)))
-    }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 

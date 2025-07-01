@@ -217,12 +217,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows().map(|(t, _, row)| {
-            (
-                t,
-                row
-            )
-        })
+        node.temp_prop_rows().map(|(t, _, row)| (t, row))
     }
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
@@ -260,12 +255,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .map(move |row| (TimeIndexEntry::start(start), row))
             .chain(
                 node.temp_prop_rows_range(Some(TimeIndexEntry::range(w)))
-                    .map(|(t, _, row)| {
-                        (
-                            t,
-                            row
-                        )
-                    }),
+                    .map(|(t, _, row)| (t, row)),
             )
     }
 

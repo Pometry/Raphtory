@@ -27,6 +27,36 @@ impl<'a> From<&'a TCell<Option<usize>>> for MemAdditions<'a> {
     }
 }
 
+impl<'a> MemAdditions<'a> {
+    pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        match self {
+            MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
+            MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
+                Iter4::J(ti.iter().map(|(k, v)| (*k, *v)))
+            }
+            MemAdditions::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
+                Iter4::K(timeindex.iter_window(range).map(|(k, v)| (*k, *v)))
+            }
+            _ => Iter4::L(std::iter::empty()),
+        }
+    }
+
+    pub fn edge_events_rev(
+        self,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        match self {
+            MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
+            MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
+                Iter4::J(ti.iter().map(|(k, v)| (*k, *v)).rev())
+            }
+            MemAdditions::WEdges(TimeIndexWindow::Range { timeindex, range }) => {
+                Iter4::K(timeindex.iter_window(range).map(|(k, v)| (*k, *v)).rev())
+            }
+            _ => Iter4::L(std::iter::empty()),
+        }
+    }
+}
+
 impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
     type IndexType = TimeIndexEntry;
 

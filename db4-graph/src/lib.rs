@@ -31,8 +31,7 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::{GIDResolverError, GIDResolverOps},
-    Extension, GIDResolver, Layer,
-    ReadLockedLayer, ES, NS
+    Extension, GIDResolver, Layer, ReadLockedLayer, ES, NS,
 };
 
 pub mod entries;

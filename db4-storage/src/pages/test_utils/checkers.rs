@@ -9,7 +9,7 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{ELID, LayerIds, VID},
+    entities::{ELID, VID},
     storage::timeindex::TimeIndexOps,
 };
 use rayon::prelude::*;
@@ -259,7 +259,11 @@ pub fn check_graph_with_nodes_support<
         for (node, ts_expected) in ts_for_nodes {
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
-            let actual: Vec<_> = node_entry.additions(&LayerIds::One(0)).iter_t().collect();
+            let actual: Vec<_> = node_entry
+                .edge_additions(0)
+                .iter_t()
+                .merge(node_entry.node_additions(0).iter_t())
+                .collect();
             assert_eq!(
                 actual, ts_expected,
                 "Expected node additions for node ({node:?})",
@@ -327,7 +331,7 @@ pub fn check_graph_with_nodes_support<
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
             let actual_props = node_entry
-                .t_prop(&LayerIds::One(0), prop_id)
+                .temporal_prop_layer(0, prop_id)
                 .iter_t()
                 .collect::<Vec<_>>();
 
@@ -445,8 +449,11 @@ pub fn check_graph_with_props_support<
                 .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
-            let layer_id = LayerIds::One(0);
-            let actual_props = e.t_prop(&layer_id, prop_id).iter_t().collect::<Vec<_>>();
+            let layer_id = 0;
+            let actual_props = e
+                .layer_t_prop(layer_id, prop_id)
+                .iter_t()
+                .collect::<Vec<_>>();
 
             assert_eq!(
                 actual_props, props,
@@ -462,7 +469,7 @@ pub fn check_graph_with_props_support<
                         .const_prop_meta()
                         .get_id(name)
                         .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
-                    let actual_props = e.c_prop(0, prop_id);
+                    let actual_props = e.c_prop(layer_id, prop_id);
                     assert_eq!(
                         actual_props.as_ref(),
                         Some(prop),
@@ -480,9 +487,11 @@ pub fn check_graph_with_props_support<
         for (node_id, ts) in node_groups {
             let node = graph.nodes().node(node_id);
             let node_entry = node.as_ref();
+
             let actual_additions_ts = node_entry
-                .additions(&LayerIds::One(0))
+                .edge_additions(0)
                 .iter_t()
+                .merge(node_entry.node_additions(0).iter_t())
                 .collect::<Vec<_>>();
 
             assert_eq!(

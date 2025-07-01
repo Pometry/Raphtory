@@ -189,16 +189,13 @@ impl StableEncode for GraphStorage {
             graph.new_node(node.id(), node.vid(), node.node_type_id());
 
             for (time, _, row) in node.temp_prop_rows() {
-                graph.update_node_tprops(
-                    node.vid(),
-                    time,
-                    row.into_iter(),
-                );
+                graph.update_node_tprops(node.vid(), time, row.into_iter());
             }
 
             graph.update_node_cprops(
                 node.vid(),
-                (0..n_const_meta.len()).flat_map(|i| node.constant_prop_layer(0, i).map(|v| (i, v))),
+                (0..n_const_meta.len())
+                    .flat_map(|i| node.constant_prop_layer(0, i).map(|v| (i, v))),
             );
         }
 
@@ -282,7 +279,6 @@ impl StableEncode for MaterializedGraph {
 
 impl InternalStableDecode for TemporalGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
-
         todo!("remove this stuff!")
     }
 }

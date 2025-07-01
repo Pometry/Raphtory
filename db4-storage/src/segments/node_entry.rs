@@ -1,8 +1,8 @@
 use crate::{
-    LocalPOS, NodeAdditions, NodeTProps,
+    LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
     gen_t_props::WithTProps,
-    gen_ts::WithTimeCells,
+    gen_ts::{EdgeAdditionCellsRef, PropAdditionCellsRef, WithTimeCells},
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::{
@@ -70,7 +70,7 @@ impl<'a> MemNodeRef<'a> {
 impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
     type TimeCell = MemAdditions<'a>;
 
-    fn t_props_time_cells(
+    fn t_props_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -83,7 +83,7 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         )
     }
 
-    fn additions_time_cells(
+    fn additions_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -123,7 +123,8 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
 }
 
 impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
-    type Additions = NodeAdditions<'a>;
+    type Additions = NodePropAdditions<'a>;
+    type EdgeAdditions = NodeEdgeAdditions<'a>;
     type TProps = NodeTProps<'a>;
 
     fn node_meta(&self) -> &Arc<Meta> {
@@ -150,10 +151,6 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn additions(self, layer_ids: &'a LayerIds) -> Self::Additions {
-        NodeAdditions::new(self, layer_ids)
-    }
-
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.ns.as_ref()[layer_id].c_prop(self.pos, prop_id)
     }
@@ -162,8 +159,12 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.as_ref()[layer_id].c_prop_str(self.pos, prop_id)
     }
 
-    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
-        NodeTProps::new(self, layer_id, prop_id)
+    fn node_additions(self, layer_id: usize) -> Self::Additions {
+        NodePropAdditions::new_with_layer(PropAdditionCellsRef::new(self), layer_id)
+    }
+
+    fn edge_additions(self, layer_id: usize) -> Self::EdgeAdditions {
+        NodeEdgeAdditions::new_additions_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
@@ -187,10 +188,6 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
         let src_id = self.ns.to_vid(self.pos);
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
-    }
-
-    fn layer_additions(self, layer_id: usize) -> Self::Additions {
-        NodeAdditions::new_with_layer(self, layer_id)
     }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps {

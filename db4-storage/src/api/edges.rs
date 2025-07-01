@@ -119,12 +119,6 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a;
 }
 
-#[derive(Debug)]
-pub struct ReadLockedES<ES: EdgeSegmentOps> {
-    es: Arc<ES>,
-    head: ES::ArcLockedSegment,
-}
-
 pub trait EdgeEntryOps<'a>: Send + Sync {
     type Ref<'b>: EdgeRefOps<'b>
     where
@@ -148,13 +142,10 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn internal_num_layers(self) -> usize;
 
-    fn additions(self, layer_ids: &'a LayerIds) -> Self::Additions;
-
     fn layer_additions(self, layer_id: usize) -> Self::Additions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps;
     fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 
     fn src(&self) -> VID;
