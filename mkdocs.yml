@@ -64,6 +64,7 @@ markdown_extensions:
       permalink: "#"
   - pymdownx.details
   - attr_list
+  - md_in_html
   - def_list
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
