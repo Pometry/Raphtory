@@ -1522,6 +1522,7 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        assert_eq!(res.errors, vec![]);
         assert_eq!(
             data,
             json!({
@@ -1591,6 +1592,7 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        assert_eq!(res.errors, vec![]);
         assert_eq!(
             data,
             json!({
