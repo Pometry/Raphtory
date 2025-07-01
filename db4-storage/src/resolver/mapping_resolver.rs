@@ -1,10 +1,10 @@
-use std::path::Path;
+use crate::resolver::{GIDResolverError, GIDResolverOps};
 use raphtory_api::core::{
-    entities::{GidRef, VID, GidType},
+    entities::{GidRef, GidType, VID},
     storage::dict_mapper::MaybeNew,
 };
-use raphtory_core::entities::graph::logical_to_physical::{Mapping};
-use crate::resolver::{GIDResolverOps, GIDResolverError};
+use raphtory_core::entities::graph::logical_to_physical::Mapping;
+use std::path::Path;
 
 #[derive(Debug)]
 pub struct MappingResolver {
@@ -13,7 +13,9 @@ pub struct MappingResolver {
 
 impl GIDResolverOps for MappingResolver {
     fn new(_path: impl AsRef<Path>) -> Result<Self, GIDResolverError> {
-        Ok(Self { mapping: Mapping::new() })
+        Ok(Self {
+            mapping: Mapping::new(),
+        })
     }
 
     fn len(&self) -> usize {

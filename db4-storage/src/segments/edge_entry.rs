@@ -1,6 +1,6 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
-    entities::{EID, LayerIds, Multiple, VID, properties::tprop::TPropCell},
+    entities::{EID, Multiple, VID, properties::tprop::TPropCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
@@ -75,7 +75,7 @@ impl<'a> MemEdgeRef<'a> {
 impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
     type TimeCell = MemAdditions<'a>;
 
-    fn t_props_time_cells(
+    fn t_props_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -88,7 +88,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         )
     }
 
-    fn additions_time_cells(
+    fn additions_tc(
         self,
         _layer_id: usize,
         _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -132,20 +132,12 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
             .map(|entry| (entry.src, entry.dst))
     }
 
-    fn additions(self, layer_id: &'a LayerIds) -> Self::Additions {
-        EdgeAdditions::new(self, layer_id)
-    }
-
     fn layer_additions(self, layer_id: usize) -> Self::Additions {
         EdgeAdditions::new_with_layer(self, layer_id)
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.es.as_ref()[layer_id].c_prop(self.pos, prop_id)
-    }
-
-    fn t_prop(self, layer_id: &'a LayerIds, prop_id: usize) -> Self::TProps {
-        EdgeTProps::new(self, layer_id, prop_id)
     }
 
     fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {

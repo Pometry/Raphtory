@@ -1,11 +1,11 @@
 use std::path::Path;
 
+use crate::error::DBV4Error;
 use raphtory_api::core::{
-    entities::{GidRef, VID, GidType},
+    entities::{GidRef, GidType, VID},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::entities::graph::logical_to_physical::InvalidNodeId;
-use crate::error::DBV4Error;
 
 pub mod mapping_resolver;
 
@@ -18,7 +18,9 @@ pub enum GIDResolverError {
 }
 
 pub trait GIDResolverOps {
-    fn new(path: impl AsRef<Path>) -> Result<Self, GIDResolverError> where Self: Sized;
+    fn new(path: impl AsRef<Path>) -> Result<Self, GIDResolverError>
+    where
+        Self: Sized;
     fn len(&self) -> usize;
     fn dtype(&self) -> Option<GidType>;
     fn set(&self, gid: GidRef, vid: VID) -> Result<(), GIDResolverError>;

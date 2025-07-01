@@ -6,8 +6,6 @@ use raphtory_core::{entities::LayerVariants, storage::timeindex::TimeIndexEntry}
 use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, NodeEntryRef};
 
-static ALL_LAYERS: &LayerIds = &LayerIds::All;
-
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -34,11 +32,11 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
 
-    fn layer_additions(self, layer_id: usize) -> storage::NodeAdditions<'a>;
+    fn node_additions(self, layer_id: usize) -> storage::NodePropAdditions<'a>;
 
-    fn additions(self) -> storage::NodeAdditions<'a>;
+    fn node_edge_additions(self, layer_id: usize) -> storage::NodeEdgeAdditions<'a>;
 
-    fn deletions(self, layer_id: usize) -> storage::NodeAdditions<'a>;
+    fn additions(self) -> storage::NodePropAdditions<'a>;
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a>;
 
@@ -121,20 +119,20 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         }
     }
 
-    fn deletions(self, layer_id: usize) -> storage::NodeAdditions<'a> {
-        NodeRefOps::layer_additions(self, layer_id)
+    fn node_additions(self, layer_ids: usize) -> storage::NodePropAdditions<'a> {
+        NodeRefOps::node_additions(self, layer_ids)
     }
 
-    fn layer_additions(self, layer_ids: usize) -> storage::NodeAdditions<'a> {
-        NodeRefOps::layer_additions(self, layer_ids)
+    fn node_edge_additions(self, layer_id: usize) -> storage::NodeEdgeAdditions<'a> {
+        NodeRefOps::edge_additions(self, layer_id)
     }
 
-    fn additions(self) -> storage::NodeAdditions<'a> {
-        NodeRefOps::additions(self, ALL_LAYERS)
+    fn additions(self) -> storage::NodePropAdditions<'a> {
+        NodeRefOps::node_additions(self, 0)
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
-        NodeRefOps::t_prop(self, &ALL_LAYERS, prop_id)
+        NodeRefOps::temporal_prop_layer(self, 0, prop_id)
     }
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {

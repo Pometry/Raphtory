@@ -1,36 +1,38 @@
-use std::{borrow::Borrow, ops::Range};
+use std::ops::Range;
 
-use either::Either;
 use itertools::Itertools;
 use raphtory_core::{
-    entities::LayerIds,
+    entities::ELID,
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
-use crate::utils::Iter4;
+use crate::{NodeEntryRef, segments::additions::MemAdditions};
 
 // TODO: split the Node time operations into edge additions and property additions
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    layer_id: Either<&'a LayerIds, usize>,
+    layer_id: usize,
     node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, Ref> GenericTimeOps<'a, Ref> {
-    pub fn new(node: Ref, layer_id: &'a LayerIds) -> Self {
-        Self {
-            range: None,
-            layer_id: Either::Left(layer_id),
-            node,
-        }
-    }
-
     pub fn new_with_layer(node: Ref, layer_id: usize) -> Self {
         Self {
             range: None,
-            layer_id: Either::Right(layer_id),
+            layer_id,
             node,
+            _mark: std::marker::PhantomData,
+        }
+    }
+
+    pub fn new_additions_with_layer(node: Ref, layer_id: usize) -> Self {
+        Self {
+            range: None,
+            layer_id,
+            node,
+            _mark: std::marker::PhantomData,
         }
     }
 }
@@ -41,68 +43,152 @@ where
 {
     type TimeCell: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
 
-    fn t_props_time_cells(
+    fn t_props_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a;
 
-    fn additions_time_cells(
+    fn additions_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a;
 
     fn num_layers(&self) -> usize;
+}
 
-    fn time_cells<B: Borrow<LayerIds>>(
-        self,
-        layer_ids: B,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        match layer_ids.borrow() {
-            LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::One(layer_id) => Iter4::J(self.t_props_time_cells(*layer_id, range)),
-            LayerIds::All => Iter4::K(
-                (0..self.num_layers())
-                    .flat_map(move |layer_id| self.t_props_time_cells(layer_id, range)),
-            ),
-            LayerIds::Multiple(layers) => Iter4::L(
-                layers
-                    .clone()
-                    .into_iter()
-                    .flat_map(move |layer_id| self.t_props_time_cells(layer_id, range)),
-            ),
+pub trait WithEdgeEvents<'a>: WithTimeCells<'a> {
+    type TimeCell: EdgeEventOps<'a>;
+}
+
+impl<'a> WithEdgeEvents<'a> for NodeEntryRef<'a> {
+    type TimeCell = MemAdditions<'a>;
+}
+
+pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = TimeIndexEntry> {
+    fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
+    fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EdgeAdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
+    node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> EdgeAdditionCellsRef<'a, Ref> {
+    pub fn new(node: Ref) -> Self {
+        Self {
+            node,
+            _mark: std::marker::PhantomData,
         }
     }
+}
 
-    fn into_iter<B: Borrow<LayerIds>>(
+impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef<'a, Ref> {
+    type TimeCell = Ref::TimeCell;
+
+    fn t_props_tc(
         self,
-        layer_ids: B,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
-        let iters = self.time_cells(layer_ids, range);
-        iters.map(|cell| cell.iter()).kmerge()
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
     }
 
-    fn into_iter_rev<B: Borrow<LayerIds>>(
+    fn additions_tc(
         self,
-        layer_ids: B,
+        layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
-        let iters = self.time_cells(layer_ids, range);
-        iters.map(|cell| cell.iter_rev()).kmerge_by(|a, b| a > b)
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        self.node.additions_tc(layer_id, range)
+    }
+
+    fn num_layers(&self) -> usize {
+        self.node.num_layers()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct PropAdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
+    node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> PropAdditionCellsRef<'a, Ref> {
+    pub fn new(node: Ref) -> Self {
+        Self {
+            node,
+            _mark: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef<'a, Ref> {
+    type TimeCell = Ref::TimeCell;
+
+    fn t_props_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        self.node.t_props_tc(layer_id, range)
+    }
+
+    fn additions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn num_layers(&self) -> usize {
+        self.node.num_layers()
+    }
+}
+
+impl<'a, Ref: WithEdgeEvents<'a> + 'a> GenericTimeOps<'a, EdgeAdditionCellsRef<'a, Ref>>
+where
+    <Ref as WithTimeCells<'a>>::TimeCell: EdgeEventOps<'a>,
+{
+    pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        self.node
+            .additions_tc(self.layer_id, self.range)
+            .map(|t_cell| t_cell.edge_events())
+            .kmerge_by(|a, b| a < b)
+    }
+
+    pub fn edge_events_rev(
+        self,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        self.node
+            .additions_tc(self.layer_id, self.range)
+            .map(|t_cell| t_cell.edge_events_rev())
+            .kmerge_by(|a, b| a > b)
     }
 }
 
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + 'a {
-        match self.layer_id {
-            Either::Left(layer_ids) => Either::Left(self.node.time_cells(layer_ids, self.range)),
-            Either::Right(layer_id) => {
-                Either::Right(self.node.t_props_time_cells(layer_id, self.range))
-            }
-        }
+        let range = self.range;
+        let layer_id = self.layer_id;
+
+        let t_cells = self.node.t_props_tc(layer_id, range);
+        let a_cells = self.node.additions_tc(layer_id, range);
+
+        t_cells.chain(a_cells)
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
+        let iters = self.time_cells();
+        iters.map(|cell| cell.iter()).kmerge()
+    }
+
+    fn into_iter_rev(self) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
+        let iters = self.time_cells();
+        iters.map(|cell| cell.iter_rev()).kmerge_by(|a, b| a > b)
     }
 }
 
@@ -119,6 +205,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
             range: Some((w.start, w.end)),
             node: self.node,
             layer_id: self.layer_id,
+            _mark: std::marker::PhantomData,
         }
     }
 
@@ -131,21 +218,11 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        match self.layer_id {
-            Either::Left(layer_id) => Either::Left(self.node.into_iter(layer_id, self.range)),
-            Either::Right(layer_id) => {
-                Either::Right(self.node.into_iter(LayerIds::One(layer_id), self.range))
-            }
-        }
+        self.into_iter()
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        match self.layer_id {
-            Either::Left(layer_id) => Either::Left(self.node.into_iter_rev(layer_id, self.range)),
-            Either::Right(layer_id) => {
-                Either::Right(self.node.into_iter_rev(LayerIds::One(layer_id), self.range))
-            }
-        }
+        self.into_iter_rev()
     }
 
     fn len(&self) -> usize {

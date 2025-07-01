@@ -19,9 +19,9 @@ use storage::{
     pages::{session::WriteSession, NODE_ID_PROP_KEY},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
+    resolver::GIDResolverOps,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, ES, NS,
-    resolver::{GIDResolverOps},
 };
 
 use crate::mutation::{
@@ -196,17 +196,15 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::External(id) => {
-                let id = self
-                    .logical_to_physical
-                    .get_or_init(id, || {
-                        // When initializing a new node, reserve node_id as a const prop.
-                        // Done here since the id type is not known until node creation.
-                        reserve_node_id_as_prop(self.node_meta(), id);
+                let id = self.logical_to_physical.get_or_init(id, || {
+                    // When initializing a new node, reserve node_id as a const prop.
+                    // Done here since the id type is not known until node creation.
+                    reserve_node_id_as_prop(self.node_meta(), id);
 
-                        self.node_count
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-                            .into()
-                    })?;
+                    self.node_count
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                        .into()
+                })?;
 
                 Ok(id)
             }

@@ -184,7 +184,16 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
-        EdgeRefOps::additions(self, layer_ids).active_t(w)
+        match layer_ids {
+            LayerIds::None => false,
+            LayerIds::All => self
+                .additions_iter(&LayerIds::All)
+                .any(|(_, t_index)| t_index.active_t(w.clone())),
+            LayerIds::One(l_id) => self.layer_additions(*l_id).active_t(w),
+            LayerIds::Multiple(layers) => layers
+                .iter()
+                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
+        }
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {

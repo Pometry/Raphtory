@@ -543,7 +543,7 @@ mod test {
 
             let node = g.nodes().node(3);
             let node_entry = node.as_ref();
-            let actual: Vec<_> = node_entry.additions(&LayerIds::One(0)).iter_t().collect();
+            let actual: Vec<_> = node_entry.edge_additions(0).iter_t().collect();
             assert_eq!(actual, vec![4]);
         };
 

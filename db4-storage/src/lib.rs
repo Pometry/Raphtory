@@ -1,15 +1,19 @@
 use std::path::Path;
 
 use crate::{
-    gen_t_props::GenTProps, gen_ts::GenericTimeOps, pages::{
-        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage,
-        GraphStore, ReadLockedGraphStore
-    }, resolver::mapping_resolver::MappingResolver, segments::{
+    gen_t_props::GenTProps,
+    gen_ts::{EdgeAdditionCellsRef, GenericTimeOps, PropAdditionCellsRef},
+    pages::{
+        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
+        node_store::ReadLockedNodeStorage,
+    },
+    resolver::mapping_resolver::MappingResolver,
+    segments::{
         edge::EdgeSegmentView,
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
-    }
+    },
 };
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
@@ -20,9 +24,9 @@ pub mod gen_ts;
 pub mod pages;
 pub mod persist;
 pub mod properties;
+pub mod resolver;
 pub mod segments;
 pub mod utils;
-pub mod resolver;
 
 pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
@@ -40,7 +44,9 @@ pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEd
 pub type NodeEntryRef<'a> = MemNodeRef<'a>;
 pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 
-pub type NodeAdditions<'a> = GenericTimeOps<'a, MemNodeRef<'a>>;
+pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
+pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
+
 pub type EdgeAdditions<'a> = GenericTimeOps<'a, MemEdgeRef<'a>>;
 pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;
