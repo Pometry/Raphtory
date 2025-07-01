@@ -122,7 +122,8 @@ span .md-typeset .emojione,
 /* Homepage */
 /* ####### */
 
-/* based on: src/templates/assets/stylesheets/main/modifiers/_grid.scss */
+/* overides: src/templates/assets/stylesheets/main/modifiers/_grid.scss */
+/* based on: https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=10239-9055&m=dev */
 .md-typeset {
 
     /* Grid container */
