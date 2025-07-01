@@ -1,10 +1,15 @@
 use std::ops::Range;
 
 use itertools::Itertools;
-use raphtory_core::storage::timeindex::{TimeIndexEntry, TimeIndexOps};
+use raphtory_core::{
+    entities::ELID,
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+};
+
+use crate::{NodeEntryRef, segments::additions::MemAdditions};
 
 // TODO: split the Node time operations into edge additions and property additions
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     layer_id: usize,
@@ -53,7 +58,20 @@ where
     fn num_layers(&self) -> usize;
 }
 
-#[derive(Clone, Copy)]
+pub trait WithEdgeEvents<'a>: WithTimeCells<'a> {
+    type TimeCell: EdgeEventOps<'a>;
+}
+
+impl<'a> WithEdgeEvents<'a> for NodeEntryRef<'a> {
+    type TimeCell = MemAdditions<'a>;
+}
+
+pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = TimeIndexEntry> {
+    fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
+    fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct EdgeAdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
     node: Ref,
     _mark: std::marker::PhantomData<&'a ()>,
@@ -92,7 +110,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct PropAdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
     node: Ref,
     _mark: std::marker::PhantomData<&'a ()>,
@@ -128,6 +146,27 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn num_layers(&self) -> usize {
         self.node.num_layers()
+    }
+}
+
+impl<'a, Ref: WithEdgeEvents<'a> + 'a> GenericTimeOps<'a, EdgeAdditionCellsRef<'a, Ref>>
+where
+    <Ref as WithTimeCells<'a>>::TimeCell: EdgeEventOps<'a>,
+{
+    pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        self.node
+            .additions_tc(self.layer_id, self.range)
+            .map(|t_cell| t_cell.edge_events())
+            .kmerge_by(|a, b| a < b)
+    }
+
+    pub fn edge_events_rev(
+        self,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+        self.node
+            .additions_tc(self.layer_id, self.range)
+            .map(|t_cell| t_cell.edge_events_rev())
+            .kmerge_by(|a, b| a > b)
     }
 }
 

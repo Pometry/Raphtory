@@ -159,7 +159,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> Option<i64> {
         let additions = node.additions();
-        let mut earliest = additions.prop_events().next().map(|t| t.t());
+        let mut earliest = additions.iter().next().map(|t| t.t());
         if let Some(earliest) = earliest {
             if earliest <= w.start {
                 return Some(w.start);
@@ -230,12 +230,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         let first_row = if node
             .additions()
             .range(TimeIndexEntry::range(i64::MIN..start))
-            .prop_events()
+            .iter()
             .next()
             .is_some()
         {
             Some(
-                node.tprops()
+                (0.._view.node_meta().temporal_prop_meta().len())
+                    .map(|prop_id| (prop_id, node.tprop(prop_id)))
                     .filter_map(|(i, tprop)| {
                         if tprop.active_t(start..start.saturating_add(1)) {
                             None

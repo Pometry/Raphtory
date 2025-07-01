@@ -8,35 +8,34 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     Direction,
 };
-use raphtory_core::storage::timeindex::TimeIndexWindow;
 use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
 };
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) edge_history: storage::NodeEdgeAdditions<'a>,
+    pub(crate) additions: storage::NodePropAdditions<'a>,
     pub(crate) view: G,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeEdgeHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) additions: storage::NodeEdgeAdditions<'a>,
     pub(crate) view: G,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodePropHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) additions: storage::NodePropAdditions<'a>,
     pub(crate) view: G,
 }
 
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
-            additions: self.additions.clone(),
+            additions: self.edge_history.clone(),
             view: self.view.clone(),
         }
     }
@@ -124,21 +123,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        let history = &self.additions;
-        match history {
-            NodeAdditions::Mem(h) => h.props_ts().active(w),
-            NodeAdditions::Range(h) => match h {
-                TimeIndexWindow::Empty => false,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    let start = range.start.max(w.start);
-                    let end = range.end.min(w.end).max(start);
-                    timeindex.props_ts().active(start..end)
-                }
-                TimeIndexWindow::All(h) => h.props_ts().active(w),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(h) => h.with_range(w).prop_events().any(|t| !t.is_empty()),
-        }
+        self.additions.active(w)
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -150,41 +135,19 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.additions.prop_events()
+        self.additions.iter()
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.additions.prop_events_rev()
+        self.additions.iter_rev()
     }
 
     fn len(&self) -> usize {
-        match &self.additions {
-            NodeAdditions::Mem(additions) => additions.props_ts.len(),
-            NodeAdditions::Range(additions) => match additions {
-                TimeIndexWindow::Empty => 0,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    (&timeindex.props_ts).range(range.clone()).len()
-                }
-                TimeIndexWindow::All(timeindex) => timeindex.props_ts.len(),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().map(|t| t.len()).sum(),
-        }
+        self.additions.len()
     }
 
     fn is_empty(&self) -> bool {
-        match &self.additions {
-            NodeAdditions::Mem(additions) => additions.props_ts.is_empty(),
-            NodeAdditions::Range(additions) => match additions {
-                TimeIndexWindow::Empty => true,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    (&timeindex.props_ts).range(range.clone()).is_empty()
-                }
-                TimeIndexWindow::All(timeindex) => timeindex.props_ts.is_empty(),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().all(|t| t.is_empty()),
-        }
+        self.additions.is_empty()
     }
 }
 
@@ -214,20 +177,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
 
     fn len(&self) -> usize {
         if matches!(self.view.filter_state(), FilterState::Neither) {
-            match &self.additions {
-                NodeAdditions::Mem(additions) => additions.edge_ts.len(),
-                NodeAdditions::Range(additions) => match additions {
-                    TimeIndexWindow::Empty => 0,
-                    TimeIndexWindow::Range { timeindex, range } => {
-                        (&timeindex.edge_ts).range(range.clone()).len()
-                    }
-                    TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
-                },
-                #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => {
-                    additions.clone().edge_events().map(|t| t.len()).sum()
-                }
-            }
+            self.additions.len()
         } else {
             self.history().count()
         }
@@ -235,20 +185,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
 
     fn is_empty(&self) -> bool {
         if matches!(self.view.filter_state(), FilterState::Neither) {
-            match &self.additions {
-                NodeAdditions::Mem(additions) => additions.edge_ts.is_empty(),
-                NodeAdditions::Range(additions) => match additions {
-                    TimeIndexWindow::Empty => true,
-                    TimeIndexWindow::Range { timeindex, range } => {
-                        (&timeindex.edge_ts).range(range.clone()).is_empty()
-                    }
-                    TimeIndexWindow::All(timeindex) => timeindex.edge_ts.is_empty(),
-                },
-                #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => {
-                    additions.clone().edge_events().all(|t| t.is_empty())
-                }
-            }
+            self.additions.is_empty()
         } else {
             self.history().next().is_none()
         }
@@ -264,9 +201,14 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self {
+        let edge_history = self.edge_history.range(w.clone());
         let additions = self.additions.range(w);
         let view = self.view.clone();
-        NodeHistory { additions, view }
+        NodeHistory {
+            edge_history,
+            additions,
+            view,
+        }
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
@@ -290,8 +232,14 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
-        let additions = self.additions();
-        NodeHistory { additions, view }
+        // FIXME: new storage supports multiple layers, but this is hardcoded to layer 0 as there is no information in history about which layer the node belongs to.
+        let additions = self.node_additions(0);
+        let edge_history = self.node_edge_additions(0);
+        NodeHistory {
+            edge_history,
+            additions,
+            view,
+        }
     }
 
     fn filtered_edges_iter<G: GraphViewOps<'a>>(

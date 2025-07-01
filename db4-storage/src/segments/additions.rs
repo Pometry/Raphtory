@@ -5,7 +5,10 @@ use raphtory_core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
 };
 
-use crate::utils::Iter4;
+use crate::{
+    gen_ts::{EdgeEventOps, WithEdgeEvents},
+    utils::Iter4,
+};
 
 #[derive(Clone, Debug)]
 pub enum MemAdditions<'a> {
@@ -27,8 +30,8 @@ impl<'a> From<&'a TCell<Option<usize>>> for MemAdditions<'a> {
     }
 }
 
-impl<'a> MemAdditions<'a> {
-    pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
+    fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
             MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
@@ -41,9 +44,7 @@ impl<'a> MemAdditions<'a> {
         }
     }
 
-    pub fn edge_events_rev(
-        self,
-    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
+    fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
             MemAdditions::WEdges(TimeIndexWindow::All(ti)) => {
