@@ -27,10 +27,10 @@
     --md-primary-fg-color--dark: #17131b; /* brand-color-dark */
     --md-text-font: 'Geist';
 
-    --brand-color-grey: #E7E7E7;
-    --brand-color-white: #FFFFFF;
-    --brand-color-red: #F42848;
-    --brand-color-red-light: #FD768C;
+    --brand-grey: #E7E7E7;
+    --brand-white: #FFFFFF;
+    --brand-red: #F42848;
+    --brand-red-light: #FD768C;
     --brand-red-lighter: #FFFEF2;
     --brand-orange: #F97427;
     --brand-orange-light: #FFBC96;
@@ -43,6 +43,9 @@
     --brand-mint: #3ED598;
     --brand-mint-light: #96FAD1;
     --brand-mint-lighter: #D1FAE3;
+
+    --gradient-red-pink-purple: linear-gradient(270deg, var(--brand-red) 0%, var(--md-primary-fg-color) 50%, var(--brand-purple) 100%);
+
 }
 
 :root {
@@ -108,4 +111,23 @@ span .md-typeset .emojione, .md-typeset .gemoji, .md-typeset .twemoji {
     background-color: rgb(205, 121, 44);
     -webkit-mask-image: var(--md-admonition-icon--rust);
     mask-image: var(--md-admonition-icon--rust);
+}
+
+/* ####### */ 
+/* Homepage */ 
+/* ####### */ 
+
+/* based on: src/templates/assets/stylesheets/main/modifiers/_grid.scss */ 
+.md-typeset {
+
+  /* Grid container */  
+  .grid {
+    a {
+        /*color: var(--md-primary-fg-color);*/
+        background: var(--gradient-red-pink-purple);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        
+  }
 }
