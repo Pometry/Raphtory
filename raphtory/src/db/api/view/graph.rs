@@ -425,16 +425,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         self.layer_ids(),
                     ) {
                         if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                            src_node.update_time(
-                                t,
-                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                            );
+                            src_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
                         }
                         if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                            dst_node.update_time(
-                                t,
-                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                            );
+                            dst_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
                         }
                     }
                 }
