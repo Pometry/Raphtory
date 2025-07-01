@@ -220,7 +220,7 @@ impl EdgeIndex {
             .try_for_each(|e| {
                 let e_ref = e.out_ref();
                 {
-                    let e_view = EdgeView::new(graph.clone(), e_ref);
+                    let e_view = EdgeView::new(graph, e_ref);
                     self.index_edge(e_view, &writer)?;
                 }
                 Ok::<(), GraphError>(())

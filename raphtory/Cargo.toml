@@ -109,6 +109,7 @@ proptest-derive = { workspace = true }
 polars-core = { workspace = true, features = ["fmt"] }
 polars-io = { workspace = true, features = ["parquet"] }
 indoc = { workspace = true }
+moka = { workspace = true, features = ["sync"] }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -129,7 +130,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
+search = ["dep:tantivy", "dep:tempfile", "proto", "io", "dep:moka"]
 # vectors
 vectors = [
     "dep:futures-util",

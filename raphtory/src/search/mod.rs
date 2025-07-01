@@ -168,18 +168,23 @@ mod test_index {
     mod test_index_io {
         use crate::{
             db::{
-                api::view::{internal::InternalStorageOps, StaticGraphViewOps},
+                api::view::{
+                    internal::InternalStorageOps, IndexSpec, IndexSpecBuilder, ResolvedIndexSpec,
+                    StaticGraphViewOps,
+                },
                 graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             errors::GraphError,
             prelude::*,
             serialise::GraphFolder,
         };
+        use itertools::assert_equal;
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
         };
-        use std::{fs::File, path::PathBuf};
+        use std::{fmt::format, sync::Arc, thread::sleep, time::Duration};
+        use tempfile::TempDir;
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -189,7 +194,7 @@ mod test_index {
                 .add_node(
                     1,
                     "Alice",
-                    vec![("p1", Prop::U64(2u64))],
+                    vec![("p1", Prop::U64(1000u64))],
                     Some("fire_nation"),
                 )
                 .unwrap();
@@ -543,30 +548,89 @@ mod test_index {
 
         #[test]
         fn test_too_many_open_files_graph_index() {
+            use moka::sync::Cache;
             use tempfile::TempDir;
 
-            let mut graphs = Vec::new();
-            let mut tempdirs = Vec::new();
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().to_path_buf();
+
+            let graph_cache: Cache<usize, Graph> = Cache::new(100);
 
             for i in 0..1000 {
                 let graph = init_graph(Graph::new());
                 if let Err(e) = graph.create_index() {
                     match &e {
                         GraphError::IndexError { source } => {
-                            panic!("Hit file descriptor limit after {i} graphs. {:?}", source);
+                            panic!("Hit file descriptor limit after {} graphs. {:?}", 0, source);
                         }
                         other => {
                             panic!("Unexpected GraphError: {:?}", other);
                         }
                     }
                 }
-
-                let tmp_dir = TempDir::new().unwrap();
-                let path = tmp_dir.path().to_path_buf();
-                graph.cache(&path).unwrap();
-                graphs.push(graph);
-                tempdirs.push(tmp_dir);
+                graph.cache(&path.join(format!("graph {i}"))).unwrap();
+                graph_cache.insert(0, graph);
             }
+        }
+
+        #[test]
+        fn test_graph_index_creation_with_too_many_properties() {
+            let graph = init_graph(Graph::new());
+            let props: Vec<(String, Prop)> = (1..=100)
+                .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
+                .collect();
+            graph
+                .node("Alice")
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+
+            if let Err(e) = graph.create_index() {
+                match &e {
+                    GraphError::IndexError { source } => {
+                        panic!("Hit file descriptor limit after {} graphs. {:?}", 0, source);
+                    }
+                    other => {
+                        panic!("Unexpected GraphError: {:?}", other);
+                    }
+                }
+            }
+
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().to_path_buf();
+            graph.encode(&path).unwrap();
+        }
+
+        #[test]
+        // No new const prop index created because when index were created
+        // these properties did not exist.
+        fn test_graph_index_creation_for_incremental_node_update_no_new_prop_indexed() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let props: Vec<(String, Prop)> = (1..=100)
+                .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
+                .collect();
+            graph
+                .node("Alice")
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().to_path_buf();
+            graph.encode(&path).unwrap();
+            let graph = Graph::decode(&path).unwrap();
+
+            let spec = graph.get_index_spec().unwrap().props(&graph);
+            assert_eq!(
+                spec,
+                ResolvedIndexSpec {
+                    node_temp_props: vec!["p1".to_string()],
+                    node_const_props: vec![],
+                    edge_const_props: vec![],
+                    edge_temp_props: vec![]
+                }
+            );
         }
     }
 

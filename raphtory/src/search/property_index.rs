@@ -12,7 +12,7 @@ use tantivy::{
     query::AllQuery,
     schema::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
-        FAST, INDEXED, STORED, STRING, TEXT,
+        FAST, INDEXED, STRING, TEXT,
     },
     Document, Index, TantivyDocument,
 };
