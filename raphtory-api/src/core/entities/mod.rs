@@ -541,6 +541,7 @@ mod tests {
             prop_assert_eq!(elid.layer(), layer);
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
+            prop_assert_eq!(elid.edge.0, eid);
         })
     }
 }
