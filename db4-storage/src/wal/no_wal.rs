@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, WalOps, WalRow};
+use crate::wal::{LSN, WalOps, WalRecord};
 
 pub struct NoWal {
     dir: PathBuf,
@@ -22,7 +22,7 @@ impl WalOps for NoWal {
 
     fn wait_for_sync(&self, _lsn: LSN) {}
 
-    fn recover(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRow, DBV4Error>> {
+    fn recover(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>> {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(DBV4Error::GenericFailure(error.to_string())))
     }
