@@ -109,7 +109,7 @@ pub enum WriteError {
 
     #[cfg(feature = "proto")]
     #[error("Failed to write delta to cache: {0}")]
-    WriteError(io::Error),
+    WriteError(#[from] io::Error),
 }
 
 pub type GraphResult<T> = Result<T, GraphError>;
