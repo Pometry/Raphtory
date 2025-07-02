@@ -129,6 +129,24 @@ pub enum EdgeViewCollection {
     ShrinkEnd(i64),
 }
 
+#[derive(OneOfInput, Clone, Debug)]
+pub enum PathFromNodeViewCollection {
+    Latest(bool),
+    SnapshotLatest(bool),
+    SnapshotAt(i64),
+    Layers(Vec<String>),
+    ExcludeLayers(Vec<String>),
+    Layer(String),
+    ExcludeLayer(String),
+    Window(Window),
+    At(i64),
+    Before(i64),
+    After(i64),
+    ShrinkWindow(Window),
+    ShrinkStart(i64),
+    ShrinkEnd(i64),
+}
+
 #[derive(InputObject, Clone, Debug)]
 pub struct Window {
     pub start: i64,

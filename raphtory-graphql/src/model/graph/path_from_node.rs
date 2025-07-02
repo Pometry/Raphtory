@@ -1,9 +1,9 @@
 use crate::{
     model::graph::{
+        filtering::PathFromNodeViewCollection,
         node::GqlNode,
         windowset::GqlPathFromNodeWindowSet,
-        WindowDuration,
-        WindowDuration::{Duration, Epoch},
+        WindowDuration::{self, Duration, Epoch},
     },
     rayon::blocking_compute,
 };
@@ -200,5 +200,54 @@ impl GqlPathFromNode {
     async fn ids(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.name().collect()).await
+    }
+
+    async fn apply_views(
+        &self,
+        views: Vec<PathFromNodeViewCollection>,
+    ) -> Result<GqlPathFromNode, GraphError> {
+        let mut return_view: GqlPathFromNode = self.clone();
+        for view in views {
+            return_view = match view {
+                PathFromNodeViewCollection::Layers(layers) => return_view.layers(layers).await,
+                PathFromNodeViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
+                }
+                PathFromNodeViewCollection::Layer(layer) => return_view.layer(layer).await,
+
+                PathFromNodeViewCollection::ExcludeLayer(layer) => {
+                    return_view.exclude_layer(layer).await
+                }
+                PathFromNodeViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
+                }
+                PathFromNodeViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
+                }
+                PathFromNodeViewCollection::ShrinkStart(time) => {
+                    return_view.shrink_start(time).await
+                }
+                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
+                PathFromNodeViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
+                PathFromNodeViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
+                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
+            }
+        }
+        Ok(return_view)
     }
 }

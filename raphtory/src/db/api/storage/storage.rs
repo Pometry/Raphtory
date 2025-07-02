@@ -7,7 +7,7 @@ use crate::{
         Base, InheritViewOps,
     },
 };
-use parking_lot::RwLock;
+use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -28,7 +28,10 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
 };
-use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
+use raphtory_core::storage::{
+    raw_edges::{EdgeWGuard, WriteLockedEdges},
+    EntryMut, NodeSlot, WriteLockedNodes,
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
@@ -472,8 +475,9 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+        let lock = self
+            .graph
             .internal_add_constant_node_properties(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -482,15 +486,16 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "search")]
         self.if_index_mut(|index| index.add_node_constant_properties(vid, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+        let lock = self
+            .graph
             .internal_update_constant_node_properties(vid, props)?;
 
         #[cfg(feature = "proto")]
@@ -499,7 +504,7 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "search")]
         self.if_index_mut(|index| index.update_node_constant_properties(vid, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_add_constant_edge_properties(
@@ -507,8 +512,9 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EdgeWGuard, Self::Error> {
+        let lock = self
+            .graph
             .internal_add_constant_edge_properties(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
@@ -517,7 +523,7 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "search")]
         self.if_index_mut(|index| index.add_edge_constant_properties(eid, layer, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_update_constant_edge_properties(
@@ -525,8 +531,9 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EdgeWGuard, Self::Error> {
+        let lock = self
+            .graph
             .internal_update_constant_edge_properties(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
@@ -535,7 +542,7 @@ impl InternalPropertyAdditionOps for Storage {
         #[cfg(feature = "search")]
         self.if_index_mut(|index| index.update_edge_constant_properties(eid, layer, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 }
 
