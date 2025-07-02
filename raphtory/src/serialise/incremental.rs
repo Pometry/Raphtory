@@ -34,15 +34,14 @@ use tracing::instrument;
 
 #[derive(Debug)]
 pub struct GraphWriter {
-    writer: Arc<Mutex<File>>,
+    write_lock: Arc<Mutex<()>>,
     proto_delta: Mutex<ProtoGraph>,
     pub(crate) folder: GraphFolder,
 }
 
-fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
-    let pos = writer
-        .seek(SeekFrom::End(0))
-        .map_err(WriteError::WriteError)?;
+fn try_write(folder: &GraphFolder, bytes: &[u8]) -> Result<(), WriteError> {
+    let mut writer = folder.get_appendable_graph_file()?;
+    let pos = writer.seek(SeekFrom::End(0))?;
     writer
         .write_all(bytes)
         .map_err(|write_err| match writer.set_len(pos) {
@@ -53,9 +52,8 @@ fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
 
 impl GraphWriter {
     pub fn new(folder: GraphFolder) -> Result<Self, GraphError> {
-        let file = folder.get_appendable_graph_file()?;
         Ok(Self {
-            writer: Arc::new(Mutex::new(file)),
+            write_lock: Arc::new(Mutex::new(())),
             proto_delta: Default::default(),
             folder,
         })
@@ -64,7 +62,7 @@ impl GraphWriter {
     /// Get an independent writer pointing at the same underlying cache file
     pub fn fork(&self) -> Self {
         GraphWriter {
-            writer: self.writer.clone(),
+            write_lock: self.write_lock.clone(),
             proto_delta: Default::default(),
             folder: self.folder.clone(),
         }
@@ -74,9 +72,8 @@ impl GraphWriter {
         let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
-            let mut writer = self.writer.lock();
-
-            if let Err(write_err) = try_write(&mut writer, &bytes) {
+            let _guard = self.write_lock.lock();
+            if let Err(write_err) = try_write(&self.folder, &bytes) {
                 // If the write fails, try to put the updates back
                 let mut new_delta = self.proto_delta.lock();
                 let bytes = new_delta.encode_to_vec();
@@ -312,6 +309,9 @@ impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> Cache
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
         let folder = path.into();
+        if folder.is_zip() {
+            return Err(GraphError::ZippedGraphCannotBeCached);
+        }
         let graph = Self::decode(&folder)?;
         graph.init_cache(&folder)?;
         Ok(graph)
@@ -326,23 +326,24 @@ mod test {
         storage::dict_mapper::MaybeNew,
         utils::logging::global_info_logger,
     };
-    use std::{fs::File, sync::Arc};
+    use std::fs::File;
     use tempfile::TempDir;
 
+    // Tests that changes to the cache graph are not thrown away if cache write fails
+    // and there is a chance to recover from this.
     #[test]
     fn test_write_failure() {
         global_info_logger();
         let tmp_dir = TempDir::new().unwrap();
         let folder = GraphFolder::from(tmp_dir.path());
         let graph_file_path = folder.get_graph_path();
-        drop(File::create(&graph_file_path).unwrap());
-        let read_only = File::open(graph_file_path).unwrap();
-        let cache = GraphWriter {
-            writer: Arc::new(read_only.into()),
-            proto_delta: Default::default(),
-            folder,
-        };
+        let file = File::create(&graph_file_path).unwrap();
+        let mut perms = file.metadata().unwrap().permissions();
+        perms.set_readonly(true);
+        file.set_permissions(perms).unwrap();
+        let cache = GraphWriter::new(folder).unwrap();
         cache.resolve_node(MaybeNew::New(VID(0)), GidRef::Str("0"));
+        assert_eq!(cache.proto_delta.lock().nodes.len(), 1);
         let res = cache.write();
         assert!(res.is_err());
         assert_eq!(cache.proto_delta.lock().nodes.len(), 1);

@@ -414,7 +414,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         })?;
         self.graph
             .internal_add_constant_node_properties(self.node, &properties)
-            .map_err(into_graph_err)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
@@ -437,7 +438,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         })?;
         self.graph
             .internal_update_constant_node_properties(self.node, &properties)
-            .map_err(into_graph_err)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(

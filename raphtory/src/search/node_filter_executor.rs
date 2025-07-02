@@ -18,7 +18,7 @@ use crate::{
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_nodes, fields,
+        fallback_filter_nodes, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -101,8 +101,9 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
-            Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
             None => fallback_filter_nodes(graph, filter, limit, offset),
         }
@@ -122,12 +123,13 @@ impl<'a> NodeFilterExecutor<'a> {
         C: Collector<Fruit = HashSet<u64>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
                 query,
                 prop_id,
-                &pi.reader,
+                &reader,
                 limit,
                 offset,
                 collector_fn,
@@ -312,15 +314,9 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
-
+        let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                graph,
-                query,
-                &node_index.entity_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset)?,
             None => match filter.field_name.as_str() {
                 "node_name" => {
                     fallback_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?

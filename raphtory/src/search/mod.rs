@@ -12,7 +12,12 @@ use crate::{
     search::property_index::PropertyIndex,
 };
 use ahash::HashSet;
-use std::{fs::create_dir_all, path::PathBuf};
+use parking_lot::RwLockReadGuard;
+use raphtory_api::core::entities::properties::{
+    meta::PropMapper,
+    prop::{Prop, PropType},
+};
+use std::{fs::create_dir_all, path::PathBuf, sync::Arc};
 use tantivy::{
     schema::Schema,
     tokenizer::{LowerCaser, SimpleTokenizer, TextAnalyzer},
@@ -56,10 +61,7 @@ pub fn register_default_tokenizers(index: &Index) {
     index.tokenizers().register(TOKENIZER, tokenizer);
 }
 
-pub(crate) fn new_index(
-    schema: Schema,
-    path: &Option<PathBuf>,
-) -> Result<(Index, IndexReader), GraphError> {
+pub(crate) fn new_index(schema: Schema, path: &Option<PathBuf>) -> Result<Index, GraphError> {
     let index_builder = Index::builder()
         .settings(IndexSettings::default())
         .schema(schema);
@@ -82,14 +84,9 @@ pub(crate) fn new_index(
         })?
     };
 
-    let reader = index
-        .reader_builder()
-        .reload_policy(tantivy::ReloadPolicy::Manual)
-        .try_into()?;
-
     register_default_tokenizers(&index);
 
-    Ok((index, reader))
+    Ok(index)
 }
 
 fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
@@ -98,6 +95,37 @@ fn resolve_props(props: &Vec<Option<PropertyIndex>>) -> HashSet<usize> {
         .enumerate()
         .filter_map(|(idx, opt)| opt.as_ref().map(|_| idx))
         .collect()
+}
+
+fn get_props<'a>(
+    props: &'a HashSet<usize>,
+    meta: &'a PropMapper,
+) -> impl Iterator<Item = (String, usize, PropType)> + 'a {
+    props.iter().filter_map(|prop_id| {
+        let prop_name = meta.get_name(*prop_id).to_string();
+        meta.get_dtype(*prop_id)
+            .map(|prop_type| (prop_name, *prop_id, prop_type))
+    })
+}
+
+// Filter props for which there already is a property index
+pub(crate) fn indexed_props(
+    props: &[(usize, Prop)],
+    indexes: &RwLockReadGuard<Vec<Option<PropertyIndex>>>,
+) -> Vec<(usize, Prop)> {
+    props
+        .iter()
+        .cloned()
+        .filter(|(id, _)| indexes.get(*id).map_or(false, |entry| entry.is_some()))
+        .collect()
+}
+
+pub(crate) fn get_reader(index: &Arc<Index>) -> Result<IndexReader, GraphError> {
+    let reader = index
+        .reader_builder()
+        .reload_policy(tantivy::ReloadPolicy::Manual)
+        .try_into()?;
+    Ok(reader)
 }
 
 pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(
@@ -140,19 +168,23 @@ mod test_index {
     mod test_index_io {
         use crate::{
             db::{
-                api::view::{internal::InternalStorageOps, StaticGraphViewOps},
+                api::view::{
+                    internal::InternalStorageOps, IndexSpec, IndexSpecBuilder, ResolvedIndexSpec,
+                    StaticGraphViewOps,
+                },
                 graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             errors::GraphError,
             prelude::*,
-            search::graph_index::GraphIndex,
             serialise::GraphFolder,
         };
-        use parking_lot::{lock_api::RwLockReadGuard, RawRwLock};
+        use itertools::assert_equal;
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
         };
+        use std::{fmt::format, sync::Arc, thread::sleep, time::Duration};
+        use tempfile::TempDir;
 
         fn init_graph<G>(graph: G) -> G
         where
@@ -162,7 +194,7 @@ mod test_index {
                 .add_node(
                     1,
                     "Alice",
-                    vec![("p1", Prop::U64(2u64))],
+                    vec![("p1", Prop::U64(1000u64))],
                     Some("fire_nation"),
                 )
                 .unwrap();
@@ -512,6 +544,88 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
             assert_search_results(&graph, &filter, vec!["Tommy"]);
+        }
+
+        #[test]
+        fn test_too_many_open_files_graph_index() {
+            use tempfile::TempDir;
+
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().to_path_buf();
+
+            let mut graphs = vec![];
+
+            for i in 0..1000 {
+                let graph = init_graph(Graph::new());
+                if let Err(e) = graph.create_index() {
+                    match &e {
+                        GraphError::IndexError { source } => {
+                            panic!("Hit file descriptor limit after {} graphs. {:?}", 0, source);
+                        }
+                        other => {
+                            panic!("Unexpected GraphError: {:?}", other);
+                        }
+                    }
+                }
+                graph.cache(&path.join(format!("graph {i}"))).unwrap();
+                graphs.push(graph);
+            }
+        }
+
+        #[test]
+        fn test_graph_index_creation_with_too_many_properties() {
+            let graph = init_graph(Graph::new());
+            let props: Vec<(String, Prop)> = (1..=100)
+                .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
+                .collect();
+            graph
+                .node("Alice")
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+
+            if let Err(e) = graph.create_index() {
+                match &e {
+                    GraphError::IndexError { source } => {
+                        panic!("Hit file descriptor limit after {} graphs. {:?}", 0, source);
+                    }
+                    other => {
+                        panic!("Unexpected GraphError: {:?}", other);
+                    }
+                }
+            }
+        }
+
+        #[test]
+        // No new const prop index created because when index were created
+        // these properties did not exist.
+        fn test_graph_index_creation_for_incremental_node_update_no_new_prop_indexed() {
+            let graph = init_graph(Graph::new());
+            graph.create_index().unwrap();
+            let props: Vec<(String, Prop)> = (1..=100)
+                .map(|i| (format!("p{i}"), Prop::U64(i as u64)))
+                .collect();
+            graph
+                .node("Alice")
+                .unwrap()
+                .add_constant_properties(props)
+                .unwrap();
+
+            let tmp_dir = TempDir::new().unwrap();
+            let path = tmp_dir.path().to_path_buf();
+            graph.encode(&path).unwrap();
+            let graph = Graph::decode(&path).unwrap();
+
+            let spec = graph.get_index_spec().unwrap().props(&graph);
+            assert_eq!(
+                spec,
+                ResolvedIndexSpec {
+                    node_temp_props: vec!["p1".to_string()],
+                    node_const_props: vec![],
+                    edge_const_props: vec![],
+                    edge_temp_props: vec![]
+                }
+            );
         }
     }
 
