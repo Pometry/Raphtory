@@ -98,6 +98,14 @@
 /* ########### */
 /* Typesetting */
 /* ########### */
+
+/* Overides: src/templates/assets/stylesheets/main/_typeset.scss */
+.md-typeset {
+    a {
+        color: var(--md-primary-fg-color);
+    }
+}
+
 span .md-typeset .emojione,
 .md-typeset .gemoji,
 .md-typeset .twemoji {
@@ -136,9 +144,22 @@ span .md-typeset .emojione,
 }
 
 /* ####### */
+/* API */
+/* ####### */
+.md-typeset {
+    /* API headings */
+    /* Simplify style of code elements in headings */
+    h1, h2, h3, h4 {
+        code {
+            background: none;
+            padding: 0;
+        }
+    }
+}
+
+/* ####### */
 /* Homepage */
 /* ####### */
-
 /* overides: src/templates/assets/stylesheets/main/modifiers/_grid.scss */
 /* based on: https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=10239-9055&m=dev */
 .md-typeset {
