@@ -1,11 +1,5 @@
 use crate::{
-    db::{
-        api::{
-            properties::internal::{ConstantPropertiesOps, TemporalPropertyViewOps},
-            view::IndexSpec,
-        },
-        graph::node::NodeView,
-    },
+    db::api::view::IndexSpec,
     errors::GraphError,
     prelude::GraphViewOps,
     search::{
@@ -19,7 +13,10 @@ use raphtory_api::core::entities::{
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -129,8 +126,8 @@ impl EntityIndex {
                 (0..graph.count_nodes())
                     .into_par_iter()
                     .try_for_each(|v_id| {
-                        let node = NodeView::new_internal(graph, VID(v_id));
-                        if let Some(prop_value) = node.get_const_prop(prop_id) {
+                        let node = graph.core_node(VID(v_id));
+                        if let Some(prop_value) = node.prop(prop_id) {
                             let prop_doc = prop_index
                                 .create_node_const_property_document(v_id as u64, &prop_value)?;
                             writer.add_document(prop_doc)?;
@@ -173,12 +170,11 @@ impl EntityIndex {
                 (0..graph.count_nodes())
                     .into_par_iter()
                     .try_for_each(|v_id| {
-                        let node = NodeView::new_internal(graph, VID(v_id));
-                        let node_id = usize::from(node.node) as u64;
-                        for (t, prop_value) in node.temporal_iter(prop_id) {
+                        let node = graph.core_node(VID(v_id));
+                        for (t, prop_value) in node.tprop(prop_id).iter() {
                             let prop_doc = prop_index.create_node_temporal_property_document(
                                 t.into(),
-                                node_id,
+                                v_id as u64,
                                 &prop_value,
                             )?;
                             writer.add_document(prop_doc)?;

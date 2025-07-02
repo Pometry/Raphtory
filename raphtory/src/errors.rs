@@ -408,6 +408,9 @@ pub enum GraphError {
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
+
+    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
+    ZippedGraphCannotBeCached,
 }
 
 impl From<ConstPropError> for GraphError {

@@ -311,6 +311,9 @@ impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> Cache
 
     fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
         let folder = path.into();
+        if folder.is_zip() {
+            return Err(GraphError::ZippedGraphCannotBeCached);
+        }
         let graph = Self::decode(&folder)?;
         graph.init_cache(&folder)?;
         Ok(graph)
