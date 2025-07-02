@@ -15,7 +15,7 @@ use std::{
 use crate::{
     db::api::{
         properties::internal::PropertiesOps,
-        view::{history_ref::HistoryRef, BoxedLIter},
+        view::{history::History, BoxedLIter},
     },
     errors::GraphError,
 };
@@ -71,8 +71,8 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
         self.id
     }
 
-    pub fn history(&self) -> HistoryRef<Self> {
-        HistoryRef::new(self)
+    pub fn history(&self) -> History<Self> {
+        History::new(self.clone())
     }
 
     pub fn history_rev(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -91,7 +91,7 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.history().iter().zip(self.values())
+        self.history().into_iter().zip(self.values())
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {

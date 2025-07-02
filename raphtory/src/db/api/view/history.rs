@@ -30,6 +30,7 @@ use crate::{
             edge::{edge_valid_layer, EdgeView},
             node::NodeView,
             nodes::Nodes,
+            path::{PathFromGraph, PathFromNode},
         },
     },
     errors::GraphError,
@@ -45,7 +46,7 @@ use raphtory_api::{
     iter::BoxedIter,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{iter, marker::PhantomData, ops::Deref, slice::Iter, sync::Arc};
+use std::{iter, marker::PhantomData, slice, slice::Iter, sync::Arc};
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -198,6 +199,38 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
     }
 }
 
+impl<T: InternalHistoryOps> InternalHistoryOps for Vec<History<'_, T>> {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.as_slice() // had to use slice notation to get Vec::iter() instead of InternalHistoryOps::iter()
+            .iter()
+            .map(|history| history.iter())
+            .kmerge()
+            .into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.as_slice()
+            .iter()
+            .map(|history| history.iter_rev())
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.as_slice()
+            .iter()
+            .filter_map(|history| history.earliest_time())
+            .min()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.as_slice()
+            .iter()
+            .filter_map(|history| history.latest_time())
+            .max()
+    }
+}
+
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
 /// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
@@ -335,38 +368,6 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
-    for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
-{
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        // consuming the history objects is fine here because they get recreated on subsequent iter() calls
-        NodeStateOps::iter_values(self)
-            .map(|history| history.into_iter())
-            .kmerge()
-            .into_dyn_boxed()
-    }
-
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        // consuming the history objects is fine here because they get recreated on subsequent iter_rev() calls
-        NodeStateOps::iter_values(self)
-            .map(|history| history.into_iter_rev())
-            .kmerge_by(|a, b| a >= b)
-            .into_dyn_boxed()
-    }
-
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        NodeStateOps::iter_values(self)
-            .filter_map(|history| history.earliest_time())
-            .min()
-    }
-
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
-        NodeStateOps::iter_values(self)
-            .filter_map(|history| history.latest_time())
-            .max()
-    }
-}
-
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         let g = &self.graph;
@@ -447,6 +448,38 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     }
 }
 
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
+    for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
+{
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        // consuming the history objects is fine here because they get recreated on subsequent iter() calls
+        NodeStateOps::iter_values(self)
+            .map(|history| history.into_iter())
+            .kmerge()
+            .into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        // consuming the history objects is fine here because they get recreated on subsequent iter_rev() calls
+        NodeStateOps::iter_values(self)
+            .map(|history| history.into_iter_rev())
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        NodeStateOps::iter_values(self)
+            .filter_map(|history| history.earliest_time())
+            .min()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        NodeStateOps::iter_values(self)
+            .filter_map(|history| history.latest_time())
+            .max()
+    }
+}
+
 impl<P: PropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.props
@@ -468,6 +501,70 @@ impl<P: PropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         InternalHistoryOps::iter_rev(self).next()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
+    for PathFromNode<'graph, G, GH>
+{
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.iter()
+            .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter()))
+            .kmerge()
+            .into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.iter()
+            .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter_rev()))
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.iter()
+            .filter_map(|nodeview| InternalHistoryOps::earliest_time(&nodeview))
+            .min()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.iter()
+            .filter_map(|nodeview| InternalHistoryOps::latest_time(&nodeview))
+            .max()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
+    for PathFromGraph<'graph, G, GH>
+{
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.iter()
+            .map(|path_from_node| {
+                GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter(item))
+            })
+            .kmerge()
+            .into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.iter()
+            .map(|path_from_node| {
+                GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter_rev(item))
+            })
+            .kmerge_by(|a, b| a >= b)
+            .into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.iter()
+            .filter_map(|path_from_node| InternalHistoryOps::earliest_time(&path_from_node))
+            .min()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.iter()
+            .filter_map(|path_from_node| InternalHistoryOps::latest_time(&path_from_node))
+            .max()
     }
 }
 
@@ -626,6 +723,45 @@ mod tests {
     use super::*;
     use crate::db::api::view::internal::CoreGraphOps;
 
+    #[test]
+    fn test_neighbours_history() -> Result<(), Box<dyn std::error::Error>> {
+        let graph = Graph::new();
+        let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
+        let node2 = graph.add_node(2, "node2", NO_PROPS, None).unwrap();
+        let node3 = graph.add_node(3, "node3", NO_PROPS, None).unwrap();
+        let edge = graph.add_edge(4, &node, &node2, NO_PROPS, None).unwrap();
+        let edge2 = graph.add_edge(5, &node, &node3, NO_PROPS, None).unwrap();
+        let node4 = graph.add_node(6, "node4", NO_PROPS, None).unwrap();
+        let edge3 = graph.add_edge(7, &node2, &node4, NO_PROPS, None).unwrap();
+
+        let history = graph.node("node").unwrap().neighbours().combined_history();
+        assert_eq!(history.earliest_time().unwrap().t(), 2);
+        assert_eq!(history.t().collect(), [2, 3, 4, 5, 7]);
+
+        let history2 = graph.nodes().neighbours().combined_history();
+        assert_eq!(history2.earliest_time().unwrap().t(), 1);
+        assert_eq!(history2.latest_time().unwrap().t(), 7);
+        let mut history2_collected = history2.t().collect();
+        history2_collected.dedup();
+        assert_eq!(history2_collected, [1, 2, 3, 4, 5, 6, 7]);
+
+        Ok(())
+    }
+
+    // History vs HistoryRef, both have the same lifetime on History object even though History owns a clone of temporal property
+    #[test]
+    // fn test_history_vs_historyref() -> Result<(), Box<dyn std::error::Error>> {
+    //     let graph = Graph::new();
+    //     let node = graph.add_node(0, 1, [("cool", Prop::Bool(true))], None).unwrap();
+    //     graph.add_node(3, 1, [("cool", Prop::Bool(false))], None).unwrap();
+    //
+    //     let temp_prop = node.properties().temporal().get("cool").unwrap();
+    //     let history = temp_prop.history();
+    //     drop(temp_prop);
+    //     println!("{:?}", history.iter().collect::<Vec<_>>());
+    //
+    //     Ok(())
+    // }
     #[test]
     fn test_intervals() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();

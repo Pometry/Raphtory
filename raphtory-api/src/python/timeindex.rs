@@ -25,7 +25,7 @@ impl PyRaphtoryTime {
         self.time.dt()
     }
 
-    pub fn s(&self) -> usize {
+    pub fn secondary_index(&self) -> usize {
         self.time.i()
     }
 
