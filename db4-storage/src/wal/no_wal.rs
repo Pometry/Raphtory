@@ -20,6 +20,8 @@ impl WalOps for NoWal {
         Ok(0)
     }
 
+    fn wait_for_sync(&self, _lsn: LSN) {}
+
     fn recover(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRow, DBV4Error>> {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(DBV4Error::GenericFailure(error.to_string())))

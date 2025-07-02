@@ -18,7 +18,10 @@ pub trait WalOps {
 
     fn dir(&self) -> &Path;
 
-    fn recover(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRow, DBV4Error>>;
-
     fn append(&self, data: &[u8]) -> Result<LSN, DBV4Error>;
+
+    /// Blocks until the WAL has fsynced the given LSN to disk.
+    fn wait_for_sync(&self, lsn: LSN);
+
+    fn recover(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRow, DBV4Error>>;
 }
