@@ -41,6 +41,10 @@
     --h1-line-height: 3.5rem;
     --h1-letter-spacing: 0rem;
 
+    --text-large-font-size: 1.125rem;
+    --text-large-line-height: 1.75rem;
+    --text-large-letter-spacing: 0rem;
+
     --brand-grey: #E7E7E7;
     --brand-white: #FFFFFF;
     --brand-red: #F42848;
@@ -157,6 +161,7 @@ span .md-typeset .emojione,
 }
 
 .home-header {
+    gap: 1.5rem;
     h1 {
         /* colours */
         background: var(--gradient-red-pink-purple);
@@ -174,5 +179,9 @@ span .md-typeset .emojione,
     }
     p {
         text-align: center;
+        font-size: var(--text-large-font-size);
+        line-height: var(--text-large-line-height);
+        /* box */
+        margin: 0;
     }
 }

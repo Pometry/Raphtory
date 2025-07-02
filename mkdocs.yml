@@ -1,4 +1,4 @@
-site_name: Raphtory API Docs
+site_name: Raphtory Documentation
 site_url: !ENV READTHEDOCS_CANONICAL_URL
 
 theme:
@@ -129,4 +129,4 @@ nav:
           - user-guide/persistent-graph/1_intro.md
           - user-guide/persistent-graph/2_ambiguity.md
           - user-guide/persistent-graph/3_views.md
-  - Api: reference/
+  - API: reference/

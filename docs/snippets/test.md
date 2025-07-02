@@ -1,3 +1,0 @@
-## Snippet test
-
-<hr>

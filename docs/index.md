@@ -4,7 +4,7 @@ hide:
   - navigation
 ---
 
---8<-- "docs/snippets/test2.html"
+--8<-- "docs/snippets/homeHeader.html"
 
 <div class="grid cards" markdown>
 
