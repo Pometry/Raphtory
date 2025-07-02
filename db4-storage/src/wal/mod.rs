@@ -6,6 +6,7 @@ pub mod no_wal;
 
 pub type LSN = u64;
 
+#[derive(Debug)]
 pub struct WalRecord {
     pub lsn: LSN,
     pub data: Vec<u8>,
