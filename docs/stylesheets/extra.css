@@ -162,7 +162,7 @@ span .md-typeset .emojione,
 
 .home-header {
     gap: 1.5rem;
-    h1 {
+    .home-header-title {
         /* typography */
         text-align: center;
         font-size: var(--h1-font-size);
@@ -179,7 +179,7 @@ span .md-typeset .emojione,
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
-    p {
+    .home-header-text {
         text-align: center;
         font-size: var(--text-large-font-size);
         line-height: var(--text-large-line-height);
