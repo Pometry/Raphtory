@@ -57,7 +57,9 @@ impl Default for TemporalGraph<Extension> {
 }
 
 fn random_temp_dir() -> PathBuf {
-    temp_dir().join(format!("raphtory-{}", uuid::Uuid::new_v4()))
+    temp_dir()
+        .join("raphtory_graphs")
+        .join(format!("raphtory-{}", uuid::Uuid::new_v4()))
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {

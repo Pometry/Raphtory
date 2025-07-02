@@ -122,7 +122,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         self.writer.as_mut()[layer_id].set_lsn(lsn);
         self.l_counter.update_time(t.t());
-        self.writer.add_props(t, pos, layer_id, props);
+        let is_new_node = self.writer.add_props(t, pos, layer_id, props);
+        if is_new_node && !self.page.check_node(pos, layer_id) {
+            self.l_counter.increment(layer_id);
+        }
     }
 
     pub fn update_c_props(

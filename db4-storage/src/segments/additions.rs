@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use itertools::Itertools;
 use raphtory_core::{
     entities::{ELID, properties::tcell::TCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},

@@ -217,7 +217,7 @@ impl Properties {
             // PropColumn::NDTime(lazy_vec) => todo!(),
             // PropColumn::DTime(lazy_vec) => todo!(),
             // PropColumn::Decimal(lazy_vec) => todo!(),
-            _ => todo!("Unsupported column type"),
+            _ => None, //todo!("Unsupported column type"),
         }
     }
 

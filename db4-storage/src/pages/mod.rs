@@ -430,13 +430,15 @@ mod test {
             make_nodes,
         },
     };
+    use arrow::ipc::Time;
+    use bitvec::vec;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::panic;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{
         entities::{LayerIds, VID},
-        storage::timeindex::TimeIndexOps,
+        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     };
 
     fn check_edges(
@@ -579,6 +581,34 @@ mod test {
     fn some_edges() {
         let edges = vec![(1, 1), (0, 0), (1, 0), (1, 1)];
         check_edges(edges, 89, false);
+    }
+
+    #[test]
+    fn node_temporal_props() {
+        let graph_dir = tempfile::tempdir().unwrap();
+        let g = Layer::new(graph_dir.path(), 32, 32);
+        g.add_node_props::<String>(1, 0, 0, vec![])
+            .expect("Failed to add node props");
+        g.add_node_props::<String>(2, 0, 0, vec![])
+            .expect("Failed to add node props");
+        g.add_node_props::<String>(3, 0, 0, vec![])
+            .expect("Failed to add node props");
+        g.add_node_props::<String>(4, 0, 0, vec![])
+            .expect("Failed to add node props");
+        g.add_node_props::<String>(8, 0, 0, vec![])
+            .expect("Failed to add node props");
+
+        let node = g.nodes().node(0);
+
+        let edge_ts = node.as_ref().edge_additions(0);
+        assert!(edge_ts.iter_t().collect::<Vec<_>>().is_empty());
+        let node_ts = node.as_ref().node_additions(0);
+        assert_eq!(node_ts.iter_t().collect::<Vec<_>>(), vec![1, 2, 3, 4, 8]);
+
+        let edge_ts = edge_ts.range_t(1..8);
+        assert!(edge_ts.iter_t().collect::<Vec<_>>().is_empty());
+        let node_ts = node_ts.range_t(1..8);
+        assert_eq!(node_ts.iter_t().collect::<Vec<_>>(), vec![1, 2, 3, 4]);
     }
 
     #[test]
