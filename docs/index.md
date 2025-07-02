@@ -4,11 +4,7 @@ hide:
   - navigation
 ---
 
-image placeholder
-
-Raphtory is an in-memory graph tool written in Rust with friendly Python APIs on top. It is blazingly fast, scales to hundreds of millions of edges on your laptop, and can be dropped into your existing pipelines straight from pypi.
-
-Raphtory supports time traveling, multilayer modelling, and advanced analytics like community evolution, dynamic scoring, and mining temporal motifs.
+--8<-- "docs/snippets/test2.html"
 
 <div class="grid cards" markdown>
 
@@ -33,7 +29,7 @@ Raphtory supports time traveling, multilayer modelling, and advanced analytics l
 
 -   __Open Source, GPL licensed__
 
-    Raphtory core is licensed under GPL-3.0 with additional features available in a commercial version. 
+    Raphtory core is licensed under GPL-3.0 with additional features available in a commercial version
 
     [GitHub](https://github.com/pometry/raphtory)
 

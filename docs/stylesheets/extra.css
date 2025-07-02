@@ -19,7 +19,16 @@
 }
 
 /* ####### */
-/* Global */
+/* utilities */
+/* ####### */
+
+.grid-center{
+    display: grid;
+    place-items: center;
+}
+
+/* ####### */
+/* Global Palette */
 /* ####### */
 :root>* {
     /* For brand colours see https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=291-436&m=dev&vars=1 */
@@ -27,6 +36,10 @@
     --md-primary-fg-color--light: #F7F7F7; /* brand-color-grey-light */
     --md-primary-fg-color--dark: #17131b; /* brand-color-dark */
     --md-text-font: 'Geist';
+
+    --h1-font-size: 3rem;
+    --h1-line-height: 3.5rem;
+    --h1-letter-spacing: 0rem;
 
     --brand-grey: #E7E7E7;
     --brand-white: #FFFFFF;
@@ -140,5 +153,26 @@ span .md-typeset .emojione,
       border-radius: 8px;
 
     }
+    }
+}
+
+.home-header {
+    h1 {
+        /* colours */
+        background: var(--gradient-red-pink-purple);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        /* typography */
+        text-align: center;
+        font-size: var(--h1-font-size);
+        line-height: var(--h1-line-height);
+        letter-spacing: var(--h1-letter-spacing);
+        /* box */
+        margin: 0;
+
+    }
+    p {
+        text-align: center;
     }
 }
