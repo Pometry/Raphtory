@@ -4,10 +4,10 @@ use crate::{
             properties::internal::{ConstantPropertiesOps, TemporalPropertyViewOps},
             view::IndexSpec,
         },
-        graph::edge::EdgeView,
+        graph::node::NodeView,
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::GraphViewOps,
     search::{
         fields, get_props, new_index, property_index::PropertyIndex, register_default_tokenizers,
     },
@@ -15,15 +15,13 @@ use crate::{
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{
     properties::{meta::Meta, prop::PropType, tprop::TPropOps},
-    LayerIds, EID,
+    LayerIds, EID, VID,
 };
-use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
-    layer_ops::InternalLayerOps,
 };
-use rayon::{iter::ParallelIterator, prelude::ParallelSlice};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     borrow::Borrow,
     path::{Path, PathBuf},
@@ -31,7 +29,7 @@ use std::{
 };
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
-    Index, TantivyError,
+    Index,
 };
 
 #[derive(Clone)]
@@ -128,20 +126,17 @@ impl EntityIndex {
             let indexes = self.const_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
-                v_ids.par_chunks(128).try_for_each(|v_ids| {
-                    for v_id in v_ids {
-                        if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                            let node_id = usize::from(node.node) as u64;
-                            if let Some(prop_value) = node.get_const_prop(prop_id) {
-                                let prop_doc = prop_index
-                                    .create_node_const_property_document(node_id, &prop_value)?;
-                                writer.add_document(prop_doc)?;
-                            }
+                (0..graph.count_nodes())
+                    .into_par_iter()
+                    .try_for_each(|v_id| {
+                        let node = NodeView::new_internal(graph, VID(v_id));
+                        if let Some(prop_value) = node.get_const_prop(prop_id) {
+                            let prop_doc = prop_index
+                                .create_node_const_property_document(v_id as u64, &prop_value)?;
+                            writer.add_document(prop_doc)?;
                         }
-                    }
-                    Ok::<(), GraphError>(())
-                })?;
+                        Ok::<(), GraphError>(())
+                    })?;
 
                 writer.commit()?;
             }
@@ -175,23 +170,22 @@ impl EntityIndex {
             let indexes = self.temporal_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
-                v_ids.par_chunks(128).try_for_each(|v_ids| {
-                    for v_id in v_ids {
-                        if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                            let node_id = usize::from(node.node) as u64;
-                            for (t, prop_value) in node.temporal_iter(prop_id) {
-                                let prop_doc = prop_index.create_node_temporal_property_document(
-                                    t.into(),
-                                    node_id,
-                                    &prop_value,
-                                )?;
-                                writer.add_document(prop_doc)?;
-                            }
+                (0..graph.count_nodes())
+                    .into_par_iter()
+                    .try_for_each(|v_id| {
+                        let node = NodeView::new_internal(graph, VID(v_id));
+                        let node_id = usize::from(node.node) as u64;
+                        for (t, prop_value) in node.temporal_iter(prop_id) {
+                            let prop_doc = prop_index.create_node_temporal_property_document(
+                                t.into(),
+                                node_id,
+                                &prop_value,
+                            )?;
+                            writer.add_document(prop_doc)?;
                         }
-                    }
-                    Ok::<(), GraphError>(())
-                })?;
+
+                        Ok::<(), GraphError>(())
+                    })?;
 
                 writer.commit()?;
             }
@@ -224,23 +218,22 @@ impl EntityIndex {
             let indexes = self.const_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                let e_ids = (0..graph.count_edges()).collect::<Vec<_>>();
-                e_ids.par_chunks(128).try_for_each(|e_ids| {
-                    for e_id in e_ids {
-                        let edge = graph.core_edge(EID(*e_id));
+                (0..graph.count_edges())
+                    .into_par_iter()
+                    .try_for_each(|e_id| {
+                        let edge = graph.core_edge(EID(e_id));
                         for (layer_id, prop_value) in
                             edge.constant_prop_iter(&LayerIds::All, prop_id)
                         {
                             let prop_doc = prop_index.create_edge_const_property_document(
-                                *e_id as u64,
+                                e_id as u64,
                                 layer_id,
                                 prop_value.borrow(),
                             )?;
                             writer.add_document(prop_doc)?;
                         }
-                    }
-                    Ok::<(), GraphError>(())
-                })?;
+                        Ok::<(), GraphError>(())
+                    })?;
                 writer.commit()?;
             }
         }
@@ -274,27 +267,25 @@ impl EntityIndex {
             let indexes = self.temporal_property_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-
-                let e_ids = (0..graph.count_edges()).collect::<Vec<_>>();
-                e_ids.par_chunks(128).try_for_each(|e_ids| {
-                    for e_id in e_ids {
-                        let edge = graph.core_edge(EID(*e_id));
+                (0..graph.count_edges())
+                    .into_par_iter()
+                    .try_for_each(|e_id| {
+                        let edge = graph.core_edge(EID(e_id));
                         for (layer_id, prop_value) in
                             edge.temporal_prop_iter(&LayerIds::All, prop_id)
                         {
                             for (t, prop_value) in prop_value.iter() {
                                 let prop_doc = prop_index.create_edge_temporal_property_document(
                                     t,
-                                    *e_id as u64,
+                                    e_id as u64,
                                     layer_id,
                                     &prop_value,
                                 )?;
                                 writer.add_document(prop_doc)?;
                             }
                         }
-                    }
-                    Ok::<(), GraphError>(())
-                })?;
+                        Ok::<(), GraphError>(())
+                    })?;
                 writer.commit()?;
             }
         }

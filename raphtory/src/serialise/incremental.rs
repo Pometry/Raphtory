@@ -53,7 +53,6 @@ fn try_write(writer: &mut File, bytes: &[u8]) -> Result<(), WriteError> {
 
 impl GraphWriter {
     pub fn new(folder: GraphFolder) -> Result<Self, GraphError> {
-        let file = folder.get_appendable_graph_file()?;
         Ok(Self {
             write_lock: Arc::new(Mutex::new(())),
             proto_delta: Default::default(),

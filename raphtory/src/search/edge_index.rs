@@ -14,9 +14,8 @@ use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
-    layer_ops::InternalLayerOps,
 };
-use rayon::prelude::ParallelIterator;
+use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
@@ -214,18 +213,14 @@ impl EdgeIndex {
         index_spec: &IndexSpec,
     ) -> Result<(), GraphError> {
         let mut writer = self.entity_index.index.writer(100_000_000)?;
-        let locked_edges = graph.core_edges();
-        locked_edges
-            .par_iter(&graph.layer_ids())
-            .try_for_each(|e| {
-                let e_ref = e.out_ref();
-                {
-                    let e_view = EdgeView::new(graph, e_ref);
-                    self.index_edge(e_view, &writer)?;
-                }
+        (0..graph.count_edges())
+            .into_par_iter()
+            .try_for_each(|e_id| {
+                let edge = graph.core_edge(EID(e_id));
+                let e_view = EdgeView::new(graph, edge.out_ref());
+                self.index_edge(e_view, &writer)?;
                 Ok::<(), GraphError>(())
             })?;
-
         writer.commit()?;
         drop(writer);
 

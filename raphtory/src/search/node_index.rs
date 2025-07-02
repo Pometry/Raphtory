@@ -1,6 +1,6 @@
 use crate::{
     core::{
-        entities::{nodes::node_ref::NodeRef, VID},
+        entities::VID,
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
     db::{api::view::IndexSpec, graph::node::NodeView},
@@ -15,7 +15,7 @@ use crate::{
 use ahash::HashSet;
 use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use raphtory_storage::graph::graph::GraphStorage;
-use rayon::{prelude::ParallelIterator, slice::ParallelSlice};
+use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
@@ -229,15 +229,14 @@ impl NodeIndex {
     ) -> Result<(), GraphError> {
         // Index nodes fields
         let mut writer = self.entity_index.index.writer(100_000_000)?;
-        let v_ids = (0..graph.count_nodes()).collect::<Vec<_>>();
-        v_ids.par_chunks(128).try_for_each(|v_ids| {
-            for v_id in v_ids {
-                if let Some(node) = graph.node(NodeRef::new((*v_id).into())) {
-                    self.index_node(node, &writer)?;
-                }
-            }
-            Ok::<(), GraphError>(())
-        })?;
+
+        (0..graph.count_nodes())
+            .into_par_iter()
+            .try_for_each(|v_id| {
+                let node = NodeView::new_internal(graph, VID(v_id));
+                self.index_node(node, &writer)?;
+                Ok::<(), GraphError>(())
+            })?;
 
         writer.commit()?;
         drop(writer);
