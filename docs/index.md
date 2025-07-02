@@ -13,7 +13,7 @@ hide:
     Install `raphtory` from PyPI and get up
     and running in minutes
 
-    [Getting started](user-guide/ingestion/1_creating-a-graph.md)
+    [Get started](user-guide/ingestion/1_creating-a-graph.md)
 
 -   __Visualise your data__
 
