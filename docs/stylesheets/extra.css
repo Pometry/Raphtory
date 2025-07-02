@@ -36,6 +36,7 @@
     --md-primary-fg-color--light: var(--brand-grey-light);
     --md-primary-fg-color--dark: var(--brand-dark);
     --md-accent-fg-color: var(--brand-purple);
+    --md-typeset-a-color: var(--brand-pink);
     --md-text-font: 'Geist';
 
     --h1-font-size: 3rem;
