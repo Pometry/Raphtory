@@ -41,15 +41,19 @@ def gen_class(name: str, cls: griffe.Class) -> Path:
 def gen_module(name: str, module: griffe.Module) -> Path:
     path = module.filepath.relative_to(src).with_suffix("")
     parts = tuple(path.parts)
-    #modules_path = None
+    modules_path = None
     if path.stem == "__init__":
         parts = parts[:-1]
         modules_path = path.with_stem("modules")
         path = path.with_stem("overview")
     nav[parts] = path.with_suffix(".md").as_posix()
-    print('TESTING:',nav)
     #if modules_path is not None:
     #    nav[parts] = modules_path.with_suffix(".md").as_posix()
+    #    modules_path_full = doc_root / modules_path.with_suffix(".md")
+    #
+    #    with mkdocs_gen_files.open(modules_path_full, "w") as fd:
+    #        print('# Dummy file test', file=fd)
+            
     doc_path = doc_root / path.with_suffix(".md")
 
     with mkdocs_gen_files.open(doc_path, "w") as fd:
@@ -57,14 +61,14 @@ def gen_module(name: str, module: griffe.Module) -> Path:
         print(f"    options:", file=fd)
         print(f"      members: false", file=fd)
 
-        print(f'docpath = {doc_path} \n', file=fd)
-        print(f'foo = {parts}', file=fd)
+        #print(f'docpath = {doc_path} \n', file=fd)
+        #print(f'foo = {parts}', file=fd)
 
         public_modules = _public_items(module.modules)
         if public_modules:
             print("## Modules", file=fd)
-            print(f'docpath = {doc_path} \n', file=fd)
-            print(f'corepath = {module.filepath.relative_to(src).with_suffix("")}', file=fd)
+            #print(f'docpath = {doc_path} \n', file=fd)
+            #print(f'corepath = {module.filepath.relative_to(src).with_suffix("")}', file=fd)
             for member_name, sub_module in public_modules:
                 sub_path = gen_module(member_name, sub_module)
                 link_path = sub_path.relative_to(doc_path.parent)
