@@ -32,9 +32,10 @@
 /* ####### */
 :root>* {
     /* For brand colours see https://www.figma.com/design/gGl7nErsk073O5WEor7KE5/%F0%9F%8D%87-PT---Design-File?node-id=291-436&m=dev&vars=1 */
-    --md-primary-fg-color: #E3067A; /* brand-color-pink */
-    --md-primary-fg-color--light: #F7F7F7; /* brand-color-grey-light */
-    --md-primary-fg-color--dark: #17131b; /* brand-color-dark */
+    --md-primary-fg-color: var(--brand-pink);
+    --md-primary-fg-color--light: var(--brand-grey-light);
+    --md-primary-fg-color--dark: var(--brand-dark);
+    --md-accent-fg-color: var(--brand-purple);
     --md-text-font: 'Geist';
 
     --h1-font-size: 3rem;
@@ -47,6 +48,8 @@
 
     --brand-grey: #E7E7E7;
     --brand-white: #FFFFFF;
+    --brand-grey-light: #F7F7F7;
+    --brand-dark: #17131b;
     --brand-red: #F42848;
     --brand-red-light: #FD768C;
     --brand-red-lighter: #FFFEF2;
@@ -56,6 +59,7 @@
     --brand-purple: #A403F4;
     --brand-purple-light: #DCA8FF;
     --brand-purple-lighter: #F2E6FA;
+    --brand-pink: #E3067A;
     --brand-pink-light: #ED72B3;
     --brand-pink-lighter: #FAD7EB;
     --brand-mint: #3ED598;
@@ -99,10 +103,13 @@
 /* Typesetting */
 /* ########### */
 
-/* Overides: src/templates/assets/stylesheets/main/_typeset.scss */
+/* Overides: src/templates/assets/stylesheets/main/_typeset.scss*/
 .md-typeset {
     a {
         color: var(--md-primary-fg-color);
+    }
+    a:hover{
+        color: var(--brand-purple);
     }
 }
 
