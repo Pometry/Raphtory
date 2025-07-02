@@ -74,7 +74,7 @@ def gen_module(name: str, module: griffe.Module) -> Path:
                 link_path = sub_path.relative_to(doc_path.parent)
                 print(f"### [`{member_name}`]({link_path})", file=fd)
                 print(f"{_docstr_desc(sub_module)}\n", file=fd)
-                print(f'sub_path = {sub_path}', file=fd)
+                #print(f'sub_path = {sub_path}', file=fd)
 
         public_classes = _public_items(module.classes)
         if public_classes:
