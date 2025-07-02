@@ -37,7 +37,7 @@ use std::{
 pub struct CachedView<G> {
     pub(crate) graph: G,
     pub(crate) global_nodes_mask: Arc<RoaringTreemap>,
-    pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap, RoaringTreemap)]>,
+    pub(crate) layered_mask: Arc<[(RoaringTreemap, RoaringTreemap, Option<RoaringTreemap>)]>,
 }
 
 impl<G> Static for CachedView<G> {}
@@ -107,26 +107,28 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
             let edges_filter: RoaringTreemap = edges_chunks.into_iter().flatten().collect();
 
             let exploded_filter = if graph.internal_exploded_edge_filtered() {
-                edges
-                    .par_iter(&LayerIds::All)
-                    .flat_map_iter(|e| {
-                        edges_filter
-                            .contains(e.eid().as_u64())
-                            .then_some(e)
-                            .into_iter()
-                            .flat_map(|e| {
-                                let timesemantics = graph.edge_time_semantics();
-                                timesemantics
-                                    .edge_exploded(e, &layer_g, layer_g.layer_ids())
-                                    .map(|(t, _)| t.i() as u64)
-                            })
-                    })
-                    .collect_vec_list()
-                    .into_iter()
-                    .flatten()
-                    .collect()
+                Some(
+                    edges
+                        .par_iter(&LayerIds::All)
+                        .flat_map_iter(|e| {
+                            edges_filter
+                                .contains(e.eid().as_u64())
+                                .then_some(e)
+                                .into_iter()
+                                .flat_map(|e| {
+                                    let timesemantics = graph.edge_time_semantics();
+                                    timesemantics
+                                        .edge_exploded(e, &layer_g, layer_g.layer_ids())
+                                        .map(|(t, _)| t.i() as u64)
+                                })
+                        })
+                        .collect_vec_list()
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                )
             } else {
-                RoaringTreemap::full()
+                None
             };
 
             if layered_masks.len() < l_id + 1 {
@@ -135,7 +137,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                     (
                         RoaringTreemap::new(),
                         RoaringTreemap::new(),
-                        RoaringTreemap::new(),
+                        Some(RoaringTreemap::new()),
                     ),
                 );
             }
@@ -171,7 +173,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
     ) -> bool {
         self.layered_mask
             .get(eid.layer())
-            .is_some_and(|(_, _, exploded_filter)| exploded_filter.contains(t.i() as u64))
+            .is_some_and(|(_, _, exploded_filter)| {
+                exploded_filter
+                    .as_ref()
+                    .is_none_or(|filter| filter.contains(t.i() as u64))
+            })
     }
 
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
@@ -211,9 +217,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        let filter_fn = |(_, edges, _): &(RoaringTreemap, RoaringTreemap, RoaringTreemap)| {
-            edges.contains(edge.eid().as_u64())
-        };
+        let filter_fn =
+            |(_, edges, _): &(RoaringTreemap, RoaringTreemap, Option<RoaringTreemap>)| {
+                edges.contains(edge.eid().as_u64())
+            };
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layered_mask.iter().any(filter_fn),
@@ -238,6 +245,14 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        true
+    }
+
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
         true
     }
 

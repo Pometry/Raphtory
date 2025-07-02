@@ -3,7 +3,8 @@ use crate::db::api::view::internal::{
         filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
         time_semantics_ops::NodeTimeSemanticsOps,
     },
-    EdgeTimeSemanticsOps, FilterOps, GraphView,
+    EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps, InternalEdgeFilterOps,
+    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
 };
 use either::Either;
 use itertools::Itertools;
@@ -14,9 +15,13 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+    layer_ops::InternalLayerOps,
 };
 use std::ops::Range;
 
@@ -190,35 +195,56 @@ impl NodeTimeSemanticsOps for EventSemantics {
 }
 
 impl EdgeTimeSemanticsOps for EventSemantics {
-    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
         &self,
         t: TimeIndexEntry,
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
-        view.internal_filter_exploded_edge(eid, t, view.layer_ids())
-            .then_some((t, eid))
+        view.filter_exploded_edge_inner(eid, t).then_some((t, eid))
     }
 
-    fn include_edge<'graph, G: GraphView + 'graph>(
-        &self,
-        edge: EdgeStorageRef,
-        view: G,
-        layer_id: usize,
-    ) -> bool {
-        !edge.filtered_additions(layer_id, &view).is_empty()
-            || !edge.filtered_deletions(layer_id, &view).is_empty()
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        view.internal_filter_edge_layer(edge, layer_id)
+            && (!edge.filtered_additions(layer_id, &view).is_empty()
+                || !edge.filtered_deletions(layer_id, &view).is_empty())
     }
 
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
         layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        edge.filtered_additions(layer_id, &view).active_t(w.clone())
-            || edge.filtered_deletions(layer_id, &view).active_t(w)
+        view.internal_filter_edge_layer(edge, layer_id)
+            && view.internal_filter_edge(edge, view.layer_ids())
+            && (edge.filtered_additions(layer_id, &view).active_t(w.clone())
+                || edge.filtered_deletions(layer_id, &view).active_t(w))
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        view.layer_ids().contains(&eid.layer())
+            && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
+            && (view.exploded_filter_independent() || {
+                let edge = view.core_edge(eid.edge);
+                (view.exploded_edge_filter_includes_edge_layer_filter()
+                    || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
+                    && (view.exploded_edge_filter_includes_edge_filter()
+                        || view.edge_layer_filter_includes_edge_filter()
+                        || view.internal_filter_edge(edge.as_ref(), view.layer_ids()))
+                    && view.filter_edge_from_nodes(edge.as_ref())
+            })
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&t.t()) && self.include_exploded_edge(elid, t, view)
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(

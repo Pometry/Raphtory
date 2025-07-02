@@ -324,6 +324,16 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 
     #[inline]
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.edge_layer_filter_includes_node_filter()
+    }
+
+    #[inline]
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.exploded_edge_filter_includes_node_filter()
+    }
+
+    #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         !self.window_is_empty() && self.graph.internal_filter_node(node, layer_ids)
     }

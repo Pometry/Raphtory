@@ -189,7 +189,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {
-    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
         &self,
         t: TimeIndexEntry,
         eid: ELID,
@@ -198,16 +198,11 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all!(self, semantics => semantics.handle_edge_update_filter(t, eid, view))
     }
 
-    fn include_edge<'graph, G: GraphView + 'graph>(
-        &self,
-        edge: EdgeStorageRef,
-        view: G,
-        layer_id: usize,
-    ) -> bool {
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
         for_all!(self, semantics => semantics.include_edge(edge, view, layer_id))
     }
 
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
@@ -215,6 +210,20 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         w: Range<i64>,
     ) -> bool {
         for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_id, w))
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        for_all!(self, semantics => semantics.include_exploded_edge(elid, t, view))
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        for_all!(self, semantics => semantics.include_exploded_edge_window(elid, t, view, w))
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(

@@ -3,23 +3,16 @@ use crate::{
     db::api::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
-            FilterOps, GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeFilterOps,
-            InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps,
-            InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-            InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
-            InternalEdgeLayerFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
+            GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritExplodedEdgeFilterOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalEdgeLayerFilterOps, InternalLayerOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
-use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::node_ref::NodeStorageRef,
-    },
-};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]

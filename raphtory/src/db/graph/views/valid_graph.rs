@@ -137,6 +137,38 @@ mod tests {
     }
 
     #[test]
+    fn test_single_deleted_edge_events() {
+        let g = Graph::new();
+        g.delete_edge(0, 0, 0, Some("a")).unwrap();
+        let gv = g.valid();
+        assert_eq!(gv.count_nodes(), 0);
+        assert_eq!(gv.count_edges(), 0);
+        assert_eq!(gv.count_temporal_edges(), 0);
+
+        let expected = Graph::new();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gv, &expected);
+        let gvm = gv.materialize().unwrap();
+        assert_graph_equal(&gv, &gvm);
+    }
+
+    #[test]
+    fn test_single_deleted_edge_persistent() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, Some("a")).unwrap();
+        let gv = g.valid();
+        assert_eq!(gv.count_nodes(), 0);
+        assert_eq!(gv.count_edges(), 0);
+        assert_eq!(gv.count_temporal_edges(), 0);
+
+        let expected = PersistentGraph::new();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gv, &expected);
+        let gvm = gv.materialize().unwrap();
+        assert_graph_equal(&gv, &gvm);
+    }
+
+    #[test]
     fn materialize_valid_window_persistent_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = PersistentGraph(build_graph(&graph_f));
@@ -312,13 +344,16 @@ mod tests {
         let gv = g.valid().window(0, 20);
         assert!(!gv.default_layer().has_edge(5, 4));
         assert_eq!(gv.edge(5, 4).unwrap().latest_time(), Some(2));
+        assert_eq!(gv.earliest_time(), Some(0));
+        assert_eq!(gv.latest_time(), Some(2));
+        assert_eq!(gv.node(6).unwrap().latest_time(), Some(0));
         let expected = PersistentGraph::new();
         expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
         expected.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
         expected.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
-        assert_eq!(gv.latest_time(), Some(2));
+
         assert_graph_equal(&gv, &expected);
 
         let n4 = gv.node(4).unwrap();

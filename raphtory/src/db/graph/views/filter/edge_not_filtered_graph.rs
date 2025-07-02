@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
+                FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
                 InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
                 InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
                 InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, Static,
@@ -66,7 +66,7 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for EdgeNotFiltere
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for EdgeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for EdgeNotFilteredGraph<G, T> {}
 
-impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeLayerFilterOps> InternalEdgeLayerFilterOps
+impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeLayerFilterOps
     for EdgeNotFilteredGraph<G, T>
 {
     fn internal_edge_layer_filtered(&self) -> bool {
@@ -78,13 +78,12 @@ impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeLayerFilterOps> InternalEdg
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
-        self.graph.internal_filter_edge_layer(edge, layer)
-            && !self.filter.internal_filter_edge_layer(edge, layer)
+        self.graph.filter_edge_layer(edge, layer) && !self.filter.filter_edge_layer(edge, layer)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, T: InternalExplodedEdgeFilterOps>
-    InternalExplodedEdgeFilterOps for EdgeNotFilteredGraph<G, T>
+impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalExplodedEdgeFilterOps
+    for EdgeNotFilteredGraph<G, T>
 {
     fn internal_exploded_edge_filtered(&self) -> bool {
         true
@@ -98,14 +97,13 @@ impl<'graph, G: GraphViewOps<'graph>, T: InternalExplodedEdgeFilterOps>
         &self,
         eid: ELID,
         t: TimeIndexEntry,
-        layer_ids: &LayerIds,
+        _layer_ids: &LayerIds,
     ) -> bool {
-        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
-            && !self.filter.internal_filter_exploded_edge(eid, t, layer_ids)
+        self.graph.filter_exploded_edge(eid, t) && !self.filter.filter_exploded_edge(eid, t)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeFilterOps> InternalEdgeFilterOps
+impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeFilterOps
     for EdgeNotFilteredGraph<G, T>
 {
     #[inline]
@@ -119,8 +117,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: InternalEdgeFilterOps> InternalEdgeFilt
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_edge(edge, layer_ids)
-            && !self.filter.internal_filter_edge(edge, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
+        self.graph.filter_edge(edge) && !self.filter.filter_edge(edge)
     }
 }

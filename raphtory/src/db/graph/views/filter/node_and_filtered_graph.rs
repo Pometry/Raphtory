@@ -178,11 +178,6 @@ impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOp
     }
 
     #[inline]
-    fn edge_filter_includes_node_filter(&self) -> bool {
-        false
-    }
-
-    #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.left.internal_filter_node(node, layer_ids)
             && self.right.internal_filter_node(node, layer_ids)

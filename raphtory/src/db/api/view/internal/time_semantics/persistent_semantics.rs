@@ -6,7 +6,8 @@ use crate::{
             event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
             filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        EdgeTimeSemanticsOps, GraphView,
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps, InternalEdgeFilterOps,
+        InternalEdgeLayerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -20,9 +21,12 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, MergedTimeIndex, TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+    layer_ops::InternalLayerOps,
 };
 use std::{iter, ops::Range};
 
@@ -189,7 +193,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             }
         }
 
-        if node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start)) {
+        if node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start)) {
             return Some(w.start);
         }
 
@@ -214,7 +218,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
                 (history
                     .prop_history()
                     .active_t(i64::MIN..w.start.saturating_add(1))
-                    || node_has_valid_edges(history.edge_history(), TimeIndexEntry::start(w.start)))
+                    || node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start)))
                 .then_some(w.start)
             })
     }
@@ -394,29 +398,48 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 }
 
 impl EdgeTimeSemanticsOps for PersistentSemantics {
-    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
         &self,
         t: TimeIndexEntry,
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
-        if view.internal_filter_exploded_edge(eid, t, view.layer_ids()) {
-            Some((t, eid))
-        } else {
-            Some((t, eid.into_deletion()))
+        let layer = eid.layer();
+        if view.layer_ids().contains(&layer) {
+            if (!view.internal_edge_layer_filtered() && !view.internal_edge_filtered()) || {
+                let edge = view.core_edge(eid.edge);
+                view.internal_filter_edge_layer(edge.as_ref(), eid.layer())
+                    && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
+            } {
+                return if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
+                    || (view.internal_nodes_filtered() && {
+                        let edge = view.core_edge(eid.edge);
+                        view.internal_filter_node(
+                            view.core_node(edge.src()).as_ref(),
+                            view.layer_ids(),
+                        ) && view.internal_filter_node(
+                            view.core_node(edge.dst()).as_ref(),
+                            view.layer_ids(),
+                        )
+                    }) {
+                    Some((t, eid))
+                } else {
+                    Some((t, eid.into_deletion()))
+                };
+            }
         }
+        None
     }
 
-    fn include_edge<'graph, G: GraphView + 'graph>(
-        &self,
-        _edge: EdgeStorageRef,
-        _view: G,
-        _layer_id: usize,
-    ) -> bool {
-        true // history filtering only maps additions to deletions and thus doesn't filter edges
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        // history filtering only maps additions to deletions and thus doesn't filter edges
+        view.internal_filter_edge_layer(edge, layer_id)
+            && (view.edge_layer_filter_includes_edge_filter()
+                || view.internal_filter_edge(edge, view.layer_ids()))
+            && view.filter_edge_from_nodes(edge)
     }
 
-    fn include_edge_window<'graph, G: GraphViewOps<'graph>>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
@@ -434,6 +457,42 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         additions.unfiltered().active_t(exclusive_start..w.end)
             || deletions.active_t(exclusive_start..w.end)
             || alive_before(additions, deletions, exclusive_start)
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        view.filter_exploded_edge_inner(elid, t)
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        if t.t() >= w.end {
+            return false;
+        }
+        if t.t() <= w.start && elid.is_deletion() {
+            return false;
+        }
+
+        if view.filter_exploded_edge_inner(elid, t) {
+            if (w.start.saturating_add(1)..w.end).contains(&t.t()) {
+                return true;
+            }
+
+            let edge = view.core_edge(elid.edge);
+            let e = edge.as_ref();
+            let layer = elid.layer();
+            !e.filtered_deletions(layer, &view)
+                .active(t.next()..TimeIndexEntry::start(w.start.saturating_add(1)))
+                && !e
+                    .additions(layer) // unfiltered as filtered additions act as deletions
+                    .active(t.next()..TimeIndexEntry::start(w.start.saturating_add(1)))
+        } else {
+            false
+        }
     }
 
     fn edge_history<'graph, G: GraphViewOps<'graph>>(
@@ -555,10 +614,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        e.additions_iter(view.layer_ids())
-            .flat_map(|(_, additions)| additions.first_t())
+        e.filtered_additions_iter(&view, view.layer_ids())
+            .flat_map(|(_, additions)| additions.unfiltered().first_t())
             .chain(
-                e.deletions_iter(view.layer_ids())
+                e.filtered_deletions_iter(&view, view.layer_ids())
                     .flat_map(|(_, deletions)| deletions.first_t()),
             )
             .min()
@@ -573,10 +632,12 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         if edge_alive_at_start(e, w.start, &view) {
             Some(w.start)
         } else {
-            e.updates_iter(view.layer_ids())
+            e.filtered_updates_iter(&view, view.layer_ids())
                 .flat_map(|(_, additions, deletions)| {
+                    let deletions = additions.clone().invert().merge(deletions);
                     let window = interior_window(w.clone(), &deletions);
                     additions
+                        .unfiltered()
                         .range(window.clone())
                         .first_t()
                         .into_iter()
@@ -632,10 +693,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e: EdgeStorageRef,
         view: G,
     ) -> Option<i64> {
-        e.additions_iter(view.layer_ids())
-            .flat_map(|(_, additions)| additions.last_t())
+        e.filtered_additions_iter(&view, view.layer_ids())
+            .flat_map(|(_, additions)| additions.unfiltered().last_t())
             .chain(
-                e.deletions_iter(view.layer_ids())
+                e.filtered_deletions_iter(&view, view.layer_ids())
                     .flat_map(|(_, deletions)| deletions.last_t()),
             )
             .max()
@@ -649,10 +710,15 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> Option<i64> {
         let interior_window = w.start.saturating_add(1)..w.end;
         let last_update_in_window = e
-            .additions_iter(view.layer_ids())
-            .flat_map(|(_, additions)| additions.range_t(interior_window.clone()).last_t())
+            .filtered_additions_iter(&view, view.layer_ids())
+            .flat_map(|(_, additions)| {
+                additions
+                    .unfiltered()
+                    .range_t(interior_window.clone())
+                    .last_t()
+            })
             .chain(
-                e.deletions_iter(view.layer_ids())
+                e.filtered_deletions_iter(&view, view.layer_ids())
                     .flat_map(|(_, deletions)| deletions.range_t(interior_window.clone()).last_t()),
             )
             .max();

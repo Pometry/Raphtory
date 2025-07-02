@@ -120,26 +120,33 @@ pub trait NodeTimeSemanticsOps {
 }
 
 pub trait EdgeTimeSemanticsOps {
-    fn handle_edge_update_filter<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
         &self,
         t: TimeIndexEntry,
         eid: ELID,
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)>;
 
-    fn include_edge<'graph, G: GraphView + 'graph>(
-        &self,
-        edge: EdgeStorageRef,
-        view: G,
-        layer_id: usize,
-    ) -> bool;
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool;
 
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
         layer_id: usize,
+        w: Range<i64>,
+    ) -> bool;
+
+    /// Check if exploded edge update should be included
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool;
+
+    /// Check if exploded edge update should be included in window
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
         w: Range<i64>,
     ) -> bool;
 

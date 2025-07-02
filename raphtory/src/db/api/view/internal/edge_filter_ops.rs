@@ -18,6 +18,14 @@ pub trait InternalEdgeLayerFilterOps {
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
         false
     }
+
+    fn edge_filter_includes_edge_layer_filter(&self) -> bool {
+        false
+    }
+
+    fn exploded_edge_filter_includes_edge_layer_filter(&self) -> bool {
+        false
+    }
 }
 
 pub trait InternalExplodedEdgeFilterOps {
@@ -37,6 +45,14 @@ pub trait InternalExplodedEdgeFilterOps {
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
         false
     }
+
+    fn edge_filter_includes_exploded_edge_filter(&self) -> bool {
+        false
+    }
+
+    fn edge_layer_filter_includes_exploded_edge_filter(&self) -> bool {
+        false
+    }
 }
 
 pub trait InternalEdgeFilterOps {
@@ -49,6 +65,16 @@ pub trait InternalEdgeFilterOps {
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool;
 
     fn node_filter_includes_edge_filter(&self) -> bool {
+        false
+    }
+
+    /// Set this to true if the exploded filter already implements the edge filter to avoid unnecessary checks
+    fn exploded_edge_filter_includes_edge_filter(&self) -> bool {
+        false
+    }
+
+    /// Set this to true if the edge layer filter already implements the edge filter to avoid unnecessary checks
+    fn edge_layer_filter_includes_edge_filter(&self) -> bool {
         false
     }
 }

@@ -4,6 +4,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
@@ -55,59 +56,13 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
     iter: impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph,
     view: G,
 ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph {
-    match view.filter_state() {
-        FilterState::Neither => FilterVariants::Neither(iter),
-        FilterState::Both => {
-            let nodes = view.core_nodes();
-            let edges = view.core_edges();
-            FilterVariants::Both(iter.filter_map(move |(t, e)| {
-                if !view.layer_ids().contains(&e.layer()) {
-                    return None;
-                }
-                let edge_time_semantics = view.edge_time_semantics();
-                edge_time_semantics
-                    .handle_edge_update_filter(t, e, &view)
-                    .filter(|(_, e)| {
-                        let edge = edges.edge(e.edge);
-                        view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                            && view.internal_filter_node(
-                                nodes.node_entry(edge.dst()),
-                                view.layer_ids(),
-                            )
-                            && view.internal_filter_edge_layer(edge, e.layer())
-                            && view.internal_filter_edge(edge, view.layer_ids())
-                    })
-            }))
-        }
-        FilterState::Nodes => {
-            let nodes = view.core_nodes();
-            let edges = view.core_edges();
-            FilterVariants::Nodes(iter.filter(move |(_, e)| {
-                if !view.layer_ids().contains(&e.layer()) {
-                    return false;
-                }
-                let edge = edges.edge(e.edge);
-                view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                    && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
-            }))
-        }
-        FilterState::Edges | FilterState::BothIndependent => {
-            FilterVariants::Edges(iter.filter_map(move |(t, e)| {
-                if !view.layer_ids().contains(&e.layer()) {
-                    return None;
-                }
-                let edge_time_semantics = view.edge_time_semantics();
-                let mut update = edge_time_semantics.handle_edge_update_filter(t, e, &view);
-                if view.internal_edge_layer_filtered() || view.internal_edge_filtered() {
-                    update = update.filter(|(_, e)| {
-                        let edge = view.core_edge(e.edge);
-                        view.internal_filter_edge_layer(edge.as_ref(), e.layer())
-                            && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
-                    });
-                }
-                update
-            }))
-        }
+    if view.filtered() {
+        let time_semantics = view.edge_time_semantics();
+        Either::Left(
+            iter.filter_map(move |(t, e)| time_semantics.handle_edge_update_filter(t, e, &view)),
+        )
+    } else {
+        Either::Right(iter)
     }
 }
 
