@@ -509,11 +509,15 @@ mod test {
         g.add_edge(-1, 0, 1, [("test", Prop::I32(-1))], None)
             .unwrap();
         g.add_edge(0, 0, 1, [("test", Prop::I32(1))], None).unwrap();
+
         let gwf = g
             .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0))
             .unwrap()
             .window(-1, 0);
+        assert_eq!(gwf.count_nodes(), 0);
+        assert_eq!(gwf.count_edges(), 0);
         let gm = gwf.materialize().unwrap();
+
         assert_persistent_materialize_graph_equal(&gwf, &gm);
 
         let gfw = g

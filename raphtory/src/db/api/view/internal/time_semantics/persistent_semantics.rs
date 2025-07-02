@@ -412,7 +412,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
             } {
                 return if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
-                    || (view.internal_nodes_filtered() && {
+                    && (!view.internal_nodes_filtered() || {
                         let edge = view.core_edge(eid.edge);
                         view.internal_filter_node(
                             view.core_node(edge.src()).as_ref(),
