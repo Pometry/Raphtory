@@ -1156,8 +1156,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> Option<Prop> {
         let layer_filter = |layer| {
             view.internal_filter_edge_layer(e, layer)
-                || !e.additions(layer).is_empty()
-                || !e.filtered_deletions(layer, &view).is_empty()
+                && !e.additions(layer).is_empty()
+                && !e.filtered_deletions(layer, &view).is_empty()
         };
 
         let layer_ids = view.layer_ids();
@@ -1206,9 +1206,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         let layer_filter = |layer| {
             let additions = e.filtered_additions(layer, &view);
             let deletions = e.filtered_deletions(layer, &view);
-            additions.active_t(exclusive_start..w.end)
-                || deletions.active_t(exclusive_start..w.end)
-                || alive_before(additions, deletions, exclusive_start)
+            view.internal_filter_edge_layer(e, layer)
+                && (additions.active_t(exclusive_start..w.end)
+                    || deletions.active_t(exclusive_start..w.end)
+                    || alive_before(additions, deletions, exclusive_start))
         };
 
         let layer_ids = view.layer_ids();
