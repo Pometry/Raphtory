@@ -62,9 +62,9 @@
     --brand-mint-light: #96FAD1;
     --brand-mint-lighter: #D1FAE3;
 
+    --gradient-pink-purple: linear-gradient(90deg, var(--md-primary-fg-color) 0.01%, var(--brand-purple) 90.53%);
     --gradient-red-pink-purple: linear-gradient(270deg, var(--brand-red) 0%, var(--md-primary-fg-color) 50%, var(--brand-purple) 100%);
     --gradient-pink-purple-mint: linear-gradient(270deg, var(--md-primary-fg-color) 0%, var(--brand-purple) 50%, var(--brand-mint) 100%);
-
 }
 
 :root {
@@ -163,11 +163,6 @@ span .md-typeset .emojione,
 .home-header {
     gap: 1.5rem;
     h1 {
-        /* colours */
-        background: var(--gradient-red-pink-purple);
-        background-clip: text;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
         /* typography */
         text-align: center;
         font-size: var(--h1-font-size);
@@ -176,6 +171,13 @@ span .md-typeset .emojione,
         /* box */
         margin: 0;
 
+    }
+    strong {
+        /* colours */
+        background: var(--gradient-pink-purple);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     p {
         text-align: center;
