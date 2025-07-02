@@ -163,6 +163,9 @@ span .md-typeset .emojione,
             padding: 0;
         }
     }
+    .doc .doc-heading{
+        font-weight: 600;
+    }
 }
 
 /* ####### */
