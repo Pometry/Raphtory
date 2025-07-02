@@ -375,7 +375,10 @@ impl<
         WriteSession::new(node_writers, edge_writer, self)
     }
 
-    fn node_writer(&self, node_segment: usize) -> NodeWriter<RwLockWriteGuard<MemNodeSegment>, NS> {
+    pub fn node_writer(
+        &self,
+        node_segment: usize,
+    ) -> NodeWriter<RwLockWriteGuard<MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 

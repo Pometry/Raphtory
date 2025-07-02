@@ -10,7 +10,10 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
         entities::{
-            properties::prop::{Prop, PropType},
+            properties::{
+                meta::Meta,
+                prop::{Prop, PropType},
+            },
             GidRef, EID, VID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -32,7 +35,7 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    type AtomicAddEdge<'a>: AtomicAdditionOps
+    type AtomicAddEdge<'a>: AtomicEdgeAddition
     where
         Self: 'a;
 
@@ -66,14 +69,24 @@ pub trait InternalAdditionOps {
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
 
-    fn validate_edge_props<PN: AsRef<str>>(
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        gid: Option<GidRef>,
+        node_type: Option<usize>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), Self::Error>;
+
+    fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
-        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error>;
 }
 
-pub trait AtomicAdditionOps: Send + Sync {
+pub trait AtomicEdgeAddition: Send + Sync {
     /// add edge update
     fn internal_add_edge(
         &mut self,
@@ -87,6 +100,16 @@ pub trait AtomicAdditionOps: Send + Sync {
 
     /// Stores id as a const prop within the node
     fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>);
+}
+
+pub trait AtomicNodeAddition: Send + Sync {
+    /// add node update
+    fn internal_add_node(
+        &mut self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), MutationError>;
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -195,13 +218,26 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.atomic_add_edge(src, dst, e_id, layer_id)
     }
 
-    fn validate_edge_props<PN: AsRef<str>>(
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        gid: Option<GidRef>,
+        node_type: Option<usize>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), Self::Error> {
+        self.mutable()?
+            .internal_add_node(t, v, gid, node_type, props)
+    }
+
+    fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
-        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         self.mutable()?
-            .validate_edge_props(is_static, prop)
+            .validate_props(is_static, meta, prop)
             .map_err(MutationError::from)
     }
 
@@ -283,12 +319,25 @@ where
     }
 
     #[inline]
-    fn validate_edge_props<PN: AsRef<str>>(
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        gid: Option<GidRef>,
+        node_type: Option<usize>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), Self::Error> {
+        self.base().internal_add_node(t, v, gid, node_type, props)
+    }
+
+    #[inline]
+    fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
-        prop: impl ExactSizeIterator<Item = (PN, Prop)>,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
-        self.base().validate_edge_props(is_static, prop)
+        self.base().validate_props(is_static, meta, prop)
     }
 
     #[inline]

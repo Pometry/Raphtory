@@ -37,8 +37,8 @@ use storage::{
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: usize = 1000;
-const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 1000;
+const DEFAULT_MAX_PAGE_LEN_NODES: usize = 10;
+const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 10;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
@@ -62,7 +62,10 @@ fn random_temp_dir() -> PathBuf {
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new(path: Option<PathBuf>) -> Self {
-        Self::new_with_meta(path, Meta::new(), Meta::new())
+        let node_meta = Meta::new();
+        let edge_meta = Meta::new();
+        edge_meta.get_or_create_layer_id(Some("static_graph"));
+        Self::new_with_meta(path, node_meta, edge_meta)
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
@@ -103,7 +106,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn num_layers(&self) -> usize {
-        self.storage.nodes().num_layers()
+        self.storage.nodes().num_layers() - 1
     }
 
     #[inline]

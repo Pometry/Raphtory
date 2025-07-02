@@ -31,10 +31,10 @@ impl GIDResolverOps for MappingResolver {
         Ok(())
     }
 
-    fn get_or_init(
+    fn get_or_init<NFN: FnMut() -> VID>(
         &self,
         gid: GidRef,
-        next_id: impl FnMut() -> VID,
+        next_id: NFN,
     ) -> Result<MaybeNew<VID>, GIDResolverError> {
         let result = self.mapping.get_or_init(gid, next_id)?;
         Ok(result)

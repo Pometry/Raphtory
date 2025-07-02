@@ -5,10 +5,7 @@ use raphtory_core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
 };
 
-use crate::{
-    gen_ts::{EdgeEventOps, WithEdgeEvents},
-    utils::Iter4,
-};
+use crate::{gen_ts::EdgeEventOps, utils::Iter4};
 
 #[derive(Clone, Debug)]
 pub enum MemAdditions<'a> {

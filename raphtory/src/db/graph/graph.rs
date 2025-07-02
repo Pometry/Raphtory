@@ -793,7 +793,7 @@ mod db_tests {
     }
 
     #[test]
-    fn simle_add_edge(){
+    fn simle_add_edge() {
         let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
         let g = Graph::new();
@@ -1552,19 +1552,23 @@ mod db_tests {
             .is_err());
 
         assert_eq!(
+            v11.properties().constant().values().collect::<Vec<_>>(),
+            vec![
+                Some(Prop::U64(11)),
+                Some(Prop::I64(11)),
+                Some(Prop::U32(11)),
+                None,
+                None
+            ],
+        );
+        assert_eq!(
             v11.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["a", "b", "c"]
+            vec!["a", "b", "c", "e", "f"]
         );
-        assert!(v22.properties().constant().keys().next().is_none());
-        assert!(v33.properties().constant().keys().next().is_none());
-        assert_eq!(
-            v44.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["e"]
-        );
-        assert_eq!(
-            v55.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["f"]
-        );
+        assert_eq!(v22.properties().constant().keys().count(), 5);
+        assert_eq!(v33.properties().constant().keys().count(), 5);
+        assert_eq!(v44.properties().constant().keys().count(), 5);
+        assert_eq!(v55.properties().constant().keys().count(), 5);
         assert_eq!(
             edge1111.properties().constant().keys().collect::<Vec<_>>(),
             vec!["d", "a"] // all edges get all ids anyhow

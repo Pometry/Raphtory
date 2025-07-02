@@ -24,13 +24,7 @@ impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
 impl GraphStats {
     pub fn new() -> Self {
         let layers = boxcar::Vec::new();
-        for _ in 0..16 {
-            let id = layers.push_with(|_| AtomicUsize::new(0));
-            while layers.get(id).is_none() {
-                // wait for the layer to be created
-                std::thread::yield_now();
-            }
-        }
+        layers.push_with(|_| AtomicUsize::new(0));
         Self {
             layers,
             earliest: MinCounter::new(),

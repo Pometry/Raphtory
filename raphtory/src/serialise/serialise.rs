@@ -226,7 +226,7 @@ impl StableEncode for GraphStorage {
             let edge = edges.edge(eid);
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
-            for layer_id in 0..storage.unfiltered_num_layers() {
+            for layer_id in storage.unfiltered_layer_ids() {
                 for (t, props) in
                     zip_tprop_updates!((0..e_temporal_meta.len())
                         .map(|i| (i, edge.temporal_prop_layer(layer_id, i))))

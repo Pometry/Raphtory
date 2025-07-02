@@ -16,7 +16,11 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    pages::{session::WriteSession, NODE_ID_PROP_KEY},
+    pages::{
+        node_page::writer::{node_info_as_props, NodeWriter},
+        session::WriteSession,
+        NODE_ID_PROP_KEY,
+    },
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
@@ -25,7 +29,7 @@ use storage::{
 };
 
 use crate::mutation::{
-    addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
+    addition_ops::{AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps},
     MutationError,
 };
 
@@ -48,7 +52,7 @@ impl<
         MNS: DerefMut<Target = MemNodeSegment> + Send + Sync,
         MES: DerefMut<Target = MemEdgeSegment> + Send + Sync,
         EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
-    > AtomicAdditionOps for WriteS<'a, MNS, MES, EXT>
+    > AtomicEdgeAddition for WriteS<'a, MNS, MES, EXT>
 {
     fn internal_add_edge(
         &mut self,
@@ -64,7 +68,7 @@ impl<
         let eid = self
             .static_session
             .add_static_edge(src, dst, lsn)
-            .map(|eid| eid.with_layer(0));
+            .map(|eid| eid.with_layer(layer));
 
         self.static_session
             .add_edge_into_layer(t, src, dst, eid, lsn, props);
@@ -244,18 +248,37 @@ impl InternalAdditionOps for TemporalGraph {
         })
     }
 
-    fn validate_edge_props<PN: AsRef<str>>(
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        gid: Option<GidRef>,
+        node_type: Option<usize>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), Self::Error> {
+        let v = v.into();
+        let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
+        let mut node_writer = self.storage().node_writer(segment);
+        let node_info = node_info_as_props(gid, node_type);
+        node_writer.add_props(t, node_pos, 0, props.into_iter(), 0);
+        node_writer.update_c_props(node_pos, 0, node_info, 0);
+
+        Ok(())
+    }
+
+    fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
-        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         if is_static {
-            let prop_ids = PropsMetaWriter::constant(self.edge_meta(), props)
+            let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
         } else {
-            let prop_ids = PropsMetaWriter::temporal(self.edge_meta(), props)
+            let prop_ids = PropsMetaWriter::temporal(meta, props)
                 .and_then(|pmw| pmw.into_props_temporal())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)

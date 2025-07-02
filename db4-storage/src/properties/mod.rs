@@ -1,3 +1,5 @@
+use std::borrow::Borrow;
+
 use bigdecimal::ToPrimitive;
 use polars_arrow::array::{Array, BooleanArray, PrimitiveArray, Utf8ViewArray};
 use raphtory_api::core::entities::properties::{
@@ -12,8 +14,6 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
-
-use crate::segments::edge;
 
 pub mod props_meta_writer;
 
@@ -312,15 +312,19 @@ impl<'a> PropMutEntry<'a> {
         prop_timestamps.edge_ts.set(t, edge_id.unwrap_or_default());
     }
 
-    pub(crate) fn append_const_props(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
-        for (prop_id, prop) in props {
-            if self.properties.c_properties.len() <= prop_id {
+    pub(crate) fn append_const_props<B: Borrow<(usize, Prop)>>(
+        &mut self,
+        props: impl IntoIterator<Item = B>,
+    ) {
+        for prop in props {
+            let (prop_id, prop) = prop.borrow();
+            if self.properties.c_properties.len() <= *prop_id {
                 self.properties
                     .c_properties
                     .resize_with(prop_id + 1, Default::default);
             }
-            let const_props = &mut self.properties.c_properties[prop_id];
-            let _ = const_props.set(self.row, prop);
+            let const_props = &mut self.properties.c_properties[*prop_id];
+            let _ = const_props.set(self.row, prop.clone());
         }
     }
 }

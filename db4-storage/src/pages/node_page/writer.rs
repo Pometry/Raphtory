@@ -1,6 +1,8 @@
 use crate::{
-    LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::GraphStats,
-    segments::node::MemNodeSegment,
+    LocalPOS,
+    api::nodes::NodeSegmentOps,
+    pages::layer_counter::GraphStats,
+    segments::node::{self, MemNodeSegment},
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
 use raphtory_core::{
@@ -162,13 +164,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(
             pos,
             layer_id,
-            [(0, Prop::U64(node_type as u64)), (1, gid.into())],
+            node_info_as_props(Some(gid), Some(node_type)),
             lsn,
         );
     }
 
     pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GidRef<'_>, lsn: u64) {
-        self.update_c_props(pos, layer_id, [(1, gid.into())], lsn);
+        self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), None), lsn);
     }
 
     pub fn update_deletion_time(
@@ -181,6 +183,15 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         todo!()
     }
+}
+
+pub fn node_info_as_props(
+    gid: Option<GidRef>,
+    node_type: Option<usize>,
+) -> impl Iterator<Item = (usize, Prop)> {
+    gid.into_iter()
+        .map(|g| (1, g.into()))
+        .chain(node_type.into_iter().map(|nt| (0, Prop::U64(nt as u64))))
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop

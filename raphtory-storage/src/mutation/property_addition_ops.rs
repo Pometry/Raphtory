@@ -13,6 +13,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::graph::tgraph::TemporalGraph;
+use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
@@ -176,7 +177,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
     }
 }
 
-impl<EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
+impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
 
     fn internal_add_properties(
@@ -203,7 +204,10 @@ impl<EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        todo!()
+        let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
+        let mut writer = self.storage().nodes().writer(segment_id);
+        writer.update_c_props(node_pos, 0, props.iter().cloned(), 0);
+        Ok(())
     }
 
     fn internal_update_constant_node_properties(
@@ -220,7 +224,13 @@ impl<EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        todo!()
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(())
     }
 
     fn internal_update_constant_edge_properties(
@@ -229,7 +239,13 @@ impl<EXT> InternalPropertyAdditionOps for db4_graph::TemporalGraph<EXT> {
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        todo!()
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(())
     }
 }
 

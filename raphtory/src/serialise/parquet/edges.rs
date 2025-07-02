@@ -92,7 +92,7 @@ pub(crate) fn encode_edge_deletions(
                 .into_iter()
                 .map(EID)
                 .flat_map(|eid| {
-                    (0..g.unfiltered_num_layers()).flat_map(move |layer_id| {
+                    g.unfiltered_layer_ids().flat_map(move |layer_id| {
                         let edge = g_edges.edge(eid);
                         let edge_ref = edge.out_ref();
                         GenLockedIter::from(edge, |edge| {
@@ -146,7 +146,8 @@ pub(crate) fn encode_edge_cprop(
                 .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    layers.clone().map(move |l_id| edge_ref.at_layer(l_id))
+                    g.unfiltered_layer_ids()
+                        .map(move |l_id| edge_ref.at_layer(l_id))
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

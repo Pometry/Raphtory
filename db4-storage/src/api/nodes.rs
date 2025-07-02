@@ -144,9 +144,9 @@ pub trait NodeEntryOps<'a>: Send + Sync + 'a {
 }
 
 pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
-    type Additions: TimeIndexOps<'a>;
+    type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
 
-    type EdgeAdditions: TimeIndexOps<'a>;
+    type EdgeAdditions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
 
     type TProps: TPropOps<'a>;
 
@@ -229,30 +229,43 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
             let w = w.clone();
             let mut time_ordered_iter = (0..self.node_meta().temporal_prop_meta().len())
                 .map(move |prop_id| {
+                    let additions = self.node_additions(layer_id);
+                    let additions = w
+                        .clone()
+                        .map(|w| Iter2::I1(additions.range(w).iter()))
+                        .unwrap_or_else(|| Iter2::I2(additions.iter()));
+
                     self.temporal_prop_layer(layer_id, prop_id)
                         .iter_inner(w.clone())
-                        .map(move |(t, prop)| (t, (prop_id, prop)))
+                        .merge_join_by(additions, |(t1, _), t2| t1 <= t2)
+                        .map(move |result| match result {
+                            either::Either::Left((l, prop)) => (l, Some((prop_id, prop))),
+                            either::Either::Right(r) => (r, None),
+                        })
                 })
                 .kmerge_by(|(t1, _), (t2, _)| t1 <= t2);
 
-            if let Some((mut current_time, (prop_id, prop))) = time_ordered_iter.next() {
-                let mut current_row = vec![(prop_id, prop)];
+            let mut done = false;
+            if let Some((mut current_time, maybe_prop)) = time_ordered_iter.next() {
+                let mut current_row = Vec::from_iter(maybe_prop);
                 Iter2::I2(std::iter::from_fn(move || {
-                    while let Some((t, (prop_id, prop))) = time_ordered_iter.next() {
+                    if done {
+                        return None;
+                    }
+                    while let Some((t, maybe_prop)) = time_ordered_iter.next() {
                         if t == current_time {
-                            current_row.push((prop_id, prop));
+                            current_row.extend(maybe_prop);
                         } else {
                             let row = std::mem::take(&mut current_row);
+                            let out = Some((current_time, layer_id, row));
+                            current_row.extend(maybe_prop);
                             current_time = t;
-                            return Some((current_time, layer_id, row));
+                            return out;
                         }
                     }
-                    if !current_row.is_empty() {
-                        let row = std::mem::take(&mut current_row);
-                        Some((current_time, layer_id, row))
-                    } else {
-                        None
-                    }
+                    done = true;
+                    let row = std::mem::take(&mut current_row);
+                    Some((current_time, layer_id, row))
                 }))
             } else {
                 Iter2::I1(std::iter::empty())

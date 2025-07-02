@@ -1,4 +1,4 @@
-use std::ops::DerefMut;
+use std::{borrow::Borrow, ops::DerefMut};
 
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, pages::layer_counter::GraphStats,
@@ -109,13 +109,13 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
-    pub fn update_c_props(
+    pub fn update_c_props<B: Borrow<(usize, Prop)>>(
         &mut self,
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = B>,
     ) {
         self.writer
             .update_const_properties(edge_pos, src, dst, layer_id, props);
