@@ -49,9 +49,7 @@ def gen_class(parts: tuple[str], cls: griffe.Class) -> Path:
 
 def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
     path = module.filepath.relative_to(src).with_suffix("")
-    modules_path = None
     if path.stem == "__init__":
-        modules_path = path.with_stem("modules")
         path = path.with_stem("overview")
     nav[parts] = path.with_suffix(".md").as_posix()
             
