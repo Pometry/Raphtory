@@ -4,10 +4,10 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         state::Index,
         view::internal::{
-            EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            EdgeList, GraphTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-            InternalNodeFilterOps, ListOps, NodeList, Static,
+            InternalNodeFilterOps, ListOps, NodeList, NodeTimeSemanticsOps, Static,
         },
     },
     prelude::GraphViewOps,
@@ -17,7 +17,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
+    core_ops::{CoreGraphOps, InheritCoreGraphOps},
     graph::{
         edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
@@ -65,15 +65,16 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {
         let nodes: Index<_> = nodes
             .into_iter()
-            .flat_map(|v| graph.internalise_node(v.as_node_ref()))
+            .filter_map(|v| (&&graph).node(v).map(|n| n.node))
             .collect();
         let filter = NodeSubgraph {
             graph: &graph,
             nodes: nodes.clone(),
         };
+        let time_semantics = filter.node_time_semantics();
         let nodes: Index<_> = nodes
             .into_iter()
-            .filter(|vid| filter.has_node(*vid))
+            .filter(|vid| time_semantics.node_valid(filter.core_node(*vid).as_ref(), &filter)) // need to bypass higher-level optimisation as it assumes the node list is already filtered
             .collect();
         Self { graph, nodes }
     }
@@ -203,7 +204,10 @@ mod subgraph_tests {
         algorithms::{
             components::weakly_connected_components, motifs::triangle_count::triangle_count,
         },
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        db::graph::{
+            assertions::TestGraphVariants::PersistentDiskGraph, graph::assert_graph_equal,
+            views::deletion_graph::PersistentGraph,
+        },
         prelude::*,
         test_storage,
         test_utils::{build_graph, build_graph_strat},
@@ -731,5 +735,15 @@ mod subgraph_tests {
             let subgraph = graph.subgraph(nodes);
             assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
         })
+    }
+
+    #[test]
+    fn test_subgraph_only_deletion() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 1, None).unwrap();
+        let sg = g.subgraph([0]);
+        let expected = PersistentGraph::new();
+        expected.resolve_layer(None).unwrap();
+        assert_graph_equal(&sg, &expected);
     }
 }

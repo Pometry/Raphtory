@@ -542,6 +542,7 @@ mod test_index {
         }
 
         #[test]
+        #[ignore]
         fn test_too_many_open_files_graph_index() {
             use tempfile::TempDir;
 

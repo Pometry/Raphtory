@@ -1,4 +1,6 @@
-use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
+use crate::db::api::view::internal::{
+    EdgeTimeSemanticsOps, GraphView, InternalNodeFilterOps, NodeTimeSemanticsOps,
+};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelIterator,
@@ -7,9 +9,12 @@ use raphtory_api::core::{
     entities::ELID,
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-    nodes::node_ref::NodeStorageRef,
+use raphtory_storage::{
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::node_ref::NodeStorageRef,
+    },
+    layer_ops::InternalLayerOps,
 };
 
 pub enum FilterState {

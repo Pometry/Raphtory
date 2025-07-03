@@ -6,7 +6,7 @@ use crate::{
             event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
             filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        EdgeTimeSemanticsOps, GraphView, InnerFilterOps,
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -401,30 +401,36 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         view: G,
     ) -> Option<(TimeIndexEntry, ELID)> {
         let layer = eid.layer();
-        if view.layer_ids().contains(&layer) {
-            if (!view.internal_edge_layer_filtered() && !view.internal_edge_filtered()) || {
-                let edge = view.core_edge(eid.edge);
-                view.internal_filter_edge_layer(edge.as_ref(), eid.layer())
-                    && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
-            } {
-                return if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
-                    && (!view.internal_nodes_filtered() || {
-                        let edge = view.core_edge(eid.edge);
-                        view.internal_filter_node(
-                            view.core_node(edge.src()).as_ref(),
-                            view.layer_ids(),
-                        ) && view.internal_filter_node(
+        // any update for an edge that is globally filtered (i.e., filtered via edge filter, edge layer filter, or node filter) should still be removed
+        // updates filtered via exploded edge filter need to be changed to deletions
+        if view.layer_ids().contains(&layer)
+            && ((!view.internal_nodes_filtered()
+                && !view.internal_edge_filtered()
+                && !view.internal_edge_layer_filtered())
+                || {
+                    let edge = view.core_edge(eid.edge);
+                    view.internal_filter_edge_layer(edge.as_ref(), layer)
+                        && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
+                        && view.filter_edge_from_nodes(edge.as_ref())
+                })
+        {
+            if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
+                && (!view.internal_nodes_filtered() || {
+                    let edge = view.core_edge(eid.edge);
+                    view.internal_filter_node(view.core_node(edge.src()).as_ref(), view.layer_ids())
+                        && view.internal_filter_node(
                             view.core_node(edge.dst()).as_ref(),
                             view.layer_ids(),
                         )
-                    }) {
-                    Some((t, eid))
-                } else {
-                    Some((t, eid.into_deletion()))
-                };
+                })
+            {
+                Some((t, eid))
+            } else {
+                Some((t, eid.into_deletion()))
             }
+        } else {
+            None
         }
-        None
     }
 
     fn include_edge<G: GraphView>(
