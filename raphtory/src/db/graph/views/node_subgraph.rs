@@ -204,10 +204,7 @@ mod subgraph_tests {
         algorithms::{
             components::weakly_connected_components, motifs::triangle_count::triangle_count,
         },
-        db::graph::{
-            assertions::TestGraphVariants::PersistentDiskGraph, graph::assert_graph_equal,
-            views::deletion_graph::PersistentGraph,
-        },
+        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
         prelude::*,
         test_storage,
         test_utils::{build_graph, build_graph_strat},
