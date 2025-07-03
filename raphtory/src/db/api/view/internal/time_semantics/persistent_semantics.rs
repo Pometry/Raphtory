@@ -1156,8 +1156,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> Option<Prop> {
         let layer_filter = |layer| {
             view.internal_filter_edge_layer(e, layer)
-                && !e.additions(layer).is_empty()
-                && !e.filtered_deletions(layer, &view).is_empty()
+                && (!e.additions(layer).is_empty()
+                    || !e.filtered_deletions(layer, &view).is_empty())
         };
 
         let layer_ids = view.layer_ids();
