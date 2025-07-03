@@ -37,8 +37,8 @@ use storage::{
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: usize = 1000;
-const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 1000;
+const DEFAULT_MAX_PAGE_LEN_NODES: usize = 10;
+const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 10;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
@@ -50,17 +50,34 @@ pub struct TemporalGraph<EXT = Extension> {
     graph_dir: PathBuf,
 }
 
+impl Default for TemporalGraph<Extension> {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
 fn random_temp_dir() -> PathBuf {
-    temp_dir().join(format!("raphtory-{}", uuid::Uuid::new_v4()))
+    temp_dir()
+        .join("raphtory_graphs")
+        .join(format!("raphtory-{}", uuid::Uuid::new_v4()))
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new(path: Option<PathBuf>) -> Self {
-        Self::new_with_meta(path, Meta::new(), Meta::new())
+        let node_meta = Meta::new();
+        let edge_meta = Meta::new();
+        edge_meta.get_or_create_layer_id(Some("static_graph"));
+        Self::new_with_meta(path, node_meta, edge_meta)
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
         let graph_dir = path.unwrap_or_else(random_temp_dir);
+        std::fs::create_dir_all(&graph_dir).unwrap_or_else(|_| {
+            panic!(
+                "Failed to create graph directory at {}",
+                graph_dir.display()
+            )
+        });
         let gid_resolver_dir = graph_dir.join("gid_resolver");
         let storage = Layer::new_with_meta(
             graph_dir.clone(),
@@ -91,7 +108,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn num_layers(&self) -> usize {
-        self.storage.nodes().num_layers()
+        self.storage.nodes().num_layers() - 1
     }
 
     #[inline]
@@ -104,6 +121,10 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }
+    }
+
+    pub fn next_event_id(&self) -> usize {
+        self.storage().next_event_id()
     }
 
     #[inline]
@@ -146,7 +167,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         match key {
             entities::Layer::None => Ok(LayerIds::None),
             entities::Layer::All => Ok(LayerIds::All),
-            entities::Layer::Default => Ok(LayerIds::One(0)),
+            entities::Layer::Default => Ok(LayerIds::One(1)),
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
                 None => Err(InvalidLayer::new(

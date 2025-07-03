@@ -6,6 +6,7 @@ use crate::{
     db::{
         api::{
             mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
+            state::ops::node,
             view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -18,7 +19,7 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew::{Existing, New},
 };
 use raphtory_storage::mutation::addition_ops::{
-    AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps,
+    AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps,
 };
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -44,28 +45,47 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// let v = g.add_node(0, "Alice", NO_PROPS, None);
     /// let v = g.add_node(0, 5, NO_PROPS, None);
     /// ```
-    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<
+        V: AsNodeRef,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
         v: V,
-        props: PI,
+        props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
-    fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+    fn create_node<
+        V: AsNodeRef,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PI: ExactSizeIterator<Item = (PN, P)>,
+        PII: IntoIterator<Item = (PN, P), IntoIter = PI>,
+    >(
         &self,
         t: T,
         v: V,
-        props: PI,
+        props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self, Self>, GraphError>;
 
-    fn add_node_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
+    fn add_node_with_custom_time_format<
+        V: AsNodeRef,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PI: ExactSizeIterator<Item = (PN, P)>,
+        PII: IntoIterator<Item = (PN, P), IntoIter = PI>,
+    >(
         &self,
         t: &str,
         fmt: &str,
         v: V,
-        props: PI,
+        props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
@@ -129,80 +149,124 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
 }
 
 impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> AdditionOps for G {
-    fn add_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+    fn add_node<
+        V: AsNodeRef,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(
         &self,
         t: T,
         v: V,
-        props: PI,
+        props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
+        self.validate_gids(
+            [v.as_node_ref()]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+        )
+        .map_err(into_graph_err)?;
+
+        let props = self
+            .validate_props(
+                false,
+                self.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
         let ti = time_from_input_session(&session, t)?;
-        let properties = props.collect_properties(|name, dtype| {
-            Ok(session
-                .resolve_node_property(name, dtype, false)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        let v_id = match node_type {
+        let (node_id, node_type) = match node_type {
             None => self
                 .resolve_node(v.as_node_ref())
                 .map_err(into_graph_err)?
+                .map(|node_id| (node_id, None))
                 .inner(),
             Some(node_type) => {
-                let (v_id, _) = self
+                let node_id = self
                     .resolve_node_and_type(v.as_node_ref(), node_type)
-                    .map_err(into_graph_err)?
-                    .inner();
-                v_id.inner()
+                    .map_err(into_graph_err)?;
+                node_id
+                    .map(|(node_id, node_type)| (node_id.inner(), Some(node_type.inner())))
+                    .inner()
             }
         };
-        session
-            .internal_add_node(ti, v_id, &properties)
-            .map_err(into_graph_err)?;
-        Ok(NodeView::new_internal(self.clone(), v_id))
+
+        self.internal_add_node(
+            ti,
+            node_id,
+            v.as_node_ref().as_gid_ref().left(),
+            node_type,
+            props,
+        )
+        .map_err(into_graph_err)?;
+
+        Ok(NodeView::new_internal(self.clone(), node_id))
     }
 
-    fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
+    fn create_node<
+        V: AsNodeRef,
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PI: ExactSizeIterator<Item = (PN, P)>,
+        PII: IntoIterator<Item = (PN, P), IntoIter = PI>,
+    >(
         &self,
         t: T,
         v: V,
-        props: PI,
+        props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
+        self.validate_gids(
+            [v.as_node_ref()]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+        )
+        .map_err(into_graph_err)?;
+
+        let props = self
+            .validate_props(
+                false,
+                self.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
         let ti = time_from_input_session(&session, t)?;
-        let v_id = match node_type {
-            None => self.resolve_node(v.as_node_ref()).map_err(into_graph_err)?,
+        let node_id = match node_type {
+            None => self
+                .resolve_node(v.as_node_ref())
+                .map_err(into_graph_err)?
+                .map(|node_id| (node_id, None)),
             Some(node_type) => {
-                let (v_id, _) = self
+                let node_id = self
                     .resolve_node_and_type(v.as_node_ref(), node_type)
-                    .map_err(into_graph_err)?
-                    .inner();
-                v_id
+                    .map_err(into_graph_err)?;
+                node_id.map(|(node_id, node_type)| (node_id.inner(), Some(node_type.inner())))
             }
         };
 
-        match v_id {
-            New(id) => {
-                let properties = props.collect_properties(|name, dtype| {
-                    Ok(session
-                        .resolve_node_property(name, dtype, false)
-                        .map_err(into_graph_err)?
-                        .inner())
-                })?;
+        let is_new = node_id.is_new();
+        let (node_id, node_type) = node_id.inner();
 
-                session
-                    .internal_add_node(ti, id, &properties)
-                    .map_err(into_graph_err)?;
-
-                Ok(NodeView::new_internal(self.clone(), id))
-            }
-            Existing(id) => {
-                let node_id = self.node(id).unwrap().id();
-                Err(GraphError::NodeExistsError(node_id))
-            }
+        if !is_new {
+            let node_id = self.node(node_id).unwrap().id();
+            return Err(GraphError::NodeExistsError(node_id));
         }
+
+        self.internal_add_node(
+            ti,
+            node_id,
+            v.as_node_ref().as_gid_ref().left(),
+            node_type,
+            props,
+        )
+        .map_err(into_graph_err)?;
+
+        Ok(NodeView::new_internal(self.clone(), node_id))
     }
 
     fn add_edge<
@@ -228,7 +292,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         )
         .map_err(into_graph_err)?;
         let props = self
-            .validate_edge_props(false, props.into_iter().map(|(k, v)| (k, v.into())))
+            .validate_props(
+                false,
+                self.edge_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
             .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
@@ -242,7 +310,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .inner();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        let mut add_edge_op = self.atomic_add_edge(src_id, dst_id, None, layer_id);
+        let mut add_edge_op = self
+            .atomic_add_edge(src_id, dst_id, None, layer_id)
+            .map_err(into_graph_err)?;
         let edge_id = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
 
         add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);

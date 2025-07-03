@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     ops::{Deref, DerefMut},
     sync::{
         Arc,
@@ -232,13 +233,13 @@ impl MemEdgeSegment {
         row.either(|a| a, |a| a)
     }
 
-    pub fn update_const_properties(
+    pub fn update_const_properties<B: Borrow<(usize, Prop)>>(
         &mut self,
         edge_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = B>,
     ) {
         let edge_pos = edge_pos.into();
         let src = src.into();

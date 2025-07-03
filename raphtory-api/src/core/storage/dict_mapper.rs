@@ -242,9 +242,9 @@ impl DictMapper {
 
     pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
-        guard.get(id).cloned().expect(&format!(
-            "internal ids should always be mapped to a name {id}"
-        ))
+        guard.get(id).cloned().unwrap_or_else(|| {
+            panic!("internal ids should always be mapped to a name {id}\n{self:?}")
+        })
     }
 
     pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {

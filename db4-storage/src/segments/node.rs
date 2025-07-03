@@ -257,14 +257,15 @@ impl MemNodeSegment {
         node_pos: LocalPOS,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) {
+    ) -> bool {
         let layer = self.get_or_create_layer(layer_id);
-        let row = layer
-            .reserve_local_row(node_pos)
-            .either(|a| a.row, |a| a.row);
+        let row = layer.reserve_local_row(node_pos);
+        let is_new = row.is_right();
+        let row = row.either(|a| a.row, |a| a.row);
         let mut prop_mut_entry = self.layers[layer_id].properties_mut().get_mut_entry(row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_mut_entry.append_t_props(ts, props);
+        is_new
     }
 
     pub fn update_c_props(

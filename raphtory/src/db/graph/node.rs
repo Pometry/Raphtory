@@ -37,7 +37,9 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::{
-    core_ops::CoreGraphOps, graph::graph::GraphStorage, mutation::addition_ops::SessionAdditionOps,
+    core_ops::CoreGraphOps,
+    graph::graph::GraphStorage,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
 };
 use std::{
     fmt,
@@ -402,18 +404,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G, G> {
-    pub fn add_constant_properties<C: CollectProperties>(
+    pub fn add_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: C,
+        props: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .write_session()
-                .and_then(|s| s.resolve_node_property(name, dtype, true))
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
+        let properties = self.graph.core_graph().validate_props(
+            true,
+            self.graph.node_meta(),
+            props.into_iter().map(|(n, p)| (n, p.into())),
+        )?;
         self.graph
             .internal_add_constant_node_properties(self.node, &properties)
             .map_err(into_graph_err)

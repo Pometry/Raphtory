@@ -137,7 +137,7 @@ pub trait CoreGraphOps: Send + Sync {
         let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter()),
+            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter().skip(1)), // first layer is static graph
             LayerIds::One(id) => {
                 let name = self.edge_meta().layer_meta().get_name(id).clone();
                 Box::new(iter::once(name))
@@ -229,9 +229,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// The property value if it exists.
     fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
-        // TODO: figure out how to expose the layer_id to the calling API
-        // core_node_entry.prop(0, id)
-        None
+        core_node_entry.constant_prop_layer(0, id)
     }
 
     /// Gets the keys of constant properties of a given node

@@ -4,7 +4,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::TimeIndexEntry};
 use std::{borrow::Cow, ops::Range};
-use storage::{api::nodes::NodeRefOps, NodeEntryRef};
+use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -32,9 +32,12 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
 
-    fn node_additions(self, layer_id: usize) -> storage::NodePropAdditions<'a>;
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
 
-    fn node_edge_additions(self, layer_id: usize) -> storage::NodeEdgeAdditions<'a>;
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a>;
 
     fn additions(self) -> storage::NodePropAdditions<'a>;
 
@@ -119,11 +122,17 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
         }
     }
 
-    fn node_additions(self, layer_ids: usize) -> storage::NodePropAdditions<'a> {
+    fn node_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> storage::NodePropAdditions<'a> {
         NodeRefOps::node_additions(self, layer_ids)
     }
 
-    fn node_edge_additions(self, layer_id: usize) -> storage::NodeEdgeAdditions<'a> {
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a> {
         NodeRefOps::edge_additions(self, layer_id)
     }
 

@@ -339,9 +339,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
     ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
-    pub fn add_constant_properties<C: CollectProperties>(
+    pub fn add_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        properties: C,
+        properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false)?;
@@ -356,14 +356,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
                 dst: self.dst().name(),
             });
         }
-        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .write_session()
-                .and_then(|s| s.resolve_edge_property(name, dtype, true))
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
+        let properties = self.graph.core_graph().validate_props(
+            true,
+            self.graph.edge_meta(),
+            properties.into_iter().map(|(n, p)| (n, p.into())),
+        )?;
 
         self.graph
             .internal_add_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
@@ -371,20 +368,18 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         Ok(())
     }
 
-    pub fn update_constant_properties<C: CollectProperties>(
+    pub fn update_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
         &self,
-        props: C,
+        props: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_layer(layer, false).map_err(into_graph_err)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .write_session()
-                .and_then(|s| s.resolve_edge_property(name, dtype, true))
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
+
+        let properties = self.graph.core_graph().validate_props(
+            true,
+            self.graph.edge_meta(),
+            props.into_iter().map(|(n, p)| (n, p.into())),
+        )?;
 
         self.graph
             .internal_update_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)

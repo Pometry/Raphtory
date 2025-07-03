@@ -16,7 +16,11 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    pages::{session::WriteSession, NODE_ID_PROP_KEY},
+    pages::{
+        node_page::writer::{node_info_as_props, NodeWriter},
+        session::WriteSession,
+        NODE_ID_PROP_KEY,
+    },
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
@@ -25,7 +29,7 @@ use storage::{
 };
 
 use crate::mutation::{
-    addition_ops::{AtomicAdditionOps, InternalAdditionOps, SessionAdditionOps},
+    addition_ops::{AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps},
     MutationError,
 };
 
@@ -36,11 +40,11 @@ pub struct WriteS<
     EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
 > {
     static_session: WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>,
-    layer: Option<WriteSession<'a, MNS, MES, NS<EXT>, ES<EXT>, EXT>>,
 }
 
-pub struct UnlockedSession<'a, EXT> {
-    graph: &'a TemporalGraph<EXT>,
+#[derive(Clone, Copy, Debug)]
+pub struct UnlockedSession<'a> {
+    graph: &'a TemporalGraph<Extension>,
 }
 
 impl<
@@ -48,7 +52,7 @@ impl<
         MNS: DerefMut<Target = MemNodeSegment> + Send + Sync,
         MES: DerefMut<Target = MemEdgeSegment> + Send + Sync,
         EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
-    > AtomicAdditionOps for WriteS<'a, MNS, MES, EXT>
+    > AtomicEdgeAddition for WriteS<'a, MNS, MES, EXT>
 {
     fn internal_add_edge(
         &mut self,
@@ -64,7 +68,7 @@ impl<
         let eid = self
             .static_session
             .add_static_edge(src, dst, lsn)
-            .map(|eid| eid.with_layer(0));
+            .map(|eid| eid.with_layer(layer));
 
         self.static_session
             .add_edge_into_layer(t, src, dst, eid, lsn, props);
@@ -85,11 +89,11 @@ impl<
     }
 }
 
-impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
+impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     type Error = MutationError;
 
     fn next_event_id(&self) -> Result<usize, Self::Error> {
-        todo!()
+        Ok(self.graph.next_event_id())
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
@@ -161,7 +165,7 @@ impl<'a, EXT: Send + Sync> SessionAdditionOps for UnlockedSession<'a, EXT> {
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
 
-    type WS<'a> = UnlockedSession<'a, Extension>;
+    type WS<'a> = UnlockedSession<'a>;
 
     type AtomicAddEdge<'a> = WriteS<
         'a,
@@ -217,7 +221,24 @@ impl InternalAdditionOps for TemporalGraph {
         id: NodeRef,
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        todo!()
+        let vid = self.resolve_node(id)?;
+        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
+        Ok(vid.map(|_| (vid, node_type_id)))
+
+        // let mut entry = self.storage.get_node_mut(vid.inner());
+        // let mut entry_ref = entry.to_mut();
+        // let node_store = entry_ref.node_store_mut();
+        // if node_store.node_type == 0 {
+        //     node_store.update_node_type(node_type_id.inner());
+        //     Ok(MaybeNew::New((vid, node_type_id)))
+        // } else {
+        //     let node_type_id = self
+        //         .node_meta
+        //         .get_node_type_id(node_type)
+        //         .filter(|&node_type| node_type == node_store.node_type)
+        //         .ok_or(MutationError::NodeTypeError)?;
+        //     Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
+        // }
     }
 
     fn validate_gids<'a>(
@@ -229,7 +250,7 @@ impl InternalAdditionOps for TemporalGraph {
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
-        todo!()
+        Ok(UnlockedSession { graph: self })
     }
 
     fn atomic_add_edge(
@@ -237,28 +258,44 @@ impl InternalAdditionOps for TemporalGraph {
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-        layer_id: usize,
-    ) -> Self::AtomicAddEdge<'_> {
-        let static_session = self.storage().write_session(src, dst, e_id);
-
-        WriteS {
-            static_session,
-            layer: None,
-        }
+        _layer_id: usize,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        Ok(WriteS {
+            static_session: self.storage().write_session(src, dst, e_id),
+        })
     }
 
-    fn validate_edge_props<PN: AsRef<str>>(
+    fn internal_add_node(
+        &self,
+        t: TimeIndexEntry,
+        v: impl Into<VID>,
+        gid: Option<GidRef>,
+        node_type: Option<usize>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> Result<(), Self::Error> {
+        let v = v.into();
+        let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
+        let mut node_writer = self.storage().node_writer(segment);
+        let node_info = node_info_as_props(gid, node_type);
+        node_writer.add_props(t, node_pos, 0, props.into_iter(), 0);
+        node_writer.update_c_props(node_pos, 0, node_info, 0);
+
+        Ok(())
+    }
+
+    fn validate_props<PN: AsRef<str>>(
         &self,
         is_static: bool,
-        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         if is_static {
-            let prop_ids = PropsMetaWriter::constant(self.edge_meta(), props)
+            let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
         } else {
-            let prop_ids = PropsMetaWriter::temporal(self.edge_meta(), props)
+            let prop_ids = PropsMetaWriter::temporal(meta, props)
                 .and_then(|pmw| pmw.into_props_temporal())
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)

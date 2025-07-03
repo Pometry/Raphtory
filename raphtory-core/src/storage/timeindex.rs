@@ -312,8 +312,9 @@ where
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::Range { timeindex, range } => {
                 let start = max(range.start, w.start);
-                let end = min(range.start, w.start);
+                let end = min(range.end, w.end);
                 if end <= start {
+                    println!("TimeIndexWindow::Range called with empty range: {:?} vs {range:?} {start:?}..{end:?}", w);
                     TimeIndexWindow::Empty
                 } else {
                     TimeIndexWindow::Range {
@@ -374,5 +375,35 @@ where
             }
             TimeIndexWindow::All(ts) => ts.len(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+
+    use crate::{
+        entities::properties::tcell::TCell,
+        storage::timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
+    };
+
+    #[test]
+    fn window_of_window_not_empty() {
+        let mut cell: TCell<()> = TCell::default();
+        cell.set(TimeIndexEntry::new(1, 0), ());
+        cell.set(TimeIndexEntry::new(2, 0), ());
+        cell.set(TimeIndexEntry::new(3, 0), ());
+        cell.set(TimeIndexEntry::new(4, 0), ());
+        cell.set(TimeIndexEntry::new(8, 0), ());
+
+        assert_eq!(cell.iter_t().count(), 5);
+
+        let cell_ref = &cell;
+        let window = TimeIndexEntry::new(1, 0)..TimeIndexEntry::new(8, 0);
+        let w = TimeIndexOps::range(&cell_ref, window.clone());
+        assert_eq!(w.clone().iter_t().count(), 4);
+
+        let w = TimeIndexOps::range(&w, window.clone());
+        assert_eq!(w.iter_t().count(), 4);
     }
 }

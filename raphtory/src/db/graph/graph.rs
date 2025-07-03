@@ -607,7 +607,7 @@ mod db_tests {
         core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps,
         mutation::addition_ops::InternalAdditionOps,
     };
-    use rayon::join;
+    use rayon::{join, vec};
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -790,6 +790,18 @@ mod db_tests {
 
         assert_eq!(g.count_nodes(), unique_nodes_count);
         assert_eq!(g.count_edges(), unique_edge_count);
+    }
+
+    #[test]
+    fn simle_add_edge() {
+        let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
+
+        let g = Graph::new();
+        for &(t, src, dst) in edges.iter() {
+            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+        }
+
+        assert!(edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst)))
     }
 
     #[quickcheck]
@@ -1540,19 +1552,23 @@ mod db_tests {
             .is_err());
 
         assert_eq!(
+            v11.properties().constant().values().collect::<Vec<_>>(),
+            vec![
+                Some(Prop::U64(11)),
+                Some(Prop::I64(11)),
+                Some(Prop::U32(11)),
+                None,
+                None
+            ],
+        );
+        assert_eq!(
             v11.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["a", "b", "c"]
+            vec!["a", "b", "c", "e", "f"]
         );
-        assert!(v22.properties().constant().keys().next().is_none());
-        assert!(v33.properties().constant().keys().next().is_none());
-        assert_eq!(
-            v44.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["e"]
-        );
-        assert_eq!(
-            v55.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["f"]
-        );
+        assert_eq!(v22.properties().constant().keys().count(), 5);
+        assert_eq!(v33.properties().constant().keys().count(), 5);
+        assert_eq!(v44.properties().constant().keys().count(), 5);
+        assert_eq!(v55.properties().constant().keys().count(), 5);
         assert_eq!(
             edge1111.properties().constant().keys().collect::<Vec<_>>(),
             vec!["d", "a"] // all edges get all ids anyhow
@@ -2859,7 +2875,7 @@ mod db_tests {
                 })
                 .collect::<Vec<_>>();
 
-            assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
+            assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
         });
     }
 

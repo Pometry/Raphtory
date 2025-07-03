@@ -10,6 +10,7 @@ use raphtory_core::{
     },
     storage::timeindex::TimeIndexEntry,
 };
+use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
 use crate::LocalPOS;
@@ -53,7 +54,7 @@ impl<T: Debug> Debug for SegmentContainer<T> {
     }
 }
 
-pub trait HasRow: Default {
+pub trait HasRow: Default + Send + Sync {
     fn row(&self) -> usize;
     fn row_mut(&mut self) -> &mut usize;
 }
@@ -174,6 +175,20 @@ impl<T: HasRow> SegmentContainer<T> {
         &self,
     ) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, PropEntry)>)> {
         self.items.iter().enumerate().map(move |(l_pos, exists)| {
+            let l_pos = LocalPOS(l_pos);
+            let entry = (*exists).then(|| {
+                let entry = self.data.get(&l_pos).unwrap();
+                (entry, self.properties().get_entry(entry.row()))
+            });
+            (l_pos, entry)
+        })
+    }
+
+    pub fn all_entries_par(
+        &self,
+    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, PropEntry)>)> + '_ {
+        (0..self.items.len()).into_par_iter().map(move |l_pos| {
+            let exists = unsafe { self.items.get_unchecked(l_pos) };
             let l_pos = LocalPOS(l_pos);
             let entry = (*exists).then(|| {
                 let entry = self.data.get(&l_pos).unwrap();

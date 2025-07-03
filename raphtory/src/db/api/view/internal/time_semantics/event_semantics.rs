@@ -711,17 +711,20 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         let layer_ids = view.layer_ids();
         match layer_ids {
             LayerIds::None => return None,
-            LayerIds::All => match view.unfiltered_num_layers() {
-                0 => return None,
-                1 => {
-                    return if layer_filter(0) {
-                        e.constant_prop_layer(0, prop_id)
-                    } else {
-                        None
+            LayerIds::All => {
+                let unfiltered_num_layers = view.unfiltered_num_layers();
+                match unfiltered_num_layers {
+                    0 => return None,
+                    1 => {
+                        return if layer_filter(0) {
+                            e.constant_prop_layer(1, prop_id)
+                        } else {
+                            None
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
-            },
+            }
             LayerIds::One(layer_id) => {
                 return if layer_filter(*layer_id) {
                     e.constant_prop_layer(*layer_id, prop_id)

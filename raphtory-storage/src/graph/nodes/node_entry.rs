@@ -8,6 +8,7 @@ use raphtory_api::core::{
 use raphtory_core::storage::timeindex::TimeIndexEntry;
 use storage::{
     api::nodes::{self, NodeEntryOps},
+    gen_ts::LayerIter,
     utils::Iter2,
     NodeEntry, NodeEntryRef,
 };
@@ -141,11 +142,14 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().tprop(prop_id)
     }
 
-    fn node_additions(self, layer_id: usize) -> storage::NodePropAdditions<'a> {
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {
         self.as_ref().node_additions(layer_id)
     }
 
-    fn node_edge_additions(self, layer_id: usize) -> storage::NodeEdgeAdditions<'a> {
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a> {
         self.as_ref().node_edge_additions(layer_id)
     }
 }

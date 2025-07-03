@@ -2,42 +2,68 @@ use std::ops::Range;
 
 use itertools::Itertools;
 use raphtory_core::{
-    entities::ELID,
+    entities::{ELID, LayerIds},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
-use crate::{NodeEntryRef, segments::additions::MemAdditions};
+use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter2};
+
+#[derive(Clone, Copy, Debug)]
+pub enum LayerIter<'a> {
+    One(usize),
+    LRef(&'a LayerIds),
+}
+
+pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::All);
+
+impl<'a> LayerIter<'a> {
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> + 'a {
+        match self {
+            LayerIter::One(id) => Iter2::I1(std::iter::once(id)),
+            LayerIter::LRef(layers) => Iter2::I2(layers.iter(num_layers)),
+        }
+    }
+}
+
+impl From<usize> for LayerIter<'_> {
+    fn from(id: usize) -> Self {
+        LayerIter::One(id)
+    }
+}
+
+impl<'a> From<&'a LayerIds> for LayerIter<'a> {
+    fn from(layers: &'a LayerIds) -> Self {
+        LayerIter::LRef(layers)
+    }
+}
 
 // TODO: split the Node time operations into edge additions and property additions
 #[derive(Clone, Copy, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    layer_id: usize,
+    layer_id: LayerIter<'a>,
     node: Ref,
-    _mark: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, Ref> GenericTimeOps<'a, Ref> {
-    pub fn new_with_layer(node: Ref, layer_id: usize) -> Self {
+    pub fn new_with_layer(node: Ref, layer_id: impl Into<LayerIter<'a>>) -> Self {
         Self {
             range: None,
-            layer_id,
+            layer_id: layer_id.into(),
             node,
-            _mark: std::marker::PhantomData,
         }
     }
 
-    pub fn new_additions_with_layer(node: Ref, layer_id: usize) -> Self {
+    pub fn new_additions_with_layer(node: Ref, layer_id: impl Into<LayerIter<'a>>) -> Self {
         Self {
             range: None,
-            layer_id,
+            layer_id: layer_id.into(),
             node,
-            _mark: std::marker::PhantomData,
         }
     }
 }
 
-pub trait WithTimeCells<'a>: Copy + Clone + Send + Sync
+pub trait WithTimeCells<'a>: Copy + Clone + Send + Sync + std::fmt::Debug
 where
     Self: 'a,
 {
@@ -154,18 +180,26 @@ where
     <Ref as WithTimeCells<'a>>::TimeCell: EdgeEventOps<'a>,
 {
     pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
-        self.node
-            .additions_tc(self.layer_id, self.range)
-            .map(|t_cell| t_cell.edge_events())
+        self.layer_id
+            .into_iter(self.node.num_layers())
+            .flat_map(|layer_id| {
+                self.node
+                    .additions_tc(layer_id, self.range)
+                    .map(|t_cell| t_cell.edge_events())
+            })
             .kmerge_by(|a, b| a < b)
     }
 
     pub fn edge_events_rev(
         self,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
-        self.node
-            .additions_tc(self.layer_id, self.range)
-            .map(|t_cell| t_cell.edge_events_rev())
+        self.layer_id
+            .into_iter(self.node.num_layers())
+            .flat_map(|layer_id| {
+                self.node
+                    .additions_tc(layer_id, self.range)
+                    .map(|t_cell| t_cell.edge_events_rev())
+            })
             .kmerge_by(|a, b| a > b)
     }
 }
@@ -173,12 +207,13 @@ where
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + 'a {
         let range = self.range;
-        let layer_id = self.layer_id;
-
-        let t_cells = self.node.t_props_tc(layer_id, range);
-        let a_cells = self.node.additions_tc(layer_id, range);
-
-        t_cells.chain(a_cells)
+        self.layer_id
+            .into_iter(self.node.num_layers())
+            .flat_map(move |layer_id| {
+                self.node
+                    .t_props_tc(layer_id, range)
+                    .chain(self.node.additions_tc(layer_id, range))
+            })
     }
 
     fn into_iter(self) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'a {
@@ -205,7 +240,6 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
             range: Some((w.start, w.end)),
             node: self.node,
             layer_id: self.layer_id,
-            _mark: std::marker::PhantomData,
         }
     }
 

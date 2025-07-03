@@ -24,10 +24,10 @@ pub trait GIDResolverOps {
     fn len(&self) -> usize;
     fn dtype(&self) -> Option<GidType>;
     fn set(&self, gid: GidRef, vid: VID) -> Result<(), GIDResolverError>;
-    fn get_or_init(
+    fn get_or_init<NFN: FnMut() -> VID>(
         &self,
         gid: GidRef,
-        next_id: impl FnMut() -> VID,
+        next_id: NFN,
     ) -> Result<MaybeNew<VID>, GIDResolverError>;
     fn validate_gids<'a>(
         &self,

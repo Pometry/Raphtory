@@ -30,14 +30,14 @@ pub enum PropEntry<'a, PN: AsRef<str> + 'a> {
 impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     pub fn temporal(
         meta: &'a Meta,
-        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Self, DBV4Error> {
         Self::new(meta, meta.temporal_prop_meta(), props)
     }
 
     pub fn constant(
         meta: &'a Meta,
-        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Self, DBV4Error> {
         Self::new(meta, meta.const_prop_meta(), props)
     }
@@ -45,11 +45,15 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     pub fn new(
         meta: &'a Meta,
         prop_mapper: &'a PropMapper,
-        props: impl ExactSizeIterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Self, DBV4Error> {
         let locked_meta = prop_mapper.locked();
 
-        let mut in_props = Vec::with_capacity(props.len());
+        let mut in_props = props
+            .size_hint()
+            .1
+            .map(Vec::with_capacity)
+            .unwrap_or_default();
 
         let mut no_type_changes = true;
         for (prop_name, prop) in props {

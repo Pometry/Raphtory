@@ -2,7 +2,7 @@ use crate::{
     LocalPOS, NodeEdgeAdditions, NodePropAdditions, NodeTProps,
     api::nodes::{NodeEntryOps, NodeRefOps},
     gen_t_props::WithTProps,
-    gen_ts::{EdgeAdditionCellsRef, PropAdditionCellsRef, WithTimeCells},
+    gen_ts::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     segments::node::MemNodeSegment,
 };
 use raphtory_api::core::{
@@ -159,11 +159,11 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.as_ref()[layer_id].c_prop_str(self.pos, prop_id)
     }
 
-    fn node_additions(self, layer_id: usize) -> Self::Additions {
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions {
         NodePropAdditions::new_with_layer(PropAdditionCellsRef::new(self), layer_id)
     }
 
-    fn edge_additions(self, layer_id: usize) -> Self::EdgeAdditions {
+    fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions {
         NodeEdgeAdditions::new_additions_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
     }
 
