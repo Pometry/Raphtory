@@ -80,6 +80,11 @@ required-features = ["search"]
 name = "vectors"
 harness = false
 
+[[bench]]
+name = "index_bench"
+harness = false
+required-features = ["search"]
+
 [features]
 search = ["raphtory/search"]
 storage = ["raphtory/storage"]

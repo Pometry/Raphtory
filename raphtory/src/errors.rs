@@ -109,7 +109,7 @@ pub enum WriteError {
 
     #[cfg(feature = "proto")]
     #[error("Failed to write delta to cache: {0}")]
-    WriteError(io::Error),
+    WriteError(#[from] io::Error),
 }
 
 pub type GraphResult<T> = Result<T, GraphError>;
@@ -408,6 +408,9 @@ pub enum GraphError {
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
+
+    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
+    ZippedGraphCannotBeCached,
 }
 
 impl From<ConstPropError> for GraphError {

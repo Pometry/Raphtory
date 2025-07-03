@@ -3,25 +3,22 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::filter::{
-                internal::CreateNodeFilter,
-                model::{
-                    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                    property_filter::{PropertyRef, Temporal},
-                    Filter,
-                },
+            views::filter::model::{
+                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                property_filter::{PropertyRef, Temporal},
+                Filter,
             },
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
+    prelude::{GraphViewOps, NodeViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields,
+        fallback_filter_nodes, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -104,10 +101,11 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
-            Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
-            None => Self::raph_filter_nodes(graph, filter, limit, offset),
+            None => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -125,18 +123,19 @@ impl<'a> NodeFilterExecutor<'a> {
         C: Collector<Fruit = HashSet<u64>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
                 query,
                 prop_id,
-                &pi.reader,
+                &reader,
                 limit,
                 offset,
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            None => Self::raph_filter_nodes(graph, filter, limit, offset),
+            None => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -156,7 +155,7 @@ impl<'a> NodeFilterExecutor<'a> {
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            Self::raph_filter_nodes(graph, filter, limit, offset)
+            fallback_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -188,7 +187,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            Self::raph_filter_nodes(graph, filter, limit, offset)
+            fallback_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -268,7 +267,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 offset,
                 LatestNodePropertyFilterCollector::new,
             ),
-            _ => Self::raph_filter_nodes(graph, filter, limit, offset),
+            _ => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -315,21 +314,15 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
-
+        let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                graph,
-                query,
-                &node_index.entity_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset)?,
             None => match filter.field_name.as_str() {
                 "node_name" => {
-                    Self::raph_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
+                    fallback_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
                 }
                 "node_type" => {
-                    Self::raph_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
+                    fallback_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
                 }
                 _ => vec![],
             },
@@ -374,7 +367,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
-            CompositeNodeFilter::Not(_) => Self::raph_filter_nodes(graph, filter, limit, offset),
+            CompositeNodeFilter::Not(_) => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -425,23 +418,6 @@ impl<'a> NodeFilterExecutor<'a> {
             .filter_map(|id| graph.node(VID(id as usize)))
             .collect_vec();
         Ok(nodes)
-    }
-
-    fn raph_filter_nodes<G: StaticGraphViewOps>(
-        graph: &G,
-        filter: &(impl CreateNodeFilter + Clone),
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let filtered_nodes = graph
-            .filter_nodes(filter.clone())?
-            .nodes()
-            .iter()
-            .map(|n| NodeView::new_internal(graph.clone(), n.node))
-            .skip(offset)
-            .take(limit)
-            .collect();
-        Ok(filtered_nodes)
     }
 
     #[allow(dead_code)]

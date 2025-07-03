@@ -141,8 +141,10 @@ impl MutableGraphIndex {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum GraphIndex {
+    #[default]
+    Empty,
     Immutable(ImmutableGraphIndex),
     Mutable(MutableGraphIndex),
 }
@@ -157,7 +159,6 @@ impl Debug for GraphIndex {
                 .field("path", &i.path)
                 .field("index_spec", &i.index_spec)
                 .finish(),
-
             GraphIndex::Mutable(m) => f
                 .debug_struct("GraphIndex::Mutable")
                 .field("node_index", &m.index.node_index)
@@ -165,6 +166,7 @@ impl Debug for GraphIndex {
                 .field("path", &m.path.as_ref().map(|p| p.path()))
                 .field("index_spec", &m.index_spec)
                 .finish(),
+            GraphIndex::Empty => f.debug_struct("GraphIndex::Empty").finish(),
         }
     }
 }
@@ -330,10 +332,11 @@ impl GraphIndex {
         matches!(self, GraphIndex::Immutable(_))
     }
 
-    pub fn index(&self) -> &Index {
+    pub fn index(&self) -> Option<&Index> {
         match self {
-            GraphIndex::Immutable(i) => &i.index,
-            GraphIndex::Mutable(m) => &m.index,
+            GraphIndex::Immutable(i) => Some(&i.index),
+            GraphIndex::Mutable(m) => Some(&m.index),
+            GraphIndex::Empty => None,
         }
     }
 
@@ -341,6 +344,7 @@ impl GraphIndex {
         match self {
             GraphIndex::Immutable(i) => Some(i.path.get_index_path()),
             GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path().to_path_buf()),
+            GraphIndex::Empty => None,
         }
     }
 
@@ -348,11 +352,16 @@ impl GraphIndex {
         match self {
             GraphIndex::Immutable(i) => i.index_spec.deref().clone(),
             GraphIndex::Mutable(m) => m.index_spec.read().deref().clone(),
+            GraphIndex::Empty => IndexSpec::default(),
         }
     }
 
-    pub fn searcher(&self) -> Searcher {
-        Searcher::new(self.index())
+    pub fn is_indexed(&self) -> bool {
+        !matches!(self, GraphIndex::Empty)
+    }
+
+    pub fn searcher(&self) -> Option<Searcher> {
+        self.index().map(Searcher::new)
     }
 }
 
