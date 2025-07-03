@@ -27,6 +27,7 @@ use raphtory_core::{
 use crate::{
     LocalPOS,
     error::DBV4Error,
+    gen_ts::LayerIter,
     segments::node::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
@@ -302,9 +303,9 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         self.inb_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn edge_additions(self, layer_id: usize) -> Self::EdgeAdditions;
+    fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions;
 
-    fn node_additions(self, layer_id: usize) -> Self::Additions;
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 

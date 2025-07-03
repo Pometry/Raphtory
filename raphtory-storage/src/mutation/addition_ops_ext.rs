@@ -221,7 +221,24 @@ impl InternalAdditionOps for TemporalGraph {
         id: NodeRef,
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        todo!()
+        let vid = self.resolve_node(id)?;
+        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
+        Ok(vid.map(|_| (vid, node_type_id)))
+
+        // let mut entry = self.storage.get_node_mut(vid.inner());
+        // let mut entry_ref = entry.to_mut();
+        // let node_store = entry_ref.node_store_mut();
+        // if node_store.node_type == 0 {
+        //     node_store.update_node_type(node_type_id.inner());
+        //     Ok(MaybeNew::New((vid, node_type_id)))
+        // } else {
+        //     let node_type_id = self
+        //         .node_meta
+        //         .get_node_type_id(node_type)
+        //         .filter(|&node_type| node_type == node_store.node_type)
+        //         .ok_or(MutationError::NodeTypeError)?;
+        //     Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
+        // }
     }
 
     fn validate_gids<'a>(

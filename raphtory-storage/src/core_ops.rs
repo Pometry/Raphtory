@@ -137,7 +137,7 @@ pub trait CoreGraphOps: Send + Sync {
         let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter()),
+            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter().skip(1)), // first layer is static graph
             LayerIds::One(id) => {
                 let name = self.edge_meta().layer_meta().get_name(id).clone();
                 Box::new(iter::once(name))

@@ -12,6 +12,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
 };
 use std::ops::Range;
+use storage::gen_ts::ALL_LAYERS;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
@@ -232,9 +233,9 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
-        // FIXME: new storage supports multiple layers, but this is hardcoded to layer 0 as there is no information in history about which layer the node belongs to.
-        let additions = self.node_additions(0);
-        let edge_history = self.node_edge_additions(0);
+        // FIXME: new storage supports multiple layers, we can be specific about the layers here once NodeStorageOps is updated
+        let additions = self.node_additions(ALL_LAYERS);
+        let edge_history = self.node_edge_additions(ALL_LAYERS);
         NodeHistory {
             edge_history,
             additions,

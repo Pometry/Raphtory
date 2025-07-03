@@ -167,7 +167,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         match key {
             entities::Layer::None => Ok(LayerIds::None),
             entities::Layer::All => Ok(LayerIds::All),
-            entities::Layer::Default => Ok(LayerIds::One(0)),
+            entities::Layer::Default => Ok(LayerIds::One(1)),
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
                 None => Err(InvalidLayer::new(
