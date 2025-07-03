@@ -180,7 +180,6 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self.layer_ids_iter(layer_ids)
             .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
     }
-
 }
 
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {

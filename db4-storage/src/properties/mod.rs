@@ -29,6 +29,7 @@ pub struct Properties {
     latest: Option<TimeIndexEntry>,
     has_node_additions: bool,
     has_node_properties: bool,
+    has_deletions: bool,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -95,6 +96,10 @@ impl Properties {
 
     pub fn has_node_additions(&self) -> bool {
         self.has_node_additions
+    }
+
+    pub fn has_deletions(&self) -> bool {
+        self.has_deletions
     }
 
     pub(crate) fn column_as_array(
@@ -308,6 +313,8 @@ impl<'a> PropMutEntry<'a> {
                 .resize_with(self.row + 1, Default::default);
         }
 
+        self.properties.has_deletions = true;
+
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.edge_ts.set(t, edge_id.unwrap_or_default());
     }
@@ -332,6 +339,10 @@ impl<'a> PropMutEntry<'a> {
 impl<'a> PropEntry<'a> {
     pub fn timestamps(self) -> Option<&'a PropTimestamps> {
         self.properties.additions.get(self.row)
+    }
+
+    pub fn deletions(self) -> Option<&'a PropTimestamps> {
+        self.properties.deletions.get(self.row)
     }
 
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
