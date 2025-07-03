@@ -70,7 +70,7 @@ def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
 
             with mkdocs_gen_files.open(modules_path_full, "w") as mod_fd:
                 print('# Modules', file=mod_fd)
-                write_public_modules(public_modules, nav_loc_mod, doc_path, mod_fd)
+                write_public_modules(public_modules, nav_loc_mod, modules_path_full, mod_fd)
 
             write_public_modules(public_modules, nav_loc_mod, doc_path, fd)
 
