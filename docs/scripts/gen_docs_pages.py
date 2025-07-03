@@ -49,13 +49,13 @@ def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
         public_modules = _public_items(module.modules)
         if public_modules:
             print("## Modules", file=fd)
-            if modules_path is not None:
-                nav_loc_mod = (*parts, 'Modules')
-                nav[nav_loc_mod] = modules_path.with_suffix(".md")
-                modules_path_full = doc_root / modules_path.with_suffix(".md")
 
-                with mkdocs_gen_files.open(modules_path_full, "w") as mod_fd:
-                    print('# Modules', file=mod_fd)
+            nav_loc_mod = (*parts, 'Modules')
+            nav[nav_loc_mod] = Path(*nav_loc_mod).with_suffix(".md")
+            modules_path_full = doc_root / Path(*nav_loc_mod).with_suffix(".md")
+
+            with mkdocs_gen_files.open(modules_path_full, "w") as mod_fd:
+                print('# Modules', file=mod_fd)
 
             for member_name, sub_module in public_modules:
                 sub_path = gen_module((*nav_loc_mod, member_name), sub_module)
