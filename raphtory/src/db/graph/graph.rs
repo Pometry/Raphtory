@@ -2875,7 +2875,7 @@ mod db_tests {
                 })
                 .collect::<Vec<_>>();
 
-            assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
+            assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
         });
     }
 

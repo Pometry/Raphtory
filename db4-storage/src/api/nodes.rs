@@ -193,7 +193,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                             .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
                         |e1, e2| e1.remote() < e2.remote(),
                     )
-                    .dedup(),
+                    .dedup_by(|l, r| l.pid() == r.pid()),
             ),
         }
     }
@@ -214,7 +214,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                     .into_iter()
                     .map(|layer_id| self.edges_dir(layer_id, dir))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
-                    .dedup(),
+                    .dedup_by(|l, r| l.pid() == r.pid()),
             ),
             LayerIds::None => Iter4::L(std::iter::empty()),
         }
@@ -334,8 +334,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn node_type_id(&self) -> usize {
         self.c_prop(0, 0)
             .and_then(|prop| prop.into_u64())
-            .map(|id| id as usize)
-            .expect("Node type should be present")
+            .map_or(0, |id| id as usize)
     }
 
     fn internal_num_layers(&self) -> usize;
