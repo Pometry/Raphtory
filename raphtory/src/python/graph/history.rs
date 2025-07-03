@@ -21,7 +21,7 @@ use std::{
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistory {
-    history: History<Arc<dyn InternalHistoryOps>>,
+    history: History<'static, Arc<dyn InternalHistoryOps>>,
 }
 
 // TODO: Implement __lt__, __gt__, ...?
@@ -71,13 +71,13 @@ impl PyHistory {
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history.clone(),
-            History<Arc<dyn InternalHistoryOps>>,
+            History<'static, Arc<dyn InternalHistoryOps>>,
             |history| history.iter()
         )
     }
 
     pub fn __repr__(&self) -> String {
-        format!("History({})", iterator_repr(self.history.iter()))
+        self.history.repr()
     }
 
     fn __hash__(&self) -> u64 {
@@ -122,7 +122,7 @@ impl PyTemporalProp {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {
+impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
     fn from(history: History<T>) -> Self {
         Self {
             history: History::new(Arc::new(history.0)),
@@ -130,7 +130,7 @@ impl<T: InternalHistoryOps + 'static> From<History<T>> for PyHistory {
     }
 }
 
-impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<T> {
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> {
     type Target = PyHistory;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;

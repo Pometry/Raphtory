@@ -1,5 +1,6 @@
 use crate::{
     algorithms::dynamics::temporal::epidemics::Infected,
+    api::core::storage::timeindex::{TimeError, TimeIndexEntry},
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
@@ -14,7 +15,6 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    errors::GraphError,
     prelude::*,
     py_borrowing_iter,
     python::{
@@ -575,11 +575,18 @@ impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
 impl_lazy_node_state_ord!(
     EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
-    "NodeStateOptionI64",
-    "Optional[int]"
+    "NodeStateOptionRaphtoryTime",
+    "Optional[RaphtoryTime]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
-impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
+impl_node_state_group_by_ops!(EarliestTimeView, Option<TimeIndexEntry>);
+impl_node_state_ord!(
+    NodeStateOptionRaphtoryTime<Option<TimeIndexEntry>>,
+    "NodeStateOptionRaphtoryTime",
+    "Optional[RaphtoryTime]"
+);
+impl_node_state_group_by_ops!(NodeStateOptionRaphtoryTime, Option<TimeIndexEntry>);
+
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
     "NodeStateOptionI64",
@@ -599,7 +606,7 @@ impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
 
-type EarliestDateTime<G> = ops::AsDateTime<ops::EarliestTime<G>>;
+type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 impl_lazy_node_state_ord!(
     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
@@ -611,7 +618,7 @@ impl_one_hop!(
 );
 impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
-type LatestDateTime<G> = ops::AsDateTime<ops::LatestTime<G>>;
+type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 impl_lazy_node_state_ord!(
     LatestDateTimeView<LatestDateTime<DynamicGraph>>,
     "NodeStateOptionDateTime",
@@ -627,14 +634,14 @@ impl_node_state_ord!(
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 impl_lazy_node_state_ord!(
-    HistoryView<ops::HistoryOp<DynamicGraph>>,
+    HistoryView<ops::HistoryOp<'static, DynamicGraph>>,
     "NodeStateListI64",
     "list[int]"
 );
 impl_one_hop!(HistoryView<ops::HistoryOp>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
-type HistoryDateTime<G> = ops::Map<ops::HistoryOp<G>, Option<Vec<DateTime<Utc>>>>;
+type HistoryDateTime<G> = ops::Map<ops::HistoryOp<'static, G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
     "NodeStateOptionListDateTime",

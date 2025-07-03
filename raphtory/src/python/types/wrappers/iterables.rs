@@ -1,9 +1,25 @@
-use crate::{db::api::view::BoxedIter, prelude::Prop, python::types::repr::Repr};
+use crate::{
+    db::{
+        api::view::{
+            history::{History, InternalHistoryOps},
+            BoxedIter,
+        },
+        graph::edge::EdgeView,
+    },
+    prelude::Prop,
+    python::types::repr::Repr,
+};
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
-use std::iter::Sum;
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{TimeError, TimeIndexEntry},
+    },
+};
+use std::{iter::Sum, sync::Arc};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where
@@ -89,6 +105,41 @@ py_iterable_comp!(
     NestedOptionI64Iterable,
     OptionI64IterableCmp,
     NestedOptionI64IterableCmp
+);
+
+py_ordered_iterable!(OptionRaphtoryTimeIterable, Option<TimeIndexEntry>);
+py_iterable_comp!(
+    OptionRaphtoryTimeIterable,
+    Option<TimeIndexEntry>,
+    OptionRaphtoryTimeIterableCmp
+);
+py_ordered_iterable!(
+    OptionOptionRaphtoryTimeIterable,
+    Option<Option<TimeIndexEntry>>
+);
+py_iterable_comp!(
+    OptionOptionRaphtoryTimeIterable,
+    Option<Option<TimeIndexEntry>>,
+    OptionOptionRaphtoryTimeIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionRaphtoryTimeIterable,
+    Option<TimeIndexEntry>,
+    OptionOptionRaphtoryTimeIterable
+);
+py_iterable_comp!(
+    NestedOptionRaphtoryTimeIterable,
+    OptionRaphtoryTimeIterableCmp,
+    NestedOptionRaphtoryTimeIterableCmp
+);
+
+py_iterable!(
+    HistoryIterable,
+    History<'static, Arc<dyn InternalHistoryOps>>
+);
+py_nested_iterable!(
+    NestedHistoryIterable,
+    History<'static, Arc<dyn InternalHistoryOps>>
 );
 
 py_numeric_iterable!(UsizeIterable, usize);

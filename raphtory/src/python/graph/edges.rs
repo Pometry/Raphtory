@@ -1,4 +1,5 @@
 use crate::{
+    api::core::storage::timeindex::TimeError,
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
@@ -12,12 +13,16 @@ use crate::{
         graph::properties::{PropertiesView, PyNestedPropsIterable},
         types::{
             repr::{iterator_repr, Repr},
+            result_option_iterable::ResultOptionUtcDateTimeIterable,
+            result_vec_iterable::ResultVecUtcDateTimeIterable,
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
+                HistoryIterable, I64Iterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedGIDGIDIterable, NestedHistoryIterable,
+                NestedI64VecIterable, NestedOptionI64Iterable, NestedOptionRaphtoryTimeIterable,
                 NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
+                OptionRaphtoryTimeIterable, OptionUtcDateTimeIterable,
+                OptionVecUtcDateTimeIterable, U64Iterable,
             },
         },
         utils::{
@@ -88,7 +93,7 @@ impl PyEdges {
     /// Returns:
     /// Earliest time of the edges.
     #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
+    fn earliest_time(&self) -> OptionRaphtoryTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
@@ -98,7 +103,7 @@ impl PyEdges {
     /// Returns:
     ///  Earliest date time of the edges.
     #[getter]
-    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
+    fn earliest_date_time(&self) -> ResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_date_time()).into()
     }
@@ -108,7 +113,7 @@ impl PyEdges {
     /// Returns:
     ///  Latest time of the edges.
     #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
+    fn latest_time(&self) -> OptionRaphtoryTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
@@ -118,7 +123,7 @@ impl PyEdges {
     /// Returns:
     ///   Latest date time of the edges.
     #[getter]
-    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
+    fn latest_date_time(&self) -> ResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_date_time()).into()
     }
@@ -128,7 +133,7 @@ impl PyEdges {
     /// Returns:
     ///    A list of date times.
     #[getter]
-    fn date_time(&self) -> OptionUtcDateTimeIterable {
+    fn date_time(&self) -> ResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.date_time()).into()
     }
@@ -162,14 +167,14 @@ impl PyEdges {
         (move || edges.id()).into()
     }
 
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    /// Returns a history object for edges containing its timestamps, when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    A list of lists unix timestamps.
+    ///    A history object.
     ///
-    fn history(&self) -> PyGenericIterable {
+    fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history().map(NumpyArray::I64)).into()
+        (move || edges.history().map(|history| history.into_arc())).into()
     }
 
     fn history_counts(&self) -> U64Iterable {
@@ -182,7 +187,7 @@ impl PyEdges {
     /// Returns:
     ///    A list of lists of timestamps.
     ///
-    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
+    fn history_date_time(&self) -> ResultVecUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.history_date_time()).into()
     }
@@ -200,7 +205,7 @@ impl PyEdges {
     ///
     /// Returns:
     ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> OptionVecUtcDateTimeIterable {
+    fn deletions_date_time(&self) -> ResultVecUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.deletions_date_time()).into()
     }
@@ -323,7 +328,7 @@ impl PyEdges {
                 ];
 
                 let start_point = 3;
-                let history = item.history();
+                let history = item.history().t().collect();
 
                 create_row(
                     convert_datetime,
@@ -404,7 +409,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
 impl PyNestedEdges {
     /// Returns the earliest time of the edges.
     #[getter]
-    fn earliest_time(&self) -> NestedOptionI64Iterable {
+    fn earliest_time(&self) -> NestedOptionRaphtoryTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
@@ -418,7 +423,7 @@ impl PyNestedEdges {
 
     /// Returns the latest time of the edges.
     #[getter]
-    fn latest_time(&self) -> NestedOptionI64Iterable {
+    fn latest_time(&self) -> NestedOptionRaphtoryTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
@@ -493,9 +498,14 @@ impl PyNestedEdges {
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history(&self) -> NestedI64VecIterable {
+    fn history(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history()).into()
+        (move || {
+            edges
+                .history()
+                .map(|history_iter| history_iter.map(|history| history.into_arc()))
+        })
+        .into()
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.

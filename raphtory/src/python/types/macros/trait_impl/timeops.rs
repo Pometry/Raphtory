@@ -24,7 +24,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     Optional[datetime]: The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times. Raises an error if the conversion to DateTime failed.")]
             #[getter]
-            pub fn start_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, GraphError> {
+            pub fn start_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, TimeError> {
                 self.$field.start_date_time()
             }
 
@@ -42,7 +42,7 @@ macro_rules! impl_timeops {
             /// Returns:
             #[doc = concat!(r"     Optional[datetime]: The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times. Raises an error if the conversion to DateTime failed.")]
             #[getter]
-            pub fn end_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, GraphError> {
+            pub fn end_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, TimeError> {
                 self.$field.end_date_time()
             }
 

@@ -1,6 +1,6 @@
 use crate::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
 use chrono::{DateTime, Utc};
-use pyo3::{exceptions::PyException, pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
+use pyo3::{exceptions::PyException, prelude::*};
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyRaphtoryTime;
@@ -12,10 +12,24 @@ impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     }
 }
 
+impl<'source> FromPyObject<'source> for TimeIndexEntry {
+    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        let py_time = ob.downcast::<PyRaphtoryTime>()?;
+        Ok(py_time.get().inner())
+    }
+}
+
 #[pyclass(name = "RaphtoryTime", module = "raphtory", frozen, eq, ord)]
 #[derive(Debug, Clone, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyRaphtoryTime {
     time: TimeIndexEntry,
+}
+
+impl PyRaphtoryTime {
+    /// Get the internal TimeIndexEntry
+    pub fn inner(&self) -> TimeIndexEntry {
+        self.time
+    }
 }
 
 #[pymethods]

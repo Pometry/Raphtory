@@ -297,7 +297,7 @@ pub struct PyGenericIterator {
 }
 
 impl PyGenericIterator {
-    fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
+    pub fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
         Self { iter }
     }
 }

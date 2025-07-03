@@ -23,7 +23,13 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{TimeError, TimeIndexEntry},
+    },
+};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -221,7 +227,7 @@ impl PyEdge {
     /// Returns:
     ///     List[datetime]
     ///
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.edge.history_date_time()
     }
 
@@ -237,7 +243,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     List[datetime]
-    pub fn deletions_data_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+    pub fn deletions_data_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.edge.deletions_date_time()
     }
 
@@ -281,9 +287,9 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     int: The earliest time of an edge
+    ///     RaphtoryTime: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.earliest_time()
     }
 
@@ -292,16 +298,16 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the earliest datetime of an edge
     #[getter]
-    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.edge.earliest_date_time()
     }
 
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     int: The latest time of an edge
+    ///     RaphtoryTime: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.latest_time()
     }
 
@@ -310,7 +316,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the latest datetime of an edge
     #[getter]
-    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.edge.latest_date_time()
     }
 
@@ -346,7 +352,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the datetime of an exploded edge
     #[getter]
-    pub fn date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+    pub fn date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.edge.date_time()
     }
 }

@@ -13,6 +13,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateUsize,
         NodeStateU64,
         NodeStateOptionI64,
+        NodeStateOptionRaphtoryTime,
         IdView,
         NodeStateGID,
         EarliestTimeView,

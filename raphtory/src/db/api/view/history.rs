@@ -35,6 +35,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
+    python::types::repr::{iterator_repr, Repr},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -62,6 +63,12 @@ pub trait InternalHistoryOps: Send + Sync {
 // TODO: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
+
+impl<'a, T: InternalHistoryOps> Repr for History<'a, T> {
+    fn repr(&self) -> String {
+        format!("History({})", iterator_repr(self.iter()))
+    }
+}
 
 impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     pub fn new(item: T) -> Self {
@@ -125,6 +132,12 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
 
     pub fn print(&self, prelude: &str) {
         println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> History<'_, T> {
+    pub fn into_arc(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
+        History::new(Arc::new(self.0))
     }
 }
 
