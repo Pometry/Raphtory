@@ -7,12 +7,16 @@ use crate::{
             EdgeList, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
             InheritExplodedEdgeFilterOps, InheritLayerOps, InheritMaterialize,
             InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalEdgeFilterOps, InternalNodeFilterOps, ListOps, NodeList, Static,
+            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+            InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{
+    core::{entities::ELID, storage::timeindex::TimeIndexEntry},
+    inherit::Base,
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{
@@ -76,19 +80,76 @@ impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for NodeSubgraph<G> {
+    fn internal_exploded_edge_filtered(&self) -> bool {
+        self.graph.internal_exploded_edge_filtered()
+    }
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for NodeSubgraph<G> {}
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn internal_filter_exploded_edge(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
+    }
+
+    fn node_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_filter_includes_exploded_edge_filter(&self) -> bool {
+        self.graph.edge_filter_includes_exploded_edge_filter()
+    }
+
+    fn edge_layer_filter_includes_exploded_edge_filter(&self) -> bool {
+        self.graph.edge_layer_filter_includes_exploded_edge_filter()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for NodeSubgraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
+        self.graph.internal_edge_layer_filtered()
+    }
+
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        false
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer)
+    }
+
+    fn node_filter_includes_edge_layer_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_filter_includes_edge_layer_filter(&self) -> bool {
+        self.graph.edge_filter_includes_edge_layer_filter()
+    }
+
+    fn exploded_edge_filter_includes_edge_layer_filter(&self) -> bool {
+        self.graph.exploded_edge_filter_includes_edge_layer_filter()
+    }
+}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        true
+        self.graph.internal_edge_filtered()
     }
 
     #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
         false
+    }
+
+    fn node_filter_includes_edge_filter(&self) -> bool {
+        true
     }
 
     #[inline]
@@ -107,9 +168,17 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> 
         true
     }
 
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_layer_filter_includes_node_filter()
+    }
+
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.exploded_edge_filter_includes_node_filter()
+    }
+
     #[inline]
     fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
+        true
     }
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {

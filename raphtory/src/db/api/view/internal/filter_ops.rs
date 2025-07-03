@@ -178,7 +178,10 @@ impl<G: GraphView> FilterOps for G {
 
     #[inline]
     fn node_list_trusted(&self) -> bool {
-        self.internal_node_list_trusted() && self.node_and_edge_filters_independent()
+        self.internal_node_list_trusted()
+            && self.node_filter_includes_edge_filter()
+            && self.node_filter_includes_edge_layer_filter()
+            && self.node_filter_includes_exploded_edge_filter()
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef) -> bool {
