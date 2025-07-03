@@ -182,15 +182,21 @@ impl<G: GraphView> FilterOps for G {
     }
 
     fn filter_edge(&self, edge: EdgeStorageRef) -> bool {
-        self.internal_filter_edge(edge, self.layer_ids()) && {
+        self.internal_filter_edge(edge, self.layer_ids()) && self.filter_edge_from_nodes(edge) && {
             let time_semantics = self.edge_time_semantics();
-            edge.layer_ids_iter(self.layer_ids())
-                .any(|layer_id| time_semantics.include_edge(edge, self, layer_id))
+            edge.layer_ids_iter(self.layer_ids()).any(|layer_id| {
+                self.internal_filter_edge_layer(edge, layer_id)
+                    && time_semantics.include_edge(edge, self, layer_id)
+            })
         }
     }
 
     fn filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
-        self.edge_time_semantics().include_edge(edge, self, layer)
+        self.internal_filter_edge_layer(edge, layer)
+            && (self.edge_layer_filter_includes_edge_filter()
+                || self.internal_filter_edge(edge, self.layer_ids()))
+            && self.filter_edge_from_nodes(edge)
+            && self.edge_time_semantics().include_edge(edge, self, layer)
     }
 
     fn filter_exploded_edge(&self, eid: ELID, t: TimeIndexEntry) -> bool {

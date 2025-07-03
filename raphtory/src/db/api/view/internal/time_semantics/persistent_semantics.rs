@@ -431,12 +431,14 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         None
     }
 
-    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+    fn include_edge<G: GraphView>(
+        &self,
+        _edge: EdgeStorageRef,
+        _view: G,
+        _layer_id: usize,
+    ) -> bool {
         // history filtering only maps additions to deletions and thus doesn't filter edges
-        view.internal_filter_edge_layer(edge, layer_id)
-            && (view.edge_layer_filter_includes_edge_filter()
-                || view.internal_filter_edge(edge, view.layer_ids()))
-            && view.filter_edge_from_nodes(edge)
+        true
     }
 
     fn include_edge_window<G: GraphView>(

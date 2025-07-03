@@ -179,6 +179,16 @@ mod tests {
     }
 
     #[test]
+    fn test_deletions_in_window_but_edge_valid() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, None).unwrap();
+        g.delete_edge(0, 0, 1, None).unwrap();
+        g.add_edge(5, 0, 1, NO_PROPS, None).unwrap();
+        let gvw = g.valid().window(-1, 1);
+        assert_eq!(gvw.node(0).unwrap().out_degree(), 1);
+    }
+
+    #[test]
     fn materialize_valid_window_events_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = Graph::from(build_graph(&graph_f));

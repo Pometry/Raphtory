@@ -205,9 +205,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     }
 
     fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
-        view.internal_filter_edge_layer(edge, layer_id)
-            && (!edge.filtered_additions(layer_id, &view).is_empty()
-                || !edge.filtered_deletions(layer_id, &view).is_empty())
+        !edge.filtered_additions(layer_id, &view).is_empty()
+            || !edge.filtered_deletions(layer_id, &view).is_empty()
     }
 
     fn include_edge_window<G: GraphView>(
@@ -217,10 +216,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        view.internal_filter_edge_layer(edge, layer_id)
-            && view.internal_filter_edge(edge, view.layer_ids())
-            && (edge.filtered_additions(layer_id, &view).active_t(w.clone())
-                || edge.filtered_deletions(layer_id, &view).active_t(w))
+        edge.filtered_additions(layer_id, &view).active_t(w.clone())
+            || edge.filtered_deletions(layer_id, &view).active_t(w)
     }
 
     fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: TimeIndexEntry, view: G) -> bool {
