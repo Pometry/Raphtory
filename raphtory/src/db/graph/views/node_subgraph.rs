@@ -4,8 +4,7 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         state::Index,
         view::internal::{
-            EdgeList, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
-            InheritExplodedEdgeFilterOps, InheritLayerOps, InheritMaterialize,
+            EdgeList, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritMaterialize,
             InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
             InternalNodeFilterOps, ListOps, NodeList, Static,

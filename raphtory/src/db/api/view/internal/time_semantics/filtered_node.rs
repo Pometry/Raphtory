@@ -12,9 +12,8 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::storage::timeindex::TimeIndexWindow;
-use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
+use raphtory_storage::graph::nodes::{
+    node_additions::NodeAdditions, node_storage_ops::NodeStorageOps,
 };
 use std::ops::Range;
 

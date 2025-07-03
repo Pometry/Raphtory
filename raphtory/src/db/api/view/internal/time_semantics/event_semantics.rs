@@ -3,8 +3,7 @@ use crate::db::api::view::internal::{
         filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
         time_semantics_ops::NodeTimeSemanticsOps,
     },
-    EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps, InternalEdgeFilterOps,
-    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+    EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
 };
 use either::Either;
 use itertools::Itertools;
@@ -15,13 +14,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
-    layer_ops::InternalLayerOps,
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::ops::Range;
 

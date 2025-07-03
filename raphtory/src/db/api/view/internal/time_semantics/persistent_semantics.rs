@@ -6,8 +6,7 @@ use crate::{
             event_semantics::EventSemantics, filtered_edge::FilteredEdgeStorageOps,
             filtered_node::FilteredNodeStorageOps, time_semantics_ops::NodeTimeSemanticsOps,
         },
-        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps, InternalEdgeFilterOps,
-        InternalEdgeLayerFilterOps,
+        EdgeTimeSemanticsOps, GraphView, InnerFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -21,12 +20,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, MergedTimeIndex, TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::{
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
-    layer_ops::InternalLayerOps,
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{iter, ops::Range};
 
