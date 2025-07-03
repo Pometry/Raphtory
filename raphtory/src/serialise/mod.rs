@@ -32,7 +32,7 @@ const META_FILE_NAME: &str = ".raph";
 const INDEX_PATH: &str = "index";
 const VECTORS_PATH: &str = "vectors";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
     pub(crate) write_as_zip_format: bool,

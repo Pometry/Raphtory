@@ -1551,8 +1551,16 @@ mod graphql_test {
         );
 
         let req = r#"
-        mutation CreateSubgraph {
+        mutation CreateGraph2 {
           createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
+        }
+        "#;
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        let req = r#"
+        mutation CreateNamespace1Graph3 {
+          createSubgraph(parentPath: "graph", newPath: "namespace1/graph3", nodes: ["2", "3", "4"], overwrite: false)
         }
         "#;
         let req = Request::new(req);
@@ -1584,6 +1592,26 @@ mod graphql_test {
     }
     parent {
       path
+    }
+    items {
+      list {
+        __typename
+        ... on Namespace {
+          path
+        }
+        ... on MetaGraph {
+          path
+        }
+      }
+      page(limit: 2, offset: 1) {
+        __typename
+        ... on Namespace {
+          path
+        }
+        ... on MetaGraph {
+          path
+        }
+      }
     }
   }
 }
@@ -1628,8 +1656,95 @@ mod graphql_test {
                             }
                         },
                     ]},
-                    "children":{"list":[]},
-                    "parent": null
+                    "children": {
+                        "list": [
+                            {
+                                "path": "namespace1"
+                            }
+                        ]
+                    },
+                    "parent": null,
+                    "items": {
+                        "list": [
+                            {
+                                "__typename": "Namespace",
+                                "path": "namespace1",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph2",
+                            }
+                        ],
+                        "page": [
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph2",
+                            }
+                        ]
+                    }
+                },
+            }),
+        );
+
+        let req = r#"
+        {
+          namespace(path: "namespace1") {
+            graphs {
+              list {
+                path
+              }
+            }
+            parent {
+              path
+            }
+            items {
+              list {
+                __typename
+                ... on Namespace {
+                  path
+                }
+                ... on MetaGraph {
+                  path
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "namespace": {
+                    "graphs": {
+                        "list": [
+                            {
+                                "path": "namespace1/graph3",
+                            },
+                        ]
+                    },
+                    "parent": {
+                        "path": ""
+                    },
+                    "items": {
+                        "list": [
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "namespace1/graph3",
+                            },
+                        ],
+                    }
                 },
             }),
         );

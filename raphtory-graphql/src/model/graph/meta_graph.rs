@@ -4,7 +4,7 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
 use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 
-#[derive(ResolvedObject, Clone)]
+#[derive(ResolvedObject, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub(crate) struct MetaGraph {
     folder: ExistingGraphFolder,
 }
