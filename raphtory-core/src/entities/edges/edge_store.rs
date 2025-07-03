@@ -9,6 +9,7 @@ use crate::{
     },
     utils::iter::GenLockedIter,
 };
+use itertools::Itertools;
 use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::Prop};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -121,6 +122,12 @@ impl<'a> Debug for MemEdge<'a> {
             .field("src", &self.src())
             .field("dst", &self.dst())
             .field("eid", &self.eid())
+            .field(
+                "props",
+                &(0..self.internal_num_layers())
+                    .map(|i| (i, self.props(i)))
+                    .collect_vec(),
+            )
             .finish()
     }
 }
