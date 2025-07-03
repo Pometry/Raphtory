@@ -5324,6 +5324,7 @@ dependencies = [
  "iter-enum",
  "itertools 0.13.0",
  "num-traits",
+ "parking_lot",
  "polars-arrow",
  "pometry-storage",
  "proptest",
