@@ -12,10 +12,8 @@ nav = mkdocs_gen_files.Nav()
 
 import griffe
 
-
 def _public_items(items: dict) -> list:
     return [(name, item) for name, item in items.items() if item.is_public]
-
 
 def _docstr_desc(item) -> str:
     if item.docstring:
@@ -23,7 +21,6 @@ def _docstr_desc(item) -> str:
     else:
         doc_str = ""
     return doc_str
-
 
 def gen_class(parts: tuple[str], cls: griffe.Class) -> Path:
     path = Path(*parts)
@@ -34,10 +31,6 @@ def gen_class(parts: tuple[str], cls: griffe.Class) -> Path:
     mkdocs_gen_files.set_edit_path(doc_path, cls.module.filepath.relative_to(root))
     return doc_path
 
-# TODO
-# - rename path as raphtory_path
-# - create modules_path from raphtory_path by using the stem modules and suffix .md and insert in nav
-# - make modules entry in index a link
 def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
     path = module.filepath.relative_to(src).with_suffix("")
     modules_path = None
@@ -53,21 +46,17 @@ def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
         print(f"    options:", file=fd)
         print(f"      members: false", file=fd)
 
-        #print(f'docpath = {doc_path} \n', file=fd)
-        #print(f'nav_loc = {parts}', file=fd)
-
         public_modules = _public_items(module.modules)
         if public_modules:
             print("## Modules", file=fd)
             if modules_path is not None:
-                nav_loc_mod = (*parts, 'modules')
-                nav[nav_loc_mod] = modules_path.with_suffix(".md").as_posix()
+                nav_loc_mod = (*parts, 'Modules')
+                nav[nav_loc_mod] = modules_path.with_suffix(".md")
                 modules_path_full = doc_root / modules_path.with_suffix(".md")
 
                 with mkdocs_gen_files.open(modules_path_full, "w") as mod_fd:
-                    print('# Dummy file test', file=mod_fd)
-            print(f'docpath = {doc_path} \n', file=fd)
-            print(f'corepath = {module.filepath.relative_to(src).with_suffix("")}', file=fd)
+                    print('# Modules', file=mod_fd)
+
             for member_name, sub_module in public_modules:
                 sub_path = gen_module((*nav_loc_mod, member_name), sub_module)
                 link_path = sub_path.relative_to(doc_path.parent)
@@ -78,14 +67,12 @@ def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
         public_classes = _public_items(module.classes)
         if public_classes:
             print("## Classes", file=fd)
-            nav_loc_cls = (*parts, 'classes')
+            nav_loc_cls = (*parts, 'Classes')
             nav[nav_loc_cls] = Path(*nav_loc_cls).with_suffix(".md")
             modules_path_full = doc_root / Path(*nav_loc_cls).with_suffix(".md")
 
             with mkdocs_gen_files.open(modules_path_full, "w") as mod_fd:
-                print('# Dummy file test', file=mod_fd)
-            print(f'docpath = {doc_path} \n', file=fd)
-            print(f'corepath = {module.filepath.relative_to(src).with_suffix("")}', file=fd)
+                print('# Classes', file=mod_fd)
             
             for member_name, cls in public_classes:
                 sub_path = gen_class((*nav_loc_cls, member_name), cls)
