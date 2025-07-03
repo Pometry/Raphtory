@@ -1,6 +1,6 @@
 use crate::{
     data::get_relative_path,
-    model::graph::{meta_graph::MetaGraph, meta_graphs::MetaGraphs, namespaces::Namespaces},
+    model::graph::{collection::GqlCollection, meta_graph::MetaGraph},
     paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
     rayon::blocking_compute,
 };
@@ -59,10 +59,10 @@ impl Namespace {
 
 #[ResolvedObjectFields]
 impl Namespace {
-    async fn graphs(&self) -> MetaGraphs {
+    async fn graphs(&self) -> GqlCollection<MetaGraph> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            MetaGraphs::new(
+            GqlCollection::new(
                 self_clone
                     .get_all_graph_folders()
                     .into_iter()
@@ -92,10 +92,10 @@ impl Namespace {
         }
     }
 
-    async fn children(&self) -> Namespaces {
+    async fn children(&self) -> GqlCollection<Namespace> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            Namespaces::new(
+            GqlCollection::new(
                 WalkDir::new(&self_clone.current_dir)
                     .max_depth(1)
                     .into_iter()

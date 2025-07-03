@@ -1,5 +1,6 @@
 use dynamic_graphql::OneOfInput;
 
+pub(crate) mod collection;
 mod document;
 pub(crate) mod edge;
 mod edges;
@@ -7,10 +8,8 @@ pub(crate) mod filtering;
 pub(crate) mod graph;
 pub(crate) mod index;
 pub(crate) mod meta_graph;
-mod meta_graphs;
 pub(crate) mod mutable_graph;
 pub(crate) mod namespace;
-pub(crate) mod namespaces;
 pub(crate) mod node;
 mod nodes;
 mod path_from_node;
