@@ -28,13 +28,15 @@ def list_public_modules(public_modules, nav_loc_mod, doc_path, fd):
                     link_path = sub_path.relative_to(doc_path.parent)
                     print(f"### [`{member_name}`]({link_path})", file=fd)
                     print(f"{_docstr_desc(sub_module)}\n", file=fd)
+                    #print(f"sub_path: {sub_path}, link_path: {link_path}", file=fd)
 
-def list_public_classes(public_classes, nav_loc_cls, fd):
+def list_public_classes(public_classes, nav_loc_cls, doc_path, fd):
                 for member_name, cls in public_classes:
                     sub_path = gen_class((*nav_loc_cls, member_name), cls)
                     link_path = sub_path
                     print(f"### [`{member_name}`]({link_path})", file=fd)
                     print(f"{_docstr_desc(cls)}\n", file=fd)
+                    #print(f"sub_path: {sub_path}, link_path: {link_path}", file=fd)
 
 def gen_class(parts: tuple[str], cls: griffe.Class) -> Path:
     path = Path(*parts)
@@ -79,13 +81,13 @@ def gen_module(parts: tuple[str], module: griffe.Module) -> Path:
             print("## Classes", file=fd)
             nav_loc_cls = (*parts, 'Classes')
             nav[nav_loc_cls] = Path(*nav_loc_cls).with_suffix(".md")
-            modules_path_full = doc_root / Path(*nav_loc_cls).with_suffix(".md")
+            classes_path_full = doc_root / Path(*nav_loc_cls).with_suffix(".md")
 
-            with mkdocs_gen_files.open(modules_path_full, "w") as cls_fd:
+            with mkdocs_gen_files.open(classes_path_full, "w") as cls_fd:
                 print('# Classes', file=cls_fd)
-                list_public_classes(public_classes, nav_loc_cls, cls_fd)
+                list_public_classes(public_classes, nav_loc_cls, classes_path_full, cls_fd)
 
-            list_public_classes(public_classes, nav_loc_cls, fd)
+            list_public_classes(public_classes, nav_loc_cls, doc_path, fd)
 
         public_attributes = _public_items(module.attributes)
         if public_attributes:
