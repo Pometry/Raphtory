@@ -221,12 +221,7 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_nodes(
-        &self,
-        graph: &GraphStorage,
-        path: Option<PathBuf>,
-        index_spec: &IndexSpec,
-    ) -> Result<(), GraphError> {
+    pub(crate) fn index_nodes_fields(&self, graph: &GraphStorage) -> Result<(), GraphError> {
         // Index nodes fields
         let mut writer = self.entity_index.index.writer(100_000_000)?;
 
@@ -239,16 +234,19 @@ impl NodeIndex {
             })?;
 
         writer.commit()?;
-        drop(writer);
+        Ok(())
+    }
 
-        // Index const properties
+    pub(crate) fn index_nodes_props(
+        &self,
+        graph: &GraphStorage,
+        path: Option<PathBuf>,
+        index_spec: &IndexSpec,
+    ) -> Result<(), GraphError> {
         self.entity_index
             .index_node_const_props(graph, index_spec, &path)?;
-
-        // Index temporal properties
         self.entity_index
             .index_node_temporal_props(graph, index_spec, &path)?;
-
         Ok(())
     }
 

@@ -60,10 +60,14 @@ impl MutableGraphIndex {
 
         if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
             let path = get_node_index_path(&self.path);
-            self.index.node_index.index_nodes(graph, path, &diff_spec)?;
+            self.index
+                .node_index
+                .index_nodes_props(graph, path, &diff_spec)?;
 
             let path = get_edge_index_path(&self.path);
-            self.index.edge_index.index_edges(graph, path, &diff_spec)?;
+            self.index
+                .edge_index
+                .index_edges_props(graph, path, &diff_spec)?;
 
             // self.index.print()?;
 
@@ -194,11 +198,13 @@ impl GraphIndex {
 
         let path = get_node_index_path(&dir);
         let node_index = NodeIndex::new(&path)?;
-        node_index.index_nodes(graph, path, &index_spec)?;
+        node_index.index_nodes_fields(graph)?;
+        node_index.index_nodes_props(graph, path, &index_spec)?;
 
         let path = get_edge_index_path(&dir);
         let edge_index = EdgeIndex::new(&path)?;
-        edge_index.index_edges(graph, path, &index_spec)?;
+        edge_index.index_edges_fields(graph)?;
+        edge_index.index_edges_props(graph, path, &index_spec)?;
 
         Ok(GraphIndex::Mutable(MutableGraphIndex {
             index: Index {
