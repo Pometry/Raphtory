@@ -3,8 +3,9 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, index::IndexSpecInput, mutable_graph::GqlMutableGraph,
-            namespace::Namespace, namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
+            collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
+            mutable_graph::GqlMutableGraph, namespace::Namespace,
+            vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
@@ -115,10 +116,10 @@ impl QueryRoot {
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        Namespaces::new(root.get_all_namespaces())
+        GqlCollection::new(root.get_all_namespaces().into())
     }
 
     async fn namespace<'a>(
