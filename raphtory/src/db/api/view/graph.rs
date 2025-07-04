@@ -530,47 +530,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_edges(&self) -> usize {
-        match self.filter_state() {
-            FilterState::Neither => {
-                if matches!(self.layer_ids(), LayerIds::All) {
-                    self.unfiltered_num_edges()
-                } else {
-                    self.core_edges().as_ref().count(self.layer_ids())
-                }
-            }
-            FilterState::Both => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Nodes => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edges = self.core_edges();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| self.filter_edge(e.as_ref()))
-                    .count()
-            }
+        if self.filtered() {
+            let edges = self.core_edges();
+            edges
+                .as_ref()
+                .par_iter(self.layer_ids())
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .count()
+        } else {
+            self.unfiltered_num_edges()
         }
     }
 
@@ -578,43 +546,19 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
         let edge_time_semantics = self.edge_time_semantics();
-        match self.filter_state() {
-            FilterState::Neither => core_edges
-                .as_ref()
-                .par_iter(layer_ids)
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
-            FilterState::Both => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Nodes => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Edges | FilterState::BothIndependent => core_edges
+        if self.filtered() {
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref()))
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
+                .sum()
+        } else {
+            core_edges
+                .as_ref()
+                .par_iter(layer_ids)
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .sum()
         }
     }
 
