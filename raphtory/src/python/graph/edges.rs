@@ -13,8 +13,12 @@ use crate::{
         graph::properties::{PropertiesView, PyNestedPropsIterable},
         types::{
             repr::{iterator_repr, Repr},
-            result_option_iterable::ResultOptionUtcDateTimeIterable,
-            result_vec_iterable::ResultVecUtcDateTimeIterable,
+            result_option_iterable::{
+                NestedResultOptionUtcDateTimeIterable, ResultOptionUtcDateTimeIterable,
+            },
+            result_vec_iterable::{
+                NestedResultVecUtcDateTimeIterable, ResultVecUtcDateTimeIterable,
+            },
             wrappers::iterables::{
                 ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
                 HistoryIterable, I64Iterable, NestedArcStringIterable, NestedArcStringVecIterable,
@@ -416,7 +420,7 @@ impl PyNestedEdges {
 
     /// Returns the earliest date time of the edges.
     #[getter]
-    fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
+    fn earliest_date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_date_time()).into()
     }
@@ -430,7 +434,7 @@ impl PyNestedEdges {
 
     /// Returns the latest date time of the edges.
     #[getter]
-    fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
+    fn latest_date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_date_time()).into()
     }
@@ -509,7 +513,7 @@ impl PyNestedEdges {
     }
 
     /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
+    fn history_date_time(&self) -> NestedResultVecUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.history_date_time()).into()
     }
@@ -527,7 +531,7 @@ impl PyNestedEdges {
     ///
     /// Returns:
     ///     A list of lists of lists of DateTime objects
-    fn deletions_date_time(&self) -> NestedVecUtcDateTimeIterable {
+    fn deletions_date_time(&self) -> NestedResultVecUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.deletions_date_time()).into()
     }
@@ -558,7 +562,7 @@ impl PyNestedEdges {
 
     /// Get the date times of exploded edges
     #[getter]
-    fn date_time(&self) -> NestedUtcDateTimeIterable {
+    fn date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
         let edges = self.edges.clone();
         (move || edges.date_time()).into()
     }

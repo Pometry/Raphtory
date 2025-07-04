@@ -300,6 +300,24 @@ impl PyGenericIterator {
     pub fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
         Self { iter }
     }
+    pub fn from_result_iter<I, T, E>(iter: I) -> Self
+    where
+        I: Iterator<Item = Result<T, E>> + 'static,
+        T: for<'py> IntoPyObject<'py> + 'static,
+        PyErr: From<E>,
+    {
+        let py_iter = Box::new(iter.map(|result| {
+            Python::with_gil(|py| match result {
+                Ok(item) => Ok(item
+                    .into_pyobject(py)
+                    .map_err(|e| e.into())?
+                    .into_any()
+                    .unbind()),
+                Err(time_error) => Err(PyErr::from(time_error)),
+            })
+        }));
+        Self { iter: py_iter }
+    }
 }
 
 impl<I, T> From<I> for PyGenericIterator
@@ -344,6 +362,19 @@ impl PyGenericIterator {
 #[pyclass(name = "NestedIterator")]
 pub struct PyNestedGenericIterator {
     iter: BoxedIter<PyGenericIterator>,
+}
+
+impl PyNestedGenericIterator {
+    pub fn from_nested_result_iter<I, J, T, E>(iter: I) -> Self
+    where
+        I: Iterator<Item = J> + Send + Sync + 'static,
+        J: Iterator<Item = Result<T, E>> + Send + Sync + 'static,
+        T: for<'py> IntoPyObject<'py> + 'static,
+        PyErr: From<E>,
+    {
+        let py_iter = Box::new(iter.map(|item| PyGenericIterator::from_result_iter(item)));
+        Self { iter: py_iter }
+    }
 }
 
 impl<I, J, T> From<I> for PyNestedGenericIterator
