@@ -26,6 +26,7 @@ pub mod persist;
 pub mod properties;
 pub mod resolver;
 pub mod segments;
+pub mod wal;
 pub mod utils;
 
 pub type Extension = ();

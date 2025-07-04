@@ -149,6 +149,7 @@ pub enum GID {
     U64(u64),
     Str(String),
 }
+
 impl PartialEq<str> for GID {
     fn eq(&self, other: &str) -> bool {
         match self {
