@@ -199,12 +199,10 @@ impl GraphIndex {
         let path = get_node_index_path(&dir);
         let node_index = NodeIndex::new(&path)?;
         node_index.index_nodes_fields(graph)?;
-        node_index.index_nodes_props(graph, path, &index_spec)?;
 
         let path = get_edge_index_path(&dir);
         let edge_index = EdgeIndex::new(&path)?;
         edge_index.index_edges_fields(graph)?;
-        edge_index.index_edges_props(graph, path, &index_spec)?;
 
         Ok(GraphIndex::Mutable(MutableGraphIndex {
             index: Index {
