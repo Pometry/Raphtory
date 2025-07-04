@@ -163,58 +163,38 @@ pub trait SearchableGraphOps: Sized {
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
-            .node_list()
-        {
-            NodeList::All { .. } => Arc::new(move || {
-                let edges = graph.core_graph().owned_edges();
-                let layer_ids = graph.layer_ids().clone();
-                let graph = graph.clone();
-                GenLockedIter::from(
-                    (edges, layer_ids, graph),
-                    move |(edges, layer_ids, graph)| {
-                        let iter = edges.iter(layer_ids);
-                        match graph.filter_state() {
-                            FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
-                            FilterState::Both => {
-                                let nodes = graph.core_graph().core_nodes();
-                                iter.filter_map(move |e| {
-                                    (graph.filter_edge(e)
-                                        && graph.filter_node(nodes.node_entry(e.src()))
-                                        && graph.filter_node(nodes.node_entry(e.dst())))
-                                    .then_some(e.out_ref())
-                                })
-                                .into_dyn_boxed()
+        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
+            match graph.node_list() {
+                NodeList::All { .. } => Arc::new(move || {
+                    let edges = graph.core_graph().owned_edges();
+                    let layer_ids = graph.layer_ids().clone();
+                    let graph = graph.clone();
+                    GenLockedIter::from(
+                        (edges, layer_ids, graph),
+                        move |(edges, layer_ids, graph)| {
+                            let iter = edges.iter(layer_ids);
+                            if graph.filtered() {
+                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
+                                    .into_dyn_boxed()
+                            } else {
+                                iter.map(|e| e.out_ref()).into_dyn_boxed()
                             }
-                            FilterState::Nodes => {
-                                let nodes = graph.core_graph().core_nodes();
-                                iter.filter_map(move |e| {
-                                    (graph.filter_node(nodes.node_entry(e.src()))
-                                        && graph.filter_node(nodes.node_entry(e.dst())))
-                                    .then_some(e.out_ref())
-                                })
-                                .into_dyn_boxed()
-                            }
-                            FilterState::Edges | FilterState::BothIndependent => iter
-                                .filter_map(move |e| graph.filter_edge(e).then_some(e.out_ref()))
-                                .into_dyn_boxed(),
-                        }
-                    },
-                )
-                .into_dyn_boxed()
-            }),
-            NodeList::List { elems } => Arc::new(move || {
-                let cg = graph.core_graph().lock();
-                let graph = graph.clone();
-                elems
-                    .clone()
-                    .into_iter()
-                    .flat_map(move |node| {
-                        node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
-                    })
+                        },
+                    )
                     .into_dyn_boxed()
-            }),
-        };
+                }),
+                NodeList::List { elems } => Arc::new(move || {
+                    let cg = graph.core_graph().lock();
+                    let graph = graph.clone();
+                    elems
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |node| {
+                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
+                        })
+                        .into_dyn_boxed()
+                }),
+            };
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
