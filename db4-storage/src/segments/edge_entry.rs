@@ -80,7 +80,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let t_cell = MemAdditions::Props(self.es.as_ref()[layer_id].additions(self.pos).props_ts());
+        let t_cell = MemAdditions::Props(self.es.as_ref()[layer_id].times_from_props(self.pos));
         std::iter::once(
             range
                 .map(|(start, end)| t_cell.range(start..end))

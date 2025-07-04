@@ -691,6 +691,20 @@ mod test {
     }
 
     #[test]
+    fn add_multiple_edges_with_props_14() {
+        let node_fixture = NodeFixture {
+            temp_props: vec![
+                (VID(0), 0, vec![]),
+                (VID(1), 1, vec![]),
+                (VID(0), 2, vec![]),
+            ],
+            const_props: vec![(VID(0), vec![])],
+        };
+
+        check_graph_with_nodes(13, 13, &node_fixture);
+    }
+
+    #[test]
     fn add_multiple_node_with_props_4() {
         let node_fixture = NodeFixture {
             temp_props: vec![(VID(0), 0, vec![])],

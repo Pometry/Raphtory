@@ -11,7 +11,8 @@ use crate::{
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps}, deletion_ops::InternalDeletionOps,
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    deletion_ops::InternalDeletionOps,
 };
 
 pub trait DeletionOps:
@@ -58,7 +59,6 @@ pub trait DeletionOps:
             self.clone(),
             EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
         ))
-
     }
 
     fn delete_edge_with_custom_time_format<V: AsNodeRef>(
