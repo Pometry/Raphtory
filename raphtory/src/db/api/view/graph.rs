@@ -654,42 +654,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
+        let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
-            FilterState::Neither => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Both => {
-                if !self.filter_node(src_node.as_ref()) {
+            FilterState::Neither => {}
+            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
+                let edge = self.core_edge(edge_ref.pid());
+                if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref()) {
-                    return None;
-                }
-                if !self.filter_node(self.core_node(dst).as_ref()) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
                 if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node(dst).as_ref()) {
+                let dst_node = self.core_node(dst);
+                if !self.filter_node(dst_node.as_ref()) {
                     return None;
                 }
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref()) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
+        Some(EdgeView::new(self.clone(), edge_ref))
     }
 
     fn properties(&self) -> Properties<Self> {
