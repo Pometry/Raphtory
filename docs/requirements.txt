@@ -86,5 +86,5 @@ tabulate==0.9.0
     # via numpydoc
 typing-extensions==4.12.2
     # via pydata-sphinx-theme
-urllib3==2.3.0
+urllib3==2.5.0
     # via requests
