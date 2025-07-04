@@ -467,11 +467,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                         if let Some(node_pos) = shard.resolve_pos(src) {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(t, node_pos, dst, eid.with_layer(layer), 0);
+                            writer.update_deletion_time(t, node_pos, eid.with_layer(layer), 0);
                         }
                         if let Some(node_pos) = shard.resolve_pos(dst) {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(t, node_pos, src, eid.with_layer(layer), 0);
+                            writer.update_deletion_time(t, node_pos, eid.with_layer(layer), 0);
                         }
                     }
                 }

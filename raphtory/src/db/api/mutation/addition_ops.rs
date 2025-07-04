@@ -19,7 +19,7 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew::{Existing, New},
 };
 use raphtory_storage::mutation::addition_ops::{
-    AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps,
+    EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {

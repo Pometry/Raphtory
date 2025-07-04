@@ -16,7 +16,7 @@ use raphtory_api::core::{
 use raphtory_storage::{
     graph::graph::GraphStorage,
     mutation::{
-        addition_ops::{AtomicEdgeAddition, SessionAdditionOps},
+        addition_ops::{EdgeWriteLock, SessionAdditionOps},
         addition_ops_ext::{UnlockedSession, WriteS},
     },
 };
@@ -206,7 +206,7 @@ pub struct AtomicAddEdgeSession<'a> {
     storage: &'a Storage,
 }
 
-impl AtomicEdgeAddition for AtomicAddEdgeSession<'_> {
+impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
@@ -218,6 +218,18 @@ impl AtomicEdgeAddition for AtomicAddEdgeSession<'_> {
     ) -> MaybeNew<ELID> {
         self.session
             .internal_add_edge(t, src, dst, lsn, layer, props)
+    }
+
+    fn internal_delete_edge(
+            &mut self,
+            t: TimeIndexEntry,
+            src: impl Into<VID>,
+            dst: impl Into<VID>,
+            lsn: u64,
+            layer: usize,
+        ) -> MaybeNew<ELID> {
+        self.session
+            .internal_delete_edge(t, src, dst, lsn, layer)
     }
 
     fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
