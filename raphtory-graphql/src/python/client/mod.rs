@@ -326,8 +326,8 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
 
 /// Specifies that **all** properties should be included when creating an index.
 /// Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
-#[derive(Clone, Serialize)]
-#[pyclass(name = "AllPropertySpec", module = "raphtory.graphql")]
+#[derive(Clone, Serialize, PartialEq)]
+#[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
 pub enum PyAllPropertySpec {
     /// Include all properties (both constant and temporal).
     #[serde(rename = "ALL")]

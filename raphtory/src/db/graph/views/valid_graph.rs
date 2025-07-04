@@ -3,26 +3,18 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeFilterOps, EdgeTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter,
-                InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
+                EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeLayerFilterOps, Static,
             },
         },
-        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
+        graph::views::layer_graph::LayeredGraph,
     },
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::GraphViewOps,
 };
-use raphtory_api::{
-    core::{
-        entities::{LayerIds, ELID},
-        storage::timeindex::TimeIndexEntry,
-    },
-    inherit::Base,
-};
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-};
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Copy, Clone, Debug)]
 pub struct ValidGraph<G> {
@@ -58,32 +50,23 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for ValidGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for ValidGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for ValidGraph<G> {
-    fn edges_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for ValidGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for ValidGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for ValidGraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
         true
     }
 
-    fn edge_history_filtered(&self) -> bool {
-        true
-    }
-
-    fn edge_list_trusted(&self) -> bool {
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
         false
     }
 
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids)
-            && EdgeView::new(
-                &self.graph,
-                self.core_edge(eid.edge).out_ref().at_layer(eid.layer()),
-            )
-            .is_valid()
-    }
-
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.edge_is_valid(edge, LayeredGraph::new(&self.graph, layer_ids.clone()))
-            && self.graph.filter_edge(edge, layer_ids)
+        time_semantics.edge_is_valid(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
+            && self.graph.internal_filter_edge_layer(edge, layer)
     }
 }
 
@@ -154,6 +137,38 @@ mod tests {
     }
 
     #[test]
+    fn test_single_deleted_edge_events() {
+        let g = Graph::new();
+        g.delete_edge(0, 0, 0, Some("a")).unwrap();
+        let gv = g.valid();
+        assert_eq!(gv.count_nodes(), 0);
+        assert_eq!(gv.count_edges(), 0);
+        assert_eq!(gv.count_temporal_edges(), 0);
+
+        let expected = Graph::new();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gv, &expected);
+        let gvm = gv.materialize().unwrap();
+        assert_graph_equal(&gv, &gvm);
+    }
+
+    #[test]
+    fn test_single_deleted_edge_persistent() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, Some("a")).unwrap();
+        let gv = g.valid();
+        assert_eq!(gv.count_nodes(), 0);
+        assert_eq!(gv.count_edges(), 0);
+        assert_eq!(gv.count_temporal_edges(), 0);
+
+        let expected = PersistentGraph::new();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gv, &expected);
+        let gvm = gv.materialize().unwrap();
+        assert_graph_equal(&gv, &gvm);
+    }
+
+    #[test]
     fn materialize_valid_window_persistent_prop_test() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
             let g = PersistentGraph(build_graph(&graph_f));
@@ -161,6 +176,16 @@ mod tests {
             let gmw = gvw.materialize().unwrap();
             assert_persistent_materialize_graph_equal(&gvw, &gmw);
         })
+    }
+
+    #[test]
+    fn test_deletions_in_window_but_edge_valid() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, None).unwrap();
+        g.delete_edge(0, 0, 1, None).unwrap();
+        g.add_edge(5, 0, 1, NO_PROPS, None).unwrap();
+        let gvw = g.valid().window(-1, 1);
+        assert_eq!(gvw.node(0).unwrap().out_degree(), 1);
     }
 
     #[test]
@@ -327,12 +352,18 @@ mod tests {
         g.delete_edge(10, 5, 4, None).unwrap();
 
         let gv = g.valid().window(0, 20);
+        assert!(!gv.default_layer().has_edge(5, 4));
+        assert_eq!(gv.edge(5, 4).unwrap().latest_time(), Some(2));
+        assert_eq!(gv.earliest_time(), Some(0));
+        assert_eq!(gv.latest_time(), Some(2));
+        assert_eq!(gv.node(6).unwrap().latest_time(), Some(0));
         let expected = PersistentGraph::new();
         expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
         expected.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
         expected.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
+
         assert_graph_equal(&gv, &expected);
 
         let n4 = gv.node(4).unwrap();

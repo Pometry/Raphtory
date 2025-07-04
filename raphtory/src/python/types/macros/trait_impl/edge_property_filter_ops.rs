@@ -38,7 +38,7 @@ macro_rules! impl_edge_property_filter_ops {
                 filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
             ) -> Result<
                 <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<
+                    <PyPropertyFilter as CreateExplodedEdgeFilter>::ExplodedEdgeFiltered<
                         'static,
                         <$base_type as OneHopFilter<'static>>::FilteredGraph,
                     >,

@@ -173,34 +173,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         (edges, layer_ids, graph),
                         move |(edges, layer_ids, graph)| {
                             let iter = edges.iter(layer_ids);
-                            match graph.filter_state() {
-                                FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
-                                FilterState::Both => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_edge(e, graph.layer_ids())
-                                            && graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
+                            if graph.filtered() {
+                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
                                     .into_dyn_boxed()
-                                }
-                                FilterState::Nodes => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed()
-                                }
-                                FilterState::Edges | FilterState::BothIndependent => iter
-                                    .filter_map(move |e| {
-                                        graph
-                                            .filter_edge(e, graph.layer_ids())
-                                            .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed(),
+                            } else {
+                                iter.map(|e| e.out_ref()).into_dyn_boxed()
                             }
                         },
                     )
@@ -430,16 +407,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         self.layer_ids(),
                     ) {
                         if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                            src_node.update_time(
-                                t,
-                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                            );
+                            src_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
                         }
                         if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                            dst_node.update_time(
-                                t,
-                                edge.edge.pid().with_layer_deletion(layer_map[layer]),
-                            );
+                            dst_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
                         }
                     }
                 }
@@ -539,47 +510,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_edges(&self) -> usize {
-        match self.filter_state() {
-            FilterState::Neither => {
-                if matches!(self.layer_ids(), LayerIds::All) {
-                    self.unfiltered_num_edges()
-                } else {
-                    self.core_edges().as_ref().count(self.layer_ids())
-                }
-            }
-            FilterState::Both => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Nodes => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edges = self.core_edges();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                    .count()
-            }
+        if self.filtered() {
+            let edges = self.core_edges();
+            edges
+                .as_ref()
+                .par_iter(self.layer_ids())
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .count()
+        } else {
+            self.unfiltered_num_edges()
         }
     }
 
@@ -587,50 +526,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
         let edge_time_semantics = self.edge_time_semantics();
-        match self.filter_state() {
-            FilterState::Neither => core_edges
+        if self.filtered() {
+            core_edges
+                .as_ref()
+                .par_iter(layer_ids)
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .sum()
+        } else {
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
-            FilterState::Both => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Nodes => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Edges | FilterState::BothIndependent => core_edges
-                .as_ref()
-                .par_iter(layer_ids)
-                .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
+                .sum()
         }
     }
 
     #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
-            if self.nodes_filtered() {
+            if self.filtered() {
                 let node = self.core_node(node_id);
                 self.filter_node(node.as_ref())
             } else {
@@ -649,7 +564,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
-        if self.nodes_filtered() {
+        if self.filtered() {
             let core_node = self.core_node(vid);
             if !self.filter_node(core_node.as_ref()) {
                 return None;
@@ -663,42 +578,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
+        let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
-            FilterState::Neither => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Both => {
-                if !self.filter_node(src_node.as_ref()) {
+            FilterState::Neither => {}
+            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
+                let edge = self.core_edge(edge_ref.pid());
+                if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                if !self.filter_node(self.core_node(dst).as_ref()) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
                 if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node(dst).as_ref()) {
+                let dst_node = self.core_node(dst);
+                if !self.filter_node(dst_node.as_ref()) {
                     return None;
                 }
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
+        Some(EdgeView::new(self.clone(), edge_ref))
     }
 
     fn properties(&self) -> Properties<Self> {

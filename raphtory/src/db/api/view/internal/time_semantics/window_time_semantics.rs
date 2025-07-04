@@ -5,7 +5,7 @@ use crate::db::api::view::internal::{
     EdgeTimeSemanticsOps, GraphView,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -199,15 +199,45 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
 }
 
 impl EdgeTimeSemanticsOps for WindowTimeSemantics {
+    fn handle_edge_update_filter<G: GraphView>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        self.semantics.handle_edge_update_filter(t, eid, view)
+    }
+
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        self.semantics
+            .include_edge_window(edge, view, layer_id, self.window.clone())
+    }
+
     #[inline]
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        self.semantics.include_edge_window(edge, view, layer_ids, w)
+        self.semantics.include_edge_window(edge, view, layer_id, w)
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        self.semantics
+            .include_exploded_edge_window(elid, t, view, self.window.clone())
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        self.semantics
+            .include_exploded_edge_window(elid, t, view, w)
     }
 
     #[inline]

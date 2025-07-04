@@ -21,7 +21,7 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    internal::InternalExplodedEdgeFilterOps,
+                    internal::CreateExplodedEdgeFilter,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },

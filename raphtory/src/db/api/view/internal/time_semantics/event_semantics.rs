@@ -3,14 +3,14 @@ use crate::db::api::view::internal::{
         filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
         time_semantics_ops::NodeTimeSemanticsOps,
     },
-    EdgeTimeSemanticsOps, GraphView,
+    EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
 };
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds,
+        LayerIds, ELID,
     },
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
@@ -190,18 +190,53 @@ impl NodeTimeSemanticsOps for EventSemantics {
 }
 
 impl EdgeTimeSemanticsOps for EventSemantics {
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        view.filter_exploded_edge_inner(eid, t).then_some((t, eid))
+    }
+
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        !edge.filtered_additions(layer_id, &view).is_empty()
+            || !edge.filtered_deletions(layer_id, &view).is_empty()
+    }
+
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        edge.filtered_additions_iter(&view, layer_ids)
-            .any(|(_, additions)| additions.active_t(w.clone()))
-            || edge
-                .filtered_deletions_iter(&view, layer_ids)
-                .any(|(_, deletions)| deletions.active_t(w.clone()))
+        edge.filtered_additions(layer_id, &view).active_t(w.clone())
+            || edge.filtered_deletions(layer_id, &view).active_t(w)
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        view.layer_ids().contains(&eid.layer())
+            && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
+            && (view.exploded_filter_independent() || {
+                let edge = view.core_edge(eid.edge);
+                (view.exploded_edge_filter_includes_edge_layer_filter()
+                    || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
+                    && (view.exploded_edge_filter_includes_edge_filter()
+                        || view.edge_layer_filter_includes_edge_filter()
+                        || view.internal_filter_edge(edge.as_ref(), view.layer_ids()))
+                    && view.filter_edge_from_nodes(edge.as_ref())
+            })
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&t.t()) && self.include_exploded_edge(elid, t, view)
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(
@@ -268,7 +303,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph {
-        if view.edge_history_filtered() {
+        if view.filtered() {
             Either::Left(e.filtered_updates_iter(view, layer_ids).filter_map(
                 move |(layer_id, additions, deletions)| {
                     if additions.is_empty() && deletions.is_empty() {
@@ -343,7 +378,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
     ) -> Option<i64> {
-        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+        view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
             .then_some(t.t())
     }
 
@@ -507,7 +542,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         t: TimeIndexEntry,
         layer: usize,
     ) -> bool {
-        view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+        view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
     fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
@@ -519,7 +554,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         w: Range<i64>,
     ) -> bool {
         w.contains(&t.t())
-            && view.filter_edge_history(e.eid().with_layer(layer), t, view.layer_ids())
+            && view.internal_filter_exploded_edge(e.eid().with_layer(layer), t, view.layer_ids())
     }
 
     /// An exploded edge is valid with event semantics if it is active
@@ -577,7 +612,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         layer_id: usize,
     ) -> Option<Prop> {
         let eid = e.eid();
-        if view.filter_edge_history(eid.with_layer(layer_id), t, view.layer_ids()) {
+        if view.internal_filter_exploded_edge(eid.with_layer(layer_id), t, view.layer_ids()) {
             e.temporal_prop_layer(layer_id, prop_id).at(&t)
         } else {
             None
@@ -714,8 +749,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view: G,
         prop_id: usize,
     ) -> Option<Prop> {
-        let layer_filter =
-            |layer| !view.edge_history_filtered() || !e.filtered_additions(layer, &view).is_empty();
+        let layer_filter = |layer| {
+            view.internal_filter_edge_layer(e, layer)
+                && !e.filtered_additions(layer, &view).is_empty()
+        };
 
         let layer_ids = view.layer_ids();
         match layer_ids {
