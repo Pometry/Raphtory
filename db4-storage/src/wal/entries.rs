@@ -4,10 +4,11 @@ use raphtory_core::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{Serialize, Deserialize};
+use std::borrow::Cow;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum WalEntry {
-    AddEdge(AddEdge),
+pub enum WalEntry<'a> {
+    AddEdge(AddEdge<'a>),
     AddNodeID(AddNodeID),
     AddConstPropIDs(Vec<AddConstPropID>),
     AddTemporalPropIDs(Vec<AddTemporalPropID>),
@@ -15,14 +16,14 @@ pub enum WalEntry {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AddEdge {
+pub struct AddEdge<'a> {
     pub t: TimeIndexEntry,
     pub src: VID,
     pub dst: VID,
     pub eid: EID,
     pub layer_id: u64,
-    pub t_props: Vec<(usize, Prop)>,
-    pub c_props: Vec<(usize, Prop)>,
+    pub t_props: Cow<'a, Vec<(usize, Prop)>>,
+    pub c_props: Cow<'a, Vec<(usize, Prop)>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,17 +57,17 @@ pub struct AddLayerID {
 }
 
 // Constructors
-impl WalEntry {
+impl<'a> WalEntry<'a> {
     pub fn add_edge(
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
         eid: EID,
         layer_id: u64,
-        t_props: Vec<(usize, Prop)>,
-        c_props: Vec<(usize, Prop)>,
-    ) -> Self {
-        Self::AddEdge(AddEdge {
+        t_props: Cow<'a, Vec<(usize, Prop)>>,
+        c_props: Cow<'a, Vec<(usize, Prop)>>,
+    ) -> WalEntry<'a> {
+        WalEntry::AddEdge(AddEdge {
             t,
             src,
             dst,
@@ -77,37 +78,37 @@ impl WalEntry {
         })
     }
 
-    pub fn add_node_id(gid: GID, vid: VID) -> Self {
-        Self::AddNodeID(AddNodeID { gid, vid })
+    pub fn add_node_id(gid: GID, vid: VID) -> WalEntry<'static> {
+        WalEntry::AddNodeID(AddNodeID { gid, vid })
     }
 
-    pub fn add_const_prop_ids(props: Vec<(String, u64)>) -> Self {
-        Self::AddConstPropIDs(
+    pub fn add_const_prop_ids(props: Vec<(String, u64)>) -> WalEntry<'static> {
+        WalEntry::AddConstPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddConstPropID { name, id })
                 .collect(),
         )
     }
 
-    pub fn add_temporal_prop_ids(props: Vec<(String, u64)>) -> Self {
-        Self::AddTemporalPropIDs(
+    pub fn add_temporal_prop_ids(props: Vec<(String, u64)>) -> WalEntry<'static> {
+        WalEntry::AddTemporalPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddTemporalPropID { name, id })
                 .collect(),
         )
     }
 
-    pub fn add_layer_id(name: String, id: u64) -> Self {
-        Self::AddLayerID(AddLayerID { name, id })
+    pub fn add_layer_id(name: String, id: u64) -> WalEntry<'static> {
+        WalEntry::AddLayerID(AddLayerID { name, id })
     }
 }
 
-impl WalEntry {
+impl<'a> WalEntry<'a> {
     pub fn to_bytes(&self) -> Result<Vec<u8>, postcard::Error> {
         postcard::to_stdvec(self)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, postcard::Error> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<WalEntry<'static>, postcard::Error> {
         postcard::from_bytes(bytes)
     }
 }
