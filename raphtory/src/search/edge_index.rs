@@ -206,12 +206,7 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edges(
-        &self,
-        graph: &GraphStorage,
-        path: Option<PathBuf>,
-        index_spec: &IndexSpec,
-    ) -> Result<(), GraphError> {
+    pub(crate) fn index_edges_fields(&self, graph: &GraphStorage) -> Result<(), GraphError> {
         let mut writer = self.entity_index.index.writer(100_000_000)?;
         (0..graph.count_edges())
             .into_par_iter()
@@ -222,16 +217,19 @@ impl EdgeIndex {
                 Ok::<(), GraphError>(())
             })?;
         writer.commit()?;
-        drop(writer);
+        Ok(())
+    }
 
-        // Index const properties
+    pub(crate) fn index_edges_props(
+        &self,
+        graph: &GraphStorage,
+        path: Option<PathBuf>,
+        index_spec: &IndexSpec,
+    ) -> Result<(), GraphError> {
         self.entity_index
             .index_edge_const_props(graph, index_spec, &path)?;
-
-        // Index temporal properties
         self.entity_index
             .index_edge_temporal_props(graph, index_spec, &path)?;
-
         Ok(())
     }
 

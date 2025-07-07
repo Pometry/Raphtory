@@ -48,7 +48,7 @@ impl InheritLayerOps for MaterializedGraph {}
 impl InheritListOps for MaterializedGraph {}
 
 impl InheritNodeFilterOps for MaterializedGraph {}
-impl InheritEdgeFilterOps for MaterializedGraph {}
+impl InheritAllEdgeFilterOps for MaterializedGraph {}
 
 impl InternalMaterialize for MaterializedGraph {
     fn graph_type(&self) -> GraphType {
@@ -285,7 +285,7 @@ mod test_materialised_graph_dispatch {
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            EdgeFilterOps, GraphTimeSemanticsOps, InternalLayerOps, MaterializedGraph,
+            GraphTimeSemanticsOps, InternalEdgeFilterOps, InternalLayerOps, MaterializedGraph,
         },
         prelude::*,
     };
@@ -307,7 +307,7 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert!(!mg.edges_filtered());
+        assert!(!mg.internal_edge_filtered());
     }
 
     #[test]

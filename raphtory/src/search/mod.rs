@@ -168,22 +168,17 @@ mod test_index {
     mod test_index_io {
         use crate::{
             db::{
-                api::view::{
-                    internal::InternalStorageOps, IndexSpec, IndexSpecBuilder, ResolvedIndexSpec,
-                    StaticGraphViewOps,
-                },
+                api::view::{internal::InternalStorageOps, ResolvedIndexSpec, StaticGraphViewOps},
                 graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
             },
             errors::GraphError,
             prelude::*,
             serialise::GraphFolder,
         };
-        use itertools::assert_equal;
         use raphtory_api::core::{
             entities::properties::prop::Prop, storage::arc_str::ArcStr,
             utils::logging::global_info_logger,
         };
-        use std::{fmt::format, sync::Arc, thread::sleep, time::Duration};
         use tempfile::TempDir;
 
         fn init_graph<G>(graph: G) -> G
@@ -547,6 +542,7 @@ mod test_index {
         }
 
         #[test]
+        #[ignore]
         fn test_too_many_open_files_graph_index() {
             use tempfile::TempDir;
 

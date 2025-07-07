@@ -1,14 +1,13 @@
 use crate::{
     db::{
-        api::view::internal::OneHopFilter,
-        graph::views::filter::internal::InternalExplodedEdgeFilterOps,
+        api::view::internal::OneHopFilter, graph::views::filter::internal::CreateExplodedEdgeFilter,
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
 
 pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
-    fn filter_exploded_edges<F: InternalExplodedEdgeFilterOps>(
+    fn filter_exploded_edges<F: CreateExplodedEdgeFilter>(
         &self,
         filter: F,
     ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
@@ -44,7 +43,9 @@ mod test {
             build_graph_from_edge_list, build_window, Update,
         },
     };
+    use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
+    use raphtory_api::core::entities::properties::prop::PropType;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
@@ -83,17 +84,12 @@ mod test {
         if !edges.iter().all(|(_, v)| v.is_empty()) {
             g_filtered.resolve_layer(None).unwrap();
         }
-        for ((src, dst), mut updates) in edges {
-            let mut keep = false;
-            updates.sort();
+        for ((src, dst), updates) in edges {
             for (t, update) in updates {
                 match update {
                     Update::Deletion => {
                         g.delete_edge(t, src, dst, None).unwrap();
-                        if keep {
-                            g_filtered.delete_edge(t, src, dst, None).unwrap();
-                        }
-                        keep = false;
+                        g_filtered.delete_edge(t, src, dst, None).unwrap();
                     }
                     Update::Addition(str_prop, int_prop) => {
                         g.add_edge(
@@ -107,8 +103,7 @@ mod test {
                             None,
                         )
                         .unwrap();
-                        keep = filter(int_prop);
-                        if keep {
+                        if filter(int_prop) {
                             g_filtered
                                 .add_edge(
                                     t,
@@ -120,6 +115,15 @@ mod test {
                                     ],
                                     None,
                                 )
+                                .unwrap();
+                        } else {
+                            g_filtered.delete_edge(t, src, dst, None).unwrap();
+                            // properties still exist after filtering
+                            g_filtered
+                                .resolve_edge_property("str_prop", PropType::Str, false)
+                                .unwrap();
+                            g_filtered
+                                .resolve_edge_property("int_prop", PropType::I64, false)
                                 .unwrap();
                         }
                     }
@@ -192,6 +196,27 @@ mod test {
             let filtered = g.filter_exploded_edges(PropertyFilter::ge(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
             assert_graph_equal(&filtered, &expected_filtered_g);
         })
+    }
+
+    #[test]
+    fn test_filter_persistent_single_filtered_edge() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, [("test", 1i64)], None).unwrap();
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(1i64))
+            .unwrap();
+
+        assert_eq!(gf.count_edges(), 1);
+        assert_eq!(gf.count_temporal_edges(), 0);
+
+        let expected = PersistentGraph::new();
+        expected.delete_edge(0, 0, 0, None).unwrap();
+        //the property still exists!
+        expected
+            .resolve_edge_property("test", PropType::I64, false)
+            .unwrap();
+
+        assert_graph_equal(&gf, &expected);
     }
 
     #[test]
@@ -406,6 +431,27 @@ mod test {
     }
 
     #[test]
+    fn test_persistent_graph_explode_semantics() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test", 0i64)], None).unwrap();
+        g.add_edge(2, 0, 1, [("test", 2i64)], None).unwrap();
+        g.add_edge(5, 0, 1, [("test", 5i64)], None).unwrap();
+        g.delete_edge(10, 0, 1, None).unwrap();
+
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").ne(2i64))
+            .unwrap();
+        assert_eq!(
+            gf.edges().explode().earliest_time().collect_vec(),
+            [Some(0i64), Some(5i64)]
+        );
+        assert_eq!(
+            gf.edges().explode().latest_time().collect_vec(),
+            [Some(2i64), Some(10i64)]
+        );
+    }
+
+    #[test]
     fn test_persistent_graph_materialise() {
         proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>())| {
             let g = build_graph_from_edge_list(&edges);
@@ -419,6 +465,20 @@ mod test {
             let gfm = gf.materialize().unwrap();
             assert_graph_equal(&gf, &gfm)
         })
+    }
+
+    #[test]
+    fn test_single_filtered_edge_persistent() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, [("test", 0i64)], None).unwrap();
+        let gf = g
+            .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0i64))
+            .unwrap();
+        let gfm = gf.materialize().unwrap();
+        dbg!(&gfm);
+        assert_eq!(gf.node(0).unwrap().out_degree(), 1);
+        assert_eq!(gfm.node(0).unwrap().out_degree(), 1);
+        assert_graph_equal(&gf, &gfm);
     }
 
     #[test]
@@ -449,11 +509,15 @@ mod test {
         g.add_edge(-1, 0, 1, [("test", Prop::I32(-1))], None)
             .unwrap();
         g.add_edge(0, 0, 1, [("test", Prop::I32(1))], None).unwrap();
+
         let gwf = g
             .filter_exploded_edges(PropertyFilterBuilder::new("test").gt(0))
             .unwrap()
             .window(-1, 0);
+        assert_eq!(gwf.count_nodes(), 0);
+        assert_eq!(gwf.count_edges(), 0);
         let gm = gwf.materialize().unwrap();
+
         assert_persistent_materialize_graph_equal(&gwf, &gm);
 
         let gfw = g
@@ -473,19 +537,10 @@ mod test {
             .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(1i64))
             .unwrap()
             .window(-1, 1);
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfw.earliest_time(),
-            gfw.latest_time()
-        );
         let gfwm = gfw.materialize().unwrap();
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfwm.earliest_time(),
-            gfwm.latest_time()
-        );
-        assert!(gfw.node(0).is_none());
-        assert!(gfwm.node(0).is_none());
-        assert_eq!(gfw.earliest_time(), None);
+
+        // deletions are not filtered
+        assert_graph_equal(&g, &gfw);
+        assert_graph_equal(&gfw, &gfwm);
     }
 }

@@ -45,7 +45,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
 
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Option<Self> {
-        if graph.nodes_filtered() {
+        if graph.filtered() {
             if graph.node_list_trusted() {
                 match graph.node_list() {
                     NodeList::All { .. } => None,
