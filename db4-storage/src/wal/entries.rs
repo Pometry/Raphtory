@@ -21,8 +21,8 @@ pub struct AddEdge {
     pub dst: VID,
     pub eid: EID,
     pub layer_id: u64,
-    pub t_props: Vec<(u64, Prop)>,
-    pub c_props: Vec<(u64, Prop)>,
+    pub t_props: Vec<(usize, Prop)>,
+    pub c_props: Vec<(usize, Prop)>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,8 +63,8 @@ impl WalEntry {
         dst: VID,
         eid: EID,
         layer_id: u64,
-        t_props: Vec<(u64, Prop)>,
-        c_props: Vec<(u64, Prop)>,
+        t_props: Vec<(usize, Prop)>,
+        c_props: Vec<(usize, Prop)>,
     ) -> Self {
         Self::AddEdge(AddEdge {
             t,
