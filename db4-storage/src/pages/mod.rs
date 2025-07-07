@@ -335,14 +335,7 @@ impl<
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> WriteSession<
-        '_,
-        RwLockWriteGuard<MemNodeSegment>,
-        RwLockWriteGuard<MemEdgeSegment>,
-        NS,
-        ES,
-        EXT,
-    > {
+    ) -> WriteSession<'_, NS, ES, EXT> {
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
@@ -386,7 +379,7 @@ impl<
         self.edges().get_writer(eid)
     }
 
-    pub fn get_free_writer(&self) -> EdgeWriter<impl DerefMut<Target = MemEdgeSegment>, ES> {
+    pub fn get_free_writer(&self) -> EdgeWriter<RwLockWriteGuard<MemEdgeSegment>, ES> {
         self.edges.get_free_writer()
     }
 }

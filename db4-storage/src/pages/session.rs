@@ -10,6 +10,7 @@ use crate::{
     pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType},
     storage::dict_mapper::MaybeNew,
@@ -21,29 +22,25 @@ use raphtory_core::{
 
 pub struct WriteSession<
     'a,
-    MNS: DerefMut<Target = MemNodeSegment> + 'a,
-    MES: DerefMut<Target = MemEdgeSegment> + 'a,
     NS: NodeSegmentOps,
     ES: EdgeSegmentOps,
     EXT,
 > {
-    node_writers: WriterPair<'a, MNS, NS>,
-    edge_writer: Option<EdgeWriter<'a, MES, ES>>,
+    node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+    edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, EXT>,
 }
 
 impl<
     'a,
-    MNS: DerefMut<Target = MemNodeSegment> + 'a,
-    MES: DerefMut<Target = MemEdgeSegment> + 'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     EXT: Clone + Default + Send + Sync,
-> WriteSession<'a, MNS, MES, NS, ES, EXT>
+> WriteSession<'a, NS, ES, EXT>
 {
     pub fn new(
-        node_writers: WriterPair<'a, MNS, NS>,
-        edge_writer: Option<EdgeWriter<'a, MES, ES>>,
+        node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+        edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
         graph: &'a GraphStore<NS, ES, EXT>,
     ) -> Self {
         Self {

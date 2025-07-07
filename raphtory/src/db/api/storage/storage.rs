@@ -197,12 +197,7 @@ pub struct StorageWriteSession<'a> {
 }
 
 pub struct AtomicAddEdgeSession<'a> {
-    session: WriteS<
-        'a,
-        RwLockWriteGuard<'a, MemNodeSegment>,
-        RwLockWriteGuard<'a, MemEdgeSegment>,
-        Extension,
-    >,
+    session: WriteS<'a, Extension>,
     storage: &'a Storage,
 }
 
