@@ -293,6 +293,9 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
     }
 
     pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {
+        if num_nodes == 0 {
+            return;
+        }
         let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
         self.graph.storage().nodes().grow(chunks_needed + 1);
         std::mem::take(&mut self.nodes);
@@ -300,6 +303,9 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
     }
 
     pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
+        if num_edges == 0 {
+            return;
+        }
         let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);

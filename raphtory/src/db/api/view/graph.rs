@@ -349,7 +349,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             })?;
 
             new_storage.resize_chunks_to_num_edges(self.count_edges());
-            for layer_id in layer_map.iter() {
+
+            for layer_id in &layer_map {
                 new_storage.edges.ensure_layer(*layer_id);
             }
 

@@ -17,14 +17,19 @@ use rayon::iter::ParallelIterator;
 use std::ops::Range;
 
 #[derive(Clone)]
-pub struct FilteredEdgeTimeIndex<'graph, G> {
+pub struct FilteredEdgeTimeIndex<'graph, G, TS> {
     eid: ELID,
-    time_index: storage::EdgeAdditions<'graph>,
+    time_index: TS,
     view: G,
+    _marker: std::marker::PhantomData<&'graph ()>,
 }
 
-impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
-    for FilteredEdgeTimeIndex<'graph, G>
+impl<
+        'a,
+        'graph: 'a,
+        TS: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TS>,
+        G: GraphViewOps<'graph>,
+    > TimeIndexOps<'a> for FilteredEdgeTimeIndex<'graph, G, TS>
 {
     type IndexType = TimeIndexEntry;
     type RangeType = Self;
@@ -50,6 +55,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
             eid: self.eid,
             time_index: self.time_index.range(w),
             view: self.view.clone(),
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -83,7 +89,7 @@ impl<'a, 'graph: 'a, G: GraphViewOps<'graph>> TimeIndexOps<'a>
 
     fn len(&self) -> usize {
         if self.view.edge_history_filtered() {
-            self.iter().count()
+            self.clone().iter().count()
         } else {
             self.time_index.len()
         }
@@ -160,7 +166,12 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            FilteredEdgeTimeIndex<'a, G, storage::EdgeAdditions<'a>>,
+        ),
+    > {
         let eid = self.eid();
         self.additions_iter(layer_ids)
             .map(move |(layer_id, additions)| {
@@ -170,6 +181,7 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
                         eid: eid.with_layer(layer_id),
                         time_index: additions,
                         view: view.clone(),
+                        _marker: std::marker::PhantomData,
                     },
                 )
             })
@@ -179,7 +191,12 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>>,
+        ),
+    > {
         let eid = self.eid();
         self.deletions_iter(layer_ids)
             .map(move |(layer_id, deletions)| {
@@ -189,6 +206,7 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
                         eid: eid.with_layer_deletion(layer_id),
                         time_index: deletions,
                         view: view.clone(),
+                        _marker: std::marker::PhantomData,
                     },
                 )
             })
@@ -201,8 +219,8 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
     ) -> impl Iterator<
         Item = (
             usize,
-            FilteredEdgeTimeIndex<'a, G>,
-            FilteredEdgeTimeIndex<'a, G>,
+            FilteredEdgeTimeIndex<'a, G, storage::EdgeAdditions<'a>>,
+            FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>>,
         ),
     > + 'a {
         self.layer_ids_iter(layer_ids).map(move |layer_id| {
@@ -218,11 +236,12 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
         self,
         layer_id: usize,
         view: G,
-    ) -> FilteredEdgeTimeIndex<'a, G> {
+    ) -> FilteredEdgeTimeIndex<'a, G, storage::EdgeAdditions<'a>> {
         FilteredEdgeTimeIndex {
             eid: self.eid().with_layer(layer_id),
             time_index: self.additions(layer_id),
             view,
+            _marker: std::marker::PhantomData,
         }
     }
 
@@ -230,11 +249,12 @@ pub trait FilteredEdgeStorageOps<'a>: EdgeStorageOps<'a> {
         self,
         layer_id: usize,
         view: G,
-    ) -> FilteredEdgeTimeIndex<'a, G> {
+    ) -> FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>> {
         FilteredEdgeTimeIndex {
             eid: self.eid().with_layer_deletion(layer_id),
             time_index: self.deletions(layer_id),
             view,
+            _marker: std::marker::PhantomData,
         }
     }
 

@@ -10,7 +10,7 @@ use raphtory_core::storage::timeindex::AsTime;
 pub struct EdgeWriter<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> {
     pub page: &'a ES,
     pub writer: MP,
-    pub global_num_edges: &'a GraphStats,
+    pub graph_stats: &'a GraphStats,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'a, MP, ES> {
@@ -18,7 +18,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         Self {
             page,
             writer,
-            global_num_edges,
+            graph_stats: global_num_edges,
         }
     }
 
@@ -46,6 +46,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         }
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
+        self.graph_stats.update_time(t.t());
         self.writer
             .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
         edge_pos
@@ -68,6 +69,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
         }
 
         let edge_pos = edge_pos.unwrap_or_else(|| self.new_local_pos(layer_id));
+        self.graph_stats.update_time(t.t());
         self.writer
             .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }
@@ -98,7 +100,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment>, ES: EdgeSegmentOps> EdgeWriter<'
     }
 
     fn increment_layer_num_edges(&self, layer_id: usize) {
-        self.global_num_edges.increment(layer_id);
+        self.graph_stats.increment(layer_id);
     }
 
     pub fn contains_edge(&self, pos: LocalPOS, layer_id: usize) -> bool {

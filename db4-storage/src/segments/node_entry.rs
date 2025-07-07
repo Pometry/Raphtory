@@ -96,6 +96,19 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         )
     }
 
+    fn deletions_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        let deletions = MemAdditions::Edges(self.ns.as_ref()[layer_id].deletions(self.pos));
+        std::iter::once(
+            range
+                .map(|(start, end)| deletions.range(start..end))
+                .unwrap_or_else(|| deletions),
+        )
+    }
+
     fn num_layers(&self) -> usize {
         self.ns.as_ref().len()
     }
