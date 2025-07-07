@@ -21,7 +21,7 @@ pub struct AddEdge<'a> {
     pub src: VID,
     pub dst: VID,
     pub eid: EID,
-    pub layer_id: u64,
+    pub layer_id: usize,
     pub t_props: Cow<'a, Vec<(usize, Prop)>>,
     pub c_props: Cow<'a, Vec<(usize, Prop)>>,
 }
@@ -35,25 +35,25 @@ pub struct AddNodeID {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddNodeTypeID {
     pub name: String,
-    pub id: u64,
+    pub id: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddConstPropID {
     pub name: String,
-    pub id: u64,
+    pub id: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddTemporalPropID {
     pub name: String,
-    pub id: u64,
+    pub id: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddLayerID {
     pub name: String,
-    pub id: u64,
+    pub id: usize,
 }
 
 // Constructors
@@ -63,7 +63,7 @@ impl<'a> WalEntry<'a> {
         src: VID,
         dst: VID,
         eid: EID,
-        layer_id: u64,
+        layer_id: usize,
         t_props: Cow<'a, Vec<(usize, Prop)>>,
         c_props: Cow<'a, Vec<(usize, Prop)>>,
     ) -> WalEntry<'a> {
@@ -82,7 +82,7 @@ impl<'a> WalEntry<'a> {
         WalEntry::AddNodeID(AddNodeID { gid, vid })
     }
 
-    pub fn add_const_prop_ids(props: Vec<(String, u64)>) -> WalEntry<'static> {
+    pub fn add_const_prop_ids(props: Vec<(String, usize)>) -> WalEntry<'static> {
         WalEntry::AddConstPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddConstPropID { name, id })
@@ -90,7 +90,7 @@ impl<'a> WalEntry<'a> {
         )
     }
 
-    pub fn add_temporal_prop_ids(props: Vec<(String, u64)>) -> WalEntry<'static> {
+    pub fn add_temporal_prop_ids(props: Vec<(String, usize)>) -> WalEntry<'static> {
         WalEntry::AddTemporalPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddTemporalPropID { name, id })
@@ -98,7 +98,7 @@ impl<'a> WalEntry<'a> {
         )
     }
 
-    pub fn add_layer_id(name: String, id: u64) -> WalEntry<'static> {
+    pub fn add_layer_id(name: String, id: usize) -> WalEntry<'static> {
         WalEntry::AddLayerID(AddLayerID { name, id })
     }
 }
