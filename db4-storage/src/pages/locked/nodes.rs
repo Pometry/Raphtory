@@ -53,6 +53,10 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
             None
         }
     }
+
+    pub fn ensure_layer(&mut self, layer_id: usize) {
+        self.lock.get_or_create_layer(layer_id);
+    }
 }
 pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
@@ -81,5 +85,11 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedNodePage<'a, NS>> + 'a {
         self.writers.into_par_iter()
+    }
+
+    pub fn ensure_layer(&mut self, layer_id: usize) {
+        for writer in &mut self.writers {
+            writer.ensure_layer(layer_id);
+        }
     }
 }

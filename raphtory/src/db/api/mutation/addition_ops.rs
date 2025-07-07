@@ -5,8 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
-            state::ops::node,
+            mutation::{time_from_input_session, TryIntoInputTime},
             view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},

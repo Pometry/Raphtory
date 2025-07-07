@@ -1,13 +1,11 @@
 use crate::{
-    LocalPOS,
-    api::nodes::NodeSegmentOps,
-    pages::layer_counter::GraphStats,
-    segments::node::{self, MemNodeSegment},
+    LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::GraphStats,
+    segments::node::MemNodeSegment,
 };
 use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
 use raphtory_core::{
     entities::{ELID, GidRef},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::AsTime,
 };
 use std::ops::DerefMut;
 
@@ -42,10 +40,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         src_pos: LocalPOS,
         dst: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        e_id: impl Into<EID>,
         lsn: u64,
     ) {
-        self.add_outbound_edge_inner::<i64>(None, src_pos, dst, e_id, lsn);
+        let e_id = e_id.into();
+        self.add_outbound_edge_inner::<i64>(None, src_pos, dst, e_id.with_layer(0), lsn);
     }
 
     fn add_outbound_edge_inner<T: AsTime>(
@@ -85,10 +84,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         dst_pos: LocalPOS,
         src: impl Into<VID>,
-        e_id: impl Into<ELID>,
+        e_id: impl Into<EID>,
         lsn: u64,
     ) {
-        self.add_inbound_edge_inner::<i64>(None, dst_pos, src, e_id, lsn);
+        let e_id = e_id.into();
+        self.add_inbound_edge_inner::<i64>(None, dst_pos, src, e_id.with_layer(0), lsn);
     }
 
     fn add_inbound_edge_inner<T: AsTime>(
@@ -136,7 +136,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         self.writer.as_mut()[layer_id].set_lsn(lsn);
-        self.writer.update_c_props(pos, layer_id, props);
+        let is_new_node = self.writer.update_c_props(pos, layer_id, props);
+        if is_new_node && !self.page.check_node(pos, layer_id) {
+            self.l_counter.increment(layer_id);
+        }
     }
 
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {

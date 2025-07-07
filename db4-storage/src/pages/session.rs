@@ -204,18 +204,12 @@ impl<
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
-            self.node_writers.get_mut_src().add_static_outbound_edge(
-                src_pos,
-                dst,
-                edge_id.with_layer(layer_id),
-                lsn,
-            );
-            self.node_writers.get_mut_dst().add_static_inbound_edge(
-                dst_pos,
-                src,
-                edge_id.with_layer(layer_id),
-                lsn,
-            );
+            self.node_writers
+                .get_mut_src()
+                .add_static_outbound_edge(src_pos, dst, edge_id, lsn);
+            self.node_writers
+                .get_mut_dst()
+                .add_static_inbound_edge(dst_pos, src, edge_id, lsn);
 
             MaybeNew::New(edge_id)
         }

@@ -273,12 +273,15 @@ impl MemNodeSegment {
         node_pos: LocalPOS,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) {
+    ) -> bool {
         let row = self.layers[layer_id]
             .reserve_local_row(node_pos)
-            .either(|a| a.row, |a| a.row);
+            .map_either(|a| a.row, |a| a.row);
+        let is_new = row.is_right();
+        let row = row.either(|a| a, |a| a);
         let mut prop_mut_entry = self.layers[layer_id].properties_mut().get_mut_entry(row);
         prop_mut_entry.append_const_props(props);
+        is_new
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
