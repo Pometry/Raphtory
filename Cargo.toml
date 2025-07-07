@@ -126,7 +126,7 @@ crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
 jsonwebtoken = "9.3.1"
 spki = "0.7.3"
-poem = { version = "3.0.1", features = ["cookie"] }
+poem = { version = "3.0.1", features = ["compression"] }
 opentelemetry = "0.27.1"
 opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.27.0" }
