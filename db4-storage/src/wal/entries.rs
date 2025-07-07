@@ -10,8 +10,8 @@ use std::borrow::Cow;
 pub enum WalEntry<'a> {
     AddEdge(AddEdge<'a>),
     AddNodeID(AddNodeID),
-    AddConstPropIDs(Vec<AddConstPropID>),
-    AddTemporalPropIDs(Vec<AddTemporalPropID>),
+    AddConstPropIDs(Vec<AddConstPropID<'a>>),
+    AddTemporalPropIDs(Vec<AddTemporalPropID<'a>>),
     AddLayerID(AddLayerID),
 }
 
@@ -39,14 +39,14 @@ pub struct AddNodeTypeID {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AddConstPropID {
-    pub name: String,
+pub struct AddConstPropID<'a> {
+    pub name: Cow<'a, str>,
     pub id: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AddTemporalPropID {
-    pub name: String,
+pub struct AddTemporalPropID<'a> {
+    pub name: Cow<'a, str>,
     pub id: usize,
 }
 
@@ -82,7 +82,7 @@ impl<'a> WalEntry<'a> {
         WalEntry::AddNodeID(AddNodeID { gid, vid })
     }
 
-    pub fn add_const_prop_ids(props: Vec<(String, usize)>) -> WalEntry<'static> {
+    pub fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> WalEntry<'a> {
         WalEntry::AddConstPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddConstPropID { name, id })
@@ -90,7 +90,7 @@ impl<'a> WalEntry<'a> {
         )
     }
 
-    pub fn add_temporal_prop_ids(props: Vec<(String, usize)>) -> WalEntry<'static> {
+    pub fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> WalEntry<'a> {
         WalEntry::AddTemporalPropIDs(
             props.into_iter()
                 .map(|(name, id)| AddTemporalPropID { name, id })
