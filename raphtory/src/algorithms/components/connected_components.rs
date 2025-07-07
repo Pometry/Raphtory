@@ -1,9 +1,10 @@
+use std::mem;
 use crate::{
     core::state::compute_state::ComputeStateVec,
     db::{
         api::{
             state::NodeState,
-            view::{NodeViewOps, StaticGraphViewOps},
+            view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
         task::{
             context::Context,
@@ -13,10 +14,74 @@ use crate::{
         },
     },
 };
+use parking_lot::Mutex;
+use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::VID};
+use raphtory_storage::core_ops::CoreGraphOps;
+use rayon::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::prelude::GraphViewOps;
 
 #[derive(Clone, Debug, Default)]
 struct WccState {
     component: usize,
+}
+
+#[derive(Debug)]
+struct ComponentState<'graph, G> {
+    chunk_labels: Vec<AtomicUsize>,
+    node_labels: Vec<AtomicUsize>,
+    next_start: AtomicUsize,
+    next_chunk: AtomicUsize,
+    chunks: Mutex<Vec<VID>>,
+    graph: &'graph G,
+}
+
+impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
+    fn new(graph: &'graph G) -> Self {
+        let num_nodes = graph.unfiltered_num_nodes();
+        let chunk_labels = (0..num_nodes)
+            .map(|_| AtomicUsize::new(usize::MAX))
+            .collect();
+        let node_labels = (0..num_nodes)
+            .map(|_| AtomicUsize::new(usize::MAX))
+            .collect();
+        let next_start = AtomicUsize::new(0);
+        let next_chunk = AtomicUsize::new(0);
+        let chunks = Mutex::new(Vec::new());
+        Self {
+            chunk_labels,
+            node_labels,
+            next_start,
+            next_chunk,
+            chunks,
+            graph,
+        }
+    }
+
+    fn next_start(&self) -> Option<VID> {
+        loop {
+            let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+            if next_start >= self.node_labels.len() {
+                return None;
+            }
+            if self.graph.has_node(VID(next_start)) {
+                return Some(VID(next_start))
+            }
+        }
+    }
+}
+
+fn run_chunk<'graph, G: GraphView + 'graph>(state: &ComponentState<'graph, G>) -> Option<Vec<VID>> {
+    let start = state.next_start()?;
+    let mut result = vec![start];
+    let mut new_frontier = vec![start];
+    let mut frontier = vec![];
+    while !new_frontier.is_empty() {
+        mem::swap(&mut new_frontier, &mut frontier);
+        
+
+    }
+    Some(result)
 }
 
 /// Computes the connected community_detection of a graph using the Simple Connected Components algorithm
@@ -39,6 +104,14 @@ pub fn weakly_connected_components<G>(
 where
     G: StaticGraphViewOps,
 {
+    // read-lock the graph
+    let cg = g.core_graph().lock();
+    let num_tasks = rayon::current_num_threads();
+    let state = ComponentState::new(g);
+
+
+    (0..num_tasks).into_par_iter().for_each(|_| {});
+
     let ctx: Context<G, ComputeStateVec> = g.into();
     let step1 = ATask::new(move |vv| {
         let min_neighbour_id = vv.neighbours().iter().map(|n| n.node.0).min();
