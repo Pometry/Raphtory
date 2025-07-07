@@ -82,6 +82,7 @@ impl<
             let exists = Some(!edge.is_new());
 
             writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
+            self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
         let edge_id = edge.inner();
@@ -142,6 +143,7 @@ impl<
             let exists = Some(!edge.is_new());
 
             writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+            self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
         let edge_id = edge.inner();
@@ -200,6 +202,8 @@ impl<
             let edge_id = edge_writer.add_static_edge(None, src, dst, layer_id, lsn, None);
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
+
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
 
             self.node_writers
                 .get_mut_src()
@@ -270,6 +274,8 @@ impl<
                 let edge_id =
                     edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
                 let edge_id = edge_id.with_layer(layer);
+
+                self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
 
                 self.node_writers
                     .get_mut_src()
