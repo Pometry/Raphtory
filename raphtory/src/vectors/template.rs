@@ -183,7 +183,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
         Self {
             src: value.src().into(),
             dst: value.dst().into(),
-            history: value.history(),
+            history: value.history().t().collect(),
             layers: value
                 .layer_names()
                 .into_iter()

@@ -37,7 +37,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, TimeError, TimeIndexEntry},
     },
 };
 use raphtory_core::utils::time::IntoTime;
@@ -249,7 +249,7 @@ impl PyTemporalProp {
     }
 
     /// Get the timestamps at which the property was updated
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, GraphError> {
+    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.prop.history_date_time()
     }
 
@@ -642,13 +642,7 @@ impl PyTemporalPropList {
     #[getter]
     pub fn history(&self) -> I64VecIterable {
         let builder = self.builder.clone();
-        (move || {
-            builder().map(|p| {
-                p.map(|v| v.history().iter_t().collect_vec())
-                    .unwrap_or_default()
-            })
-        })
-        .into()
+        (move || builder().map(|p| p.map(|v| v.history().t().collect()).unwrap_or_default())).into()
     }
 
     pub fn values(&self) -> PyPropHistValueList {
@@ -828,12 +822,7 @@ impl PyTemporalPropListList {
     pub fn history(&self) -> NestedI64VecIterable {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| {
-                it.map(|p| {
-                    p.map(|v| v.history().iter_t().collect_vec())
-                        .unwrap_or_default()
-                })
-            })
+            builder().map(|it| it.map(|p| p.map(|v| v.history().t().collect()).unwrap_or_default()))
         })
         .into()
     }

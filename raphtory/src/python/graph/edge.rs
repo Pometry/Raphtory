@@ -9,6 +9,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
+                history::History,
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
             },
@@ -17,7 +18,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    python::{types::repr::Repr, utils::PyTime},
+    python::{graph::history::PyHistory, types::repr::Repr, utils::PyTime},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -34,6 +35,7 @@ use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
+    sync::Arc,
 };
 
 /// PyEdge is a Python class that represents an edge in the graph.
@@ -208,9 +210,8 @@ impl PyEdge {
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
     ///
-    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.edge.history();
-        history.into_pyarray(py)
+    pub fn history(&self) -> PyHistory {
+        PyHistory::new(History::new(Arc::new(self.edge.clone())))
     }
 
     /// Returns the number of times an edge is added or change to an edge is made.

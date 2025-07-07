@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::view::{
-            history::{History, InternalHistoryOps},
+            history::{History, HistoryDateTime, InternalHistoryOps},
             BoxedIter,
         },
         graph::edge::EdgeView,
@@ -140,6 +140,15 @@ py_iterable!(
 py_nested_iterable!(
     NestedHistoryIterable,
     History<'static, Arc<dyn InternalHistoryOps>>
+);
+
+py_iterable!(
+    HistoryDateTimeIterable,
+    HistoryDateTime<Arc<dyn InternalHistoryOps>>
+);
+py_nested_iterable!(
+    NestedHistoryDateTimeIterable,
+    HistoryDateTime<Arc<dyn InternalHistoryOps>>
 );
 
 py_numeric_iterable!(UsizeIterable, usize);

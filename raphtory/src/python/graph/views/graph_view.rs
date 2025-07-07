@@ -44,7 +44,10 @@ use crate::{
 };
 use chrono::prelude::*;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
+use raphtory_api::core::storage::{
+    arc_str::ArcStr,
+    timeindex::{TimeError, TimeIndexEntry},
+};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -209,7 +212,7 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[datetime]: the datetime of the earliest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.graph.earliest_date_time()
     }
 
@@ -222,12 +225,12 @@ impl PyGraphView {
         self.graph.latest_time()
     }
 
-    /// DateTime of latest activity in the graph
+    /// DateTime of latest activity in the graph. Throws an error if the conversion to datetime fails.
     ///
     /// Returns:
     ///     Optional[datetime]: the datetime of the latest activity in the graph
     #[getter]
-    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, GraphError> {
+    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.graph.latest_date_time()
     }
 

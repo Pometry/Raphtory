@@ -186,7 +186,7 @@ impl PyGraphView {
                 }
             }
             if include_update_history.unwrap_or(true) {
-                properties.set_item("update_history", v.history().collect_timestamps())?;
+                properties.set_item("update_history", v.history().t().collect())?;
             }
             match v.node_type() {
                 None => {}
@@ -246,7 +246,7 @@ impl PyGraphView {
                 if explode_edges.unwrap_or(true) {
                     properties.set_item("update_history", e.time()?)?;
                 } else {
-                    properties.set_item("update_history", e.history())?;
+                    properties.set_item("update_history", e.history().t().collect())?;
                 }
             }
             let edge_tuple = PyTuple::new(

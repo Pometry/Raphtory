@@ -1,6 +1,3 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
 use crate::{
     core::{
         storage::timeindex::{AsTime, TimeIndexEntry},
@@ -14,7 +11,7 @@ use crate::{
             },
             state::{
                 ops,
-                ops::{node::NodeOp, EarliestTime, HistoryOp},
+                ops::{node::NodeOp, HistoryOp},
                 LazyNodeState,
             },
             view,
@@ -29,25 +26,20 @@ use crate::{
         graph::{
             edge::{edge_valid_layer, EdgeView},
             node::NodeView,
-            nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
         },
     },
-    errors::GraphError,
     prelude::*,
     python::types::repr::{iterator_repr, Repr},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::{
-    core::{
-        entities::LayerIds,
-        storage::timeindex::{TimeError, TimeIndexOps},
-    },
-    iter::BoxedIter,
+use raphtory_api::core::{
+    entities::LayerIds,
+    storage::timeindex::{TimeError, TimeIndexOps},
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{iter, marker::PhantomData, slice, slice::Iter, sync::Arc};
+use std::{iter, marker::PhantomData, sync::Arc};
 
 pub trait InternalHistoryOps: Send + Sync {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
@@ -609,7 +601,7 @@ impl<T: InternalHistoryOps> HistoryTimestamp<T> {
 
 // converts operations to return date times instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
-pub struct HistoryDateTime<T>(T);
+pub struct HistoryDateTime<T>(pub(crate) T);
 
 impl<T: InternalHistoryOps> HistoryDateTime<T> {
     pub fn new(item: T) -> Self {
@@ -636,6 +628,12 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
             .iter_rev()
             .map(|x| x.dt())
             .collect::<Result<Vec<_>, TimeError>>()
+    }
+}
+
+impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
+    fn repr(&self) -> String {
+        format!("HistoryDateTime({})", iterator_repr(self.iter()))
     }
 }
 

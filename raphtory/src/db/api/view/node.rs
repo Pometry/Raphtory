@@ -80,7 +80,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns the type of node
     fn node_type(&self) -> Self::ValueType<ops::Type>;
     fn node_type_id(&self) -> Self::ValueType<ops::TypeId>;
-    /// Get the timestamp for the earliest activity of the node
+    /// Get the time entry for the earliest activity of the node
     fn earliest_time(&self) -> Self::ValueType<ops::EarliestTime<Self::Graph>>;
 
     fn earliest_date_time(
@@ -89,7 +89,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         ops::Map<ops::EarliestTime<Self::Graph>, Result<Option<DateTime<Utc>>, TimeError>>,
     >;
 
-    /// Get the timestamp for the latest activity of the node
+    /// Get the time entry for the latest activity of the node
     fn latest_time(&self) -> Self::ValueType<ops::LatestTime<Self::Graph>>;
 
     fn latest_date_time(

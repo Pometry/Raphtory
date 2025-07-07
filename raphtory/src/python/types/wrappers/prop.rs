@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry};
 use std::{collections::HashSet, ops::Deref, sync::Arc};
 
 impl Repr for Prop {
@@ -44,7 +44,7 @@ impl Repr for Prop {
 }
 
 pub type PropValue = Option<Prop>;
-pub type PropHistItems = Vec<(i64, Prop)>;
+pub type PropHistItems = Vec<(TimeIndexEntry, Prop)>;
 
 #[pyclass(frozen, name = "PropertyFilter", module = "raphtory")]
 #[derive(Clone)]
