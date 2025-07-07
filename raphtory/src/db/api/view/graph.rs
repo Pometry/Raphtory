@@ -302,7 +302,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             let mut new_storage = g.write_lock()?;
 
             new_storage.resize_chunks_to_num_nodes(self.count_nodes());
-            // TODO: resize the number of layers for nodes when this makes sense
+            for layer_id in &layer_map {
+                new_storage.nodes.ensure_layer(*layer_id);
+            }
 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
