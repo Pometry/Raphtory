@@ -103,6 +103,53 @@ pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = TimeIndexEntry> {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub struct AdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
+    node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> AdditionCellsRef<'a, Ref> {
+    pub fn new(node: Ref) -> Self {
+        Self {
+            node,
+            _mark: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a, Ref> {
+    type TimeCell = Ref::TimeCell;
+
+    fn t_props_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        self.node.t_props_tc(layer_id, range) // Assuming t_props_tc is not used for additions
+    }
+
+    fn additions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn deletions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn num_layers(&self) -> usize {
+        self.node.num_layers()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct DeletionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
     node: Ref,
     _mark: std::marker::PhantomData<&'a ()>,

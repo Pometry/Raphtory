@@ -4049,9 +4049,11 @@ mod db_tests {
     fn materialize_window_delete_test() {
         let g = Graph::new();
         g.delete_edge(0, 0, 0, Some("a")).unwrap();
+        println!("{g:#?}");
         let w = 0..1;
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();
+        // println!("{gmw:#?}");
         assert_graph_equal(&gw, &gmw);
     }
 

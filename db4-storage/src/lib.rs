@@ -2,7 +2,10 @@ use std::path::Path;
 
 use crate::{
     gen_t_props::GenTProps,
-    gen_ts::{DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps, PropAdditionCellsRef},
+    gen_ts::{
+        AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
+        PropAdditionCellsRef,
+    },
     pages::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
@@ -47,7 +50,7 @@ pub type EdgeEntryRef<'a> = MemEdgeRef<'a>;
 pub type NodePropAdditions<'a> = GenericTimeOps<'a, PropAdditionCellsRef<'a, MemNodeRef<'a>>>;
 pub type NodeEdgeAdditions<'a> = GenericTimeOps<'a, EdgeAdditionCellsRef<'a, MemNodeRef<'a>>>;
 
-pub type EdgeAdditions<'a> = GenericTimeOps<'a, MemEdgeRef<'a>>;
+pub type EdgeAdditions<'a> = GenericTimeOps<'a, AdditionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type EdgeDeletions<'a> = GenericTimeOps<'a, DeletionCellsRef<'a, MemEdgeRef<'a>>>;
 pub type NodeTProps<'a> = GenTProps<'a, MemNodeRef<'a>>;
 pub type EdgeTProps<'a> = GenTProps<'a, MemEdgeRef<'a>>;

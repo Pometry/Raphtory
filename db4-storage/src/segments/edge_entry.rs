@@ -8,7 +8,7 @@ use crate::{
     EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
     gen_t_props::WithTProps,
-    gen_ts::{DeletionCellsRef, WithTimeCells},
+    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
 };
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
@@ -130,7 +130,6 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
         self.es.as_ref()[layer_id]
             .t_prop(edge_pos, prop_id)
             .into_iter()
-            .map(|t_prop| t_prop.into())
     }
 }
 
@@ -150,7 +149,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn layer_additions(self, layer_id: usize) -> Self::Additions {
-        EdgeAdditions::new_with_layer(self, layer_id)
+        EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id)
     }
 
     fn layer_deletions(self, layer_id: usize) -> Self::Deletions {
