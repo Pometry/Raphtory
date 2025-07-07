@@ -29,7 +29,7 @@ use storage::{
 };
 
 use crate::mutation::{
-    addition_ops::{AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps},
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
     MutationError,
 };
 
@@ -52,7 +52,7 @@ impl<
         MNS: DerefMut<Target = MemNodeSegment> + Send + Sync,
         MES: DerefMut<Target = MemEdgeSegment> + Send + Sync,
         EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
-    > AtomicEdgeAddition for WriteS<'a, MNS, MES, EXT>
+    > EdgeWriteLock for WriteS<'a, MNS, MES, EXT>
 {
     fn internal_add_edge(
         &mut self,
@@ -73,7 +73,26 @@ impl<
         self.static_session
             .add_edge_into_layer(t, src, dst, eid, lsn, props);
 
-        // TODO: consider storing node id as const prop here?
+        eid
+    }
+
+    fn internal_delete_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+        layer: usize,
+    ) -> MaybeNew<ELID> {
+        let src = src.into();
+        let dst = dst.into();
+        let eid = self
+            .static_session
+            .add_static_edge(src, dst, lsn)
+            .map(|eid| eid.with_layer(layer));
+
+        self.static_session
+            .delete_edge_from_layer(t, src, dst, eid, lsn);
 
         eid
     }

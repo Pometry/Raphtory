@@ -14,10 +14,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::{
-            logical_to_physical::{InvalidNodeId, Mapping},
-            tgraph::InvalidLayer,
-        },
+        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
         nodes::node_ref::NodeRef,
         properties::graph_meta::GraphMeta,
         GidRef, LayerIds, EID, VID,
@@ -66,11 +63,11 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new(path: Option<PathBuf>) -> Self {
         let node_meta = Meta::new();
         let edge_meta = Meta::new();
-        edge_meta.get_or_create_layer_id(Some("static_graph"));
         Self::new_with_meta(path, node_meta, edge_meta)
     }
 
     pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
+        edge_meta.get_or_create_layer_id(Some("static_graph"));
         let graph_dir = path.unwrap_or_else(random_temp_dir);
         std::fs::create_dir_all(&graph_dir).unwrap_or_else(|_| {
             panic!(
@@ -246,7 +243,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn update_time(&self, earliest: TimeIndexEntry) {
-        todo!()
+        // self.storage.update_time(earliest);
     }
 }
 
@@ -261,8 +258,8 @@ pub struct WriteLockedGraph<'a, EXT> {
 impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
     pub fn new(graph: &'a TemporalGraph<EXT>) -> Self {
         WriteLockedGraph {
-            nodes: graph.storage.nodes().write_locked().into(),
-            edges: graph.storage.edges().write_locked().into(),
+            nodes: graph.storage.nodes().write_locked(),
+            edges: graph.storage.edges().write_locked(),
             graph,
             num_nodes: Arc::new(AtomicUsize::new(graph.internal_num_nodes())),
             num_edges: Arc::new(AtomicUsize::new(graph.internal_num_edges())),
@@ -299,14 +296,14 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
         let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(VID(num_nodes - 1));
         self.graph.storage().nodes().grow(chunks_needed + 1);
         std::mem::take(&mut self.nodes);
-        self.nodes = self.graph.storage.nodes().write_locked().into();
+        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
     pub fn resize_chunks_to_num_edges(&mut self, num_edges: usize) {
         let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(EID(num_edges - 1));
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
-        self.edges = self.graph.storage.edges().write_locked().into();
+        self.edges = self.graph.storage.edges().write_locked();
     }
 
     pub fn edge_stats(&self) -> &Arc<GraphStats> {

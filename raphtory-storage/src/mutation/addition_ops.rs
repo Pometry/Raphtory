@@ -35,7 +35,7 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    type AtomicAddEdge<'a>: AtomicEdgeAddition
+    type AtomicAddEdge<'a>: EdgeWriteLock
     where
         Self: 'a;
 
@@ -86,7 +86,7 @@ pub trait InternalAdditionOps {
     ) -> Result<Vec<(usize, Prop)>, Self::Error>;
 }
 
-pub trait AtomicEdgeAddition: Send + Sync {
+pub trait EdgeWriteLock: Send + Sync {
     /// add edge update
     fn internal_add_edge(
         &mut self,
@@ -96,6 +96,15 @@ pub trait AtomicEdgeAddition: Send + Sync {
         lsn: u64,
         layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
+    ) -> MaybeNew<ELID>;
+
+    fn internal_delete_edge(
+        &mut self,
+        t: TimeIndexEntry,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+        layer: usize,
     ) -> MaybeNew<ELID>;
 
     /// Stores id as a const prop within the node

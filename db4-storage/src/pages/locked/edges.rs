@@ -54,6 +54,10 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
             None
         }
     }
+
+    pub fn ensure_layer(&mut self, layer_id: usize) {
+        self.lock.get_or_create_layer(layer_id);
+    }
 }
 pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
@@ -82,5 +86,11 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> WriteLockedEdgePages<'a, ES> 
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = LockedEdgePage<'a, ES>> + 'a {
         self.writers.into_par_iter()
+    }
+
+    pub fn ensure_layer(&mut self, layer_id: usize) {
+        for writer in &mut self.writers {
+            writer.ensure_layer(layer_id);
+        }
     }
 }

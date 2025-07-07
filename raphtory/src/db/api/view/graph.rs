@@ -254,33 +254,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 vec![]
             }
             LayerIds::All => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
+                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in 0..layers.len() {
-                    let new_id = g
-                        .resolve_layer(Some(&layers[id]))
-                        .map_err(MutationError::from)?
-                        .inner();
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let new_id = g
-                    .resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
-                    .map_err(MutationError::from)?;
+                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
+                let new_id =
+                    g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers()];
+                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g
-                        .resolve_layer(Some(&layers[id]))
-                        .map_err(MutationError::from)?
-                        .inner();
+                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
@@ -304,19 +297,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         let g = GraphStorage::from(g);
 
-        let g_session = g.write_session()?;
-
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
 
             new_storage.resize_chunks_to_num_nodes(self.count_nodes());
+            // TODO: resize the number of layers for nodes when this makes sense
 
             let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
             let node_map_shared =
                 atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
-            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for (index, node) in self.nodes().iter().enumerate() {
                     let new_id = VID(index);
                     let gid = node.id();
@@ -336,6 +328,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 new_type_id,
                                 0,
                             );
+                        } else {
+                            writer.store_node_id(node_pos, 0, gid.as_ref(), 0);
                         }
 
                         for (t, row) in node.rows() {
@@ -355,8 +349,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             })?;
 
             new_storage.resize_chunks_to_num_edges(self.count_edges());
+            for layer_id in layer_map.iter() {
+                new_storage.edges.ensure_layer(*layer_id);
+            }
 
-            new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.edges.par_iter_mut().try_for_each(|shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     let src = node_map[edge.edge.src().index()];
                     let dst = node_map[edge.edge.dst().index()];
@@ -421,7 +418,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 Ok::<(), MutationError>(())
             })?;
 
-            new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
+            new_storage.nodes.par_iter_mut().try_for_each(|shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     let eid = EID(eid);
                     for e in edge.explode() {
@@ -431,13 +428,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                             let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
-                            writer.add_outbound_edge(
-                                t,
-                                node_pos,
-                                node_map[edge.edge.dst().index()],
-                                eid.with_layer(l),
-                                0,
-                            );
+                            let dst = node_map[edge.edge.dst().index()];
+                            writer.add_static_outbound_edge(node_pos, dst, eid, 0);
+                            writer.add_outbound_edge(t, node_pos, dst, eid.with_layer(l), 0);
                         }
                         if let Some(node_pos) = shard.resolve_pos(node_map[edge.edge.dst().index()])
                         {
@@ -445,13 +438,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                             let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
-                            writer.add_inbound_edge(
-                                t,
-                                node_pos,
-                                node_map[edge.edge.src().index()],
-                                eid.with_layer(l),
-                                0,
-                            );
+                            let src = node_map[edge.edge.src().index()];
+                            writer.add_static_inbound_edge(node_pos, src, eid, 0);
+                            writer.add_inbound_edge(t, node_pos, src, eid.with_layer(l), 0);
                         }
                     }
 
@@ -467,11 +456,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
                         if let Some(node_pos) = shard.resolve_pos(src) {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(t, node_pos, dst, eid.with_layer(layer), 0);
+                            writer.update_deletion_time(t, node_pos, eid.with_layer(layer), 0);
                         }
                         if let Some(node_pos) = shard.resolve_pos(dst) {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(t, node_pos, src, eid.with_layer(layer), 0);
+                            writer.update_deletion_time(t, node_pos, eid.with_layer(layer), 0);
                         }
                     }
                 }

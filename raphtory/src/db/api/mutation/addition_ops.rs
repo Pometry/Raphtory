@@ -5,8 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
-            state::ops::node,
+            mutation::{time_from_input_session, TryIntoInputTime},
             view::StaticGraphViewOps,
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -19,7 +18,7 @@ use raphtory_api::core::{
     storage::dict_mapper::MaybeNew::{Existing, New},
 };
 use raphtory_storage::mutation::addition_ops::{
-    AtomicEdgeAddition, InternalAdditionOps, SessionAdditionOps,
+    EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {

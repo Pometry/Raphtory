@@ -1073,7 +1073,7 @@ mod db_tests {
                 assert_eq!(src_id.to_string(), "X");
                 assert_eq!(dst_id.to_string(), "Y");
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
             Ok(_) => panic!("Expected error but got Ok"),
         }
         let mut nodes = gg.nodes().name().collect_vec();
@@ -4031,6 +4031,7 @@ mod db_tests {
 
         let gw = g.after(1);
         let gmw = gw.materialize().unwrap();
+
         assert_graph_equal(&gw, &gmw);
     }
 

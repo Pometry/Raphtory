@@ -13,6 +13,7 @@ use crate::{
         AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyAdditionOps,
     },
 };
+use itertools::Itertools;
 use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
@@ -326,39 +327,46 @@ fn import_node_internal<
     merge: bool,
 ) -> Result<NodeView<'static, G, G>, GraphError> {
     let id = id.as_node_ref();
+    let gid_ref = id.as_gid_ref().left();
+    graph.validate_gids(gid_ref).map_err(into_graph_err)?;
     if !merge {
         if let Some(existing_node) = graph.node(id) {
             return Err(GraphError::NodeExistsError(existing_node.id()));
         }
     }
 
-    let node_internal = match node.node_type().as_str() {
-        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
+    let (node_internal, node_type) = match node.node_type().as_str() {
+        None => (
+            graph.resolve_node(id).map_err(into_graph_err)?.inner(),
+            None,
+        ),
         Some(node_type) => {
-            let (node_internal, _) = graph
+            let (node_internal, node_type) = graph
                 .resolve_node_and_type(id, node_type)
                 .map_err(into_graph_err)?
                 .inner();
-            node_internal.inner()
+            (node_internal.inner(), Some(node_type.inner()))
         }
     };
     let session = graph.write_session().map_err(|err| err.into())?;
-    let keys = node.temporal_prop_keys().collect::<Vec<_>>();
+    let keys = node.graph.node_meta().temporal_prop_meta().get_keys();
 
     for (t, row) in node.rows() {
         let t = time_from_input_session(&session, t)?;
 
-        let props = row
-            .into_iter()
-            .zip(&keys)
-            .map(|((_, prop), key)| {
-                let prop_id = session.resolve_node_property(key, prop.dtype(), false);
-                prop_id.map(|prop_id| (prop_id.inner(), prop))
-            })
-            .collect::<Result<Vec<_>, _>>()
+        let props = graph
+            .validate_props(
+                false,
+                graph.node_meta(),
+                row.into_iter().map(|(prop_id, prop)| {
+                    let prop_key = &keys[prop_id];
+                    (prop_key, prop)
+                }),
+            )
             .map_err(into_graph_err)?;
-        session
-            .internal_add_node(t, node_internal, &props)
+
+        graph
+            .internal_add_node(t, node_internal, gid_ref, node_type, props)
             .map_err(into_graph_err)?;
     }
 

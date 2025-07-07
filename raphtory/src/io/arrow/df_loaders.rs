@@ -342,12 +342,7 @@ pub(crate) fn load_edges_from_df<
                             eids_exist[row].store(true, Ordering::Relaxed);
                         } else {
                             let edge_id = EID(next_edge_id());
-                            writer.add_static_outbound_edge(
-                                src_pos,
-                                *dst,
-                                edge_id.with_layer(*layer),
-                                0,
-                            );
+                            writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             writer.add_outbound_edge(
                                 t,
                                 src_pos,

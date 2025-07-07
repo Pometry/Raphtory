@@ -11,13 +11,18 @@ pub struct GraphStats {
 
 impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
-        let counts = iter.into_iter().map(|c| AtomicUsize::new(c)).collect();
-        let layers = boxcar::Vec::from(counts);
+        let layers = iter.into_iter().map(AtomicUsize::new).collect();
         Self {
             layers,
             earliest: MinCounter::new(),
             latest: MaxCounter::new(),
         }
+    }
+}
+
+impl Default for GraphStats {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -34,6 +39,11 @@ impl GraphStats {
 
     pub fn len(&self) -> usize {
         self.layers.count()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn update_time(&self, t: i64) {
@@ -64,7 +74,7 @@ impl GraphStats {
             return counter;
         }
 
-        if self.layers.count() >= layer_id + 1 {
+        if self.layers.count() > layer_id {
             // something has allocated the layer, wait for it to be added
             loop {
                 if let Some(counter) = self.layers.get(layer_id) {

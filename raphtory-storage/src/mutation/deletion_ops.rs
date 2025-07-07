@@ -7,6 +7,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::graph::tgraph::TemporalGraph;
+use storage::Extension;
 
 pub trait InternalDeletionOps {
     type Error: From<MutationError>;
@@ -25,7 +26,7 @@ pub trait InternalDeletionOps {
     ) -> Result<(), Self::Error>;
 }
 
-impl<EXT> InternalDeletionOps for db4_graph::TemporalGraph<EXT> {
+impl InternalDeletionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
 
     fn internal_delete_edge(
@@ -35,7 +36,10 @@ impl<EXT> InternalDeletionOps for db4_graph::TemporalGraph<EXT> {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error> {
-        todo!()
+        let mut session = self.storage().write_session(src, dst, None);
+        let edge = session.add_static_edge(src, dst, 0);
+        session.delete_edge_from_layer(t, src, dst, edge.map(|eid| eid.with_layer(layer)), 0);
+        Ok(edge)
     }
 
     fn internal_delete_existing_edge(

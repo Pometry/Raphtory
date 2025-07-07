@@ -5,7 +5,7 @@ use either::Either;
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
 use raphtory_core::{
     entities::{
-        nodes::node_store::PropTimestamps,
+        ELID,
         properties::{tcell::TCell, tprop::TPropCell},
     },
     storage::timeindex::TimeIndexEntry,
@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 
 use crate::LocalPOS;
 
-use super::properties::{PropEntry, Properties};
+use super::properties::{Properties, RowEntry};
 
 pub mod edge;
 pub mod node;
@@ -160,7 +160,7 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data.len()
     }
 
-    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, PropEntry)> {
+    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry)> {
         self.items.iter_ones().filter_map(move |l_pos| {
             let entry = self.data.get(&LocalPOS(l_pos))?;
             Some((
@@ -171,9 +171,7 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
-    pub fn all_entries(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, PropEntry)>)> {
+    pub fn all_entries(&self) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, RowEntry)>)> {
         self.items.iter().enumerate().map(move |(l_pos, exists)| {
             let l_pos = LocalPOS(l_pos);
             let entry = (*exists).then(|| {
@@ -186,7 +184,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn all_entries_par(
         &self,
-    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, PropEntry)>)> + '_ {
+    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry)>)> + '_ {
         (0..self.items.len()).into_par_iter().map(move |l_pos| {
             let exists = unsafe { self.items.get_unchecked(l_pos) };
             let l_pos = LocalPOS(l_pos);
@@ -211,9 +209,9 @@ impl<T: HasRow> SegmentContainer<T> {
             .flat_map(|(_, mp, _)| {
                 let row = mp.row();
                 self.properties()
-                    .temporal_index(row)
+                    .times_from_props(row)
                     .into_iter()
-                    .flat_map(|entry| entry.props_ts.iter())
+                    .flat_map(|entry| entry.iter())
                     .filter_map(|(_, &v)| v)
             })
             .collect::<Vec<_>>()
@@ -256,18 +254,24 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
-    pub fn additions(&self, item_pos: LocalPOS) -> &PropTimestamps {
+    pub fn additions(&self, item_pos: LocalPOS) -> &TCell<ELID> {
         self.data
             .get(&item_pos)
-            .and_then(|entry| {
-                let prop_entry = self.properties.get_entry(entry.row());
-                prop_entry.timestamps()
-            })
-            .unwrap_or(&EMPTY_PROP_TIMESTAMPS)
+            .and_then(|entry| self.properties.additions(entry.row()))
+            .unwrap_or(&TCell::Empty)
+    }
+
+    pub fn deletions(&self, item_pos: LocalPOS) -> &TCell<ELID> {
+        self.data
+            .get(&item_pos)
+            .and_then(|entry| self.properties.deletions(entry.row()))
+            .unwrap_or(&TCell::Empty)
+    }
+
+    pub fn times_from_props(&self, item_pos: LocalPOS) -> &TCell<Option<usize>> {
+        self.data
+            .get(&item_pos)
+            .and_then(|entry| self.properties.times_from_props(entry.row()))
+            .unwrap_or(&TCell::Empty)
     }
 }
-
-const EMPTY_PROP_TIMESTAMPS: PropTimestamps = PropTimestamps {
-    edge_ts: TCell::Empty,
-    props_ts: TCell::Empty,
-};

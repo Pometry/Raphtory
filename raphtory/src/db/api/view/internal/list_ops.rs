@@ -91,6 +91,10 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             List::List { elems } => elems.len(),
         }
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync + 'static> IntoIterator

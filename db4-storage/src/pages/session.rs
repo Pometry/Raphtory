@@ -4,6 +4,7 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
 use crate::{
+    LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
     pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
@@ -113,6 +114,66 @@ impl<
         }
     }
 
+    pub fn delete_edge_from_layer<T: AsTime>(
+        &mut self,
+        t: T,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        edge: MaybeNew<ELID>,
+        lsn: u64,
+    ) {
+        let src = src.into();
+        let dst = dst.into();
+        let e_id = edge.inner();
+        let layer = e_id.layer();
+
+        // assert!(layer > 0, "Edge must be in a layer greater than 0");
+
+        let (_, src_pos) = self.graph.nodes().resolve_pos(src);
+        let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
+
+        if let Some(writer) = self.edge_writer.as_mut() {
+            let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
+            let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
+            let exists = Some(!edge.is_new());
+
+            writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+        } else {
+            let mut writer = self.graph.edge_writer(e_id.edge);
+            let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
+            let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
+            let exists = Some(!edge.is_new());
+
+            writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+        }
+
+        let edge_id = edge.inner();
+
+        if edge_id.layer() > 0 {
+            if edge.is_new()
+                || self
+                    .node_writers
+                    .get_mut_src()
+                    .get_out_edge(src_pos, dst, edge_id.layer())
+                    .is_none()
+            {
+                self.node_writers
+                    .get_mut_src()
+                    .add_outbound_edge(t, src_pos, dst, edge_id, lsn);
+                self.node_writers
+                    .get_mut_dst()
+                    .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
+            }
+
+            self.node_writers
+                .get_mut_src()
+                .update_deletion_time(t, src_pos, e_id, lsn);
+            self.node_writers
+                .get_mut_dst()
+                .update_deletion_time(t, dst_pos, e_id, lsn);
+        }
+    }
+
     pub fn add_static_edge(
         &mut self,
         src: impl Into<VID>,
@@ -143,18 +204,12 @@ impl<
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
-            self.node_writers.get_mut_src().add_static_outbound_edge(
-                src_pos,
-                dst,
-                edge_id.with_layer(layer_id),
-                lsn,
-            );
-            self.node_writers.get_mut_dst().add_static_inbound_edge(
-                dst_pos,
-                src,
-                edge_id.with_layer(layer_id),
-                lsn,
-            );
+            self.node_writers
+                .get_mut_src()
+                .add_static_outbound_edge(src_pos, dst, edge_id, lsn);
+            self.node_writers
+                .get_mut_dst()
+                .add_static_inbound_edge(dst_pos, src, edge_id, lsn);
 
             MaybeNew::New(edge_id)
         }

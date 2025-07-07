@@ -11,7 +11,8 @@ use crate::{
 };
 use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    deletion_ops::InternalDeletionOps,
 };
 
 pub trait DeletionOps:
@@ -28,7 +29,14 @@ pub trait DeletionOps:
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
-        let ti = time_from_input_session(&session, t).map_err(into_graph_err)?;
+        self.validate_gids(
+            [src.as_node_ref(), dst.as_node_ref()]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+        )
+        .map_err(into_graph_err)?;
+
+        let ti = time_from_input_session(&session, t)?;
         let src_id = self
             .resolve_node(src.as_node_ref())
             .map_err(into_graph_err)?
@@ -37,14 +45,19 @@ pub trait DeletionOps:
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
-        let eid = self
-            .internal_delete_edge(ti, src_id, dst_id, layer)
-            .map_err(into_graph_err)?
-            .inner();
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
+
+        let mut add_edge_op = self
+            .atomic_add_edge(src_id, dst_id, None, layer_id)
+            .map_err(into_graph_err)?;
+        let edge_id = add_edge_op.internal_delete_edge(ti, src_id, dst_id, 0, layer_id);
+
+        add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);
+        add_edge_op.store_node_id_as_prop(dst.as_node_ref(), dst_id);
+
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer),
+            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
         ))
     }
 

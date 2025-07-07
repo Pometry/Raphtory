@@ -9,7 +9,6 @@ use raphtory_api::core::entities::properties::{
 use raphtory_core::{
     entities::{
         ELID,
-        nodes::node_store::PropTimestamps,
         properties::{tcell::TCell, tprop::TPropCell},
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
@@ -21,8 +20,9 @@ pub mod props_meta_writer;
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 
-    additions: Vec<PropTimestamps>,
-    deletions: Vec<PropTimestamps>,
+    additions: Vec<TCell<ELID>>,
+    deletions: Vec<TCell<ELID>>,
+    times_from_props: Vec<TCell<Option<usize>>>,
 
     t_properties: TColumns,
     earliest: Option<TimeIndexEntry>,
@@ -38,7 +38,7 @@ pub(crate) struct PropMutEntry<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PropEntry<'a> {
+pub struct RowEntry<'a> {
     row: usize,
     properties: &'a Properties,
 }
@@ -55,8 +55,8 @@ impl Properties {
         }
     }
 
-    pub(crate) fn get_entry(&self, row: usize) -> PropEntry {
-        PropEntry {
+    pub(crate) fn get_entry(&self, row: usize) -> RowEntry {
+        RowEntry {
             row,
             properties: self,
         }
@@ -86,8 +86,16 @@ impl Properties {
         self.c_properties.len()
     }
 
-    pub(crate) fn temporal_index(&self, row: usize) -> Option<&PropTimestamps> {
+    pub(crate) fn additions(&self, row: usize) -> Option<&TCell<ELID>> {
         self.additions.get(row)
+    }
+
+    pub(crate) fn deletions(&self, row: usize) -> Option<&TCell<ELID>> {
+        self.deletions.get(row)
+    }
+
+    pub(crate) fn times_from_props(&self, row: usize) -> Option<&TCell<Option<usize>>> {
+        self.times_from_props.get(row)
     }
 
     pub fn has_node_properties(&self) -> bool {
@@ -280,13 +288,13 @@ impl<'a> PropMutEntry<'a> {
             row
         };
 
-        if self.properties.additions.len() <= self.row {
+        if self.properties.times_from_props.len() <= self.row {
             self.properties
-                .additions
+                .times_from_props
                 .resize_with(self.row + 1, Default::default);
         }
-        let prop_timestamps = &mut self.properties.additions[self.row];
-        prop_timestamps.props_ts.set(t, Some(t_prop_row));
+        let prop_timestamps = &mut self.properties.times_from_props[self.row];
+        prop_timestamps.set(t, Some(t_prop_row));
 
         self.properties.has_node_properties = true;
         self.properties.update_earliest_latest(t);
@@ -301,7 +309,7 @@ impl<'a> PropMutEntry<'a> {
 
         self.properties.has_node_additions = true;
         let prop_timestamps = &mut self.properties.additions[self.row];
-        prop_timestamps.edge_ts.set(t, edge_id);
+        prop_timestamps.set(t, edge_id);
 
         self.properties.update_earliest_latest(t);
     }
@@ -316,7 +324,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.has_deletions = true;
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
-        prop_timestamps.edge_ts.set(t, edge_id.unwrap_or_default());
+        prop_timestamps.set(t, edge_id.unwrap_or_default());
     }
 
     pub(crate) fn append_const_props<B: Borrow<(usize, Prop)>>(
@@ -336,15 +344,7 @@ impl<'a> PropMutEntry<'a> {
     }
 }
 
-impl<'a> PropEntry<'a> {
-    pub fn timestamps(self) -> Option<&'a PropTimestamps> {
-        self.properties.additions.get(self.row)
-    }
-
-    pub fn deletions(self) -> Option<&'a PropTimestamps> {
-        self.properties.deletions.get(self.row)
-    }
-
+impl<'a> RowEntry<'a> {
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
         let t_cell = self.t_cell();
         Some(TPropCell::new(t_cell, self.properties.t_column(prop_id)))
@@ -352,8 +352,15 @@ impl<'a> PropEntry<'a> {
 
     pub fn t_cell(self) -> &'a TCell<Option<usize>> {
         self.properties
-            .additions
-            .get(self.row)
-            .map_or(&TCell::Empty, |ts| &ts.props_ts)
+            .times_from_props(self.row)
+            .unwrap_or(&TCell::Empty)
+    }
+
+    pub fn additions(self) -> &'a TCell<ELID> {
+        self.properties.additions(self.row).unwrap_or(&TCell::Empty)
+    }
+
+    pub fn deletions(self) -> &'a TCell<ELID> {
+        self.properties.deletions(self.row).unwrap_or(&TCell::Empty)
     }
 }
