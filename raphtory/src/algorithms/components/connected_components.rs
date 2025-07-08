@@ -12,18 +12,27 @@ use parking_lot::Mutex;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use std::{
+    fmt::{Debug, Formatter},
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-#[derive(Debug)]
 struct ComponentState<'graph, G> {
     chunk_labels: Vec<AtomicUsize>,
     node_labels: Vec<AtomicUsize>,
     next_start: AtomicUsize,
     next_chunk: AtomicUsize,
-    chunks: Mutex<Vec<Vec<VID>>>,
     graph: &'graph G,
+}
+
+impl<'graph, G> Debug for ComponentState<'graph, G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentState")
+            .field("chunk_labels", &self.chunk_labels)
+            .field("node_labels", &self.node_labels)
+            .field("next_start", &self.next_start)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
@@ -37,13 +46,11 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             .collect();
         let next_start = AtomicUsize::new(0);
         let next_chunk = AtomicUsize::new(0);
-        let chunks = Mutex::new(Vec::new());
         Self {
             chunk_labels,
             node_labels,
             next_start,
             next_chunk,
-            chunks,
             graph,
         }
     }
@@ -55,11 +62,17 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
         // only increment this if we still have a potentially valid node to avoid getting too many chunks
         let chunk_id = self.next_chunk_label();
+        self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Release);
         loop {
             let old_chunk_id = self.node_labels[next_start].fetch_min(chunk_id, Ordering::Relaxed);
             if old_chunk_id == usize::MAX {
                 if self.graph.has_node(VID(next_start)) {
                     return Some((chunk_id, VID(next_start)));
+                }
+            } else {
+                if old_chunk_id > chunk_id {
+                    // we modified the node label, need to keep track of the chunk mapping
+                    self.link_chunks(old_chunk_id, chunk_id);
                 }
             }
             let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
@@ -73,10 +86,25 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         self.next_chunk.fetch_add(1, Ordering::Release)
     }
 
-    fn run_chunk(&self) -> Option<(usize, Vec<VID>)> {
+    fn link_chunks(&self, chunk_id_1: usize, chunk_id_2: usize) {
+        let mut src = chunk_id_1.max(chunk_id_2);
+        let mut dst = chunk_id_1.min(chunk_id_2);
+        let mut round = 0;
+        while src != dst {
+            let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Acquire);
+            if old_label > dst {
+                src = old_label
+            } else {
+                src = dst;
+                dst = old_label
+            }
+            round += 1;
+        }
+    }
+
+    fn run_chunk(&self) -> Option<()> {
         let (chunk_id, start) = self.next_start()?;
-        self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Release);
-        let mut result = vec![start];
+
         let mut new_frontier = vec![start];
         let mut frontier = vec![];
         while !new_frontier.is_empty() {
@@ -86,56 +114,48 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
                     let node_id = neighbour.node;
                     let old_label =
                         self.node_labels[node_id.index()].fetch_min(chunk_id, Ordering::Relaxed);
-                    if old_label < chunk_id {
-                        self.chunk_labels[chunk_id].fetch_min(old_label, Ordering::Relaxed);
-                    } else if old_label != usize::MAX {
-                        self.chunk_labels[old_label].fetch_min(chunk_id, Ordering::Relaxed);
+                    if old_label != usize::MAX {
+                        self.link_chunks(chunk_id, old_label);
                     } else {
                         // node not visited previously
-                        result.push(node_id);
                         new_frontier.push(node_id);
                     }
                 }
             }
         }
-        Some((chunk_id, result))
+        Some(())
     }
 
     fn run(self) -> Vec<usize> {
         let num_tasks = rayon::current_num_threads();
-        (0..num_tasks).into_par_iter().for_each(|_| {
-            while let Some((chunk_id, result)) = self.run_chunk() {
-                let mut chunks = self.chunks.lock();
-                if chunks.len() <= chunk_id {
-                    chunks.resize(chunk_id + 1, vec![]);
-                }
-                chunks[chunk_id] = result;
-            }
-        });
-        self.next_chunk.load(Ordering::Acquire);
-        self.chunks
-            .lock()
+        (0..num_tasks)
+            .into_par_iter()
+            .for_each(|_| while self.run_chunk().is_some() {});
+        let num_chunks = self.next_chunk.load(Ordering::Acquire);
+        self.chunk_labels[0..num_chunks]
             .par_iter()
             .enumerate()
-            .for_each(|(chunk_id, chunk)| {
-                if !chunk.is_empty() {
-                    let mut component_id = self.chunk_labels[chunk_id].load(Ordering::Acquire);
-                    let mut current_chunk = chunk_id;
-                    while component_id != current_chunk {
-                        current_chunk = component_id;
-                        component_id = self.chunk_labels[current_chunk].load(Ordering::Acquire);
-                    }
-                    if component_id != chunk_id {
-                        self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
-                        for node in chunk {
-                            self.node_labels[node.index()].store(component_id, Ordering::Relaxed);
-                        }
-                    }
+            .for_each(|(chunk_id, label)| {
+                let mut component_id = label.load(Ordering::Relaxed);
+                let mut current_chunk = chunk_id;
+                while component_id != current_chunk {
+                    current_chunk = component_id;
+                    component_id = self.chunk_labels[current_chunk].load(Ordering::Relaxed);
+                }
+                if component_id != chunk_id {
+                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Release);
                 }
             });
         self.node_labels
             .into_iter()
-            .map(|l| l.into_inner())
+            .map(|l| {
+                let l = l.into_inner();
+                if l != usize::MAX {
+                    self.chunk_labels[l].load(Ordering::Acquire)
+                } else {
+                    l
+                }
+            })
             .collect()
     }
 }
@@ -211,8 +231,10 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph);
-            assert_same_partition(results, [1..=6, 7..=8]);
+            for _ in 0..1000 {
+                let results = weakly_connected_components(graph);
+                assert_same_partition(results, [1..=6, 7..=8]);
+            }
         });
     }
 

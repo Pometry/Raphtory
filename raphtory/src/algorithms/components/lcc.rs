@@ -47,7 +47,7 @@ mod largest_connected_component_test {
     use super::*;
     use crate::{
         db::api::view::GraphViewOps,
-        prelude::{AdditionOps, Graph, NO_PROPS},
+        prelude::{AdditionOps, Graph, NodeViewOps, NO_PROPS},
     };
 
     #[test]
@@ -94,16 +94,19 @@ mod largest_connected_component_test {
         for (ts, src, dst) in edges {
             graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
         }
-        let subgraph = graph.largest_connected_component();
-        let expected_nodes = vec![1, 2, 3];
-        for node in expected_nodes {
-            assert!(
-                subgraph.has_node(node),
-                "Node {} should be in the largest connected component.",
-                node
-            );
+        for _ in 0..1000 {
+            let subgraph = graph.largest_connected_component();
+            let expected_nodes = vec![1, 2, 3];
+            for node in expected_nodes {
+                assert!(
+                    subgraph.has_node(node),
+                    "Node {} should be in the largest connected component, actual nodes: {:?}",
+                    node,
+                    subgraph.nodes().id().collect_vec()
+                );
+            }
+            assert_eq!(subgraph.count_nodes(), 3);
         }
-        assert_eq!(subgraph.count_nodes(), 3);
     }
 
     #[test]
