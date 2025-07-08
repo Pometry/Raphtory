@@ -253,7 +253,7 @@ impl GraphServer {
             .at("/playground", get(ui))
             .at("/health", get(health))
             .with(Cors::new())
-            .with(Compression::new().with_quality(CompressionLevel::Best));
+            .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)
     }
 
