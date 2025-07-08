@@ -263,8 +263,11 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph);
-            assert_same_partition(results, [[1]]);
+            for _ in 0..1000 {
+                // loop to test for weird non-deterministic behaviour
+                let results = weakly_connected_components(graph);
+                assert_same_partition(results, [[1]]);
+            }
         });
     }
 
