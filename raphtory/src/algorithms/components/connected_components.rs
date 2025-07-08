@@ -16,6 +16,10 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
+/// Keeps track of node assignments to weakly-connected components
+///
+/// `node_labels` tracks the assignment of nodes to labels
+/// `chunk_labels` tracks the mapping from node labels to final components
 struct ComponentState<'graph, G> {
     chunk_labels: Vec<AtomicUsize>,
     node_labels: Vec<AtomicUsize>,
@@ -54,6 +58,10 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
     }
 
+    /// Find the next valid starting node for a task
+    ///
+    /// This function takes care to make sure that there will never be more tasks than
+    /// unfiltered nodes in the graph!
     fn next_start(&self) -> Option<(usize, VID)> {
         let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
         if next_start >= self.node_labels.len() {
@@ -85,6 +93,12 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         self.next_chunk.fetch_add(1, Ordering::Release)
     }
 
+    /// Link two chunks `chunk_id_1` and `chunk_id_2` such that they will be part of the same
+    /// component in the final result.
+    ///
+    /// The components always link from larger id to smaller id. If while linking, we find that
+    /// the component was already linked, we rewire that link as well (the implementation is effectively
+    /// the same as calling this function recursively)
     fn link_chunks(&self, chunk_id_1: usize, chunk_id_2: usize) {
         let mut src = chunk_id_1.max(chunk_id_2);
         let mut dst = chunk_id_1.min(chunk_id_2);
@@ -99,6 +113,10 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
     }
 
+    /// Find a new starting point and run breadth-first search
+    ///
+    /// If we find a node that was already handled by another chunk, update the label assignments
+    /// accordingly using `link_chunks`
     fn run_chunk(&self) -> Option<()> {
         let (chunk_id, start) = self.next_start()?;
 
@@ -123,6 +141,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         Some(())
     }
 
+    ///
     fn run(self) -> Vec<usize> {
         let num_tasks = rayon::current_num_threads();
         (0..num_tasks)
