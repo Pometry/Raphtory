@@ -16,8 +16,12 @@ impl WalOps for NoWal {
         &self.dir
     }
 
-    fn append(&self, _data: &[u8]) -> Result<LSN, DBV4Error> {
-        Ok(0)
+    fn reserve(&self) -> LSN {
+        0
+    }
+
+    fn append_with_lsn(&self, _lsn: LSN, _data: &[u8]) -> Result<(), DBV4Error> {
+        Ok(())
     }
 
     fn wait_for_sync(&self, _lsn: LSN) {}
