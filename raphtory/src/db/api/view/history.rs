@@ -14,7 +14,6 @@ use crate::{
                 ops::{node::NodeOp, HistoryOp},
                 LazyNodeState,
             },
-            view,
             view::{
                 internal::{
                     filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
@@ -128,7 +127,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
 }
 
 impl<T: InternalHistoryOps + 'static> History<'_, T> {
-    pub fn into_arc(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
+    pub fn into_arc_static(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
         History::new(Arc::new(self.0))
     }
 }
@@ -631,6 +630,12 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
     }
 }
 
+impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
+    pub fn into_arc_static(self) -> HistoryDateTime<Arc<dyn InternalHistoryOps>> {
+        HistoryDateTime::new(Arc::new(self.0))
+    }
+}
+
 impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
     fn repr(&self) -> String {
         format!("HistoryDateTime({})", iterator_repr(self.iter()))
@@ -674,6 +679,10 @@ impl<T: InternalHistoryOps> Intervals<T> {
 
     pub fn collect(&self) -> Vec<i64> {
         self.iter().collect()
+    }
+
+    pub fn collect_rev(&self) -> Vec<i64> {
+        self.iter_rev().collect()
     }
 
     pub fn iter(&self) -> BoxedLIter<i64> {

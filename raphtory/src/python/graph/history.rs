@@ -11,6 +11,7 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
+use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
 use std::{
@@ -57,6 +58,33 @@ impl PyHistory {
             .collect();
         Self {
             history: History::new(Arc::new(CompositeHistory::new(underlying_objects))),
+        }
+    }
+
+    /// Access history events as i64 timestamps
+    pub fn t(&self) -> PyHistoryTimestamp {
+        PyHistoryTimestamp {
+            history_t: HistoryTimestamp::new(Arc::new(self.history.0.clone())),
+        }
+    }
+
+    /// Access history events as DateTime items
+    pub fn dt(&self) -> PyHistoryDateTime {
+        PyHistoryDateTime {
+            history_dt: HistoryDateTime::new(Arc::new(self.history.0.clone())),
+        }
+    }
+
+    /// Access secondary index (unique index) of history events
+    pub fn s(&self) -> PyHistorySecondary {
+        PyHistorySecondary {
+            history_s: HistorySecondary::new(Arc::new(self.history.0.clone())),
+        }
+    }
+
+    pub fn intervals(&self) -> PyIntervals {
+        PyIntervals {
+            intervals: Intervals::new(Arc::new(self.history.0.clone())),
         }
     }
 
@@ -126,13 +154,15 @@ pub struct PyHistoryTimestamp {
 #[pymethods]
 impl PyHistoryTimestamp {
     /// Collect all time events
-    pub fn __list__(&self) -> Vec<i64> {
-        self.history_t.collect()
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let t = self.history_t.collect();
+        t.into_pyarray(py)
     }
 
     /// Collect all time events in reverse
-    pub fn collect_rev(&self) -> Vec<i64> {
-        self.history_t.collect_rev()
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let t = self.history_t.collect_rev();
+        t.into_pyarray(py)
     }
 
     /// Iterate over all time events
@@ -158,6 +188,12 @@ impl PyHistoryTimestamp {
 #[derive(Clone)]
 pub struct PyHistoryDateTime {
     history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+}
+
+impl PyHistoryDateTime {
+    pub fn new(history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>) -> Self {
+        Self { history_dt }
+    }
 }
 
 #[pymethods]
@@ -194,7 +230,7 @@ impl PyHistoryDateTime {
 impl<T: InternalHistoryOps + 'static> From<HistoryDateTime<T>> for PyHistoryDateTime {
     fn from(value: HistoryDateTime<T>) -> Self {
         PyHistoryDateTime {
-            history_dt: HistoryDateTime(Arc::new(value.0)),
+            history_dt: HistoryDateTime::new(Arc::new(value.0)),
         }
     }
 }
@@ -218,13 +254,15 @@ pub struct PyHistorySecondary {
 #[pymethods]
 impl PyHistorySecondary {
     /// Collect all time events
-    pub fn __list__(&self) -> Vec<usize> {
-        self.history_s.collect()
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let u = self.history_s.collect();
+        u.into_pyarray(py)
     }
 
     /// Collect all time events in reverse
-    pub fn collect_rev(&self) -> Vec<usize> {
-        self.history_s.collect_rev()
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let u = self.history_s.collect_rev();
+        u.into_pyarray(py)
     }
 
     /// Iterate over all time events
@@ -243,6 +281,47 @@ impl PyHistorySecondary {
             HistorySecondary<Arc<dyn InternalHistoryOps>>,
             |history_s| history_s.iter_rev()
         )
+    }
+}
+
+#[pyclass(name = "Intervals", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyIntervals {
+    intervals: Intervals<Arc<dyn InternalHistoryOps>>,
+}
+
+#[pymethods]
+impl PyIntervals {
+    /// Collect all interval values
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let i = self.intervals.collect();
+        i.into_pyarray(py)
+    }
+
+    /// Collect all interval values in reverse
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let i = self.intervals.collect_rev();
+        i.into_pyarray(py)
+    }
+
+    /// Calculate the mean interval between values
+    pub fn mean(&self) -> Option<f64> {
+        self.intervals.mean()
+    }
+
+    /// Calculate the median interval between values
+    pub fn median(&self) -> Option<f64> {
+        self.intervals.median()
+    }
+
+    /// Calculate the maximum interval between values
+    pub fn max(&self) -> Option<i64> {
+        self.intervals.max()
+    }
+
+    /// Calculate the minimum interval between values
+    pub fn min(&self) -> Option<i64> {
+        self.intervals.min()
     }
 }
 

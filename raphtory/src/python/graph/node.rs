@@ -255,7 +255,7 @@ impl PyNode {
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps of the event history of node.
-    pub fn history<'py>(&self) -> PyHistory {
+    pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.node.clone())))
     }
 
@@ -642,7 +642,9 @@ impl PyNodes {
     /// Returns:
     ///    HistoryView: a view of the node histories
     ///
-    fn history(&self) -> LazyNodeState<'static, ops::HistoryOp<DynamicGraph>, DynamicGraph> {
+    fn history(
+        &self,
+    ) -> LazyNodeState<'static, ops::HistoryOp<'static, DynamicGraph>, DynamicGraph> {
         self.nodes.history()
     }
 
@@ -664,7 +666,7 @@ impl PyNodes {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::HistoryOp<DynamicGraph>, PyHistoryDateTime>,
+        ops::Map<ops::HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
         DynamicGraph,
     > {
         let op = ops::HistoryOp {
@@ -888,13 +890,31 @@ impl PyPathFromGraph {
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     fn history(&self) -> NestedHistoryIterable {
         let path = self.path.clone();
-        (move || path.history()).into()
+        (move || {
+            path.history()
+                .map(|h_iter| h_iter.map(|h| h.into_arc_static()))
+        })
+        .into()
+    }
+
+    fn combined_history(&self) -> PyHistory {
+        let path = self.path.clone();
+        PyHistory::new(History::new(Arc::new(path)))
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     fn history_date_time(&self) -> NestedHistoryDateTimeIterable {
         let path = self.path.clone();
-        (move || path.history_date_time()).into()
+        (move || {
+            path.history_date_time()
+                .map(|h_iter| h_iter.map(|h| h.into_arc_static()))
+        })
+        .into()
+    }
+
+    fn combined_history_date_time(&self) -> PyHistoryDateTime {
+        let path = self.path.clone();
+        PyHistoryDateTime::new(HistoryDateTime::new(Arc::new(path)))
     }
 
     /// the node properties

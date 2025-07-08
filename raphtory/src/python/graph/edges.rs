@@ -178,7 +178,7 @@ impl PyEdges {
     ///
     fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history().map(|history| history.into_arc())).into()
+        (move || edges.history().map(|history| history.into_arc_static())).into()
     }
 
     fn history_counts(&self) -> U64Iterable {
@@ -507,7 +507,7 @@ impl PyNestedEdges {
         (move || {
             edges
                 .history()
-                .map(|history_iter| history_iter.map(|history| history.into_arc()))
+                .map(|history_iter| history_iter.map(|history| history.into_arc_static()))
         })
         .into()
     }
