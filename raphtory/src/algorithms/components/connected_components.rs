@@ -8,7 +8,6 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use parking_lot::Mutex;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use std::{
@@ -89,7 +88,6 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     fn link_chunks(&self, chunk_id_1: usize, chunk_id_2: usize) {
         let mut src = chunk_id_1.max(chunk_id_2);
         let mut dst = chunk_id_1.min(chunk_id_2);
-        let mut round = 0;
         while src != dst {
             let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Acquire);
             if old_label > dst {
@@ -98,7 +96,6 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
                 src = dst;
                 dst = old_label
             }
-            round += 1;
         }
     }
 
@@ -190,11 +187,7 @@ mod cc_test {
     use ahash::HashSet;
     use itertools::*;
     use quickcheck_macros::quickcheck;
-    use std::{
-        cmp::Reverse,
-        collections::{BTreeSet, HashMap},
-        iter::once,
-    };
+    use std::{collections::BTreeSet, iter::once};
 
     fn assert_same_partition<G: GraphView, ID: Into<GID>>(
         left: NodeState<usize, G>,
