@@ -10,7 +10,6 @@ use crate::{
 };
 use parking_lot::Mutex;
 use raphtory_api::core::entities::VID;
-use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use std::{
     mem,
@@ -153,7 +152,7 @@ where
     G: StaticGraphViewOps,
 {
     // read-lock the graph
-    let cg = g.core_graph().lock();
+    let _cg = g.core_graph().lock();
     let state = ComponentState::new(g);
     let result = state.run();
     NodeState::new_from_eval(g.clone(), result)
