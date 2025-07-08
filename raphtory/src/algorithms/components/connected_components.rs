@@ -114,16 +114,18 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             .par_iter()
             .enumerate()
             .for_each(|(chunk_id, chunk)| {
-                let mut component_id = self.chunk_labels[chunk_id].load(Ordering::Relaxed);
-                let mut current_chunk = chunk_id;
-                while component_id != current_chunk {
-                    current_chunk = component_id;
-                    component_id = self.chunk_labels[current_chunk].load(Ordering::Relaxed);
-                }
-                if component_id != chunk_id {
-                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
-                    for node in chunk {
-                        self.node_labels[node.index()].store(component_id, Ordering::Relaxed);
+                if !chunk.is_empty() {
+                    let mut component_id = self.chunk_labels[chunk_id].load(Ordering::Acquire);
+                    let mut current_chunk = chunk_id;
+                    while component_id != current_chunk {
+                        current_chunk = component_id;
+                        component_id = self.chunk_labels[current_chunk].load(Ordering::Acquire);
+                    }
+                    if component_id != chunk_id {
+                        self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
+                        for node in chunk {
+                            self.node_labels[node.index()].store(component_id, Ordering::Relaxed);
+                        }
                     }
                 }
             });
