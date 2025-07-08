@@ -31,7 +31,7 @@ impl LargestConnectedComponent for Graph {
     where
         Self: StaticGraphViewOps,
     {
-        let connected_components = weakly_connected_components(self, usize::MAX, None).groups();
+        let connected_components = weakly_connected_components(self).groups();
 
         let lcc = connected_components
             .into_iter_subgraphs()

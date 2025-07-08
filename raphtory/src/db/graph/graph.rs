@@ -3365,7 +3365,7 @@ mod db_tests {
 
         test_storage!(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
-            assert_eq!(weakly_connected_components(&wl, 10, None).groups().len(), 1);
+            assert_eq!(weakly_connected_components(&wl).groups().len(), 1);
         });
     }
 

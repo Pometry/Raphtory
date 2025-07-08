@@ -1,30 +1,21 @@
-use std::mem;
 use crate::{
-    core::state::compute_state::ComputeStateVec,
     db::{
         api::{
             state::NodeState,
             view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
-        task::{
-            context::Context,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
+        graph::node::NodeView,
     },
+    prelude::GraphViewOps,
 };
 use parking_lot::Mutex;
-use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::VID};
+use raphtory_api::core::entities::VID;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use crate::prelude::GraphViewOps;
-
-#[derive(Clone, Debug, Default)]
-struct WccState {
-    component: usize,
-}
+use std::{
+    mem,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 #[derive(Debug)]
 struct ComponentState<'graph, G> {
@@ -32,7 +23,7 @@ struct ComponentState<'graph, G> {
     node_labels: Vec<AtomicUsize>,
     next_start: AtomicUsize,
     next_chunk: AtomicUsize,
-    chunks: Mutex<Vec<VID>>,
+    chunks: Mutex<Vec<Vec<VID>>>,
     graph: &'graph G,
 }
 
@@ -58,30 +49,89 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
     }
 
-    fn next_start(&self) -> Option<VID> {
+    fn next_start(&self, chunk_id: usize) -> Option<VID> {
         loop {
             let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
             if next_start >= self.node_labels.len() {
                 return None;
             }
-            if self.graph.has_node(VID(next_start)) {
-                return Some(VID(next_start))
+            let old_chunk_id = self.node_labels[next_start].fetch_min(chunk_id, Ordering::Relaxed);
+            if old_chunk_id == usize::MAX {
+                if self.graph.has_node(VID(next_start)) {
+                    return Some(VID(next_start));
+                }
             }
         }
     }
-}
 
-fn run_chunk<'graph, G: GraphView + 'graph>(state: &ComponentState<'graph, G>) -> Option<Vec<VID>> {
-    let start = state.next_start()?;
-    let mut result = vec![start];
-    let mut new_frontier = vec![start];
-    let mut frontier = vec![];
-    while !new_frontier.is_empty() {
-        mem::swap(&mut new_frontier, &mut frontier);
-        
-
+    fn next_chunk_label(&self) -> usize {
+        self.next_chunk.fetch_add(1, Ordering::Release)
     }
-    Some(result)
+
+    fn run_chunk(&self) -> Option<(usize, Vec<VID>)> {
+        let chunk_id = self.next_chunk_label();
+        let start = self.next_start(chunk_id)?;
+        self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Release);
+        let mut result = vec![start];
+        let mut new_frontier = vec![start];
+        let mut frontier = vec![];
+        while !new_frontier.is_empty() {
+            mem::swap(&mut new_frontier, &mut frontier);
+            for node_id in frontier.drain(..) {
+                for neighbour in NodeView::new_internal(self.graph, node_id).neighbours() {
+                    let node_id = neighbour.node;
+                    let old_label =
+                        self.node_labels[node_id.index()].fetch_min(chunk_id, Ordering::Relaxed);
+                    if old_label < chunk_id {
+                        self.chunk_labels[chunk_id].fetch_min(old_label, Ordering::Relaxed);
+                    } else if old_label != usize::MAX {
+                        self.chunk_labels[old_label].fetch_min(chunk_id, Ordering::Relaxed);
+                    } else {
+                        // node not visited previously
+                        result.push(node_id);
+                        new_frontier.push(node_id);
+                    }
+                }
+            }
+        }
+        Some((chunk_id, result))
+    }
+
+    fn run(self) -> Vec<usize> {
+        let num_tasks = rayon::current_num_threads();
+        (0..num_tasks).into_par_iter().for_each(|_| {
+            while let Some((chunk_id, result)) = self.run_chunk() {
+                let mut chunks = self.chunks.lock();
+                if chunks.len() <= chunk_id {
+                    chunks.resize(chunk_id + 1, vec![]);
+                }
+                chunks[chunk_id] = result;
+            }
+        });
+        self.next_chunk.load(Ordering::Acquire);
+        self.chunks
+            .lock()
+            .par_iter()
+            .enumerate()
+            .for_each(|(chunk_id, chunk)| {
+                let mut component_id = self.chunk_labels[chunk_id].load(Ordering::Relaxed);
+                let mut current_chunk = chunk_id;
+                while component_id != current_chunk {
+                    current_chunk = component_id;
+                    component_id = self.chunk_labels[current_chunk].load(Ordering::Relaxed);
+                }
+                if component_id != chunk_id {
+                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
+                    for node in chunk {
+                        self.node_labels[node.index()].store(component_id, Ordering::Relaxed);
+                    }
+                }
+            });
+        self.node_labels
+            .into_iter()
+            .map(|l| l.into_inner())
+            .collect()
+    }
 }
 
 /// Computes the connected community_detection of a graph using the Simple Connected Components algorithm
@@ -96,70 +146,45 @@ fn run_chunk<'graph, G: GraphView + 'graph>(state: &ComponentState<'graph, G>) -
 ///
 /// An [NodeState] containing the mapping from each node to its component ID
 ///
-pub fn weakly_connected_components<G>(
-    g: &G,
-    iter_count: usize,
-    threads: Option<usize>,
-) -> NodeState<'static, usize, G>
+pub fn weakly_connected_components<G>(g: &G) -> NodeState<'static, usize, G>
 where
     G: StaticGraphViewOps,
 {
     // read-lock the graph
     let cg = g.core_graph().lock();
-    let num_tasks = rayon::current_num_threads();
     let state = ComponentState::new(g);
-
-
-    (0..num_tasks).into_par_iter().for_each(|_| {});
-
-    let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv| {
-        let min_neighbour_id = vv.neighbours().iter().map(|n| n.node.0).min();
-        let id = vv.node.0;
-        let state: &mut WccState = vv.get_mut();
-        state.component = min_neighbour_id.unwrap_or(id).min(id);
-        Step::Continue
-    });
-
-    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, WccState>| {
-        let prev: usize = vv.prev().component;
-        let current = vv
-            .neighbours()
-            .into_iter()
-            .map(|n| n.prev().component)
-            .min()
-            .unwrap_or(prev);
-        let state: &mut WccState = vv.get_mut();
-        if current < prev {
-            state.component = current;
-            Step::Continue
-        } else {
-            Step::Done
-        }
-    });
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    runner.run(
-        vec![Job::new(step1)],
-        vec![Job::read_only(step2)],
-        None,
-        |_, _, _, local: Vec<WccState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.component)
-        },
-        threads,
-        iter_count,
-        None,
-        None,
-    )
+    let result = state.run();
+    NodeState::new_from_eval(g.clone(), result)
 }
 
 #[cfg(test)]
 mod cc_test {
     use super::*;
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
+    use ahash::HashSet;
     use itertools::*;
     use quickcheck_macros::quickcheck;
-    use std::{cmp::Reverse, collections::HashMap, iter::once};
+    use std::{
+        cmp::Reverse,
+        collections::{BTreeSet, HashMap},
+        iter::once,
+    };
+
+    fn assert_same_partition<G: GraphView, ID: Into<GID>>(
+        left: NodeState<usize, G>,
+        right: impl IntoIterator<Item = impl IntoIterator<Item = ID>>,
+    ) {
+        let left_groups: HashSet<BTreeSet<_>> = left
+            .groups()
+            .into_iter_groups()
+            .map(|(_, nodes)| nodes.id().collect())
+            .collect();
+        let right_groups: HashSet<BTreeSet<_>> = right
+            .into_iter()
+            .map(|inner| inner.into_iter().map(|id| id.into()).collect())
+            .collect();
+        assert_eq!(left_groups, right_groups);
+    }
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -180,22 +205,8 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-            assert_eq!(
-                results,
-                vec![
-                    ("1".to_string(), 0),
-                    ("2".to_string(), 0),
-                    ("3".to_string(), 0),
-                    ("4".to_string(), 0),
-                    ("5".to_string(), 0),
-                    ("6".to_string(), 0),
-                    ("7".to_string(), 6),
-                    ("8".to_string(), 6),
-                ]
-                .into_iter()
-                .collect::<HashMap<_, _>>()
-            );
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [1..=6, 7..=8]);
         });
     }
 
@@ -234,26 +245,8 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-
-            assert_eq!(
-                results,
-                vec![
-                    ("1".to_string(), 0),
-                    ("2".to_string(), 0),
-                    ("3".to_string(), 0),
-                    ("4".to_string(), 0),
-                    ("5".to_string(), 0),
-                    ("6".to_string(), 0),
-                    ("7".to_string(), 0),
-                    ("8".to_string(), 0),
-                    ("9".to_string(), 0),
-                    ("10".to_string(), 0),
-                    ("11".to_string(), 0),
-                ]
-                .into_iter()
-                .collect::<HashMap<_, _>>()
-            );
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [1..=11]);
         });
     }
 
@@ -269,14 +262,8 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-
-            assert_eq!(
-                results,
-                vec![("1".to_string(), 0)]
-                    .into_iter()
-                    .collect::<HashMap<_, _>>()
-            );
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [[1]]);
         });
     }
 
@@ -289,24 +276,12 @@ mod cc_test {
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-            let expected = vec![
-                ("1".to_string(), 0),
-                ("2".to_string(), 0),
-                ("3".to_string(), 2),
-                ("4".to_string(), 2),
-            ]
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-            assert_eq!(results, expected);
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [[1, 2], [3, 4]]);
 
             let wg = graph.window(0, 2);
-            let results = weakly_connected_components(&wg, usize::MAX, None);
-
-            let expected = HashMap::from([("1", 0), ("2", 0)]);
-
-            assert_eq!(results, expected);
+            let results = weakly_connected_components(&wg);
+            assert_same_partition(results, [[1, 2]]);
         });
     }
 
@@ -352,20 +327,8 @@ mod cc_test {
 
             test_storage!(&graph, |graph| {
                 // now we do connected community_detection over window 0..1
-                let res = weakly_connected_components(graph, usize::MAX, None).groups();
-
-                let (cc, size) = res
-                    .into_iter_groups()
-                    .map(|(cc, group)| (cc, Reverse(group.len())))
-                    .sorted_by(|l, r| l.1.cmp(&r.1))
-                    .map(|(cc, count)| (cc, count.0))
-                    .take(1)
-                    .next()
-                    .unwrap();
-
-                assert_eq!(cc, 0);
-
-                assert_eq!(size, edges.len());
+                let res = weakly_connected_components(graph);
+                assert_same_partition(res, [vs.clone()]);
             });
         }
     }
