@@ -81,8 +81,27 @@ build-python: activate-storage
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
 
-python-docs:
-	cd docs && make html
+install-mkdocs:
+	pip install mkdocs
+
+install-doc-deps:
+	pip install -r docs/requirements.txt 
+
+gen-doc-pages: install-doc-deps
+	python docs/scripts/gen_docs_pages.py
+
+clean-doc-pages:
+	rm -r docs/reference && rm -r docs/tmp/saved_graph
+
+python-docs-serve: install-doc-deps
+	mkdocs serve
+
+python-docs-build: install-doc-deps
+	mkdocs build
+
+run-docs-tests: install-doc-deps clean-doc-pages
+	cd docs/user-guide && \
+	pytest --markdown-docs -m markdown-docs --markdown-docs-syntax=superfences
 
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736
