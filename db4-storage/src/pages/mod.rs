@@ -380,7 +380,7 @@ impl<
     }
 
     pub fn get_free_writer(&self) -> EdgeWriter<RwLockWriteGuard<MemEdgeSegment>, ES> {
-        self.edges.get_free_writer()
+        self.edges().get_free_writer()
     }
 }
 
