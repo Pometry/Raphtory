@@ -4048,9 +4048,24 @@ mod db_tests {
     #[test]
     fn materialize_one_edge_test() {
         let g = Graph::new();
-        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        let e = g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
+        e.add_constant_properties([("0", Prop::I64(1))], Some("a"))
+            .unwrap();
+        g.delete_edge(1, 0, 0, Some("a")).unwrap();
         let gw = g.window(-3, 9);
+        let c_props = gw.edge(0, 0).unwrap().properties().constant().as_map();
+        println!("window c_props: {c_props:?}");
         let gmw = gw.materialize().unwrap();
+        assert!(gmw.edge(0, 0).is_some());
+        let c_props = gmw.edge(0, 0).unwrap().properties().constant().as_map();
+        println!("materialized c_props: {c_props:?}");
+        let edge = gw.edge(0, 0).unwrap();
+        let c_props = edge
+            .const_prop_ids()
+            .filter_map(|prop_id| edge.get_const_prop(prop_id).map(|prop| (prop_id, prop)))
+            .collect::<Vec<_>>();
+
+        println!("window c_props all {c_props:?}");
         assert_graph_equal(&gw, &gmw);
     }
 
