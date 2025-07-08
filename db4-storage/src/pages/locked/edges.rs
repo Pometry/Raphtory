@@ -10,6 +10,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::EID;
 use rayon::prelude::*;
 
+#[derive(Debug)]
 pub struct LockedEdgePage<'a, ES> {
     page_id: usize,
     max_page_len: usize,
@@ -59,6 +60,7 @@ impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
         self.lock.get_or_create_layer(layer_id);
     }
 }
+#[derive(Debug)]
 pub struct WriteLockedEdgePages<'a, ES> {
     writers: Vec<LockedEdgePage<'a, ES>>,
 }

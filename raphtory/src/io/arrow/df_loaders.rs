@@ -344,7 +344,7 @@ pub(crate) fn load_edges_from_df<
                             let edge_id = EID(next_edge_id());
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
                             writer.add_outbound_edge(
-                                t,
+                                Some(t),
                                 src_pos,
                                 *dst,
                                 edge_id.with_layer(*layer),
@@ -372,7 +372,7 @@ pub(crate) fn load_edges_from_df<
                     let mut writer = shard.writer();
                     writer.store_node_id(dst_pos, 0, dst_gid, 0);
                     writer.add_static_inbound_edge(dst_pos, *src, eid.with_layer(*layer), 0);
-                    writer.add_inbound_edge(t, dst_pos, *src, eid.with_layer(*layer), 0);
+                    writer.add_inbound_edge(Some(t), dst_pos, *src, eid.with_layer(*layer), 0);
                 }
             }
         });

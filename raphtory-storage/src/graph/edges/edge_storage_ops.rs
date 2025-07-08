@@ -136,7 +136,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeDeletions<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.deletions(id)))
     }
@@ -148,7 +148,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         Item = (
             usize,
             storage::EdgeAdditions<'a>,
-            storage::EdgeAdditions<'a>,
+            storage::EdgeDeletions<'a>,
         ),
     > + 'a {
         self.layer_ids_iter(layer_ids)
@@ -157,7 +157,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a>;
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeAdditions<'a>;
+    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a>;
 
     fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a;
 
@@ -236,8 +236,8 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         EdgeRefOps::layer_additions(self, layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
-        EdgeRefOps::layer_additions(self, layer_id)
+    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a> {
+        EdgeRefOps::layer_deletions(self, layer_id)
     }
 
     #[inline(always)]

@@ -16,6 +16,7 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
+    error::DBV4Error,
     pages::{
         node_page::writer::{node_info_as_props, NodeWriter},
         session::WriteSession,
@@ -113,7 +114,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        todo!()
+        Ok(self.graph.logical_to_physical.set(gid, vid)?)
     }
 
     fn resolve_graph_property(

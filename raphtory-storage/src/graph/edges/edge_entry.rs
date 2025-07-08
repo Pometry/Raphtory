@@ -63,7 +63,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeDeletions<'a>)> + 'a {
         self.as_ref().deletions_iter(layer_ids)
     }
 
@@ -74,7 +74,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         Item = (
             usize,
             storage::EdgeAdditions<'a>,
-            storage::EdgeAdditions<'a>,
+            storage::EdgeDeletions<'a>,
         ),
     > + 'a {
         self.as_ref().updates_iter(layer_ids)
@@ -84,7 +84,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().additions(layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
+    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a> {
         self.as_ref().deletions(layer_id)
     }
 

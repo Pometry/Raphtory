@@ -5,10 +5,10 @@ use raphtory_core::{
 };
 
 use crate::{
-    EdgeAdditions, EdgeTProps, LocalPOS,
+    EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
     gen_t_props::WithTProps,
-    gen_ts::WithTimeCells,
+    gen_ts::{AdditionCellsRef, DeletionCellsRef, WithTimeCells},
 };
 
 use super::{additions::MemAdditions, edge::MemEdgeSegment};
@@ -96,6 +96,19 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         std::iter::empty()
     }
 
+    fn deletions_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        let t_cell = MemAdditions::Edges(self.es.as_ref()[layer_id].deletions(self.pos));
+        std::iter::once(
+            range
+                .map(|(start, end)| t_cell.range(start..end))
+                .unwrap_or_else(|| t_cell),
+        )
+    }
+
     fn num_layers(&self) -> usize {
         self.es.as_ref().len()
     }
@@ -117,12 +130,13 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
         self.es.as_ref()[layer_id]
             .t_prop(edge_pos, prop_id)
             .into_iter()
-            .map(|t_prop| t_prop.into())
     }
 }
 
 impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Additions = EdgeAdditions<'a>;
+
+    type Deletions = EdgeDeletions<'a>;
 
     type TProps = EdgeTProps<'a>;
 
@@ -135,7 +149,11 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn layer_additions(self, layer_id: usize) -> Self::Additions {
-        EdgeAdditions::new_with_layer(self, layer_id)
+        EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id)
+    }
+
+    fn layer_deletions(self, layer_id: usize) -> Self::Deletions {
+        EdgeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id)
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {

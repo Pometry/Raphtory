@@ -23,6 +23,7 @@ use raphtory_storage::{
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
+use storage::gen_ts::ALL_LAYERS;
 
 impl GraphTimeSemanticsOps for GraphStorage {
     fn node_time_semantics(&self) -> TimeSemantics {
@@ -62,14 +63,34 @@ impl GraphTimeSemanticsOps for GraphStorage {
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).first_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range_t(start..end)
+                    .first_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range_t(start..end)
+                            .first_t(),
+                    )
+            })
             .min()
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).last_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range_t(start..end)
+                    .last_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range_t(start..end)
+                            .last_t(),
+                    )
+            })
             .max()
     }
 

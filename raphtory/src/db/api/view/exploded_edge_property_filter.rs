@@ -461,17 +461,7 @@ mod test {
             .filter_exploded_edges(PropertyFilterBuilder("int_prop".to_string()).gt(1i64))
             .unwrap()
             .window(-1, 1);
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfw.earliest_time(),
-            gfw.latest_time()
-        );
         let gfwm = gfw.materialize().unwrap();
-        println!(
-            "earliest: {:?}, latest: {:?}",
-            gfwm.earliest_time(),
-            gfwm.latest_time()
-        );
         assert!(gfw.node(0).is_none());
         assert!(gfwm.node(0).is_none());
         assert_eq!(gfw.earliest_time(), None);

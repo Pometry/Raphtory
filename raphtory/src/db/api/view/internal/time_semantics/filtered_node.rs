@@ -36,14 +36,14 @@ pub struct NodePropHistory<'a, G> {
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
-            additions: self.edge_history.clone(),
+            additions: self.edge_history,
             view: self.view.clone(),
         }
     }
 
     pub fn prop_history(&self) -> NodePropHistory<'a, G> {
         NodePropHistory {
-            additions: self.additions.clone(),
+            additions: self.additions,
             view: self.view.clone(),
         }
     }

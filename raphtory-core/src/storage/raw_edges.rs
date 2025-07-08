@@ -378,6 +378,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct WriteLockedEdges<'a> {
     shards: Vec<RwLockWriteGuard<'a, EdgeShard>>,
     global_len: &'a AtomicUsize,

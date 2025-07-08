@@ -37,7 +37,6 @@ impl<'a> From<&'a LayerIds> for LayerIter<'a> {
     }
 }
 
-// TODO: split the Node time operations into edge additions and property additions
 #[derive(Clone, Copy, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -81,6 +80,12 @@ where
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a;
 
+    fn deletions_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+
     fn num_layers(&self) -> usize;
 }
 
@@ -95,6 +100,100 @@ impl<'a> WithEdgeEvents<'a> for NodeEntryRef<'a> {
 pub trait EdgeEventOps<'a>: TimeIndexOps<'a, IndexType = TimeIndexEntry> {
     fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
     fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AdditionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
+    node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> AdditionCellsRef<'a, Ref> {
+    pub fn new(node: Ref) -> Self {
+        Self {
+            node,
+            _mark: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a, Ref> {
+    type TimeCell = Ref::TimeCell;
+
+    fn t_props_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        self.node.t_props_tc(layer_id, range) // Assuming t_props_tc is not used for additions
+    }
+
+    fn additions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn deletions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn num_layers(&self) -> usize {
+        self.node.num_layers()
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct DeletionCellsRef<'a, Ref: WithTimeCells<'a> + 'a> {
+    node: Ref,
+    _mark: std::marker::PhantomData<&'a ()>,
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> DeletionCellsRef<'a, Ref> {
+    pub fn new(node: Ref) -> Self {
+        Self {
+            node,
+            _mark: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a, Ref> {
+    type TimeCell = Ref::TimeCell;
+
+    fn t_props_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn additions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn deletions_tc(
+        self,
+        layer_id: usize,
+        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        self.node.deletions_tc(layer_id, range)
+    }
+
+    fn num_layers(&self) -> usize {
+        self.node.num_layers()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -131,6 +230,14 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
         self.node.additions_tc(layer_id, range)
     }
 
+    fn deletions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
     fn num_layers(&self) -> usize {
         self.node.num_layers()
     }
@@ -163,6 +270,14 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
     }
 
     fn additions_tc(
+        self,
+        _layer_id: usize,
+        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+    ) -> impl Iterator<Item = Self::TimeCell> + 'a {
+        std::iter::empty()
+    }
+
+    fn deletions_tc(
         self,
         _layer_id: usize,
         _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
@@ -210,9 +325,11 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
         self.layer_id
             .into_iter(self.node.num_layers())
             .flat_map(move |layer_id| {
-                self.node
-                    .t_props_tc(layer_id, range)
-                    .chain(self.node.additions_tc(layer_id, range))
+                self.node.t_props_tc(layer_id, range).chain(
+                    self.node
+                        .additions_tc(layer_id, range)
+                        .chain(self.node.deletions_tc(layer_id, range)),
+                )
             })
     }
 

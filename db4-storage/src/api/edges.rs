@@ -131,7 +131,8 @@ pub trait EdgeEntryOps<'a>: Send + Sync {
 }
 
 pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps<'a>;
+    type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
+    type Deletions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
     type TProps: TPropOps<'a>;
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
@@ -143,6 +144,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     fn internal_num_layers(self) -> usize;
 
     fn layer_additions(self, layer_id: usize) -> Self::Additions;
+    fn layer_deletions(self, layer_id: usize) -> Self::Deletions;
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
