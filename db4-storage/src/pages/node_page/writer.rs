@@ -27,13 +27,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
     pub fn add_outbound_edge<T: AsTime>(
         &mut self,
-        t: T,
+        t: Option<T>,
         src_pos: impl Into<LocalPOS>,
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
         lsn: u64,
     ) {
-        self.add_outbound_edge_inner(Some(t), src_pos, dst, e_id, lsn);
+        self.add_outbound_edge_inner(t, src_pos, dst, e_id, lsn);
     }
 
     pub fn add_static_outbound_edge(
@@ -71,13 +71,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
     pub fn add_inbound_edge<T: AsTime>(
         &mut self,
-        t: T,
+        t: Option<T>,
         dst_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
         lsn: u64,
     ) {
-        self.add_inbound_edge_inner(Some(t), dst_pos, src, e_id, lsn);
+        self.add_inbound_edge_inner(t, dst_pos, src, e_id, lsn);
     }
 
     pub fn add_static_inbound_edge(

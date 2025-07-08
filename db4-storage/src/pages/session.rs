@@ -97,12 +97,20 @@ impl<
                     .get_out_edge(src_pos, dst, edge_id.layer())
                     .is_none()
             {
-                self.node_writers
-                    .get_mut_src()
-                    .add_outbound_edge(t, src_pos, dst, edge_id, lsn);
-                self.node_writers
-                    .get_mut_dst()
-                    .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
+                self.node_writers.get_mut_src().add_outbound_edge(
+                    Some(t),
+                    src_pos,
+                    dst,
+                    edge_id,
+                    lsn,
+                );
+                self.node_writers.get_mut_dst().add_inbound_edge(
+                    Some(t),
+                    dst_pos,
+                    src,
+                    edge_id,
+                    lsn,
+                );
             }
 
             self.node_writers
@@ -157,12 +165,20 @@ impl<
                     .get_out_edge(src_pos, dst, edge_id.layer())
                     .is_none()
             {
-                self.node_writers
-                    .get_mut_src()
-                    .add_outbound_edge(t, src_pos, dst, edge_id, lsn);
-                self.node_writers
-                    .get_mut_dst()
-                    .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
+                self.node_writers.get_mut_src().add_outbound_edge(
+                    Some(t),
+                    src_pos,
+                    dst,
+                    edge_id,
+                    lsn,
+                );
+                self.node_writers.get_mut_dst().add_inbound_edge(
+                    Some(t),
+                    dst_pos,
+                    src,
+                    edge_id,
+                    lsn,
+                );
             }
 
             self.node_writers
@@ -248,41 +264,39 @@ impl<
                 .update_timestamp(t, dst_pos, e_id, lsn);
 
             MaybeNew::Existing(e_id)
-        } else {
-            if let Some(e_id) = self
-                .node_writers
+        } else if let Some(e_id) = self
+            .node_writers
+            .get_mut_src()
+            .get_out_edge(src_pos, dst, layer)
+        {
+            let mut edge_writer = self.graph.edge_writer(e_id);
+            let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
+            let e_id = e_id.with_layer(layer);
+
+            edge_writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, None);
+            self.node_writers
                 .get_mut_src()
-                .get_out_edge(src_pos, dst, layer)
-            {
-                let mut edge_writer = self.graph.edge_writer(e_id);
-                let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
-                let e_id = e_id.with_layer(layer);
+                .update_timestamp(t, src_pos, e_id, lsn);
+            self.node_writers
+                .get_mut_dst()
+                .update_timestamp(t, dst_pos, e_id, lsn);
 
-                edge_writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, None);
-                self.node_writers
-                    .get_mut_src()
-                    .update_timestamp(t, src_pos, e_id, lsn);
-                self.node_writers
-                    .get_mut_dst()
-                    .update_timestamp(t, dst_pos, e_id, lsn);
+            MaybeNew::Existing(e_id)
+        } else {
+            let mut edge_writer = self.graph.get_free_writer();
+            let edge_id = edge_writer.add_edge(t, None, src, dst, props, layer, lsn, None);
+            let edge_id =
+                edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
+            let edge_id = edge_id.with_layer(layer);
 
-                MaybeNew::Existing(e_id)
-            } else {
-                let mut edge_writer = self.graph.get_free_writer();
-                let edge_id = edge_writer.add_edge(t, None, src, dst, props, layer, lsn, None);
-                let edge_id =
-                    edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
-                let edge_id = edge_id.with_layer(layer);
+            self.node_writers
+                .get_mut_src()
+                .add_outbound_edge(Some(t), src_pos, dst, edge_id, lsn);
+            self.node_writers
+                .get_mut_dst()
+                .add_inbound_edge(Some(t), dst_pos, src, edge_id, lsn);
 
-                self.node_writers
-                    .get_mut_src()
-                    .add_outbound_edge(t, src_pos, dst, edge_id, lsn);
-                self.node_writers
-                    .get_mut_dst()
-                    .add_inbound_edge(t, dst_pos, src, edge_id, lsn);
-
-                MaybeNew::New(edge_id)
-            }
+            MaybeNew::New(edge_id)
         }
     }
 
