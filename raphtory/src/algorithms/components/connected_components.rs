@@ -48,17 +48,23 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
     }
 
-    fn next_start(&self, chunk_id: usize) -> Option<VID> {
+    fn next_start(&self) -> Option<(usize, VID)> {
+        let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+        if next_start >= self.node_labels.len() {
+            return None;
+        }
+        // only increment this if we still have a potentially valid node to avoid getting too many chunks
+        let chunk_id = self.next_chunk_label();
         loop {
-            let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
-            if next_start >= self.node_labels.len() {
-                return None;
-            }
             let old_chunk_id = self.node_labels[next_start].fetch_min(chunk_id, Ordering::Relaxed);
             if old_chunk_id == usize::MAX {
                 if self.graph.has_node(VID(next_start)) {
-                    return Some(VID(next_start));
+                    return Some((chunk_id, VID(next_start)));
                 }
+            }
+            let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+            if next_start >= self.node_labels.len() {
+                return None;
             }
         }
     }
@@ -68,8 +74,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     }
 
     fn run_chunk(&self) -> Option<(usize, Vec<VID>)> {
-        let chunk_id = self.next_chunk_label();
-        let start = self.next_start(chunk_id)?;
+        let (chunk_id, start) = self.next_start()?;
         self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Release);
         let mut result = vec![start];
         let mut new_frontier = vec![start];
