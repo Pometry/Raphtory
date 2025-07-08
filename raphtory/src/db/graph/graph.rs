@@ -4046,14 +4046,21 @@ mod db_tests {
     }
 
     #[test]
+    fn materialize_one_edge_test() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        let gw = g.window(-3, 9);
+        let gmw = gw.materialize().unwrap();
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
     fn materialize_window_delete_test() {
         let g = Graph::new();
         g.delete_edge(0, 0, 0, Some("a")).unwrap();
-        // println!("{g:#?}");
         let w = 0..1;
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();
-        // println!("{gmw:#?}");
         assert_graph_equal(&gw, &gmw);
     }
 

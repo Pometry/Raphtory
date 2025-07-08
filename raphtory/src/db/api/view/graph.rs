@@ -301,6 +301,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
 
+            println!("NODE COUNT {}", self.count_nodes());
             new_storage.resize_chunks_to_num_nodes(self.count_nodes());
             for layer_id in &layer_map {
                 new_storage.nodes.ensure_layer(*layer_id);
