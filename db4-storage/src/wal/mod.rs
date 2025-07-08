@@ -38,5 +38,9 @@ pub trait WalOps {
     /// Blocks until the WAL has fsynced the given LSN to disk.
     fn wait_for_sync(&self, lsn: LSN);
 
+    /// Rotates the underlying WAL file.
+    /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
+    fn rotate(&self, cutoff_lsn: LSN) -> Result<(), DBV4Error>;
+
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }

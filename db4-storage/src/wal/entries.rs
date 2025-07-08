@@ -59,7 +59,6 @@ pub struct AddLayerID {
     pub id: usize,
 }
 
-// Empty struct for now, might be useful for any checkpoint info later...
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Checkpoint {
     pub lsn: LSN,
