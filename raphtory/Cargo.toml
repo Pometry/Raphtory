@@ -15,9 +15,9 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
-raphtory-core = { path = "../raphtory-core", version = "0.15.1" }
-raphtory-storage = { path = "../raphtory-storage", version = "0.15.1" }
+raphtory-api = { path = "../raphtory-api", version = "0.16.0" }
+raphtory-core = { path = "../raphtory-core", version = "0.16.0" }
+raphtory-storage = { path = "../raphtory-storage", version = "0.16.0" }
 iter-enum = { workspace = true, features = ["rayon"] }
 arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }

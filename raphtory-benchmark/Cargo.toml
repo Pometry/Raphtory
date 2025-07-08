@@ -11,8 +11,8 @@ raphtory = { path = "../raphtory", features = [
     "io",
     "proto",
     "vectors",
-], version = "0.15.1" }
-raphtory-api = { path = "../raphtory-api", version = "0.15.1" }
+], version = "0.16.0" }
+raphtory-api = { path = "../raphtory-api", version = "0.16.0" }
 sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
