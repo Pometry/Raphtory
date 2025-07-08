@@ -6,6 +6,8 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{Serialize, Deserialize};
 use std::borrow::Cow;
 
+use crate::wal::LSN;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WalEntry<'a> {
     AddEdge(AddEdge<'a>),
@@ -13,6 +15,7 @@ pub enum WalEntry<'a> {
     AddConstPropIDs(Vec<AddConstPropID<'a>>),
     AddTemporalPropIDs(Vec<AddTemporalPropID<'a>>),
     AddLayerID(AddLayerID),
+    Checkpoint(Checkpoint),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -55,6 +58,13 @@ pub struct AddLayerID {
     pub name: String,
     pub id: usize,
 }
+
+// Empty struct for now, might be useful for any checkpoint info later...
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Checkpoint {
+    pub lsn: LSN,
+}
+
 
 // Constructors
 impl<'a> WalEntry<'a> {
