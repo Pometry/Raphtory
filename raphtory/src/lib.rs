@@ -208,6 +208,13 @@ mod test_utils {
         )
     }
 
+    pub(crate) fn build_edge_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64)>> {
+        proptest::collection::vec((0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX), 0..=len)
+    }
+
     #[derive(Debug, Arbitrary, PartialOrd, PartialEq, Eq, Ord)]
     pub(crate) enum Update {
         Addition(String, i64),

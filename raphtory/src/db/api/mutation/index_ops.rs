@@ -2,11 +2,9 @@ use crate::{
     db::api::view::{IndexSpec, IndexSpecBuilder},
     errors::GraphError,
     prelude::AdditionOps,
+    serialise::GraphFolder,
 };
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, path::Path};
 use zip::ZipArchive;
 
 pub trait IndexMutationOps: Sized + AdditionOps {
@@ -18,11 +16,13 @@ pub trait IndexMutationOps: Sized + AdditionOps {
 
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError>;
 
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
+    fn load_index(&self, path: &GraphFolder) -> Result<(), GraphError>;
 
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
+    fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError>;
 
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
+    fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError>;
+
+    fn drop_index(&self) -> Result<(), GraphError>;
 }
 
 impl<G: AdditionOps> IndexMutationOps for G {
@@ -37,7 +37,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
     fn create_index_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index(index_spec)?;
+                storage.create_index_if_empty(index_spec)?;
                 Ok(())
             })
     }
@@ -53,12 +53,12 @@ impl<G: AdditionOps> IndexMutationOps for G {
     fn create_index_in_ram_with_spec(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index_in_ram(index_spec)?;
+                storage.create_index_in_ram_if_empty(index_spec)?;
                 Ok(())
             })
     }
 
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
+    fn load_index(&self, path: &GraphFolder) -> Result<(), GraphError> {
         fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
             let file = File::open(&zip_path)?;
             let mut archive = ZipArchive::new(file)?;
@@ -79,16 +79,16 @@ impl<G: AdditionOps> IndexMutationOps for G {
 
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                if path.is_file() {
-                    if has_index(path)? {
-                        storage.get_or_load_index(path.clone())?;
+                if path.is_zip() {
+                    if has_index(path.get_base_path())? {
+                        storage.load_index_if_empty(&path)?;
                     } else {
                         return Ok(()); // Skip if no index in zip
                     }
                 } else {
-                    let index_path = path.join("index");
+                    let index_path = path.get_index_path();
                     if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_load_index(path.clone())?;
+                        storage.load_index_if_empty(&path)?;
                     }
                 }
 
@@ -96,8 +96,7 @@ impl<G: AdditionOps> IndexMutationOps for G {
             })
     }
 
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
-        let path = path.join("index");
+    fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.persist_index_to_disk(&path)?;
@@ -105,10 +104,18 @@ impl<G: AdditionOps> IndexMutationOps for G {
             })
     }
 
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
+    fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
                 storage.persist_index_to_disk_zip(&path)?;
+                Ok(())
+            })
+    }
+
+    fn drop_index(&self) -> Result<(), GraphError> {
+        self.get_storage()
+            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
+                storage.drop_index()?;
                 Ok(())
             })
     }

@@ -9,7 +9,7 @@ use crate::{
     },
     errors::GraphError,
     search::{
-        edge_filter_executor::EdgeFilterExecutor, graph_index::GraphIndex,
+        edge_filter_executor::EdgeFilterExecutor, graph_index::Index,
         node_filter_executor::NodeFilterExecutor,
     },
 };
@@ -21,7 +21,7 @@ pub struct Searcher<'a> {
 }
 
 impl<'a> Searcher<'a> {
-    pub(crate) fn new(index: &'a GraphIndex) -> Self {
+    pub(crate) fn new(index: &'a Index) -> Self {
         Self {
             node_filter_executor: NodeFilterExecutor::new(index),
             edge_filter_executor: EdgeFilterExecutor::new(index),

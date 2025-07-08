@@ -4,13 +4,13 @@ use crate::{
         path_from_node::GqlPathFromNode,
     },
     paths::ExistingGraphFolder,
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::{
     api::view::{DynamicGraph, WindowSet},
     graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
 };
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "GraphWindowSet")]
@@ -28,15 +28,26 @@ impl GqlGraphWindowSet {
 impl GqlGraphWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlGraph> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlGraph> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -46,12 +57,11 @@ impl GqlGraphWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlGraph> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .ws
                 .clone()
@@ -59,7 +69,6 @@ impl GqlGraphWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 }
 
@@ -80,15 +89,26 @@ impl GqlNodeWindowSet {
 impl GqlNodeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNode> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -98,14 +118,11 @@ impl GqlNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|n| n.into()).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|n| n.into()).collect()).await
     }
 }
 
@@ -124,15 +141,26 @@ impl GqlNodesWindowSet {
 impl GqlNodesWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlNodes> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlNodes> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -142,14 +170,11 @@ impl GqlNodesWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlNodes> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|n| GqlNodes::new(n)).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|n| GqlNodes::new(n)).collect()).await
     }
 }
 
@@ -168,15 +193,26 @@ impl GqlPathFromNodeWindowSet {
 impl GqlPathFromNodeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlPathFromNode> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlPathFromNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -186,12 +222,11 @@ impl GqlPathFromNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlPathFromNode> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .ws
                 .clone()
@@ -199,7 +234,6 @@ impl GqlPathFromNodeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 }
 
@@ -218,15 +252,26 @@ impl GqlEdgeWindowSet {
 impl GqlEdgeWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -236,14 +281,11 @@ impl GqlEdgeWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|e| e.into()).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|e| e.into()).collect()).await
     }
 }
 
@@ -262,15 +304,26 @@ impl GqlEdgesWindowSet {
 impl GqlEdgesWindowSet {
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().count()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdges> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlEdges> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .ws
                 .clone()
@@ -280,13 +333,10 @@ impl GqlEdgesWindowSet {
                 .collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdges> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.ws.clone().map(|e| GqlEdges::new(e)).collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ws.clone().map(|e| GqlEdges::new(e)).collect()).await
     }
 }

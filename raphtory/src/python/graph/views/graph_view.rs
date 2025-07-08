@@ -21,12 +21,13 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    internal::InternalExplodedEdgeFilterOps,
+                    internal::CreateExplodedEdgeFilter,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
         },
@@ -172,6 +173,16 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropert
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
     for ExplodedEdgePropertyFilteredGraph<G>
 {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for ValidGraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -396,6 +407,20 @@ impl PyGraphView {
     ///    GraphView: Returns the subgraph
     fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
+    }
+
+    /// Return a view of the graph that only includes valid edges
+    ///
+    /// Note:
+    ///
+    ///     The semantics for `valid` depend on the time semantics of the underlying graph.
+    ///     In the case of a persistent graph, an edge is valid if its last update is an addition.
+    ///     In the case of an event graph, an edge is valid if it has at least one addition event.
+    ///
+    /// Returns:
+    ///     GraphView: The filtered graph
+    fn valid(&self) -> ValidGraph<DynamicGraph> {
+        self.graph.valid()
     }
 
     /// Applies the filters to the graph and retains the node ids and the edge ids

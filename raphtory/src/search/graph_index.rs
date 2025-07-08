@@ -7,15 +7,17 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
+    serialise::GraphFolder,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
-    fmt::{Debug, Formatter},
+    fmt::Debug,
     fs,
     fs::File,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -25,193 +27,49 @@ use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 #[derive(Clone)]
-pub struct GraphIndex {
+pub struct Index {
     pub(crate) node_index: NodeIndex,
     pub(crate) edge_index: EdgeIndex,
-    pub path: Option<Arc<TempDir>>, // If path is None, index is created in-memory
+}
+
+impl Index {
+    pub fn print(&self) -> Result<(), GraphError> {
+        self.node_index.print()?;
+        self.edge_index.print()?;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub struct ImmutableGraphIndex {
+    pub(crate) index: Index,
+    pub(crate) path: Arc<GraphFolder>,
+    pub index_spec: Arc<IndexSpec>,
+}
+
+#[derive(Clone)]
+pub struct MutableGraphIndex {
+    pub(crate) index: Index,
+    pub(crate) path: Option<Arc<TempDir>>,
     pub index_spec: Arc<RwLock<IndexSpec>>,
 }
 
-impl Debug for GraphIndex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GraphIndex")
-            .field("node_index", &self.node_index)
-            .field("edge_index", &self.edge_index)
-            .field("path", &self.path.as_ref().map(|p| p.path()))
-            .field("index_spec", &self.index_spec)
-            .finish()
-    }
-}
-
-impl GraphIndex {
-    fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), GraphError> {
-        for entry in WalkDir::new(source) {
-            let entry = entry.map_err(|e| {
-                GraphError::IOErrorMsg(format!("Failed to read directory entry: {}", e))
-            })?;
-
-            let entry_path = entry.path();
-
-            if entry_path.starts_with(destination) {
-                continue;
-            }
-
-            let relative_path = entry_path.strip_prefix(source).map_err(|e| {
-                GraphError::IOErrorMsg(format!(
-                    "Failed to determine relative path during copy: {}",
-                    e
-                ))
-            })?;
-
-            let dest_path = destination.join(relative_path);
-
-            if entry_path.is_dir() {
-                fs::create_dir_all(&dest_path).map_err(|e| {
-                    GraphError::IOErrorMsg(format!(
-                        "Failed to create directory {}: {}",
-                        dest_path.display(),
-                        e
-                    ))
-                })?;
-            } else if entry_path.is_file() {
-                if let Some(parent) = dest_path.parent() {
-                    fs::create_dir_all(parent).map_err(|e| {
-                        GraphError::IOErrorMsg(format!(
-                            "Failed to create parent directory {}: {}",
-                            parent.display(),
-                            e
-                        ))
-                    })?;
-                }
-
-                fs::copy(entry_path, &dest_path).map_err(|e| {
-                    GraphError::IOErrorMsg(format!(
-                        "Failed to copy file {} to {}: {}",
-                        entry_path.display(),
-                        dest_path.display(),
-                        e
-                    ))
-                })?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn unzip_index(source: &Path, destination: &Path) -> Result<(), GraphError> {
-        let file = File::open(source)?;
-        let mut archive = ZipArchive::new(file)?;
-
-        for i in 0..archive.len() {
-            let mut entry = archive.by_index(i)?;
-            let entry_path = Path::new(entry.name());
-
-            // Check if the first component is "index"
-            if entry_path.components().next().map(|c| c.as_os_str()) != Some(OsStr::new("index")) {
-                continue;
-            }
-
-            // Strip "index" from the path
-            let rel_path = entry_path.strip_prefix("index").map_err(|e| {
-                GraphError::IOErrorMsg(format!("Failed to strip 'index' prefix: {}", e))
-            })?;
-
-            let out_path = destination.join(rel_path);
-
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)?;
-            }
-
-            let mut outfile = File::create(&out_path)?;
-            std::io::copy(&mut entry, &mut outfile)?;
-        }
-
-        Ok(())
-    }
-
-    pub fn load_from_path(path: &PathBuf) -> Result<Self, GraphError> {
-        let tmp_path = TempDir::new_in(path)?;
-        let path = path.join("index");
-        let path = path.as_path();
-        if path.is_file() {
-            GraphIndex::unzip_index(path, tmp_path.path())?;
-        } else {
-            GraphIndex::copy_dir_recursive(path, tmp_path.path())?;
-        }
-
-        let node_index = NodeIndex::load_from_path(&tmp_path.path().join("nodes"))?;
-        let edge_index = EdgeIndex::load_from_path(&tmp_path.path().join("edges"))?;
-        let path = Some(Arc::new(tmp_path));
-
-        let index_spec = IndexSpec {
-            node_const_props: node_index.resolve_const_props(),
-            node_temp_props: node_index.resolve_temp_props(),
-            edge_const_props: edge_index.resolve_const_props(),
-            edge_temp_props: edge_index.resolve_temp_props(),
-        };
-
-        Ok(GraphIndex {
-            node_index: node_index.clone(),
-            edge_index: edge_index.clone(),
-            path,
-            index_spec: Arc::new(RwLock::new(index_spec)),
-        })
-    }
-
-    fn get_node_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
-        path.as_ref().map(|d| d.path().join("nodes"))
-    }
-
-    fn get_edge_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
-        path.as_ref().map(|d| d.path().join("edges"))
-    }
-
-    pub fn create(
-        graph: &GraphStorage,
-        create_in_ram: bool,
-        cached_graph_path: Option<&Path>,
-    ) -> Result<Self, GraphError> {
-        let dir = if !create_in_ram {
-            let temp_dir = match cached_graph_path {
-                // Creates index in a temp dir within cache graph dir.
-                // The intention is to avoid creating index in a tmp dir that could be on another file system.
-                Some(path) => TempDir::new_in(path)?,
-                None => TempDir::new()?,
-            };
-            Some(Arc::new(temp_dir))
-        } else {
-            None
-        };
-
-        let index_spec = IndexSpec::default();
-
-        let path = GraphIndex::get_node_index_path(&dir);
-        let node_index = NodeIndex::new(&path)?;
-        node_index.index_nodes(graph, path, &index_spec)?;
-
-        let path = GraphIndex::get_edge_index_path(&dir);
-        let edge_index = EdgeIndex::new(&path)?;
-        edge_index.index_edges(graph, path, &index_spec)?;
-
-        Ok(GraphIndex {
-            node_index,
-            edge_index,
-            path: dir,
-            index_spec: Arc::new(RwLock::new(index_spec)),
-        })
-    }
-
+impl MutableGraphIndex {
     pub fn update(&self, graph: &GraphStorage, index_spec: IndexSpec) -> Result<(), GraphError> {
         let mut existing_spec = self.index_spec.write();
 
         if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
-            let path = GraphIndex::get_node_index_path(&self.path);
-            self.node_index.index_nodes(graph, path, &diff_spec)?;
-            // self.node_index.print()?;
+            let path = get_node_index_path(&self.path);
+            self.index
+                .node_index
+                .index_nodes_props(graph, path, &diff_spec)?;
 
-            let path = GraphIndex::get_edge_index_path(&self.path);
-            self.edge_index.index_edges(graph, path, &diff_spec)?;
-            // self.edge_index.print()?;
+            let path = get_edge_index_path(&self.path);
+            self.index
+                .edge_index
+                .index_edges_props(graph, path, &diff_spec)?;
+
+            // self.index.print()?;
 
             *existing_spec = IndexSpec::union(&*existing_spec, &diff_spec);
         }
@@ -219,30 +77,183 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub fn searcher(&self) -> Searcher {
-        Searcher::new(self)
-    }
-
-    #[allow(dead_code)]
-    // Useful for debugging
-    pub fn print(&self) -> Result<(), GraphError> {
-        self.node_index.print()?;
-        self.edge_index.print()?;
+    pub(crate) fn add_node_update(
+        &self,
+        graph: &GraphStorage,
+        t: TimeIndexEntry,
+        v: MaybeNew<VID>,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index.node_index.add_node_update(graph, t, v, props)?;
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &Path) -> Result<(), GraphError> {
-        let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
+    pub(crate) fn add_node_constant_properties(
+        &self,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index
+            .node_index
+            .add_node_constant_properties(node_id, props)?;
+        Ok(())
+    }
+
+    pub(crate) fn update_node_constant_properties(
+        &self,
+        node_id: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index
+            .node_index
+            .update_node_constant_properties(node_id, props)
+    }
+
+    pub(crate) fn add_edge_update(
+        &self,
+        graph: &GraphStorage,
+        edge_id: MaybeNew<EID>,
+        t: TimeIndexEntry,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index
+            .edge_index
+            .add_edge_update(graph, edge_id, t, layer, props)
+    }
+
+    pub(crate) fn add_edge_constant_properties(
+        &self,
+        edge_id: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index
+            .edge_index
+            .add_edge_constant_properties(edge_id, layer, props)
+    }
+
+    pub(crate) fn update_edge_constant_properties(
+        &self,
+        edge_id: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), GraphError> {
+        self.index
+            .edge_index
+            .update_edge_constant_properties(edge_id, layer, props)
+    }
+}
+
+#[derive(Clone, Default)]
+pub enum GraphIndex {
+    #[default]
+    Empty,
+    Immutable(ImmutableGraphIndex),
+    Mutable(MutableGraphIndex),
+}
+
+impl Debug for GraphIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphIndex::Immutable(i) => f
+                .debug_struct("GraphIndex::Immutable")
+                .field("node_index", &i.index.node_index)
+                .field("edge_index", &i.index.edge_index)
+                .field("path", &i.path)
+                .field("index_spec", &i.index_spec)
+                .finish(),
+            GraphIndex::Mutable(m) => f
+                .debug_struct("GraphIndex::Mutable")
+                .field("node_index", &m.index.node_index)
+                .field("edge_index", &m.index.edge_index)
+                .field("path", &m.path.as_ref().map(|p| p.path()))
+                .field("index_spec", &m.index_spec)
+                .finish(),
+            GraphIndex::Empty => f.debug_struct("GraphIndex::Empty").finish(),
+        }
+    }
+}
+
+impl GraphIndex {
+    pub fn create(
+        graph: &GraphStorage,
+        create_in_ram: bool,
+        cached_graph_path: Option<GraphFolder>,
+    ) -> Result<Self, GraphError> {
+        let dir = if !create_in_ram {
+            let temp_dir = match cached_graph_path {
+                // Creates index in a temp dir within cache graph dir.
+                // The intention is to avoid creating index in a tmp dir that could be on another file system.
+                Some(path) => TempDir::new_in(path.get_base_path())?,
+                None => TempDir::new()?,
+            };
+
+            Some(Arc::new(temp_dir))
+        } else {
+            None
+        };
+
+        let index_spec = IndexSpec::default();
+
+        let path = get_node_index_path(&dir);
+        let node_index = NodeIndex::new(&path)?;
+        node_index.index_nodes_fields(graph)?;
+
+        let path = get_edge_index_path(&dir);
+        let edge_index = EdgeIndex::new(&path)?;
+        edge_index.index_edges_fields(graph)?;
+
+        Ok(GraphIndex::Mutable(MutableGraphIndex {
+            index: Index {
+                node_index,
+                edge_index,
+            },
+            path: dir,
+            index_spec: Arc::new(RwLock::new(index_spec)),
+        }))
+    }
+
+    pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
+        if path.is_zip() {
+            let index_path = TempDir::new()?;
+            unzip_index(&path.get_base_path(), index_path.path())?;
+
+            let (index, index_spec) = load_indexes(index_path.path())?;
+
+            Ok(GraphIndex::Mutable(MutableGraphIndex {
+                index,
+                path: Some(Arc::new(index_path)),
+                index_spec: Arc::new(RwLock::new(index_spec)),
+            }))
+        } else {
+            let index_path = path.get_index_path();
+            let (index, index_spec) = load_indexes(index_path.as_path())?;
+
+            Ok(GraphIndex::Immutable(ImmutableGraphIndex {
+                index,
+                path: Arc::new(path.clone()),
+                index_spec: Arc::new(index_spec),
+            }))
+        }
+    }
+
+    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
+        let path = path.get_index_path();
+        let path = path.as_path();
 
         let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
 
-        GraphIndex::copy_dir_recursive(source_path.path(), temp_path)?;
+        copy_dir_recursive(&source_path, temp_path)?;
 
         // Always overwrite the existing graph index when persisting, since the in-memory
         // working index may have newer updates. The persisted index is decoupled from the
         // active one, and changes remain in memory unless explicitly saved.
         // This behavior mirrors how the in-memory graph works — updates are not persisted
         // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
+        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
+        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
         if path.exists() {
             fs::remove_dir_all(path)
                 .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
@@ -255,28 +266,23 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk_zip(&self, path: &Path) -> Result<(), GraphError> {
-        let index_path = &path.join("index");
-
-        let source_path = self.path.as_ref().ok_or(GraphError::GraphIndexIsMissing)?;
-
-        if index_path.exists() {
-            fs::remove_dir_all(index_path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(index_path.clone()))?;
-        }
-
-        let file = File::options().read(true).write(true).open(path)?;
-
+    pub(crate) fn persist_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .open(path.get_base_path())?;
         let mut zip = ZipWriter::new_append(file)?;
 
-        for entry in WalkDir::new(source_path.path())
+        let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
+
+        for entry in WalkDir::new(&source_path)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
         {
             let rel_path = entry
                 .path()
-                .strip_prefix(source_path.path())
+                .strip_prefix(&source_path)
                 .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
 
             let zip_entry_name = PathBuf::from("index")
@@ -302,67 +308,178 @@ impl GraphIndex {
         Ok(())
     }
 
-    pub(crate) fn add_node_update(
-        &self,
-        graph: &GraphStorage,
-        t: TimeIndexEntry,
-        v: MaybeNew<VID>,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.node_index.add_node_update(graph, t, v, props)?;
+    pub fn make_mutable_if_needed(&mut self) -> Result<(), GraphError> {
+        if let GraphIndex::Immutable(immutable) = self {
+            let temp_dir = TempDir::new_in(&immutable.path.get_base_path())?;
+            let temp_path = temp_dir.path();
+
+            copy_dir_recursive(&immutable.path.get_index_path(), temp_path)?;
+
+            let node_index = NodeIndex::load_from_path(&temp_path.join("nodes"))?;
+            let edge_index = EdgeIndex::load_from_path(&temp_path.join("edges"))?;
+
+            let index_spec = immutable.index_spec.clone();
+
+            *self = GraphIndex::Mutable(MutableGraphIndex {
+                index: Index {
+                    node_index,
+                    edge_index,
+                },
+                path: Some(Arc::new(temp_dir)),
+                index_spec: Arc::new(RwLock::new(index_spec.deref().clone())),
+            });
+        }
         Ok(())
     }
 
-    pub(crate) fn add_node_constant_properties(
-        &self,
-        node_id: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.node_index
-            .add_node_constant_properties(node_id, props)?;
-        Ok(())
+    pub fn is_immutable(&self) -> bool {
+        matches!(self, GraphIndex::Immutable(_))
     }
 
-    pub(crate) fn update_node_constant_properties(
-        &self,
-        node_id: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.node_index
-            .update_node_constant_properties(node_id, props)
+    pub fn index(&self) -> Option<&Index> {
+        match self {
+            GraphIndex::Immutable(i) => Some(&i.index),
+            GraphIndex::Mutable(m) => Some(&m.index),
+            GraphIndex::Empty => None,
+        }
     }
 
-    pub(crate) fn add_edge_update(
-        &self,
-        graph: &GraphStorage,
-        edge_id: MaybeNew<EID>,
-        t: TimeIndexEntry,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.edge_index
-            .add_edge_update(graph, edge_id, t, layer, props)
+    pub fn path(&self) -> Option<PathBuf> {
+        match self {
+            GraphIndex::Immutable(i) => Some(i.path.get_index_path()),
+            GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path().to_path_buf()),
+            GraphIndex::Empty => None,
+        }
     }
 
-    pub(crate) fn add_edge_constant_properties(
-        &self,
-        edge_id: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.edge_index
-            .add_edge_constant_properties(edge_id, layer, props)
+    pub fn index_spec(&self) -> IndexSpec {
+        match self {
+            GraphIndex::Immutable(i) => i.index_spec.deref().clone(),
+            GraphIndex::Mutable(m) => m.index_spec.read().deref().clone(),
+            GraphIndex::Empty => IndexSpec::default(),
+        }
     }
 
-    pub(crate) fn update_edge_constant_properties(
-        &self,
-        edge_id: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.edge_index
-            .update_edge_constant_properties(edge_id, layer, props)
+    pub fn is_indexed(&self) -> bool {
+        !matches!(self, GraphIndex::Empty)
     }
+
+    pub fn searcher(&self) -> Option<Searcher> {
+        self.index().map(Searcher::new)
+    }
+}
+
+fn get_node_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
+    path.as_ref().map(|p| p.path().join("nodes"))
+}
+
+fn get_edge_index_path(path: &Option<Arc<TempDir>>) -> Option<PathBuf> {
+    path.as_ref().map(|p| p.path().join("edges"))
+}
+
+fn copy_dir_recursive(source: &Path, destination: &Path) -> Result<(), GraphError> {
+    for entry in WalkDir::new(source) {
+        let entry = entry.map_err(|e| {
+            GraphError::IOErrorMsg(format!("Failed to read directory entry: {}", e))
+        })?;
+
+        let entry_path = entry.path();
+
+        if entry_path.starts_with(destination) {
+            continue;
+        }
+
+        let relative_path = entry_path.strip_prefix(source).map_err(|e| {
+            GraphError::IOErrorMsg(format!(
+                "Failed to determine relative path during copy: {}",
+                e
+            ))
+        })?;
+
+        let dest_path = destination.join(relative_path);
+
+        if entry_path.is_dir() {
+            fs::create_dir_all(&dest_path).map_err(|e| {
+                GraphError::IOErrorMsg(format!(
+                    "Failed to create directory {}: {}",
+                    dest_path.display(),
+                    e
+                ))
+            })?;
+        } else if entry_path.is_file() {
+            if let Some(parent) = dest_path.parent() {
+                fs::create_dir_all(parent).map_err(|e| {
+                    GraphError::IOErrorMsg(format!(
+                        "Failed to create parent directory {}: {}",
+                        parent.display(),
+                        e
+                    ))
+                })?;
+            }
+
+            fs::copy(entry_path, &dest_path).map_err(|e| {
+                GraphError::IOErrorMsg(format!(
+                    "Failed to copy file {} to {}: {}",
+                    entry_path.display(),
+                    dest_path.display(),
+                    e
+                ))
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+fn unzip_index(source: &Path, destination: &Path) -> Result<(), GraphError> {
+    let file = File::open(source)?;
+    let mut archive = ZipArchive::new(file)?;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)?;
+        let entry_path = Path::new(entry.name());
+
+        // Check if the first component is "index"
+        if entry_path.components().next().map(|c| c.as_os_str()) != Some(OsStr::new("index")) {
+            continue;
+        }
+
+        // Strip "index" from the path
+        let rel_path = entry_path.strip_prefix("index").map_err(|e| {
+            GraphError::IOErrorMsg(format!("Failed to strip 'index' prefix: {}", e))
+        })?;
+
+        let out_path = destination.join(rel_path);
+
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let mut outfile = File::create(&out_path)?;
+        std::io::copy(&mut entry, &mut outfile)?;
+    }
+
+    Ok(())
+}
+
+fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
+    let node_index = NodeIndex::load_from_path(&index_path.join("nodes"))?;
+    let edge_index = EdgeIndex::load_from_path(&index_path.join("edges"))?;
+
+    let index_spec = IndexSpec {
+        node_const_props: node_index.resolve_const_props(),
+        node_temp_props: node_index.resolve_temp_props(),
+        edge_const_props: edge_index.resolve_const_props(),
+        edge_temp_props: edge_index.resolve_temp_props(),
+    };
+
+    Ok((
+        Index {
+            node_index,
+            edge_index,
+        },
+        index_spec,
+    ))
 }
 
 #[cfg(test)]

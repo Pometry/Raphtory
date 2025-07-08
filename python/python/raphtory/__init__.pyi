@@ -671,6 +671,20 @@ class GraphView(object):
             list[str]: the names of all layers in the graph
         """
 
+    def valid(self) -> GraphView:
+        """
+        Return a view of the graph that only includes valid edges
+
+        Note:
+
+            The semantics for `valid` depend on the time semantics of the underlying graph.
+            In the case of a persistent graph, an edge is valid if its last update is an addition.
+            In the case of an event graph, an edge is valid if it has at least one addition event.
+
+        Returns:
+            GraphView: The filtered graph
+        """
+
     def valid_layers(self, names: list[str]) -> GraphView:
         """
          Return a view of GraphView containing all layers `names`
@@ -2302,6 +2316,14 @@ class Node(object):
             int: The earliest time that the node exists as an integer.
         """
 
+    def edge_history_count(self) -> int:
+        """
+        Get the number of edge events for this node
+
+        Returns:
+            int: The number of edge events
+        """
+
     @property
     def edges(self) -> Edges:
         """
@@ -2844,6 +2866,14 @@ class Nodes(object):
             EarliestTimeView: a view of the earliest active times
         """
 
+    def edge_history_count(self):
+        """
+        Return the number of edge updates for each node
+
+        Returns:
+            EdgeHistoryCountView: a view of the edge history counts
+        """
+
     @property
     def edges(self) -> NestedEdges:
         """
@@ -3366,6 +3396,14 @@ class PathFromNode(object):
     def earliest_time(self):
         """the node earliest times"""
 
+    def edge_history_count(self):
+        """
+        Get the number of edge updates for each node
+
+        Returns:
+            UsizeIterable:
+        """
+
     @property
     def edges(self) -> Edges:
         """
@@ -3810,6 +3848,9 @@ class PathFromGraph(object):
     @property
     def earliest_time(self):
         """the node earliest times"""
+
+    def edge_history_count(self):
+        """Returns the number of edge updates for each node"""
 
     @property
     def edges(self) -> NestedEdges:

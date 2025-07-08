@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
@@ -50,7 +50,7 @@ impl CreateNodeFilter for PropertyFilter {
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
         let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta())?;
+        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,
         ))
@@ -73,28 +73,13 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFiltered
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritAllEdgeFilterOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodePropertyFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilteredGraph<G> {
-    #[inline]
-    fn internal_nodes_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn internal_node_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        false
-    }
-
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.internal_filter_node(node, layer_ids) {

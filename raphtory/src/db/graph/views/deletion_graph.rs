@@ -149,7 +149,7 @@ impl InheritPropertiesOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}
 
-impl InheritEdgeFilterOps for PersistentGraph {}
+impl InheritAllEdgeFilterOps for PersistentGraph {}
 
 impl InheritNodeFilterOps for PersistentGraph {}
 
@@ -639,6 +639,20 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_materialize_deleted_edge() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        g.delete_edge(1, 0, 1, None).unwrap();
+        g.delete_edge(5, 0, 1, None).unwrap();
+
+        let gw = g.window(2, 10);
+
+        let gm = gw.materialize().unwrap();
+
+        assert_graph_equal(&gw, &gm);
+    }
+
+    #[test]
     fn test_addition_deletion_multilayer_window() {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
@@ -768,7 +782,7 @@ mod test_deletions {
 
         let e = wg.edge(1, 2).unwrap();
         assert_eq!(e.earliest_time(), Some(3));
-        assert_eq!(e.latest_time(), Some(4));
+        assert_eq!(e.latest_time(), Some(3));
         let n1 = wg.node(1).unwrap();
         assert_eq!(n1.earliest_time(), Some(3));
         assert_eq!(n1.latest_time(), Some(3));

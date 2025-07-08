@@ -180,6 +180,22 @@ class RaphtoryClient(object):
            None:
         """
 
+    def create_index(
+        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
+    ) -> None:
+        """
+        Create Index for graph on the server at 'path'
+
+        Arguments:
+          path (str): the path of the graph to be created
+          index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+          in_ram (bool): create index in ram
+
+        Returns:
+           None:
+
+        """
+
     def delete_graph(self, path: str) -> None:
         """
         Delete graph from a path `path` on the server
@@ -635,6 +651,81 @@ class RemoteEdgeAddition(object):
         updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
+
+class RemoteIndexSpec(object):
+    """
+    Create a `RemoteIndexSpec` specifying which node and edge properties to index.
+
+    Arguments:
+        node_props (PropsInput): Property spec for nodes.
+        edge_props (PropsInput): Property spec for edges.
+    """
+
+    def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class PropsInput(object):
+    """
+    Create a `PropsInput` by choosing to include all/some properties explicitly.
+
+    Arguments:
+        all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+        some (SomePropertySpec, optional): Explicitly list the properties to include.
+
+    Raises:
+        ValueError: If neither `all` and `some` are specified.
+    """
+
+    def __new__(
+        cls,
+        all: Optional[AllPropertySpec] = None,
+        some: Optional[SomePropertySpec] = None,
+    ) -> PropsInput:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class SomePropertySpec(object):
+    """
+    Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+
+    Arguments:
+        constant (List[str]): Constant property names. Defaults to `[]`.
+        temporal (List[str]): Temporal property names. Defaults to `[]`.
+    """
+
+    def __new__(
+        cls, constant: List[str] = ..., temporal: List[str] = ...
+    ) -> SomePropertySpec:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class AllPropertySpec(object):
+    """
+    Specifies that **all** properties should be included when creating an index.
+    Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __int__(self):
+        """int(self)"""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
 
 def encode_graph(graph: Graph | PersistentGraph) -> str:
     """

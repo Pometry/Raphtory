@@ -31,7 +31,6 @@ raphtory-graphql = { path = "../raphtory-graphql", version = "0.15.1", features 
 ] }
 
 [features]
-default = ["extension-module"]
 storage = ["raphtory_core/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
 

@@ -2,6 +2,7 @@ use crate::{
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
     mutation::MutationError,
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
         entities::{
@@ -12,7 +13,10 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::entities::graph::tgraph::TemporalGraph;
+use raphtory_core::{
+    entities::graph::tgraph::TemporalGraph,
+    storage::{raw_edges::EdgeWGuard, EntryMut, NodeSlot},
+};
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
@@ -30,24 +34,24 @@ pub trait InternalPropertyAdditionOps {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
     fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
     fn internal_add_constant_edge_properties(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<EdgeWGuard, Self::Error>;
     fn internal_update_constant_edge_properties(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<EdgeWGuard, Self::Error>;
 }
 
 impl InternalPropertyAdditionOps for TemporalGraph {
@@ -97,7 +101,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
@@ -106,14 +110,14 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                 .add_constant_prop(*prop_id, prop)
                 .map_err(MutationError::from)?;
         }
-        Ok(())
+        Ok(node)
     }
 
     fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         let mut node = self.storage.get_node_mut(vid);
         for (prop_id, prop) in props {
             let prop = self.process_prop_value(prop);
@@ -122,7 +126,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                 .update_constant_prop(*prop_id, prop)
                 .map_err(MutationError::from)?;
         }
-        Ok(())
+        Ok(node)
     }
 
     fn internal_add_constant_edge_properties(
@@ -130,7 +134,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         let mut edge = self.storage.get_edge_mut(eid);
         let mut edge_mut = edge.as_mut();
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
@@ -141,7 +145,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                     .add_constant_prop(*prop_id, prop)
                     .map_err(MutationError::from)?;
             }
-            Ok(())
+            Ok(edge)
         } else {
             let layer = self.get_layer_name(layer).to_string();
             let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
@@ -155,7 +159,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         let mut edge = self.storage.get_edge_mut(eid);
         let mut edge_mut = edge.as_mut();
         if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
@@ -166,7 +170,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                     .update_constant_prop(*prop_id, prop)
                     .map_err(MutationError::from)?;
             }
-            Ok(())
+            Ok(edge)
         } else {
             let layer = self.get_layer_name(layer).to_string();
             let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
@@ -202,7 +206,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         self.mutable()?
             .internal_add_constant_node_properties(vid, props)
     }
@@ -211,7 +215,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         self.mutable()?
             .internal_update_constant_node_properties(vid, props)
     }
@@ -221,7 +225,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         self.mutable()?
             .internal_add_constant_edge_properties(eid, layer, props)
     }
@@ -231,7 +235,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         self.mutable()?
             .internal_update_constant_edge_properties(eid, layer, props)
     }
@@ -272,7 +276,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         self.base()
             .internal_add_constant_node_properties(vid, props)
     }
@@ -282,7 +286,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         self.base()
             .internal_update_constant_node_properties(vid, props)
     }
@@ -293,7 +297,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         self.base()
             .internal_add_constant_edge_properties(eid, layer, props)
     }
@@ -304,7 +308,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         self.base()
             .internal_update_constant_edge_properties(eid, layer, props)
     }

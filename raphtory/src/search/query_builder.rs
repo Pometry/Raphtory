@@ -5,7 +5,7 @@ use crate::{
     errors::GraphError,
     prelude::PropertyFilter,
     search::{
-        edge_index::EdgeIndex, graph_index::GraphIndex, node_index::NodeIndex,
+        edge_index::EdgeIndex, graph_index::Index, node_index::NodeIndex,
         property_index::PropertyIndex,
     },
 };
@@ -25,11 +25,11 @@ use tantivy::{
 
 #[derive(Clone, Copy)]
 pub struct QueryBuilder<'a> {
-    index: &'a GraphIndex,
+    index: &'a Index,
 }
 
 impl<'a> QueryBuilder<'a> {
-    pub fn new(index: &'a GraphIndex) -> Self {
+    pub fn new(index: &'a Index) -> Self {
         Self { index }
     }
 

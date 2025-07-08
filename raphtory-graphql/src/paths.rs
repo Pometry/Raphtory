@@ -9,7 +9,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ExistingGraphFolder {
     folder: ValidGraphFolder,
 }
@@ -69,10 +69,10 @@ impl ExistingGraphFolder {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    original_path: String,
     folder: GraphFolder,
+    original_path: String,
 }
 
 impl From<ExistingGraphFolder> for ValidGraphFolder {

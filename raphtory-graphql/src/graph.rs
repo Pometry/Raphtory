@@ -87,6 +87,7 @@ impl GraphWithVectors {
         println!("Graph loaded = {}", folder.get_original_path_str());
         if create_index {
             graph.create_index()?;
+            graph.write_updates()?;
         }
         Ok(Self {
             graph: graph.clone(),
