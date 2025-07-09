@@ -294,8 +294,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                    "Only relative paths are allowed to be used within the working_dir: /test"
-                    in str(excinfo.value)
+                "Only relative paths are allowed to be used within the working_dir: /test"
+                in str(excinfo.value)
             )
 
         query = """{
@@ -309,8 +309,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                    "References to the parent dir are not allowed within the path: test/../../"
-                    in str(excinfo.value)
+                "References to the parent dir are not allowed within the path: test/../../"
+                in str(excinfo.value)
             )
 
         query = """{
@@ -324,8 +324,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                    "References to the current dir are not allowed within the path: ./test"
-                    in str(excinfo.value)
+                "References to the current dir are not allowed within the path: ./test"
+                in str(excinfo.value)
             )
 
         query = """{
@@ -339,8 +339,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                    "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
-                    in str(excinfo.value)
+                "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
+                in str(excinfo.value)
             )
 
 
