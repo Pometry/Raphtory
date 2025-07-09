@@ -297,7 +297,7 @@ impl InternalAdditionOps for TemporalGraph {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
         let node_info = node_info_as_props(gid, node_type);
-        node_writer.add_props(t, node_pos, 0, props.into_iter(), 0);
+        node_writer.add_props(t, node_pos, 0, props, 0);
         node_writer.update_c_props(node_pos, 0, node_info, 0);
 
         Ok(())
