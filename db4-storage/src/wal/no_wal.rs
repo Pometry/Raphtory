@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, WalOps, WalRecord};
+use crate::wal::{LSN, Wal, WalRecord};
 
 pub struct NoWal {
     dir: PathBuf,
 }
 
-impl WalOps for NoWal {
+impl Wal for NoWal {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error> {
         Ok(Self { dir: dir.as_ref().to_path_buf() })
     }

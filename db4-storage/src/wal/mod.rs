@@ -13,7 +13,7 @@ pub struct WalRecord {
     pub data: Vec<u8>,
 }
 
-pub trait WalOps {
+pub trait Wal {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error>
     where
         Self: Sized;
