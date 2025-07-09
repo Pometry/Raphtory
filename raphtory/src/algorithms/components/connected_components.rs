@@ -145,8 +145,6 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             .into_par_iter()
             .for_each(|_| while self.run_chunk().is_some() {});
         let num_chunks = self.next_chunk.load(Ordering::Acquire); // synchronises with `Release` in `next_chunk_label` to ensure all updates from the chunk task are visible
-        dbg!(&self);
-        dbg!(num_chunks);
         self.chunk_labels[0..num_chunks]
             .par_iter()
             .enumerate()
