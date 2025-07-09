@@ -63,7 +63,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     /// This function takes care to make sure that there will never be more tasks than
     /// unfiltered nodes in the graph!
     fn next_start(&self) -> Option<(usize, VID)> {
-        let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+        let mut next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
         if next_start >= self.node_labels.len() {
             return None;
         }
@@ -71,18 +71,15 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         let chunk_id = self.next_chunk_label();
         self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Release);
         loop {
-            let old_chunk_id = self.node_labels[next_start].fetch_min(chunk_id, Ordering::Relaxed);
-            if old_chunk_id == usize::MAX {
+            if self.node_labels[next_start]
+                .compare_exchange(usize::MAX, chunk_id, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
                 if self.graph.has_node(VID(next_start)) {
                     return Some((chunk_id, VID(next_start)));
                 }
-            } else {
-                if old_chunk_id > chunk_id {
-                    // we modified the node label, need to keep track of the chunk mapping
-                    self.link_chunks(old_chunk_id, chunk_id);
-                }
             }
-            let next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+            next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
             if next_start >= self.node_labels.len() {
                 return None;
             }
@@ -288,6 +285,29 @@ mod cc_test {
             let results = weakly_connected_components(graph);
             assert_same_partition(results, [1..=11]);
         });
+    }
+
+    #[test]
+    fn test_multiple_components() {
+        let graph = Graph::new();
+        let edges = vec![
+            (1, 1, 2),
+            (2, 2, 1),
+            (3, 3, 1),
+            (1, 10, 11),
+            (2, 20, 21),
+            (3, 30, 31),
+        ];
+        for (ts, src, dst) in edges {
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+        }
+        for _ in 0..1000 {
+            let result = weakly_connected_components(&graph);
+            assert_same_partition(
+                result,
+                [vec![1, 2, 3], vec![10, 11], vec![20, 21], vec![30, 31]],
+            )
+        }
     }
 
     // connected community_detection on a graph with 1 node and a self loop

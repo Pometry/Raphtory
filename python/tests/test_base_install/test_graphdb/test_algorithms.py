@@ -50,9 +50,9 @@ def test_local_clustering_coefficient():
 def test_connected_components():
     g = gen_graph()
     actual = algorithms.weakly_connected_components(g)
-    expected = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0}
+    c = actual[1]
+    expected = {1: c, 2: c, 3: c, 4: c, 5: c, 6: c, 7: c, 8: c}
     assert actual == expected
-    assert actual["1"] == 0
 
 
 def test_largest_connected_component():
