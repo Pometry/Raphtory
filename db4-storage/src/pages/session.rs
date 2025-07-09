@@ -7,7 +7,7 @@ use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
-    pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
+    pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY, node_page::writer::NodeWriter},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
@@ -48,6 +48,18 @@ impl<
             edge_writer,
             graph,
         }
+    }
+
+    pub fn resolve_node_pos(&self, vid: impl Into<VID>) -> LocalPOS {
+        self.graph.nodes().resolve_pos(vid.into()).1
+    }
+
+    pub fn node_id_prop_id(&self) -> usize {
+        self.graph
+            .node_meta()
+            .const_prop_meta()
+            .get_id(NODE_ID_PROP_KEY)
+            .unwrap()
     }
 
     pub fn add_edge_into_layer<T: AsTime>(
@@ -309,54 +321,7 @@ impl<
         }
     }
 
-    pub fn store_node_id_as_prop(
-        &mut self,
-        id: GidRef,
-        vid: impl Into<VID>,
-    ) -> Result<(), DBV4Error> {
-        let (prop_val, prop_dtype) = match id {
-            GidRef::U64(id) => (Prop::U64(id), PropType::U64),
-            GidRef::Str(id) => (Prop::Str(id.into()), PropType::Str),
-        };
-
-        self.store_node_const_prop(NODE_ID_PROP_KEY, prop_val, prop_dtype, vid)
-    }
-
-    pub fn store_node_type_as_prop(
-        &mut self,
-        node_type: &str,
-        vid: impl Into<VID>,
-    ) -> Result<(), DBV4Error> {
-        let (prop_val, prop_dtype) = (Prop::Str(node_type.into()), PropType::Str);
-
-        self.store_node_const_prop(NODE_TYPE_PROP_KEY, prop_val, prop_dtype, vid)
-    }
-
-    fn store_node_const_prop(
-        &mut self,
-        prop_key: &str,
-        prop_val: Prop,
-        prop_dtype: PropType,
-        vid: impl Into<VID>,
-    ) -> Result<(), DBV4Error> {
-        let layer = 0;
-        let prop_id = self
-            .graph
-            .node_meta()
-            .const_prop_meta()
-            .get_and_validate(prop_key, prop_dtype)?
-            .ok_or_else(|| {
-                DBV4Error::GenericFailure(format!("{} const prop not found", prop_key))
-            })?;
-
-        let props = vec![(prop_id, prop_val)];
-        let (_, local_pos) = self.graph.nodes().resolve_pos(vid);
-        let lsn = 0; // TODO: lsn should be passed in
-
-        self.node_writers
-            .get_mut_src()
-            .update_c_props(local_pos, layer, props, lsn);
-
-        Ok(())
+    pub fn node_writers(&mut self) -> &mut WriterPair<'a, MNS, NS> {
+        &mut self.node_writers
     }
 }

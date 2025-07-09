@@ -266,8 +266,7 @@ fn decode_graph_storage(
 
     if g_type != expected_gt {
         return Err(GraphError::LoadFailure(format!(
-            "Expected graph type {:?}, got {:?}",
-            expected_gt, g_type
+            "Expected graph type {expected_gt:?}, got {g_type:?}"
         )));
     }
 

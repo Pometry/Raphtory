@@ -161,7 +161,7 @@ impl<
         let nodes = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             max_page_len_nodes,
-            node_meta.into(),
+            node_meta,
             ext.clone(),
         ));
         let edges = Arc::new(EdgeStorageInner::new_with_meta(

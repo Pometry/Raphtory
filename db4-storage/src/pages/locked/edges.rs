@@ -1,4 +1,4 @@
-use std::{ops::DerefMut, sync::atomic::AtomicUsize};
+use std::ops::DerefMut;
 
 use crate::{
     LocalPOS,

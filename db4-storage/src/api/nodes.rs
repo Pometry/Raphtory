@@ -27,7 +27,7 @@ use raphtory_core::{
 use crate::{
     LocalPOS,
     error::DBV4Error,
-    gen_ts::{ALL_LAYERS, LayerIter},
+    gen_ts::LayerIter,
     segments::node::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };

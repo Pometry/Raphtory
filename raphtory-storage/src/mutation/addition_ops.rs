@@ -107,8 +107,8 @@ pub trait EdgeWriteLock: Send + Sync {
         layer: usize,
     ) -> MaybeNew<ELID>;
 
-    /// Stores id as a const prop within the node
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>);
+    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
 }
 
 pub trait AtomicNodeAddition: Send + Sync {

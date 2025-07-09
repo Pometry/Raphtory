@@ -226,8 +226,12 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         self.session.internal_delete_edge(t, src, dst, lsn, layer)
     }
 
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
-        self.session.store_node_id_as_prop(id, vid);
+    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
+        self.session.store_src_node_info(id, node_id);
+    }
+
+    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
+        self.session.store_dst_node_info(id, node_id);
     }
 }
 

@@ -11,7 +11,9 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers,
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        GidRef, EID, ELID, MAX_LAYER, VID,
     },
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
@@ -91,14 +93,28 @@ impl<
         eid
     }
 
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
-        match id {
-            NodeRef::External(id) => {
-                let vid = vid.into();
-                let _ = self.static_session.store_node_id_as_prop(id, vid);
-            }
-            NodeRef::Internal(_) => (),
-        }
+    fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.static_session.resolve_node_pos(vid);
+            let prop_id = self.static_session.node_id_prop_id();
+
+            self.static_session
+                .node_writers()
+                .get_mut_src()
+                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+        };
+    }
+
+    fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.static_session.resolve_node_pos(vid);
+            let prop_id = self.static_session.node_id_prop_id();
+
+            self.static_session
+                .node_writers()
+                .get_mut_dst()
+                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+        };
     }
 }
 
