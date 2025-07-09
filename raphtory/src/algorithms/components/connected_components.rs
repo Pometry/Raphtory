@@ -58,6 +58,26 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
     }
 
+    /// Link two chunks `chunk_id_1` and `chunk_id_2` such that they will be part of the same
+    /// component in the final result.
+    ///
+    /// The components always link from larger id to smaller id. If while linking, we find that
+    /// the component was already linked, we rewire that link as well (the implementation is effectively
+    /// the same as calling this function recursively)
+    fn link_chunks(&self, chunk_id_1: usize, chunk_id_2: usize) {
+        let mut src = chunk_id_1.max(chunk_id_2);
+        let mut dst = chunk_id_1.min(chunk_id_2);
+        while src != dst {
+            let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Acquire);
+            if old_label > dst {
+                src = old_label
+            } else {
+                src = dst;
+                dst = old_label
+            }
+        }
+    }
+
     /// Find the next valid starting node for a task
     ///
     /// This function takes care to make sure that there will never be more tasks than
@@ -116,11 +136,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
                             new_frontier.push(node_id);
                         }
                         Err(old_label) => {
-                            if old_label > chunk_id {
-                                self.chunk_labels[old_label].fetch_min(chunk_id, Ordering::Relaxed);
-                            } else {
-                                self.chunk_labels[chunk_id].fetch_min(old_label, Ordering::Relaxed);
-                            }
+                            self.link_chunks(chunk_id, old_label);
                         }
                     }
                 }
