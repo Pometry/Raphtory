@@ -84,6 +84,14 @@ pub trait InternalAdditionOps {
         meta: &Meta,
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error>;
+
+    /// Validates props and returns them with their creation status (new vs existing)
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error>;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -245,6 +253,17 @@ impl InternalAdditionOps for GraphStorage {
             .map_err(MutationError::from)
     }
 
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+        self.mutable()?
+            .validate_props_with_status(is_static, meta, prop)
+            .map_err(MutationError::from)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
@@ -342,6 +361,16 @@ where
         prop: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<(usize, Prop)>, Self::Error> {
         self.base().validate_props(is_static, meta, prop)
+    }
+
+    #[inline]
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+        self.base().validate_props_with_status(is_static, meta, prop)
     }
 
     #[inline]

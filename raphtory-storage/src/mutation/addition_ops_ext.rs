@@ -309,6 +309,15 @@ impl InternalAdditionOps for TemporalGraph {
             Ok(prop_ids)
         }
     }
+
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+        todo!()
+    }
 }
 
 fn reserve_node_id_as_prop(node_meta: &Meta, id: GidRef) -> usize {

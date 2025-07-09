@@ -427,6 +427,15 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.validate_props(is_static, meta, prop)?)
     }
 
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+        Ok(self.graph.validate_props_with_status(is_static, meta, prop)?)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
