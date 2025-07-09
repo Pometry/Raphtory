@@ -68,7 +68,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         let mut src = chunk_id_1.max(chunk_id_2);
         let mut dst = chunk_id_1.min(chunk_id_2);
         while src != dst {
-            let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Acquire);
+            let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Relaxed);
             if old_label > dst {
                 src = old_label
             } else {
@@ -108,7 +108,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     }
 
     fn next_chunk_label(&self) -> usize {
-        self.next_chunk.fetch_add(1, Ordering::Release) // synchronises with `Acquire` in `run` to ensure all updates from the chunk task are visible
+        self.next_chunk.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Find a new starting point and run breadth-first search
@@ -154,7 +154,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         (0..num_tasks)
             .into_par_iter()
             .for_each(|_| while self.run_chunk().is_some() {});
-        let num_chunks = self.next_chunk.load(Ordering::Acquire); // synchronises with `Release` in `next_chunk_label` to ensure all updates from the chunk task are visible
+        let num_chunks = self.next_chunk.load(Ordering::Relaxed);
         self.chunk_labels[0..num_chunks]
             .par_iter()
             .enumerate()
@@ -166,8 +166,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
                     component_id = self.chunk_labels[current_chunk].load(Ordering::Relaxed);
                 }
                 if component_id != chunk_id {
-                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Release);
-                    // synchronise with `Acquire` below such that we are guaranteed to have the final label
+                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
                 }
             });
         self.node_labels
@@ -175,7 +174,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             .map(|l| {
                 let l = l.into_inner();
                 if l != usize::MAX {
-                    self.chunk_labels[l].load(Ordering::Acquire) // synchronise with `Release` above such that we are guaranteed to have the final label
+                    self.chunk_labels[l].load(Ordering::Relaxed)
                 } else {
                     l
                 }
