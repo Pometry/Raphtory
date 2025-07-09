@@ -587,7 +587,10 @@ mod db_tests {
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
-        test_utils::{build_graph, build_graph_strat, test_graph},
+        test_utils::{
+            build_graph, build_graph_strat, test_graph, EdgeFixture, EdgeUpdatesFixture,
+            GraphFixture, NodeFixture, PropUpdatesFixture,
+        },
     };
     use bigdecimal::BigDecimal;
     use chrono::NaiveDateTime;
@@ -4046,27 +4049,106 @@ mod db_tests {
     }
 
     #[test]
-    fn materialize_one_edge_test() {
+    fn materialize_temporal_properties_one_edge() {
         let g = Graph::new();
-        let e = g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
-        e.add_constant_properties([("0", Prop::I64(1))], Some("a"))
-            .unwrap();
-        g.delete_edge(1, 0, 0, Some("a")).unwrap();
-        let gw = g.window(-3, 9);
-        let c_props = gw.edge(0, 0).unwrap().properties().constant().as_map();
-        println!("window c_props: {c_props:?}");
-        let gmw = gw.materialize().unwrap();
-        assert!(gmw.edge(0, 0).is_some());
-        let c_props = gmw.edge(0, 0).unwrap().properties().constant().as_map();
-        println!("materialized c_props: {c_props:?}");
-        let edge = gw.edge(0, 0).unwrap();
-        let c_props = edge
-            .const_prop_ids()
-            .filter_map(|prop_id| edge.get_const_prop(prop_id).map(|prop| (prop_id, prop)))
-            .collect::<Vec<_>>();
+        g.add_edge(
+            0,
+            0,
+            0,
+            [("3", Prop::I64(1)), ("0", Prop::str("baa"))],
+            Some("a"),
+        )
+        .unwrap();
 
-        println!("window c_props all {c_props:?}");
+        let gw = g.window(-9, 3);
+        let gmw = gw.materialize().unwrap();
+
         assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn materialize_one_node() {
+        let g = Graph::new();
+        g.add_node(0, 0, NO_PROPS, None).unwrap();
+
+        let n = g.node(0).unwrap();
+        let hist = n.history();
+        assert!(!hist.is_empty());
+        let rows = n.rows().collect::<Vec<_>>();
+        assert!(!rows.is_empty());
+
+        let gw = g.window(0, 1);
+        let gmw = gw.materialize().unwrap();
+
+        assert_graph_equal(&gw, &gmw);
+    }
+
+    #[test]
+    fn materialize_some_edges() -> Result<(), GraphError> {
+        let edges1_props = EdgeUpdatesFixture {
+            props: PropUpdatesFixture {
+                t_props: vec![
+                    (2433054617899119663, vec![]),
+                    (
+                        5623371002478468619,
+                        vec![("0".to_owned(), Prop::I64(-180204069376666762))],
+                    ),
+                ],
+                c_props: vec![],
+            },
+            deletions: vec![-3684372592923241629, 3668280323305195349],
+        };
+
+        let edges2_props = EdgeUpdatesFixture {
+            props: PropUpdatesFixture {
+                t_props: vec![
+                    (
+                        -7888823724540213280,
+                        vec![("0".to_owned(), Prop::I64(1339447446033500001))],
+                    ),
+                    (-3792330935693192039, vec![]),
+                    (
+                        4049942931077033460,
+                        vec![("0".to_owned(), Prop::I64(-544773539725842277))],
+                    ),
+                    (5085404190610173488, vec![]),
+                    (1445770503123270290, vec![]),
+                    (-5628624083683143619, vec![]),
+                    (-394401628579820652, vec![]),
+                    (-2398199704888544233, vec![]),
+                ],
+                c_props: vec![("0".to_owned(), Prop::I64(-1877019573933389749))],
+            },
+            deletions: vec![
+                3969804007878301015,
+                7040207277685112004,
+                7380699292468575143,
+                3332576590029503186,
+                -1107894292705275349,
+                6647229517972286485,
+                6359226207899406831,
+            ],
+        };
+
+        let edges: EdgeFixture = [
+            ((2, 7, Some("b")), edges1_props),
+            ((7, 2, Some("a")), edges2_props),
+        ]
+        .into_iter()
+        .collect();
+
+        let w = -3619743214445905380..90323088878877991;
+        let graph_f = GraphFixture {
+            nodes: NodeFixture::default(),
+            edges,
+        };
+        for _ in 0..200 {
+            let g = Graph::from(build_graph(&graph_f));
+            let gw = g.window(w.start, w.end);
+            let gmw = gw.materialize()?;
+            assert_graph_equal(&gw, &gmw);
+        }
+        Ok(())
     }
 
     #[test]

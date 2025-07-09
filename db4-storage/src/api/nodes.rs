@@ -27,7 +27,7 @@ use raphtory_core::{
 use crate::{
     LocalPOS,
     error::DBV4Error,
-    gen_ts::LayerIter,
+    gen_ts::{ALL_LAYERS, LayerIter},
     segments::node::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
@@ -228,23 +228,24 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> + 'a {
         (0..self.internal_num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
+            let additions = self.node_additions(layer_id);
+            let additions = w
+                .clone()
+                .map(|w| Iter2::I1(additions.range(w).iter()))
+                .unwrap_or_else(|| Iter2::I2(additions.iter()));
+
             let mut time_ordered_iter = (0..self.node_meta().temporal_prop_meta().len())
                 .map(move |prop_id| {
-                    let additions = self.node_additions(layer_id);
-                    let additions = w
-                        .clone()
-                        .map(|w| Iter2::I1(additions.range(w).iter()))
-                        .unwrap_or_else(|| Iter2::I2(additions.iter()));
-
                     self.temporal_prop_layer(layer_id, prop_id)
                         .iter_inner(w.clone())
-                        .merge_join_by(additions, |(t1, _), t2| t1 <= t2)
-                        .map(move |result| match result {
-                            either::Either::Left((l, prop)) => (l, Some((prop_id, prop))),
-                            either::Either::Right(r) => (r, None),
-                        })
+                        .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
-                .kmerge_by(|(t1, _), (t2, _)| t1 <= t2);
+                .kmerge_by(|(t1, (p_id1, _)), (t2, (p_id2, _))| (t1, p_id1) < (t2, p_id2))
+                .merge_join_by(additions, |(t1, _), t2| t1 <= t2)
+                .map(move |result| match result {
+                    either::Either::Left((l, (prop_id, prop))) => (l, Some((prop_id, prop))),
+                    either::Either::Right(r) => (r, None),
+                });
 
             let mut done = false;
             if let Some((mut current_time, maybe_prop)) = time_ordered_iter.next() {
@@ -253,7 +254,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                     if done {
                         return None;
                     }
-                    while let Some((t, maybe_prop)) = time_ordered_iter.next() {
+                    for (t, maybe_prop) in time_ordered_iter.by_ref() {
                         if t == current_time {
                             current_row.extend(maybe_prop);
                         } else {

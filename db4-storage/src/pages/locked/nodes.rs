@@ -56,6 +56,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
 
     pub fn ensure_layer(&mut self, layer_id: usize) {
         self.lock.get_or_create_layer(layer_id);
+        self.layer_counter.get(layer_id);
     }
 }
 pub struct WriteLockedNodePages<'a, NS> {
