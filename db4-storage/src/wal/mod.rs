@@ -50,15 +50,7 @@ pub trait Wal {
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
-pub trait WalEntry {
-    fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
-
-    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error> where Self: Sized;
-}
-
 pub trait WalEntryBuilder<'a> {
-    type Entry: WalEntry;
-
     fn add_edge(
         t: TimeIndexEntry,
         src: VID,
@@ -67,15 +59,21 @@ pub trait WalEntryBuilder<'a> {
         layer_id: usize,
         t_props: Cow<'a, Vec<(usize, Prop)>>,
         c_props: Cow<'a, Vec<(usize, Prop)>>,
-    ) -> Self::Entry;
+    ) -> Self;
 
-    fn add_node_id(gid: GID, vid: VID) -> Self::Entry;
+    fn add_node_id(gid: GID, vid: VID) -> Self;
 
-    fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self::Entry;
+    fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self;
 
-    fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self::Entry;
+    fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self;
 
-    fn add_layer_id(name: String, id: usize) -> Self::Entry;
+    fn add_layer_id(name: String, id: usize) -> Self;
 
-    fn checkpoint(lsn: LSN) -> Self::Entry;
+    fn checkpoint(lsn: LSN) -> Self;
+
+    // Methods to serialize/deserialize
+
+    fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error> where Self: Sized;
 }
