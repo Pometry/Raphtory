@@ -117,7 +117,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
     /// accordingly using `link_chunks`
     fn run_chunk(&self) -> Option<()> {
         let (chunk_id, start) = self.next_start()?;
-
+        let mut min_label = chunk_id;
         let mut new_frontier = vec![start];
         let mut frontier = vec![];
         while !new_frontier.is_empty() {
@@ -125,19 +125,13 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
             for node_id in frontier.drain(..) {
                 for neighbour in NodeView::new_internal(self.graph, node_id).neighbours() {
                     let node_id = neighbour.node;
-                    match self.node_labels[node_id.index()].compare_exchange(
-                        usize::MAX,
-                        chunk_id,
-                        Ordering::Relaxed,
-                        Ordering::Relaxed,
-                    ) {
-                        Ok(_) => {
-                            // node not visited previously
-                            new_frontier.push(node_id);
-                        }
-                        Err(old_label) => {
-                            self.link_chunks(chunk_id, old_label);
-                        }
+                    let old_label =
+                        self.node_labels[node_id.index()].fetch_min(min_label, Ordering::Relaxed);
+                    if old_label != usize::MAX {
+                        self.link_chunks(chunk_id, old_label);
+                        min_label = min_label.min(old_label);
+                    } else {
+                        new_frontier.push(node_id);
                     }
                 }
             }
