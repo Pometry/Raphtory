@@ -1,6 +1,7 @@
 from raphtory import Graph
 from utils import run_graphql_test, run_graphql_error_test, run_group_graphql_error_test
 from datetime import datetime
+from raphtory import PersistentGraph
 
 
 def create_graph_epoch(g):
@@ -11,6 +12,7 @@ def create_graph_epoch(g):
     g.add_edge(3, 1, 3)
     g.add_edge(4, 1, 3)
     g.add_edge(5, 6, 7)
+
 
 
 def create_graph_date(g):
@@ -30,6 +32,16 @@ def create_graph_date(g):
     g.add_edge(dates[3], 1, 3)
     g.add_edge(dates[4], 6, 7, {"where": "fishbowl"}, "finds")
 
+def create_persistent_graph_epoch(g):
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 2)
+    g.add_edge(3, 1, 2)
+    g.add_edge(2, 1, 3)
+    g.add_edge(3, 1, 3)
+    g.add_edge(4, 1, 3)
+    g.add_edge(5, 6, 7)
+    g.delete_edge(6,1,3)
+    g.delete_edge(7,1,2)
 
 def test_apply_view_snapshot_latest():
     graph = Graph()
@@ -2268,3 +2280,40 @@ def test_apply_view_out_neighbours_snapshot_at():
     }
 
     run_graphql_test(query, correct, graph)
+
+
+def test_valid_graph():
+    graph = PersistentGraph()
+    create_persistent_graph_epoch(graph)
+    query = """
+            {
+              graph(path:"g"){
+                applyViews(views:[{valid:true}]){
+                  edges{
+                    list{
+                      id
+                      latestTime
+                    }
+                  }	
+                }
+              }
+            }"""
+    correct = {
+        "graph": {
+            "applyViews": {
+                "edges": {
+                    "list": [
+                        {
+                            "id": [
+                                "6",
+                                "7"
+                            ],
+                            "latestTime": 5
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, correct, graph)
+
