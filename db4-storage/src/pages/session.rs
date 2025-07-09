@@ -10,6 +10,7 @@ use crate::{
     pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY},
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType},
     storage::dict_mapper::MaybeNew,
@@ -21,29 +22,25 @@ use raphtory_core::{
 
 pub struct WriteSession<
     'a,
-    MNS: DerefMut<Target = MemNodeSegment> + 'a,
-    MES: DerefMut<Target = MemEdgeSegment> + 'a,
     NS: NodeSegmentOps,
     ES: EdgeSegmentOps,
     EXT,
 > {
-    node_writers: WriterPair<'a, MNS, NS>,
-    edge_writer: Option<EdgeWriter<'a, MES, ES>>,
+    node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+    edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, EXT>,
 }
 
 impl<
     'a,
-    MNS: DerefMut<Target = MemNodeSegment> + 'a,
-    MES: DerefMut<Target = MemEdgeSegment> + 'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     EXT: Clone + Default + Send + Sync,
-> WriteSession<'a, MNS, MES, NS, ES, EXT>
+> WriteSession<'a, NS, ES, EXT>
 {
     pub fn new(
-        node_writers: WriterPair<'a, MNS, NS>,
-        edge_writer: Option<EdgeWriter<'a, MES, ES>>,
+        node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
+        edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
         graph: &'a GraphStore<NS, ES, EXT>,
     ) -> Self {
         Self {
@@ -85,6 +82,7 @@ impl<
             let exists = Some(!edge.is_new());
 
             writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
+            self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
         let edge_id = edge.inner();
@@ -153,6 +151,7 @@ impl<
             let exists = Some(!edge.is_new());
 
             writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+            self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
         let edge_id = edge.inner();
@@ -213,12 +212,16 @@ impl<
 
             edge_writer.add_static_edge(Some(edge_pos), src, dst, layer_id, lsn, None);
 
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
+
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
             let edge_id = edge_writer.add_static_edge(None, src, dst, layer_id, lsn, None);
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
+
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
 
             self.node_writers
                 .get_mut_src()
@@ -263,6 +266,8 @@ impl<
                 .get_mut_dst()
                 .update_timestamp(t, dst_pos, e_id, lsn);
 
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
+
             MaybeNew::Existing(e_id)
         } else if let Some(e_id) = self
             .node_writers
@@ -281,6 +286,8 @@ impl<
                 .get_mut_dst()
                 .update_timestamp(t, dst_pos, e_id, lsn);
 
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
+
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
@@ -288,6 +295,8 @@ impl<
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
             let edge_id = edge_id.with_layer(layer);
+
+            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
 
             self.node_writers
                 .get_mut_src()

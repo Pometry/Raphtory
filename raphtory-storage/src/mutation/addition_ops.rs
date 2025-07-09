@@ -178,12 +178,7 @@ impl InternalAdditionOps for GraphStorage {
     type Error = MutationError;
     type WS<'b> = UnlockedSession<'b>;
 
-    type AtomicAddEdge<'a> = WriteS<
-        'a,
-        RwLockWriteGuard<'a, MemNodeSegment>,
-        RwLockWriteGuard<'a, MemEdgeSegment>,
-        Extension,
-    >;
+    type AtomicAddEdge<'a> = WriteS<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         self.mutable()?.write_lock()
