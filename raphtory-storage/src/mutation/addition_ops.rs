@@ -90,7 +90,7 @@ pub trait InternalAdditionOps {
         &self,
         is_static: bool,
         meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error>;
 }
 
@@ -257,10 +257,10 @@ impl InternalAdditionOps for GraphStorage {
         &self,
         is_static: bool,
         meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
         self.mutable()?
-            .validate_props_with_status(is_static, meta, prop)
+            .validate_props_with_status(is_static, meta, props)
             .map_err(MutationError::from)
     }
 
@@ -368,9 +368,9 @@ where
         &self,
         is_static: bool,
         meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
-        self.base().validate_props_with_status(is_static, meta, prop)
+        self.base().validate_props_with_status(is_static, meta, props)
     }
 
     #[inline]

@@ -15,7 +15,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::dict_mapper::MaybeNew::{Existing, New},
+    storage::dict_mapper::MaybeNew::{self, Existing, New},
 };
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
@@ -284,19 +284,35 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
+
         self.validate_gids(
             [src.as_node_ref(), dst.as_node_ref()]
                 .iter()
                 .filter_map(|node_ref| node_ref.as_gid_ref().left()),
         )
         .map_err(into_graph_err)?;
-        let props = self
-            .validate_props(
+
+        let props_with_status = self
+            .validate_props_with_status(
                 false,
                 self.edge_meta(),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+
+        // Create a vec of references for only those props that are new
+        let new_props_refs: Vec<&(usize, Prop)> = props_with_status
+            .iter()
+            .filter_map(|maybe_new| match maybe_new {
+                MaybeNew::New(tuple) => Some(tuple),
+                _ => None,
+            })
+            .collect();
+
+        let props = props_with_status
+            .into_iter()
+            .map(|maybe_new| maybe_new.inner())
+            .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
         let src_id = self

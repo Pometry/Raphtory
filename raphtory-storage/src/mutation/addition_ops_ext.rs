@@ -314,9 +314,19 @@ impl InternalAdditionOps for TemporalGraph {
         &self,
         is_static: bool,
         meta: &Meta,
-        prop: impl Iterator<Item = (PN, Prop)>,
+        props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
-        todo!()
+        if is_static {
+            let prop_ids = PropsMetaWriter::constant(meta, props)
+                .and_then(|pmw| pmw.into_props_const_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        } else {
+            let prop_ids = PropsMetaWriter::temporal(meta, props)
+                .and_then(|pmw| pmw.into_props_temporal_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        }
     }
 }
 
