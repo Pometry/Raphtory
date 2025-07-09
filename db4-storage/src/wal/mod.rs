@@ -1,9 +1,14 @@
 use std::path::Path;
-
+use raphtory_core::{
+    entities::{VID, EID, GID},
+    storage::timeindex::TimeIndexEntry,
+};
+use std::borrow::Cow;
+use raphtory_api::core::entities::properties::prop::Prop;
 use crate::error::DBV4Error;
 
 pub mod no_wal;
-pub mod entries;
+pub mod entry;
 
 pub type LSN = u64;
 
@@ -43,4 +48,34 @@ pub trait Wal {
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), DBV4Error>;
 
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
+}
+
+pub trait WalEntry {
+    fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error> where Self: Sized;
+}
+
+pub trait WalEntryBuilder<'a> {
+    type Entry: WalEntry;
+
+    fn add_edge(
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        eid: EID,
+        layer_id: usize,
+        t_props: Cow<'a, Vec<(usize, Prop)>>,
+        c_props: Cow<'a, Vec<(usize, Prop)>>,
+    ) -> Self::Entry;
+
+    fn add_node_id(gid: GID, vid: VID) -> Self::Entry;
+
+    fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self::Entry;
+
+    fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self::Entry;
+
+    fn add_layer_id(name: String, id: usize) -> Self::Entry;
+
+    fn checkpoint(lsn: LSN) -> Self::Entry;
 }
