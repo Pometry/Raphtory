@@ -39,6 +39,7 @@ tox = ["nbmake"]
 [tool.maturin]
 features = ["extension-module"] # make sure to always specify this when building with private storage enabled
 python-source = "python"
+module-name = "raphtory._raphtory"
 include = ["motif-images/*"]
 
 [tool.pytest.ini_options]
