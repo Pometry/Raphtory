@@ -1,0 +1,12 @@
+name: Docs code examples check
+on:
+  workflow_call:
+
+jobs:
+    test-docs-examples:
+        name: Run docs tests
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v3
+        - name: Run docs tests
+          run: make run-docs-tests
