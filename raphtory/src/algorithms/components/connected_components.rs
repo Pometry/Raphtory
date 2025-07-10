@@ -91,7 +91,11 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         }
         // only increment this if we still have a potentially valid node to avoid getting too many chunks
         let chunk_id = self.next_chunk_label();
-        self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Relaxed);
+        let old_label = self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Relaxed);
+        if old_label != usize::MAX {
+            // some other thread managed to initialise our chunk (this seems theoretically possible)
+            self.link_chunks(chunk_id, old_label);
+        }
         loop {
             //
             if self.node_labels[next_start]
