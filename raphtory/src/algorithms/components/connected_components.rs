@@ -69,11 +69,13 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
         let mut dst = chunk_id_1.min(chunk_id_2);
         while src != dst {
             let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Relaxed);
-            if old_label > dst {
-                src = old_label
-            } else {
-                src = dst;
-                dst = old_label
+            if old_label != usize::MAX {
+                if old_label > dst {
+                    src = old_label
+                } else {
+                    src = dst;
+                    dst = old_label
+                }
             }
         }
     }
