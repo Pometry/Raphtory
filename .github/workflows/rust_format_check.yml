@@ -12,7 +12,7 @@ on:
         description: "Fail the workflow if any code is not formatted"
 
 jobs:
-  rust-format-check:
+  rust-and-python-format-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +26,9 @@ jobs:
           else
               cargo +nightly fmt --all -- --check || true
           fi
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
 
       - name: Setup Python
         uses: actions/setup-python@v5
