@@ -99,7 +99,7 @@ python-docs-serve: install-doc-deps
 python-docs-build: install-doc-deps
 	mkdocs build
 
-run-docs-tests: install-doc-deps clean-doc-pages
+run-docs-tests: tidy-public install-doc-deps clean-doc-pages
 	cd docs/user-guide && \
 	pytest --markdown-docs -m markdown-docs --markdown-docs-syntax=superfences
 
