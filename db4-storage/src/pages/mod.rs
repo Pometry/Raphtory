@@ -1,5 +1,4 @@
 use std::{
-    ops::DerefMut,
     path::Path,
     sync::{
         Arc,
@@ -9,7 +8,10 @@ use std::{
 
 use crate::{
     LocalPOS,
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
+    },
     error::DBV4Error,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     properties::props_meta_writer::PropsMetaWriter,
@@ -17,6 +19,7 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
+use either::Either;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
@@ -48,6 +51,8 @@ pub mod test_utils;
 // Internal const props for node id and type
 pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
 pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
+
+// graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
@@ -161,13 +166,13 @@ impl<
         let nodes = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             max_page_len_nodes,
-            node_meta.into(),
+            node_meta,
             ext.clone(),
         ));
         let edges = Arc::new(EdgeStorageInner::new_with_meta(
             edges_path,
             max_page_len_edges,
-            edge_meta.into(),
+            edge_meta,
             ext.clone(),
         ));
         // Reserve node_type as a const prop on init
@@ -247,16 +252,11 @@ impl<
     fn internal_delete_edge(
         &self,
         t: TimeIndexEntry,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        edge: Either<(VID, VID), EID>,
+        layer: usize,
         lsn: u64,
     ) -> Result<(), DBV4Error> {
-        let src = src.into();
-        let dst = dst.into();
-        let mut session = self.write_session(src, dst, None);
-        todo!("Implement internal_delete_edge");
-        // session.internal_delete_edge(t, src, dst, lsn, 0)?;
-        Ok(())
+        todo!()
     }
 
     fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, DBV4Error> {
@@ -415,7 +415,7 @@ pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: usize) -> (usize, 
 mod test {
     use super::GraphStore;
     use crate::{
-        Layer,
+        Extension, Layer,
         api::nodes::{NodeEntryOps, NodeRefOps},
         pages::test_utils::{
             AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
@@ -423,16 +423,11 @@ mod test {
             make_nodes,
         },
     };
-    use arrow::ipc::Time;
-    use bitvec::vec;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use core::panic;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use raphtory_core::{
-        entities::{LayerIds, VID},
-        storage::timeindex::{TimeIndexEntry, TimeIndexOps},
-    };
+    use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
 
     fn check_edges(
         edges: Vec<(impl Into<VID>, impl Into<VID>)>,
@@ -447,7 +442,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(graph_dir, chunk_size, chunk_size)
+            Layer::<crate::Extension>::new(graph_dir, chunk_size, chunk_size)
         })
     }
 
@@ -457,7 +452,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(graph_dir, chunk_size, chunk_size)
+            Layer::<crate::Extension>::new(graph_dir, chunk_size, chunk_size)
         })
     }
 
@@ -529,7 +524,7 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(graph_dir.path(), 32, 32);
+        let g = Layer::<Extension>::new(graph_dir.path(), 32, 32);
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -579,7 +574,7 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(graph_dir.path(), 32, 32);
+        let g = Layer::<Extension>::new(graph_dir.path(), 32, 32);
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])

@@ -134,7 +134,7 @@ mod test {
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
-        let g = Graph::new_with_shards(2);
+        let g = Graph::new();
 
         g.add_node(
             0,

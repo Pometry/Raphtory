@@ -11,7 +11,9 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers,
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        GidRef, EID, ELID, MAX_LAYER, VID,
     },
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
@@ -43,27 +45,25 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<
-        'a,
-        EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>,
-    > EdgeWriteLock for WriteS<'a, EXT>
-{
+impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for WriteS<'a, EXT> {
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID> {
+        self.static_session.add_static_edge(src, dst, lsn)
+    }
+
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        eid: MaybeNew<ELID>,
         lsn: u64,
-        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        let src = src.into();
-        let dst = dst.into();
-        let eid = self
-            .static_session
-            .add_static_edge(src, dst, lsn)
-            .map(|eid| eid.with_layer(layer));
-
         self.static_session
             .add_edge_into_layer(t, src, dst, eid, lsn, props);
 
@@ -91,14 +91,28 @@ impl<
         eid
     }
 
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
-        match id {
-            NodeRef::External(id) => {
-                let vid = vid.into();
-                let _ = self.static_session.store_node_id_as_prop(id, vid);
-            }
-            NodeRef::Internal(_) => (),
-        }
+    fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.static_session.resolve_node_pos(vid);
+            let prop_id = self.static_session.node_id_prop_id();
+
+            self.static_session
+                .node_writers()
+                .get_mut_src()
+                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+        };
+    }
+
+    fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.static_session.resolve_node_pos(vid);
+            let prop_id = self.static_session.node_id_prop_id();
+
+            self.static_session
+                .node_writers()
+                .get_mut_dst()
+                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+        };
     }
 }
 
@@ -232,21 +246,6 @@ impl InternalAdditionOps for TemporalGraph {
         let vid = self.resolve_node(id)?;
         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
         Ok(vid.map(|_| (vid, node_type_id)))
-
-        // let mut entry = self.storage.get_node_mut(vid.inner());
-        // let mut entry_ref = entry.to_mut();
-        // let node_store = entry_ref.node_store_mut();
-        // if node_store.node_type == 0 {
-        //     node_store.update_node_type(node_type_id.inner());
-        //     Ok(MaybeNew::New((vid, node_type_id)))
-        // } else {
-        //     let node_type_id = self
-        //         .node_meta
-        //         .get_node_type_id(node_type)
-        //         .filter(|&node_type| node_type == node_store.node_type)
-        //         .ok_or(MutationError::NodeTypeError)?;
-        //     Ok(MaybeNew::Existing((vid, MaybeNew::Existing(node_type_id))))
-        // }
     }
 
     fn validate_gids<'a>(
@@ -284,10 +283,11 @@ impl InternalAdditionOps for TemporalGraph {
         let v = v.into();
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        let node_info = node_info_as_props(gid, node_type);
         node_writer.add_props(t, node_pos, 0, props, 0);
-        node_writer.update_c_props(node_pos, 0, node_info, 0);
-
+        if gid.is_some() || node_type.is_some() {
+            let node_info = node_info_as_props(gid, node_type);
+            node_writer.update_c_props(node_pos, 0, node_info, 0);
+        }
         Ok(())
     }
 

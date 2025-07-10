@@ -1,11 +1,8 @@
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
-use proptest::{collection, prelude::*};
-use raphtory_api::core::entities::properties::{
-    prop::{DECIMAL_MAX, Prop, PropType},
-    tprop::TPropOps,
-};
+use proptest::prelude::*;
+use raphtory_api::core::entities::properties::prop::{DECIMAL_MAX, Prop, PropType};
 use std::collections::HashMap;
 
 pub fn prop_type() -> impl Strategy<Value = PropType> {

@@ -81,8 +81,7 @@ impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
 impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         self.tprops(self.prop_id)
-            .map(|t_props| t_props.last_before(t))
-            .flatten()
+            .filter_map(|t_props| t_props.last_before(t))
             .max_by_key(|(t, _)| *t)
     }
 

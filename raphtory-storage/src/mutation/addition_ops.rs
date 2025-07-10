@@ -95,14 +95,21 @@ pub trait InternalAdditionOps {
 }
 
 pub trait EdgeWriteLock: Send + Sync {
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID>;
+
     /// add edge update
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        eid: MaybeNew<ELID>,
         lsn: u64,
-        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 
@@ -115,8 +122,8 @@ pub trait EdgeWriteLock: Send + Sync {
         layer: usize,
     ) -> MaybeNew<ELID>;
 
-    /// Stores id as a const prop within the node
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>);
+    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
 }
 
 pub trait AtomicNodeAddition: Send + Sync {

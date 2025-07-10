@@ -1,5 +1,4 @@
 use std::{
-    env::temp_dir,
     path::{Path, PathBuf},
     sync::{
         atomic::{self, AtomicUsize},
@@ -30,6 +29,7 @@ use storage::{
     resolver::{GIDResolverError, GIDResolverOps},
     Extension, GIDResolver, Layer, ReadLockedLayer, ES, NS,
 };
+use tempfile::TempDir;
 
 pub mod entries;
 pub mod mutation;
@@ -44,40 +44,80 @@ pub struct TemporalGraph<EXT = Extension> {
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
-    graph_dir: PathBuf,
+    graph_dir: GraphDir,
+}
+
+#[derive(Debug)]
+pub enum GraphDir {
+    Temp(TempDir),
+    Path(PathBuf),
+}
+
+impl<'a> From<&'a Path> for GraphDir {
+    fn from(path: &'a Path) -> Self {
+        GraphDir::Path(path.to_path_buf())
+    }
+}
+
+impl Default for GraphDir {
+    fn default() -> Self {
+        GraphDir::Temp(tempfile::tempdir().expect("Failed to create temporary directory"))
+    }
+}
+
+impl AsRef<Path> for GraphDir {
+    fn as_ref(&self) -> &Path {
+        match self {
+            GraphDir::Temp(temp_dir) => temp_dir.path(),
+            GraphDir::Path(path) => path,
+        }
+    }
 }
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        Self::new(None)
+        Self::new()
     }
-}
-
-fn random_temp_dir() -> PathBuf {
-    temp_dir()
-        .join("raphtory_graphs")
-        .join(format!("raphtory-{}", uuid::Uuid::new_v4()))
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    pub fn new(path: Option<PathBuf>) -> Self {
+    pub fn new() -> Self {
         let node_meta = Meta::new();
         let edge_meta = Meta::new();
-        Self::new_with_meta(path, node_meta, edge_meta)
+        Self::new_with_meta(Default::default(), node_meta, edge_meta)
     }
 
-    pub fn new_with_meta(path: Option<PathBuf>, node_meta: Meta, edge_meta: Meta) -> Self {
-        edge_meta.get_or_create_layer_id(Some("static_graph"));
-        let graph_dir = path.unwrap_or_else(random_temp_dir);
-        std::fs::create_dir_all(&graph_dir).unwrap_or_else(|_| {
-            panic!(
-                "Failed to create graph directory at {}",
-                graph_dir.display()
-            )
+    pub fn new_with_path(path: impl AsRef<Path>) -> Self {
+        let node_meta = Meta::new();
+        let edge_meta = Meta::new();
+        Self::new_with_meta(path.as_ref().into(), node_meta, edge_meta)
+    }
+
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        let graph_dir: GraphDir = path.as_ref().into();
+        let storage = Layer::load(graph_dir.as_ref())
+            .unwrap_or_else(|_| panic!("Failed to load graph from path: {graph_dir:?}"));
+        let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
+        let resolver = GIDResolver::new(&gid_resolver_dir).unwrap_or_else(|_| {
+            panic!("Failed to load GID resolver from path: {gid_resolver_dir:?}")
         });
-        let gid_resolver_dir = graph_dir.join("gid_resolver");
-        let storage = Layer::new_with_meta(
-            graph_dir.clone(),
+        let node_count = AtomicUsize::new(storage.nodes().num_nodes());
+        Self {
+            graph_dir,
+            logical_to_physical: resolver,
+            node_count,
+            storage: Arc::new(storage),
+            graph_meta: Arc::new(GraphMeta::default()),
+        }
+    }
+
+    pub fn new_with_meta(graph_dir: GraphDir, node_meta: Meta, edge_meta: Meta) -> Self {
+        edge_meta.get_or_create_layer_id(Some("static_graph"));
+        std::fs::create_dir_all(&graph_dir)
+            .unwrap_or_else(|_| panic!("Failed to create graph directory at {graph_dir:?}"));
+        let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
+        let storage: Layer<EXT> = Layer::new_with_meta(
+            graph_dir.as_ref(),
             DEFAULT_MAX_PAGE_LEN_NODES,
             DEFAULT_MAX_PAGE_LEN_EDGES,
             node_meta,
@@ -147,7 +187,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn graph_dir(&self) -> &Path {
-        &self.graph_dir
+        self.graph_dir.as_ref()
     }
 
     #[inline]
@@ -273,7 +313,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
 
         match result {
             Ok(vid) => Ok(vid),
-            Err(GIDResolverError::DBV4Error(e)) => panic!("Database error: {}", e),
+            Err(GIDResolverError::DBV4Error(e)) => panic!("Database error: {e}"),
             Err(GIDResolverError::InvalidNodeId(e)) => Err(e),
         }
     }

@@ -269,7 +269,7 @@ impl DictMapper {
 #[cfg(test)]
 mod test {
     use crate::core::storage::dict_mapper::DictMapper;
-    use quickcheck_macros::quickcheck;
+    use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
     use std::collections::HashMap;
@@ -284,30 +284,32 @@ mod test {
         assert_eq!(mapper.get_or_create_id("test").inner(), 0);
     }
 
-    #[quickcheck]
-    fn check_dict_mapper_concurrent_write(write: Vec<String>) -> bool {
-        let n = 100;
-        let mapper: DictMapper = DictMapper::default();
+    #[test]
+    fn check_dict_mapper_concurrent_write() {
+        proptest!(|(write: Vec<String>)| {
+            let n = 100;
+            let mapper: DictMapper = DictMapper::default();
 
-        // create n maps from strings to ids in parallel
-        let res: Vec<HashMap<String, usize>> = (0..n)
-            .into_par_iter()
-            .map(|_| {
-                let mut ids: HashMap<String, usize> = Default::default();
-                let mut rng = rand::thread_rng();
-                let mut write_s = write.clone();
-                write_s.shuffle(&mut rng);
-                for s in write_s {
-                    let id = mapper.get_or_create_id(s.as_str());
-                    ids.insert(s, id.inner());
-                }
-                ids
-            })
-            .collect();
+            // create n maps from strings to ids in parallel
+            let res: Vec<HashMap<String, usize>> = (0..n)
+                .into_par_iter()
+                .map(|_| {
+                    let mut ids: HashMap<String, usize> = Default::default();
+                    let mut rng = rand::thread_rng();
+                    let mut write_s = write.clone();
+                    write_s.shuffle(&mut rng);
+                    for s in write_s {
+                        let id = mapper.get_or_create_id(s.as_str());
+                        ids.insert(s, id.inner());
+                    }
+                    ids
+                })
+                .collect();
 
-        // check that all maps are the same and that all strings have been assigned an id
-        let res_0 = &res[0];
-        res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some())
+            // check that all maps are the same and that all strings have been assigned an id
+            let res_0 = &res[0];
+            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()));
+        });
     }
 
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times

@@ -223,8 +223,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
         if first_p_id != 0 {
             return Err(DBV4Error::GenericFailure(format!(
-                "First page id is not 0 in {:?}",
-                nodes_path
+                "First page id is not 0 in {nodes_path:?}"
             )));
         }
 
@@ -273,7 +272,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             return segment;
         }
         let count = self.pages.count();
-        if count >= segment_id + 1 {
+        if count > segment_id {
             // something has allocated the segment, wait for it to be added
             loop {
                 if let Some(segment) = self.pages.get(segment_id) {

@@ -52,8 +52,8 @@ pub trait DeletionOps:
             .map_err(into_graph_err)?;
         let edge_id = add_edge_op.internal_delete_edge(ti, src_id, dst_id, 0, layer_id);
 
-        add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);
-        add_edge_op.store_node_id_as_prop(dst.as_node_ref(), dst_id);
+        add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
+        add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
         Ok(EdgeView::new(
             self.clone(),

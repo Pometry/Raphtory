@@ -83,9 +83,11 @@ where
 #[cfg(test)]
 mod cc_test {
     use super::*;
-    use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
+    use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage, test_utils::test_graph};
+    use db4_graph::TemporalGraph;
     use itertools::*;
-    use quickcheck_macros::quickcheck;
+    use proptest::prelude::*;
+    use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
     use std::{cmp::Reverse, collections::HashMap, iter::once};
 
     #[test]
@@ -237,63 +239,67 @@ mod cc_test {
         });
     }
 
-    #[quickcheck]
-    fn circle_graph_edges(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
+    #[test]
+    fn circle_graph_edges() {
+        proptest!(|(vs: Vec<u64>)| {
+            if !vs.is_empty() {
+                let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
-            let _smallest = vs.iter().min().unwrap();
+                let _smallest = vs.iter().min().unwrap();
 
-            let first = vs[0];
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
+                let first = vs[0];
+                // pairs of nodes from vs one after the next
+                let edges = vs
+                    .iter()
+                    .zip(chain!(vs.iter().skip(1), once(&first)))
+                    .map(|(a, b)| (*a, *b))
+                    .collect::<Vec<(u64, u64)>>();
 
-            assert_eq!(edges[0].0, first);
-            assert_eq!(edges.last().unwrap().1, first);
-        }
+                assert_eq!(edges[0].0, first);
+                assert_eq!(edges.last().unwrap().1, first);
+            }
+        });
     }
 
-    #[quickcheck]
-    fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let graph = Graph::new();
+    #[test]
+    fn circle_graph_the_smallest_value_is_the_cc() {
+        proptest!(|(vs: Vec<u64>)| {
+            if !vs.is_empty() {
+                let graph = Graph::new();
 
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
+                let vs = vs.into_iter().unique().collect::<Vec<u64>>();
 
-            let first = vs[0];
+                let first = vs[0];
 
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
+                // pairs of nodes from vs one after the next
+                let edges = vs
+                    .iter()
+                    .zip(chain!(vs.iter().skip(1), once(&first)))
+                    .map(|(a, b)| (*a, *b))
+                    .collect::<Vec<(u64, u64)>>();
 
-            for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
+                for (src, dst) in edges.iter() {
+                    graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
+                }
+
+                test_storage!(&graph, |graph| {
+                    // now we do connected community_detection over window 0..1
+                    let res = weakly_connected_components(graph, usize::MAX, None).groups();
+
+                    let (cc, size) = res
+                        .into_iter_groups()
+                        .map(|(cc, group)| (cc, Reverse(group.len())))
+                        .sorted_by(|l, r| l.1.cmp(&r.1))
+                        .map(|(cc, count)| (cc, count.0))
+                        .take(1)
+                        .next()
+                        .unwrap();
+
+                    assert_eq!(cc, 0);
+
+                    assert_eq!(size, edges.len());
+                });
             }
-
-            test_storage!(&graph, |graph| {
-                // now we do connected community_detection over window 0..1
-                let res = weakly_connected_components(graph, usize::MAX, None).groups();
-
-                let (cc, size) = res
-                    .into_iter_groups()
-                    .map(|(cc, group)| (cc, Reverse(group.len())))
-                    .sorted_by(|l, r| l.1.cmp(&r.1))
-                    .map(|(cc, count)| (cc, count.0))
-                    .take(1)
-                    .next()
-                    .unwrap();
-
-                assert_eq!(cc, 0);
-
-                assert_eq!(size, edges.len());
-            });
-        }
+        });
     }
 }

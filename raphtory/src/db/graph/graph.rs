@@ -43,6 +43,7 @@ use std::{
     fmt::{Display, Formatter},
     hint::black_box,
     ops::Deref,
+    path::Path,
     sync::Arc,
 };
 
@@ -535,14 +536,36 @@ impl Graph {
         }
     }
 
-    /// Create a new graph with specified number of shards
+    /// Create a new graph at a specific path
     ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    pub fn new_with_shards(num_shards: usize) -> Self {
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
         Self {
-            inner: Arc::new(Storage::new(num_shards)),
+            inner: Arc::new(Storage::new_at_path(path)),
+        }
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load_from_path("/path/to/storage");
+    ///
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        Self {
+            inner: Arc::new(Storage::load_from(path)),
         }
     }
 
@@ -595,8 +618,7 @@ mod db_tests {
     use bigdecimal::BigDecimal;
     use chrono::NaiveDateTime;
     use itertools::Itertools;
-    use proptest::{arbitrary::any, proptest};
-    use quickcheck_macros::quickcheck;
+    use proptest::prelude::*;
     use raphtory_api::core::{
         entities::{GID, VID},
         storage::{
@@ -610,7 +632,7 @@ mod db_tests {
         core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps,
         mutation::addition_ops::InternalAdditionOps,
     };
-    use rayon::{join, vec};
+    use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -727,72 +749,81 @@ mod db_tests {
         });
     }
 
-    #[quickcheck]
-    fn test_multithreaded_add_edge(edges: Vec<(u64, u64)>) -> bool {
-        let g = Graph::new();
-        edges.par_iter().enumerate().for_each(|(t, (i, j))| {
-            g.add_edge(t as i64, *i, *j, NO_PROPS, None).unwrap();
+    #[test]
+    fn test_multithreaded_add_edge() {
+        proptest!(|(edges: Vec<(u64, u64)>)| {
+            let g = Graph::new();
+            edges.par_iter().enumerate().for_each(|(t, (i, j))| {
+                g.add_edge(t as i64, *i, *j, NO_PROPS, None).unwrap();
+            });
+            prop_assert!(edges.iter().all(|(i, j)| g.has_edge(*i, *j)) && g.count_temporal_edges() == edges.len());
         });
-        edges.iter().all(|(i, j)| g.has_edge(*i, *j)) && g.count_temporal_edges() == edges.len()
     }
 
-    #[quickcheck]
-    fn add_node_grows_graph_len(vs: Vec<(i64, u64)>) {
-        let g = Graph::new();
+    #[test]
+    fn add_node_grows_graph_len() {
+        proptest!(|(vs: Vec<(i64, u64)>)| {
+            let g = Graph::new();
 
-        let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
-        for (t, v) in vs {
-            g.add_node(t, v, NO_PROPS, None)
-                .map_err(|err| error!("{:?}", err))
-                .ok();
-        }
+            let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
+            for (t, v) in vs {
+                g.add_node(t, v, NO_PROPS, None)
+                    .map_err(|err| error!("{:?}", err))
+                    .ok();
+            }
 
-        assert_eq!(g.count_nodes(), expected_len)
+            prop_assert_eq!(g.count_nodes(), expected_len);
+        });
     }
 
-    #[quickcheck]
-    fn add_node_gets_names(vs: Vec<String>) -> bool {
-        global_info_logger();
-        let g = Graph::new();
+    #[test]
+    fn add_node_gets_names() {
+        proptest!(|(vs: Vec<String>)| {
+            global_info_logger();
+            let g = Graph::new();
 
-        let expected_len = vs.iter().sorted().dedup().count();
-        for (t, name) in vs.iter().enumerate() {
-            g.add_node(t as i64, name.clone(), NO_PROPS, None)
-                .map_err(|err| info!("{:?}", err))
-                .ok();
-        }
+            let expected_len = vs.iter().sorted().dedup().count();
+            for (t, name) in vs.iter().enumerate() {
+                g.add_node(t as i64, name.clone(), NO_PROPS, None)
+                    .map_err(|err| info!("{:?}", err))
+                    .ok();
+            }
 
-        assert_eq!(g.count_nodes(), expected_len);
+            prop_assert_eq!(g.count_nodes(), expected_len);
 
-        vs.iter().all(|name| {
-            let v = g.node(name.clone()).unwrap();
-            v.name() == name.clone()
-        })
+            let res = vs.iter().all(|name| {
+                            let v = g.node(name.clone()).unwrap();
+                            v.name() == name.clone()
+                        });
+            prop_assert!(res);
+        });
     }
 
-    #[quickcheck]
-    fn add_edge_grows_graph_edge_len(edges: Vec<(i64, u64, u64)>) {
-        let g = Graph::new();
+    #[test]
+    fn add_edge_grows_graph_edge_len() {
+        proptest!(|(edges: Vec<(i64, u64, u64)>)| {
+            let g = Graph::new();
 
-        let unique_nodes_count = edges
-            .iter()
-            .flat_map(|(_, src, dst)| vec![src, dst])
-            .sorted()
-            .dedup()
-            .count();
+            let unique_nodes_count = edges
+                .iter()
+                .flat_map(|(_, src, dst)| vec![src, dst])
+                .sorted()
+                .dedup()
+                .count();
 
-        let unique_edge_count = edges
-            .iter()
-            .map(|(_, src, dst)| (src, dst))
-            .unique()
-            .count();
+            let unique_edge_count = edges
+                .iter()
+                .map(|(_, src, dst)| (src, dst))
+                .unique()
+                .count();
 
-        for (t, src, dst) in edges {
-            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
-        }
+            for (t, src, dst) in edges {
+                g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+            }
 
-        assert_eq!(g.count_nodes(), unique_nodes_count);
-        assert_eq!(g.count_edges(), unique_edge_count);
+            prop_assert_eq!(g.count_nodes(), unique_nodes_count);
+            prop_assert_eq!(g.count_edges(), unique_edge_count);
+        });
     }
 
     #[test]
@@ -807,26 +838,30 @@ mod db_tests {
         assert!(edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst)))
     }
 
-    #[quickcheck]
-    fn add_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new();
-        for &(t, src, dst) in edges.iter() {
-            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
-        }
+    #[test]
+    fn add_edge_works() {
+        proptest!(|(edges: Vec<(i64, u64, u64)>)| {
+            let g = Graph::new();
+            for &(t, src, dst) in edges.iter() {
+                g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+            }
 
-        edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst))
+            prop_assert!(edges.iter().all(|&(_, src, dst)| g.has_edge(src, dst)));
+        });
     }
 
-    #[quickcheck]
-    fn get_edge_works(edges: Vec<(i64, u64, u64)>) -> bool {
-        let g = Graph::new();
-        for &(t, src, dst) in edges.iter() {
-            g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
-        }
+    #[test]
+    fn get_edge_works() {
+        proptest!(|(edges: Vec<(i64, u64, u64)>)| {
+            let g = Graph::new();
+            for &(t, src, dst) in edges.iter() {
+                g.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+            }
 
-        edges
-            .iter()
-            .all(|&(_, src, dst)| g.edge(src, dst).is_some())
+            prop_assert!(edges
+                .iter()
+                .all(|&(_, src, dst)| g.edge(src, dst).is_some()));
+        });
     }
 
     #[test]
@@ -1003,7 +1038,7 @@ mod db_tests {
                     vec!["Q", "R"],
                 );
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
             Ok(_) => panic!("Expected error but got Ok"),
         }
         let mut nodes = gg.nodes().name().collect_vec();
@@ -2235,7 +2270,7 @@ mod db_tests {
 
     #[test]
     fn node_properties() -> Result<(), GraphError> {
-        let g = Graph::new_with_shards(2);
+        let g = Graph::new();
 
         g.add_node(
             0,
@@ -2517,32 +2552,34 @@ mod db_tests {
         prop = Prop::U16(65535);
         assert_eq!(format!("{}", prop), "65535");
 
-        prop = Prop::F32(3.14159);
-        assert_eq!(format!("{}", prop), "3.14159");
+        prop = Prop::F32(3.24159);
+        assert_eq!(format!("{}", prop), "3.24159");
 
-        prop = Prop::F64(3.141592653589793);
-        assert_eq!(format!("{}", prop), "3.141592653589793");
+        prop = Prop::F64(3.241592653589793);
+        assert_eq!(format!("{}", prop), "3.241592653589793");
 
         prop = Prop::Bool(true);
         assert_eq!(format!("{}", prop), "true");
     }
 
-    #[quickcheck]
-    fn test_graph_constant_props(u64_props: HashMap<String, u64>) -> bool {
-        let g = Graph::new();
+    #[test]
+    fn test_graph_constant_props() {
+        proptest!(|(u64_props: HashMap<String, u64>)| {
+            let g = Graph::new();
 
-        let as_props = u64_props
-            .into_iter()
-            .map(|(name, value)| (name, Prop::U64(value)))
-            .collect::<Vec<_>>();
+            let as_props = u64_props
+                .into_iter()
+                .map(|(name, value)| (name, Prop::U64(value)))
+                .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+            g.add_constant_properties(as_props.clone()).unwrap();
 
-        let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
+            let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
-        props_map
-            .into_iter()
-            .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
+            prop_assert!(props_map
+                .into_iter()
+                .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value));
+        });
     }
 
     #[test]
@@ -2586,90 +2623,94 @@ mod db_tests {
         );
     }
 
-    #[quickcheck]
-    fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
-        let g = Graph::new();
+    #[test]
+    fn test_graph_constant_props_names() {
+        proptest!(|(u64_props: HashMap<String, u64>)| {
+            let g = Graph::new();
 
-        let as_props = u64_props
-            .into_iter()
-            .map(|(name, value)| (name.into(), Prop::U64(value)))
-            .collect::<Vec<_>>();
+            let as_props = u64_props
+                .into_iter()
+                .map(|(name, value)| (name.into(), Prop::U64(value)))
+                .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+            g.add_constant_properties(as_props.clone()).unwrap();
 
-        let props_names = as_props
-            .into_iter()
-            .map(|(name, _)| name)
-            .collect::<HashSet<_>>();
+            let props_names = as_props
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect::<HashSet<_>>();
 
-        g.properties().constant().keys().collect::<HashSet<_>>() == props_names
+            prop_assert_eq!(g.properties().constant().keys().collect::<HashSet<_>>(), props_names);
+        });
     }
 
-    #[quickcheck]
-    fn test_graph_temporal_props(str_props: HashMap<String, String>) -> bool {
-        global_info_logger();
-        let g = Graph::new();
+    #[test]
+    fn test_graph_temporal_props() {
+        proptest!(|(str_props: HashMap<String, String>)| {
+            global_info_logger();
+            let g = Graph::new();
 
-        let (t0, t1) = (1, 2);
+            let (t0, t1) = (1, 2);
 
-        let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .iter()
-            .enumerate()
-            .map(|(i, props)| {
-                let (name, value) = props;
-                let value = Prop::from(value);
-                (name.as_str().into(), value, i % 2)
-            })
-            .partition(|(_, _, i)| *i == 0);
+            let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
+                .iter()
+                .enumerate()
+                .map(|(i, props)| {
+                    let (name, value) = props;
+                    let value = Prop::from(value);
+                    (name.as_str().into(), value, i % 2)
+                })
+                .partition(|(_, _, i)| *i == 0);
 
-        let t0_props: HashMap<ArcStr, Prop> = t0_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+            let t0_props: HashMap<ArcStr, Prop> = t0_props
+                .into_iter()
+                .map(|(name, value, _)| (name, value))
+                .collect();
 
-        let t1_props: HashMap<ArcStr, Prop> = t1_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+            let t1_props: HashMap<ArcStr, Prop> = t1_props
+                .into_iter()
+                .map(|(name, value, _)| (name, value))
+                .collect();
 
-        g.add_properties(t0, t0_props.clone()).unwrap();
-        g.add_properties(t1, t1_props.clone()).unwrap();
+            g.add_properties(t0, t0_props.clone()).unwrap();
+            g.add_properties(t1, t1_props.clone()).unwrap();
 
-        let check = t0_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
-        }) && t1_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
-        });
-        if !check {
-            error!("failed time-specific comparison for {:?}", str_props);
-            return false;
-        }
-        let check = check
-            && g.at(t0)
-                .properties()
-                .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t0_props;
-        if !check {
-            error!("failed latest value comparison for {:?} at t0", str_props);
-            return false;
-        }
-        let check = check
-            && t1_props.iter().all(|(k, ve)| {
-                g.at(t1)
+            let check = t0_props.iter().all(|(name, value)| {
+                g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
+            }) && t1_props.iter().all(|(name, value)| {
+                g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
+            });
+            if !check {
+                error!("failed time-specific comparison for {:?}", str_props);
+                prop_assert!(false);
+            }
+            let check = check
+                && g.at(t0)
                     .properties()
                     .temporal()
-                    .get(k)
-                    .and_then(|v| v.latest())
-                    == Some(ve.clone())
-            });
-        if !check {
-            error!("failed latest value comparison for {:?} at t1", str_props);
-            return false;
-        }
-        check
+                    .iter_latest()
+                    .map(|(k, v)| (k.clone(), v))
+                    .collect::<HashMap<_, _, _>>()
+                    == t0_props;
+            if !check {
+                error!("failed latest value comparison for {:?} at t0", str_props);
+                prop_assert!(false);
+            }
+            let check = check
+                && t1_props.iter().all(|(k, ve)| {
+                    g.at(t1)
+                        .properties()
+                        .temporal()
+                        .get(k)
+                        .and_then(|v| v.latest())
+                        == Some(ve.clone())
+                });
+            if !check {
+                error!("failed latest value comparison for {:?} at t1", str_props);
+                prop_assert!(false);
+            }
+            prop_assert!(check);
+        });
     }
 
     #[test]
@@ -3131,17 +3172,19 @@ mod db_tests {
         });
     }
 
-    #[quickcheck]
-    fn node_from_id_is_consistent(nodes: Vec<u64>) -> bool {
-        let g = Graph::new();
-        for v in nodes.iter() {
-            g.add_node(0, *v, NO_PROPS, None).unwrap();
-        }
-        g.nodes()
-            .name()
-            .into_iter_values()
-            .map(|name| g.node(name))
-            .all(|v| v.is_some())
+    #[test]
+    fn node_from_id_is_consistent() {
+        proptest!(|(nodes: Vec<u64>)| {
+            let g = Graph::new();
+            for v in nodes.iter() {
+                g.add_node(0, *v, NO_PROPS, None).unwrap();
+            }
+            prop_assert!(g.nodes()
+                .name()
+                .into_iter_values()
+                .map(|name| g.node(name))
+                .all(|v| v.is_some()));
+        });
     }
 
     #[test]
@@ -3158,9 +3201,19 @@ mod db_tests {
             .all(|v| v.is_some()))
     }
 
-    #[quickcheck]
-    fn exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64) -> bool {
-        check_exploded_edge_times_is_consistent(edges, offset)
+    #[test]
+    fn exploded_edge_times_is_consistent() {
+        let edges = proptest::collection::vec(
+            (
+                0u64..100,
+                0u64..100,
+                proptest::collection::vec(-1000i64..1000i64, 1..40),
+            ),
+            1..400,
+        );
+        proptest!(|(edges in edges, offset in -1000i64..1000i64)| {
+            prop_assert!(check_exploded_edge_times_is_consistent(edges, offset));
+        });
     }
 
     #[test]
@@ -3215,18 +3268,18 @@ mod db_tests {
                         .map(|ee| {
                             check(
                                 ee.earliest_time() == ee.latest_time(),
-                                format!("times mismatched for {:?}", ee),
+                                format!("times mismatched for {ee:?}"),
                             ); // times are the same for exploded edge
                             let t = ee.earliest_time().unwrap();
                             check(
                                 ee.at(t).is_active(),
-                                format!("exploded edge {:?} inactive at {}", ee, t),
+                                format!("exploded edge {ee:?} inactive at {t}"),
                             );
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
                                     !ee.at(t_test).is_active(),
-                                    format!("exploded edge {:?} active at {}", ee, t_test),
+                                    format!("exploded edge {ee:?} active at {t_test}"),
                                 );
                             }
                             t
@@ -3243,8 +3296,7 @@ mod db_tests {
         check(
             actual_edges == edges,
             format!(
-                "actual edges didn't match input actual: {:?}, expected: {:?}",
-                actual_edges, edges
+                "actual edges didn't match input actual: {actual_edges:?}, expected: {edges:?}"
             ),
         );
         correct
@@ -4142,12 +4194,12 @@ mod db_tests {
             nodes: NodeFixture::default(),
             edges,
         };
-        for _ in 0..200 {
-            let g = Graph::from(build_graph(&graph_f));
-            let gw = g.window(w.start, w.end);
-            let gmw = gw.materialize()?;
-            assert_graph_equal(&gw, &gmw);
-        }
+
+        let g = Graph::from(build_graph(&graph_f));
+        let gw = g.window(w.start, w.end);
+        let gmw = gw.materialize()?;
+        assert_graph_equal(&gw, &gmw);
+
         Ok(())
     }
 

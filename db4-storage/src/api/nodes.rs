@@ -27,7 +27,7 @@ use raphtory_core::{
 use crate::{
     LocalPOS,
     error::DBV4Error,
-    gen_ts::{ALL_LAYERS, LayerIter},
+    gen_ts::LayerIter,
     segments::node::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
 };
@@ -114,12 +114,6 @@ pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
 }
 
-#[derive(Debug)]
-pub struct ReadLockedNS<NS: NodeSegmentOps> {
-    ns: Arc<NS>,
-    head: NS::ArcLockedSegment,
-}
-
 pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     type Ref<'b>: NodeRefOps<'b>
     where
@@ -186,10 +180,10 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                     .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
             ),
             Direction::BOTH => Iter3::K(
-                self.out_edges(layer_id)
+                self.out_edges_sorted(layer_id)
                     .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v))
                     .merge_by(
-                        self.inb_edges(layer_id)
+                        self.inb_edges_sorted(layer_id)
                             .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
                         |e1, e2| e1.remote() < e2.remote(),
                     )

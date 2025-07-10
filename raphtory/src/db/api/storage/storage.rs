@@ -22,7 +22,7 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use storage::{
@@ -80,9 +80,26 @@ impl Base for Storage {
 const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
-    pub(crate) fn new(num_locks: usize) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(None))),
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Self {
+        Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path))),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
+        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)));
+        Self {
+            graph,
             #[cfg(feature = "search")]
             index: OnceCell::new(),
         }
@@ -207,12 +224,21 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        e_id: MaybeNew<ELID>,
         lsn: u64,
-        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.session
-            .internal_add_edge(t, src, dst, lsn, layer, props)
+            .internal_add_edge(t, src, dst, e_id, lsn, props)
+    }
+
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID> {
+        self.session.internal_add_static_edge(src, dst, lsn)
     }
 
     fn internal_delete_edge(
@@ -226,8 +252,12 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         self.session.internal_delete_edge(t, src, dst, lsn, layer)
     }
 
-    fn store_node_id_as_prop(&mut self, id: NodeRef, vid: impl Into<VID>) {
-        self.session.store_node_id_as_prop(id, vid);
+    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
+        self.session.store_src_node_info(id, node_id);
+    }
+
+    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
+        self.session.store_dst_node_info(id, node_id);
     }
 }
 
@@ -539,9 +569,7 @@ impl InternalDeletionOps for Storage {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        let eid = self.graph.internal_delete_edge(t, src, dst, layer)?;
-
-        Ok(eid)
+        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
     }
 
     fn internal_delete_existing_edge(
