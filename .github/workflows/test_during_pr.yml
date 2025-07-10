@@ -45,8 +45,6 @@ jobs:
     name: Run docs tests
     runs-on: ubuntu-latest
     steps:
-      - name: List files for debugging
-        run: pwd
       - name: Run docs tests
         run: make run-docs-tests
         with:
