@@ -186,10 +186,10 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                     .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
             ),
             Direction::BOTH => Iter3::K(
-                self.out_edges(layer_id)
+                self.out_edges_sorted(layer_id)
                     .map(move |(v, e)| EdgeRef::new_outgoing(e, src_pid, v))
                     .merge_by(
-                        self.inb_edges(layer_id)
+                        self.inb_edges_sorted(layer_id)
                             .map(move |(v, e)| EdgeRef::new_incoming(e, v, src_pid)),
                         |e1, e2| e1.remote() < e2.remote(),
                     )

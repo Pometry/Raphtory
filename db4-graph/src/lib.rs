@@ -76,7 +76,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             )
         });
         let gid_resolver_dir = graph_dir.join("gid_resolver");
-        let storage = Layer::new_with_meta(
+        let storage: Layer<EXT> = Layer::new_with_meta(
             graph_dir.clone(),
             DEFAULT_MAX_PAGE_LEN_NODES,
             DEFAULT_MAX_PAGE_LEN_EDGES,

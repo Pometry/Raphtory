@@ -596,7 +596,6 @@ mod db_tests {
     use chrono::NaiveDateTime;
     use itertools::Itertools;
     use proptest::prelude::*;
-    use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::{
         entities::{GID, VID},
         storage::{
@@ -610,7 +609,7 @@ mod db_tests {
         core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps,
         mutation::addition_ops::InternalAdditionOps,
     };
-    use rayon::{join, vec};
+    use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -3181,7 +3180,15 @@ mod db_tests {
 
     #[test]
     fn exploded_edge_times_is_consistent() {
-        proptest!(|(edges: Vec<(u64, u64, Vec<i64>)>, offset: i64)| {
+        let edges = proptest::collection::vec(
+            (
+                0u64..100,
+                0u64..100,
+                proptest::collection::vec(-1000i64..1000i64, 1..40),
+            ),
+            1..400,
+        );
+        proptest!(|(edges in edges, offset in -1000i64..1000i64)| {
             prop_assert!(check_exploded_edge_times_is_consistent(edges, offset));
         });
     }
@@ -3238,18 +3245,18 @@ mod db_tests {
                         .map(|ee| {
                             check(
                                 ee.earliest_time() == ee.latest_time(),
-                                format!("times mismatched for {:?}", ee),
+                                format!("times mismatched for {ee:?}"),
                             ); // times are the same for exploded edge
                             let t = ee.earliest_time().unwrap();
                             check(
                                 ee.at(t).is_active(),
-                                format!("exploded edge {:?} inactive at {}", ee, t),
+                                format!("exploded edge {ee:?} inactive at {t}"),
                             );
                             let t_test = t.saturating_add(offset);
                             if t_test != t && t_test < i64::MAX && t_test > i64::MIN {
                                 check(
                                     !ee.at(t_test).is_active(),
-                                    format!("exploded edge {:?} active at {}", ee, t_test),
+                                    format!("exploded edge {ee:?} active at {t_test}"),
                                 );
                             }
                             t
@@ -3266,8 +3273,7 @@ mod db_tests {
         check(
             actual_edges == edges,
             format!(
-                "actual edges didn't match input actual: {:?}, expected: {:?}",
-                actual_edges, edges
+                "actual edges didn't match input actual: {actual_edges:?}, expected: {edges:?}"
             ),
         );
         correct

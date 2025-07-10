@@ -11,9 +11,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{
-                time_from_input, time_from_input_session, CollectProperties, TryIntoInputTime,
-            },
+            mutation::{time_from_input, time_from_input_session, TryIntoInputTime},
             properties::{
                 internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
@@ -32,13 +30,13 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
-        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
@@ -387,26 +385,49 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         Ok(())
     }
 
-    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+    pub fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        PI: Into<Prop>,
+        PII: IntoIterator<Item = (PN, PI)>,
+    >(
         &self,
         time: T,
-        props: C,
+        props: PII,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let session = self.graph.write_session().map_err(into_graph_err)?;
 
         let t = time_from_input_session(&session, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(session
-                .resolve_edge_property(name, dtype, false)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
 
-        session
-            .internal_add_edge_update(t, self.edge.pid(), &properties, layer_id)
+        let props = self
+            .graph
+            .validate_props(
+                false,
+                self.graph.edge_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
             .map_err(into_graph_err)?;
+
+        let src = self.src().node;
+        let dst = self.dst().node;
+
+        let e_id = self.edge.pid();
+        let mut writer = self
+            .graph
+            .atomic_add_edge(src, dst, Some(e_id), layer_id)
+            .map_err(into_graph_err)?;
+
+        writer.internal_add_edge(
+            t,
+            src,
+            dst,
+            MaybeNew::New(e_id.with_layer(layer_id)),
+            0,
+            props,
+        );
+
         Ok(())
     }
 }

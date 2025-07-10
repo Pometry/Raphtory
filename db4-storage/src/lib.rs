@@ -29,19 +29,19 @@ pub mod persist;
 pub mod properties;
 pub mod resolver;
 pub mod segments;
-pub mod wal;
 pub mod utils;
+pub mod wal;
 
 pub type Extension = ();
 pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
-pub type Layer<EXT> = GraphStore<NodeSegmentView<EXT>, EdgeSegmentView<EXT>, EXT>;
+pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type GIDResolver = MappingResolver;
 
-pub type ReadLockedLayer<EXT> = ReadLockedGraphStore<NodeSegmentView, EdgeSegmentView, EXT>;
-pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NodeSegmentView, P>;
-pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<EdgeSegmentView, P>;
+pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
+pub type ReadLockedNodes<P> = ReadLockedNodeStorage<NS<P>, P>;
+pub type ReadLockedEdges<P> = ReadLockedEdgeStorage<ES<P>, P>;
 
 pub type NodeEntry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
 pub type EdgeEntry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;

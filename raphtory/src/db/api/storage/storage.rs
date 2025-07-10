@@ -207,12 +207,21 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        e_id: MaybeNew<ELID>,
         lsn: u64,
-        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.session
-            .internal_add_edge(t, src, dst, lsn, layer, props)
+            .internal_add_edge(t, src, dst, e_id, lsn, props)
+    }
+
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID> {
+        self.session.internal_add_static_edge(src, dst, lsn)
     }
 
     fn internal_delete_edge(

@@ -85,7 +85,7 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn set_item(&mut self, item_pos: LocalPOS) {
-        self.items.set(item_pos.0 as usize, true);
+        self.items.set(item_pos.0, true);
     }
 
     pub fn max_page_len(&self) -> usize {

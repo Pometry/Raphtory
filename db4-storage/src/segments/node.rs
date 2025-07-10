@@ -21,6 +21,7 @@ use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::DBV4Error,
+    persist::strategy::PersistentStrategy,
     segments::node_entry::{MemNodeEntry, MemNodeRef},
 };
 
@@ -302,7 +303,7 @@ impl MemNodeSegment {
 }
 
 #[derive(Debug)]
-pub struct NodeSegmentView<EXT = ()> {
+pub struct NodeSegmentView<EXT> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
     _ext: EXT,
@@ -322,8 +323,8 @@ impl LockedNSSegment for ArcLockedSegmentView {
     }
 }
 
-impl NodeSegmentOps for NodeSegmentView {
-    type Extension = ();
+impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegmentView<P> {
+    type Extension = P;
 
     type Entry<'a> = MemNodeEntry<'a, parking_lot::RwLockReadGuard<'a, MemNodeSegment>>;
 
@@ -365,7 +366,7 @@ impl NodeSegmentOps for NodeSegmentView {
             inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
                 .into(),
             segment_id: page_id,
-            _ext: (),
+            _ext,
         }
     }
 

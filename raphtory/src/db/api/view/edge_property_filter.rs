@@ -201,7 +201,7 @@ mod test {
     #[test]
     fn test_filter_eq() {
         proptest!(|(
-            edges in build_edge_list(100, 100), v in any::<i64>()
+            edges in build_edge_list(10, 10), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
             let filter = PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v);

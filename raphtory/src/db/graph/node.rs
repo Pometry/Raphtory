@@ -442,21 +442,29 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .map_err(into_graph_err)
     }
 
-    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+    pub fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        PI: Into<Prop>,
+        PII: IntoIterator<Item = (PN, PI)>,
+    >(
         &self,
         time: T,
-        props: C,
+        props: PII,
     ) -> Result<(), GraphError> {
         let session = self.graph.write_session().map_err(|err| err.into())?;
         let t = time_from_input_session(&session, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(session
-                .resolve_node_property(name, dtype, false)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        session
-            .internal_add_node(t, self.node, &properties)
+        let props = self
+            .graph
+            .validate_props(
+                false,
+                self.graph.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
+        let vid = self.node;
+        self.graph
+            .internal_add_node(t, vid, None, None, props)
             .map_err(into_graph_err)
     }
 }

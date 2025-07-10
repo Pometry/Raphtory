@@ -2,7 +2,7 @@ use std::ops::DerefMut;
 
 use crate::segments::{
     edge::{EdgeSegmentView, MemEdgeSegment},
-    node::MemNodeSegment,
+    node::{MemNodeSegment, NodeSegmentView},
 };
 
 pub trait PersistentStrategy: Default + Clone + std::fmt::Debug + Send + Sync + 'static {
@@ -23,8 +23,8 @@ pub trait PersistentStrategy: Default + Clone + std::fmt::Debug + Send + Sync + 
 }
 
 impl PersistentStrategy for () {
-    type ES = EdgeSegmentView;
-    type NS = MemNodeSegment;
+    type ES = EdgeSegmentView<Self>;
+    type NS = NodeSegmentView<Self>;
 
     fn persist_node_page<MP: DerefMut<Target = MemNodeSegment>>(
         &self,

@@ -1,31 +1,20 @@
-use std::ops::DerefMut;
-
 use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::WriterPair, resolve_pos,
 };
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    error::DBV4Error,
-    pages::{NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY, node_page::writer::NodeWriter},
+    pages::NODE_ID_PROP_KEY,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType},
-    storage::dict_mapper::MaybeNew,
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
-    entities::{EID, ELID, GidRef, VID},
+    entities::{EID, ELID, VID},
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<
-    'a,
-    NS: NodeSegmentOps,
-    ES: EdgeSegmentOps,
-    EXT,
-> {
+pub struct WriteSession<'a, NS: NodeSegmentOps, ES: EdgeSegmentOps, EXT> {
     node_writers: WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
     edge_writer: Option<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>>,
     graph: &'a GraphStore<NS, ES, EXT>,
@@ -219,12 +208,14 @@ impl<
             .get_mut_src()
             .get_out_edge(src_pos, dst, layer_id)
         {
-            let mut edge_writer = self.graph.edge_writer(e_id);
+            // If edge_writer is not set, we need to create a new one
+            if self.edge_writer.is_none() {
+                self.edge_writer = Some(self.graph.edge_writer(e_id));
+            }
+            let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
             edge_writer.add_static_edge(Some(edge_pos), src, dst, layer_id, lsn, None);
-
-            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
 
             MaybeNew::Existing(e_id)
         } else {
@@ -321,7 +312,9 @@ impl<
         }
     }
 
-    pub fn node_writers(&mut self) -> &mut WriterPair<'a, MNS, NS> {
+    pub fn node_writers(
+        &mut self,
+    ) -> &mut WriterPair<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         &mut self.node_writers
     }
 }

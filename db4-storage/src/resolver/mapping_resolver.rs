@@ -44,8 +44,7 @@ impl GIDResolverOps for MappingResolver {
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), GIDResolverError> {
-        let result = self.mapping.validate_gids(gids)?;
-        Ok(result)
+        Ok(self.mapping.validate_gids(gids)?)
     }
 
     fn get_str(&self, gid: &str) -> Option<VID> {

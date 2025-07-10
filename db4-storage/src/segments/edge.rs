@@ -22,6 +22,7 @@ use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::DBV4Error,
+    persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
@@ -288,7 +289,7 @@ impl MemEdgeSegment {
 
 // Update EdgeSegmentView implementation to use multiple layers
 #[derive(Debug)]
-pub struct EdgeSegmentView<EXT = ()> {
+pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicUsize,
@@ -368,8 +369,8 @@ impl LockedESegment for ArcLockedSegmentView {
     }
 }
 
-impl EdgeSegmentOps for EdgeSegmentView {
-    type Extension = ();
+impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegmentView<P> {
+    type Extension = P;
 
     type Entry<'a> = MemEdgeEntry<'a, parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>;
 
@@ -412,7 +413,7 @@ impl EdgeSegmentOps for EdgeSegmentView {
                 .into(),
             segment_id: page_id,
             num_edges: AtomicUsize::new(0),
-            _ext: (),
+            _ext,
         }
     }
 

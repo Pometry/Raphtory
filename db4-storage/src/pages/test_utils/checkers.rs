@@ -163,18 +163,10 @@ pub fn check_edges_support<
 
                 let adj = entry.as_ref();
                 let out_nbrs: Vec<_> = adj.out_nbrs_sorted(layer_id).collect();
-                assert_eq!(
-                    out_nbrs, exp_out,
-                    "{stage} node: {:?} layer: {}",
-                    n, layer_id
-                );
+                assert_eq!(out_nbrs, exp_out, "{stage} node: {n:?} layer: {layer_id}");
 
                 let in_nbrs: Vec<_> = adj.inb_nbrs_sorted(layer_id).collect();
-                assert_eq!(
-                    in_nbrs, exp_inb,
-                    "{stage} node: {:?} layer: {}",
-                    n, layer_id
-                );
+                assert_eq!(in_nbrs, exp_inb, "{stage} node: {n:?} layer: {layer_id}");
 
                 for (exp_dst, eid) in adj.out_edges(layer_id) {
                     let elid = ELID::new(eid, layer_id);

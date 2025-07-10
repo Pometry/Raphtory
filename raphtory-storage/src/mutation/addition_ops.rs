@@ -87,14 +87,21 @@ pub trait InternalAdditionOps {
 }
 
 pub trait EdgeWriteLock: Send + Sync {
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID>;
+
     /// add edge update
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
         src: impl Into<VID>,
         dst: impl Into<VID>,
+        eid: MaybeNew<ELID>,
         lsn: u64,
-        layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 

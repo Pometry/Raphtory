@@ -18,3 +18,4 @@ raphtory-api.workspace = true
 raphtory-core.workspace = true
 parking_lot.workspace = true
 uuid.workspace = true
+tempfile.workspace = true
