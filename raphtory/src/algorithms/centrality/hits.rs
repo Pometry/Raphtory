@@ -78,7 +78,7 @@ pub fn hits<G: StaticGraphViewOps>(
     ctx.global_agg_reset(max_diff_hub_score);
     ctx.global_agg_reset(max_diff_auth_score);
 
-    let step2 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
+    let step2 = ATask::new(move |evv: &mut EvalNodeView<&G, Hits>| {
         let hub_score = evv.get().hub_score;
         let auth_score = evv.get().auth_score;
         for t in evv.out_neighbours() {
@@ -90,7 +90,7 @@ pub fn hits<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let step3 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
+    let step3 = ATask::new(move |evv: &mut EvalNodeView<&G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 
@@ -99,7 +99,7 @@ pub fn hits<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let step4 = ATask::new(move |evv: &mut EvalNodeView<G, Hits>| {
+    let step4 = ATask::new(move |evv: &mut EvalNodeView<&G, Hits>| {
         let recv_hub_score = evv.read(&recv_hub_score);
         let recv_auth_score = evv.read(&recv_auth_score);
 

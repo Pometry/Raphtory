@@ -7,7 +7,7 @@ use crate::{
                 Index, NodeState, NodeStateOps,
             },
             view::{
-                internal::{FilterOps, NodeList, OneHopFilter},
+                internal::{BaseFilter, FilterOps, NodeList},
                 BoxedLIter, IntoDynBoxed,
             },
         },
@@ -95,26 +95,24 @@ where
     }
 }
 
-impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    OneHopFilter<'graph> for LazyNodeState<'graph, Op, G, GH>
+impl<'graph, Op, G, GH> BaseFilter<'graph> for LazyNodeState<'graph, Op, G, GH>
+where
+    Op: NodeOpFilter<'graph>,
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
 {
-    type BaseGraph = G;
-    type FilteredGraph = Op::Graph;
-    type Filtered<GHH: GraphViewOps<'graph> + 'graph> =
-        LazyNodeState<'graph, Op::Filtered<GHH>, G, GH>;
+    type Current = Op::Graph;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> =
+        LazyNodeState<'graph, Op::Filtered<Next>, G, GH>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         self.op.graph()
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        self.nodes.base_graph()
-    }
-
-    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         LazyNodeState {
             nodes: self.nodes.clone(),
             op: self.op.filtered(filtered_graph),
@@ -125,7 +123,7 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for LazyNodeState<'graph, Op, G, GH>
 {
-    type Item = (NodeView<'graph, G, GH>, Op::Output);
+    type Item = (NodeView<'graph, G>, Op::Output);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -234,7 +232,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -255,7 +253,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph>,
             Self::Value<'a>,
         ),
     >
@@ -271,7 +269,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     fn get_by_index(
         &self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {
@@ -287,7 +285,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             };
             let cg = self.graph().core_graph();
             Some((
-                NodeView::new_one_hop_filtered(self.base_graph(), self.graph(), vid),
+                NodeView::new_one_hop_filtered(self.base_graph(), vid),
                 self.op.apply(cg, vid),
             ))
         }

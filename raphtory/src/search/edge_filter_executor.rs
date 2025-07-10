@@ -54,7 +54,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::EDGE_ID.to_string());
         let edge_ids = searcher.search(&query, &collector)?;
@@ -76,7 +76,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError>
+    ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
@@ -310,7 +310,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -352,7 +352,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         self.filter_edges_internal(graph, filter, limit, offset)
     }
 

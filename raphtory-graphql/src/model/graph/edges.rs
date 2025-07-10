@@ -15,7 +15,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::view::{internal::OneHopFilter, DynamicGraph},
+        api::view::{internal::BaseFilter, DynamicGraph},
         graph::edges::Edges,
     },
     errors::GraphError,
@@ -257,8 +257,8 @@ impl GqlEdges {
                 .map(|edge_view| edge_view.edge)
                 .collect();
             self_clone.update(Edges::new(
-                self_clone.ee.current_filter().clone(),
                 self_clone.ee.base_graph().clone(),
+                self_clone.ee.current_filtered_graph().clone(),
                 Arc::new(move || {
                     let sorted = sorted.clone();
                     (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()

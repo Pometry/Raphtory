@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::internal::{InternalLayerOps, OneHopFilter},
+        api::view::internal::{BaseFilter, InternalLayerOps},
         graph::views::layer_graph::LayeredGraph,
     },
     errors::GraphError,
@@ -39,77 +39,98 @@ pub trait LayerOps<'graph> {
     fn num_layers(&self) -> usize;
 }
 
-impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
-    type LayeredViewType = V::Filtered<LayeredGraph<V::FilteredGraph>>;
+impl<'graph, V: BaseFilter<'graph> + 'graph> LayerOps<'graph> for V {
+    type LayeredViewType = V::Filtered<LayeredGraph<V::Current>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
-        let layers = match self.current_filter().get_default_layer_id() {
+        let layers = match self.current_filtered_graph().get_default_layer_id() {
             None => LayerIds::None,
             Some(layer) => {
-                if self.current_filter().layer_ids().contains(&layer) {
+                if self.current_filtered_graph().layer_ids().contains(&layer) {
                     LayerIds::One(layer)
                 } else {
                     LayerIds::None
                 }
             }
         };
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), layers))
+        self.apply_filter(LayeredGraph::new(
+            self.current_filtered_graph().clone(),
+            layers,
+        ))
     }
 
     fn layers<L: Into<Layer>>(&self, layers: L) -> Result<Self::LayeredViewType, GraphError> {
         let layers = layers.into();
-        let ids = self.current_filter().layer_ids_from_names(layers)?;
-        Ok(self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids)))
+        let ids = self.current_filtered_graph().layer_ids_from_names(layers)?;
+        Ok(self.apply_filter(LayeredGraph::new(
+            self.current_filtered_graph().clone(),
+            ids,
+        )))
     }
 
     fn exclude_layers<L: Into<Layer>>(
         &self,
         layers: L,
     ) -> Result<Self::LayeredViewType, GraphError> {
-        let all_layer_ids = self.current_filter().layer_ids();
-        let excluded_ids = self.current_filter().layer_ids_from_names(layers.into())?;
-        let included_ids = diff(all_layer_ids, self.current_filter().clone(), &excluded_ids);
+        let all_layer_ids = self.current_filtered_graph().layer_ids();
+        let excluded_ids = self
+            .current_filtered_graph()
+            .layer_ids_from_names(layers.into())?;
+        let included_ids = diff(
+            all_layer_ids,
+            self.current_filtered_graph().clone(),
+            &excluded_ids,
+        );
 
-        Ok(self.one_hop_filtered(LayeredGraph::new(
-            self.current_filter().clone(),
+        Ok(self.apply_filter(LayeredGraph::new(
+            self.current_filtered_graph().clone(),
             included_ids,
         )))
     }
 
     fn exclude_valid_layers<L: Into<Layer>>(&self, layers: L) -> Self::LayeredViewType {
-        let all_layer_ids = self.current_filter().layer_ids();
+        let all_layer_ids = self.current_filtered_graph().layer_ids();
         let excluded_ids = self
-            .current_filter()
+            .current_filtered_graph()
             .valid_layer_ids_from_names(layers.into());
-        let included_ids = diff(all_layer_ids, self.current_filter().clone(), &excluded_ids);
+        let included_ids = diff(
+            all_layer_ids,
+            self.current_filtered_graph().clone(),
+            &excluded_ids,
+        );
 
-        self.one_hop_filtered(LayeredGraph::new(
-            self.current_filter().clone(),
+        self.apply_filter(LayeredGraph::new(
+            self.current_filtered_graph().clone(),
             included_ids,
         ))
     }
 
     fn has_layer<L: SingleLayer>(&self, name: L) -> bool {
         !self
-            .current_filter()
+            .current_filtered_graph()
             .valid_layer_ids_from_names(name.into())
             .is_none()
     }
 
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType {
         let layers = names.into();
-        let ids = self.current_filter().valid_layer_ids_from_names(layers);
-        self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
+        let ids = self
+            .current_filtered_graph()
+            .valid_layer_ids_from_names(layers);
+        self.apply_filter(LayeredGraph::new(
+            self.current_filtered_graph().clone(),
+            ids,
+        ))
     }
 
     fn num_layers(&self) -> usize {
-        self.current_filter().unique_layers().count()
+        self.current_filtered_graph().unique_layers().count()
     }
 }
 
 pub fn diff<'a>(
     left: &LayerIds,
-    graph: impl crate::prelude::GraphViewOps<'a>,
+    graph: impl GraphViewOps<'a>,
     other: &LayerIds,
 ) -> LayerIds {
     match (left, other) {

@@ -302,7 +302,7 @@ impl<
         GH: GraphViewOps<'graph>,
     > IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<'graph, G, GH>, V);
+    type Item = (NodeView<'graph, G>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -321,8 +321,8 @@ impl<
         GH: GraphViewOps<'graph>,
     > NodeStateOps<'graph> for NodeState<'graph, V, G, GH>
 {
-    type Graph = GH;
     type BaseGraph = G;
+    type Graph = GH;
     type Value<'a>
         = &'a V
     where
@@ -365,7 +365,7 @@ impl<
         &'a self,
     ) -> impl Iterator<
         Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            NodeView<'a, &'a Self::BaseGraph>,
             Self::Value<'a>,
         ),
     > + 'a
@@ -378,7 +378,7 @@ impl<
                 .zip(self.values.iter())
                 .map(|(n, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                        NodeView::new_one_hop_filtered(&self.base_graph, n),
                         v,
                     )
                 })
@@ -389,7 +389,7 @@ impl<
                 .enumerate()
                 .map(|(i, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(i)),
+                        NodeView::new_one_hop_filtered(&self.base_graph, VID(i)),
                         v,
                     )
                 })
@@ -413,7 +413,6 @@ impl<
             NodeView<
                 'a,
                 &'a <Self as NodeStateOps<'graph>>::BaseGraph,
-                &'a <Self as NodeStateOps<'graph>>::Graph,
             >,
             <Self as NodeStateOps<'graph>>::Value<'a>,
         ),
@@ -425,14 +424,14 @@ impl<
             Some(index) => {
                 Either::Left(index.par_iter().zip(self.values.par_iter()).map(|(n, v)| {
                     (
-                        NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                        NodeView::new_one_hop_filtered(&self.base_graph, n),
                         v,
                     )
                 }))
             }
             None => Either::Right(self.values.par_iter().enumerate().map(|(i, v)| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(i)),
+                    NodeView::new_one_hop_filtered(&self.base_graph, VID(i)),
                     v,
                 )
             })),
@@ -442,17 +441,17 @@ impl<
     fn get_by_index(
         &self,
         index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
+    ) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                    NodeView::new_one_hop_filtered(&self.base_graph, n),
                     &self.values[index],
                 )
             }),
             None => self.values.get(index).map(|v| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, VID(index)),
+                    NodeView::new_one_hop_filtered(&self.base_graph, VID(index)),
                     v,
                 )
             }),

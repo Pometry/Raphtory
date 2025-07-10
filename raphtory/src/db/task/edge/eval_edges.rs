@@ -6,7 +6,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
+            view::{internal::BaseFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
         task::{
@@ -23,7 +23,7 @@ use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdges<'graph, 'a, G, GH, CS: Clone, S> {
     pub(crate) ss: usize,
-    pub(crate) edges: Edges<'graph, &'graph G, GH>,
+    pub(crate) edges: Edges<'graph, G, GH>,
     pub(crate) storage: &'graph GraphStorage,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
@@ -43,26 +43,25 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: 
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>, CS: Clone, S>
-    OneHopFilter<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
+impl<'graph, 'a, G, Current, CS, S> BaseFilter<'graph> for EvalEdges<'graph, 'a, Current, G, CS, S>
+where
+    'a: 'graph,
+    G: GraphViewOps<'graph>,
+    Current: GraphViewOps<'graph>,
+    CS: Clone,
 {
-    type BaseGraph = &'graph G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, G, GHH, CS, S>;
+    type Current = Current;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, Next, G, CS, S>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
-        &self.edges.graph
-    }
-
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         &self.edges.base_graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        let edges = self.edges.one_hop_filtered(filtered_graph);
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
+        let edges = self.edges.apply_filter(filtered_graph);
         let ss = self.ss;
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
@@ -86,7 +85,7 @@ impl<
         S,
     > EvalEdges<'graph, 'a, G, GH, CS, S>
 {
-    pub fn iter(&self) -> impl Iterator<Item = EvalEdgeView<'graph, 'a, G, GH, CS, S>> + 'graph {
+    pub fn iter(&self) -> impl Iterator<Item = EvalEdgeView<'graph, 'a, G, CS, S>> + 'graph {
         let node_state = self.node_state.clone();
         let ss = self.ss;
         let local_state_prev = self.local_state_prev;
@@ -113,7 +112,7 @@ impl<
         S,
     > IntoIterator for EvalEdges<'graph, 'a, G, GH, CS, S>
 {
-    type Item = EvalEdgeView<'graph, 'a, G, GH, CS, S>;
+    type Item = EvalEdgeView<'graph, 'a, G, CS, S>;
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -148,17 +147,16 @@ impl<
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
         CS: Clone + ComputeState,
-        S,
+        S: 'static,
     > BaseEdgeViewOps<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
 {
-    type BaseGraph = &'graph G;
-    type Graph = GH;
+    type Graph = G;
     type ValueType<T>
         = BoxedLIter<'graph, T>
     where
         T: 'graph;
-    type PropType = <Edges<'graph, &'graph G, GH> as BaseEdgeViewOps<'graph>>::PropType;
-    type Nodes = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
+    type PropType = <Edges<'graph, G, GH> as BaseEdgeViewOps<'graph>>::PropType;
+    type Nodes = EvalPathFromNode<'graph, 'a, G, GH, CS, S>;
     type Exploded = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
@@ -180,7 +178,7 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let path = self.edges.map_nodes(op);
-        let base_graph = self.edges.base_graph;
+        let base_graph = self.edges.base_graph.clone();
         let storage = self.storage;
         let eval_graph = EvalGraph {
             ss,
@@ -190,8 +188,8 @@ impl<
             node_state,
         };
         EvalPathFromNode {
-            graph: base_graph,
-            base_graph: eval_graph,
+            eval_graph,
+            graph: self.edges.graph.clone(),
             op: path.op,
         }
     }

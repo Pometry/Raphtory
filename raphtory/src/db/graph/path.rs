@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph,
+                internal::BaseFilter, BaseNodeViewOps, BoxedLIter, DynamicGraph,
                 ExplodedEdgePropertyFilterOps, IntoDynBoxed,
             },
         },
@@ -83,8 +83,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
     }
 
     pub fn iter(&self) -> impl Iterator<Item = PathFromNode<'graph, G, GH>> + Send + 'graph {
-        let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
+        let graph = self.graph.clone();
         let op = self.op.clone();
         self.base_iter().map(move |v| {
             let op = op.clone();
@@ -141,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
         )
     }
 
-    pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G, GH>>> {
+    pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G>>> {
         self.iter().map(|path| path.collect()).collect()
     }
 }
@@ -149,15 +149,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromGraph<'g
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
     for PathFromGraph<'graph, G, GH>
 {
-    type BaseGraph = G;
-    type Graph = GH;
+    type Graph = G;
     type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T::Output>>;
-    type PropType = NodeView<'graph, GH, GH>;
+    type PropType = NodeView<'graph, GH>;
     type PathType = PathFromGraph<'graph, G, G>;
     type Edges = NestedEdges<'graph, G, GH>;
 
     fn graph(&self) -> &Self::Graph {
-        &self.graph
+        &self.base_graph
     }
 
     fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>
@@ -182,22 +181,19 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         &self,
         op: F,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
         let base_graph = self.base_graph.clone();
-        let nodes = self.nodes.clone();
         let node_op = self.op.clone();
         let edges = Arc::new(move |node: VID| {
             let op = op.clone();
-            let graph = graph.clone();
+            let base_graph = base_graph.clone();
             node_op(node)
-                .flat_map(move |node| op(graph.core_graph(), &graph, node))
+                .flat_map(move |node| op(base_graph.core_graph(), &base_graph, node))
                 .into_dyn_boxed()
         });
-        let graph = self.graph.clone();
         NestedEdges {
-            base_graph,
-            graph,
-            nodes,
+            base_graph: self.base_graph.clone(),
+            graph: self.graph.clone(),
+            nodes: self.nodes.clone(),
             edges,
         }
     }
@@ -211,11 +207,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     ) -> Self::PathType {
         let old_op = self.op.clone();
         let nodes = self.nodes.clone();
-        let graph = self.graph.clone();
+        let base_graph = self.base_graph.clone();
         PathFromGraph::new(self.base_graph.clone(), nodes, move |v| {
             let op = op.clone();
-            let graph = graph.clone();
-            Box::new(old_op(v).flat_map(move |vv| op(graph.core_graph(), &graph, vv)))
+            let base_graph = base_graph.clone();
+            Box::new(old_op(v).flat_map(move |vv| op(base_graph.core_graph(), &base_graph, vv)))
         })
     }
 }
@@ -227,8 +223,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let graph = self.graph;
         let base_graph = self.base_graph;
+        let graph = self.graph;
         let op = self.op;
         (self.nodes)()
             .map(move |node| {
@@ -240,33 +236,27 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for PathFromGraph<'graph, G, GH>
+impl<'graph, Current, G> BaseFilter<'graph> for PathFromGraph<'graph, Current, G>
+where
+    Current: GraphViewOps<'graph>,
+    G: GraphViewOps<'graph>,
 {
-    type BaseGraph = G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = PathFromGraph<'graph, G, GHH>;
+    type Current = Current;
+    type Filtered<Next: GraphViewOps<'graph>> = PathFromGraph<'graph, Next, G>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
-        &self.graph
-    }
-
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         &self.base_graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+    fn apply_filter<Next: GraphViewOps<'graph>>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        let base_graph = self.base_graph.clone();
-        let nodes = self.nodes.clone();
-        let op = self.op.clone();
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         PathFromGraph {
-            graph: filtered_graph,
-            base_graph,
-            nodes,
-            op,
+            base_graph: filtered_graph,
+            graph: self.graph.clone(),
+            nodes: self.nodes.clone(),
+            op: self.op.clone(),
         }
     }
 }
@@ -299,8 +289,8 @@ impl From<PathFromNode<'static, DynamicGraph, NodeTypeFilteredGraph<DynamicGraph
 
 #[derive(Clone)]
 pub struct PathFromNode<'graph, G, GH> {
-    pub graph: GH,
     pub(crate) base_graph: G,
+    pub graph: GH,
     pub(crate) op: Arc<dyn Fn() -> BoxedLIter<'graph, VID> + Send + Sync + 'graph>,
 }
 
@@ -350,12 +340,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         (self.op)()
     }
 
-    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<'graph, G, GH>> {
-        let graph = self.graph.clone();
+    pub fn iter(&self) -> BoxedLIter<'graph, NodeView<'graph, G>> {
         let base_graph = self.base_graph.clone();
-        let iter = self.iter_refs().map(move |node| {
-            NodeView::new_one_hop_filtered(base_graph.clone(), graph.clone(), node)
-        });
+        let iter = self
+            .iter_refs()
+            .map(move |node| NodeView::new_one_hop_filtered(base_graph.clone(), node));
         Box::new(iter)
     }
 
@@ -393,7 +382,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         }
     }
 
-    pub fn collect(&self) -> Vec<NodeView<'graph, G, GH>> {
+    pub fn collect(&self) -> Vec<NodeView<'graph, G>> {
         self.iter().collect()
     }
 }
@@ -401,15 +390,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
     for PathFromNode<'graph, G, GH>
 {
-    type BaseGraph = G;
-    type Graph = GH;
+    type Graph = G;
     type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
-    type PropType = NodeView<'graph, GH, GH>;
+    type PropType = NodeView<'graph, G>;
     type PathType = PathFromNode<'graph, G, G>;
-    type Edges = Edges<'graph, G, GH>;
+    type Edges = Edges<'graph, G, G>;
 
     fn graph(&self) -> &Self::Graph {
-        &self.graph
+        &self.base_graph
     }
 
     fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
@@ -427,20 +415,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         &self,
         op: F,
     ) -> Self::Edges {
-        let graph = self.graph.clone();
-        let base_graph = self.base_graph.clone();
         let node_op = self.op.clone();
+        let base_graph = Arc::new(self.base_graph.clone());
         let edges = Arc::new(move || {
-            let graph = graph.clone();
             let op = op.clone();
+            let base_graph = base_graph.clone();
             node_op()
-                .flat_map(move |node| op(graph.core_graph(), &graph, node))
+                .flat_map(move |node| op(base_graph.core_graph(), &base_graph, node))
                 .into_dyn_boxed()
         });
-        let graph = self.graph.clone();
         Edges {
-            graph,
-            base_graph,
+            base_graph: self.base_graph.clone(),
+            graph: self.base_graph.clone(),
             edges,
         }
     }
@@ -453,13 +439,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         op: F,
     ) -> Self::PathType {
         let old_op = self.op.clone();
-        let graph = self.graph.clone();
-
+        let base_graph = Arc::new(self.base_graph.clone());
         PathFromNode::new(self.base_graph.clone(), move || {
             let op = op.clone();
-            let graph = graph.clone();
+            let old_op = old_op.clone();
+            let base_graph = base_graph.clone();
             old_op()
-                .flat_map(move |vv| op(graph.core_graph(), &graph, vv))
+                .flat_map(move |vv| op(base_graph.core_graph(), &base_graph, vv))
                 .into_dyn_boxed()
         })
     }
@@ -468,37 +454,33 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for PathFromNode<'graph, G, GH>
 {
-    type Item = NodeView<'graph, G, GH>;
-    type IntoIter = BoxedLIter<'graph, NodeView<'graph, G, GH>>;
+    type Item = NodeView<'graph, G>;
+    type IntoIter = BoxedLIter<'graph, NodeView<'graph, G>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for PathFromNode<'graph, G, GH>
+impl<'graph, Current, G> BaseFilter<'graph> for PathFromNode<'graph, Current, G>
+where
+    Current: GraphViewOps<'graph>,
+    G: GraphViewOps<'graph>,
 {
-    type BaseGraph = G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = PathFromNode<'graph, G, GHH>;
+    type Current = Current;
+    type Filtered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, Next, G>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
-        &self.graph
-    }
-
-    fn base_graph(&self) -> &Self::BaseGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         &self.base_graph
     }
 
-    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+    fn apply_filter<Next: GraphViewOps<'graph>>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        let base_graph = self.base_graph.clone();
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         PathFromNode {
-            base_graph,
-            graph: filtered_graph,
+            base_graph: filtered_graph,
+            graph: self.graph.clone(),
             op: self.op.clone(),
         }
     }

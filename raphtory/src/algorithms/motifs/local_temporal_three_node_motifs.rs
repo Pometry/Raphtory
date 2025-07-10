@@ -23,6 +23,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 use tracing::debug;
+use crate::db::api::view::internal::GraphView;
 ///////////////////////////////////////////////////////
 
 // State objects for three node motifs
@@ -88,8 +89,8 @@ pub fn star_motif_count<'graph, G, GH>(
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
+    G: GraphView +'graph,
+    GH: GraphView + 'graph,
 {
     let neigh_map: HashMap<VID, usize> = evv
         .neighbours()
@@ -129,13 +130,12 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<'a, 'b, G, GH>(
-    evv: &'a EvalNodeView<'b, '_, G, MotifCounter, GH>,
+pub fn twonode_motif_count<'a, 'b, G>(
+    evv: &'a EvalNodeView<'b, '_, G, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where
     G: GraphViewOps<'b>,
-    GH: GraphViewOps<'b>,
     'b: 'a,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();

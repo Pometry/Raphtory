@@ -223,7 +223,7 @@ impl PyGraph {
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         let props = properties
             .into_iter()
             .flat_map(|map| {
@@ -264,7 +264,7 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         match secondary_index {
             None => {
                 self.graph
@@ -364,7 +364,7 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         secondary_index: Option<usize>,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         match secondary_index {
             None => self
                 .graph
@@ -397,7 +397,7 @@ impl PyGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -421,7 +421,7 @@ impl PyGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -487,7 +487,7 @@ impl PyGraph {
         &self,
         edge: PyEdge,
         merge: bool,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, merge)
     }
 
@@ -511,7 +511,7 @@ impl PyGraph {
         edge: PyEdge,
         new_id: (GID, GID),
         merge: bool,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph.import_edge_as(&edge.edge, new_id, merge)
     }
 
@@ -581,7 +581,7 @@ impl PyGraph {
     /// Returns:
     ///     MutableEdge: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph, Graph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph>> {
         self.graph.edge(src, dst)
     }
 

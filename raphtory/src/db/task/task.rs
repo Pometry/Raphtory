@@ -10,7 +10,7 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    fn run<'graph, 'b>(&'b self, vv: &'b mut EvalNodeView<'graph, '_, G, S, &'graph G, CS>)
+    fn run<'graph, 'b>(&'b self, vv: &'b mut EvalNodeView<'graph, '_, &G, S, CS>)
         -> Step;
 }
 
@@ -63,7 +63,7 @@ impl<G, CS, S, F> ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, G, S, CS>) -> Step,
 {
     pub fn new(f: F) -> Self {
         Self {
@@ -79,11 +79,11 @@ impl<G, CS, S, F> Task<G, CS, S> for ATask<G, CS, S, F>
 where
     G: StaticGraphViewOps,
     CS: ComputeState,
-    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, G, S, &'graph G, CS>) -> Step,
+    F: for<'graph, 'a, 'b> Fn(&'b mut EvalNodeView<'graph, 'a, &G, S, CS>) -> Step,
 {
     fn run<'graph, 'b>(
         &'b self,
-        vv: &'b mut EvalNodeView<'graph, '_, G, S, &'graph G, CS>,
+        vv: &'b mut EvalNodeView<'graph, '_, &G, S, CS>,
     ) -> Step {
         (self.f)(vv)
     }

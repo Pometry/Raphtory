@@ -98,15 +98,14 @@ fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
 }
 
 pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
-    type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
     type ValueType<T>: 'graph
     where
         T: 'graph;
 
     type PropType: PropertiesOps + Clone + 'graph;
-    type Nodes: NodeViewOps<'graph, Graph = Self::BaseGraph, BaseGraph = Self::BaseGraph> + 'graph;
-    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
+    type Nodes: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
+    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph> + 'graph;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -135,10 +134,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
         T: 'graph;
     type PropType: PropertiesOps + Clone + 'graph;
     type Graph: GraphViewOps<'graph>;
-    type BaseGraph: GraphViewOps<'graph>;
-    type Nodes: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>;
+    type Nodes: NodeViewOps<'graph, Graph = Self::Graph>;
 
-    type Exploded: EdgeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::Graph>;
+    type Exploded: EdgeViewOps<'graph, Graph = Self::Graph>;
 
     /// List the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>>;
@@ -218,7 +216,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         T: 'graph;
     type PropType = E::PropType;
     type Graph = E::Graph;
-    type BaseGraph = E::BaseGraph;
     type Nodes = E::Nodes;
 
     type Exploded = E::Exploded;

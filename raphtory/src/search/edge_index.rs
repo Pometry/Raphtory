@@ -191,9 +191,9 @@ impl EdgeIndex {
         document
     }
 
-    fn index_edge<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    fn index_edge<'graph, G: GraphViewOps<'graph>>(
         &self,
-        edge: EdgeView<G, GH>,
+        edge: EdgeView<G>,
         writer: &IndexWriter,
     ) -> Result<(), GraphError> {
         let edge_id = edge.edge.pid().as_u64();
