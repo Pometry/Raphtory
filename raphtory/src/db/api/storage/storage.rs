@@ -22,7 +22,7 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 use storage::{
@@ -80,9 +80,26 @@ impl Base for Storage {
 const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
-    pub(crate) fn new(num_locks: usize) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(None))),
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Self {
+        Self {
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path))),
+            #[cfg(feature = "search")]
+            index: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
+        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)));
+        Self {
+            graph,
             #[cfg(feature = "search")]
             index: OnceCell::new(),
         }
@@ -543,9 +560,7 @@ impl InternalDeletionOps for Storage {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, GraphError> {
-        let eid = self.graph.internal_delete_edge(t, src, dst, layer)?;
-
-        Ok(eid)
+        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
     }
 
     fn internal_delete_existing_edge(

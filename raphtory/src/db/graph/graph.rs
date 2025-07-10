@@ -43,6 +43,7 @@ use std::{
     fmt::{Display, Formatter},
     hint::black_box,
     ops::Deref,
+    path::Path,
     sync::Arc,
 };
 
@@ -535,14 +536,36 @@ impl Graph {
         }
     }
 
-    /// Create a new graph with specified number of shards
+    /// Create a new graph at a specific path
     ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    pub fn new_with_shards(num_shards: usize) -> Self {
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    pub fn new_at_path(path: impl AsRef<Path>) -> Self {
         Self {
-            inner: Arc::new(Storage::new(num_shards)),
+            inner: Arc::new(Storage::new_at_path(path)),
+        }
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load_from_path("/path/to/storage");
+    ///
+    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
+        Self {
+            inner: Arc::new(Storage::load_from(path)),
         }
     }
 
@@ -2247,7 +2270,7 @@ mod db_tests {
 
     #[test]
     fn node_properties() -> Result<(), GraphError> {
-        let g = Graph::new_with_shards(2);
+        let g = Graph::new();
 
         g.add_node(
             0,

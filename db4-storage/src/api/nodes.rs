@@ -114,12 +114,6 @@ pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
 }
 
-#[derive(Debug)]
-pub struct ReadLockedNS<NS: NodeSegmentOps> {
-    ns: Arc<NS>,
-    head: NS::ArcLockedSegment,
-}
-
 pub trait NodeEntryOps<'a>: Send + Sync + 'a {
     type Ref<'b>: NodeRefOps<'b>
     where

@@ -48,7 +48,13 @@ impl InternalDeletionOps for db4_graph::TemporalGraph<Extension> {
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error> {
-        todo!()
+        let mut writer = self.storage().edge_writer(eid);
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let (src, dst) = writer.get_edge(0, edge_pos).unwrap_or_else(|| {
+            panic!("Internal Error: Edge {eid:?} not found in storage");
+        });
+        writer.delete_edge(t, Some(edge_pos), src, dst, layer, 0, None);
+        Ok(())
     }
 }
 

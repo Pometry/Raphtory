@@ -248,7 +248,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         edge_meta.set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
 
-        let mut g = TemporalGraph::new_with_meta(None, node_meta, edge_meta);
+        let mut g = TemporalGraph::new_with_meta(Default::default(), node_meta, edge_meta);
         // Copy all graph properties
         g.graph_meta = self.graph_meta().deep_clone().into();
 
