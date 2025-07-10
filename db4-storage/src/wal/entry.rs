@@ -19,8 +19,8 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         _dst: VID,
         _eid: EID,
         _layer_id: usize,
-        _t_props: Cow<'a, Vec<(usize, Prop)>>,
-        _c_props: Cow<'a, Vec<(usize, Prop)>>,
+        _t_props: Cow<'a, [(usize, Prop)]>,
+        _c_props: Cow<'a, [(usize, Prop)]>,
     ) -> Self {
         EmptyWalEntry
     }
@@ -29,11 +29,11 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         EmptyWalEntry
     }
 
-    fn add_const_prop_ids(_props: Vec<(Cow<'a, str>, usize)>) -> Self {
+    fn add_const_prop_ids(_props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self {
         EmptyWalEntry
     }
 
-    fn add_temporal_prop_ids(_props: Vec<(Cow<'a, str>, usize)>) -> Self {
+    fn add_temporal_prop_ids(_props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self {
         EmptyWalEntry
     }
 

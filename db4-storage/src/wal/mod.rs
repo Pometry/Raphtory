@@ -57,15 +57,15 @@ pub trait WalEntryBuilder<'a> {
         dst: VID,
         eid: EID,
         layer_id: usize,
-        t_props: Cow<'a, Vec<(usize, Prop)>>,
-        c_props: Cow<'a, Vec<(usize, Prop)>>,
+        t_props: Cow<'a, [(usize, Prop)]>,
+        c_props: Cow<'a, [(usize, Prop)]>,
     ) -> Self;
 
     fn add_node_id(gid: GID, vid: VID) -> Self;
 
-    fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self;
+    fn add_const_prop_ids(props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self;
 
-    fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> Self;
+    fn add_temporal_prop_ids(props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self;
 
     fn add_layer_id(name: String, id: usize) -> Self;
 
