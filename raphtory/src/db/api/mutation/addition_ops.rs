@@ -283,6 +283,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
+        // Wal -> BeginTxn(TxnID)
+
         let session = self.write_session().map_err(|err| err.into())?;
 
         self.validate_gids(
@@ -313,6 +315,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             })
             .collect();
 
+        // Wal -> AddPropIDs(TxnID, PropNames, PropIDs)
+
         let props = props_with_status
             .into_iter()
             .map(|maybe_new| {
@@ -332,13 +336,22 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .inner();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
+        // Wal -> AddLayerID(TxnID, layer)
+        // Wal -> AddNodeIDs(TxnID, src)
+        // Wal -> AddNodeIDs(TxnID, dst)
+
         let mut add_edge_op = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;
+
+        // Wal -> AddEdge(TxnID, src, dst, layer, props)
+
         let edge_id = add_edge_op.internal_add_edge(ti, src_id, dst_id, 0, layer_id, props);
 
         add_edge_op.store_node_id_as_prop(src.as_node_ref(), src_id);
         add_edge_op.store_node_id_as_prop(dst.as_node_ref(), dst_id);
+
+        // Wal -> CommitTxn(TxnID)
 
         Ok(EdgeView::new(
             self.clone(),
