@@ -13,5 +13,7 @@ jobs:
           uses: ./.github/actions/setup_rust
         - name: Setup Python 
           uses: actions/setup-python@v4
+        - name: Run setup
+          run: make build-python-public
         - name: Run docs tests
           run: make run-docs-tests
