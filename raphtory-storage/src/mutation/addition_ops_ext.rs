@@ -315,7 +315,7 @@ impl InternalAdditionOps for TemporalGraph {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         if is_static {
             let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const_with_status())

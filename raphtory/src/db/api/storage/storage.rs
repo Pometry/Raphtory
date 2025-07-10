@@ -432,7 +432,7 @@ impl InternalAdditionOps for Storage {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         Ok(self.graph.validate_props_with_status(is_static, meta, props)?)
     }
 

@@ -91,7 +91,7 @@ pub trait InternalAdditionOps {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error>;
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error>;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -258,7 +258,7 @@ impl InternalAdditionOps for GraphStorage {
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         self.mutable()?
             .validate_props_with_status(is_static, meta, props)
             .map_err(MutationError::from)
@@ -369,7 +369,7 @@ where
         is_static: bool,
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Vec<MaybeNew<(usize, Prop)>>, Self::Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
         self.base().validate_props_with_status(is_static, meta, props)
     }
 

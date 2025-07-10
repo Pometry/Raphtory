@@ -300,18 +300,25 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        // Create a vec of references for only those props that are new
-        let new_props_refs: Vec<&(usize, Prop)> = props_with_status
+        // Extract new props and their ids to append to the Wal
+        let props_new: Vec<(&str, usize)> = props_with_status
             .iter()
-            .filter_map(|maybe_new| match maybe_new {
-                MaybeNew::New(tuple) => Some(tuple),
-                _ => None,
+            .filter_map(|maybe_new| {
+                if maybe_new.is_new() {
+                    let (pn, prop_id, _) = maybe_new.as_ref().inner();
+                    Some((pn.as_ref(), *prop_id))
+                } else {
+                    None
+                }
             })
             .collect();
 
         let props = props_with_status
             .into_iter()
-            .map(|maybe_new| maybe_new.inner())
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.inner();
+                (prop_id, prop)
+            })
             .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
