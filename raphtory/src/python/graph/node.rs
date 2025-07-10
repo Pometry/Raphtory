@@ -19,7 +19,6 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::CreateExplodedEdgeFilter,
         },
     },
     errors::GraphError,
@@ -31,7 +30,7 @@ use crate::{
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
+            wrappers::{filter_expr::PyFilterExpr, iterables::*},
         },
         utils::{PyNodeRef, PyTime},
     },

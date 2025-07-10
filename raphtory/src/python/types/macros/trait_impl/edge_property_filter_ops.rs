@@ -35,10 +35,14 @@ macro_rules! impl_edge_property_filter_ops {
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_exploded_edges(
                 &self,
-                filter: PyFilterExpr,
+                filter: crate::python::types::wrappers::prop::PyPropertyFilter,
             ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
             {
-                Ok(self.$field.clone().filter_edges(filter)?.into_dyn_hop())
+                Ok(self
+                    .$field
+                    .clone()
+                    .filter_exploded_edges(filter)?
+                    .into_dyn_hop())
             }
         }
     };
