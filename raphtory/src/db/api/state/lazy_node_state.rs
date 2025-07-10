@@ -212,7 +212,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     }
 
     pub fn s(&self) -> impl Iterator<Item = HistorySecondary<NodeView<'graph, GH, GH>>> {
-        self.compute().into_iter_values().map(|history| history.s())
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.secondary_index())
     }
 
     pub fn collect_items(&self) -> Vec<TimeIndexEntry> {

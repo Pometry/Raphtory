@@ -77,7 +77,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 
     // converts operations to return secondary time information inside TimeIndexEntry
-    pub fn s(self) -> HistorySecondary<T> {
+    pub fn secondary_index(self) -> HistorySecondary<T> {
         HistorySecondary(self.0)
     }
 
@@ -1352,7 +1352,7 @@ mod tests {
         // Test secondary time access
         let secondary_times_lazy: Vec<_> =
             all_nodes_history.s().flat_map(|s| s.collect()).collect();
-        let secondary_times_normal: Vec<_> = nodes_history_as_history.s().collect();
+        let secondary_times_normal: Vec<_> = nodes_history_as_history.secondary_index().collect();
         assert_eq!(
             secondary_times_lazy,
             [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]

@@ -210,19 +210,19 @@ impl PyHistoryDateTime {
 
     /// Iterate over all time events
     pub fn __iter__(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(
+        py_borrowing_iter_result!(
             self.history_dt.clone(),
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
-            |history_dt| history_dt.iter().map(|t| t.map_err(PyErr::from))
+            |history_dt| history_dt.iter()
         )
     }
 
     /// Iterate over all time events in reverse
     pub fn iter_rev(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(
+        py_borrowing_iter_result!(
             self.history_dt.clone(),
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
-            |history_dt| history_dt.iter_rev().map(|t| t.map_err(PyErr::from))
+            |history_dt| history_dt.iter_rev()
         )
     }
 }
