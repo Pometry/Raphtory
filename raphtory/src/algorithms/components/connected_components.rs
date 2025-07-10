@@ -214,6 +214,7 @@ mod cc_test {
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use ahash::HashSet;
     use itertools::*;
+    use proptest::{prelude::Strategy, proptest, sample::Index};
     use quickcheck_macros::quickcheck;
     use std::{collections::BTreeSet, iter::once};
 
@@ -360,51 +361,48 @@ mod cc_test {
         });
     }
 
-    #[quickcheck]
-    fn circle_graph_edges(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-            let _smallest = vs.iter().min().unwrap();
-
-            let first = vs[0];
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
-
-            assert_eq!(edges[0].0, first);
-            assert_eq!(edges.last().unwrap().1, first);
-        }
+    fn random_component_edges(
+        num_components: usize,
+        num_nodes_per_component: usize,
+    ) -> impl Strategy<Value = (Vec<(u64, u64)>, Vec<HashSet<u64>>)> {
+        let vs = proptest::collection::vec(
+            proptest::collection::vec(
+                (
+                    0..num_nodes_per_component,
+                    proptest::arbitrary::any::<Index>(),
+                ),
+                2..=num_nodes_per_component,
+            ),
+            0..=num_components,
+        );
+        vs.prop_map(move |vs| {
+            let mut edges = Vec::new();
+            let mut components = Vec::new();
+            for (ci, c) in vs.into_iter().enumerate() {
+                let offset = num_nodes_per_component * ci;
+                let component: Vec<_> = c.iter().map(|(i, _)| (*i + offset) as u64).collect();
+                for i in 1..c.len() {
+                    let n = component[c[i].1.index(i)];
+                    edges.push((component[i], n));
+                }
+                components.push(component.into_iter().collect());
+            }
+            (edges, components)
+        })
     }
 
-    #[quickcheck]
-    fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let graph = Graph::new();
-
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-            let first = vs[0];
-
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
-
-            for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
+    #[test]
+    fn weakly_connected_components_proptest() {
+        proptest!(|(input in random_component_edges(10, 100))|{
+            let (edges, components) = input;
+            let g = Graph::new();
+            for (src, dst) in edges {
+                g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
             }
-
-            test_storage!(&graph, |graph| {
-                // now we do connected community_detection over window 0..1
-                let res = weakly_connected_components(graph);
-                assert_same_partition(res, [vs.clone()]);
-            });
-        }
+            for _ in 0..10 {
+                let result = weakly_connected_components(&g);
+                assert_same_partition(result, &components);
+            }
+        })
     }
 }
