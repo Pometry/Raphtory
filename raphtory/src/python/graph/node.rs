@@ -7,9 +7,9 @@ use crate::{
     db::{
         api::{
             properties::Properties,
-            state::{ops, LazyNodeState, NodeOp, NodeStateOps},
+            state::{ops, LazyNodeState, NodeStateOps},
             view::{
-                history::{History, HistoryDateTime},
+                history::History,
                 internal::{
                     DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
                     MaterializedGraph,
@@ -27,22 +27,19 @@ use crate::{
     errors::GraphError,
     python::{
         graph::{
-            history::{PyHistory, PyHistoryDateTime},
+            history::PyHistory,
             node::internal::OneHopFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            result_option_iterable::NestedResultOptionUtcDateTimeIterable,
             wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
         },
         utils::{PyNodeRef, PyTime},
     },
     *,
 };
-use chrono::{DateTime, Utc};
-use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{
     exceptions::{PyIndexError, PyKeyError},
     prelude::*,
@@ -67,7 +64,6 @@ use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::{
     collections::{HashMap, HashSet},
-    marker::PhantomData,
     sync::Arc,
 };
 
@@ -182,15 +178,6 @@ impl PyNode {
         self.node.earliest_time()
     }
 
-    /// Returns the earliest datetime that the node exists.
-    ///
-    /// Returns:
-    ///     datetime: The earliest datetime that the node exists as a Datetime.
-    #[getter]
-    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.node.earliest_date_time()
-    }
-
     /// Returns the latest time that the node exists.
     ///
     /// Returns:
@@ -198,15 +185,6 @@ impl PyNode {
     #[getter]
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.node.latest_time()
-    }
-
-    /// Returns the latest datetime that the node exists.
-    ///
-    /// Returns:
-    ///     datetime: The latest datetime that the node exists as a Datetime.
-    #[getter]
-    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.node.latest_date_time()
     }
 
     /// The properties of the node
@@ -254,18 +232,9 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     List[int]: A list of unix timestamps of the event history of node.
+    ///     History: A History object for the node, providing access to time information
     pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.node.clone())))
-    }
-
-    /// Returns the history of a node, including node additions and changes made to node.
-    ///
-    /// Returns:
-    ///     List[datetime]: A list of timestamps of the event history of node.
-    ///
-    pub fn history_date_time(&self) -> PyHistoryDateTime {
-        self.node.history_date_time().into()
     }
 
     /// Check if the node is active, i.e., it's history is not empty
@@ -598,21 +567,6 @@ impl PyNodes {
         self.nodes.earliest_time()
     }
 
-    /// The earliest time nodes are active as datetime objects
-    ///
-    /// Returns:
-    ///     EarliestDateTimeView: a view of the earliest active times.
-    #[getter]
-    fn earliest_date_time(
-        &self,
-    ) -> LazyNodeState<
-        'static,
-        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-        DynamicGraph,
-    > {
-        self.nodes.earliest_date_time()
-    }
-
     /// The latest time nodes are active
     ///
     /// Returns:
@@ -620,21 +574,6 @@ impl PyNodes {
     #[getter]
     fn latest_time(&self) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph> {
         self.nodes.latest_time()
-    }
-
-    /// The latest time nodes are active as datetime objects
-    ///
-    /// Returns:
-    ///   LatestDateTimeView: a view of the latest active times
-    #[getter]
-    fn latest_date_time(
-        &self,
-    ) -> LazyNodeState<
-        'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
-        DynamicGraph,
-    > {
-        self.nodes.latest_date_time()
     }
 
     /// Returns all timestamps of nodes, when a node is added or change to a node is made.
@@ -655,26 +594,6 @@ impl PyNodes {
     #[getter]
     fn node_type(&self) -> LazyNodeState<'static, ops::Type, DynamicGraph> {
         self.nodes.node_type()
-    }
-
-    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
-    ///
-    /// Returns:
-    ///    HistoryDateTimeView: a view of the node histories as datetime objects.
-    ///
-    fn history_date_time(
-        &self,
-    ) -> LazyNodeState<
-        'static,
-        ops::Map<ops::HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
-        DynamicGraph,
-    > {
-        let op = ops::HistoryOp {
-            graph: self.nodes.graph().clone(),
-            _phantom: PhantomData,
-        }
-        .map(|h| PyHistoryDateTime::from(h.dt()));
-        self.nodes.map(op)
     }
 
     /// The properties of the node
@@ -866,13 +785,6 @@ impl PyPathFromGraph {
         (move || path.earliest_time()).into()
     }
 
-    /// Returns the earliest date time of the nodes.
-    #[getter]
-    fn earliest_date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
-        let path = self.path.clone();
-        (move || path.earliest_date_time()).into()
-    }
-
     /// the node latest times
     #[getter]
     fn latest_time(&self) -> NestedOptionRaphtoryTimeIterable {
@@ -880,14 +792,7 @@ impl PyPathFromGraph {
         (move || path.latest_time()).into()
     }
 
-    /// Returns the latest date time of the nodes.
-    #[getter]
-    fn latest_date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
-        let path = self.path.clone();
-        (move || path.latest_date_time()).into()
-    }
-
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    /// Returns a history object for each node with time information for when a node is added or change to a node is made.
     fn history(&self) -> NestedHistoryIterable {
         let path = self.path.clone();
         (move || {
@@ -897,24 +802,10 @@ impl PyPathFromGraph {
         .into()
     }
 
+    /// Returns a single history object containing time information for all nodes in the path
     fn combined_history(&self) -> PyHistory {
         let path = self.path.clone();
         PyHistory::new(History::new(Arc::new(path)))
-    }
-
-    /// Returns all timestamps of nodes, when an node is added or change to an node is made.
-    fn history_date_time(&self) -> NestedHistoryDateTimeIterable {
-        let path = self.path.clone();
-        (move || {
-            path.history_date_time()
-                .map(|h_iter| h_iter.map(|h| h.into_arc_static()))
-        })
-        .into()
-    }
-
-    fn combined_history_date_time(&self) -> PyHistoryDateTime {
-        let path = self.path.clone();
-        PyHistoryDateTime::new(HistoryDateTime::new(Arc::new(path)))
     }
 
     /// the node properties
@@ -1079,6 +970,12 @@ impl PyPathFromNode {
     fn latest_time(&self) -> OptionRaphtoryTimeIterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
+    }
+
+    /// Returns a single history object containing time information for all nodes in the path
+    fn combined_history(&self) -> PyHistory {
+        let path = self.path.clone();
+        PyHistory::new(History::new(Arc::new(path)))
     }
 
     /// the node properties

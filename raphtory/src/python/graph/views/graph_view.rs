@@ -42,7 +42,6 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::prelude::*;
 use pyo3::prelude::*;
 use raphtory_api::core::storage::{
     arc_str::ArcStr,
@@ -198,7 +197,7 @@ impl PyGraphView {
 
     //******  Metrics APIs ******//
 
-    /// Time entry of earliest activity in the graph
+    /// Time entry of the earliest activity in the graph
     ///
     /// Returns:
     ///     Optional[TimeIndexEntry]: the time entry of the earliest activity in the graph
@@ -207,31 +206,13 @@ impl PyGraphView {
         self.graph.earliest_time()
     }
 
-    /// DateTime of earliest activity in the graph. Throws an error if the conversion to datetime fails.
-    ///
-    /// Returns:
-    ///     Optional[datetime]: the datetime of the earliest activity in the graph
-    #[getter]
-    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.graph.earliest_date_time()
-    }
-
-    /// Time entry of latest activity in the graph
+    /// Time entry of the latest activity in the graph
     ///
     /// Returns:
     ///     Optional[TimeIndexEntry]: the time entry of the latest activity in the graph
     #[getter]
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.graph.latest_time()
-    }
-
-    /// DateTime of latest activity in the graph. Throws an error if the conversion to datetime fails.
-    ///
-    /// Returns:
-    ///     Optional[datetime]: the datetime of the latest activity in the graph
-    #[getter]
-    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.graph.latest_date_time()
     }
 
     /// Number of edges in the graph

@@ -4,10 +4,8 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                history::{History, InternalHistoryOps},
-                internal::OneHopFilter,
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
-                IntoDynBoxed,
+                history::History, internal::OneHopFilter, BaseNodeViewOps, BoxedLIter,
+                DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynBoxed,
             },
         },
         graph::{

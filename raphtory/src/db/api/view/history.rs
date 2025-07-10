@@ -5,20 +5,14 @@ use crate::{
     },
     db::{
         api::{
-            properties::{
-                internal::{PropertiesOps, TemporalPropertiesOps},
-                TemporalPropertyView,
-            },
+            properties::{internal::PropertiesOps, TemporalPropertyView},
             state::{
                 ops,
                 ops::{node::NodeOp, HistoryOp},
                 LazyNodeState,
             },
             view::{
-                internal::{
-                    filtered_node::FilteredNodeStorageOps, EdgeTimeSemanticsOps,
-                    GraphTimeSemanticsOps, InternalLayerOps, NodeTimeSemanticsOps,
-                },
+                internal::{EdgeTimeSemanticsOps, NodeTimeSemanticsOps},
                 BaseNodeViewOps, BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
         },
@@ -26,6 +20,7 @@ use crate::{
             edge::{edge_valid_layer, EdgeView},
             node::NodeView,
             path::{PathFromGraph, PathFromNode},
+            views::layer_graph::LayeredGraph,
         },
     },
     prelude::*,
@@ -33,11 +28,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::LayerIds,
-    storage::timeindex::{TimeError, TimeIndexOps},
-};
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
 use std::{iter, marker::PhantomData, sync::Arc};
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -66,6 +57,11 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         Self(item, PhantomData)
     }
 
+    // reverses the order of items returned by iter() and iter_rev()
+    pub fn reverse(self) -> History<'a, ReversedHistoryOps<T>> {
+        History(ReversedHistoryOps(self.0), PhantomData)
+    }
+
     // converts operations to return timestamps instead of TimeIndexEntry
     pub fn t(self) -> HistoryTimestamp<T> {
         HistoryTimestamp(self.0)
@@ -77,8 +73,8 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 
     // converts operations to return secondary time information inside TimeIndexEntry
-    pub fn secondary_index(self) -> HistorySecondary<T> {
-        HistorySecondary(self.0)
+    pub fn secondary_index(self) -> HistorySecondaryIndex<T> {
+        HistorySecondaryIndex(self.0)
     }
 
     pub fn intervals(self) -> Intervals<T> {
@@ -183,6 +179,10 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         T::latest_time(self)
     }
+
+    fn len(&self) -> usize {
+        T::len(self)
+    }
 }
 
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
@@ -201,39 +201,43 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         T::latest_time(self)
     }
-}
 
-impl<T: InternalHistoryOps> InternalHistoryOps for Vec<History<'_, T>> {
-    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.as_slice() // had to use slice notation to get Vec::iter() instead of InternalHistoryOps::iter()
-            .iter()
-            .map(|history| history.iter())
-            .kmerge()
-            .into_dyn_boxed()
-    }
-
-    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.as_slice()
-            .iter()
-            .map(|history| history.iter_rev())
-            .kmerge_by(|a, b| a >= b)
-            .into_dyn_boxed()
-    }
-
-    fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        self.as_slice()
-            .iter()
-            .filter_map(|history| history.earliest_time())
-            .min()
-    }
-
-    fn latest_time(&self) -> Option<TimeIndexEntry> {
-        self.as_slice()
-            .iter()
-            .filter_map(|history| history.latest_time())
-            .max()
+    fn len(&self) -> usize {
+        T::len(self)
     }
 }
+
+// impl<T: InternalHistoryOps> InternalHistoryOps for Vec<History<'_, T>> {
+//     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+//         self.as_slice() // had to use slice notation to get Vec::iter() instead of InternalHistoryOps::iter()
+//             .iter()
+//             .map(|history| history.iter())
+//             .kmerge()
+//             .into_dyn_boxed()
+//     }
+//
+//     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+//         self.as_slice()
+//             .iter()
+//             .map(|history| history.iter_rev())
+//             .kmerge_by(|a, b| a >= b)
+//             .into_dyn_boxed()
+//     }
+//
+//     fn earliest_time(&self) -> Option<TimeIndexEntry> {
+//         self.as_slice()
+//             .iter()
+//             .filter_map(|history| history.earliest_time())
+//             .min()
+//     }
+//
+//     fn latest_time(&self) -> Option<TimeIndexEntry> {
+//         self.as_slice()
+//             .iter()
+//             .filter_map(|history| history.latest_time())
+//             .max()
+//     }
+// }
 
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
@@ -450,6 +454,27 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         EdgeViewOps::latest_time(self)
     }
+
+    fn len(&self) -> usize {
+        let g = &self.graph;
+        let e = self.edge;
+        if edge_valid_layer(g, e) {
+            match e.time() {
+                Some(_) => 1,
+                None => match e.layer() {
+                    None => g
+                        .edge_time_semantics()
+                        .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
+                    Some(layer) => g.edge_time_semantics().edge_exploded_count(
+                        g.core_edge(e.pid()).as_ref(),
+                        LayeredGraph::new(g, LayerIds::One(layer)),
+                    ),
+                },
+            }
+        } else {
+            0
+        }
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
@@ -572,6 +597,38 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
+// reverses the order of items returned by iter() and iter_rev()
+#[derive(Clone)]
+pub struct ReversedHistoryOps<T>(T);
+
+impl<T: InternalHistoryOps> ReversedHistoryOps<T> {
+    pub fn new(item: T) -> Self {
+        Self(item)
+    }
+}
+
+impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter_rev()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.earliest_time()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.latest_time()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 // converts operations to return timestamps instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryTimestamp<T>(T);
@@ -644,9 +701,9 @@ impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
 
 // converts operations to return secondary time information inside TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
-pub struct HistorySecondary<T>(T);
+pub struct HistorySecondaryIndex<T>(T);
 
-impl<T: InternalHistoryOps> HistorySecondary<T> {
+impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
     pub fn new(item: T) -> Self {
         Self(item)
     }
@@ -1351,7 +1408,7 @@ mod tests {
 
         // Test secondary time access
         let secondary_times_lazy: Vec<_> =
-            all_nodes_history.s().flat_map(|s| s.collect()).collect();
+            all_nodes_history.secondary_index().flat_map(|s| s.collect()).collect();
         let secondary_times_normal: Vec<_> = nodes_history_as_history.secondary_index().collect();
         assert_eq!(
             secondary_times_lazy,

@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
             properties::{internal::ConstantPropertiesOps, Properties},
@@ -29,15 +26,11 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{properties::meta::PropMapper, EID},
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{TimeError, TimeIndexEntry},
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
     GraphType,
@@ -92,20 +85,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
-    /// Timestamp of earliest activity in the graph
+    /// TimeIndexEntry of earliest activity in the graph
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
 
-    /// UTC DateTime of earliest activity in the graph
-    fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.earliest_time().map(|t| t.dt()).transpose()
-    }
-    /// Timestamp of latest activity in the graph
+    /// TimeIndexEntry of latest activity in the graph
     fn latest_time(&self) -> Option<TimeIndexEntry>;
 
-    /// UTC DateTime of latest activity in the graph
-    fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.latest_time().map(|t| t.dt()).transpose()
-    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -528,7 +513,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history_rev().next())
+                .flat_map(|prop| prop.history_rev().iter().next())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())

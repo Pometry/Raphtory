@@ -1,10 +1,7 @@
 use crate::{
-    db::{
-        api::view::{
-            history::{History, HistoryDateTime, InternalHistoryOps},
-            BoxedIter,
-        },
-        graph::edge::EdgeView,
+    db::api::view::{
+        history::{History, HistoryDateTime, InternalHistoryOps},
+        BoxedIter,
     },
     prelude::Prop,
     python::types::repr::Repr,
@@ -14,10 +11,7 @@ use num::cast::AsPrimitive;
 use pyo3::prelude::*;
 use raphtory_api::core::{
     entities::GID,
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{TimeError, TimeIndexEntry},
-    },
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use std::{iter::Sum, sync::Arc};
 

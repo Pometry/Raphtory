@@ -1,19 +1,14 @@
 use crate::{
     db::api::view::history::*,
-    prelude::EdgeViewOps,
     python::{
         graph::{edge::PyEdge, node::PyNode, properties::PyTemporalProp},
-        types::{
-            iterable::FromIterable,
-            repr::{iterator_repr, Repr},
-            wrappers::iterators::PyBorrowingIterator,
-        },
+        types::{iterable::FromIterable, repr::Repr, wrappers::iterators::PyBorrowingIterator},
     },
 };
 use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -61,6 +56,12 @@ impl PyHistory {
         }
     }
 
+    pub fn reverse(&self) -> Self {
+        PyHistory {
+            history: History::new(Arc::new(ReversedHistoryOps::new(self.history.0.clone()))),
+        }
+    }
+
     /// Access history events as i64 timestamps
     pub fn t(&self) -> PyHistoryTimestamp {
         PyHistoryTimestamp {
@@ -76,9 +77,9 @@ impl PyHistory {
     }
 
     /// Access secondary index (unique index) of history events
-    pub fn s(&self) -> PyHistorySecondary {
-        PyHistorySecondary {
-            history_s: HistorySecondary::new(Arc::new(self.history.0.clone())),
+    pub fn secondary_index(&self) -> PyHistorySecondaryIndex {
+        PyHistorySecondaryIndex {
+            history_s: HistorySecondaryIndex::new(Arc::new(self.history.0.clone())),
         }
     }
 
@@ -136,6 +137,7 @@ impl PyHistory {
         hasher.finish()
     }
 
+    // TODO: Can we use &PyHistory here or does it have to be generic PyAny/PyObject
     fn __eq__(&self, other: &PyHistory) -> bool {
         self.history.eq(&other.history)
     }
@@ -245,14 +247,14 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
     }
 }
 
-#[pyclass(name = "HistorySecondary", module = "raphtory", frozen)]
+#[pyclass(name = "HistorySecondaryIndex", module = "raphtory", frozen)]
 #[derive(Clone)]
-pub struct PyHistorySecondary {
-    history_s: HistorySecondary<Arc<dyn InternalHistoryOps>>,
+pub struct PyHistorySecondaryIndex {
+    history_s: HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
-impl PyHistorySecondary {
+impl PyHistorySecondaryIndex {
     /// Collect all time events
     pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect();
@@ -269,7 +271,7 @@ impl PyHistorySecondary {
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_s.clone(),
-            HistorySecondary<Arc<dyn InternalHistoryOps>>,
+            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
             |history_s| history_s.iter()
         )
     }
@@ -278,7 +280,7 @@ impl PyHistorySecondary {
     pub fn iter_rev(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_s.clone(),
-            HistorySecondary<Arc<dyn InternalHistoryOps>>,
+            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
             |history_s| history_s.iter_rev()
         )
     }

@@ -12,12 +12,12 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    db::api::{
-        properties::internal::PropertiesOps,
-        view::{history::History, BoxedLIter},
+use crate::db::api::{
+    properties::internal::PropertiesOps,
+    view::{
+        history::{History, ReversedHistoryOps},
+        BoxedLIter,
     },
-    errors::GraphError,
 };
 use raphtory_api::core::storage::timeindex::{AsTime, TimeError};
 #[cfg(feature = "arrow")]
@@ -75,13 +75,10 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
         History::new(self.clone())
     }
 
-    pub fn history_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-        self.props.temporal_history_iter_rev(self.id)
+    pub fn history_rev(&self) -> History<ReversedHistoryOps<Self>> {
+        History::new(ReversedHistoryOps::new(self.clone()))
     }
 
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.props.temporal_history_date_time(self.id)
-    }
     pub fn values(&self) -> BoxedLIter<Prop> {
         self.props.temporal_values_iter(self.id)
     }
@@ -95,7 +92,7 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.history_rev().zip(self.values_rev())
+        self.history_rev().into_iter().zip(self.values_rev())
     }
 
     pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
@@ -116,8 +113,8 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
 
     pub fn histories_date_time(
         &self,
-    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, GraphError> {
-        let hist = self.history_date_time()?;
+    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, TimeError> {
+        let hist = self.history().dt().collect()?;
         let vals = self.values().collect::<Vec<_>>();
         Ok(hist.into_iter().zip(vals))
     }

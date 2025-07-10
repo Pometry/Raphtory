@@ -22,7 +22,6 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::core::{
     entities::GID,
@@ -214,24 +213,6 @@ impl PyEdge {
         PyHistory::new(History::new(Arc::new(self.edge.clone())))
     }
 
-    /// Returns the number of times an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///    int: The number of times an edge is added or change to an edge is made.
-    ///
-    pub fn history_counts(&self) -> usize {
-        self.edge.history_counts()
-    }
-
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///     List[datetime]
-    ///
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.edge.history_date_time()
-    }
-
     /// Returns a list of timestamps of when an edge is deleted
     ///
     /// Returns:
@@ -294,15 +275,6 @@ impl PyEdge {
         self.edge.earliest_time()
     }
 
-    /// Gets of earliest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the earliest datetime of an edge
-    #[getter]
-    pub fn earliest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.edge.earliest_date_time()
-    }
-
     /// Gets the latest time of an edge.
     ///
     /// Returns:
@@ -310,15 +282,6 @@ impl PyEdge {
     #[getter]
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.latest_time()
-    }
-
-    /// Gets of latest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the latest datetime of an edge
-    #[getter]
-    pub fn latest_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.edge.latest_date_time()
     }
 
     /// Gets the time of an exploded edge.

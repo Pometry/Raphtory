@@ -18,7 +18,7 @@ use crate::{
             },
             view::{
                 history::{
-                    History, HistoryDateTime, HistorySecondary, HistoryTimestamp,
+                    History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp,
                     InternalHistoryOps, Intervals, MergedHistory,
                 },
                 internal::{
@@ -79,8 +79,8 @@ impl<'item, T: InternalHistoryOps> HistoryRef<'item, T> {
         HistoryDateTime::new(self.0)
     }
 
-    pub fn s(&self) -> HistorySecondary<&T> {
-        HistorySecondary::new(self.0)
+    pub fn secondary_index(&self) -> HistorySecondaryIndex<&T> {
+        HistorySecondaryIndex::new(self.0)
     }
 
     pub fn iter(&self) -> BoxedLIter<'item, TimeIndexEntry> {

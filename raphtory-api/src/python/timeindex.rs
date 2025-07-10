@@ -44,7 +44,7 @@ impl PyRaphtoryTime {
     }
 
     /// Get the epoch timestamp of the time
-    pub fn epoch(&self) -> i64 {
+    pub fn t(&self) -> i64 {
         self.time.t()
     }
 

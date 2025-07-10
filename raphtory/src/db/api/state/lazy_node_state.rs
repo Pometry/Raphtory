@@ -8,7 +8,7 @@ use crate::{
             },
             view::{
                 history::{
-                    History, HistoryDateTime, HistorySecondary, HistoryTimestamp, Intervals,
+                    History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, Intervals,
                 },
                 internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
@@ -211,7 +211,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
             .map(|history| history.dt())
     }
 
-    pub fn s(&self) -> impl Iterator<Item = HistorySecondary<NodeView<'graph, GH, GH>>> {
+    pub fn secondary_index(&self) -> impl Iterator<Item = HistorySecondaryIndex<NodeView<'graph, GH, GH>>> {
         self.compute()
             .into_iter_values()
             .map(|history| history.secondary_index())

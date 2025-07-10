@@ -37,7 +37,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeError, TimeIndexEntry},
+        timeindex::{AsTime, TimeIndexEntry},
     },
 };
 use raphtory_core::utils::time::IntoTime;
@@ -243,14 +243,9 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
-    /// Get the timestamps at which the property was updated
+    /// Get a history object which contains time entries for when the property was updated
     pub fn history(&self) -> PyHistory {
         self.prop.history().to_owned().into()
-    }
-
-    /// Get the timestamps at which the property was updated
-    pub fn history_date_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.prop.history_date_time()
     }
 
     /// Get the property values for each update
