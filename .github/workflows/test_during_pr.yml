@@ -45,6 +45,8 @@ jobs:
     name: Run docs tests
     runs-on: ubuntu-latest
     steps:
+      - name: List files for debugging
+        run: ls -al
       - name: Run docs tests
         run: make run-docs-tests
   # call-code-coverage:
