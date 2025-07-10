@@ -26,3 +26,27 @@ jobs:
           else
               cargo +nightly fmt --all -- --check || true
           fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black pymy networkx pyvis maturin
+
+      - name: Run make tidy-public
+        run: make tidy-public
+
+      - name: Check for uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "❌ Uncommitted changes detected after tidy-public. Did you forget to run it?"
+            git status
+            git diff
+            exit 1
+          else
+            echo "✅ No uncommitted changes after tidy-public."
+          fi
