@@ -40,7 +40,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install black pymy networkx pyvis maturin
+          pip install black mypy networkx pyvis maturin
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
           echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
 
@@ -50,10 +50,10 @@ jobs:
       - name: Check for uncommitted changes
         run: |
           if [ -n "$(git status --porcelain)" ]; then
-            echo "❌ Uncommitted changes detected after tidy-public. Did you forget to run it?"
+            echo "Uncommitted changes detected after tidy-public. Did you forget to run it?"
             git status
             git diff
             exit 1
           else
-            echo "✅ No uncommitted changes after tidy-public."
+            echo "No uncommitted changes after tidy-public."
           fi
