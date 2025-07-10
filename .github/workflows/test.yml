@@ -41,6 +41,7 @@ jobs:
     name: Run docs tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Run docs tests
         run: make run-docs-tests
 #  call-code-coverage:
