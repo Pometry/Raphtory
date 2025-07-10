@@ -35,7 +35,7 @@ macro_rules! impl_edge_property_filter_ops {
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_exploded_edges(
                 &self,
-                filter: crate::python::types::wrappers::prop::PyPropertyFilter,
+                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
             ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
             {
                 Ok(self
