@@ -7,6 +7,11 @@ jobs:
         name: Run docs tests
         runs-on: ubuntu-latest
         steps:
-        - uses: actions/checkout@v3
+        - name: Checkout
+          uses: actions/checkout@v3
+        - name: Setup Rust
+          uses: ./.github/actions/setup_rust
+        - name: Setup Python 
+          uses: actions/setup-python@v4
         - name: Run docs tests
           run: make run-docs-tests
