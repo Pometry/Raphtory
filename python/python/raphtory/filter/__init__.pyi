@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
+from raphtory import filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -23,17 +24,40 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
 __all__ = [
-    "NodeFilterOp",
+    "FilterExpr",
+    "NodeFilterBuilder",
     "Node",
     "EdgeFilterOp",
     "EdgeEndpoint",
     "Edge",
-    "PropertyFilterBuilder",
+    "Property",
     "TemporalPropertyFilterBuilder",
     "Property",
 ]
 
-class NodeFilterOp(object):
+class FilterExpr(object):
+    def __and__(self, value):
+        """Return self&value."""
+
+    def __invert__(self):
+        """~self"""
+
+    def __or__(self, value):
+        """Return self|value."""
+
+    def __rand__(self, value):
+        """Return value&self."""
+
+    def __ror__(self, value):
+        """Return value|self."""
+
+class NodeFilterBuilder(object):
+    """
+    A builder for constructing node filters
+
+    To create a filter builder see [Node][raphtory.filter.Node].
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -60,9 +84,22 @@ class NodeFilterOp(object):
 
 class Node(object):
     @staticmethod
-    def name(): ...
+    def name():
+        """
+        Filter node by name
+
+        Returns:
+            NodeFilterBuilder: A filter builder for filtering by node name
+        """
+
     @staticmethod
-    def node_type(): ...
+    def node_type():
+        """
+        Filter node by type
+
+        Returns:
+            NodeFilterBuilder: A filter builder for filtering by node type
+        """
 
 class EdgeFilterOp(object):
     def __eq__(self, value):
@@ -98,8 +135,8 @@ class Edge(object):
     @staticmethod
     def src(): ...
 
-class PropertyFilterBuilder(PropertyFilterOps):
-    def __new__(cls, name) -> PropertyFilterBuilder:
+class Property(PropertyFilterOps):
+    def __new__(cls, name) -> Property:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def constant(self): ...
@@ -109,4 +146,9 @@ class TemporalPropertyFilterBuilder(object):
     def any(self): ...
     def latest(self): ...
 
-def Property(name): ...
+class Property(PropertyFilterOps):
+    def __new__(cls, name) -> Property:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+    def constant(self): ...
+    def temporal(self): ...

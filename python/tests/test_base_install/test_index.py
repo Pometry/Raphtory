@@ -1,4 +1,4 @@
-from raphtory import Graph, Prop, PersistentGraph
+from raphtory import Graph, PersistentGraph
 import pytest
 from raphtory import filter
 

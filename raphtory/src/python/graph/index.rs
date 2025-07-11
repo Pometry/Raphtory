@@ -8,7 +8,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::SearchableGraphOps,
-    python::{graph::views::graph_view::PyGraphView, types::wrappers::filter_expr::PyFilterExpr},
+    python::{filter::filter_expr::PyFilterExpr, graph::views::graph_view::PyGraphView},
 };
 use ahash::HashSet;
 use pyo3::prelude::*;

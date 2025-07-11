@@ -14,6 +14,7 @@ from __future__ import annotations
 ###############################################################################
 
 from typing import *
+import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -43,8 +44,6 @@ __all__ = [
     "TemporalProperties",
     "PropertiesView",
     "TemporalProp",
-    "Prop",
-    "PropertyFilter",
     "WindowSet",
     "IndexSpecBuilder",
     "IndexSpec",
@@ -282,52 +281,49 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: PropertyFilter) -> GraphView:
+    def filter_edges(self, filter: filter.FilterExpr) -> GraphView:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the edges.
 
         Returns:
             GraphView: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> GraphView:
+    def filter_exploded_edges(self, filter: filter.FilterExpr) -> GraphView:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
 
         Returns:
             GraphView: The filtered view
         """
 
-    def filter_nodes(self, filter: PropertyFilter) -> GraphView:
+    def filter_nodes(self, filter: filter.FilterExpr) -> GraphView:
         """
         Return a filtered view that only includes nodes that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the nodes.
 
         Returns:
             GraphView: The filtered view
         """
 
-    def find_edges(self, properties_dict: dict[str, Prop]) -> list[Edge]:
+    def find_edges(self, properties_dict: dict[str, PropValue]) -> list[Edge]:
         """
         Get the edges that match the properties name and value
         Arguments:
-            properties_dict (dict[str, Prop]): the properties name and value
+            properties_dict (dict[str, PropValue]): the properties name and value
         Returns:
            list[Edge]: the edges that match the properties name and value
         """
 
-    def find_nodes(self, properties_dict: dict[str, Prop]) -> list[Node]:
+    def find_nodes(self, properties_dict: Any) -> list[Node]:
         """
         Get the nodes that match the properties name and value
         Arguments:
@@ -2409,37 +2405,34 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: PropertyFilter) -> Node:
+    def filter_edges(self, filter: filter.FilterExpr) -> Node:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the edges.
 
         Returns:
             Node: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Node:
+    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Node:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
 
         Returns:
             Node: The filtered view
         """
 
-    def filter_nodes(self, filter: PropertyFilter) -> Node:
+    def filter_nodes(self, filter: filter.FilterExpr) -> Node:
         """
         Return a filtered view that only includes nodes that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the nodes.
 
         Returns:
             Node: The filtered view
@@ -2959,37 +2952,34 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: PropertyFilter) -> Nodes:
+    def filter_edges(self, filter: filter.FilterExpr) -> Nodes:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the edges.
 
         Returns:
             Nodes: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> Nodes:
+    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Nodes:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
 
         Returns:
             Nodes: The filtered view
         """
 
-    def filter_nodes(self, filter: PropertyFilter) -> Nodes:
+    def filter_nodes(self, filter: filter.FilterExpr) -> Nodes:
         """
         Return a filtered view that only includes nodes that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the nodes.
 
         Returns:
             Nodes: The filtered view
@@ -3489,37 +3479,34 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: PropertyFilter) -> PathFromNode:
+    def filter_edges(self, filter: filter.FilterExpr) -> PathFromNode:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the edges.
 
         Returns:
             PathFromNode: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromNode:
+    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromNode:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
 
         Returns:
             PathFromNode: The filtered view
         """
 
-    def filter_nodes(self, filter: PropertyFilter) -> PathFromNode:
+    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the nodes.
 
         Returns:
             PathFromNode: The filtered view
@@ -3937,37 +3924,34 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: PropertyFilter) -> PathFromGraph:
+    def filter_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
         """
         Return a filtered view that only includes edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the edges.
 
         Returns:
             PathFromGraph: The filtered view
         """
 
-    def filter_exploded_edges(self, filter: PropertyFilter) -> PathFromGraph:
+    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
         """
         Return a filtered view that only includes exploded edges that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
 
         Returns:
             PathFromGraph: The filtered view
         """
 
-    def filter_nodes(self, filter: PropertyFilter) -> PathFromGraph:
+    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes that satisfy the filter
 
         Arguments:
-            filter (PropertyFilter): The filter to apply to the node properties. Construct a
-                                     filter using `Prop`.
+            filter (filter.FilterExpr): The filter to apply to the nodes.
 
         Returns:
             PathFromGraph: The filtered view
@@ -6036,7 +6020,7 @@ class TemporalProp(object):
     def at(self, t):
         """Get the value of the property at time `t`"""
 
-    def average(self) -> Prop:
+    def average(self):
         """
         Compute the average of all property values. Alias for mean().
 
@@ -6072,7 +6056,7 @@ class TemporalProp(object):
             (i64, Prop): A tuple containing the time and the maximum property value.
         """
 
-    def mean(self) -> Prop:
+    def mean(self):
         """
         Compute the mean of all property values. Alias for mean().
 
@@ -6097,7 +6081,7 @@ class TemporalProp(object):
         """
 
     def ordered_dedupe(self, latest_time): ...
-    def sum(self) -> Prop:
+    def sum(self):
         """
         Compute the sum of all property values.
 
@@ -6111,97 +6095,6 @@ class TemporalProp(object):
 
     def values(self):
         """Get the property values for each update"""
-
-class Prop(object):
-    """
-    A reference to a property used for constructing filters
-
-    Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
-    property value (these filters always exclude entities that do not
-    have the property) or use one of the methods to construct
-    other kinds of filters.
-
-    Arguments:
-        name (str): the name of the property
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __new__(cls, name: str) -> Prop:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-    def contains(self, value) -> PropertyFilter:
-        """
-        Create a filter that keeps entities that contains the property
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-    def is_in(self, values: set[PropValue]) -> PropertyFilter:
-        """
-        Create a filter that keeps entities if their property value is in the set
-
-        Arguments:
-            values (set[PropValue]): the set of values to match
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-    def is_none(self) -> PropertyFilter:
-        """
-        Create a filter that only keeps entities that do not have the property
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-    def is_not_in(self, values: set[PropValue]) -> PropertyFilter:
-        """
-        Create a filter that keeps entities if their property value is not in the set or
-        if they don't have the property
-
-        Arguments:
-            values (set[PropValue]): the set of values to exclude
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-    def is_some(self) -> PropertyFilter:
-        """
-        Create a filter that only keeps entities if they have the property
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-    def not_contains(self, value) -> PropertyFilter:
-        """
-        Create a filter that keeps entities that do not contain the property
-
-        Returns:
-            PropertyFilter: the property filter
-        """
-
-class PropertyFilter(object): ...
 
 class WindowSet(object):
     def __iter__(self):

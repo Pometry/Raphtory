@@ -21,7 +21,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    internal::CreateExplodedEdgeFilter,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
@@ -35,11 +34,9 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{edge::PyEdge, node::PyNode},
-        types::{
-            repr::{Repr, StructReprBuilder},
-            wrappers::{filter_expr::PyFilterExpr, prop::PyPropertyFilter},
-        },
+        types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
 };
@@ -356,7 +353,7 @@ impl PyGraphView {
 
     /// Get the edges that match the properties name and value
     /// Arguments:
-    ///     properties_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, PropValue]): the properties name and value
     /// Returns:
     ///    list[Edge]: the edges that match the properties name and value
     #[pyo3(signature = (properties_dict))]

@@ -19,20 +19,16 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::CreateExplodedEdgeFilter,
         },
     },
     errors::GraphError,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,
