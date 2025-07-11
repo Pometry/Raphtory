@@ -10,7 +10,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
@@ -132,7 +132,9 @@ impl<
     > Debug for NodeState<'graph, V, G, GH>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_map().entries(self.iter()).finish()
+        f.debug_map()
+            .entries(self.iter().map(|(node, value)| (node.id(), value)))
+            .finish()
     }
 }
 

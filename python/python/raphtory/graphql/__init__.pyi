@@ -31,6 +31,10 @@ __all__ = [
     "RemoteNodeAddition",
     "RemoteUpdate",
     "RemoteEdgeAddition",
+    "RemoteIndexSpec",
+    "PropsInput",
+    "SomePropertySpec",
+    "AllPropertySpec",
     "encode_graph",
     "decode_graph",
 ]

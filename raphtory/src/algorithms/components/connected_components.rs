@@ -1,22 +1,192 @@
 use crate::{
-    core::state::compute_state::ComputeStateVec,
     db::{
         api::{
             state::NodeState,
-            view::{NodeViewOps, StaticGraphViewOps},
+            view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
-        task::{
-            context::Context,
-            node::eval_node::EvalNodeView,
-            task::{ATask, Job, Step},
-            task_runner::TaskRunner,
-        },
+        graph::node::NodeView,
     },
+    prelude::GraphViewOps,
+};
+use raphtory_api::core::entities::VID;
+use rayon::prelude::*;
+use std::{
+    fmt::{Debug, Formatter},
+    mem,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
-#[derive(Clone, Debug, Default)]
-struct WccState {
-    component: usize,
+/// Keeps track of node assignments to weakly-connected components
+///
+/// `node_labels` tracks the assignment of nodes to labels
+/// `chunk_labels` tracks the mapping from node labels to final components
+struct ComponentState<'graph, G> {
+    chunk_labels: Vec<AtomicUsize>,
+    node_labels: Vec<AtomicUsize>,
+    next_start: AtomicUsize,
+    next_chunk: AtomicUsize,
+    graph: &'graph G,
+}
+
+impl<'graph, G> Debug for ComponentState<'graph, G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentState")
+            .field("chunk_labels", &self.chunk_labels)
+            .field("node_labels", &self.node_labels)
+            .field("next_start", &self.next_start)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
+    fn new(graph: &'graph G) -> Self {
+        let num_nodes = graph.unfiltered_num_nodes();
+        let chunk_labels = (0..num_nodes)
+            .map(|_| AtomicUsize::new(usize::MAX))
+            .collect();
+        let node_labels = (0..num_nodes)
+            .map(|_| AtomicUsize::new(usize::MAX))
+            .collect();
+        let next_start = AtomicUsize::new(0);
+        let next_chunk = AtomicUsize::new(0);
+        Self {
+            chunk_labels,
+            node_labels,
+            next_start,
+            next_chunk,
+            graph,
+        }
+    }
+
+    /// Link two chunks `chunk_id_1` and `chunk_id_2` such that they will be part of the same
+    /// component in the final result.
+    ///
+    /// The components always link from larger id to smaller id. If while linking, we find that
+    /// the component was already linked, we rewire that link as well (the implementation is effectively
+    /// the same as calling this function recursively)
+    fn link_chunks(&self, chunk_id_1: usize, chunk_id_2: usize) {
+        let mut src = chunk_id_1.max(chunk_id_2);
+        let mut dst = chunk_id_1.min(chunk_id_2);
+        while src != dst {
+            let old_label = self.chunk_labels[src].fetch_min(dst, Ordering::Relaxed);
+            if old_label != usize::MAX {
+                if old_label > dst {
+                    src = old_label
+                } else {
+                    src = dst;
+                    dst = old_label
+                }
+            }
+        }
+    }
+
+    /// Find the next valid starting node for a task
+    ///
+    /// This function takes care to make sure that there will never be more tasks than
+    /// unfiltered nodes in the graph!
+    fn next_start(&self) -> Option<(usize, VID)> {
+        let mut next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+        if next_start >= self.node_labels.len() {
+            return None;
+        }
+        // only increment this if we still have a potentially valid node to avoid getting too many chunks
+        let chunk_id = self.next_chunk_label();
+        let old_label = self.chunk_labels[chunk_id].fetch_min(chunk_id, Ordering::Relaxed);
+        if old_label != usize::MAX {
+            // some other thread managed to initialise our chunk (this seems theoretically possible)
+            self.link_chunks(chunk_id, old_label);
+        }
+        loop {
+            //
+            if self.node_labels[next_start]
+                .compare_exchange(usize::MAX, chunk_id, Ordering::Relaxed, Ordering::Relaxed)
+                .is_ok()
+            {
+                if self.graph.has_node(VID(next_start)) {
+                    return Some((chunk_id, VID(next_start)));
+                }
+            }
+            next_start = self.next_start.fetch_add(1, Ordering::Relaxed);
+            if next_start >= self.node_labels.len() {
+                return None;
+            }
+        }
+    }
+
+    fn next_chunk_label(&self) -> usize {
+        self.next_chunk.fetch_add(1, Ordering::Relaxed)
+    }
+
+    /// Find a new starting point and run breadth-first search
+    ///
+    /// If we find a node that was already handled by another chunk, update the label assignments
+    /// accordingly using `link_chunks`
+    fn run_chunk(&self) -> Option<()> {
+        let (chunk_id, start) = self.next_start()?;
+        let mut min_label = chunk_id;
+        let mut new_frontier = vec![start];
+        let mut frontier = vec![];
+        while !new_frontier.is_empty() {
+            mem::swap(&mut new_frontier, &mut frontier);
+            for node_id in frontier.drain(..) {
+                for neighbour in NodeView::new_internal(self.graph, node_id).neighbours() {
+                    let node_id = neighbour.node;
+                    let old_label =
+                        self.node_labels[node_id.index()].fetch_min(min_label, Ordering::Relaxed);
+                    if old_label != usize::MAX {
+                        self.link_chunks(chunk_id, old_label);
+                        min_label = min_label.min(old_label);
+                    } else {
+                        new_frontier.push(node_id);
+                    }
+                }
+            }
+        }
+        Some(())
+    }
+
+    /// Runs breadth-first search in parallel from different starting points until the graph is covered
+    ///
+    /// During the first phase, the `node_labels` contain the id of the first task that visited that node
+    /// and the `chunk_labels` maintain a mapping from task to the minimum over other tasks that also
+    /// reached a node first discovered by this task.
+    ///
+    /// In the second phase, starting from each task, we follow the relabelling map until we hit a root task (i.e., one where the label is mapped to itself)
+    /// and simplify the chunk_labels
+    ///
+    /// Finally, the simplified chunk_labels are used to update the `node_labels` for the final output.
+    fn run(self) -> Vec<usize> {
+        let num_tasks = rayon::current_num_threads();
+        (0..num_tasks)
+            .into_par_iter()
+            .for_each(|_| while self.run_chunk().is_some() {});
+        let num_chunks = self.next_chunk.load(Ordering::Relaxed);
+        self.chunk_labels[0..num_chunks]
+            .par_iter()
+            .enumerate()
+            .for_each(|(chunk_id, label)| {
+                let mut component_id = label.load(Ordering::Relaxed);
+                let mut current_chunk = chunk_id;
+                while component_id != current_chunk {
+                    current_chunk = component_id;
+                    component_id = self.chunk_labels[current_chunk].load(Ordering::Relaxed);
+                }
+                if component_id != chunk_id {
+                    self.chunk_labels[chunk_id].fetch_min(component_id, Ordering::Relaxed);
+                }
+            });
+        self.node_labels
+            .into_iter()
+            .map(|l| {
+                let l = l.into_inner();
+                if l != usize::MAX {
+                    self.chunk_labels[l].load(Ordering::Relaxed)
+                } else {
+                    l
+                }
+            })
+            .collect()
+    }
 }
 
 /// Computes the connected community_detection of a graph using the Simple Connected Components algorithm
@@ -31,62 +201,42 @@ struct WccState {
 ///
 /// An [NodeState] containing the mapping from each node to its component ID
 ///
-pub fn weakly_connected_components<G>(
-    g: &G,
-    iter_count: usize,
-    threads: Option<usize>,
-) -> NodeState<'static, usize, G>
+pub fn weakly_connected_components<G>(g: &G) -> NodeState<'static, usize, G>
 where
     G: StaticGraphViewOps,
 {
-    let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv| {
-        let min_neighbour_id = vv.neighbours().iter().map(|n| n.node.0).min();
-        let id = vv.node.0;
-        let state: &mut WccState = vv.get_mut();
-        state.component = min_neighbour_id.unwrap_or(id).min(id);
-        Step::Continue
-    });
-
-    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, WccState>| {
-        let prev: usize = vv.prev().component;
-        let current = vv
-            .neighbours()
-            .into_iter()
-            .map(|n| n.prev().component)
-            .min()
-            .unwrap_or(prev);
-        let state: &mut WccState = vv.get_mut();
-        if current < prev {
-            state.component = current;
-            Step::Continue
-        } else {
-            Step::Done
-        }
-    });
-
-    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    runner.run(
-        vec![Job::new(step1)],
-        vec![Job::read_only(step2)],
-        None,
-        |_, _, _, local: Vec<WccState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.component)
-        },
-        threads,
-        iter_count,
-        None,
-        None,
-    )
+    // read-lock the graph
+    let _cg = g.core_graph().lock();
+    let state = ComponentState::new(g);
+    let result = state.run();
+    NodeState::new_from_eval(g.clone(), result)
 }
 
 #[cfg(test)]
 mod cc_test {
     use super::*;
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
+    use ahash::HashSet;
     use itertools::*;
+    use proptest::{prelude::Strategy, proptest, sample::Index};
     use quickcheck_macros::quickcheck;
-    use std::{cmp::Reverse, collections::HashMap, iter::once};
+    use std::{collections::BTreeSet, iter::once};
+
+    fn assert_same_partition<G: GraphView, ID: Into<GID>>(
+        left: NodeState<usize, G>,
+        right: impl IntoIterator<Item = impl IntoIterator<Item = ID>>,
+    ) {
+        let left_groups: HashSet<BTreeSet<_>> = left
+            .groups()
+            .into_iter_groups()
+            .map(|(_, nodes)| nodes.id().collect())
+            .collect();
+        let right_groups: HashSet<BTreeSet<_>> = right
+            .into_iter()
+            .map(|inner| inner.into_iter().map(|id| id.into()).collect())
+            .collect();
+        assert_eq!(left_groups, right_groups);
+    }
 
     #[test]
     fn run_loop_simple_connected_components() {
@@ -107,22 +257,10 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-            assert_eq!(
-                results,
-                vec![
-                    ("1".to_string(), 0),
-                    ("2".to_string(), 0),
-                    ("3".to_string(), 0),
-                    ("4".to_string(), 0),
-                    ("5".to_string(), 0),
-                    ("6".to_string(), 0),
-                    ("7".to_string(), 6),
-                    ("8".to_string(), 6),
-                ]
-                .into_iter()
-                .collect::<HashMap<_, _>>()
-            );
+            for _ in 0..1000 {
+                let results = weakly_connected_components(graph);
+                assert_same_partition(results, [1..=6, 7..=8]);
+            }
         });
     }
 
@@ -161,27 +299,32 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-
-            assert_eq!(
-                results,
-                vec![
-                    ("1".to_string(), 0),
-                    ("2".to_string(), 0),
-                    ("3".to_string(), 0),
-                    ("4".to_string(), 0),
-                    ("5".to_string(), 0),
-                    ("6".to_string(), 0),
-                    ("7".to_string(), 0),
-                    ("8".to_string(), 0),
-                    ("9".to_string(), 0),
-                    ("10".to_string(), 0),
-                    ("11".to_string(), 0),
-                ]
-                .into_iter()
-                .collect::<HashMap<_, _>>()
-            );
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [1..=11]);
         });
+    }
+
+    #[test]
+    fn test_multiple_components() {
+        let graph = Graph::new();
+        let edges = vec![
+            (1, 1, 2),
+            (2, 2, 1),
+            (3, 3, 1),
+            (1, 10, 11),
+            (2, 20, 21),
+            (3, 30, 31),
+        ];
+        for (ts, src, dst) in edges {
+            graph.add_edge(ts, src, dst, NO_PROPS, None).unwrap();
+        }
+        for _ in 0..1000 {
+            let result = weakly_connected_components(&graph);
+            assert_same_partition(
+                result,
+                [vec![1, 2, 3], vec![10, 11], vec![20, 21], vec![30, 31]],
+            )
+        }
     }
 
     // connected community_detection on a graph with 1 node and a self loop
@@ -196,14 +339,11 @@ mod cc_test {
         }
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-
-            assert_eq!(
-                results,
-                vec![("1".to_string(), 0)]
-                    .into_iter()
-                    .collect::<HashMap<_, _>>()
-            );
+            for _ in 0..1000 {
+                // loop to test for weird non-deterministic behaviour
+                let results = weakly_connected_components(graph);
+                assert_same_partition(results, [[1]]);
+            }
         });
     }
 
@@ -216,84 +356,57 @@ mod cc_test {
         graph.add_edge(9, 4, 3, NO_PROPS, None).expect("add edge");
 
         test_storage!(&graph, |graph| {
-            let results = weakly_connected_components(graph, usize::MAX, None);
-            let expected = vec![
-                ("1".to_string(), 0),
-                ("2".to_string(), 0),
-                ("3".to_string(), 2),
-                ("4".to_string(), 2),
-            ]
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-            assert_eq!(results, expected);
+            let results = weakly_connected_components(graph);
+            assert_same_partition(results, [[1, 2], [3, 4]]);
 
             let wg = graph.window(0, 2);
-            let results = weakly_connected_components(&wg, usize::MAX, None);
-
-            let expected = HashMap::from([("1", 0), ("2", 0)]);
-
-            assert_eq!(results, expected);
+            let results = weakly_connected_components(&wg);
+            assert_same_partition(results, [[1, 2]]);
         });
     }
 
-    #[quickcheck]
-    fn circle_graph_edges(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-            let _smallest = vs.iter().min().unwrap();
-
-            let first = vs[0];
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
-
-            assert_eq!(edges[0].0, first);
-            assert_eq!(edges.last().unwrap().1, first);
-        }
+    fn random_component_edges(
+        num_components: usize,
+        num_nodes_per_component: usize,
+    ) -> impl Strategy<Value = (Vec<(u64, u64)>, Vec<HashSet<u64>>)> {
+        let vs = proptest::collection::vec(
+            proptest::collection::vec(
+                (
+                    0..num_nodes_per_component,
+                    proptest::arbitrary::any::<Index>(),
+                ),
+                2..=num_nodes_per_component,
+            ),
+            0..=num_components,
+        );
+        vs.prop_map(move |vs| {
+            let mut edges = Vec::new();
+            let mut components = Vec::new();
+            for (ci, c) in vs.into_iter().enumerate() {
+                let offset = num_nodes_per_component * ci;
+                let component: Vec<_> = c.iter().map(|(i, _)| (*i + offset) as u64).collect();
+                for i in 1..c.len() {
+                    let n = component[c[i].1.index(i)];
+                    edges.push((component[i], n));
+                }
+                components.push(component.into_iter().collect());
+            }
+            (edges, components)
+        })
     }
 
-    #[quickcheck]
-    fn circle_graph_the_smallest_value_is_the_cc(vs: Vec<u64>) {
-        if !vs.is_empty() {
-            let graph = Graph::new();
-
-            let vs = vs.into_iter().unique().collect::<Vec<u64>>();
-
-            let first = vs[0];
-
-            // pairs of nodes from vs one after the next
-            let edges = vs
-                .iter()
-                .zip(chain!(vs.iter().skip(1), once(&first)))
-                .map(|(a, b)| (*a, *b))
-                .collect::<Vec<(u64, u64)>>();
-
-            for (src, dst) in edges.iter() {
-                graph.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
+    #[test]
+    fn weakly_connected_components_proptest() {
+        proptest!(|(input in random_component_edges(10, 100))|{
+            let (edges, components) = input;
+            let g = Graph::new();
+            for (src, dst) in edges {
+                g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
             }
-
-            test_storage!(&graph, |graph| {
-                // now we do connected community_detection over window 0..1
-                let res = weakly_connected_components(graph, usize::MAX, None).groups();
-
-                let (cc, size) = res
-                    .into_iter_groups()
-                    .map(|(cc, group)| (cc, Reverse(group.len())))
-                    .sorted_by(|l, r| l.1.cmp(&r.1))
-                    .map(|(cc, count)| (cc, count.0))
-                    .take(1)
-                    .next()
-                    .unwrap();
-
-                assert_eq!(cc, 0);
-
-                assert_eq!(size, edges.len());
-            });
-        }
+            for _ in 0..10 {
+                let result = weakly_connected_components(&g);
+                assert_same_partition(result, &components);
+            }
+        })
     }
 }
