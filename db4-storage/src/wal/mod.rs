@@ -25,20 +25,8 @@ pub trait Wal {
 
     fn dir(&self) -> &Path;
 
-    /// Reserves and returns the next available LSN without writing any data.
-    fn reserve(&self) -> LSN;
-
-    /// Appends data to the WAL with the specified LSN.
-    /// The LSN must have been previously reserved.
-    fn append_with_lsn(&self, lsn: LSN, data: &[u8]) -> Result<(), DBV4Error>;
-
     /// Appends data to the WAL and returns the assigned LSN.
-    /// This is a convenience method that combines reserve() and append_with_lsn().
-    fn append(&self, data: &[u8]) -> Result<LSN, DBV4Error> {
-        let lsn = self.reserve();
-        self.append_with_lsn(lsn, data)?;
-        Ok(lsn)
-    }
+    fn append(&self, data: &[u8]) -> Result<LSN, DBV4Error>;
 
     /// Blocks until the WAL has fsynced the given LSN to disk.
     fn wait_for_sync(&self, lsn: LSN);
