@@ -91,7 +91,7 @@ gen-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
 
 clean-doc-pages:
-	rm -r docs/reference && rm -r docs/tmp/saved_graph
+	rm -rf docs/reference && rm -rf docs/tmp/saved_graph
 
 python-docs-serve: install-doc-deps
 	mkdocs serve
