@@ -133,7 +133,7 @@ impl DocumentTemplate {
             }
             Err(error) => {
                 let node = node.name();
-                print!("Template render failed for a node {node}, skipping: {error}");
+                error!("Template render failed for a node {node}, skipping: {error}");
                 None
             }
         }
@@ -155,7 +155,7 @@ impl DocumentTemplate {
             Err(error) => {
                 let src = edge.src().name();
                 let dst = edge.dst().name();
-                print!("Template render failed for edge {src}->{dst}, skipping: {error}");
+                error!("Template render failed for edge {src}->{dst}, skipping: {error}");
                 None
             }
         }
