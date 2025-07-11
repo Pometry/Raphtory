@@ -62,6 +62,8 @@ tidy: rust-fmt build-python stubs python-fmt
 
 tidy-public: rust-fmt build-python-public stubs python-fmt
 
+python-tidy-no-build: stubs python-fmt
+
 check-pr: tidy-public test-all
 
 build-python-public: deactivate-storage
