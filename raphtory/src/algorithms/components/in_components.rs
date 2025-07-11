@@ -40,7 +40,7 @@ where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, InState>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<_, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().iter().for_each(|node| {
@@ -98,8 +98,8 @@ where
 ///
 /// The nodes within the given nodes in-component and their distances from the starting node.
 ///
-pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    node: NodeView<'graph, G, GH>,
+pub fn in_component<'graph, G: GraphViewOps<'graph>>(
+    node: NodeView<'graph, G>,
 ) -> NodeState<'graph, usize, G> {
     let mut in_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
@@ -124,8 +124,8 @@ pub fn in_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         in_components.into_iter().sorted().unzip();
     NodeState::new(
-        node.base_graph.clone(),
-        node.base_graph.clone(),
+        node.graph.clone(),
+        node.graph.clone(),
         distances.into(),
         Some(Index::new(nodes)),
     )

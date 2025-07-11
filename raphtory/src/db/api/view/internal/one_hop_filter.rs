@@ -1,17 +1,27 @@
 use crate::prelude::GraphViewOps;
 
-pub trait OneHopFilter<'graph> {
-    type BaseGraph: GraphViewOps<'graph> + 'graph;
-    type FilteredGraph: GraphViewOps<'graph> + 'graph;
+pub trait BaseFilter<'graph> {
+    type Current: GraphViewOps<'graph> + 'graph;
 
-    type Filtered<GH: GraphViewOps<'graph> + 'graph>: OneHopFilter<'graph, FilteredGraph = GH>
-        + 'graph;
-    fn current_filter(&self) -> &Self::FilteredGraph;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph>: BaseFilter<'graph, Current = Next>;
 
-    fn base_graph(&self) -> &Self::BaseGraph;
+    fn current_filtered_graph(&self) -> &Self::Current;
 
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH>;
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next>;
+}
+
+pub trait OneHopFilter<'graph> {
+    type Current: GraphViewOps<'graph> + 'graph;
+
+    type Filtered<Next: GraphViewOps<'graph> + 'graph>: OneHopFilter<'graph, Current = Next>;
+
+    fn current_filtered_graph(&self) -> &Self::Current;
+
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next>;
 }

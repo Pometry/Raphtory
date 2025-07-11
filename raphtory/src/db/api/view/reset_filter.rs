@@ -1,7 +1,7 @@
-use crate::db::api::view::internal::OneHopFilter;
+use crate::db::api::view::internal::BaseFilter;
 
-pub trait ResetFilter<'graph>: OneHopFilter<'graph> {
-    fn reset_filter(&self) -> Self::Filtered<Self::BaseGraph> {
-        self.one_hop_filtered(self.base_graph().clone())
-    }
+pub trait ResetFilter<'graph>: BaseFilter<'graph> {
+    // fn reset_filter(&self) -> Self::Filtered<Self::BaseGraph> {
+    //     self.apply_filter(self.base_graph().clone())
+    // }
 }

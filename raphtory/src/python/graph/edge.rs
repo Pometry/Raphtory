@@ -35,12 +35,12 @@ use std::{
 #[pyclass(name = "Edge", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyEdge {
-    pub edge: EdgeView<DynamicGraph, DynamicGraph>,
+    pub edge: EdgeView<DynamicGraph>,
 }
 
 #[pyclass(name="MutableEdge", extends=PyEdge, module="raphtory", frozen)]
 pub struct PyMutableEdge {
-    pub edge: EdgeView<MaterializedGraph, MaterializedGraph>,
+    pub edge: EdgeView<MaterializedGraph>,
 }
 
 impl PyMutableEdge {
@@ -52,16 +52,14 @@ impl PyMutableEdge {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<EdgeView<G, GH>> for PyEdge
+impl<G: StaticGraphViewOps + IntoDynamic>
+    From<EdgeView<G>> for PyEdge
 {
-    fn from(value: EdgeView<G, GH>) -> Self {
-        let base_graph = value.base_graph.into_dynamic();
+    fn from(value: EdgeView<G>) -> Self {
         let graph = value.graph.into_dynamic();
         let edge = value.edge;
         Self {
             edge: EdgeView {
-                base_graph,
                 graph,
                 edge,
             },
@@ -69,12 +67,10 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Static>
-    From<EdgeView<G, GH>> for EdgeView<DynamicGraph, DynamicGraph>
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<EdgeView<G>> for EdgeView<DynamicGraph>
 {
-    fn from(value: EdgeView<G, GH>) -> Self {
+    fn from(value: EdgeView<G>) -> Self {
         EdgeView {
-            base_graph: value.base_graph.into_dynamic(),
             graph: value.graph.into_dynamic(),
             edge: value.edge,
         }
@@ -91,12 +87,11 @@ impl<'py> IntoPyObject<'py> for EdgeView<&DynamicGraph> {
     }
 }
 
-impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for PyMutableEdge {
-    fn from(value: EdgeView<G, G>) -> Self {
+impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G>> for PyMutableEdge {
+    fn from(value: EdgeView<G>) -> Self {
         let edge = EdgeView {
-            edge: value.edge,
             graph: value.graph.into(),
-            base_graph: value.base_graph.into(),
+            edge: value.edge,
         };
 
         Self { edge }
@@ -106,8 +101,7 @@ impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for P
 impl<
         'py,
         G: StaticGraphViewOps + IntoDynamic + Immutable,
-        GH: StaticGraphViewOps + IntoDynamic + Immutable,
-    > IntoPyObject<'py> for EdgeView<G, GH>
+    > IntoPyObject<'py> for EdgeView<G>
 {
     type Target = PyEdge;
     type Output = Bound<'py, Self::Target>;
@@ -118,7 +112,7 @@ impl<
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<Graph, Graph> {
+impl<'py> IntoPyObject<'py> for EdgeView<Graph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -128,7 +122,7 @@ impl<'py> IntoPyObject<'py> for EdgeView<Graph, Graph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph, PersistentGraph> {
+impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -138,7 +132,7 @@ impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph, PersistentGraph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph, MaterializedGraph> {
+impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -274,7 +268,7 @@ impl PyEdge {
     /// Returns:
     ///   Properties on the Edge.
     #[getter]
-    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
         self.edge.properties()
     }
 
@@ -357,7 +351,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Repr for EdgeView<G> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()

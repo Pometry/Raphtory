@@ -20,7 +20,7 @@ macro_rules! impl_node_property_filter_ops {
             fn filter_nodes(
                 &self,
                 filter: PyFilterExpr,
-            ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
+            ) -> Result<<$base_type as BaseFilter<'static>>::Filtered<DynamicGraph>, GraphError>
             {
                 Ok(self.$field.clone().filter_nodes(filter)?.into_dyn_hop())
             }

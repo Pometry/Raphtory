@@ -25,7 +25,7 @@ impl<'graph, G> GetProperties<'graph, G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
-    type Output = Properties<NodeView<'graph, G, G>>;
+    type Output = Properties<NodeView<'graph, G>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))

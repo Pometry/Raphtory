@@ -206,9 +206,9 @@ impl NodeIndex {
         document
     }
 
-    fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    fn index_node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<'graph, G, GH>,
+        node: NodeView<'graph, G>,
         writer: &IndexWriter,
     ) -> Result<(), GraphError> {
         let node_id: u64 = usize::from(node.node) as u64;

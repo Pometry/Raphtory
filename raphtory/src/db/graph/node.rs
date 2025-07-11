@@ -9,7 +9,7 @@ use crate::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
             view::{
-                internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
+                internal::{BaseFilter, GraphTimeSemanticsOps, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -46,28 +46,26 @@ use std::{
 
 /// View of a Node in a Graph
 #[derive(Copy, Clone)]
-pub struct NodeView<'graph, G, GH = G> {
-    pub base_graph: G,
-    pub graph: GH,
+pub struct NodeView<'graph, G> {
+    pub graph: G,
     pub node: VID,
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'graph, G1: CoreGraphOps, G1H, G2: CoreGraphOps, G2H> PartialEq<NodeView<'graph, G2, G2H>>
-    for NodeView<'graph, G1, G1H>
+impl<'graph, G1: CoreGraphOps, G2: CoreGraphOps> PartialEq<NodeView<'graph, G2>>
+    for NodeView<'graph, G1>
 {
-    fn eq(&self, other: &NodeView<'graph, G2, G2H>) -> bool {
-        self.base_graph.node_id(self.node) == other.base_graph.node_id(other.node)
+    fn eq(&self, other: &NodeView<'graph, G2>) -> bool {
+        self.graph.node_id(self.node) == other.graph.node_id(other.node)
     }
 }
 
-impl<'b, G: 'b, GH: 'b> NodeView<'b, G, GH> {
-    pub fn as_ref<'a>(&'a self) -> NodeView<'a, &'a G, &'a GH>
+impl<'b, G: 'b> NodeView<'b, G> {
+    pub fn as_ref<'a>(&'a self) -> NodeView<'a, &'a G>
     where
         'b: 'a,
     {
         NodeView {
-            base_graph: &self.base_graph,
             graph: &self.graph,
             node: self.node,
             _marker: PhantomData,
@@ -75,10 +73,9 @@ impl<'b, G: 'b, GH: 'b> NodeView<'b, G, GH> {
     }
 }
 
-impl<'a, 'b: 'a, G: Clone + 'b, GH: Clone + 'b> NodeView<'a, &'a G, &'a GH> {
-    pub fn cloned(&self) -> NodeView<'b, G, GH> {
+impl<'a, 'b: 'a, G: Clone + 'b> NodeView<'a, &'a G> {
+    pub fn cloned(&self) -> NodeView<'b, G> {
         NodeView {
-            base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             node: self.node,
             _marker: PhantomData,
@@ -86,28 +83,23 @@ impl<'a, 'b: 'a, G: Clone + 'b, GH: Clone + 'b> NodeView<'a, &'a G, &'a GH> {
     }
 }
 
-impl<'a, G: IntoDynamic, GH: IntoDynamic> NodeView<'a, G, GH> {
-    pub fn into_dynamic(self) -> NodeView<'a, DynamicGraph, DynamicGraph> {
-        let base_graph = self.base_graph.into_dynamic();
-        let graph = self.graph.into_dynamic();
+impl<'a, G: IntoDynamic> NodeView<'a, G> {
+    pub fn into_dynamic(self) -> NodeView<'a, DynamicGraph> {
         NodeView {
-            base_graph,
-            graph,
+            graph: self.graph.into_dynamic(),
             node: self.node,
             _marker: PhantomData,
         }
     }
 }
 
-impl<'graph, G: Send + Sync, GH: Send + Sync> AsNodeRef for NodeView<'graph, G, GH> {
+impl<'graph, G: Send + Sync> AsNodeRef for NodeView<'graph, G> {
     fn as_node_ref(&self) -> NodeRef {
         NodeRef::Internal(self.node)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> fmt::Debug
-    for NodeView<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> fmt::Debug for NodeView<'graph, G> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NodeView")
             .field("node", &self.node)
@@ -118,7 +110,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> fmt::Debug
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> fmt::Display for NodeView<'graph, G> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -130,32 +122,26 @@ impl<'graph, G, GH: GraphViewOps<'graph>> fmt::Display for NodeView<'graph, G, G
     }
 }
 
-impl<
-        'graph,
-        G1: GraphViewOps<'graph>,
-        G1H: GraphViewOps<'graph>,
-        G2: GraphViewOps<'graph>,
-        G2H: GraphViewOps<'graph>,
-    > PartialOrd<NodeView<'graph, G2, G2H>> for NodeView<'graph, G1, G1H>
+impl<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>> PartialOrd<NodeView<'graph, G2>>
+    for NodeView<'graph, G1>
 {
-    fn partial_cmp(&self, other: &NodeView<'graph, G2, G2H>) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &NodeView<'graph, G2>) -> Option<std::cmp::Ordering> {
         self.id().partial_cmp(&other.id())
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Ord for NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Ord for NodeView<'graph, G> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id().cmp(&other.id())
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for NodeView<'graph, G, GH> {}
+impl<'graph, G: GraphViewOps<'graph>> Eq for NodeView<'graph, G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
     /// Creates a new `NodeView` wrapping an internal node reference and a graph
     pub fn new_internal(graph: G, node: VID) -> NodeView<'graph, G> {
         NodeView {
-            base_graph: graph.clone(),
             graph,
             node,
             _marker: PhantomData,
@@ -163,10 +149,9 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
-    pub fn new_one_hop_filtered(base_graph: G, graph: GH, node: VID) -> Self {
+impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
+    pub fn new_one_hop_filtered(graph: G, node: VID) -> Self {
         NodeView {
-            base_graph,
             graph,
             node,
             _marker: PhantomData,
@@ -174,51 +159,38 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeView<'graph,
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
-    for NodeView<'graph, G, GH>
-{
-}
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
-    ExplodedEdgePropertyFilterOps<'graph> for NodeView<'graph, G, GH>
+impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for NodeView<'graph, G> {}
+impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilterOps<'graph>
+    for NodeView<'graph, G>
 {
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
-    for NodeView<'graph, G, GH>
-{
-}
+impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for NodeView<'graph, G> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for NodeView<'graph, G, GH>
+impl<'graph, Current> BaseFilter<'graph> for NodeView<'graph, Current>
+where
+    Current: GraphViewOps<'graph>,
 {
-    type BaseGraph = G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = NodeView<'graph, G, GHH>;
+    type Current = Current;
+    type Filtered<Next: GraphViewOps<'graph>> = NodeView<'graph, Next>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.base_graph
-    }
-
-    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+    fn apply_filter<Next: GraphViewOps<'graph>>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        let base_graph = self.base_graph.clone();
-        let node = self.node;
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         NodeView {
-            base_graph,
             graph: filtered_graph,
-            node,
+            node: self.node,
             _marker: PhantomData,
         }
     }
 }
 
-impl<'a, G, GH: CoreGraphOps> Hash for NodeView<'a, G, GH> {
+impl<'a, G: CoreGraphOps> Hash for NodeView<'a, G> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Hash the graph
         "1".to_string().hash(state);
@@ -228,8 +200,8 @@ impl<'a, G, GH: CoreGraphOps> Hash for NodeView<'a, G, GH> {
     }
 }
 
-impl<'graph, G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
-    for NodeView<'graph, G, GH>
+impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
+    for NodeView<'graph, G>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().temporal_prop_meta().get_id(name)
@@ -248,7 +220,7 @@ impl<'graph, G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'graph, G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .node_meta()
@@ -256,6 +228,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
             .get_dtype(id)
             .unwrap()
     }
+
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
@@ -298,7 +271,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
     pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (TimeIndexEntry, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
@@ -315,7 +288,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstantPropertiesOps for NodeView<'graph, G, GH> {
+impl<'graph, G: CoreGraphOps> ConstantPropertiesOps for NodeView<'graph, G> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().const_prop_meta().get_id(name)
     }
@@ -337,13 +310,10 @@ impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstantPropertiesOps for NodeVie
     }
 }
 
-impl<'graph, G, GH> Static for NodeView<'graph, G, GH> {}
+impl<'graph, G> Static for NodeView<'graph, G> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<'graph>
-    for NodeView<'graph, G, GH>
-{
-    type BaseGraph = G;
-    type Graph = GH;
+impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'graph, G> {
+    type Graph = G;
     type ValueType<T>
         = T::Output
     where
@@ -351,7 +321,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
         T::Output: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G, G>;
-    type Edges = Edges<'graph, G, GH>;
+    type Edges = Edges<'graph, G>;
 
     fn graph(&self) -> &Self::Graph {
         &self.graph
@@ -375,11 +345,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         });
-        let base_graph = self.base_graph.clone();
-        let graph = self.graph.clone();
         Edges {
-            base_graph,
-            graph,
+            base_graph: self.graph.clone(),
+            graph: self.graph.clone(),
             edges,
         }
     }
@@ -393,14 +361,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
     ) -> Self::PathType {
         let graph = self.graph.clone();
         let node = self.node;
-        PathFromNode::new(self.base_graph.clone(), move || {
+        PathFromNode::new(self.graph.clone(), move || {
             let cg = graph.core_graph();
             op(cg, &graph, node).into_dyn_boxed()
         })
     }
 }
 
-impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G, G> {
+impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G> {
     pub fn add_constant_properties<C: CollectProperties>(
         &self,
         properties: C,

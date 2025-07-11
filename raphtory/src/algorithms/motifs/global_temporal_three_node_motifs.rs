@@ -7,7 +7,7 @@ use crate::{
         compute_state::ComputeStateVec,
     },
     db::{
-        api::view::*,
+        api::view::{internal::GraphView, *},
         graph::views::node_subgraph::NodeSubgraph,
         task::{
             context::Context,
@@ -21,12 +21,11 @@ use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use rustc_hash::FxHashSet;
 use std::collections::HashMap;
-
 ///////////////////////////////////////////////////////
 
-pub fn star_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 32]>
+pub fn star_motif_count<'graph, G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 32]>
 where
-    G: StaticGraphViewOps,
+    G: GraphView + 'graph,
 {
     let two_n_c = twonode_motif_count(evv, deltas.clone());
     let neigh_map: HashMap<VID, usize> = evv
@@ -78,9 +77,12 @@ where
 
 ///////////////////////////////////////////////////////
 
-pub fn twonode_motif_count<G>(evv: &EvalNodeView<G, ()>, deltas: Vec<i64>) -> Vec<[usize; 8]>
+pub fn twonode_motif_count<'graph, G>(
+    evv: &EvalNodeView<G, ()>,
+    deltas: Vec<i64>,
+) -> Vec<[usize; 8]>
 where
-    G: StaticGraphViewOps,
+    G: GraphView + 'graph,
 {
     let mut results = deltas.iter().map(|_| [0; 8]).collect::<Vec<[usize; 8]>>();
 
@@ -146,7 +148,7 @@ where
             )
     });
 
-    let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let neighbourhood_update_step = ATask::new(move |u: &mut EvalNodeView<_, ()>| {
         for v in u.neighbours() {
             if u.node > v.node {
                 v.update(&neighbours_set, u.node);
@@ -155,7 +157,7 @@ where
         Step::Continue
     });
 
-    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<NodeSubgraph<G>, ()>| {
+    let intersection_compute_step = ATask::new(move |u: &mut EvalNodeView<_, ()>| {
         for v in u.neighbours() {
             // Find triangles on the UV edge
             if u.node > v.node {
@@ -281,7 +283,7 @@ where
 
     let triadic_motifs = triangle_motifs(g, deltas.clone(), threads);
 
-    let star_count_step = ATask::new(move |evv: &mut EvalNodeView<G, _>| {
+    let star_count_step = ATask::new(move |evv: &mut EvalNodeView<_, _>| {
         let star_nodes = star_motif_count(evv, deltas.clone());
         for (i, star) in star_nodes.iter().enumerate() {
             evv.global_update(&star_mc[i], *star);

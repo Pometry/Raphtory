@@ -48,7 +48,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, WccState>| {
+    let step2 = ATask::new(move |vv: &mut EvalNodeView<_, WccState>| {
         let prev: usize = vv.prev().component;
         let current = vv
             .neighbours()

@@ -1,19 +1,18 @@
 use crate::{
     db::{
-        api::view::internal::OneHopFilter, graph::views::filter::internal::CreateExplodedEdgeFilter,
+        api::view::internal::BaseFilter, graph::views::filter::internal::CreateExplodedEdgeFilter,
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
 
-pub trait ExplodedEdgePropertyFilterOps<'graph>: OneHopFilter<'graph> {
+pub trait ExplodedEdgePropertyFilterOps<'graph>: BaseFilter<'graph> {
     fn filter_exploded_edges<F: CreateExplodedEdgeFilter>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::FilteredGraph>>, GraphError>
-    {
-        let graph = filter.create_exploded_edge_filter(self.current_filter().clone())?;
-        Ok(self.one_hop_filtered(graph))
+    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::Current>>, GraphError> {
+        let graph = filter.create_exploded_edge_filter(self.current_filtered_graph().clone())?;
+        Ok(self.apply_filter(graph))
     }
 }
 
@@ -365,7 +364,10 @@ mod test {
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered_nodes = g.nodes().filter_exploded_edges(PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)).unwrap();
+            let filtered_nodes =
+                g.nodes().filter_exploded_edges(
+                    PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)
+                ).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
             assert_nodes_equal(&filtered_nodes, &expected_filtered_g.nodes());
         })

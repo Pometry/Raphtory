@@ -4,9 +4,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
-                internal::{
-                    DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
-                },
+                internal::{BaseFilter, DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph},
                 ExplodedEdgePropertyFilterOps, LayerOps, StaticGraphViewOps,
             },
         },
@@ -350,7 +348,7 @@ impl PyGraphView {
         &self,
         src: PyNodeRef,
         dst: PyNodeRef,
-    ) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
+    ) -> Option<EdgeView<DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 

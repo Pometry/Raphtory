@@ -126,10 +126,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -561,7 +561,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.filtered() {
@@ -573,7 +573,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Some(NodeView::new_internal(self.clone(), vid))
     }
 
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
@@ -897,23 +897,21 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type BaseGraph = G;
-    type FilteredGraph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
+impl<'graph, G> BaseFilter<'graph> for G
+where
+    G: GraphViewOps<'graph> + 'graph,
+{
+    type Current = G;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn current_filtered_graph(&self) -> &Self::Current {
         self
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        self
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         filtered_graph
     }
 }
