@@ -66,7 +66,7 @@ jobs:
 
       - name: Run make tidy-public
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: make python-tidy-no-build
+        run: make tidy-public
 
       - name: Check for uncommitted changes
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
