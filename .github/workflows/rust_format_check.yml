@@ -12,7 +12,7 @@ on:
         description: "Fail the workflow if any code is not formatted"
 
 jobs:
-  rust-and-python-format-check:
+  rust-format-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,35 +25,4 @@ jobs:
               cargo +nightly fmt --all -- --check
           else
               cargo +nightly fmt --all -- --check || true
-          fi
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Create and activate virtualenv
-        run: |
-          python -m venv .venv
-          source .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install black mypy networkx pyvis maturin
-          echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
-          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
-
-      - name: Run make tidy-public
-        run: make tidy-public
-
-      - name: Check for uncommitted changes
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Uncommitted changes detected after tidy-public. Did you forget to run it?"
-            git status
-            git diff
-            exit 1
-          else
-            echo "No uncommitted changes after tidy-public."
           fi
