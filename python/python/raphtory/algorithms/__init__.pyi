@@ -392,9 +392,7 @@ def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
     """
 
 def local_clustering_coefficient_batch(graph, v): ...
-def weakly_connected_components(
-    graph: GraphView, iter_count: Optional[int] = None
-) -> NodeStateUsize:
+def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 
@@ -403,7 +401,6 @@ def weakly_connected_components(
 
     Arguments:
         graph (GraphView): Raphtory graph
-        iter_count (int, optional): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 
     Returns:
         NodeStateUsize: Mapping of nodes to their component ids.

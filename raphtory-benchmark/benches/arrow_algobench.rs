@@ -155,7 +155,7 @@ pub mod arrow_bench {
             &graph,
             |b, graph| {
                 b.iter(|| {
-                    let result = weakly_connected_components(graph, 20, None);
+                    let result = weakly_connected_components(graph);
                     black_box(result);
                 });
             },
