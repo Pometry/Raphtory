@@ -13,37 +13,19 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    Optional[int]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    Optional[RaphtoryTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start(&self) -> Option<i64> {
-                self.$field.start()
-            }
-
-            #[doc = concat!(r" Gets the earliest datetime that this ", $name, r" is valid")]
-            ///
-            /// Returns:
-            #[doc = concat!(r"     Optional[datetime]: The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times. Raises an error if the conversion to DateTime failed.")]
-            #[getter]
-            pub fn start_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, TimeError> {
-                self.$field.start_date_time()
+            pub fn start(&self) -> Option<TimeIndexEntry> {
+                self.$field.start().into()
             }
 
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   Optional[int]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   Optional[RaphtoryTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end(&self) -> Option<i64> {
-                self.$field.end()
-            }
-
-            #[doc = concat!(r" Gets the latest datetime that this ", $name, r" is valid")]
-            ///
-            /// Returns:
-            #[doc = concat!(r"     Optional[datetime]: The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times. Raises an error if the conversion to DateTime failed.")]
-            #[getter]
-            pub fn end_date_time(&self) -> Result<Option<chrono::DateTime<chrono::Utc>>, TimeError> {
-                self.$field.end_date_time()
+            pub fn end(&self) -> Option<TimeIndexEntry> {
+                self.$field.end().into()
             }
 
             #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name)]
@@ -172,34 +154,34 @@ macro_rules! impl_timeops {
             /// Set the start of the window to the larger of `start` and `self.start()`
             ///
             /// Arguments:
-            ///    start (TimeInput): the new start time of the window
+            ///    start (RaphtoryTime): the new start time of the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn shrink_start(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.shrink_start(start)
+            pub fn shrink_start(&self, start: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_start(start.into())
             }
 
             /// Set the end of the window to the smaller of `end` and `self.end()`
             ///
             /// Arguments:
-            ///     end (TimeInput): the new end time of the window
+            ///     end (RaphtoryTime): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_end(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                    self.$field.shrink_end(end)
+            fn shrink_end(&self, end: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                    self.$field.shrink_end(end.into())
             }
 
             /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
             ///
             /// Arguments:
-            ///     start (TimeInput): the new start time for the window
-            ///     end (TimeInput): the new end time for the window
+            ///     start (RaphtoryTime): the new start time for the window
+            ///     end (RaphtoryTime): the new end time for the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::python::utils::PyTime, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.shrink_window(start, end)
+            fn shrink_window(&self, start: $crate::api::python::timeindex::PyRaphtoryTime, end: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_window(start.into(), end.into())
             }
         }
     };

@@ -7,7 +7,6 @@ use crate::{
         },
         view::internal::{DynamicGraph, Static},
     },
-    errors::GraphError,
     python::{
         graph::{
             history::PyHistory,
@@ -37,7 +36,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, TimeError, TimeIndexEntry},
     },
 };
 use raphtory_core::utils::time::IntoTime;
@@ -64,9 +63,9 @@ impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
     fn from(value: &PyTemporalProperties) -> Self {
         Self(
             value
-                .histories()
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
+                .props
+                .iter()
+                .map(|(k, v)| (k.clone(), v.into()))
                 .collect(),
         )
     }
@@ -121,33 +120,6 @@ impl PyTemporalProperties {
             .iter_latest()
             .map(|(k, v)| (k.clone(), v))
             .collect()
-    }
-
-    /// Get the histories of all properties
-    ///
-    /// Returns:
-    ///     dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
-    fn histories(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
-        self.props
-            .iter()
-            .map(|(k, v)| (k.clone(), v.iter().collect()))
-            .collect()
-    }
-
-    /// Get the histories of all properties. Throws error if conversion to datetime failed.
-    ///
-    /// Returns:
-    ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
-    fn histories_date_time(
-        &self,
-    ) -> Result<HashMap<ArcStr, Vec<(DateTime<Utc>, Prop)>>, GraphError> {
-        self.props
-            .iter()
-            .map(|(k, v)| {
-                let histories = v.histories_date_time().map(|h| h.collect())?;
-                Ok((k, histories))
-            })
-            .collect::<Result<HashMap<_, _>, GraphError>>()
     }
 
     /// __getitem__(key: str) -> TemporalProp
@@ -269,14 +241,16 @@ impl PyTemporalProp {
     }
 
     /// List update datetimes and corresponding property values
-    pub fn items_date_time(&self) -> Result<Vec<(DateTime<Utc>, Prop)>, GraphError> {
-        Ok(self.prop.histories_date_time()?.collect())
+    pub fn items_date_time(&self) -> Result<Vec<(DateTime<Utc>, Prop)>, TimeError> {
+        self.prop
+            .iter()
+            .map(|(t, p)| t.dt().map(|dt| (dt, p)))
+            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     /// Iterate over `items`
     pub fn __iter__(&self) -> PyBorrowingIterator {
-        py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner
-            .histories())
+        py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner.iter())
     }
     /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {

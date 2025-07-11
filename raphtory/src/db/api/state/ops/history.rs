@@ -88,6 +88,7 @@ pub struct HistoryOp<'graph, G> {
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<'graph, G> {
     type Output = History<'graph, NodeView<'graph, G>>;
 
+    #[allow(unused_variables)]
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         History::new(NodeView::new_internal(self.graph.clone(), node))
     }

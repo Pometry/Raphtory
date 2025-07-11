@@ -1407,8 +1407,10 @@ mod tests {
         );
 
         // Test secondary time access
-        let secondary_times_lazy: Vec<_> =
-            all_nodes_history.secondary_index().flat_map(|s| s.collect()).collect();
+        let secondary_times_lazy: Vec<_> = all_nodes_history
+            .secondary_index()
+            .flat_map(|s| s.collect())
+            .collect();
         let secondary_times_normal: Vec<_> = nodes_history_as_history.secondary_index().collect();
         assert_eq!(
             secondary_times_lazy,

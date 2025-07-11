@@ -57,7 +57,7 @@ use python::{
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::AsTime},
     utils::hashing::calculate_hash,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -678,7 +678,7 @@ impl PyNodes {
                     &item.properties(),
                     &mut properties_map,
                     &mut prop_time_dict,
-                    item.start().unwrap_or(0),
+                    item.start().map(|t| t.t()).unwrap_or(0),
                 );
 
                 let row_header: Vec<Prop> = vec![

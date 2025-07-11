@@ -67,6 +67,12 @@ impl From<TimeIndexEntry> for PyRaphtoryTime {
     }
 }
 
+impl From<PyRaphtoryTime> for TimeIndexEntry {
+    fn from(value: PyRaphtoryTime) -> Self {
+        value.inner()
+    }
+}
+
 impl From<TimeError> for PyErr {
     fn from(err: TimeError) -> Self {
         PyException::new_err(err.to_string())

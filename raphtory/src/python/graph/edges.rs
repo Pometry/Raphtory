@@ -1,5 +1,5 @@
 use crate::{
-    api::core::storage::timeindex::TimeError,
+    api::core::storage::timeindex::{AsTime, TimeIndexEntry},
     db::{
         api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
@@ -285,7 +285,7 @@ impl PyEdges {
                     &item.properties(),
                     &mut properties_map,
                     &mut prop_time_dict,
-                    item.start().unwrap_or(0),
+                    item.start().map(|t| t.t()).unwrap_or(0),
                 );
 
                 let row_header: Vec<Prop> = vec![

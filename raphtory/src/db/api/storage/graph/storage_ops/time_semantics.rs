@@ -29,11 +29,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         None
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         None
     }
 

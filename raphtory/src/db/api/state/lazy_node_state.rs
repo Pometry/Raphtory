@@ -211,7 +211,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
             .map(|history| history.dt())
     }
 
-    pub fn secondary_index(&self) -> impl Iterator<Item = HistorySecondaryIndex<NodeView<'graph, GH, GH>>> {
+    pub fn secondary_index(
+        &self,
+    ) -> impl Iterator<Item = HistorySecondaryIndex<NodeView<'graph, GH, GH>>> {
         self.compute()
             .into_iter_values()
             .map(|history| history.secondary_index())

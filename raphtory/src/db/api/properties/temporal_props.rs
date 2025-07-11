@@ -1,5 +1,5 @@
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::NaiveDateTime;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropType, PropUnwrap},
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
@@ -19,7 +19,7 @@ use crate::db::api::{
         BoxedLIter,
     },
 };
-use raphtory_api::core::storage::timeindex::{AsTime, TimeError};
+use raphtory_api::core::storage::timeindex::AsTime;
 #[cfg(feature = "arrow")]
 use {arrow_array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
@@ -101,22 +101,6 @@ impl<P: PropertiesOps + Clone> TemporalPropertyView<P> {
 
     pub fn iter_indexed_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {
         self.props.temporal_iter_rev(self.id)
-    }
-
-    pub fn histories(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.iter()
-    }
-
-    pub fn histories_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.iter_rev()
-    }
-
-    pub fn histories_date_time(
-        &self,
-    ) -> Result<impl Iterator<Item = (DateTime<Utc>, Prop)>, TimeError> {
-        let hist = self.history().dt().collect()?;
-        let vals = self.values().collect::<Vec<_>>();
-        Ok(hist.into_iter().zip(vals))
     }
 
     pub fn at(&self, t: i64) -> Option<Prop> {
@@ -259,7 +243,7 @@ impl<P: PropertiesOps + Clone> TemporalProperties<P> {
 
     pub fn as_map(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
         self.iter()
-            .map(|(key, value)| (key, value.histories().collect()))
+            .map(|(key, value)| (key, value.iter().collect()))
             .collect()
     }
 }

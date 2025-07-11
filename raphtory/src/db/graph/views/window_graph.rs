@@ -89,9 +89,9 @@ pub struct WindowedGraph<G> {
     /// The underlying `Graph` object.
     pub graph: G,
     /// The inclusive start time of the window.
-    pub start: Option<i64>,
+    pub start: Option<TimeIndexEntry>,
     /// The exclusive end time of the window.
-    pub end: Option<i64>,
+    pub end: Option<TimeIndexEntry>,
 }
 
 impl<G> Static for WindowedGraph<G> {}
@@ -125,16 +125,16 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
     #[inline(always)]
     fn window_bound(&self) -> Range<i64> {
-        self.start_bound()..self.end_bound()
+        self.start_bound().t()..self.end_bound().t()
     }
 
     fn start_bound(&self) -> i64 {
-        self.start.unwrap_or(i64::MIN)
+        self.start.map(|t| t.t()).unwrap_or(i64::MIN)
     }
 
     #[inline(always)]
     fn end_bound(&self) -> i64 {
-        self.end.unwrap_or(i64::MAX)
+        self.end.map(|t| t.t()).unwrap_or(i64::MAX)
     }
 
     #[inline(always)]
@@ -148,7 +148,7 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
             None => false,
             Some(start) => match self.graph.core_graph().earliest_time() {
                 None => false,
-                Some(graph_earliest) => start >= graph_earliest.t(), // deletions have exclusive window, thus >= here!
+                Some(graph_earliest) => start >= graph_earliest, // deletions have exclusive window, thus >= here!
             },
         }
     }
@@ -159,7 +159,7 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
             None => false,
             Some(end) => match self.core_graph().latest_time() {
                 None => false,
-                Some(graph_latest) => end <= graph_latest.t(),
+                Some(graph_latest) => end <= graph_latest,
             },
         }
     }
@@ -403,11 +403,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             .edge_time_semantics()
             .window(self.start_bound()..self.end_bound())
     }
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         self.start
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         self.end
     }
 
@@ -549,7 +549,11 @@ impl<'graph, G: GraphViewOps<'graph>> WindowedGraph<G> {
     /// Returns:
     ///
     /// A new windowed graph
-    pub(crate) fn new(graph: G, start: Option<i64>, end: Option<i64>) -> Self {
+    pub(crate) fn new(
+        graph: G,
+        start: Option<TimeIndexEntry>,
+        end: Option<TimeIndexEntry>,
+    ) -> Self {
         WindowedGraph { graph, start, end }
     }
 }

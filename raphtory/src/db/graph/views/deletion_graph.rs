@@ -162,11 +162,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         TimeSemantics::persistent()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         self.0.view_start()
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         self.0.view_end()
     }
 

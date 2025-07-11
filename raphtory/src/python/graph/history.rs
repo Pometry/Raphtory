@@ -119,7 +119,7 @@ impl PyHistory {
     }
 
     /// Iterate over all time events in reverse
-    pub fn iter_rev(&self) -> PyBorrowingIterator {
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history.clone(),
             History<'static, Arc<dyn InternalHistoryOps>>,
@@ -136,6 +136,8 @@ impl PyHistory {
         self.history.hash(&mut hasher);
         hasher.finish()
     }
+
+    // implement contains function. might need to downcast general python object, can use enum to downcast to handle all AsTime objects.
 
     // TODO: Can we use &PyHistory here or does it have to be generic PyAny/PyObject
     fn __eq__(&self, other: &PyHistory) -> bool {

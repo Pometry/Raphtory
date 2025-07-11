@@ -9,7 +9,10 @@ use crate::{
     },
 };
 use chrono::{DateTime, Utc};
-use raphtory_api::{core::storage::timeindex::TimeError, GraphType};
+use raphtory_api::{
+    core::storage::timeindex::{TimeError, TimeIndexEntry},
+    GraphType,
+};
 use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
 use std::{
     cmp::{max, min},
@@ -21,7 +24,7 @@ pub(crate) mod internal {
         db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
-    use raphtory_api::core::storage::timeindex::AsTime;
+    use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
     use std::cmp::{max, min};
 
     pub trait InternalTimeOps<'graph> {
@@ -31,8 +34,8 @@ pub(crate) mod internal {
         fn latest_t(&self) -> Option<i64>;
         fn internal_window(
             &self,
-            start: Option<i64>,
-            end: Option<i64>,
+            start: Option<TimeIndexEntry>,
+            end: Option<TimeIndexEntry>,
         ) -> Self::InternalWindowedView;
     }
     impl<'graph, E: OneHopFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
@@ -40,11 +43,12 @@ pub(crate) mod internal {
 
         fn timeline_start(&self) -> Option<i64> {
             self.start()
+                .map(|t| t.t())
                 .or_else(|| self.current_filter().earliest_time().map(|t| t.t()))
         }
 
         fn timeline_end(&self) -> Option<i64> {
-            self.end().or_else(|| {
+            self.end().map(|t| t.t()).or_else(|| {
                 self.current_filter()
                     .latest_time()
                     .map(|v| v.0.saturating_add(1))
@@ -57,8 +61,8 @@ pub(crate) mod internal {
 
         fn internal_window(
             &self,
-            start: Option<i64>,
-            end: Option<i64>,
+            start: Option<TimeIndexEntry>,
+            end: Option<TimeIndexEntry>,
         ) -> Self::InternalWindowedView {
             let base_start = self.base_graph().start();
             let base_end = self.base_graph().end();
@@ -91,23 +95,19 @@ pub trait TimeOps<'graph>:
 {
     type WindowedViewType: TimeOps<'graph> + 'graph;
     /// Return the timestamp of the start of the view or None if the view start is unbounded.
-    fn start(&self) -> Option<i64>;
-
-    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError>;
+    fn start(&self) -> Option<TimeIndexEntry>;
 
     /// Return the timestamp of the view or None if the view end is unbounded.
-    fn end(&self) -> Option<i64>;
-
-    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError>;
+    fn end(&self) -> Option<TimeIndexEntry>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
-    fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType;
+    fn shrink_start(&self, start: TimeIndexEntry) -> Self::WindowedViewType;
 
     /// set the end of the window to the smaller of `end` and `self.end()`
-    fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType;
+    fn shrink_end(&self, end: TimeIndexEntry) -> Self::WindowedViewType;
 
     /// shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-    fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType;
+    fn shrink_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Self::WindowedViewType;
 
     /// Return the size of the window covered by this view or None if the window is unbounded
     fn window_size(&self) -> Option<u64>;
@@ -165,57 +165,58 @@ pub trait TimeOps<'graph>:
 impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
     type WindowedViewType = V::InternalWindowedView;
 
-    fn start(&self) -> Option<i64> {
+    fn start(&self) -> Option<TimeIndexEntry> {
         self.current_filter().view_start()
     }
 
-    fn end(&self) -> Option<i64> {
+    fn end(&self) -> Option<TimeIndexEntry> {
         self.current_filter().view_end()
     }
 
-    fn start_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.start().map(|t| t.dt()).transpose()
-    }
-
-    fn end_date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.end().map(|t| t.dt()).transpose()
-    }
-
-    fn shrink_start<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
-        let start = Some(max(start.into_time(), self.start().unwrap_or(i64::MIN)));
+    fn shrink_start(&self, start: TimeIndexEntry) -> Self::WindowedViewType {
+        let start = Some(max(start, self.start().unwrap_or(TimeIndexEntry::MIN)));
         self.internal_window(start, self.end())
     }
 
-    fn shrink_end<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        let end = Some(min(end.into_time(), self.end().unwrap_or(i64::MAX)));
+    fn shrink_end(&self, end: TimeIndexEntry) -> Self::WindowedViewType {
+        let end = Some(min(end, self.end().unwrap_or(TimeIndexEntry::MAX)));
         self.internal_window(self.start(), end)
     }
 
-    fn shrink_window<T: IntoTime>(&self, start: T, end: T) -> Self::WindowedViewType {
-        let start = max(start.into_time(), self.start().unwrap_or(i64::MIN));
-        let end = min(end.into_time(), self.end().unwrap_or(i64::MAX));
+    fn shrink_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Self::WindowedViewType {
+        let start = max(start, self.start().unwrap_or(TimeIndexEntry::MIN));
+        let end = min(end, self.end().unwrap_or(TimeIndexEntry::MAX));
         self.internal_window(Some(start), Some(end))
     }
 
     fn window_size(&self) -> Option<u64> {
         match (self.start(), self.end()) {
-            (Some(start), Some(end)) => Some((end - start) as u64),
+            (Some(start), Some(end)) => Some((end.t() - start.t()) as u64),
             _ => None,
         }
     }
 
     fn window<T1: IntoTime, T2: IntoTime>(&self, start: T1, end: T2) -> Self::WindowedViewType {
-        self.internal_window(Some(start.into_time()), Some(end.into_time()))
+        self.internal_window(
+            Some(TimeIndexEntry::start(start.into_time())),
+            Some(TimeIndexEntry::start(end.into_time())),
+        )
     }
 
     fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         let start = time.into_time();
-        self.internal_window(Some(start), Some(start.saturating_add(1)))
+        self.internal_window(
+            Some(TimeIndexEntry::start(start)),
+            Some(TimeIndexEntry::start(start.saturating_add(1))),
+        )
     }
 
     fn latest(&self) -> Self::WindowedViewType {
         let time = self.latest_t();
-        self.internal_window(time, time.map(|t| t.saturating_add(1)))
+        self.internal_window(
+            time.map(TimeIndexEntry::start),
+            time.map(|t| TimeIndexEntry::start(t.saturating_add(1))),
+        )
     }
 
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
@@ -234,12 +235,12 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start = start.into_time().saturating_add(1);
-        self.internal_window(Some(start), None)
+        self.internal_window(Some(TimeIndexEntry::start(start)), None)
     }
 
     fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
         let end = end.into_time();
-        self.internal_window(None, Some(end))
+        self.internal_window(None, Some(TimeIndexEntry::start(end)))
     }
 
     fn expanding<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
@@ -359,9 +360,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for TimeIndex<'graph,
         let center = self.center;
         self.windowset.next().map(move |view| {
             if center {
-                view.start().unwrap() + ((view.end().unwrap() - view.start().unwrap()) / 2)
+                view.start().unwrap().t()
+                    + ((view.end().unwrap().t() - view.start().unwrap().t()) / 2)
             } else {
-                view.end().unwrap() - 1
+                view.end().unwrap().t() - 1
             }
         })
     }
@@ -382,7 +384,10 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> Iterator for WindowSet<'graph,
                     return None;
                 }
             }
-            let window = self.view.internal_window(window_start, Some(window_end));
+            let window = self.view.internal_window(
+                window_start.map(TimeIndexEntry::start),
+                Some(TimeIndexEntry::start(window_end)),
+            );
             self.cursor = self.cursor + self.step;
             Some(window)
         } else {
