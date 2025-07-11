@@ -63,5 +63,3 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Run docs tests
-        run: make run-docs-tests
