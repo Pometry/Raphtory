@@ -2,7 +2,7 @@ use raphtory_core::{
     entities::{VID, EID, GID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use serde::{Serialize, Deserialize};
 use std::borrow::Cow;
 
@@ -29,11 +29,11 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         EmptyWalEntry
     }
 
-    fn add_const_prop_ids(_props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self {
+    fn add_new_const_prop_ids<PN: AsRef<str>>(_props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self {
         EmptyWalEntry
     }
 
-    fn add_temporal_prop_ids(_props: Cow<'a, [(Cow<'a, str>, usize)]>) -> Self {
+    fn add_new_temporal_prop_ids<PN: AsRef<str>>(_props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self {
         EmptyWalEntry
     }
 

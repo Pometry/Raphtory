@@ -302,19 +302,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        // Extract new props and their ids to append to the Wal
-        let props_new: Vec<(&str, usize)> = props_with_status
-            .iter()
-            .filter_map(|maybe_new| {
-                if maybe_new.is_new() {
-                    let (pn, prop_id, _) = maybe_new.as_ref().inner();
-                    Some((pn.as_ref(), *prop_id))
-                } else {
-                    None
-                }
-            })
-            .collect();
-
         // Wal -> AddPropIDs(TxnID, PropNames, PropIDs)
 
         let props = props_with_status
