@@ -94,7 +94,6 @@ def test_property_filter_edges():
     )
 
 
-@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_filter_exploded_edges():
     graph = build_graph()
 

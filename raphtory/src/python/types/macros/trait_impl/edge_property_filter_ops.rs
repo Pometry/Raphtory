@@ -36,16 +36,13 @@ macro_rules! impl_edge_property_filter_ops {
             fn filter_exploded_edges(
                 &self,
                 filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
-            ) -> Result<
-                <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as CreateExplodedEdgeFilter>::ExplodedEdgeFiltered<
-                        'static,
-                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
-                    >,
-                >,
-                GraphError,
-            > {
-                self.$field.filter_exploded_edges(filter)
+            ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
+            {
+                Ok(self
+                    .$field
+                    .clone()
+                    .filter_exploded_edges(filter)?
+                    .into_dyn_hop())
             }
         }
     };
