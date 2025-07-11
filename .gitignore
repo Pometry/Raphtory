@@ -23,6 +23,7 @@ docs/logs/
 /docs/build/
 docs/nx.html
 docs/graph.html
+docs/tmp/
 .env
 pometry-arrow/
 
