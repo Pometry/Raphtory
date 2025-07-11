@@ -128,17 +128,13 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     iter_count (int, optional): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their component ids.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=None))]
-pub fn weakly_connected_components(
-    graph: &PyGraphView,
-    iter_count: Option<usize>,
-) -> NodeState<'static, usize, DynamicGraph> {
-    components::weakly_connected_components(&graph.graph, iter_count.unwrap_or(usize::MAX), None)
+#[pyo3(signature = (graph))]
+pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, usize, DynamicGraph> {
+    components::weakly_connected_components(&graph.graph)
 }
 
 /// Strongly connected components

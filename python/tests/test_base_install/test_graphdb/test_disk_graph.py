@@ -127,7 +127,6 @@ if "DISK_TEST_MARK" in os.environ:
             "Weakly CC  Layer",
             algorithms.weakly_connected_components,
             g.layer("netflow"),
-            20,
             print_result=False,
         )
         assert len(list(actual)) == 1619
@@ -136,7 +135,6 @@ if "DISK_TEST_MARK" in os.environ:
             "Weakly CC",
             algorithms.weakly_connected_components,
             g,
-            20,
             print_result=False,
         )
         assert len(list(actual)) == 1624
