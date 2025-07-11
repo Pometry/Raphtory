@@ -21,7 +21,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    internal::CreateExplodedEdgeFilter,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
@@ -38,7 +37,7 @@ use crate::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::{filter_expr::PyFilterExpr, prop::PyPropertyFilter},
+            wrappers::filter_expr::PyFilterExpr,
         },
         utils::PyNodeRef,
     },

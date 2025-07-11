@@ -4,21 +4,19 @@ use crate::{
         graph::views::filter::{
             internal::{CreateEdgeFilter, CreateExplodedEdgeFilter, CreateNodeFilter},
             model::{
-                property_filter::PropertyRef, AsEdgeFilter, AsNodeFilter,
-                InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
+                AsEdgeFilter, AsNodeFilter, InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
             },
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::GraphViewOps,
     python::types::{
         repr::Repr,
         wrappers::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
     },
 };
-use pyo3::prelude::*;
 use raphtory_api::core::entities::properties::prop::Prop;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc};
 
 impl Repr for Prop {
     fn repr(&self) -> String {
@@ -45,55 +43,6 @@ impl Repr for Prop {
 
 pub type PropValue = Option<Prop>;
 pub type PropHistItems = Vec<(i64, Prop)>;
-
-#[pyclass(frozen, name = "PropertyFilter", module = "raphtory")]
-#[derive(Clone)]
-pub struct PyPropertyFilter(PropertyFilter);
-
-impl CreateEdgeFilter for PyPropertyFilter {
-    type EdgeFiltered<'graph, G>
-        = <PropertyFilter as CreateEdgeFilter>::EdgeFiltered<'graph, G>
-    where
-        G: GraphViewOps<'graph>,
-        Self: 'graph;
-
-    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        self.0.create_edge_filter(graph)
-    }
-}
-
-impl CreateExplodedEdgeFilter for PyPropertyFilter {
-    type ExplodedEdgeFiltered<'graph, G>
-        = <PropertyFilter as CreateExplodedEdgeFilter>::ExplodedEdgeFiltered<'graph, G>
-    where
-        G: GraphViewOps<'graph>,
-        Self: 'graph;
-
-    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        self.0.create_exploded_edge_filter(graph)
-    }
-}
-
-impl CreateNodeFilter for PyPropertyFilter {
-    type NodeFiltered<'graph, G>
-        = <PropertyFilter as CreateNodeFilter>::NodeFiltered<'graph, G>
-    where
-        Self: 'graph,
-        G: GraphViewOps<'graph>;
-
-    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        self.0.create_node_filter(graph)
-    }
-}
 
 impl CreateNodeFilter for PyFilterExpr {
     type NodeFiltered<'graph, G: GraphViewOps<'graph>>
@@ -229,7 +178,25 @@ impl CreateEdgeFilter for PyFilterExpr {
         match self.0 {
             PyInnerFilterExpr::Edge(i) => i.create_edge_filter(graph),
             PyInnerFilterExpr::Property(i) => i.create_edge_filter(graph),
-            PyInnerFilterExpr::Node(_) => Err(GraphError::ParsingError),
+            PyInnerFilterExpr::Node(_) => Err(GraphError::NodeFilterIsNotEdgeFilter),
+        }
+    }
+}
+
+impl CreateExplodedEdgeFilter for PyFilterExpr {
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Node(_) => Err(GraphError::NotExplodedEdgeFilter),
+            PyInnerFilterExpr::Edge(_) => Err(GraphError::NotExplodedEdgeFilter),
+            PyInnerFilterExpr::Property(i) => i.create_exploded_edge_filter(graph),
         }
     }
 }
@@ -264,116 +231,33 @@ impl<T: DynInternalEdgeFilterOps + ?Sized + 'static> CreateEdgeFilter for Arc<T>
     }
 }
 
-/// A reference to a property used for constructing filters
-///
-/// Use `==`, `!=`, `<`, `<=`, `>`, `>=` to filter based on
-/// property value (these filters always exclude entities that do not
-/// have the property) or use one of the methods to construct
-/// other kinds of filters.
-///
-/// Arguments:
-///     name (str): the name of the property
-#[pyclass(frozen, name = "Prop", module = "raphtory")]
-#[derive(Clone)]
-pub struct PyPropertyRef {
-    name: String,
+pub trait DynCreateExplodedEdgeFilter {
+    fn create_dyn_exploded_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
 }
 
-#[pymethods]
-impl PyPropertyRef {
-    #[new]
-    fn new(name: String) -> Self {
-        PyPropertyRef { name }
+impl<T: CreateExplodedEdgeFilter + Clone + 'static> DynCreateExplodedEdgeFilter for T {
+    fn create_dyn_exploded_edge_filter<'graph>(
+        &self,
+        graph: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.clone().create_exploded_edge_filter(graph)?))
     }
+}
 
-    fn __eq__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::eq(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
+impl<T: DynCreateExplodedEdgeFilter + ?Sized + 'static> CreateExplodedEdgeFilter for Arc<T> {
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
 
-    fn __ne__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ne(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    fn __lt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::lt(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    fn __le__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::le(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    fn __gt__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::gt(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    fn __ge__(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::ge(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that only keeps entities if they have the property
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn is_some(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_some(PropertyRef::Property(self.name.clone()));
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that only keeps entities that do not have the property
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn is_none(&self) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_none(PropertyRef::Property(self.name.clone()));
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that keeps entities that contains the property
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn contains(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::contains(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that keeps entities that do not contain the property
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn not_contains(&self, value: Prop) -> PyPropertyFilter {
-        let filter = PropertyFilter::not_contains(PropertyRef::Property(self.name.clone()), value);
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that keeps entities if their property value is in the set
-    ///
-    /// Arguments:
-    ///     values (set[PropValue]): the set of values to match
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn is_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_in(PropertyRef::Property(self.name.clone()), values);
-        PyPropertyFilter(filter)
-    }
-
-    /// Create a filter that keeps entities if their property value is not in the set or
-    /// if they don't have the property
-    ///
-    /// Arguments:
-    ///     values (set[PropValue]): the set of values to exclude
-    ///
-    /// Returns:
-    ///     PropertyFilter: the property filter
-    fn is_not_in(&self, values: HashSet<Prop>) -> PyPropertyFilter {
-        let filter = PropertyFilter::is_not_in(PropertyRef::Property(self.name.clone()), values);
-        PyPropertyFilter(filter)
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        self.deref()
+            .create_dyn_exploded_edge_filter(Arc::new(graph))
     }
 }

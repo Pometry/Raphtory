@@ -10,7 +10,8 @@ use crate::{
     python::types::{
         iterable::FromIterable,
         wrappers::prop::{
-            DynInternalEdgeFilterOps, DynInternalNodeFilterOps, DynNodeFilterBuilderOps,
+            DynCreateExplodedEdgeFilter, DynInternalEdgeFilterOps, DynInternalNodeFilterOps,
+            DynNodeFilterBuilderOps,
         },
     },
 };
@@ -18,9 +19,16 @@ use pyo3::prelude::*;
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
 
-pub trait AsPropertyFilter: DynInternalNodeFilterOps + DynInternalEdgeFilterOps {}
+pub trait AsPropertyFilter:
+    DynInternalNodeFilterOps + DynInternalEdgeFilterOps + DynCreateExplodedEdgeFilter
+{
+}
 
-impl<T: DynInternalNodeFilterOps + DynInternalEdgeFilterOps + ?Sized> AsPropertyFilter for T {}
+impl<
+        T: DynInternalNodeFilterOps + DynInternalEdgeFilterOps + DynCreateExplodedEdgeFilter + ?Sized,
+    > AsPropertyFilter for T
+{
+}
 
 #[derive(Clone)]
 pub enum PyInnerFilterExpr {
