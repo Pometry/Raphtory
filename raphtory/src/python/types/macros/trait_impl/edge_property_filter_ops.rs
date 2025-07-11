@@ -12,7 +12,7 @@ macro_rules! impl_edge_property_filter_ops {
             /// Return a filtered view that only includes edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (FilterExpr): The filter to apply to the edges.
+            ///     filter (filter.FilterExpr): The filter to apply to the edges.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
@@ -27,7 +27,7 @@ macro_rules! impl_edge_property_filter_ops {
             /// Return a filtered view that only includes exploded edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (FilterExpr): The filter to apply to the exploded edge properties.
+            ///     filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]

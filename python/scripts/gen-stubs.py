@@ -5,6 +5,7 @@ from pathlib import Path
 imports = [
     "from typing import *",
     "from raphtory import *",
+    "import raphtory.filter as filter",
     "from raphtory.algorithms import *",
     "from raphtory.vectors import *",
     "from raphtory.node_state import *",

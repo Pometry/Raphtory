@@ -10,9 +10,9 @@ use crate::{
     },
     errors::GraphError,
     prelude::GraphViewOps,
-    python::types::{
-        repr::Repr,
-        wrappers::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+    python::{
+        filter::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+        types::repr::Repr,
     },
 };
 use raphtory_api::core::entities::properties::prop::Prop;

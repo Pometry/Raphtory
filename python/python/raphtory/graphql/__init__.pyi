@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
+import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -482,7 +483,7 @@ class RemoteEdge(object):
     """
 
     def add_constant_properties(
-        self, properties: Dict[str, Prop], layer: Optional[str] = None
+        self, properties: Any, layer: Optional[str] = None
     ) -> None:
         """
         Add constant properties to the edge within the remote graph.
@@ -500,7 +501,7 @@ class RemoteEdge(object):
     def add_updates(
         self,
         t: int | str | datetime,
-        properties: Optional[Dict[str, Prop]] = None,
+        properties: Any = None,
         layer: Optional[str] = None,
     ) -> None:
         """
@@ -531,7 +532,7 @@ class RemoteEdge(object):
         """
 
     def update_constant_properties(
-        self, properties: Dict[str, Prop], layer: Optional[str] = None
+        self, properties: Any, layer: Optional[str] = None
     ) -> None:
         """
         Update constant properties of an edge in the remote graph overwriting existing values.
@@ -547,7 +548,7 @@ class RemoteEdge(object):
         """
 
 class RemoteNode(object):
-    def add_constant_properties(self, properties: Dict[str, Prop]) -> None:
+    def add_constant_properties(self, properties: Any) -> None:
         """
         Add constant properties to a node in the remote graph.
         This function is used to add properties to a node that remain constant and does not
@@ -560,9 +561,7 @@ class RemoteNode(object):
             None:
         """
 
-    def add_updates(
-        self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None
-    ) -> None:
+    def add_updates(self, t: int | str | datetime, properties: Any = None) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -587,7 +586,7 @@ class RemoteNode(object):
             None:
         """
 
-    def update_constant_properties(self, properties: Dict[str, Prop]) -> None:
+    def update_constant_properties(self, properties: Any) -> None:
         """
         Update constant properties of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that remain constant and do not

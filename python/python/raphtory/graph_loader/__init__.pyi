@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
+import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *

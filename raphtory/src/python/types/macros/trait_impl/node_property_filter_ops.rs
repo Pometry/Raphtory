@@ -12,7 +12,7 @@ macro_rules! impl_node_property_filter_ops {
             /// Return a filtered view that only includes nodes that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (FilterExpr): The filter to apply to the nodes.
+            ///     filter (filter.FilterExpr): The filter to apply to the nodes.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
