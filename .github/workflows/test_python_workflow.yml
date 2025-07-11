@@ -65,11 +65,11 @@ jobs:
           cd examples/netflow/test && pytest .
 
       - name: Run make tidy-public
-        if: matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: make python-tidy-no-build
 
       - name: Check for uncommitted changes
-        if: matrix.python == '3.13'
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes detected. Committing and pushing..."
