@@ -309,6 +309,25 @@ impl InternalAdditionOps for TemporalGraph {
             Ok(prop_ids)
         }
     }
+
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+        if is_static {
+            let prop_ids = PropsMetaWriter::constant(meta, props)
+                .and_then(|pmw| pmw.into_props_const_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        } else {
+            let prop_ids = PropsMetaWriter::temporal(meta, props)
+                .and_then(|pmw| pmw.into_props_temporal_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        }
+    }
 }
 
 fn reserve_node_id_as_prop(node_meta: &Meta, id: GidRef) -> usize {

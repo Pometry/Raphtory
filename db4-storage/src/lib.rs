@@ -7,8 +7,7 @@ use crate::{
         PropAdditionCellsRef,
     },
     pages::{
-        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
-        node_store::ReadLockedNodeStorage,
+        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage, GraphStore, ReadLockedGraphStore
     },
     resolver::mapping_resolver::MappingResolver,
     segments::{
@@ -16,7 +15,7 @@ use crate::{
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
-    },
+    }, wal::no_wal::NoWal,
 };
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
@@ -37,6 +36,7 @@ pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
+pub type Wal = NoWal;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;

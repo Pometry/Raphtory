@@ -13,8 +13,13 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::dict_mapper::MaybeNew::{self, Existing, New},
+};
+use raphtory_storage::mutation::addition_ops::{
+    EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
+};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -278,20 +283,34 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
+        // Wal -> BeginTxn(TxnID)
+
         let session = self.write_session().map_err(|err| err.into())?;
+
         self.validate_gids(
             [src.as_node_ref(), dst.as_node_ref()]
                 .iter()
                 .filter_map(|node_ref| node_ref.as_gid_ref().left()),
         )
         .map_err(into_graph_err)?;
-        let props = self
-            .validate_props(
+
+        let props_with_status = self
+            .validate_props_with_status(
                 false,
                 self.edge_meta(),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+
+        // Wal -> AddPropIDs(TxnID, PropNames, PropIDs)
+
+        let props = props_with_status
+            .into_iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.inner();
+                (prop_id, prop)
+            })
+            .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
         let src_id = self
@@ -304,9 +323,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .inner();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
+        // Wal -> AddLayerID(TxnID, layer)
+        // Wal -> AddNodeIDs(TxnID, src)
+        // Wal -> AddNodeIDs(TxnID, dst)
+
         let mut add_edge_op = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;
+
+        // Wal -> AddEdge(TxnID, src, dst, layer, props)
 
         let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, 0);
         let edge_id = add_edge_op.internal_add_edge(
@@ -318,8 +343,12 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             props,
         );
 
+        // Wal -> AddEdgeID(src, dst, edge_id)
+
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
+
+        // Wal -> CommitTxn(TxnID)
 
         Ok(EdgeView::new(
             self.clone(),

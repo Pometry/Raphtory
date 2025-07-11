@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, WalOps, WalRecord};
+use crate::wal::{LSN, Wal, WalRecord};
 
 pub struct NoWal {
     dir: PathBuf,
 }
 
-impl WalOps for NoWal {
+impl Wal for NoWal {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error> {
         Ok(Self { dir: dir.as_ref().to_path_buf() })
     }
@@ -16,12 +16,8 @@ impl WalOps for NoWal {
         &self.dir
     }
 
-    fn reserve(&self) -> LSN {
-        0
-    }
-
-    fn append_with_lsn(&self, _lsn: LSN, _data: &[u8]) -> Result<(), DBV4Error> {
-        Ok(())
+    fn append(&self, _data: &[u8]) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
     fn wait_for_sync(&self, _lsn: LSN) {}
