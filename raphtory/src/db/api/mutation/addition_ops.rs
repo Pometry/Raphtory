@@ -20,8 +20,6 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -357,6 +355,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             0,
             props,
         );
+
+        // Wal -> AddEdgeID(src, dst, edge_id)
 
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
