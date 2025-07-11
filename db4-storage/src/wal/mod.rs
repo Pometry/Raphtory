@@ -11,6 +11,7 @@ pub mod no_wal;
 pub mod entry;
 
 pub type LSN = u64;
+pub type TransactionID = u64;
 
 #[derive(Debug)]
 pub struct WalRecord {
@@ -39,6 +40,10 @@ pub trait Wal {
 }
 
 pub trait WalEntryBuilder<'a> {
+    fn begin_txn(txn_id: TransactionID) -> Self;
+
+    fn commit_txn(txn_id: TransactionID) -> Self;
+
     fn add_edge(
         t: TimeIndexEntry,
         src: VID,

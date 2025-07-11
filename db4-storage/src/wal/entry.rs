@@ -7,12 +7,20 @@ use serde::{Serialize, Deserialize};
 use std::borrow::Cow;
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, WalEntryBuilder};
+use crate::wal::{LSN, TransactionID, WalEntryBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EmptyWalEntry;
 
 impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
+    fn begin_txn(_txn_id: TransactionID) -> Self {
+        EmptyWalEntry
+    }
+
+    fn commit_txn(_txn_id: TransactionID) -> Self {
+        EmptyWalEntry
+    }
+
     fn add_edge(
         _t: TimeIndexEntry,
         _src: VID,
