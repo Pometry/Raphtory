@@ -51,7 +51,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, KCoreState>| {
+    let step2 = ATask::new(move |vv: &mut EvalNodeView<_, KCoreState>| {
         let prev: bool = vv.prev().alive;
         if prev {
             let current = vv

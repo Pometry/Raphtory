@@ -91,7 +91,7 @@ pub fn triplet_count<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> us
     let count = sum::<usize>(0);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<_, ()>| {
         let c1 = evv.neighbours().id().filter(|n| *n != evv.id()).count();
         let c2 = count_two_combinations(c1);
         evv.global_update(&count, c2);

@@ -40,7 +40,7 @@ where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<_, OutState>| {
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.out_neighbours().iter().for_each(|node| {
