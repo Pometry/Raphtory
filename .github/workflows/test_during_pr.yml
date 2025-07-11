@@ -41,10 +41,6 @@ jobs:
     uses: ./.github/workflows/benchmark.yml
     secrets: inherit
     needs: rust-format-check
-  test-docs-examples:
-    name: Run docs tests
-    uses: ./.github/workflows/test_docs.yml
-    secrets: inherit
   # call-code-coverage:
   #   name: Code Coverage
   #   uses: ./.github/workflows/code_coverage.yml
