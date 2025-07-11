@@ -339,7 +339,12 @@ impl<'a> PropMutEntry<'a> {
                     .resize_with(prop_id + 1, Default::default);
             }
             let const_props = &mut self.properties.c_properties[*prop_id];
-            let _ = const_props.set(self.row, prop.clone());
+            if let Err(err) = const_props.set(self.row, prop.clone()) {
+                panic!(
+                    "Failed to set constant property {prop_id} for row {}: {err}",
+                    self.row
+                );
+            }
         }
     }
 }

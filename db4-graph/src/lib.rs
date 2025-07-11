@@ -166,7 +166,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
-        self.storage.nodes().num_nodes()
+        self.node_count.load(atomic::Ordering::Relaxed)
     }
 
     #[inline]
@@ -291,8 +291,6 @@ pub struct WriteLockedGraph<'a, EXT> {
     pub nodes: WriteLockedNodePages<'a, storage::NS<EXT>>,
     pub edges: WriteLockedEdgePages<'a, storage::ES<EXT>>,
     pub graph: &'a TemporalGraph<EXT>,
-    pub num_nodes: Arc<AtomicUsize>,
-    pub num_edges: Arc<AtomicUsize>,
 }
 
 impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'a, EXT> {
@@ -301,35 +299,11 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> WriteLockedGraph<'
             nodes: graph.storage.nodes().write_locked(),
             edges: graph.storage.edges().write_locked(),
             graph,
-            num_nodes: Arc::new(AtomicUsize::new(graph.internal_num_nodes())),
-            num_edges: Arc::new(AtomicUsize::new(graph.internal_num_edges())),
         }
     }
 
-    pub fn resolve_node(&self, gid: GidRef) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        let result = self.graph.logical_to_physical.get_or_init(gid, || {
-            VID(self.num_nodes.fetch_add(1, atomic::Ordering::Relaxed))
-        });
-
-        match result {
-            Ok(vid) => Ok(vid),
-            Err(GIDResolverError::DBV4Error(e)) => panic!("Database error: {e}"),
-            Err(GIDResolverError::InvalidNodeId(e)) => Err(e),
-        }
-    }
-
-    pub fn num_nodes(&self) -> usize {
-        self.num_nodes.load(atomic::Ordering::Relaxed)
-    }
-
-    pub fn num_edges(&self) -> usize {
-        self.num_edges.load(atomic::Ordering::Relaxed)
-    }
-
-    pub fn resolve_node_type(&self, node_type: Option<&str>) -> MaybeNew<usize> {
-        node_type
-            .map(|node_type| self.graph.node_meta().get_or_create_node_type_id(node_type))
-            .unwrap_or_else(|| MaybeNew::Existing(0))
+    pub fn graph(&self) -> &TemporalGraph<EXT> {
+        self.graph
     }
 
     pub fn resize_chunks_to_num_nodes(&mut self, num_nodes: usize) {

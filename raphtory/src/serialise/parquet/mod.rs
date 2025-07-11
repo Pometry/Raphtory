@@ -872,6 +872,24 @@ mod test {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
+
+    #[test]
+    fn write_nodes_any_props_to_parquet_1() {
+        let nodes = NodeFixture(
+            [(
+                0,
+                NodeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![(0, vec![])],
+                        c_props: vec![("2".to_string(), Prop::U8(0))],
+                    },
+                    node_type: Some("one"),
+                },
+            )]
+            .into(),
+        );
+        build_and_check_parquet_encoding(nodes.into());
+    }
     #[test]
     fn write_edges_any_props_to_parquet() {
         proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {

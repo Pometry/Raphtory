@@ -21,7 +21,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::storage::timeindex::AsTime;
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -56,7 +56,7 @@ fn process_shared_properties(
 }
 
 pub(crate) fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -98,7 +98,6 @@ pub(crate) fn load_nodes_from_df<
     let mut node_col_resolved = vec![];
     let mut node_type_col_resolved = vec![];
 
-    let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
     let mut start_id = session
@@ -136,15 +135,14 @@ pub(crate) fn load_nodes_from_df<
             .zip(node_type_col_resolved.par_iter_mut())
             .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = write_locked_graph
-                    .resolve_node(gid)
+
+                let (vid, res_node_type) = write_locked_graph
+                    .graph()
+                    .resolve_node_and_type_fast(gid.as_node_ref(), node_type)
                     .map_err(|_| LoadError::FatalError)?;
-                let node_type_res = write_locked_graph.resolve_node_type(node_type).inner();
-                *node_type_resolved = node_type_res;
-                if let Some(cache) = cache {
-                    cache.resolve_node(vid, gid);
-                }
-                *resolved = vid.inner();
+                *resolved = vid;
+                *node_type_resolved = res_node_type;
+
                 Ok::<(), LoadError>(())
             })?;
 
@@ -154,7 +152,8 @@ pub(crate) fn load_nodes_from_df<
             node_stats.update_time(time);
         };
 
-        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
+        write_locked_graph
+            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
 
         write_locked_graph
             .nodes
@@ -286,7 +285,8 @@ pub(crate) fn load_edges_from_df<
             .try_for_each(|(gid, resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
                 let vid = write_locked_graph
-                    .resolve_node(gid)
+                    .graph()
+                    .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
                 if let Some(cache) = cache {
                     cache.resolve_node(vid, gid);
@@ -302,7 +302,8 @@ pub(crate) fn load_edges_from_df<
             .try_for_each(|(gid, resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
                 let vid = write_locked_graph
-                    .resolve_node(gid)
+                    .graph()
+                    .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
                 if let Some(cache) = cache {
                     cache.resolve_node(vid, gid);
@@ -311,14 +312,16 @@ pub(crate) fn load_edges_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
+        write_locked_graph
+            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
         eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
-        let next_edge_id: Arc<AtomicUsize> = write_locked_graph.num_edges.clone();
+        let next_edge_id: Arc<AtomicUsize> =
+            AtomicUsize::new(write_locked_graph.graph().internal_num_edges()).into();
         let next_edge_id = || next_edge_id.fetch_add(1, Ordering::Relaxed);
 
         write_locked_graph
@@ -377,7 +380,8 @@ pub(crate) fn load_edges_from_df<
             }
         });
 
-        write_locked_graph.resize_chunks_to_num_edges(write_locked_graph.num_edges());
+        write_locked_graph
+            .resize_chunks_to_num_edges(write_locked_graph.graph().internal_num_edges());
 
         write_locked_graph
             .edges
@@ -487,7 +491,7 @@ pub(crate) fn load_edge_deletions_from_df<
 
 pub(crate) fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
@@ -522,7 +526,6 @@ pub(crate) fn load_node_props_from_df<
     let mut node_col_resolved = vec![];
     let mut node_type_col_resolved = vec![];
 
-    let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
@@ -550,19 +553,17 @@ pub(crate) fn load_node_props_from_df<
             .zip(node_type_col_resolved.par_iter_mut())
             .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
                 let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = write_locked_graph
-                    .resolve_node(gid)
+                let (vid, res_node_type) = write_locked_graph
+                    .graph()
+                    .resolve_node_and_type_fast(gid.as_node_ref(), node_type)
                     .map_err(|_| LoadError::FatalError)?;
-                let node_type_res = write_locked_graph.resolve_node_type(node_type).inner();
-                *node_type_resolved = node_type_res;
-                if let Some(cache) = cache {
-                    cache.resolve_node(vid, gid);
-                }
-                *resolved = vid.inner();
+                *resolved = vid;
+                *node_type_resolved = res_node_type;
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
+        write_locked_graph
+            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
 
         write_locked_graph
             .nodes
@@ -688,7 +689,8 @@ pub(crate) fn load_edges_props_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph.resize_chunks_to_num_nodes(write_locked_graph.num_nodes());
+        write_locked_graph
+            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
