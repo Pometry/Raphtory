@@ -48,6 +48,20 @@ impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<G>> for Value {
     }
 }
 
+// FIXME: and merge this one as well
+impl<'graph, G: GraphViewOps<'graph>> From<TemporalPropertyView<EdgeView<G>>> for Value {
+    fn from(value: TemporalPropertyView<EdgeView<G>>) -> Self {
+        value
+            .iter()
+            .map(|(time, value)| PropUpdate {
+                time,
+                value: value.into(),
+            })
+            .map(Value::from_object)
+            .collect()
+    }
+}
+
 impl Object for PropUpdate {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
         match key.as_str()? {
@@ -119,7 +133,7 @@ impl DocumentTemplate {
             }
             Err(error) => {
                 let node = node.name();
-                error!("Template render failed for a node {node}, skipping: {error}");
+                print!("Template render failed for a node {node}, skipping: {error}");
                 None
             }
         }
@@ -141,7 +155,7 @@ impl DocumentTemplate {
             Err(error) => {
                 let src = edge.src().name();
                 let dst = edge.dst().name();
-                error!("Template render failed for edge {src}->{dst}, skipping: {error}");
+                print!("Template render failed for edge {src}->{dst}, skipping: {error}");
                 None
             }
         }
@@ -173,6 +187,8 @@ struct EdgeTemplateContext {
     history: Vec<i64>,
     layers: Vec<String>,
     properties: Value,
+    constant_properties: Value,
+    temporal_properties: Value,
 }
 
 impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext {
@@ -186,10 +202,22 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
                 .into_iter()
                 .map(|name| name.into())
                 .collect(),
-            properties: value // FIXME: boilerplate
+            properties: value // FIXME: boilerplate all over the place
                 .properties()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+            constant_properties: value
+                .properties()
+                .constant()
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+            temporal_properties: value
+                .properties()
+                .temporal()
+                .iter()
+                .map(|(key, prop)| (key.to_string(), Into::<Value>::into(prop)))
                 .collect(),
         }
     }
