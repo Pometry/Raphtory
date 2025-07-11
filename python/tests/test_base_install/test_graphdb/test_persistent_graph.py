@@ -242,7 +242,7 @@ def test_properties_valid():
     assert g.edge(1, 2).is_deleted() == False
     assert g.valid().count_edges() == 1
     assert g.layer("red").edge(1, 2).is_deleted() == True
-    assert g.layer("red").valid().count_edges() == False
+    assert g.layer("red").valid().count_edges() == 0
     g.delete_edge(5, 1, 2, layer="green")
     assert g.edge(1, 2).is_deleted() == False
     assert g.valid().count_edges() == 1
@@ -270,7 +270,7 @@ def test_filtering_valid():
     f = Prop("weight") < 3  # this needs to be converted to the above
     e = (
         g.valid().filter_exploded_edges(f).edge(1, 2)
-    )  # this returns an edge which is invalid -- this would not be the case with Shivams changes
+    )
     assert e.is_valid() == False  # latest update is now a deletion
     assert list(e.properties.temporal.get("weight").values()) == [
         1,
