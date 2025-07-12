@@ -898,6 +898,36 @@ mod test {
     }
 
     #[test]
+    fn write_edges_any_props_to_parquet_1() {
+        let edges = EdgeFixture(
+            [
+                (
+                    (0, 0, Some("a")),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![],
+                            c_props: vec![],
+                        },
+                        deletions: vec![0],
+                    },
+                ),
+                (
+                    (0, 1, Some("a")),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![],
+                            c_props: vec![],
+                        },
+                        deletions: vec![0],
+                    },
+                ),
+            ]
+            .into(),
+        );
+        build_and_check_parquet_encoding(edges.into());
+    }
+
+    #[test]
     fn write_graph_to_parquet() {
         proptest!(|(edges in build_graph_strat(10, 10, true))| {
             build_and_check_parquet_encoding(edges);

@@ -320,9 +320,9 @@ pub(crate) fn load_edges_from_df<
         eids_exist.resize_with(df.len(), Default::default);
         let eid_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut eid_col_resolved));
 
-        let next_edge_id: Arc<AtomicUsize> =
+        let num_edges: Arc<AtomicUsize> =
             AtomicUsize::new(write_locked_graph.graph().internal_num_edges()).into();
-        let next_edge_id = || next_edge_id.fetch_add(1, Ordering::Relaxed);
+        let next_edge_id = || num_edges.fetch_add(1, Ordering::Relaxed);
 
         write_locked_graph
             .nodes
@@ -340,22 +340,25 @@ pub(crate) fn load_edges_from_df<
                         let t = TimeIndexEntry(time, start_idx + row);
                         let mut writer = locked_page.writer();
                         writer.store_node_id(src_pos, 0, src_gid, 0);
-                        if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
+                        let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(true, Ordering::Relaxed);
+                            edge_id
                         } else {
                             let edge_id = EID(next_edge_id());
                             writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
-                            writer.add_outbound_edge(
-                                Some(t),
-                                src_pos,
-                                *dst,
-                                edge_id.with_layer(*layer),
-                                0,
-                            ); // FIXME: when we update this to work with layers use the correct layer
                             eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                             eids_exist[row].store(false, Ordering::Relaxed);
-                        }
+                            edge_id
+                        };
+
+                        writer.add_outbound_edge(
+                            Some(t),
+                            src_pos,
+                            *dst,
+                            edge_id.with_layer(*layer),
+                            0,
+                        ); // FIXME: when we update this to work with layers use the correct layer
                     }
                 }
             });
@@ -380,8 +383,7 @@ pub(crate) fn load_edges_from_df<
             }
         });
 
-        write_locked_graph
-            .resize_chunks_to_num_edges(write_locked_graph.graph().internal_num_edges());
+        write_locked_graph.resize_chunks_to_num_edges(num_edges.load(Ordering::Relaxed));
 
         write_locked_graph
             .edges
@@ -413,6 +415,7 @@ pub(crate) fn load_edges_from_df<
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
 
+                        writer.add_static_edge(Some(eid_pos), *src, *dst, 0, 0, Some(exists));
                         writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
                         writer.add_edge(
                             t,

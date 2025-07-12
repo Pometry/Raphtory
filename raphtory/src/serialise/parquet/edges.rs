@@ -40,6 +40,7 @@ pub(crate) fn encode_edge_tprop(
                 .into_iter()
                 .map(EID)
                 .flat_map(|eid| {
+                    println!("encoding {eid:?}");
                     let edge_ref = g.core_edge(eid).out_ref();
                     EdgeView::new(g, edge_ref).explode()
                 })
@@ -100,7 +101,7 @@ pub(crate) fn encode_edge_deletions(
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,
-                            layer: &layers[layer_id],
+                            layer: &layers[layer_id - 1],
                             edge: EdgeView::new(g, edge_ref),
                         })
                     })

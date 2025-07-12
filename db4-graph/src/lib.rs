@@ -26,7 +26,7 @@ use storage::{
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
     },
     persist::strategy::PersistentStrategy,
-    resolver::{GIDResolverError, GIDResolverOps},
+    resolver::GIDResolverOps,
     Extension, GIDResolver, Layer, ReadLockedLayer, ES, NS,
 };
 use tempfile::TempDir;
