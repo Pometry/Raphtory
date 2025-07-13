@@ -73,7 +73,7 @@ mod test {
                 (
                     e.src().id(),
                     e.dst().id(),
-                    e.latest_time(),
+                    e.latest_time().map(|t| t.t()),
                     e.properties()
                         .temporal()
                         .get("prop1")

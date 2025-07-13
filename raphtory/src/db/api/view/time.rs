@@ -8,9 +8,8 @@ use crate::{
         time::internal::InternalTimeOps,
     },
 };
-use chrono::{DateTime, Utc};
 use raphtory_api::{
-    core::storage::timeindex::{TimeError, TimeIndexEntry},
+    core::storage::timeindex::{TimeIndexEntry},
     GraphType,
 };
 use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
@@ -29,8 +28,8 @@ pub(crate) mod internal {
 
     pub trait InternalTimeOps<'graph> {
         type InternalWindowedView: TimeOps<'graph> + 'graph;
-        fn timeline_start(&self) -> Option<i64>;
-        fn timeline_end(&self) -> Option<i64>;
+        fn timeline_start(&self) -> Option<TimeIndexEntry>;
+        fn timeline_end(&self) -> Option<TimeIndexEntry>;
         fn latest_t(&self) -> Option<i64>;
         fn internal_window(
             &self,
@@ -41,17 +40,17 @@ pub(crate) mod internal {
     impl<'graph, E: OneHopFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
         type InternalWindowedView = E::Filtered<WindowedGraph<E::FilteredGraph>>;
 
-        fn timeline_start(&self) -> Option<i64> {
+        fn timeline_start(&self) -> Option<TimeIndexEntry> {
             self.start()
-                .map(|t| t.t())
-                .or_else(|| self.current_filter().earliest_time().map(|t| t.t()))
+                .map(|t| t)
+                .or_else(|| self.current_filter().earliest_time())
         }
 
-        fn timeline_end(&self) -> Option<i64> {
-            self.end().map(|t| t.t()).or_else(|| {
+        fn timeline_end(&self) -> Option<TimeIndexEntry> {
+            self.end().or_else(|| {
                 self.current_filter()
                     .latest_time()
-                    .map(|v| v.0.saturating_add(1))
+                    .map(|v| TimeIndexEntry::from(v.0.saturating_add(1)))
             })
         }
 
@@ -253,7 +252,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         match (self.timeline_start(), self.timeline_end()) {
             (Some(start), Some(end)) => {
                 let step: Interval = step.try_into()?;
-                WindowSet::new(parent, start, end, step, None)
+                WindowSet::new(parent, start.t(), end.t(), step, None)
             }
             _ => WindowSet::empty(parent),
         }
@@ -277,7 +276,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     Some(step) => step.try_into()?,
                     None => window,
                 };
-                WindowSet::new(parent, start, end, step, Some(window))
+                WindowSet::new(parent, start.t(), end.t(), step, Some(window))
             }
             _ => WindowSet::empty(parent),
         }
@@ -436,6 +435,7 @@ mod time_tests {
         test_storage,
     };
     use itertools::Itertools;
+    use raphtory_api::core::storage::timeindex::AsTime;
     use raphtory_core::utils::time::ParseTimeError;
 
     // start inclusive, end exclusive
@@ -454,7 +454,7 @@ mod time_tests {
     ) where
         G: GraphViewOps<'graph>,
     {
-        let window_bounds = windows.map(|w| (w.start(), w.end())).collect_vec();
+        let window_bounds = windows.map(|w| (w.start().map(|t| t.t()), w.end().map(|t| t.t()))).collect_vec();
         assert_eq!(window_bounds, expected)
     }
 

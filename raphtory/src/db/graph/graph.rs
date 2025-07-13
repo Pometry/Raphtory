@@ -46,6 +46,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -212,8 +213,8 @@ pub fn assert_node_equal_layer<
                 // persistent graph might have updates at start after materialize
                 // history objects aren't identical because the nodes use different generic graph types
                 assert_eq!(
-                    n1.after(earliest).history().t().collect(),
-                    n2.after(earliest).history().t().collect(),
+                    n1.after(earliest.t()).history().t().collect(),
+                    n2.after(earliest.t()).history().t().collect(),
                     "mismatched history for node {:?}{layer_tag}",
                     n1.id()
                 );
@@ -345,8 +346,8 @@ pub fn assert_edges_equal_layer<
                 }
                 Some(earliest) => {
                     assert_eq!(
-                        e1.after(earliest).is_active(),
-                        e2.after(earliest).is_active(),
+                        e1.after(earliest.t()).is_active(),
+                        e2.after(earliest.t()).is_active(),
                         "mismatched is_active for edge {:?}{layer_tag}",
                         e1.id()
                     );
@@ -702,9 +703,7 @@ mod db_tests {
 
             assert!(graph.start().is_none());
             assert!(graph.end().is_none());
-            assert!(graph.earliest_date_time().is_err());
             assert_eq!(graph.earliest_time(), None);
-            assert!(graph.end_date_time().is_err());
             assert!(graph.timeline_end().is_none());
 
             assert!(graph.is_empty());
@@ -719,7 +718,6 @@ mod db_tests {
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());
             assert!(graph.latest_time().is_none());
-            assert!(graph.latest_date_time().is_err());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.earliest_time_global().is_none());
         });

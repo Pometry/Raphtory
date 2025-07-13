@@ -1065,23 +1065,23 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         assert_eq!(g.start(), None);
-        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
         assert_eq!(g.end(), None);
-        assert_eq!(g.timeline_end(), Some(1));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(1));
         e.delete(2, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(3));
-        let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
+        let w = g.window(g.timeline_start().unwrap().t(), g.timeline_end().unwrap().t());
         assert!(g.has_edge(1, 2));
         assert!(w.has_edge(1, 2));
-        assert_eq!(w.start(), Some(0));
-        assert_eq!(w.timeline_start(), Some(0));
-        assert_eq!(w.end(), Some(3));
-        assert_eq!(w.timeline_end(), Some(3));
+        assert_eq!(w.start().map(|t| t.t()), Some(0));
+        assert_eq!(w.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(w.end().map(|t| t.t()), Some(3));
+        assert_eq!(w.timeline_end().map(|t| t.t()), Some(3));
 
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(5));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(5));
     }
 
     #[test]

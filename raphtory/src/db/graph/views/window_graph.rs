@@ -128,13 +128,13 @@ impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
         self.start_bound().t()..self.end_bound().t()
     }
 
-    fn start_bound(&self) -> i64 {
-        self.start.map(|t| t.t()).unwrap_or(i64::MIN)
+    fn start_bound(&self) -> TimeIndexEntry {
+        self.start.unwrap_or(TimeIndexEntry::MIN)
     }
 
     #[inline(always)]
-    fn end_bound(&self) -> i64 {
-        self.end.map(|t| t.t()).unwrap_or(i64::MAX)
+    fn end_bound(&self) -> TimeIndexEntry {
+        self.end.unwrap_or(TimeIndexEntry::MAX)
     }
 
     #[inline(always)]
@@ -341,7 +341,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph.temporal_value_at(id, self.end_bound())
+        self.graph.temporal_value_at(id, self.end_bound().t())
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
@@ -349,13 +349,13 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             return iter::empty().into_dyn_boxed();
         }
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
+            .temporal_prop_iter_window(id, self.start_bound().t(), self.end_bound().t())
             .into_dyn_boxed()
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
+            .temporal_prop_iter_window(id, self.start_bound().t(), self.end_bound().t())
             .rev()
             .into_dyn_boxed()
     }
@@ -365,7 +365,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             .temporal_prop_last_at_window(
                 id,
                 TimeIndexEntry::end(t),
-                self.start_bound()..self.end_bound(),
+                self.start_bound().t()..self.end_bound().t(),
             )
             .map(|(_, p)| p)
     }
@@ -395,13 +395,13 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     fn node_time_semantics(&self) -> TimeSemantics {
         self.graph
             .node_time_semantics()
-            .window(self.start_bound()..self.end_bound())
+            .window(self.start_bound().t()..self.end_bound().t())
     }
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         self.graph
             .edge_time_semantics()
-            .window(self.start_bound()..self.end_bound())
+            .window(self.start_bound().t()..self.end_bound().t())
     }
     fn view_start(&self) -> Option<TimeIndexEntry> {
         self.start
@@ -417,7 +417,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return None;
         }
         self.graph
-            .earliest_time_window(self.start_bound(), self.end_bound())
+            .earliest_time_window(self.start_bound().t(), self.end_bound().t())
     }
 
     #[inline]
@@ -426,7 +426,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return None;
         }
         self.graph
-            .latest_time_window(self.start_bound(), self.end_bound())
+            .latest_time_window(self.start_bound().t(), self.end_bound().t())
     }
 
     #[inline]
@@ -444,7 +444,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return false;
         }
         self.graph
-            .has_temporal_prop_window(prop_id, self.start_bound()..self.end_bound())
+            .has_temporal_prop_window(prop_id, self.start_bound().t()..self.end_bound().t())
     }
 
     fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
@@ -452,7 +452,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return iter::empty().into_dyn_dboxed();
         }
         self.graph
-            .temporal_prop_iter_window(prop_id, self.start_bound(), self.end_bound())
+            .temporal_prop_iter_window(prop_id, self.start_bound().t(), self.end_bound().t())
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
@@ -474,7 +474,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         t: TimeIndexEntry,
     ) -> Option<(TimeIndexEntry, Prop)> {
         self.graph
-            .temporal_prop_last_at_window(prop_id, t, self.start_bound()..self.end_bound())
+            .temporal_prop_last_at_window(prop_id, t, self.start_bound().t()..self.end_bound().t())
     }
 
     fn temporal_prop_last_at_window(
@@ -1063,9 +1063,9 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let mut w = WindowedGraph::new(&graph, Some(0), Some(1));
+            let mut w = WindowedGraph::new(&graph, Some(TimeIndexEntry::from(0)), Some(TimeIndexEntry::from(1)));
             assert_eq!(w, graph);
-            w = WindowedGraph::new(&graph, Some(1), Some(2));
+            w = WindowedGraph::new(&graph, Some(TimeIndexEntry::from(1)), Some(TimeIndexEntry::from(2)));
             assert_eq!(w, Graph::new());
         });
     }
