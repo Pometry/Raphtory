@@ -1,3 +1,4 @@
+mod base_filter;
 mod core_deletion_ops;
 mod edge_filter_ops;
 mod filter_ops;
@@ -5,7 +6,6 @@ mod into_dynamic;
 mod list_ops;
 mod materialize;
 mod node_filter_ops;
-mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
@@ -24,6 +24,7 @@ use std::{
     sync::Arc,
 };
 
+pub use base_filter::*;
 pub use core_deletion_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
@@ -31,7 +32,6 @@ pub use into_dynamic::{IntoDynHop, IntoDynamic};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
-pub use one_hop_filter::*;
 pub use raphtory_api::inherit::Base;
 pub use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},

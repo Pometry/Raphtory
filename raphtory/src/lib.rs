@@ -129,8 +129,7 @@ pub mod prelude {
                 },
                 view::{
                     EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
-                    TimeOps,
+                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, TimeOps,
                 },
             },
             graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},

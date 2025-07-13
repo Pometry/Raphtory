@@ -344,11 +344,7 @@ impl PyPersistentGraph {
     /// Returns:
     ///     Optional[MutableEdge]: The edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(
-        &self,
-        src: PyNodeRef,
-        dst: PyNodeRef,
-    ) -> Option<EdgeView<PersistentGraph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<PersistentGraph>> {
         self.graph.edge(src, dst)
     }
 

@@ -11,7 +11,10 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            view::{internal::BaseFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
+            view::{
+                internal::{BaseFilter, GraphView},
+                BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
+            },
         },
         graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
         task::{
@@ -25,7 +28,6 @@ use std::{
     cell::{Ref, RefCell, RefMut},
     sync::Arc,
 };
-use crate::db::api::view::internal::GraphView;
 
 pub struct EvalNodeView<'graph, 'a: 'graph, G, S, CS: Clone = ComputeStateVec> {
     pub node: VID,
@@ -67,7 +69,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     pub fn graph(&self) -> EvalGraph<'graph, 'a, G, S, CS> {
         self.eval_graph.clone()
     }
-    
+
     pub fn prev(&self) -> &S {
         let VID(i) = self.node;
         &self.eval_graph.local_state_prev.state[i]
@@ -399,12 +401,12 @@ where
     Current: GraphViewOps<'graph>,
     G: GraphViewOps<'graph>,
     CS: ComputeState + 'a,
-    S: 'static
+    S: 'static,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EvalPathFromNode<'graph, 'a, Next, G, CS, S>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.eval_graph.base_graph
     }
 
@@ -425,12 +427,12 @@ where
     'a: 'graph,
     Current: GraphViewOps<'graph>,
     CS: ComputeState + 'a,
-    S: 'static
+    S: 'static,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EvalNodeView<'graph, 'a, Next, S, CS>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.eval_graph.base_graph
     }
 
@@ -438,17 +440,16 @@ where
         &self,
         filtered_graph: Next,
     ) -> Self::Filtered<Next> {
-        EvalNodeView::new_filtered(self.node, self.eval_graph.apply_filter(filtered_graph), None)
+        EvalNodeView::new_filtered(
+            self.node,
+            self.eval_graph.apply_filter(filtered_graph),
+            None,
+        )
     }
 }
 
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphView + 'graph,
-        S: 'static,
-        CS: ComputeState + 'a,
-    > BaseNodeViewOps<'graph> for EvalNodeView<'graph, 'a, G, S, CS>
+impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + 'a>
+    BaseNodeViewOps<'graph> for EvalNodeView<'graph, 'a, G, S, CS>
 {
     type Graph = G;
     type ValueType<T: NodeOp>

@@ -12,14 +12,7 @@ use rayon::prelude::*;
 use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
 
 pub trait NodeStateOps<'graph>:
-    IntoIterator<
-        Item = (
-            NodeView<'graph, Self::BaseGraph>,
-            Self::OwnedValue,
-        ),
-    > + Send
-    + Sync
-    + 'graph
+    IntoIterator<Item = (NodeView<'graph, Self::BaseGraph>, Self::OwnedValue)> + Send + Sync + 'graph
 {
     type BaseGraph: GraphViewOps<'graph>;
     type Graph: GraphViewOps<'graph>;
@@ -47,12 +40,7 @@ pub trait NodeStateOps<'graph>:
 
     fn iter<'a>(
         &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph>,
-            Self::Value<'a>,
-        ),
-    > + 'a
+    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph>, Self::Value<'a>)> + 'a
     where
         'graph: 'a;
 
@@ -60,19 +48,11 @@ pub trait NodeStateOps<'graph>:
 
     fn par_iter<'a>(
         &'a self,
-    ) -> impl ParallelIterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph>,
-            Self::Value<'a>,
-        ),
-    >
+    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::BaseGraph>, Self::Value<'a>)>
     where
         'graph: 'a;
 
-    fn get_by_index(
-        &self,
-        index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)>;
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)>;
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
 

@@ -16,7 +16,7 @@ use crate::{
             task_state::PrevLocalState,
         },
     },
-    prelude::{GraphViewOps, ResetFilter},
+    prelude::GraphViewOps,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
@@ -50,10 +50,10 @@ where
     Current: GraphViewOps<'graph>,
     CS: Clone,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = EvalEdges<'graph, 'a, Next, G, CS, S>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.edges.base_graph
     }
 
@@ -128,17 +128,6 @@ impl<
             local_state_prev,
         }))
     }
-}
-
-impl<
-        'graph,
-        'a,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        CS: Clone + ComputeState,
-        S,
-    > ResetFilter<'graph> for EvalEdges<'graph, 'a, G, GH, CS, S>
-{
 }
 
 impl<

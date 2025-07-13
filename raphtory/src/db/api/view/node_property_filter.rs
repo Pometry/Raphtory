@@ -8,8 +8,8 @@ pub trait NodePropertyFilterOps<'graph>: BaseFilter<'graph> {
     fn filter_nodes<F: CreateNodeFilter>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::NodeFiltered<'graph, Self::Current>>, GraphError> {
-        Ok(self.apply_filter(filter.create_node_filter(self.current_filtered_graph().clone())?))
+    ) -> Result<Self::Filtered<F::NodeFiltered<'graph, Self::BaseGraph>>, GraphError> {
+        Ok(self.apply_filter(filter.create_node_filter(self.base_graph().clone())?))
     }
 }
 

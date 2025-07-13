@@ -346,11 +346,10 @@ impl<'py, G: StaticGraphViewOps + IntoDynamicOrMutable> IntoPyObject<'py> for No
             DynOrMutableGraph::Dyn(graph) => {
                 PyNode::from(NodeView::new_one_hop_filtered(graph, self.node)).into_bound_py_any(py)
             }
-            DynOrMutableGraph::Mutable(graph) => PyMutableNode::new_bound(
-                NodeView::new_one_hop_filtered(graph, self.node),
-                py,
-            )?
-            .into_bound_py_any(py),
+            DynOrMutableGraph::Mutable(graph) => {
+                PyMutableNode::new_bound(NodeView::new_one_hop_filtered(graph, self.node), py)?
+                    .into_bound_py_any(py)
+            }
         }
     }
 }
@@ -693,10 +692,7 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    pub fn __getitem__(
-        &self,
-        node: PyNodeRef,
-    ) -> PyResult<NodeView<'static, DynamicGraph>> {
+    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<'static, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))

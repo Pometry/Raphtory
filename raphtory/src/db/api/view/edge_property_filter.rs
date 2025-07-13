@@ -8,8 +8,8 @@ pub trait EdgePropertyFilterOps<'graph>: BaseFilter<'graph> {
     fn filter_edges<F: CreateEdgeFilter>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::Current>>, GraphError> {
-        Ok(self.apply_filter(filter.create_edge_filter(self.current_filtered_graph().clone())?))
+    ) -> Result<Self::Filtered<F::EdgeFiltered<'graph, Self::BaseGraph>>, GraphError> {
+        Ok(self.apply_filter(filter.create_edge_filter(self.base_graph().clone())?))
     }
 }
 

@@ -50,11 +50,6 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
     }
 }
 
-impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> ResetFilter<'graph>
-    for EvalEdgeView<'graph, 'a, G, CS, S>
-{
-}
-
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState + 'a>
     BaseEdgeViewOps<'graph> for EvalEdgeView<'graph, 'a, G, CS, S>
 {
@@ -145,10 +140,10 @@ where
     Current: GraphViewOps<'graph>,
     CS: ComputeState + 'a,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, Next, CS, S>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.edge.graph
     }
 

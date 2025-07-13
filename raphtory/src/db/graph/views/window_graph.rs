@@ -53,7 +53,7 @@ use crate::{
                     InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList, Static,
                     TimeSemantics,
                 },
-                BoxableGraphView, BoxedLIter, IntoDynBoxed,
+                BoxedLIter, IntoDynBoxed,
             },
         },
         graph::graph::graph_equal,
@@ -120,7 +120,7 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
     }
 }
 
-impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
+impl<G: GraphView> WindowedGraph<G> {
     #[inline(always)]
     fn window_bound(&self) -> Range<i64> {
         self.start_bound()..self.end_bound()

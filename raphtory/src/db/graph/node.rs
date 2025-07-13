@@ -171,10 +171,10 @@ impl<'graph, Current> BaseFilter<'graph> for NodeView<'graph, Current>
 where
     Current: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = NodeView<'graph, Next>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.graph
     }
 

@@ -7,8 +7,8 @@ use crate::{
         api::{
             properties::{internal::PropertiesOps, Properties},
             view::{
-                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
-                BoxableGraphView, IntoDynBoxed,
+                internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
+                IntoDynBoxed,
             },
         },
         graph::{
@@ -57,7 +57,7 @@ impl<'graph, G: GraphViewOps<'graph>> Iterator for ExplodedIter<'graph, G> {
     }
 }
 
-fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
+fn exploded<'graph, G: GraphView + 'graph>(
     view: G,
     edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {
@@ -77,7 +77,7 @@ fn exploded<'graph, G: BoxableGraphView + Clone + 'graph>(
     .into_dyn_boxed()
 }
 
-fn exploded_layers<'graph, G: BoxableGraphView + Clone + 'graph>(
+fn exploded_layers<'graph, G: GraphView + 'graph>(
     view: G,
     edge_ref: EdgeRef,
 ) -> BoxedLIter<'graph, EdgeRef> {

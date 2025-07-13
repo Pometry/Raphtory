@@ -25,7 +25,6 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
-use crate::db::api::view::internal::OneHopFilter;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
@@ -214,17 +213,14 @@ where
             .into_dyn_boxed()
     }
 
-    pub fn par_iter(
-        &self,
-    ) -> impl ParallelIterator<Item = NodeView<&G>> + use<'_, 'graph, G, GH> {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G>> + use<'_, 'graph, G, GH> {
         self.par_iter_refs()
             .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, G>> + 'graph {
-        self.par_iter_refs().map(move |n| {
-            NodeView::new_one_hop_filtered(self.base_graph.clone(), n)
-        })
+        self.par_iter_refs()
+            .map(move |n| NodeView::new_one_hop_filtered(self.base_graph.clone(), n))
     }
 
     /// Returns the number of nodes in the graph.
@@ -255,9 +251,8 @@ where
 
     pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<'graph, G>> {
         let vid = self.base_graph.internalise_node(node.as_node_ref())?;
-        self.contains(vid).then(|| {
-            NodeView::new_one_hop_filtered(self.base_graph.clone(), vid)
-        })
+        self.contains(vid)
+            .then(|| NodeView::new_one_hop_filtered(self.base_graph.clone(), vid))
     }
 
     pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(
@@ -392,10 +387,10 @@ where
     Current: GraphViewOps<'graph> + 'graph,
     G: GraphViewOps<'graph> + 'graph,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = Nodes<'graph, Next, G>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 
@@ -406,32 +401,6 @@ where
         Nodes {
             base_graph: filtered_graph,
             graph: self.graph.clone(),
-            nodes: self.nodes.clone(),
-            node_types_filter: self.node_types_filter.clone(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<'graph, G, Current> OneHopFilter<'graph> for Nodes<'graph, G, Current>
-where
-    G: GraphViewOps<'graph> + 'graph,
-    Current: GraphViewOps<'graph> + 'graph,
-{
-    type Current = Current;
-    type Filtered<Next: GraphViewOps<'graph>> = Nodes<'graph, G, Next>;
-
-    fn current_filtered_graph(&self) -> &Self::Current {
-        &self.graph
-    }
-
-    fn apply_filter<Next: GraphViewOps<'graph>>(
-        &self,
-        filtered_graph: Next,
-    ) -> Self::Filtered<Next> {
-        Nodes {
-            base_graph: self.base_graph.clone(),
-            graph: filtered_graph,
             nodes: self.nodes.clone(),
             node_types_filter: self.node_types_filter.clone(),
             _marker: PhantomData,

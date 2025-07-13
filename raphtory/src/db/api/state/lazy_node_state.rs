@@ -101,11 +101,11 @@ where
     G: GraphViewOps<'graph>,
     GH: GraphViewOps<'graph>,
 {
-    type Current = Op::Graph;
+    type BaseGraph = Op::Graph;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> =
         LazyNodeState<'graph, Op::Filtered<Next>, G, GH>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         self.op.graph()
     }
 
@@ -230,12 +230,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 
     fn iter<'a>(
         &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph>,
-            Self::Value<'a>,
-        ),
-    > + 'a
+    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph>, Self::Value<'a>)> + 'a
     where
         'graph: 'a,
     {
@@ -251,12 +246,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 
     fn par_iter<'a>(
         &'a self,
-    ) -> impl ParallelIterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph>,
-            Self::Value<'a>,
-        ),
-    >
+    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::BaseGraph>, Self::Value<'a>)>
     where
         'graph: 'a,
     {
@@ -266,10 +256,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             .map(move |node| (node, self.op.apply(&storage, node.node)))
     }
 
-    fn get_by_index(
-        &self,
-        index: usize,
-    ) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
+    fn get_by_index(&self, index: usize) -> Option<(NodeView<&Self::BaseGraph>, Self::Value<'_>)> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {

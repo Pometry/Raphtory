@@ -241,10 +241,10 @@ where
     Current: GraphViewOps<'graph>,
     G: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = PathFromGraph<'graph, Next, G>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 
@@ -467,10 +467,10 @@ where
     Current: GraphViewOps<'graph>,
     G: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, Next, G>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 

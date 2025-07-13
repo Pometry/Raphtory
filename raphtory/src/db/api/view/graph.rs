@@ -901,10 +901,10 @@ impl<'graph, G> BaseFilter<'graph> for G
 where
     G: GraphViewOps<'graph> + 'graph,
 {
-    type Current = G;
+    type BaseGraph = G;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         self
     }
 

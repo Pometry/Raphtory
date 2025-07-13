@@ -52,23 +52,17 @@ impl PyMutableEdge {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic>
-    From<EdgeView<G>> for PyEdge
-{
+impl<G: StaticGraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
     fn from(value: EdgeView<G>) -> Self {
         let graph = value.graph.into_dynamic();
         let edge = value.edge;
         Self {
-            edge: EdgeView {
-                graph,
-                edge,
-            },
+            edge: EdgeView { graph, edge },
         }
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic + Static> From<EdgeView<G>> for EdgeView<DynamicGraph>
-{
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<EdgeView<G>> for EdgeView<DynamicGraph> {
     fn from(value: EdgeView<G>) -> Self {
         EdgeView {
             graph: value.graph.into_dynamic(),
@@ -98,11 +92,7 @@ impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G>> for PyMu
     }
 }
 
-impl<
-        'py,
-        G: StaticGraphViewOps + IntoDynamic + Immutable,
-    > IntoPyObject<'py> for EdgeView<G>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic + Immutable> IntoPyObject<'py> for EdgeView<G> {
     type Target = PyEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;

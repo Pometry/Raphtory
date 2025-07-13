@@ -956,9 +956,7 @@ mod test_deletions {
         assert!(e.graph.edge(e.src(), e.dst()).is_some());
     }
 
-    fn check_deleted<'graph, G: GraphViewOps<'graph>>(
-        e: &EdgeView<G>,
-    ) {
+    fn check_deleted<'graph, G: GraphViewOps<'graph>>(e: &EdgeView<G>) {
         assert!(!e.is_valid());
         assert!(e.is_deleted());
         let t = e.latest_time().unwrap_or(i64::MAX);

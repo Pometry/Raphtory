@@ -17,9 +17,9 @@ use crate::{
                 Properties,
             },
             view::{
-                internal::{BaseFilter, EdgeTimeSemanticsOps, Static},
-                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
-                IntoDynamic, StaticGraphViewOps,
+                internal::{BaseFilter, EdgeTimeSemanticsOps, GraphView, Static},
+                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
@@ -57,7 +57,7 @@ pub struct EdgeView<G> {
     pub edge: EdgeRef,
 }
 
-pub(crate) fn edge_valid_layer<G: BoxableGraphView + Clone>(graph: &G, e: EdgeRef) -> bool {
+pub(crate) fn edge_valid_layer<G: GraphView>(graph: &G, e: EdgeRef) -> bool {
     match e.layer() {
         None => true,
         Some(layer) => graph.layer_ids().contains(&layer),
@@ -68,10 +68,7 @@ impl<G> Static for EdgeView<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> EdgeView<G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
-        Self {
-            graph,
-            edge,
-        }
+        Self { graph, edge }
     }
 }
 
@@ -102,12 +99,9 @@ impl<G: IntoDynamic> EdgeView<G> {
     }
 }
 
-impl<G: BoxableGraphView + Clone> EdgeView<G> {
+impl<G: GraphView> EdgeView<G> {
     pub(crate) fn new_filtered(graph: G, edge: EdgeRef) -> Self {
-        Self {
-            graph,
-            edge,
-        }
+        Self { graph, edge }
     }
 
     pub fn deletions_hist(&self) -> BoxedLIter<(TimeIndexEntry, usize)> {
@@ -169,24 +163,16 @@ impl<
     }
 }
 
-impl<
-        'graph_1,
-        'graph_2,
-        G1: GraphViewOps<'graph_1>,
-        G2: GraphViewOps<'graph_2>,
-    > PartialEq<EdgeView<G2>> for EdgeView<G1>
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, G2: GraphViewOps<'graph_2>>
+    PartialEq<EdgeView<G2>> for EdgeView<G1>
 {
     fn eq(&self, other: &EdgeView<G2>) -> bool {
         self.id() == other.id() && self.edge.time() == other.edge.time()
     }
 }
 
-impl<
-        'graph_1,
-        'graph_2,
-        G1: GraphViewOps<'graph_1>,
-        G2: GraphViewOps<'graph_2>,
-    > PartialOrd<EdgeView<G2>> for EdgeView<G1>
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, G2: GraphViewOps<'graph_2>>
+    PartialOrd<EdgeView<G2>> for EdgeView<G1>
 {
     fn partial_cmp(&self, other: &EdgeView<G2>) -> Option<Ordering> {
         Some(
@@ -205,14 +191,7 @@ impl<'graph_1, G1: GraphViewOps<'graph_1>> Ord for EdgeView<G1> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> ResetFilter<'graph>
-    for EdgeView<G>
-{
-}
-
-impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
-    for EdgeView<G>
-{
+impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
     type Graph = G;
 
     type ValueType<T>
@@ -390,9 +369,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> ConstantPropertiesOps
-    for EdgeView<G>
-{
+impl<'graph, G: GraphViewOps<'graph>> ConstantPropertiesOps for EdgeView<G> {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().const_prop_meta().get_id(name)
     }
@@ -435,9 +412,7 @@ impl<'graph, G: GraphViewOps<'graph>> ConstantPropertiesOps
     }
 }
 
-impl<G: BoxableGraphView + Clone> TemporalPropertyViewOps
-    for EdgeView<G>
-{
+impl<G: GraphView> TemporalPropertyViewOps for EdgeView<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .edge_meta()
@@ -607,9 +582,7 @@ impl<G: BoxableGraphView + Clone> TemporalPropertyViewOps
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps
-    for EdgeView<G>
-{
+impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for EdgeView<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().temporal_prop_meta().get_id(name)
     }
@@ -666,10 +639,10 @@ impl<'graph, Current> BaseFilter<'graph> for EdgeView<Current>
 where
     Current: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph>> = EdgeView<Next>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.graph
     }
 

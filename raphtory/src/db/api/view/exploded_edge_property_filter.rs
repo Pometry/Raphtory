@@ -10,8 +10,8 @@ pub trait ExplodedEdgePropertyFilterOps<'graph>: BaseFilter<'graph> {
     fn filter_exploded_edges<F: CreateExplodedEdgeFilter>(
         &self,
         filter: F,
-    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::Current>>, GraphError> {
-        let graph = filter.create_exploded_edge_filter(self.current_filtered_graph().clone())?;
+    ) -> Result<Self::Filtered<F::ExplodedEdgeFiltered<'graph, Self::BaseGraph>>, GraphError> {
+        let graph = filter.create_exploded_edge_filter(self.base_graph().clone())?;
         Ok(self.apply_filter(graph))
     }
 }

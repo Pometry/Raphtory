@@ -26,13 +26,13 @@ impl IntoDynamic for Arc<dyn BoxableGraphView> {
     }
 }
 
-pub trait IntoDynHop: BaseFilter<'static, Current: IntoDynamic> {
+pub trait IntoDynHop: BaseFilter<'static, BaseGraph: IntoDynamic> {
     fn into_dyn_hop(self) -> Self::Filtered<DynamicGraph>;
 }
 
-impl<T: BaseFilter<'static, Current: IntoDynamic + Clone>> IntoDynHop for T {
+impl<T: BaseFilter<'static, BaseGraph: IntoDynamic + Clone>> IntoDynHop for T {
     fn into_dyn_hop(self) -> Self::Filtered<DynamicGraph> {
-        let graph = self.current_filtered_graph().clone().into_dynamic();
+        let graph = self.base_graph().clone().into_dynamic();
         self.apply_filter(graph)
     }
 }

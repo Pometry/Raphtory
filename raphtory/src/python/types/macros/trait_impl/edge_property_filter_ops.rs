@@ -40,7 +40,7 @@ macro_rules! impl_edge_property_filter_ops {
                 <$base_type as BaseFilter<'static>>::Filtered<
                     <PyPropertyFilter as CreateExplodedEdgeFilter>::ExplodedEdgeFiltered<
                         'static,
-                        <$base_type as BaseFilter<'static>>::Current,
+                        <$base_type as BaseFilter<'static>>::BaseGraph,
                     >,
                 >,
                 GraphError,

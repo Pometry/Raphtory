@@ -8,7 +8,6 @@ pub mod internal;
 mod layer;
 pub(crate) mod node;
 mod node_property_filter;
-mod reset_filter;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
@@ -16,7 +15,7 @@ pub use edge::EdgeViewOps;
 use ouroboros::self_referencing;
 use std::marker::PhantomData;
 
-use crate::db::api::view::internal::filtered_node::FilteredNodeStorageOps;
+use crate::db::api::view::internal::{filtered_node::FilteredNodeStorageOps, GraphView};
 pub use edge_property_filter::EdgePropertyFilterOps;
 pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
 pub use graph::*;
@@ -36,7 +35,6 @@ pub use raphtory_api::{
     iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
-pub use reset_filter::*;
 pub use time::*;
 
 #[self_referencing]
@@ -64,7 +62,7 @@ impl<'graph, G: GraphViewOps<'graph>> Iterator for EdgesIter<'graph, G> {
     }
 }
 
-pub(crate) fn node_edges<'graph, G: BoxableGraphView + Clone + 'graph>(
+pub(crate) fn node_edges<'graph, G: GraphView + 'graph>(
     storage: GraphStorage,
     view: G,
     node: VID,

@@ -84,7 +84,7 @@ impl Zero for MotifCounter {
 ///////////////////////////////////////////////////////
 
 pub fn star_motif_count<'graph, G>(
-    evv: &EvalNodeView<'graph, '_, &'graph G, MotifCounter>,
+    evv: &EvalNodeView<'graph, '_, G, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 24]>
 where
@@ -129,7 +129,7 @@ where
 ///////////////////////////////////////////////////////
 
 pub fn twonode_motif_count<'a, 'b, G>(
-    evv: &'a EvalNodeView<'b, '_, &'b G, MotifCounter>,
+    evv: &'a EvalNodeView<'b, '_, G, MotifCounter>,
     deltas: Vec<i64>,
 ) -> Vec<[usize; 8]>
 where

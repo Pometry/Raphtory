@@ -35,23 +35,19 @@ pub(crate) mod internal {
         ) -> Self::InternalWindowedView;
     }
     impl<'graph, E: BaseFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
-        type InternalWindowedView = E::Filtered<WindowedGraph<E::Current>>;
+        type InternalWindowedView = E::Filtered<WindowedGraph<E::BaseGraph>>;
 
         fn timeline_start(&self) -> Option<i64> {
-            self.start()
-                .or_else(|| self.current_filtered_graph().earliest_time())
+            self.start().or_else(|| self.base_graph().earliest_time())
         }
 
         fn timeline_end(&self) -> Option<i64> {
-            self.end().or_else(|| {
-                self.current_filtered_graph()
-                    .latest_time()
-                    .map(|v| v.saturating_add(1))
-            })
+            self.end()
+                .or_else(|| self.base_graph().latest_time().map(|v| v.saturating_add(1)))
         }
 
         fn latest_t(&self) -> Option<i64> {
-            self.current_filtered_graph().latest_time()
+            self.base_graph().latest_time()
         }
 
         fn internal_window(
@@ -59,8 +55,8 @@ pub(crate) mod internal {
             start: Option<i64>,
             end: Option<i64>,
         ) -> Self::InternalWindowedView {
-            let base_start = self.current_filtered_graph().start();
-            let base_end = self.current_filtered_graph().end();
+            let base_start = self.base_graph().start();
+            let base_end = self.base_graph().end();
             let actual_start = match (base_start, start) {
                 (Some(base), Some(start)) => Some(max(base, start)),
                 (None, v) => v,
@@ -76,7 +72,7 @@ pub(crate) mod internal {
                 _ => actual_end,
             };
             self.apply_filter(WindowedGraph::new(
-                self.current_filtered_graph().clone(),
+                self.base_graph().clone(),
                 actual_start,
                 actual_end,
             ))
@@ -165,11 +161,11 @@ impl<'graph, V: BaseFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'
     type WindowedViewType = V::InternalWindowedView;
 
     fn start(&self) -> Option<i64> {
-        self.current_filtered_graph().view_start()
+        self.base_graph().view_start()
     }
 
     fn end(&self) -> Option<i64> {
-        self.current_filtered_graph().view_end()
+        self.base_graph().view_end()
     }
 
     fn start_date_time(&self) -> Option<DateTime<Utc>> {
@@ -218,7 +214,7 @@ impl<'graph, V: BaseFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'
     }
 
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
-        match self.current_filtered_graph().graph_type() {
+        match self.base_graph().graph_type() {
             GraphType::EventGraph => self.before(time.into_time() + 1),
             GraphType::PersistentGraph => self.at(time),
         }

@@ -483,11 +483,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (edge, merge = false))]
-    pub fn import_edge(
-        &self,
-        edge: PyEdge,
-        merge: bool,
-    ) -> Result<EdgeView<Graph>, GraphError> {
+    pub fn import_edge(&self, edge: PyEdge, merge: bool) -> Result<EdgeView<Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, merge)
     }
 

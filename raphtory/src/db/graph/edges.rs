@@ -14,7 +14,7 @@ use crate::{
             path::{PathFromGraph, PathFromNode},
         },
     },
-    prelude::{GraphViewOps, ResetFilter},
+    prelude::GraphViewOps,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -39,10 +39,10 @@ where
     Current: GraphViewOps<'graph>,
     G: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = Edges<'graph, Next, G>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 
@@ -107,11 +107,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
         let base_graph = self.base_graph.clone();
         Box::new((self.edges)().map(move |e| EdgeView::new_filtered(base_graph.clone(), e)))
     }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
-    for Edges<'graph, G, GH>
-{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
@@ -226,10 +221,10 @@ where
     G: GraphViewOps<'graph>,
     Current: GraphViewOps<'graph>,
 {
-    type Current = Current;
+    type BaseGraph = Current;
     type Filtered<Next: GraphViewOps<'graph> + 'graph> = NestedEdges<'graph, Next, G>;
 
-    fn current_filtered_graph(&self) -> &Self::Current {
+    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 
@@ -244,11 +239,6 @@ where
             edges: self.edges.clone(),
         }
     }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
-    for NestedEdges<'graph, G, GH>
-{
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
