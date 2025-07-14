@@ -58,7 +58,7 @@ impl PyRemoteNode {
     ///
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///     properties (Dict[str, Prop], optional): A dictionary of properties to update.
+    ///     properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///
     /// Returns:
     ///     None:
@@ -97,7 +97,7 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
     ///     None:
@@ -132,7 +132,7 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
     ///     None:

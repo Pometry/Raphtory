@@ -1,4 +1,4 @@
-from raphtory import filter, Prop
+from raphtory import filter
 import pytest
 from filters_setup import (
     init_edges_graph,

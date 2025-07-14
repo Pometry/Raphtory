@@ -9,7 +9,10 @@ use crate::{
                 InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateEdgeFilter, model::OrFilter},
+        graph::views::filter::{
+            internal::{CreateEdgeFilter, CreateExplodedEdgeFilter},
+            model::OrFilter,
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -43,6 +46,28 @@ impl<L: CreateEdgeFilter, R: CreateEdgeFilter> CreateEdgeFilter for OrFilter<L, 
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let left = self.left.create_edge_filter(graph.clone())?;
         let right = self.right.create_edge_filter(graph.clone())?;
+        Ok(EdgeOrFilteredGraph { graph, left, right })
+    }
+}
+
+impl<L: CreateExplodedEdgeFilter, R: CreateExplodedEdgeFilter> CreateExplodedEdgeFilter
+    for OrFilter<L, R>
+{
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = EdgeOrFilteredGraph<
+        G,
+        L::ExplodedEdgeFiltered<'graph, G>,
+        R::ExplodedEdgeFiltered<'graph, G>,
+    >
+    where
+        Self: 'graph;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        let left = self.left.create_exploded_edge_filter(graph.clone())?;
+        let right = self.right.create_exploded_edge_filter(graph.clone())?;
         Ok(EdgeOrFilteredGraph { graph, left, right })
     }
 }

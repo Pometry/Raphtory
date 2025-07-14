@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
+import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -478,11 +479,13 @@ class RemoteEdge(object):
     """
     A remote edge reference
 
-    Returned by :meth:`RemoteGraph.edge`, :meth:`RemoteGraph.add_edge`, and :meth:`RemoteGraph.delete_edge`.
+    Returned by [RemoteGraph.edge][raphtory.graphql.RemoteGraph.edge],
+    [RemoteGraph.add_edge][raphtory.graphql.RemoteGraph.add_edge],
+    and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
     """
 
     def add_constant_properties(
-        self, properties: Dict[str, Prop], layer: Optional[str] = None
+        self, properties: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Add constant properties to the edge within the remote graph.
@@ -490,7 +493,7 @@ class RemoteEdge(object):
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+            properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -500,7 +503,7 @@ class RemoteEdge(object):
     def add_updates(
         self,
         t: int | str | datetime,
-        properties: Optional[Dict[str, Prop]] = None,
+        properties: Optional[dict[str, PropValue]] = None,
         layer: Optional[str] = None,
     ) -> None:
         """
@@ -511,7 +514,7 @@ class RemoteEdge(object):
 
         Parameters:
             t (int | str | datetime): The timestamp at which the updates should be applied.
-            properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+            properties (dict[str, PropValue], optional): A dictionary of properties to update.
             layer (str, optional): The layer you want the updates to be applied.
 
         Returns:
@@ -531,7 +534,7 @@ class RemoteEdge(object):
         """
 
     def update_constant_properties(
-        self, properties: Dict[str, Prop], layer: Optional[str] = None
+        self, properties: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
         Update constant properties of an edge in the remote graph overwriting existing values.
@@ -539,7 +542,7 @@ class RemoteEdge(object):
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+            properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
@@ -547,21 +550,21 @@ class RemoteEdge(object):
         """
 
 class RemoteNode(object):
-    def add_constant_properties(self, properties: Dict[str, Prop]) -> None:
+    def add_constant_properties(self, properties: dict[str, PropValue]) -> None:
         """
         Add constant properties to a node in the remote graph.
         This function is used to add properties to a node that remain constant and does not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+            properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
             None:
         """
 
     def add_updates(
-        self, t: int | str | datetime, properties: Optional[Dict[str, Prop]] = None
+        self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None
     ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
@@ -569,7 +572,7 @@ class RemoteNode(object):
 
         Parameters:
             t (int | str | datetime): The timestamp at which the updates should be applied.
-            properties (Dict[str, Prop], optional): A dictionary of properties to update.
+            properties (dict[str, PropValue], optional): A dictionary of properties to update.
 
         Returns:
             None:
@@ -587,14 +590,14 @@ class RemoteNode(object):
             None:
         """
 
-    def update_constant_properties(self, properties: Dict[str, Prop]) -> None:
+    def update_constant_properties(self, properties: dict[str, PropValue]) -> None:
         """
         Update constant properties of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that remain constant and do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+            properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
             None:
@@ -608,7 +611,7 @@ class RemoteNodeAddition(object):
         name (GID): the id of the node
         node_type (str, optional): the node type
         constant_properties (PropInput, optional): the constant properties
-        updates: (list[RemoteUpdate], optional): the temporal updates
+        updates (list[RemoteUpdate], optional): the temporal updates
     """
 
     def __new__(
@@ -616,7 +619,7 @@ class RemoteNodeAddition(object):
         name: GID,
         node_type: Optional[str] = None,
         constant_properties: Optional[PropInput] = None,
-        updates: Any = None,
+        updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -692,12 +695,12 @@ class SomePropertySpec(object):
     Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 
     Arguments:
-        constant (List[str]): Constant property names. Defaults to `[]`.
-        temporal (List[str]): Temporal property names. Defaults to `[]`.
+        constant (list[str]): Constant property names. Defaults to [].
+        temporal (list[str]): Temporal property names. Defaults to [].
     """
 
     def __new__(
-        cls, constant: List[str] = ..., temporal: List[str] = ...
+        cls, constant: list[str] = [], temporal: list[str] = []
     ) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 

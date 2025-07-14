@@ -9,7 +9,10 @@ use crate::{
                 InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateEdgeFilter, model::NotFilter},
+        graph::views::filter::{
+            internal::{CreateEdgeFilter, CreateExplodedEdgeFilter},
+            model::NotFilter,
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -40,6 +43,21 @@ impl<T: CreateEdgeFilter> CreateEdgeFilter for NotFilter<T> {
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let filter = self.0.create_edge_filter(graph.clone())?;
+        Ok(EdgeNotFilteredGraph { graph, filter })
+    }
+}
+
+impl<T: CreateExplodedEdgeFilter> CreateExplodedEdgeFilter for NotFilter<T> {
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = EdgeNotFilteredGraph<G, T::ExplodedEdgeFiltered<'graph, G>>
+    where
+        Self: 'graph;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        let filter = self.0.create_exploded_edge_filter(graph.clone())?;
         Ok(EdgeNotFilteredGraph { graph, filter })
     }
 }

@@ -14,7 +14,6 @@ def create_graph_epoch(g):
     g.add_edge(5, 6, 7)
 
 
-
 def create_graph_date(g):
     dates = [
         datetime(2025, 1, 1, 0, 0),
@@ -32,6 +31,7 @@ def create_graph_date(g):
     g.add_edge(dates[3], 1, 3)
     g.add_edge(dates[4], 6, 7, {"where": "fishbowl"}, "finds")
 
+
 def create_persistent_graph_epoch(g):
     g.add_edge(1, 1, 2)
     g.add_edge(2, 1, 2)
@@ -40,8 +40,9 @@ def create_persistent_graph_epoch(g):
     g.add_edge(3, 1, 3)
     g.add_edge(4, 1, 3)
     g.add_edge(5, 6, 7)
-    g.delete_edge(6,1,3)
-    g.delete_edge(7,1,2)
+    g.delete_edge(6, 1, 3)
+    g.delete_edge(7, 1, 2)
+
 
 def test_apply_view_snapshot_latest():
     graph = Graph()
@@ -2300,20 +2301,7 @@ def test_valid_graph():
             }"""
     correct = {
         "graph": {
-            "applyViews": {
-                "edges": {
-                    "list": [
-                        {
-                            "id": [
-                                "6",
-                                "7"
-                            ],
-                            "latestTime": 5
-                        }
-                    ]
-                }
-            }
+            "applyViews": {"edges": {"list": [{"id": ["6", "7"], "latestTime": 5}]}}
         }
     }
     run_graphql_test(query, correct, graph)
-

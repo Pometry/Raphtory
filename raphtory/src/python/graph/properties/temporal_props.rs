@@ -108,7 +108,7 @@ impl PyTemporalProperties {
     /// Get the latest value of all properties
     ///
     /// Returns:
-    ///     dict[str, Any]: the mapping of property keys to latest values
+    ///     dict[str, PropValue]: the mapping of property keys to latest values
     fn latest(&self) -> HashMap<ArcStr, Prop> {
         self.props
             .iter_latest()
@@ -138,12 +138,10 @@ impl PyTemporalProperties {
             .collect()
     }
 
-    /// __getitem__(key: str) -> TemporalProp
-    ///
     /// Get property value for `key`
     ///
     /// Returns:
-    ///     the property view
+    ///     TemporalProp: the property view
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -151,12 +149,10 @@ impl PyTemporalProperties {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// get(key: str) -> Optional[TemporalProp]
-    ///
     /// Get property value for `key` if it exists
     ///
     /// Returns:
-    ///     the property view if it exists, otherwise `None`
+    ///     TemporalProp: the property view if it exists, otherwise `None`
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -245,12 +241,12 @@ impl PyTemporalProp {
         self.prop.iter().collect()
     }
 
-    // List of unique property values
+    /// List of unique property values
     pub fn unique(&self) -> Vec<Prop> {
         self.prop.unique()
     }
 
-    // List of ordered deduplicated property values
+    /// List of ordered deduplicated property values
     pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
         self.prop.ordered_dedupe(latest_time)
     }
@@ -277,7 +273,7 @@ impl PyTemporalProp {
     /// Compute the sum of all property values.
     ///
     /// Returns:
-    ///     Prop: The sum of all property values.
+    ///     PropValue: The sum of all property values.
     pub fn sum(&self) -> Option<Prop> {
         compute_generalised_sum(self.prop.values(), |a, b| a.add(b), |d| d.dtype().has_add())
     }
@@ -285,7 +281,7 @@ impl PyTemporalProp {
     /// Find the minimum property value and its associated time.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the minimum property value.
+    ///     Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
     pub fn min(&self) -> Option<(i64, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
@@ -303,7 +299,7 @@ impl PyTemporalProp {
     /// Find the maximum property value and its associated time.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the maximum property value.
+    ///     Tuple[int, PropValue]: A tuple containing the time and the maximum property value.
     pub fn max(&self) -> Option<(i64, Prop)> {
         compute_generalised_sum(
             self.prop.iter(),
@@ -329,7 +325,7 @@ impl PyTemporalProp {
     /// Compute the average of all property values. Alias for mean().
     ///
     /// Returns:
-    ///     Prop: The average of each property values, or None if count is zero.
+    ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> Option<Prop> {
         self.mean()
     }
@@ -337,7 +333,7 @@ impl PyTemporalProp {
     /// Compute the mean of all property values. Alias for mean().
     ///
     /// Returns:
-    ///     Prop: The mean of each property values, or None if count is zero.
+    ///     PropValue: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> Option<Prop> {
         compute_mean(self.prop.values())
     }
@@ -345,7 +341,7 @@ impl PyTemporalProp {
     /// Compute the median of all property values.
     ///
     /// Returns:
-    ///     (i64, Prop): A tuple containing the time and the median property value, or None if empty
+    ///     Tuple[int, PropValue]: A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(i64, Prop)> {
         let mut sorted: Vec<(i64, Prop)> = self.prop.iter().collect();
         if !sorted.first()?.1.dtype().has_cmp() {

@@ -89,12 +89,25 @@ class AnnotationError(Exception):
     pass
 
 
-def validate_annotation(annotation: str):
-    parsed = ast.parse(f"_: {annotation}")
-    for node in ast.walk(parsed.body[0].annotation):
+def _validate_ast(parsed):
+    for node in ast.walk(parsed):
         if isinstance(node, ast.Name):
             if node.id not in global_ns and node.id not in builtins.__dict__:
                 raise AnnotationError(f"Unknown type {node.id}")
+
+
+def validate_annotation(annotation: str):
+    parsed = ast.parse(f"_: {annotation}")
+    _validate_ast(parsed.body[0].annotation)
+
+
+def validate_default(default_value: str):
+    try:
+        parsed = ast.parse(default_value)
+        _validate_ast(parsed)
+    except Exception as e:
+        print(e)
+        raise e
 
 
 def format_param(param: inspect.Parameter) -> str:
@@ -252,7 +265,7 @@ def extract_param_annotation(param: DocstringParam) -> dict:
     if param.default is not None or param.is_optional:
         if param.default is not None:
             try:
-                validate_annotation(param.default)
+                validate_default(param.default)
                 res["default"] = param.default
             except Exception as e:
                 fn_logger.error(
