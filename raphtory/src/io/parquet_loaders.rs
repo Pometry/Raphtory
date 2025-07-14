@@ -32,7 +32,7 @@ use pometry_storage::RAError;
 use raphtory_api::core::entities::properties::prop::Prop;
 
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -116,7 +116,7 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,

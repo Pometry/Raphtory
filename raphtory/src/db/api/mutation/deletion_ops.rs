@@ -50,7 +50,9 @@ pub trait DeletionOps:
         let mut add_edge_op = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;
+
         let edge_id = add_edge_op.internal_delete_edge(ti, src_id, dst_id, 0, layer_id);
+        println!("ADDED EDGE {edge_id:?} as {src_id:?} -> {dst_id:?}");
 
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());

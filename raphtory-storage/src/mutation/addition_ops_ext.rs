@@ -124,7 +124,9 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        todo!()
+        let event_id = self.graph.storage().read_event_id();
+        self.graph.storage().set_event_id(event_id + num_ids);
+        Ok(event_id)
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
@@ -146,7 +148,10 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        todo!()
+        Ok(self
+            .graph
+            .node_meta()
+            .resolve_prop_id(prop, dtype, is_static)?)
     }
 
     fn resolve_edge_property(
@@ -155,7 +160,10 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        todo!()
+        Ok(self
+            .graph
+            .edge_meta()
+            .resolve_prop_id(prop, dtype, is_static)?)
     }
 
     fn internal_add_node(

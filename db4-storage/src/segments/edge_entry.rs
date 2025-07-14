@@ -168,7 +168,13 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         self.es.as_ref()[0]
             .get(&self.pos)
             .map(|entry| entry.src)
-            .expect("Edge must have a source vertex")
+            .unwrap_or_else(|| {
+                panic!(
+                    "Edge must have a source vertex at position {:?} on segment_id: {}",
+                    self.pos,
+                    self.es.as_ref()[0].segment_id()
+                )
+            })
     }
 
     fn dst(&self) -> VID {

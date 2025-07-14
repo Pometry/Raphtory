@@ -53,6 +53,23 @@ pub trait InternalAdditionOps {
         node_type: &str,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
 
+    fn resolve_node_and_type_fast(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        match node_type {
+            Some(node_type) => {
+                let (vid, node_type_id) = self.resolve_node_and_type(id, node_type)?.inner();
+                Ok((vid.inner(), node_type_id.inner()))
+            }
+            None => {
+                let vid = self.resolve_node(id)?.inner();
+                Ok((vid, 0))
+            }
+        }
+    }
+
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
         &self,
