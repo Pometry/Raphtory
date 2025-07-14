@@ -20,6 +20,8 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
+use storage::wal::{WalOps, WalEntryBuilder};
+use storage::WalEntry;
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add

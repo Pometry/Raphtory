@@ -27,7 +27,7 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
-    wal::{TransactionID, Wal as WalTrait},
+    wal::{TransactionID, WalOps},
     Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, NS,
 };
 use tempfile::TempDir;
