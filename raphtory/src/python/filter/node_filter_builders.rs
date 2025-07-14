@@ -1,8 +1,10 @@
 use crate::{
-    db::graph::views::filter::model::{InternalNodeFilterBuilderOps, NodeFilter},
+    db::graph::views::filter::model::{
+        InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps,
+    },
     python::{
-        filter::filter_expr::PyFilterExpr,
-        types::{iterable::FromIterable, wrappers::prop::DynNodeFilterBuilderOps},
+        filter::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+        types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods};
@@ -80,5 +82,78 @@ impl PyNodeFilter {
     #[staticmethod]
     fn node_type() -> PyNodeFilterBuilder {
         PyNodeFilterBuilder(Arc::new(NodeFilter::node_type()))
+    }
+}
+
+pub trait DynNodeFilterBuilderOps: Send + Sync {
+    fn eq(&self, value: String) -> PyFilterExpr;
+
+    fn ne(&self, value: String) -> PyFilterExpr;
+
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
+
+    fn contains(&self, value: String) -> PyFilterExpr;
+
+    fn not_contains(&self, value: String) -> PyFilterExpr;
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr;
+}
+
+impl<T> DynNodeFilterBuilderOps for T
+where
+    T: InternalNodeFilterBuilderOps,
+{
+    fn eq(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::eq(
+            self, value,
+        ))))
+    }
+
+    fn ne(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::ne(
+            self, value,
+        ))))
+    }
+
+    fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::is_in(self, values),
+        )))
+    }
+
+    fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::is_not_in(self, values),
+        )))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::contains(self, value),
+        )))
+    }
+
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::not_contains(self, value),
+        )))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
+            NodeFilterBuilderOps::fuzzy_search(self, value, levenshtein_distance, prefix_match),
+        )))
     }
 }

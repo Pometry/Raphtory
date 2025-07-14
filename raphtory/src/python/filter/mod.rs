@@ -9,6 +9,7 @@ use pyo3::{
     Bound, PyErr, Python,
 };
 
+mod create_filter;
 pub mod edge_filter_builders;
 pub mod filter_expr;
 pub mod node_filter_builders;

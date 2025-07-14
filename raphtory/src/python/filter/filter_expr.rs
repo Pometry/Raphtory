@@ -1,31 +1,37 @@
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
-        AsEdgeFilter, AsNodeFilter, NotFilter, OrFilter,
+    db::{
+        api::view::BoxableGraphView,
+        graph::views::filter::{
+            internal::{CreateEdgeFilter, CreateExplodedEdgeFilter, CreateNodeFilter},
+            model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
+                AsEdgeFilter, AsNodeFilter, NotFilter, OrFilter,
+            },
+        },
     },
     errors::GraphError,
-    python::types::wrappers::prop::{
-        DynCreateExplodedEdgeFilter, DynInternalEdgeFilterOps, DynInternalNodeFilterOps,
+    prelude::GraphViewOps,
+    python::filter::create_filter::{
+        DynCreateEdgeFilterOps, DynCreateExplodedEdgeFilter, DynCreateNodeFilterOps,
     },
 };
 use pyo3::{pyclass, pymethods};
 use std::sync::Arc;
 
 pub trait AsPropertyFilter:
-    DynInternalNodeFilterOps + DynInternalEdgeFilterOps + DynCreateExplodedEdgeFilter
+    DynCreateNodeFilterOps + DynCreateEdgeFilterOps + DynCreateExplodedEdgeFilter
 {
 }
 
-impl<
-        T: DynInternalNodeFilterOps + DynInternalEdgeFilterOps + DynCreateExplodedEdgeFilter + ?Sized,
-    > AsPropertyFilter for T
+impl<T: DynCreateNodeFilterOps + DynCreateEdgeFilterOps + DynCreateExplodedEdgeFilter + ?Sized>
+    AsPropertyFilter for T
 {
 }
 
 #[derive(Clone)]
 pub enum PyInnerFilterExpr {
-    Node(Arc<dyn DynInternalNodeFilterOps>),
-    Edge(Arc<dyn DynInternalEdgeFilterOps>),
+    Node(Arc<dyn DynCreateNodeFilterOps>),
+    Edge(Arc<dyn DynCreateEdgeFilterOps>),
     Property(Arc<dyn AsPropertyFilter>),
 }
 
@@ -174,6 +180,60 @@ impl PyFilterExpr {
             PyInnerFilterExpr::Property(i) => Ok(PyFilterExpr(PyInnerFilterExpr::Property(
                 Arc::new(NotFilter(i.clone())),
             ))),
+        }
+    }
+}
+
+impl CreateNodeFilter for PyFilterExpr {
+    type NodeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_node_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Node(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_node_filter(graph),
+            PyInnerFilterExpr::Edge(_) => Err(GraphError::ParsingError),
+        }
+    }
+}
+
+impl CreateEdgeFilter for PyFilterExpr {
+    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Edge(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Property(i) => i.create_edge_filter(graph),
+            PyInnerFilterExpr::Node(_) => Err(GraphError::NodeFilterIsNotEdgeFilter),
+        }
+    }
+}
+
+impl CreateExplodedEdgeFilter for PyFilterExpr {
+    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
+        = Arc<dyn BoxableGraphView + 'graph>
+    where
+        Self: 'graph;
+
+    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
+        match self.0 {
+            PyInnerFilterExpr::Node(_) => Err(GraphError::NotExplodedEdgeFilter),
+            PyInnerFilterExpr::Edge(_) => Err(GraphError::NotExplodedEdgeFilter),
+            PyInnerFilterExpr::Property(i) => i.create_exploded_edge_filter(graph),
         }
     }
 }

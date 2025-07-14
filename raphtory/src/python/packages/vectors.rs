@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 use crate::{
     core::utils::time::IntoTime,
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
@@ -25,6 +23,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
