@@ -4,7 +4,7 @@ use ::raphtory_core::python::packages::base_modules::{
     base_vectors_module,
 };
 use pyo3::prelude::*;
-use raphtory::python::filter::base_filter_module;
+use raphtory_core::python::filter::base_filter_module;
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
 pub mod python;
