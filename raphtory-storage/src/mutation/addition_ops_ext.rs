@@ -1,6 +1,6 @@
 use std::ops::DerefMut;
 
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{
@@ -18,17 +18,11 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    error::DBV4Error,
-    pages::{
+    error::DBV4Error, pages::{
         node_page::writer::{node_info_as_props, NodeWriter},
         session::WriteSession,
         NODE_ID_PROP_KEY,
-    },
-    persist::strategy::PersistentStrategy,
-    properties::props_meta_writer::PropsMetaWriter,
-    resolver::GIDResolverOps,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension, ES, NS,
+    }, persist::strategy::PersistentStrategy, properties::props_meta_writer::PropsMetaWriter, resolver::GIDResolverOps, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, wal::TransactionID, Extension, Wal, ES, NS
 };
 
 use crate::mutation::{
@@ -335,6 +329,14 @@ impl InternalAdditionOps for TemporalGraph {
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
         }
+    }
+
+    fn transaction_manager(&self) -> &TransactionManager {
+        &self.transaction_manager
+    }
+
+    fn wal(&self) -> &Wal {
+        &self.wal
     }
 }
 

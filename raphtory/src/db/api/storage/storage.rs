@@ -7,7 +7,7 @@ use crate::{
         Base, InheritViewOps,
     },
 };
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::{properties::meta::Meta, EID, VID},
@@ -27,7 +27,7 @@ use std::{
 };
 use storage::{
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension,
+    Extension, Wal,
 };
 use tracing::info;
 
@@ -471,6 +471,14 @@ impl InternalAdditionOps for Storage {
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(self.graph.validate_gids(gids)?)
+    }
+
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.graph.mutable().unwrap().transaction_manager.as_ref()
+    }
+
+    fn wal(&self) -> &Wal {
+        self.graph.mutable().unwrap().wal.as_ref()
     }
 }
 

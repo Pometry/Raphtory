@@ -5,7 +5,7 @@ use crate::{
         MutationError,
     },
 };
-use db4_graph::WriteLockedGraph;
+use db4_graph::{TransactionManager, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
@@ -25,8 +25,7 @@ use raphtory_core::{
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
 use storage::{
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment}, wal::TransactionID, Extension, Wal
 };
 
 pub trait InternalAdditionOps {
@@ -109,6 +108,12 @@ pub trait InternalAdditionOps {
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error>;
+
+    /// TODO: Not sure the below methods belong here...
+
+    fn transaction_manager(&self) -> &TransactionManager;
+
+    fn wal(&self) -> &Wal;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -294,6 +299,14 @@ impl InternalAdditionOps for GraphStorage {
     ) -> Result<(), Self::Error> {
         Ok(self.mutable()?.validate_gids(gids)?)
     }
+
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.mutable().unwrap().transaction_manager.as_ref()
+    }
+
+    fn wal(&self) -> &Wal {
+        self.mutable().unwrap().wal.as_ref()
+    }
 }
 
 pub trait InheritAdditionOps: Base {}
@@ -403,5 +416,15 @@ where
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         self.base().validate_gids(gids)
+    }
+
+    #[inline]
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.base().transaction_manager()
+    }
+
+    #[inline]
+    fn wal(&self) -> &Wal {
+        self.base().wal()
     }
 }

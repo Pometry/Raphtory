@@ -46,8 +46,8 @@ pub struct TemporalGraph<EXT = Extension> {
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
     graph_dir: GraphDir,
-    transaction_manager: Arc<TransactionManager>,
-    wal: Arc<Wal>,
+    pub transaction_manager: Arc<TransactionManager>,
+    pub wal: Arc<Wal>,
 }
 
 #[derive(Debug)]
@@ -78,7 +78,7 @@ impl AsRef<Path> for GraphDir {
 }
 
 #[derive(Debug)]
-pub(crate) struct TransactionManager {
+pub struct TransactionManager {
     last_transaction_id: AtomicU64,
 }
 
