@@ -3245,6 +3245,8 @@ mod db_tests {
     }
 
     #[test]
+    #[ignore]
+    // TODO: Resetting is not a thing now. This test can be rewritten for the filter_iter tests
     fn test_one_hop_filter_reset() {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
@@ -3268,6 +3270,16 @@ mod db_tests {
                 .id()
                 .collect();
             assert_eq!(out_out, [GID::U64(3)]);
+
+            // let out_out: Vec<_> = v
+            //     .out_neighbours()
+            //     .filter_iter(layers == "1" & at == 0)
+            //     .unwrap()
+            //     .layers("2")
+            //     .unwrap()
+            //     .out_neighbours()
+            //     .id()
+            //     .collect();
 
             let out_out: Vec<_> = v
                 .at(0)

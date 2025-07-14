@@ -45,6 +45,7 @@ mod test {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
@@ -67,6 +68,34 @@ mod test {
                 )
                 .unwrap();
             }
+        }
+        if !edges.is_empty() {
+            g.resolve_layer(None).unwrap();
+        }
+        g
+    }
+
+    fn build_filtered_nodes_graph(
+        edges: &[(u64, u64, i64, String, i64)],
+        filter: impl Fn(i64) -> bool,
+    ) -> Graph {
+        let g = Graph::new();
+        for (src, dst, t, str_prop, int_prop) in edges {
+            if filter(*int_prop) {
+                g.add_edge(
+                    *t,
+                    *src,
+                    *dst,
+                    [
+                        ("str_prop", str_prop.into()),
+                        ("int_prop", Prop::I64(*int_prop)),
+                    ],
+                    None,
+                )
+                .unwrap();
+            }
+            g.resolve_node(src.as_node_ref()).unwrap();
+            g.resolve_node(dst.as_node_ref()).unwrap();
         }
         if !edges.is_empty() {
             g.resolve_layer(None).unwrap();
@@ -368,7 +397,7 @@ mod test {
                 g.nodes().filter_exploded_edges(
                     PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v)
                 ).unwrap();
-            let expected_filtered_g = build_filtered_graph(&edges, |vv| vv == v);
+            let expected_filtered_g = build_filtered_nodes_graph(&edges, |vv| vv == v);
             assert_nodes_equal(&filtered_nodes, &expected_filtered_g.nodes());
         })
     }

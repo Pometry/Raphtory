@@ -44,19 +44,38 @@ mod test {
         g.add_node(2, "David", [("band", "Pink Floyd")], None)
             .unwrap();
 
-        // let filter_expr = NodeFilter::name().eq("Jimi");
         let filter_expr = NodeFilter::name()
             .eq("John")
-            // .and(PropertyFilter::property("band").eq("Dead & Company"))
             .and(PropertyFilter::property("band").eq("Dead & Company"));
-        // let filter_expr = CompositeNodeFilter::Node(Filter::eq("node_name", "Jimi"));
         let filtered_nodes = g.nodes().filter_nodes(filter_expr).unwrap();
 
+        // filter_nodes doesn't filter the iterator, it only filters the view of the nodes which includes history, edges, etc.
         assert_eq!(
-            filtered_nodes.iter().map(|n| n.name()).collect::<Vec<_>>(),
-            // vec!["Jimi"]
-            vec!["John"]
+            filtered_nodes.name().collect::<Vec<_>>(),
+            vec!["Jimi", "John", "David"]
         );
+
+        // TODO: Bug! History isn't getting filtered
+        let res = filtered_nodes
+            .iter()
+            .map(|n| n.history())
+            .collect::<Vec<_>>();
+        assert_eq!(res, vec![vec![], vec![1], vec![]]);
+
+        // TODO: Bug! Properties aren't getting filtered
+        let res = filtered_nodes
+            .iter()
+            .map(|n| n.properties().get("band"))
+            .collect::<Vec<_>>();
+        assert_eq!(res, vec![None, Some(Prop::str("Dead & Company")), None]);
+
+        g.add_edge(3, "John", "Jimi", NO_PROPS, None).unwrap();
+
+        let res = filtered_nodes
+            .iter()
+            .map(|n| n.out_neighbours().name().collect_vec())
+            .collect::<Vec<_>>();
+        assert_eq!(res, vec![Vec::<String>::new(), vec![], vec![]]);
     }
 
     #[test]
@@ -196,16 +215,21 @@ mod test {
             ))
             .unwrap();
         assert_eq!(
-            filtered_nodes.id().collect_vec(),
-            vec![GID::U64(2), GID::U64(3)]
-        );
-        assert_eq!(
             filtered_nodes
                 .out_neighbours()
                 .id()
-                .map(|n| n.collect_vec())
+                .map(|i| i.collect_vec())
                 .collect_vec(),
-            vec![vec![GID::U64(3)], vec![]]
+            vec![vec![GID::U64(2), GID::U64(3)], vec![GID::U64(3)], vec![]]
+        );
+
+        assert_eq!(
+            filtered_nodes
+                .out_neighbours()
+                .degree()
+                .map(|i| i.collect_vec())
+                .collect_vec(),
+            vec![vec![1, 1], vec![1], vec![]]
         );
 
         let filtered_nodes_p = g
@@ -217,16 +241,12 @@ mod test {
             ))
             .unwrap();
         assert_eq!(
-            filtered_nodes_p.id().collect_vec(),
-            vec![GID::U64(2), GID::U64(3)]
-        );
-        assert_eq!(
             filtered_nodes_p
                 .out_neighbours()
                 .id()
-                .map(|n| n.collect_vec())
+                .map(|i| i.collect_vec())
                 .collect_vec(),
-            vec![vec![GID::U64(3)], vec![]]
+            vec![vec![GID::U64(2), GID::U64(3)], vec![GID::U64(3)], vec![]]
         );
     }
 
