@@ -2,8 +2,8 @@ use std::path::Path;
 
 use crate::error::DBV4Error;
 
-pub mod no_wal;
 pub mod entries;
+pub mod no_wal;
 
 pub type LSN = u64;
 

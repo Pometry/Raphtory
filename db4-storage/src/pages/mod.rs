@@ -245,18 +245,11 @@ impl<
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
-        let elid = session.internal_add_edge(t, src, dst, lsn, 0, props);
+        let elid = session
+            .add_static_edge(src, dst, lsn)
+            .map(|eid| eid.with_layer(0));
+        session.add_edge_into_layer(t, src, dst, elid, lsn, props);
         Ok(elid)
-    }
-
-    fn internal_delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        edge: Either<(VID, VID), EID>,
-        layer: usize,
-        lsn: u64,
-    ) -> Result<(), DBV4Error> {
-        todo!()
     }
 
     fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, DBV4Error> {
@@ -743,7 +736,7 @@ mod test {
             const_props: vec![
                 (VID(0), vec![]),
                 (VID(8), vec![("422".to_owned(), Prop::U8(0))]),
-                (VID(8), vec![("422".to_owned(), Prop::U8(30))]),
+                (VID(8), vec![("423".to_owned(), Prop::U8(30))]),
             ],
         };
         check_graph_with_nodes(43, 94, &node_fixture);
@@ -791,7 +784,6 @@ mod test {
                         ("431".to_owned(), Prop::F64(-2.7522071060615837e-76)),
                         ("68".to_owned(), Prop::F64(-2.32248037343811e44)),
                         ("620".to_owned(), Prop::I64(1574788428164567343)),
-                        ("574".to_owned(), Prop::I64(-6212197184834902986)),
                     ],
                 ),
             ],

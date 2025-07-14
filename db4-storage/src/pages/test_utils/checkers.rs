@@ -201,7 +201,7 @@ pub fn check_edges_support<
                     check("post-drop", &edges, &graph);
                 }
                 Err(e) => {
-                    panic!("Failed to load graph: {:?}", e);
+                    panic!("Failed to load graph: {e:?}");
                 }
             }
         }
@@ -228,13 +228,13 @@ pub fn check_graph_with_nodes_support<
     for (node, t, t_props) in temp_props {
         let err = graph.add_node_props(*t, *node, 0, t_props.clone());
 
-        assert!(err.is_ok(), "Failed to add node: {:?}", err);
+        assert!(err.is_ok(), "Failed to add node: {err:?}");
     }
 
     for (node, const_props) in const_props {
         let err = graph.update_node_const_props(*node, 0, const_props.clone());
 
-        assert!(err.is_ok(), "Failed to add node: {:?}", err);
+        assert!(err.is_ok(), "Failed to add node: {err:?}");
     }
 
     let check_fn = |temp_props: &[(VID, i64, Vec<(String, Prop)>)],
@@ -242,7 +242,7 @@ pub fn check_graph_with_nodes_support<
                     graph: &GraphStore<NS, ES, EXT>| {
         let mut ts_for_nodes = HashMap::new();
         for (node, t, _) in temp_props {
-            ts_for_nodes.entry(*node).or_insert_with(|| vec![]).push(*t);
+            ts_for_nodes.entry(*node).or_insert_with(Vec::new).push(*t);
         }
         ts_for_nodes.iter_mut().for_each(|(_, ts)| {
             ts.sort_unstable();
@@ -268,7 +268,7 @@ pub fn check_graph_with_nodes_support<
             for (name, prop) in const_props {
                 const_props_values
                     .entry((node, name))
-                    .or_insert_with(|| HashSet::new())
+                    .or_insert_with(HashSet::new)
                     .insert(prop.clone());
             }
         }
@@ -280,8 +280,8 @@ pub fn check_graph_with_nodes_support<
             let prop_id = graph
                 .node_meta()
                 .const_prop_meta()
-                .get_id(&name)
-                .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
+                .get_id(name)
+                .unwrap_or_else(|| panic!("Failed to get prop id for {name}"));
             let actual_props = node_entry.c_prop(0, prop_id);
 
             if !const_props.is_empty() {
@@ -289,9 +289,7 @@ pub fn check_graph_with_nodes_support<
                     .unwrap_or_else(|| panic!("Failed to get prop {name} for {node:?}"));
                 assert!(
                     const_props.contains(&actual_prop),
-                    "failed to get const prop {name} for {node:?}, expected {:?}, got {:?}",
-                    const_props,
-                    actual_prop
+                    "failed to get const prop {name} for {node:?}, expected {const_props:?}, got {actual_prop:?}"
                 );
             }
         }
@@ -304,7 +302,7 @@ pub fn check_graph_with_nodes_support<
             for (prop_name, prop) in t_props {
                 let prop_values = nod_t_prop_groups
                     .entry((node, prop_name))
-                    .or_insert_with(|| vec![]);
+                    .or_insert_with(Vec::new);
                 prop_values.push((t, prop.clone()));
             }
         }
@@ -317,8 +315,8 @@ pub fn check_graph_with_nodes_support<
             let prop_id = graph
                 .node_meta()
                 .temporal_prop_meta()
-                .get_id(&prop_name)
-                .unwrap_or_else(|| panic!("Failed to get prop id for {}", prop_name));
+                .get_id(prop_name)
+                .unwrap_or_else(|| panic!("Failed to get prop id for {prop_name}"));
 
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
@@ -329,8 +327,7 @@ pub fn check_graph_with_nodes_support<
 
             assert_eq!(
                 actual_props, props,
-                "Expected properties for node ({:?}) to be {:?}, but got {:?}",
-                node, props, actual_props
+                "Expected properties for node ({node:?}) to be {props:?}, but got {actual_props:?}"
             );
         }
     };
@@ -361,7 +358,7 @@ pub fn check_graph_with_props_support<
     for (src, dst, t, t_props, _, _) in edges {
         let err = graph.add_edge_props(*t, *src, *dst, t_props.clone(), 0);
 
-        assert!(err.is_ok(), "Failed to add edge: {:?}", err);
+        assert!(err.is_ok(), "Failed to add edge: {err:?}");
     }
 
     // Add const props
@@ -370,14 +367,13 @@ pub fn check_graph_with_props_support<
         let eid = graph
             .nodes()
             .get_edge(*src, *dst, layer_id)
-            .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
+            .unwrap_or_else(|| panic!("Failed to get edge ({src:?}, {dst:?}) from graph"));
         let elid = ELID::new(eid, layer_id);
         let res = graph.update_edge_const_props(elid, const_props.clone());
 
         assert!(
             res.is_ok(),
-            "Failed to update edge const props: {:?} {src:?} -> {dst:?}",
-            res
+            "Failed to update edge const props: {res:?} {src:?} -> {dst:?}"
         );
     }
 
@@ -396,7 +392,7 @@ pub fn check_graph_with_props_support<
             for (prop_name, prop) in t_props {
                 let prop_values = edge_groups
                     .entry((src, dst, prop_name))
-                    .or_insert_with(|| vec![]);
+                    .or_insert_with(Vec::new);
                 prop_values.push((t, prop.clone()));
             }
         }
@@ -412,7 +408,7 @@ pub fn check_graph_with_props_support<
             let t = *t;
 
             // Include src additions
-            node_groups.entry(src).or_insert_with(|| vec![]).push(t);
+            node_groups.entry(src).or_default().push(t);
 
             // Self-edges don't have dst additions, so skip
             if src == dst {
@@ -420,7 +416,7 @@ pub fn check_graph_with_props_support<
             }
 
             // Include dst additions
-            node_groups.entry(dst).or_insert_with(|| vec![]).push(t);
+            node_groups.entry(dst).or_default().push(t);
         }
 
         node_groups.iter_mut().for_each(|(_, ts)| {
@@ -432,7 +428,7 @@ pub fn check_graph_with_props_support<
             let prop_id = graph
                 .edge_meta()
                 .temporal_prop_meta()
-                .get_id(&prop_name)
+                .get_id(prop_name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {}", prop_name));
 
             let edge = graph

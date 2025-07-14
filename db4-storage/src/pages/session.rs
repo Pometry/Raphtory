@@ -73,52 +73,40 @@ impl<
         if let Some(writer) = self.edge_writer.as_mut() {
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
-            let exists = Some(!edge.is_new());
 
-            writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
+            writer.add_edge(t, edge_pos, src, dst, props, layer, lsn);
         } else {
             let mut writer = self.graph.edge_writer(e_id.edge);
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
-            let exists = Some(!edge.is_new());
 
-            writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, exists);
+            writer.add_edge(t, edge_pos, src, dst, props, layer, lsn);
             self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
         let edge_id = edge.inner();
 
-        if edge_id.layer() > 0 {
-            if edge.is_new()
-                || self
-                    .node_writers
-                    .get_mut_src()
-                    .get_out_edge(src_pos, dst, edge_id.layer())
-                    .is_none()
-            {
-                self.node_writers.get_mut_src().add_outbound_edge(
-                    Some(t),
-                    src_pos,
-                    dst,
-                    edge_id,
-                    lsn,
-                );
-                self.node_writers.get_mut_dst().add_inbound_edge(
-                    Some(t),
-                    dst_pos,
-                    src,
-                    edge_id,
-                    lsn,
-                );
-            }
-
+        if edge.is_new()
+            || self
+                .node_writers
+                .get_mut_src()
+                .get_out_edge(src_pos, dst, edge_id.layer())
+                .is_none()
+        {
             self.node_writers
                 .get_mut_src()
-                .update_timestamp(t, src_pos, e_id, lsn);
+                .add_outbound_edge(Some(t), src_pos, dst, edge_id, lsn);
             self.node_writers
                 .get_mut_dst()
-                .update_timestamp(t, dst_pos, e_id, lsn);
+                .add_inbound_edge(Some(t), dst_pos, src, edge_id, lsn);
         }
+
+        self.node_writers
+            .get_mut_src()
+            .update_timestamp(t, src_pos, e_id, lsn);
+        self.node_writers
+            .get_mut_dst()
+            .update_timestamp(t, dst_pos, e_id, lsn);
     }
 
     pub fn delete_edge_from_layer<T: AsTime>(
@@ -142,16 +130,14 @@ impl<
         if let Some(writer) = self.edge_writer.as_mut() {
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
-            let exists = Some(!edge.is_new());
 
-            writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+            writer.delete_edge(t, edge_pos, src, dst, layer, lsn);
         } else {
             let mut writer = self.graph.edge_writer(e_id.edge);
             let edge_max_page_len = writer.writer.get_or_create_layer(layer).max_page_len();
             let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
-            let exists = Some(!edge.is_new());
 
-            writer.delete_edge(t, Some(edge_pos), src, dst, layer, lsn, exists);
+            writer.delete_edge(t, edge_pos, src, dst, layer, lsn);
             self.edge_writer = Some(writer); // Attach edge_writer to hold onto locks
         }
 
@@ -215,12 +201,12 @@ impl<
             let edge_writer = self.edge_writer.as_mut().unwrap();
             let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
 
-            edge_writer.add_static_edge(Some(edge_pos), src, dst, layer_id, lsn, None);
+            edge_writer.add_static_edge(Some(edge_pos), src, dst, lsn, Some(true));
 
             MaybeNew::Existing(e_id)
         } else {
             let mut edge_writer = self.graph.get_free_writer();
-            let edge_id = edge_writer.add_static_edge(None, src, dst, layer_id, lsn, None);
+            let edge_id = edge_writer.add_static_edge(None, src, dst, lsn, Some(false));
             let edge_id =
                 edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
 
@@ -232,81 +218,6 @@ impl<
             self.node_writers
                 .get_mut_dst()
                 .add_static_inbound_edge(dst_pos, src, edge_id, lsn);
-
-            MaybeNew::New(edge_id)
-        }
-    }
-
-    pub fn internal_add_edge<T: AsTime>(
-        &mut self,
-        t: T,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        lsn: u64,
-        layer: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> MaybeNew<ELID> {
-        let src = src.into();
-        let dst = dst.into();
-
-        let (_, src_pos) = self.graph.nodes().resolve_pos(src);
-        let (_, dst_pos) = self.graph.nodes().resolve_pos(dst);
-
-        if let Some(e_id) = self
-            .node_writers
-            .get_mut_src()
-            .get_out_edge(src_pos, dst, layer)
-        {
-            let mut edge_writer = self.graph.edge_writer(e_id);
-            let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
-            edge_writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, None);
-            let e_id = e_id.with_layer(layer);
-
-            self.node_writers
-                .get_mut_src()
-                .update_timestamp(t, src_pos, e_id, lsn);
-            self.node_writers
-                .get_mut_dst()
-                .update_timestamp(t, dst_pos, e_id, lsn);
-
-            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
-
-            MaybeNew::Existing(e_id)
-        } else if let Some(e_id) = self
-            .node_writers
-            .get_mut_src()
-            .get_out_edge(src_pos, dst, layer)
-        {
-            let mut edge_writer = self.graph.edge_writer(e_id);
-            let (_, edge_pos) = self.graph.edges().resolve_pos(e_id);
-            let e_id = e_id.with_layer(layer);
-
-            edge_writer.add_edge(t, Some(edge_pos), src, dst, props, layer, lsn, None);
-            self.node_writers
-                .get_mut_src()
-                .update_timestamp(t, src_pos, e_id, lsn);
-            self.node_writers
-                .get_mut_dst()
-                .update_timestamp(t, dst_pos, e_id, lsn);
-
-            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
-
-            MaybeNew::Existing(e_id)
-        } else {
-            let mut edge_writer = self.graph.get_free_writer();
-            let edge_id = edge_writer.add_edge(t, None, src, dst, props, layer, lsn, None);
-            let edge_id =
-                edge_id.as_eid(edge_writer.segment_id(), self.graph.edges().max_page_len());
-            let edge_id = edge_id.with_layer(layer);
-
-            self.edge_writer = Some(edge_writer); // Attach edge_writer to hold onto locks
-
-            self.node_writers
-                .get_mut_src()
-                .add_outbound_edge(Some(t), src_pos, dst, edge_id, lsn);
-            self.node_writers
-                .get_mut_dst()
-                .add_inbound_edge(Some(t), dst_pos, src, edge_id, lsn);
 
             MaybeNew::New(edge_id)
         }

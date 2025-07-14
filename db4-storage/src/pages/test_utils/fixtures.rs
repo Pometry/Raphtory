@@ -3,6 +3,8 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::VID;
 use std::collections::HashMap;
 
+use crate::segments::node;
+
 use super::props::{make_props, prop_type};
 
 pub type AddEdge = (
@@ -70,6 +72,21 @@ pub fn make_nodes(num_nodes: usize) -> impl Strategy<Value = NodeFixture> {
 
         let const_props =
             proptest::collection::vec(((0..num_nodes).prop_map(VID), c_props), 1..=num_nodes);
+
+        let const_props = const_props.prop_map(|mut nodes_with_const| {
+            nodes_with_const.sort_by(|(vid, _), (vid2, _)| vid.cmp(vid2));
+            nodes_with_const
+                .chunk_by(|(vid, _), (vid2, _)| *vid == *vid2)
+                .map(|stuff| {
+                    let props = stuff
+                        .iter()
+                        .flat_map(|(_, values)| values.clone())
+                        .collect::<HashMap<_, _>>();
+                    let vid = stuff[0].0;
+                    (vid, props.into_iter().collect::<Vec<_>>())
+                })
+                .collect()
+        });
 
         (temp_props, const_props).prop_map(|(temp_props, const_props)| NodeFixture {
             temp_props,

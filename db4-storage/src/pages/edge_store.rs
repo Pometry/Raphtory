@@ -7,7 +7,7 @@ use std::{
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
-    api::edges::{EdgeSegmentOps, LockedESegment},
+    api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::DBV4Error,
     pages::{
         layer_counter::GraphStats,
@@ -27,7 +27,7 @@ const N: usize = 32;
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
-    pages: boxcar::Vec<Arc<ES>>,
+    segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
     free_pages: Box<[RwLock<usize>; N]>,
     edges_path: PathBuf,
@@ -51,7 +51,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEd
         &self,
         e_id: impl Into<EID>,
     ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> {
-        let (page_id, pos) = self.storage.resolve_pos(e_id.into());
+        let e_id = e_id.into();
+        let (page_id, pos) = self.storage.resolve_pos(e_id);
         let locked_page = &self.locked_pages[page_id];
         locked_page.entry_ref(pos)
     }
@@ -77,12 +78,28 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> ReadLockedEd
             .par_iter()
             .flat_map(move |page| page.edge_par_iter(layer_ids))
     }
+
+    /// Returns an iterator over the segments of the edge store, where each segment is
+    /// a tuple of the segment index and an iterator over the entries in that segment.
+    pub fn segmented_par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID>)> + '_ {
+        self.locked_pages
+            .par_iter()
+            .enumerate()
+            .map(move |(segment_id, page)| {
+                (
+                    segment_id,
+                    page.edge_iter(&LayerIds::All).map(|e| e.edge_id()),
+                )
+            })
+    }
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
-            .pages
+            .segments
             .iter()
             .map(|(_, segment)| segment.locked())
             .collect::<Box<_>>();
@@ -108,7 +125,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     ) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         Self {
-            pages: boxcar::Vec::new(),
+            segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_pages: free_pages.try_into().unwrap(),
             edges_path: edges_path.as_ref().to_path_buf(),
@@ -123,7 +140,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
-        &self.pages
+        &self.segments
     }
 
     pub fn edges_path(&self) -> &Path {
@@ -131,16 +148,16 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
-        Iterator::min(self.pages.iter().filter_map(|(_, page)| page.earliest()))
+        Iterator::min(self.segments.iter().filter_map(|(_, page)| page.earliest()))
         // see : https://github.com/rust-lang/rust-analyzer/issues/10653
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
-        Iterator::max(self.pages.iter().filter_map(|(_, page)| page.latest()))
+        Iterator::max(self.segments.iter().filter_map(|(_, page)| page.latest()))
     }
 
     pub fn t_len(&self) -> usize {
-        self.pages.iter().map(|(_, page)| page.t_len()).sum()
+        self.segments.iter().map(|(_, page)| page.t_len()).sum()
     }
 
     pub fn prop_meta(&self) -> &Arc<Meta> {
@@ -242,7 +259,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         }
 
         Ok(Self {
-            pages,
+            segments: pages,
             edges_path: edges_path.to_path_buf(),
             max_page_len,
             layer_counter: GraphStats::from(layer_counts).into(),
@@ -257,7 +274,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn push_new_page(&self) -> usize {
-        let segment_id = self.pages.push_with(|segment_id| {
+        let segment_id = self.segments.push_with(|segment_id| {
             Arc::new(ES::new(
                 segment_id,
                 self.max_page_len,
@@ -267,21 +284,21 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             ))
         });
 
-        while self.pages.get(segment_id).is_none() {
+        while self.segments.get(segment_id).is_none() {
             // wait
         }
         segment_id
     }
 
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<ES> {
-        if let Some(segment) = self.pages.get(segment_id) {
+        if let Some(segment) = self.segments.get(segment_id) {
             return segment;
         }
-        let count = self.pages.count();
+        let count = self.segments.count();
         if count > segment_id {
             // something has allocated the segment, wait for it to be added
             loop {
-                if let Some(segment) = self.pages.get(segment_id) {
+                if let Some(segment) = self.segments.get(segment_id) {
                     return segment;
                 } else {
                     // wait for the segment to be created
@@ -290,10 +307,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             }
         } else {
             // we need to create the segment
-            self.pages.reserve(segment_id + 1 - count);
+            self.segments.reserve(segment_id + 1 - count);
 
             loop {
-                let new_segment_id = self.pages.push_with(|segment_id| {
+                let new_segment_id = self.segments.push_with(|segment_id| {
                     Arc::new(ES::new(
                         segment_id,
                         self.max_page_len,
@@ -305,7 +322,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
                 if new_segment_id >= segment_id {
                     loop {
-                        if let Some(segment) = self.pages.get(segment_id) {
+                        if let Some(segment) = self.segments.get(segment_id) {
                             return segment;
                         } else {
                             // wait for the segment to be created
@@ -323,7 +340,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {
         WriteLockedEdgePages::new(
-            self.pages
+            self.segments
                 .iter()
                 .map(|(page_id, page)| {
                     LockedEdgePage::new(
@@ -342,7 +359,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         let layer = e_id.layer();
         let e_id = e_id.edge;
         let (chunk, local_edge) = resolve_pos(e_id, self.max_page_len);
-        let page = self.pages.get(chunk)?;
+        let page = self.segments.get(chunk)?;
         page.get_edge(local_edge, layer, page.head())
     }
 
@@ -350,7 +367,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         let e_id = e_id.into();
         let (page_id, local_edge) = resolve_pos(e_id, self.max_page_len);
         let page = self
-            .pages
+            .segments
             .get(page_id)
             .expect("Internal error: page not found");
         page.entry(local_edge)
@@ -395,7 +412,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             .take(3)
             .filter_map(|lock| lock.try_read())
             .filter_map(|page_id| {
-                let page = self.pages.get(*page_id)?;
+                let page = self.segments.get(*page_id)?;
                 let guard = page.try_head_mut()?;
                 if page.num_edges() < self.max_page_len {
                     Some((page, guard))
@@ -411,7 +428,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             // not lucky, go wait on your slot
             loop {
                 let mut slot = self.free_pages[slot_idx].write();
-                match self.pages.get(*slot).map(|page| (page, page.head_mut())) {
+                match self.segments.get(*slot).map(|page| (page, page.head_mut())) {
                     Some((edge_page, writer)) if edge_page.num_edges() < self.max_page_len => {
                         return EdgeWriter::new(&self.layer_counter, edge_page, writer);
                     }
@@ -424,22 +441,45 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
-        (0..self.pages.count())
+        (0..self.segments.count())
             .into_par_iter()
-            .filter_map(move |page_id| self.pages.get(page_id))
+            .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {
                 (0..page.num_edges())
                     .into_par_iter()
-                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+                    .filter_map(move |local_edge| {
+                        page.layer_entry(local_edge, layer, Some(page.head()))
+                    })
             })
     }
 
     pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
-        (0..self.pages.count())
-            .filter_map(move |page_id| self.pages.get(page_id))
+        (0..self.segments.count())
+            .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {
-                (0..page.num_edges())
-                    .filter_map(move |local_edge| page.layer_entry(local_edge, layer))
+                (0..page.num_edges()).filter_map(move |local_edge| {
+                    page.layer_entry(local_edge, layer, Some(page.head()))
+                })
+            })
+    }
+
+    /// Returns an iterator over the segments of the edge store, where each segment is
+    /// a tuple of the segment index and an iterator over the entries in that segment.
+    pub fn segmented_par_iter(
+        &self,
+    ) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID>)> + '_ {
+        let max_page_len = self.max_page_len;
+        (0..self.segments.count())
+            .into_par_iter()
+            .filter_map(move |segment_id| {
+                self.segments.get(segment_id).map(move |page| {
+                    (
+                        segment_id,
+                        (0..page.num_edges()).map(move |edge_pos| {
+                            LocalPOS(edge_pos).as_eid(segment_id, max_page_len)
+                        }),
+                    )
+                })
             })
     }
 }

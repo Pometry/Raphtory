@@ -1,9 +1,9 @@
+use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
-    entities::{VID, EID, GID},
+    entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 use crate::wal::LSN;
@@ -64,7 +64,6 @@ pub struct Checkpoint {
     pub lsn: LSN,
 }
 
-
 // Constructors
 impl<'a> WalEntry<'a> {
     pub fn add_edge(
@@ -93,7 +92,8 @@ impl<'a> WalEntry<'a> {
 
     pub fn add_const_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> WalEntry<'a> {
         WalEntry::AddConstPropIDs(
-            props.into_iter()
+            props
+                .into_iter()
                 .map(|(name, id)| AddConstPropID { name, id })
                 .collect(),
         )
@@ -101,7 +101,8 @@ impl<'a> WalEntry<'a> {
 
     pub fn add_temporal_prop_ids(props: Vec<(Cow<'a, str>, usize)>) -> WalEntry<'a> {
         WalEntry::AddTemporalPropIDs(
-            props.into_iter()
+            props
+                .into_iter()
                 .map(|(name, id)| AddTemporalPropID { name, id })
                 .collect(),
         )

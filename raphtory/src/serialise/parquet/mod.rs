@@ -153,6 +153,41 @@ pub(crate) fn run_encode(
     Ok(())
 }
 
+pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>>(
+    g: &GraphStorage,
+    meta: &PropMapper,
+    items: impl ParallelIterator<Item = (usize, II)>,
+    path: impl AsRef<Path>,
+    suffix: &str,
+    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
+    encode_fn: impl Fn(II, &GraphStorage, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
+        + Sync,
+) -> Result<(), GraphError> {
+    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
+    let root_dir = path.as_ref().join(suffix);
+    std::fs::create_dir_all(&root_dir)?;
+
+    let num_digits = 8;
+
+    items.try_for_each(|(chunk, items)| {
+        let props = WriterProperties::builder()
+            .set_compression(Compression::SNAPPY)
+            .build();
+
+        let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+        let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+
+        let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+
+        encode_fn(items, g, &mut decoder, &mut writer)?;
+
+        writer.close()?;
+        Ok::<_, GraphError>(())
+    })?;
+
+    Ok(())
+}
+
 pub(crate) fn derive_schema(
     prop_meta: &PropMapper,
     id_type: Option<GidType>,
@@ -905,17 +940,17 @@ mod test {
                     (0, 0, Some("a")),
                     EdgeUpdatesFixture {
                         props: PropUpdatesFixture {
-                            t_props: vec![],
+                            t_props: vec![(0, vec![])],
                             c_props: vec![],
                         },
                         deletions: vec![0],
                     },
                 ),
                 (
-                    (0, 1, Some("a")),
+                    (0, 1, Some("b")),
                     EdgeUpdatesFixture {
                         props: PropUpdatesFixture {
-                            t_props: vec![],
+                            t_props: vec![(0, vec![])],
                             c_props: vec![],
                         },
                         deletions: vec![0],

@@ -377,7 +377,7 @@ pub(crate) fn load_edges_from_df<
                     let t = TimeIndexEntry(time, start_idx + row);
                     let mut writer = shard.writer();
                     writer.store_node_id(dst_pos, 0, dst_gid, 0);
-                    writer.add_static_inbound_edge(dst_pos, *src, eid.with_layer(*layer), 0);
+                    writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
                     writer.add_inbound_edge(Some(t), dst_pos, *src, eid.with_layer(*layer), 0);
                 }
             }
@@ -415,18 +415,9 @@ pub(crate) fn load_edges_from_df<
                         c_props.extend(const_prop_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_constant_properties);
 
-                        writer.add_static_edge(Some(eid_pos), *src, *dst, 0, 0, Some(exists));
+                        writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
                         writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
-                        writer.add_edge(
-                            t,
-                            Some(eid_pos),
-                            *src,
-                            *dst,
-                            t_props.drain(..),
-                            *layer,
-                            0,
-                            Some(exists),
-                        );
+                        writer.add_edge(t, eid_pos, *src, *dst, t_props.drain(..), *layer, 0);
                     }
                 }
                 Ok::<(), GraphError>(())
