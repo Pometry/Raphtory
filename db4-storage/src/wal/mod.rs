@@ -70,7 +70,7 @@ pub trait WalEntryBuilder<'a> {
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value).
     fn add_new_temporal_prop_ids<PN: AsRef<str>>(props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self;
 
-    fn add_layer_id(name: String, id: usize) -> Self;
+    fn add_layer_id<PN: AsRef<str>>(name: &'a PN, id: usize) -> Self;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.

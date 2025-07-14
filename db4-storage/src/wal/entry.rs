@@ -45,7 +45,7 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         EmptyWalEntry
     }
 
-    fn add_layer_id(_name: String, _id: usize) -> Self {
+    fn add_layer_id<PN: AsRef<str>>(_name: &'a PN, _id: usize) -> Self {
         EmptyWalEntry
     }
 
