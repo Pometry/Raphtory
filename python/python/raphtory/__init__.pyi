@@ -698,6 +698,7 @@ class GraphView(object):
         embedding: Callable[[list], list],
         nodes: bool | str = True,
         edges: bool | str = True,
+        cache: Optional[str] = None,
         verbose: bool = False,
     ) -> VectorisedGraph:
         """
@@ -707,6 +708,7 @@ class GraphView(object):
           embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
           nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
           edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+          cache (str, optional): the path to use to store the cache for embeddings.
           verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
 
         Returns:

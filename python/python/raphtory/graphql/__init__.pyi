@@ -611,7 +611,7 @@ class RemoteNodeAddition(object):
         name (GID): the id of the node
         node_type (str, optional): the node type
         constant_properties (PropInput, optional): the constant properties
-        updates: (list[RemoteUpdate], optional): the temporal updates
+        updates (list[RemoteUpdate], optional): the temporal updates
     """
 
     def __new__(
@@ -619,7 +619,7 @@ class RemoteNodeAddition(object):
         name: GID,
         node_type: Optional[str] = None,
         constant_properties: Optional[PropInput] = None,
-        updates: Any = None,
+        updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
