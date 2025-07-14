@@ -50,6 +50,7 @@ pub struct GenericNodeState<'graph, G, GH = G> {
     _marker: PhantomData<&'graph ()>,
 }
 
+#[derive(Clone)]
 pub struct TypedNodeState<'graph, V: NodeStateValue, G, GH = G> {
     pub state: GenericNodeState<'graph, G, GH>,
     _marker: PhantomData<V>,

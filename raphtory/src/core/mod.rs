@@ -331,7 +331,7 @@ impl Prop {
                 PropType::F64 => todo!(),
                 PropType::Bool => todo!(),
                 PropType::Decimal { scale } => todo!(),
-                _ => Err(GraphError::ParsingError)
+                _ => Err(GraphError::ParsingError),
             },
             // self
             Prop::List(v) => todo!(),
