@@ -69,7 +69,7 @@ impl PyUpdate {
 ///     name (GID): the id of the node
 ///     node_type (str, optional): the node type
 ///     constant_properties (PropInput, optional): the constant properties
-///     updates: (list[RemoteUpdate], optional): the temporal updates
+///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
