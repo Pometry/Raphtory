@@ -1,30 +1,26 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
 use crate::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        storage::raw_edges::UninitialisedEdge,
-    },
-    db::{
+    }, db::{
         api::{
-            state::{NodeStateValue, TypedNodeState},
-            view::{internal::IntoDynamicOrMutable, DynamicGraph, IntoDynamic, StaticGraphViewOps},
+            state::TypedNodeState,
+            view::DynamicGraph,
         },
         graph::nodes::Nodes,
-    },
-    prelude::{GraphViewOps, NodeStateOps, NodeViewOps, Prop, *},
-    py_borrowing_iter,
-    python::{
+    }, prelude::{GraphViewOps, NodeStateOps, Prop}, py_borrowing_iter, python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
-    },
+    }
 };
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
-    types::{PyAnyMethods, PyDict, PyDictMethods, PyModule, PyNotImplemented},
+    types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
     Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult, Python,
 };
+
 
 #[pyclass(
     name = "OutputNodeState",
@@ -144,22 +140,8 @@ impl PyOutputNodeState {
         self.__iter__()
     }
 
-    /// Convert results to pandas DataFrame
-    ///
-    /// The DataFrame has two columns, "node" with the node ids and "value" with
-    /// the corresponding values.
-    ///
-    /// Returns:
-    ///     DataFrame: the pandas DataFrame
-    fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let pandas = PyModule::import(py, "pandas")?;
-        let columns = PyDict::new(py);
-        // TODO: do this correctly with pyarrow
-        /*
-        columns.set_item("node", self.inner.nodes().id())?;
-        columns.set_item("value", self.values())?;
-        */
-        pandas.call_method("DataFrame", (columns,), None)
+    fn to_parquet(&self, file_path: String) {
+        self.inner.state.to_parquet(file_path);
     }
 }
 
