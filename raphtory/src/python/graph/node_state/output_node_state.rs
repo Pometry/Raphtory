@@ -5,20 +5,26 @@ use crate::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
         storage::raw_edges::UninitialisedEdge,
     },
-    db::{api::{
-        state::{NodeStateValue, TypedNodeState},
-        view::{internal::IntoDynamicOrMutable, DynamicGraph, IntoDynamic, StaticGraphViewOps},
-    }, graph::nodes::Nodes},
-    prelude::{GraphViewOps, NodeStateOps, NodeViewOps, Prop},
-    python::{types::repr::Repr, utils::PyNodeRef},
+    db::{
+        api::{
+            state::{NodeStateValue, TypedNodeState},
+            view::{internal::IntoDynamicOrMutable, DynamicGraph, IntoDynamic, StaticGraphViewOps},
+        },
+        graph::nodes::Nodes,
+    },
+    prelude::{GraphViewOps, NodeStateOps, NodeViewOps, Prop, *},
+    py_borrowing_iter,
+    python::{
+        types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
+        utils::PyNodeRef,
+    },
 };
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyModule, PyNotImplemented},
-    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyResult, Python,
+    Bound, IntoPyObject, IntoPyObjectExt, PyAny, PyObject, PyResult, Python,
 };
-use crate::python::types::wrappers::iterators::PyBorrowingIterator;
 
 #[pyclass(
     name = "OutputNodeState",
@@ -26,7 +32,7 @@ use crate::python::types::wrappers::iterators::PyBorrowingIterator;
     frozen
 )]
 pub struct PyOutputNodeState {
-    inner: TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph>,
+    inner: TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph, DynamicGraph>,
 }
 
 #[pymethods]
@@ -83,6 +89,10 @@ impl PyOutputNodeState {
         Ok(res.into_pyobject(py)?.to_owned().into_any())
     }
 
+    fn __repr__(&self) -> String {
+        self.inner.repr()
+    }
+
     fn __getitem__(&self, node: PyNodeRef) -> PyResult<HashMap<String, Prop>> {
         let node = node.as_node_ref();
         self.inner.get_by_node(node).ok_or_else(|| match node {
@@ -106,14 +116,32 @@ impl PyOutputNodeState {
     ///
     /// Returns:
     #[pyo3(signature = (node, default=None::<HashMap<String, Prop>>))]
-    fn get(&self, node: PyNodeRef, default: Option<HashMap<String, Prop>>) -> Option<HashMap<String, Prop>> {
+    fn get(
+        &self,
+        node: PyNodeRef,
+        default: Option<HashMap<String, Prop>>,
+    ) -> Option<HashMap<String, Prop>> {
         self.inner.get_by_node(node).or(default)
     }
 
-    fn __repr__(&self) -> String {
-        // TODO
-        // self.inner.repr()
-        todo!()
+    fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph, DynamicGraph>,
+            |inner| inner.iter_values()
+        )
+    }
+
+    fn items(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph, DynamicGraph>,
+            |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
+        )
+    }
+
+    fn values(&self) -> PyBorrowingIterator {
+        self.__iter__()
     }
 
     /// Convert results to pandas DataFrame
