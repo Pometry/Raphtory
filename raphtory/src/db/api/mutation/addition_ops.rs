@@ -365,15 +365,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Log edge addition
         let c_props = &[];
         let wal_entry = WalEntry::add_edge(ti, src_id, dst_id, layer_id, &props, c_props);
-        self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+        let add_edge_lsn = self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, 0);
+        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_edge_lsn);
         let edge_id = add_edge_op.internal_add_edge(
             ti,
             src_id,
             dst_id,
             edge_id.map(|eid| eid.with_layer(layer_id)),
-            0,
+            add_edge_lsn,
             props,
         );
 
