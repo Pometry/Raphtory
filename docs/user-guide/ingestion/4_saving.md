@@ -11,6 +11,7 @@ In the example below we ingest the edge dataframe from the [last section](3_data
 /// tab | :fontawesome-brands-python: Python
 ```python
 from raphtory import Graph
+from pathlib import Path
 import pandas as pd
 
 edges_df = pd.read_csv("../data/network_traffic_edges.csv")
@@ -25,6 +26,9 @@ g.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
 )
+
+save_loc = Path('../tmp')
+save_loc.mkdir(exist_ok=True)
 g.save_to_file("../tmp/saved_graph") 
 loaded_graph = Graph.load_from_file("../tmp/saved_graph")
 print(g)

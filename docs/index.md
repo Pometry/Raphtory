@@ -13,7 +13,7 @@ hide:
     Install `raphtory` from PyPI and get up
     and running in minutes
 
-    [Get started](user-guide/ingestion/1_creating-a-graph.md)
+    [Get started](user-guide/ingestion/1_intro.md)
 
 -   __Analyse effects over time__
 
@@ -43,6 +43,6 @@ hide:
 
     We have a vibrant community that can help you develop applications and troubleshoot problems
 
-    [Join our server](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA)
+    [Join our server](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg)
 
 </div>
