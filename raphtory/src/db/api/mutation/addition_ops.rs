@@ -285,9 +285,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        // Wal -> BeginTxn(TxnID)
-
-        let session = self.write_session().map_err(|err| err.into())?;
+        // Start & log the transaction
+        let txn_id = self.transaction_manager().begin();
+        let wal_entry = WalEntry::begin_txn(txn_id);
+        let lsn = self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         self.validate_gids(
             [src.as_node_ref(), dst.as_node_ref()]
