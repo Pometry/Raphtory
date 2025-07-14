@@ -288,7 +288,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Start & log the transaction
         let txn_id = self.transaction_manager().begin();
         let wal_entry = WalEntry::begin_txn(txn_id);
-        let lsn = self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+        self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+
+        let session = self.write_session().map_err(|err| err.into())?;
 
         self.validate_gids(
             [src.as_node_ref(), dst.as_node_ref()]
@@ -305,7 +307,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        // Wal -> AddPropIDs(TxnID, PropNames, PropIDs)
+        // Log any new prop name -> prop id mappings
+        let wal_entry = WalEntry::add_new_temporal_prop_ids(&props_with_status);
+        self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         let props = props_with_status
             .into_iter()
@@ -316,25 +320,52 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
-        let src_id = self
-            .resolve_node(src.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
-        let dst_id = self
-            .resolve_node(dst.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
+        let src_id = self.resolve_node(src.as_node_ref()).map_err(into_graph_err)?;
+        let dst_id = self.resolve_node(dst.as_node_ref()).map_err(into_graph_err)?;
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
-        // Wal -> AddLayerID(TxnID, layer)
-        // Wal -> AddNodeIDs(TxnID, src)
-        // Wal -> AddNodeIDs(TxnID, dst)
+        // Log any layer -> layer id mappings
+        match (layer, layer_id) {
+            // Only log if layer is specified & is a new layer
+            (Some(layer), New(layer_id)) => {
+                let wal_entry = WalEntry::add_layer_id(layer, layer_id);
+                self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+            }
+            _ => {}
+        }
+
+        let layer_id = layer_id.inner();
+
+        // Log any node -> node id mappings
+        // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
+        // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
+        match (src_id, src.as_node_ref().as_gid_ref().left()) {
+            (New(src_id), Some(gid)) => {
+                let wal_entry = WalEntry::add_node_id(gid.into(), src_id);
+                self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+            }
+            _ => {}
+        }
+
+        match (dst_id, dst.as_node_ref().as_gid_ref().left()) {
+            (New(dst_id), Some(gid)) => {
+                let wal_entry = WalEntry::add_node_id(gid.into(), dst_id);
+                self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+            }
+            _ => {}
+        }
+
+        let src_id = src_id.inner();
+        let dst_id = dst_id.inner();
 
         let mut add_edge_op = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;
 
-        // Wal -> AddEdge(TxnID, src, dst, layer, props)
+        // Log edge addition
+        let c_props = &[];
+        let wal_entry = WalEntry::add_edge(ti, src_id, dst_id, layer_id, &props, c_props);
+        self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, 0);
         let edge_id = add_edge_op.internal_add_edge(
@@ -346,12 +377,20 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             props,
         );
 
-        // Wal -> AddEdgeID(src, dst, edge_id)
+        // Log edge -> edge id mappings
+        // NOTE: We log edge id mappings after they are inserted into edge segments.
+        // This is fine as long as we hold onto segment locks for the entire operation.
+        if let New(edge_id) = edge_id {
+            let wal_entry = WalEntry::add_edge_id(src_id, dst_id, edge_id.into());
+            self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+        }
 
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
-        // Wal -> CommitTxn(TxnID)
+        // Log transaction commit
+        let wal_entry = WalEntry::commit_txn(txn_id);
+        self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         Ok(EdgeView::new(
             self.clone(),

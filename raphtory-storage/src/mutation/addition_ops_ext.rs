@@ -22,7 +22,13 @@ use storage::{
         node_page::writer::{node_info_as_props, NodeWriter},
         session::WriteSession,
         NODE_ID_PROP_KEY,
-    }, persist::strategy::PersistentStrategy, properties::props_meta_writer::PropsMetaWriter, resolver::GIDResolverOps, segments::{edge::MemEdgeSegment, node::MemNodeSegment}, wal::TransactionID, Extension, Wal, ES, NS
+    },
+    persist::strategy::PersistentStrategy,
+    properties::props_meta_writer::PropsMetaWriter,
+    resolver::GIDResolverOps,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    wal::{TransactionID, WalOps, WalEntryBuilder},
+    Extension, ES, NS, Wal, WalEntry
 };
 
 use crate::mutation::{
