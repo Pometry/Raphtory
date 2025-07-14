@@ -37,7 +37,7 @@ __all__ = [
     "karate_club_graph",
 ]
 
-def lotr_graph():
+def lotr_graph() -> Graph:
     """
     Load the Lord of the Rings dataset into a graph.
     The dataset is available at https://raw.githubusercontent.com/Raphtory/Data/main/lotr.csv
@@ -53,11 +53,8 @@ def lotr_graph():
        * Number of edges (hyperlink between subreddits) 701
 
 
-    Arguments:
-       shards: The number of shards to use for the graph
-
     Returns:
-      A Graph containing the LOTR dataset
+      Graph: A Graph containing the LOTR dataset
     """
 
 def lotr_graph_with_props():
@@ -65,7 +62,7 @@ def lotr_graph_with_props():
 
 def neo4j_movie_graph(uri, username, password, database=...): ...
 def stable_coin_graph(path=None, subset=None): ...
-def reddit_hyperlink_graph(timeout_seconds: Any = 600) -> Graph:
+def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
     The dataset is available at http://snap.stanford.edu/data/soc-redditHyperlinks-title.tsv
@@ -88,7 +85,7 @@ def reddit_hyperlink_graph(timeout_seconds: Any = 600) -> Graph:
      * SOURCE_SUBREDDIT: the subreddit where the link originates
      * TARGET_SUBREDDIT: the subreddit where the link ends
      * POST_ID: the post in the source subreddit that starts the link
-     * TIMESTAMP: time time of the post
+     * TIMESTAMP: time of the post
      * POST_LABEL: label indicating if the source post is explicitly negative towards the target
        post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
        positive. The label is created using crowd-sourcing and training a text based classifier, and
@@ -97,8 +94,7 @@ def reddit_hyperlink_graph(timeout_seconds: Any = 600) -> Graph:
        list of comma separated numbers. This can be found on the source website
 
     Arguments:
-      shards: The number of shards to use for the graph
-      timeout_seconds: The number of seconds to wait for the dataset to download
+      timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
 
     Returns:
      Graph: A Graph containing the Reddit hyperlinks dataset

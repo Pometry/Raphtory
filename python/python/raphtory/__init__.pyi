@@ -323,11 +323,11 @@ class GraphView(object):
            list[Edge]: the edges that match the properties name and value
         """
 
-    def find_nodes(self, properties_dict: Any) -> list[Node]:
+    def find_nodes(self, properties_dict: dict[str, PropValue]) -> list[Node]:
         """
         Get the nodes that match the properties name and value
         Arguments:
-            properties_dict (dict[str, Prop]): the properties name and value
+            properties_dict (dict[str, PropValue]): the properties name and value
         Returns:
            list[Node]: the nodes that match the properties name and value
         """
@@ -2859,7 +2859,7 @@ class Nodes(object):
             EarliestTimeView: a view of the earliest active times
         """
 
-    def edge_history_count(self):
+    def edge_history_count(self) -> EdgeHistoryCountView:
         """
         Return the number of edge updates for each node
 
@@ -5878,14 +5878,12 @@ class TemporalProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, key):
+    def get(self, key) -> TemporalProp:
         """
-        get(key: str) -> Optional[TemporalProp]
-
         Get property value for `key` if it exists
 
         Returns:
-            the property view if it exists, otherwise `None`
+            TemporalProp: the property view if it exists, otherwise `None`
         """
 
     def histories(self) -> dict[str, list[Tuple[int, PropValue]]]:
@@ -5910,12 +5908,12 @@ class TemporalProperties(object):
     def keys(self):
         """List the available property keys"""
 
-    def latest(self) -> dict[str, Any]:
+    def latest(self) -> dict[str, PropValue]:
         """
         Get the latest value of all properties
 
         Returns:
-            dict[str, Any]: the mapping of property keys to latest values
+            dict[str, PropValue]: the mapping of property keys to latest values
         """
 
     def values(self) -> list[TemporalProp]:
@@ -6020,12 +6018,12 @@ class TemporalProp(object):
     def at(self, t):
         """Get the value of the property at time `t`"""
 
-    def average(self):
+    def average(self) -> PropValue:
         """
         Compute the average of all property values. Alias for mean().
 
         Returns:
-            Prop: The average of each property values, or None if count is zero.
+            PropValue: The average of each property values, or None if count is zero.
         """
 
     def count(self) -> int:
@@ -6048,48 +6046,52 @@ class TemporalProp(object):
     def items_date_time(self):
         """List update timestamps and corresponding property values"""
 
-    def max(self):
+    def max(self) -> Tuple[int, PropValue]:
         """
         Find the maximum property value and its associated time.
 
         Returns:
-            (i64, Prop): A tuple containing the time and the maximum property value.
+            Tuple[int, PropValue]: A tuple containing the time and the maximum property value.
         """
 
-    def mean(self):
+    def mean(self) -> PropValue:
         """
         Compute the mean of all property values. Alias for mean().
 
         Returns:
-            Prop: The mean of each property values, or None if count is zero.
+            PropValue: The mean of each property values, or None if count is zero.
         """
 
-    def median(self):
+    def median(self) -> Tuple[int, PropValue]:
         """
         Compute the median of all property values.
 
         Returns:
-            (i64, Prop): A tuple containing the time and the median property value, or None if empty
+            Tuple[int, PropValue]: A tuple containing the time and the median property value, or None if empty
         """
 
-    def min(self):
+    def min(self) -> Tuple[int, PropValue]:
         """
         Find the minimum property value and its associated time.
 
         Returns:
-            (i64, Prop): A tuple containing the time and the minimum property value.
+            Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time): ...
-    def sum(self):
+    def ordered_dedupe(self, latest_time):
+        """List of ordered deduplicated property values"""
+
+    def sum(self) -> PropValue:
         """
         Compute the sum of all property values.
 
         Returns:
-            Prop: The sum of all property values.
+            PropValue: The sum of all property values.
         """
 
-    def unique(self): ...
+    def unique(self):
+        """List of unique property values"""
+
     def value(self):
         """Get the latest value of the property"""
 
