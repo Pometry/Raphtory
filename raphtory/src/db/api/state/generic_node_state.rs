@@ -15,22 +15,17 @@ use crate::{
 use arrow_array::RecordBatch;
 use arrow_schema::{FieldRef, Schema};
 use indexmap::IndexSet;
+use parquet::{arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter}, basic::Compression, file::properties::WriterProperties};
 use rayon::{iter::Either, prelude::*};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
     from_record_batch,
     schema::{SchemaLike, TracingOptions},
     to_record_batch, Deserializer,
 };
 use std::{
-    collections::HashMap,
-    fmt::{Debug, Formatter},
-    hash::BuildHasher,
-    io::ErrorKind,
-    marker::PhantomData,
+    collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path
 };
-
-use super::node_state_ops::ToOwnedValue;
 
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
@@ -140,8 +135,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    /*
-    pub fn to_parquet<P: AsRef<Path>>(self, file_path: P) {
+    pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P) {
         let file = File::create(file_path).unwrap();
         let props = WriterProperties::builder()
             .set_compression(Compression::SNAPPY)
@@ -157,7 +151,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         let mut reader = builder.build().unwrap();
         self.values = reader.next().unwrap().unwrap();
     }
-    */
 }
 
 impl<'graph, V: NodeStateValue, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>

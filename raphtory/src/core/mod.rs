@@ -29,7 +29,6 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use entities::properties::props::validate_prop;
 use itertools::Itertools;
-use neo4rs::Graph;
 use raphtory_api::core::storage::arc_str::ArcStr;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
