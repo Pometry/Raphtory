@@ -4,7 +4,6 @@ use raphtory_core::{
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use serde::{Serialize, Deserialize};
-use std::borrow::Cow;
 
 use crate::error::DBV4Error;
 use crate::wal::{LSN, TransactionID, WalEntryBuilder};
@@ -25,15 +24,18 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
-        _eid: EID,
         _layer_id: usize,
-        _t_props: Cow<'a, [(usize, Prop)]>,
-        _c_props: Cow<'a, [(usize, Prop)]>,
+        _t_props: &'a [(usize, Prop)],
+        _c_props: &'a [(usize, Prop)],
     ) -> Self {
         EmptyWalEntry
     }
 
     fn add_node_id(_gid: GID, _vid: VID) -> Self {
+        EmptyWalEntry
+    }
+
+    fn add_edge_id(_src: VID, _dst: VID, _eid: EID) -> Self {
         EmptyWalEntry
     }
 
@@ -45,7 +47,7 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         EmptyWalEntry
     }
 
-    fn add_layer_id<PN: AsRef<str>>(_name: &'a PN, _id: usize) -> Self {
+    fn add_layer_id(_name: &'a str, _id: usize) -> Self {
         EmptyWalEntry
     }
 

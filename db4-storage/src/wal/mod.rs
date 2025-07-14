@@ -3,7 +3,6 @@ use raphtory_core::{
     entities::{VID, EID, GID},
     storage::timeindex::TimeIndexEntry,
 };
-use std::borrow::Cow;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use crate::error::DBV4Error;
 
@@ -48,13 +47,14 @@ pub trait WalEntryBuilder<'a> {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-        eid: EID,
         layer_id: usize,
-        t_props: Cow<'a, [(usize, Prop)]>,
-        c_props: Cow<'a, [(usize, Prop)]>,
+        t_props: &'a [(usize, Prop)],
+        c_props: &'a [(usize, Prop)],
     ) -> Self;
 
     fn add_node_id(gid: GID, vid: VID) -> Self;
+
+    fn add_edge_id(src: VID, dst: VID, eid: EID) -> Self;
 
     /// Log new constant prop name -> prop id mappings.
     ///
@@ -70,7 +70,7 @@ pub trait WalEntryBuilder<'a> {
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value).
     fn add_new_temporal_prop_ids<PN: AsRef<str>>(props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self;
 
-    fn add_layer_id<PN: AsRef<str>>(name: &'a PN, id: usize) -> Self;
+    fn add_layer_id(name: &'a str, id: usize) -> Self;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.

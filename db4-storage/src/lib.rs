@@ -37,7 +37,7 @@ pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
 pub type Wal = NoWal;
-pub type WalEntry = EmptyWalEntry;
+pub type WalEntry<'a> = EmptyWalEntry;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;
