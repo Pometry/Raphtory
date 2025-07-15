@@ -20,6 +20,7 @@ To ingest this data you must first format it using `pandas` to create a datafram
 ```python
 from raphtory import Graph
 from raphtory import graphql
+from raphtory import algorithms as alg
 import raphtory as rp
 import pandas as pd
 
@@ -63,7 +64,32 @@ For more details, see [Creating a graph](../../ingestion/1_intro/).
 
 ## Query your data
 
-Simple query example
+Once you have created a graph you can start to analyse it and isolate interesting features. 
+
+Continuing from the previous example, you can use the PageRank algorithm to find important nodes.
+
+/// tab | :fontawesome-brands-python: Python
+```{.python continuation}
+results = alg.pagerank(g)
+top_5 = results.top_k(5)
+for rank, (node, score) in enumerate(top_5.items(),1):
+    print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
+```
+///
+
+```{.python continuation hide}
+assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == "PETOULETTE's ranking is 0.0599"
+```
+
+!!! Output
+
+    ```output
+    Rank 1: PETOULETTE with a score of 0.05990
+    Rank 2: BOBO with a score of 0.05941
+    Rank 3: LIPS with a score of 0.05812
+    Rank 4: FELIPE with a score of 0.05788
+    Rank 5: VIOLETTE with a score of 0.05759
+    ```
 
 Links to more complex queries
 
