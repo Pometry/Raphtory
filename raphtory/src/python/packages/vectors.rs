@@ -23,8 +23,8 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use std::path::PathBuf;
 use raphtory_api::core::storage::timeindex::AsTime;
+use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 

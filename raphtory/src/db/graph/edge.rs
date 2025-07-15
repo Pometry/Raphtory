@@ -7,7 +7,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{iter::GenLockedIter, time::IntoTime},
+        utils::iter::GenLockedIter,
     },
     db::{
         api::{

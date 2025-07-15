@@ -2,7 +2,7 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    api::core::storage::timeindex::{TimeError, TimeIndexEntry},
+    api::core::storage::timeindex::TimeIndexEntry,
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{

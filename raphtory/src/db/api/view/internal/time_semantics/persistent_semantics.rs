@@ -181,22 +181,22 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<i64>,
     ) -> Option<TimeIndexEntry> {
         let history = node.history(&view);
-        let prop_earliest = history.prop_history().range_t(i64::MIN..w.end).first_t();
+        let prop_earliest = history.prop_history().range_t(i64::MIN..w.end).first();
 
         if let Some(prop_earliest) = prop_earliest {
-            if prop_earliest <= w.start {
-                return Some(w.start);
+            if prop_earliest.t() <= w.start {
+                return Some(TimeIndexEntry::start(w.start));
             }
         }
 
         if node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start)) {
-            return Some(w.start);
+            return Some(TimeIndexEntry::start(w.start));
         }
 
         let edge_earliest = history
             .edge_history()
             .range_t(w.start.saturating_add(1)..w.end)
-            .first_t();
+            .first();
         prop_earliest.into_iter().chain(edge_earliest).min()
     }
 
@@ -209,13 +209,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         let history = node.history(&view);
         history
             .range_t(w.start.saturating_add(1)..w.end)
-            .last_t()
+            .last()
             .or_else(|| {
                 (history
                     .prop_history()
                     .active_t(i64::MIN..w.start.saturating_add(1))
                     || node_has_valid_edges(history.edge_history(), TimeIndexEntry::end(w.start)))
-                .then_some(w.start)
+                .then_some(TimeIndexEntry::start(w.start))
             })
     }
 

@@ -41,10 +41,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
-use raphtory_api::core::storage::{
-    arc_str::ArcStr,
-    timeindex::{TimeError, TimeIndexEntry},
-};
+use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::TimeIndexEntry};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
