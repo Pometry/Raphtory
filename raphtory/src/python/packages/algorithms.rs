@@ -15,7 +15,7 @@ use crate::{
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
         components,
-        cores::k_core::k_core_set,
+        cores::k_core::k_core as k_core_rs,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
         embeddings::fast_rp::fast_rp as fast_rp_rs,
         layout::{
@@ -59,7 +59,7 @@ use crate::{
     },
     db::{
         api::{state::NodeState, view::internal::DynamicGraph},
-        graph::{node::NodeView, nodes::Nodes},
+        graph::{node::NodeView, nodes::Nodes, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
     prelude::{Graph, GraphViewOps},
@@ -766,11 +766,8 @@ pub fn k_core(
     k: usize,
     iter_count: usize,
     threads: Option<usize>,
-) -> Vec<NodeView<'static, DynamicGraph>> {
-    k_core_set(&graph.graph, k, iter_count, threads)
-        .iter()
-        .map(|vid| graph.graph.node(vid).unwrap())
-        .collect()
+) -> Nodes<'static, NodeSubgraph<DynamicGraph>> {
+    k_core_rs(&graph.graph, k, iter_count, threads).nodes()
 }
 
 /// Simulate an SEIR dynamic on the network
