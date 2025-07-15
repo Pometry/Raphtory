@@ -10,12 +10,13 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
-use arrow_array::RecordBatch;
-use arrow_schema::{FieldRef, Schema};
+use arrow_array::{ArrayRef, RecordBatch, StringArray};
+use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::IndexSet;
 use parquet::{arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter}, basic::Compression, file::properties::WriterProperties};
+use polars_arrow::io::ipc::write::Record;
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -24,7 +25,7 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 use std::{
-    collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path
+    collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path, sync::Arc
 };
 
 pub trait NodeStateValue:
@@ -135,17 +136,48 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P) {
+    fn nodes(&self) -> Nodes<'graph, G, GH> {
+        Nodes::new_filtered(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            self.keys.clone(),
+            None,
+        )
+    }
+
+    pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, node_column: Option<String>) {
+
+        let mut batch: Option<RecordBatch> = None;
+        let mut schema = self.values.schema();
+        
+        if node_column.is_some() {
+            let ids: Vec<String> = self.nodes().id().iter().map(|(_, gid)| gid.to_string()).collect();
+            let ids_array = Arc::new(StringArray::from(ids)) as ArrayRef;
+
+            let mut builder = SchemaBuilder::new();
+            for field in &self.values.schema().fields().clone() {
+                builder.push(field.clone())
+            }
+            builder.push(Arc::new(Field::new(node_column.unwrap(), DataType::Utf8, false)));
+            schema = Arc::new(Schema::new(builder.finish().fields));
+            
+            let mut columns = self.values.columns().to_vec();
+            columns.push(ids_array);
+            
+            batch = Some(RecordBatch::try_new(schema.clone(), columns).unwrap());
+        }
+        
+        // Now write this new_batch to Parquet
         let file = File::create(file_path).unwrap();
         let props = WriterProperties::builder()
             .set_compression(Compression::SNAPPY)
             .build();
-        let mut writer = ArrowWriter::try_new(file, self.values.schema(), Some(props)).unwrap();
-        writer.write(&self.values).expect("Writing batch");
+        let mut writer = ArrowWriter::try_new(file, schema, Some(props)).unwrap();
+        writer.write(batch.as_ref().unwrap_or(&self.values)).expect("Writing batch");
         writer.close().unwrap();
     }
 
-    pub fn values_from_parquet<P: AsRef<Path>>(&mut self, file_path: P) {
+    pub fn values_from_parquet<P: AsRef<Path>>(&mut self, file_path: P, id_column: Option<String>) {
         let file = File::open(file_path).unwrap();
         let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
         let mut reader = builder.build().unwrap();
@@ -356,12 +388,7 @@ impl<
     }
 
     fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
-        Nodes::new_filtered(
-            self.state.base_graph.clone(),
-            self.state.graph.clone(),
-            self.state.keys.clone(),
-            None,
-        )
+        self.state.nodes()
     }
 
     fn par_iter(
