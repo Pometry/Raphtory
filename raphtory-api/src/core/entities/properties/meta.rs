@@ -294,7 +294,7 @@ mod tests {
             .unwrap();
         let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U16);
         assert!(result.is_err());
-        if let Err(PropError::PropertyTypeError {
+        if let Err(PropError {
             name,
             expected,
             actual,
