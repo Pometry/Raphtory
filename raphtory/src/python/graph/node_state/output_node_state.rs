@@ -140,8 +140,9 @@ impl PyOutputNodeState {
         self.__iter__()
     }
 
-    fn to_parquet(&self, file_path: String) {
-        self.inner.state.to_parquet(file_path);
+    #[pyo3(signature = (file_path, node_column="id".to_string()))]
+    fn to_parquet(&self, file_path: String, node_column: String) {
+        self.inner.state.to_parquet(file_path, Some(node_column));
     }
 }
 
