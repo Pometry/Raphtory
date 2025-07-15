@@ -45,11 +45,14 @@ impl<'a> NodesStorageEntry<'a> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeStorageRef<'_>> {
-        for_all_variants!(self, nodes => nodes.par_iter().map(|n| n.into()))
+        for_all_variants!(self, nodes => nodes.par_iter())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
-        for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
+        for_all_variants!(self, nodes => nodes.iter())
     }
 }

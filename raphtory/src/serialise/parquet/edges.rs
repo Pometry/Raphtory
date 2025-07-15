@@ -5,10 +5,7 @@ use crate::{
 };
 use arrow_schema::{DataType, Field};
 use model::ParquetCEdge;
-use raphtory_api::{
-    core::{entities::EID, storage::timeindex::TimeIndexOps},
-    iter::IntoDynBoxed,
-};
+use raphtory_api::{core::storage::timeindex::TimeIndexOps, iter::IntoDynBoxed};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
@@ -19,10 +16,10 @@ pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_meta(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter(),
         path,
         EDGES_T_PATH,
         |id_type| {
@@ -35,12 +32,11 @@ pub(crate) fn encode_edge_tprop(
         },
         |edges, g, decoder, writer| {
             let row_group_size = 100_000;
+            let edges = edges.collect::<Vec<_>>();
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
-                    println!("encoding {eid:?}");
                     let edge_ref = g.core_edge(eid).out_ref();
                     EdgeView::new(g, edge_ref).explode()
                 })
@@ -64,10 +60,10 @@ pub(crate) fn encode_edge_deletions(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_meta(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter(),
         path,
         EDGES_D_PATH,
         |id_type| {
@@ -91,7 +87,6 @@ pub(crate) fn encode_edge_deletions(
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
                     g.unfiltered_layer_ids().flat_map(move |layer_id| {
                         let edge = g_edges.edge(eid);
@@ -125,10 +120,10 @@ pub(crate) fn encode_edge_cprop(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().const_prop_meta(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter(),
         path,
         EDGES_C_PATH,
         |id_type| {
@@ -139,16 +134,16 @@ pub(crate) fn encode_edge_cprop(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000.min(edges.len());
-            let layers = 0..g.unfiltered_num_layers();
+            let row_group_size = 100_000;
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    g.unfiltered_layer_ids()
-                        .map(move |l_id| edge_ref.at_layer(l_id))
+                    EdgeView::new(g, edge_ref)
+                        .explode_layers()
+                        .into_iter()
+                        .map(|e| e.edge)
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

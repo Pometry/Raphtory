@@ -87,14 +87,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
         &'a self,
         edge_pos: LP,
         layer_id: usize,
-    ) -> Option<Self::Entry<'a>> {
-        let edge_pos = edge_pos.into();
-        if self.head().contains_edge(edge_pos, layer_id) {
-            Some(self.entry(edge_pos))
-        } else {
-            None
-        }
-    }
+        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
+    ) -> Option<Self::Entry<'a>>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 }

@@ -130,6 +130,7 @@ impl MemEdgeSegment {
         dst: impl Into<VID>,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
+        lsn: u64,
     ) {
         let edge_pos = edge_pos.into();
         let src = src.into();
@@ -137,6 +138,7 @@ impl MemEdgeSegment {
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
 
@@ -154,6 +156,7 @@ impl MemEdgeSegment {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
+        lsn: u64,
     ) {
         let edge_pos = edge_pos.into();
         let src = src.into();
@@ -162,6 +165,7 @@ impl MemEdgeSegment {
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
         let props = self.layers[layer_id].properties_mut();
@@ -174,12 +178,14 @@ impl MemEdgeSegment {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
+        lsn: u64,
     ) {
         let src = src.into();
         let dst = dst.into();
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        self.layers[layer_id].set_lsn(lsn);
 
         self.reserve_local_row(edge_pos, src, dst, layer_id);
     }
@@ -254,16 +260,6 @@ impl MemEdgeSegment {
             .properties_mut()
             .get_mut_entry(local_row);
         prop_entry.append_const_props(props)
-    }
-
-    pub fn insert_edge(
-        &mut self,
-        edge_pos: LocalPOS,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        layer_id: usize,
-    ) {
-        self.insert_edge_internal(0, edge_pos, src, dst, layer_id, []);
     }
 
     pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
@@ -479,12 +475,14 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         &'a self,
         edge_pos: LP,
         layer_id: usize,
+        locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
         let edge_pos = edge_pos.into();
-        let locked_head = self.head();
-        let layer = locked_head.as_ref().get(layer_id)?;
-        let has_edge = layer.items().get(edge_pos.0).is_some_and(|item| *item);
-        has_edge.then(|| MemEdgeEntry::new(edge_pos, locked_head))
+        locked_head.and_then(|locked_head| {
+            let layer = locked_head.as_ref().get(layer_id)?;
+            let has_edge = layer.items().get(edge_pos.0).is_some_and(|item| *item);
+            has_edge.then(|| MemEdgeEntry::new(edge_pos, locked_head))
+        })
     }
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {

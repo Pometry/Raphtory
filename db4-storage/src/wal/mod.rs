@@ -6,8 +6,8 @@ use raphtory_core::{
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use crate::error::DBV4Error;
 
-pub mod no_wal;
 pub mod entry;
+pub mod no_wal;
 
 pub type LSN = u64;
 pub type TransactionID = u64;

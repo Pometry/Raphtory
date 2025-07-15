@@ -1,6 +1,9 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
-    entities::{EID, Multiple, VID, properties::tprop::TPropCell},
+    entities::{
+        EID, Multiple, VID,
+        properties::{tcell::TCell, tprop::TPropCell},
+    },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 
@@ -101,7 +104,13 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let t_cell = MemAdditions::Edges(self.es.as_ref()[layer_id].deletions(self.pos));
+        let deletions = self
+            .es
+            .as_ref()
+            .get(layer_id)
+            .map(|layer| layer.deletions(self.pos))
+            .unwrap_or(&TCell::Empty);
+        let t_cell = MemAdditions::Edges(deletions);
         std::iter::once(
             range
                 .map(|(start, end)| t_cell.range(start..end))

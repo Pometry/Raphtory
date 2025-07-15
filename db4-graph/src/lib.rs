@@ -203,12 +203,12 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
-        self.node_count.load(atomic::Ordering::Relaxed)
+        self.storage.nodes().layer_num_nodes(0)
     }
 
     #[inline]
     pub fn internal_num_edges(&self) -> usize {
-        self.storage.edges().num_edges()
+        self.storage.edges().num_edges_layer(0)
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedLayer<EXT> {

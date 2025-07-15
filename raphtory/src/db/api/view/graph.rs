@@ -368,22 +368,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     if let Some(edge_pos) = shard.resolve_pos(eid) {
                         let mut writer = shard.writer();
                         // make the edge for the first time
-                        writer.add_static_edge(Some(edge_pos), src, dst, 0, 0, Some(false));
+                        writer.add_static_edge(Some(edge_pos), src, dst, 0, Some(false));
 
                         for edge in edge.explode_layers() {
                             let layer = layer_map[edge.edge.layer().unwrap()];
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
-                                writer.add_edge(
-                                    t,
-                                    Some(edge_pos),
-                                    src,
-                                    dst,
-                                    [],
-                                    layer,
-                                    0,
-                                    Some(true),
-                                );
+                                writer.add_edge(t, edge_pos, src, dst, [], layer, 0);
                             }
                             //TODO: move this in edge.row()
                             for (t, t_props) in edge
@@ -403,16 +394,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 let props = t_props
                                     .map(|(_, prop_id, prop)| (prop_id, prop))
                                     .collect::<Vec<_>>();
-                                writer.add_edge(
-                                    t,
-                                    Some(edge_pos),
-                                    src,
-                                    dst,
-                                    props,
-                                    layer,
-                                    0,
-                                    Some(true),
-                                );
+                                writer.add_edge(t, edge_pos, src, dst, props, layer, 0);
                             }
                             writer.update_c_props(
                                 edge_pos,
@@ -432,7 +414,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                             self,
                             self.layer_ids(),
                         ) {
-                            writer.delete_edge(t, Some(edge_pos), src, dst, layer, 0, Some(true));
+                            writer.delete_edge(t, edge_pos, src, dst, layer, 0);
                         }
                     }
                 }
