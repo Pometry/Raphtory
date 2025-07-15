@@ -10,8 +10,6 @@ Raphtory is written in Rust for speed and safety. However, you can interact with
 - [GraphQL](../../graphql/1_intro/) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
 - [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products. 
 
-
-
 ## Ingest a simple dataset
 
 You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file. 
@@ -90,7 +88,7 @@ This will start the UI locally on the default port `1736`, you should see **Sear
 
 ![UI Search page](../../assets/images/raphtory_ui_search_empty.png)
 
-You can use the **Query Builder** to select the graph you created and identify which baboons attack each other in the last month.
+You can use the **Query Builder** to select the graph you created and identify which baboons attacked each other in the last month.
 
 ![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
 

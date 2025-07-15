@@ -14,7 +14,7 @@ The **Search page** consists of the following elements:
 
 ## Graphs page
 
-![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
+![UI Search page](../../assets/images/raphtory_ui_graph_list.png)
 
 The **Graphs page** consists of the following elements:
 
@@ -24,7 +24,7 @@ The **Graphs page** consists of the following elements:
 
 ## Graph view
 
-![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
+![UI Search page](../../assets/images/raphtory_ui_graph_view.png)
 
 The **Graph view** displays the graph or sub-graph you have selected and provides information on that selection. You can also refine your selection further or save it as a new graph.
 
@@ -40,6 +40,6 @@ The **Graph view** consists of the following elements:
 
 ## GraphQL playground
 
-![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
+![UI Search page](../../assets/images/raphtory_ui_graphiql_playground.png)
 
 This page allows you to access the standard [GraphiQL](https://github.com/graphql/graphiql) playground.
