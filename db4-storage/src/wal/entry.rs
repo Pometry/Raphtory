@@ -1,9 +1,9 @@
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
-    entities::{VID, EID, GID},
+    entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::error::DBV4Error;
 use crate::wal::{LSN, TransactionID, WalEntryBuilder};
@@ -21,6 +21,7 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
     }
 
     fn add_edge(
+        _txn_id: TransactionID,
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
@@ -31,23 +32,29 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         EmptyWalEntry
     }
 
-    fn add_node_id(_gid: GID, _vid: VID) -> Self {
+    fn add_node_id(_txn_id: TransactionID, _gid: GID, _vid: VID) -> Self {
         EmptyWalEntry
     }
 
-    fn add_edge_id(_src: VID, _dst: VID, _eid: EID) -> Self {
+    fn add_edge_id(_txn_id: TransactionID, _src: VID, _dst: VID, _eid: EID) -> Self {
         EmptyWalEntry
     }
 
-    fn add_new_const_prop_ids<PN: AsRef<str>>(_props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self {
+    fn add_new_const_prop_ids<PN: AsRef<str>>(
+        _txn_id: TransactionID,
+        _props: &'a [MaybeNew<(PN, usize, Prop)>],
+    ) -> Self {
         EmptyWalEntry
     }
 
-    fn add_new_temporal_prop_ids<PN: AsRef<str>>(_props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self {
+    fn add_new_temporal_prop_ids<PN: AsRef<str>>(
+        _txn_id: TransactionID,
+        _props: &'a [MaybeNew<(PN, usize, Prop)>],
+    ) -> Self {
         EmptyWalEntry
     }
 
-    fn add_layer_id(_name: &'a str, _id: usize) -> Self {
+    fn add_layer_id(_txn_id: TransactionID, _name: &'a str, _id: usize) -> Self {
         EmptyWalEntry
     }
 

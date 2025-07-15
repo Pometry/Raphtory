@@ -72,7 +72,9 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                 props: in_props
                     .into_iter()
                     .filter_map(|(prop_name, prop, _)| {
-                        locked_meta.get_id(prop_name.as_ref()).map(|id| (prop_name, id, prop))
+                        locked_meta
+                            .get_id(prop_name.as_ref())
+                            .map(|id| (prop_name, id, prop))
                     })
                     .collect(),
             });
@@ -139,10 +141,13 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         mapper_fn: impl Fn(&Meta) -> &PropMapper,
     ) -> Result<Vec<(usize, Prop)>, DBV4Error> {
         self.into_props_inner_with_status(mapper_fn).map(|props| {
-            props.into_iter().map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            }).collect()
+            props
+                .into_iter()
+                .map(|maybe_new| {
+                    let (_, prop_id, prop) = maybe_new.inner();
+                    (prop_id, prop)
+                })
+                .collect()
         })
     }
 
@@ -151,12 +156,10 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         mapper_fn: impl Fn(&Meta) -> &PropMapper,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
         match self {
-            Self::NoChange { props } => Ok(
-                props
-                    .into_iter()
-                    .map(|(prop_name, prop_id, prop)| MaybeNew::Existing((prop_name, prop_id, prop)))
-                    .collect()
-            ),
+            Self::NoChange { props } => Ok(props
+                .into_iter()
+                .map(|(prop_name, prop_id, prop)| MaybeNew::Existing((prop_name, prop_id, prop)))
+                .collect()),
             Self::Change {
                 props,
                 mapper,
@@ -245,21 +248,17 @@ mod test {
         let prop1 = Prop::U32(0);
         let prop2 = Prop::U64(1);
 
-        let writer = PropsMetaWriter::temporal(
-            &meta,
-            vec![(ArcStr::from("prop1"), prop1)].into_iter()
-        )
-        .unwrap();
+        let writer =
+            PropsMetaWriter::temporal(&meta, vec![(ArcStr::from("prop1"), prop1)].into_iter())
+                .unwrap();
         let props = writer.into_props_temporal().unwrap();
         assert_eq!(props.len(), 1);
 
         assert!(meta.temporal_prop_meta().len() == 1);
         assert!(meta.temporal_prop_meta().get_id("prop1").is_some());
 
-        let writer = PropsMetaWriter::temporal(
-            &meta,
-            vec![(ArcStr::from("prop1"), prop2)].into_iter()
-        );
+        let writer =
+            PropsMetaWriter::temporal(&meta, vec![(ArcStr::from("prop1"), prop2)].into_iter());
 
         assert!(writer.is_err());
         assert!(meta.temporal_prop_meta().len() == 1);

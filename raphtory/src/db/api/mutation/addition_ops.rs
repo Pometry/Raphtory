@@ -20,7 +20,7 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
-use storage::wal::{WalOps, WalEntryBuilder};
+use storage::wal::{WalEntryBuilder, WalOps};
 use storage::WalEntry;
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -308,7 +308,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
 
         // Log any new prop name -> prop id mappings
-        let wal_entry = WalEntry::add_new_temporal_prop_ids(&props_with_status);
+        let wal_entry = WalEntry::add_new_temporal_prop_ids(txn_id, &props_with_status);
         self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         let props = props_with_status
@@ -320,15 +320,19 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
-        let src_id = self.resolve_node(src.as_node_ref()).map_err(into_graph_err)?;
-        let dst_id = self.resolve_node(dst.as_node_ref()).map_err(into_graph_err)?;
+        let src_id = self
+            .resolve_node(src.as_node_ref())
+            .map_err(into_graph_err)?;
+        let dst_id = self
+            .resolve_node(dst.as_node_ref())
+            .map_err(into_graph_err)?;
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
         // Log any layer -> layer id mappings
         match (layer, layer_id) {
             // Only log if layer is specified & is a new layer
             (Some(layer), New(layer_id)) => {
-                let wal_entry = WalEntry::add_layer_id(layer, layer_id);
+                let wal_entry = WalEntry::add_layer_id(txn_id, layer, layer_id);
                 self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
             }
             _ => {}
@@ -341,7 +345,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
         match (src_id, src.as_node_ref().as_gid_ref().left()) {
             (New(src_id), Some(gid)) => {
-                let wal_entry = WalEntry::add_node_id(gid.into(), src_id);
+                let wal_entry = WalEntry::add_node_id(txn_id, gid.into(), src_id);
                 self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
             }
             _ => {}
@@ -349,7 +353,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         match (dst_id, dst.as_node_ref().as_gid_ref().left()) {
             (New(dst_id), Some(gid)) => {
-                let wal_entry = WalEntry::add_node_id(gid.into(), dst_id);
+                let wal_entry = WalEntry::add_node_id(txn_id, gid.into(), dst_id);
                 self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
             }
             _ => {}
@@ -364,7 +368,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Log edge addition
         let c_props = &[];
-        let wal_entry = WalEntry::add_edge(ti, src_id, dst_id, layer_id, &props, c_props);
+        let wal_entry = WalEntry::add_edge(txn_id, ti, src_id, dst_id, layer_id, &props, c_props);
         let add_edge_lsn = self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
 
         let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_edge_lsn);
@@ -381,7 +385,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // NOTE: We log edge id mappings after they are inserted into edge segments.
         // This is fine as long as we hold onto segment locks for the entire operation.
         if let New(edge_id) = edge_id {
-            let wal_entry = WalEntry::add_edge_id(src_id, dst_id, edge_id.into());
+            let wal_entry = WalEntry::add_edge_id(txn_id, src_id, dst_id, edge_id.into());
             self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
         }
 

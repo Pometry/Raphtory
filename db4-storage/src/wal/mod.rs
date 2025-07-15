@@ -1,10 +1,10 @@
-use std::path::Path;
+use crate::error::DBV4Error;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
-    entities::{VID, EID, GID},
+    entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
-use crate::error::DBV4Error;
+use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -44,6 +44,7 @@ pub trait WalEntryBuilder<'a> {
     fn commit_txn(txn_id: TransactionID) -> Self;
 
     fn add_edge(
+        txn_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
@@ -52,25 +53,33 @@ pub trait WalEntryBuilder<'a> {
         c_props: &'a [(usize, Prop)],
     ) -> Self;
 
-    fn add_node_id(gid: GID, vid: VID) -> Self;
+    fn add_node_id(txn_id: TransactionID, gid: GID, vid: VID) -> Self;
 
-    fn add_edge_id(src: VID, dst: VID, eid: EID) -> Self;
+    fn add_edge_id(txn_id: TransactionID, src: VID, dst: VID, eid: EID) -> Self;
 
     /// Log new constant prop name -> prop id mappings.
     ///
     /// # Arguments
     ///
+    /// * `txn_id` - The transaction ID
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value)
-    fn add_new_const_prop_ids<PN: AsRef<str>>(props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self;
+    fn add_new_const_prop_ids<PN: AsRef<str>>(
+        txn_id: TransactionID,
+        props: &'a [MaybeNew<(PN, usize, Prop)>],
+    ) -> Self;
 
     /// Log new temporal prop name -> prop id mappings.
     ///
     /// # Arguments
     ///
+    /// * `txn_id` - The transaction ID
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value).
-    fn add_new_temporal_prop_ids<PN: AsRef<str>>(props: &'a [MaybeNew<(PN, usize, Prop)>]) -> Self;
+    fn add_new_temporal_prop_ids<PN: AsRef<str>>(
+        txn_id: TransactionID,
+        props: &'a [MaybeNew<(PN, usize, Prop)>],
+    ) -> Self;
 
-    fn add_layer_id(name: &'a str, id: usize) -> Self;
+    fn add_layer_id(txn_id: TransactionID, name: &'a str, id: usize) -> Self;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.
@@ -80,5 +89,7 @@ pub trait WalEntryBuilder<'a> {
 
     fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
 
-    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error> where Self: Sized;
+    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error>
+    where
+        Self: Sized;
 }

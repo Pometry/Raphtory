@@ -7,7 +7,8 @@ use crate::{
         PropAdditionCellsRef,
     },
     pages::{
-        edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage, GraphStore, ReadLockedGraphStore
+        GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
+        node_store::ReadLockedNodeStorage,
     },
     resolver::mapping_resolver::MappingResolver,
     segments::{
@@ -15,7 +16,9 @@ use crate::{
         edge_entry::{MemEdgeEntry, MemEdgeRef},
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
-    }, wal::no_wal::{NoWal}, wal::entry::EmptyWalEntry,
+    },
+    wal::entry::EmptyWalEntry,
+    wal::no_wal::NoWal,
 };
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
