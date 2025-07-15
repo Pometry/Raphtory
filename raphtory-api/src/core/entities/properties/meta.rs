@@ -212,7 +212,7 @@ impl PropMapper {
                     return Ok(wrapped_id);
                 }
             } else {
-                return Err(PropError::PropertyTypeError {
+                return Err(PropError {
                     name: prop.to_owned(),
                     expected: old_type.clone(),
                     actual: dtype,
@@ -227,7 +227,7 @@ impl PropMapper {
                     dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
-                    Err(PropError::PropertyTypeError {
+                    Err(PropError {
                         name: prop.to_owned(),
                         expected: old_type,
                         actual: dtype,

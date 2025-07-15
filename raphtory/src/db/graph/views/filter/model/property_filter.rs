@@ -237,7 +237,8 @@ impl PropertyFilter {
                 } else {
                     filter_dtype
                 };
-                unify_types(dtype, &actual_filter_dtype, &mut false)?;
+                unify_types(dtype, &actual_filter_dtype, &mut false)
+                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
             }
             FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge => {
                 let filter_dtype = match &self.prop_value {
@@ -259,7 +260,8 @@ impl PropertyFilter {
                 } else {
                     filter_dtype
                 };
-                unify_types(dtype, &actual_filter_dtype, &mut false)?;
+                unify_types(dtype, &actual_filter_dtype, &mut false)
+                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
             }
             FilterOperator::In | FilterOperator::NotIn => match &self.prop_value {
                 PropertyFilterValue::None => {
