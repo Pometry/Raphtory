@@ -69,6 +69,7 @@ __all__ = [
     "max_weight_matching",
     "Matching",
     "Infected",
+    "connected_components",
 ]
 
 def dijkstra_single_source_shortest_paths(
@@ -780,7 +781,7 @@ class Matching(object):
         """True if self else False"""
 
     def __contains__(self, key):
-        """Return key in self."""
+        """Return bool(key in self)."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -875,3 +876,5 @@ class Infected(object):
         Returns:
             int:
         """
+
+def connected_components(graph): ...
