@@ -267,6 +267,8 @@ def test_event_graph_all_property_types():
         (filter.Property("weight").is_not_in([3]), 4),
         (filter.Property("weight").is_some(), 6),
         (filter.Property("weight").is_none(), 0),
+        (filter.Property("weight").is_in(["1", 2]), 2),  # actually does the filter
+        (filter.Property("weight").is_not_in(["3"]), 6),  # actually does the filter
         # confidence (float)
         (filter.Property("confidence") == 0.95, 1),
         (filter.Property("confidence") != 0.80, 5),
@@ -278,6 +280,14 @@ def test_event_graph_all_property_types():
         (filter.Property("confidence").is_not_in([0.75]), 5),
         (filter.Property("confidence").is_some(), 6),
         (filter.Property("confidence").is_none(), 0),
+        (
+            filter.Property("confidence").is_in(["1", 0.95]),
+            1,
+        ),  # actually does the filter
+        (
+            filter.Property("confidence").is_not_in(["3", 0.95]),
+            5,
+        ),  # actually does the filter
         # name (str)
         (filter.Property("name") == "bob", 2),
         (filter.Property("name") != "greg", 4),
@@ -287,6 +297,12 @@ def test_event_graph_all_property_types():
         (filter.Property("name").not_contains("eg"), 4),
         (filter.Property("name").is_some(), 6),
         (filter.Property("name").is_none(), 0),
+        (filter.Property("name") < "dave", 2),
+        (filter.Property("name") > "dave", 2),
+        (filter.Property("name") <= "dave", 4),
+        (filter.Property("name") >= "dave", 4),
+        (filter.Property("name").is_in([1, 2]), 0),  # actually does the filter
+        (filter.Property("name").is_not_in([3, "dave"]), 4),  # actually does the filter
         # active (bool)
         (filter.Property("active") == True, 4),
         (filter.Property("active") != False, 4),
@@ -295,6 +311,12 @@ def test_event_graph_all_property_types():
         (filter.Property("active").is_not_in([False]), 4),
         (filter.Property("active").is_some(), 6),
         (filter.Property("active").is_none(), 0),
+        (filter.Property("active") < True, 2),
+        (filter.Property("active") > False, 4),
+        (filter.Property("active") >= False, 6),
+        (filter.Property("active") <= False, 2),
+        (filter.Property("active").is_in([1, 2]), 0),  # actually does the filter
+        (filter.Property("active").is_not_in([3]), 6),  # actually does the filter
         # created (datetime)
         (filter.Property("created") == datetime(2023, 1, 1), 1),
         (filter.Property("created") != datetime(2023, 1, 1), 5),
@@ -316,15 +338,21 @@ def test_event_graph_all_property_types():
         ),
         (filter.Property("created").is_some(), 6),
         (filter.Property("created").is_none(), 0),
+        (filter.Property("created").is_in([1, 2]), 0),  # actually does the filter
+        (filter.Property("created").is_not_in([3]), 6),  # actually does the filter
         # tags (list of str)
         (filter.Property("tags") == ["team_b", "remote"], 1),
         (filter.Property("tags") != ["team_b", "remote"], 5),
         (filter.Property("tags").is_in([["team_b", "remote"], ["team_a"]]), 2),
         (filter.Property("tags").is_not_in([["team_b", "remote"], ["team_a"]]), 4),
-        # (filter.Property("tags").contains("team_a"), 1), #This says wrong type - asks for list of strings
-        # (filter.Property("tags").not_contains("team_z"), 6), #This says wrong type - asks for list of strings
         (filter.Property("tags").is_some(), 6),
         (filter.Property("tags").is_none(), 0),
+        (filter.Property("tags").is_in([1, 2]), 0),  # actually does the filter
+        (
+            filter.Property("tags").is_in([1, 2, ["team_a", 0]]),
+            0,
+        ),  # actually does the filter, maybe should be a type error on the heterogeneous list
+        (filter.Property("tags").is_not_in([3]), 6),  # actually does the filter
         # meta (dict)
         (filter.Property("meta") == {"location": "SF", "level": 2}, 1),
         (filter.Property("meta") != {"location": "SF", "level": 2}, 5),
@@ -340,10 +368,20 @@ def test_event_graph_all_property_types():
             ),
             4,
         ),
-        # (filter.Property("meta").contains("role"), 2), #This says wrong type - asks for map
-        # (filter.Property("meta").not_contains("salary"), 6), #This says wrong type - asks for map
         (filter.Property("meta").is_some(), 6),
         (filter.Property("meta").is_none(), 0),
+        (
+            filter.Property("meta").is_not_in(
+                [2, 4, {"location": "SF", "level": 2}, {"contract": True}]
+            ),
+            4,
+        ),
+        (
+            filter.Property("meta").is_in(
+                ["hi", {"location": "SF", "level": 2}, {"contract": True}]
+            ),
+            2,
+        ),
         # fake property
         (filter.Property("blah") == 2, 0),
         (filter.Property("blah") != 3, 0),
@@ -360,6 +398,7 @@ def test_event_graph_all_property_types():
         (filter.Property("blah").is_some(), 0),
         (filter.Property("blah").is_none(), 6),
     ]
+    print()
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter_exploded_edges(expr).edges.explode()
         assert (
@@ -368,43 +407,100 @@ def test_event_graph_all_property_types():
 
     nonsense_filter_cases = [
         # Integers (weight)
-        # filter.Property("weight").contains(2), # Panics
-        # filter.Property("weight").not_contains(3),# Panics
+        (
+            filter.Property("weight").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("weight").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
         # Floats (confidence)
-        # filter.Property("confidence").contains(0.9), #Panics
-        # filter.Property("confidence").not_contains(0.8), #Panics
-        # Strings (name)
-        # filter.Property("name") < "blah",  #Actually runs and returns no edges
-        # filter.Property("name") > "blah",  #Actually runs and returns 6 edges
-        # filter.Property("name") <= "blah", #Actually runs and returns no edges
-        # filter.Property("name") >= "blah", #Actually runs and returns 6 edges
+        (
+            filter.Property("confidence").contains(0.9),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("confidence").not_contains(0.8),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
         # Booleans (active)
-        # filter.Property("active").contains(True), #Panics
-        # filter.Property("active").not_contains(False), #Panics
-        # filter.Property("active") < True, #Actually runs returns 2 edges
-        # filter.Property("active") > False, #Actually runs returns 4 edges
-        # filter.Property("active") >= False, #Runs returns 4 edges
-        # filter.Property("active") <= False, # Runs and returns 2 edges
+        (
+            filter.Property("active").contains(True),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("active").not_contains(False),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
         # Datetimes (created)
-        # filter.Property("created").contains(datetime(2023, 1, 1)), #panics
-        # filter.Property("created").not_contains(datetime(2023, 1, 1)), #panics
+        (
+            filter.Property("created").contains(datetime(2023, 1, 1)),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("created").not_contains(datetime(2023, 1, 1)),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
         # Lists (tags) — odd comparisons
-        # filter.Property("tags") < ["x"], #Somehow works and returns 6
-        # filter.Property("tags") > ["a"], #Somehow works and returns 5
-        # filter.Property("tags") <= ["team_b"], #returns 5
-        # filter.Property("tags") >= ["consultant"], Returns 5
+        (
+            filter.Property("tags").contains("team_a"),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("tags").not_contains("team_z"),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
+        (filter.Property("tags") < ["x"], "Comparison not implemented for List<Str>"),
+        (filter.Property("tags") > ["a"], "Comparison not implemented for List<Str>"),
+        (
+            filter.Property("tags") <= ["team_b"],
+            "Comparison not implemented for List<Str>",
+        ),
+        (
+            filter.Property("tags") >= ["consultant"],
+            "Comparison not implemented for List<Str>",
+        ),
         # Dicts (meta) — contains() expects a key, but here simulates wrong context
-        # filter.Property("meta") < {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        # filter.Property("meta") > {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        # filter.Property("meta") <= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        # filter.Property("meta") >= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
+        (
+            filter.Property("meta").contains("role"),
+            "Operator CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("meta").not_contains("salary"),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),
+        (
+            filter.Property("meta")
+            < {"location": "SF", "level": 2, "contract": False, "role": "blah"},
+            "Comparison not implemented for Map",
+        ),
+        (
+            filter.Property("meta") < {"location": "SF", "level": 2, "role": "blah"},
+            "Comparison not implemented for Map",
+        ),  # check subset of keys also raise the same error
+        (
+            filter.Property("meta")
+            <= {"location": "SF", "level": 2, "contract": False, "role": "blah"},
+            "Comparison not implemented for Map",
+        ),
+        (
+            filter.Property("meta")
+            > {"location": "SF", "level": 2, "contract": False, "role": "blah"},
+            "Comparison not implemented for Map",
+        ),
+        (
+            filter.Property("meta")
+            >= {"location": "SF", "level": 2, "contract": False, "role": "blah"},
+            "Comparison not implemented for Map",
+        ),
     ]
 
-    for i, expr in enumerate(nonsense_filter_cases):
+    for i, (expr, message) in enumerate(nonsense_filter_cases):
         with pytest.raises(Exception) as e:
             print(len(g.filter_exploded_edges(expr).edges.explode()))
         print(e.value)
-        assert "Some actual error message" in str(e.value)
+        assert message in str(e.value)
 
     wrong_types = [
         # Integers (weight)
@@ -432,10 +528,14 @@ def test_event_graph_all_property_types():
             filter.Property("weight") >= "3",
             "Wrong type for property weight: expected I64 but actual type is Str",
         ),
-        # (filter.Property("weight").is_in(["1", "2"]), "Wrong type for property weight: expected I64 but actual type is Str"), #actually does the filter
-        # (filter.Property("weight").is_not_in(["3"]), "Wrong type for property weight: expected I64 but actual type is Str"),  #actually does the filter
-        # (filter.Property("weight").contains("bo"), "Function not available"), #should fail on contains not type
-        # (filter.Property("weight").not_contains("eg"), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("weight").contains("bo"),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("weight").not_contains("eg"),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # Floats (confidence)
         (
             filter.Property("confidence") == "2",
@@ -461,10 +561,14 @@ def test_event_graph_all_property_types():
             filter.Property("confidence") >= "3",
             "Wrong type for property confidence: expected F64 but actual type is Str",
         ),
-        # (filter.Property("confidence").is_in(["1", "2"]), "Wrong type for property confidence: expected F64 but actual type is Str"), #actually does the filter
-        # (filter.Property("confidence").is_not_in(["3"]), "Wrong type for property confidence: expected F64 but actual type is Str"),  #actually does the filter
-        # (filter.Property("confidence").contains("bo"), "Function not available"), #should fail on contains not type
-        # (filter.Property("confidence").not_contains("eg"), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("confidence").contains("bo"),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("confidence").not_contains("eg"),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # # Strings (name)
         (
             filter.Property("name") == 2,
@@ -490,10 +594,14 @@ def test_event_graph_all_property_types():
             filter.Property("name") >= 3,
             "Wrong type for property name: expected Str but actual type is I64",
         ),
-        # (filter.Property("name").is_in([1, 2]), "Wrong type for property name: expected Str but actual type is I64"), #actually does the filter
-        # (filter.Property("name").is_not_in([3]), "Wrong type for property name: expected Str but actual type is I64"),  #actually does the filter
-        # (filter.Property("name").contains(2), "Function not available"), #should fail on contains not type
-        # (filter.Property("name").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("name").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("name").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # # Booleans (active)
         (
             filter.Property("active") == 2,
@@ -519,10 +627,14 @@ def test_event_graph_all_property_types():
             filter.Property("active") >= 3,
             "Wrong type for property active: expected Bool but actual type is I64",
         ),
-        # (filter.Property("active").is_in([1, 2]), "Wrong type for property active: expected Bool but actual type is I64"), #actually does the filter
-        # (filter.Property("active").is_not_in([3]), "Wrong type for property active: expected Bool but actual type is I64"),  #actually does the filter
-        # (filter.Property("active").contains(2), "Function not available"), #should fail on contains not type
-        # (filter.Property("active").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("active").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("active").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # # Datetimes (created)
         (
             filter.Property("created") == 2,
@@ -548,10 +660,14 @@ def test_event_graph_all_property_types():
             filter.Property("created") >= 3,
             "Wrong type for property created: expected NDTime but actual type is I64",
         ),
-        # (filter.Property("created").is_in([1, 2]), "Wrong type for property created: expected NDTime but actual type is I64"), #actually does the filter
-        # (filter.Property("created").is_not_in([3]), "Wrong type for property created: expected NDTime but actual type is I64"),  #actually does the filter
-        # (filter.Property("created").contains(2), "Function not available"), #should fail on contains not type
-        # (filter.Property("created").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("created").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("created").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # # Lists (tags)
         (
             filter.Property("tags") == 2,
@@ -577,10 +693,14 @@ def test_event_graph_all_property_types():
             filter.Property("tags") >= 3,
             "Wrong type for property tags: expected List(Str) but actual type is I64",
         ),
-        # (filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
-        # (filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
-        # (filter.Property("tags").contains(2), "Function not available"), #should fail on contains not type
-        # (filter.Property("tags").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("tags").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("tags").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
         # # Dicts (meta)
         (
             filter.Property("meta") == 2,
@@ -600,10 +720,14 @@ def test_event_graph_all_property_types():
             filter.Property("meta") >= 3,
             """Wrong type for property meta: expected Map""",
         ),
-        # (filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
-        # (filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
-        # (filter.Property("meta").contains(2), "Function not available"), #should fail on contains not type
-        # (filter.Property("meta").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("meta").contains(2),
+            "Operator CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
+        (
+            filter.Property("meta").not_contains(3),
+            "Operator NOT_CONTAINS is only supported for strings.",
+        ),  # should fail on contains not type
     ]
 
     for i, (expr, message) in enumerate(wrong_types):
