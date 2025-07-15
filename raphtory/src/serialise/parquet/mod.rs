@@ -893,7 +893,7 @@ mod test {
     }
 
     #[test]
-    fn write_nodes_no_props_to_parquet() {
+    fn write_graph_no_props_to_parquet() {
         let nf = PropUpdatesFixture {
             t_props: vec![(1, vec![])],
             c_props: vec![],
