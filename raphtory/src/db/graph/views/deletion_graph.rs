@@ -1071,7 +1071,10 @@ mod test_deletions {
         e.delete(2, None).unwrap();
         assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
         assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
-        let w = g.window(g.timeline_start().unwrap().t(), g.timeline_end().unwrap().t());
+        let w = g.window(
+            g.timeline_start().unwrap().t(),
+            g.timeline_end().unwrap().t(),
+        );
         assert!(g.has_edge(1, 2));
         assert!(w.has_edge(1, 2));
         assert_eq!(w.start().map(|t| t.t()), Some(0));

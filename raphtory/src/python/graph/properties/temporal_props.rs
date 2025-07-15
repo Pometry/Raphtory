@@ -254,7 +254,7 @@ impl PyTemporalProp {
     }
     /// Get the value of the property at time `t`
     pub fn at(&self, t: PyTime) -> Option<Prop> {
-        self.prop.at(t.into_time())
+        self.prop.at(t.into_time().t())
     }
     /// Get the latest value of the property
     pub fn value(&self) -> Option<Prop> {
@@ -625,7 +625,7 @@ impl PyTemporalPropList {
     }
 
     pub fn at(&self, t: PyTime) -> PyPropValueList {
-        let t = t.into_time();
+        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
     }
@@ -813,7 +813,7 @@ impl PyTemporalPropListList {
     }
 
     pub fn at(&self, t: PyTime) -> PyPropValueListList {
-        let t = t.into_time();
+        let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()
     }

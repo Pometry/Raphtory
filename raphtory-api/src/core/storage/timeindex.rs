@@ -196,6 +196,10 @@ impl TimeIndexEntry {
     pub fn end(t: i64) -> Self {
         Self(t, usize::MAX)
     }
+
+    pub fn saturating_add(&self, i: i64) -> Self {
+        Self(self.0.saturating_add(i), self.1)
+    }
 }
 
 impl AsTime for i64 {

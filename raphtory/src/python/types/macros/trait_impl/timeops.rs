@@ -158,8 +158,8 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn shrink_start(&self, start: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.shrink_start(start.into())
+            pub fn shrink_start(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_start(start)
             }
 
             /// Set the end of the window to the smaller of `end` and `self.end()`
@@ -168,8 +168,8 @@ macro_rules! impl_timeops {
             ///     end (RaphtoryTime): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_end(&self, end: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                    self.$field.shrink_end(end.into())
+            fn shrink_end(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                    self.$field.shrink_end(end)
             }
 
             /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
@@ -180,8 +180,8 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::api::python::timeindex::PyRaphtoryTime, end: $crate::api::python::timeindex::PyRaphtoryTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
-                self.$field.shrink_window(start.into(), end.into())
+            fn shrink_window(&self, start: $crate::python::utils::PyTime, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+                self.$field.shrink_window(start, end)
             }
         }
     };

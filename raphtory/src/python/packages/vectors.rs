@@ -23,13 +23,14 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
 pub fn translate_window(window: PyWindow) -> Option<(i64, i64)> {
-    window.map(|(start, end)| (start.into_time(), end.into_time()))
+    window.map(|(start, end)| (start.into_time().t(), end.into_time().t()))
 }
 
 #[derive(Clone)]

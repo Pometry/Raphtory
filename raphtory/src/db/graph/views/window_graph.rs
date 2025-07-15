@@ -473,8 +473,11 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         prop_id: usize,
         t: TimeIndexEntry,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        self.graph
-            .temporal_prop_last_at_window(prop_id, t, self.start_bound().t()..self.end_bound().t())
+        self.graph.temporal_prop_last_at_window(
+            prop_id,
+            t,
+            self.start_bound().t()..self.end_bound().t(),
+        )
     }
 
     fn temporal_prop_last_at_window(
@@ -1063,9 +1066,17 @@ mod views_test {
         graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let mut w = WindowedGraph::new(&graph, Some(TimeIndexEntry::from(0)), Some(TimeIndexEntry::from(1)));
+            let mut w = WindowedGraph::new(
+                &graph,
+                Some(TimeIndexEntry::from(0)),
+                Some(TimeIndexEntry::from(1)),
+            );
             assert_eq!(w, graph);
-            w = WindowedGraph::new(&graph, Some(TimeIndexEntry::from(1)), Some(TimeIndexEntry::from(2)));
+            w = WindowedGraph::new(
+                &graph,
+                Some(TimeIndexEntry::from(1)),
+                Some(TimeIndexEntry::from(2)),
+            );
             assert_eq!(w, Graph::new());
         });
     }

@@ -32,7 +32,7 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
@@ -46,7 +46,6 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use raphtory_api::core::storage::timeindex::AsTime;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

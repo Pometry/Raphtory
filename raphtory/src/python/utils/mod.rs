@@ -23,10 +23,14 @@ use pyo3::{
     types::PyDateTime,
     BoundObject,
 };
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropUnwrap},
-    VID,
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{Prop, PropUnwrap},
+        VID,
+    },
+    storage::timeindex::TimeIndexEntry,
 };
+use raphtory_core::utils::time::TryIntoTimeNeedsSecondaryIndex;
 use serde::Serialize;
 use std::{future::Future, thread};
 
@@ -112,11 +116,12 @@ impl<'source> FromPyObject<'source> for PyTime {
             let timestamp = string.as_str();
             let parsing_result = timestamp
                 .try_into_time()
+                .map(|t| t.t())
                 .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e))?;
             return Ok(PyTime::new(parsing_result));
         }
         if let Ok(number) = time.extract::<i64>() {
-            return Ok(PyTime::new(number.into_time()));
+            return Ok(PyTime::new(number));
         }
         if let Ok(float_time) = time.extract::<f64>() {
             // seconds since Unix epoch as returned by python `timestamp`
@@ -131,11 +136,11 @@ impl<'source> FromPyObject<'source> for PyTime {
             return Ok(PyTime::new(float_ms_trunc as i64));
         }
         if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
-            return Ok(PyTime::new(parsed_datetime.into_time()));
+            return Ok(PyTime::new(parsed_datetime.into_time().t()));
         }
         if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
             // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
-            return Ok(PyTime::new(parsed_datetime.into_time()));
+            return Ok(PyTime::new(parsed_datetime.into_time().t()));
         }
         if let Ok(py_datetime) = time.downcast::<PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
@@ -158,10 +163,12 @@ impl PyTime {
 }
 
 impl IntoTime for PyTime {
-    fn into_time(self) -> i64 {
-        self.parsing_result
+    fn into_time(self) -> TimeIndexEntry {
+        TimeIndexEntry::from(self.parsing_result)
     }
 }
+
+impl TryIntoTimeNeedsSecondaryIndex for PyTime {}
 
 pub trait WindowSetOps {
     fn build_iter(&self) -> PyGenericIterator;

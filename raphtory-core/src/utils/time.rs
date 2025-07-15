@@ -38,88 +38,117 @@ impl From<Infallible> for ParseTimeError {
 }
 
 pub trait IntoTime {
-    fn into_time(self) -> i64;
+    fn into_time(self) -> TimeIndexEntry;
 }
 
 impl IntoTime for i64 {
-    fn into_time(self) -> i64 {
-        self
+    fn into_time(self) -> TimeIndexEntry {
+        TimeIndexEntry::from(self)
     }
 }
 
 impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
-    fn into_time(self) -> i64 {
-        self.timestamp_millis()
+    fn into_time(self) -> TimeIndexEntry {
+        TimeIndexEntry::from(self.timestamp_millis())
     }
 }
 
 impl IntoTime for NaiveDateTime {
-    fn into_time(self) -> i64 {
-        self.and_utc().timestamp_millis()
+    fn into_time(self) -> TimeIndexEntry {
+        TimeIndexEntry::from(self.and_utc().timestamp_millis())
+    }
+}
+
+impl IntoTime for TimeIndexEntry {
+    fn into_time(self) -> TimeIndexEntry {
+        self
     }
 }
 
 pub trait TryIntoTime {
-    fn try_into_time(self) -> Result<i64, ParseTimeError>;
+    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError>;
 }
 
 impl<T: IntoTime> TryIntoTime for T {
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
-        Ok(self.into_time())
+    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
+        Ok(TimeIndexEntry::from(self.into_time()))
     }
 }
 
 impl TryIntoTime for &str {
     /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
     /// fields mandatory except for milliseconds and allows replacing the T with a space
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
         let rfc_result = DateTime::parse_from_rfc3339(self);
         if let Ok(datetime) = rfc_result {
-            return Ok(datetime.timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.timestamp_millis()));
         }
 
         let result = DateTime::parse_from_rfc2822(self);
         if let Ok(datetime) = result {
-            return Ok(datetime.timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.timestamp_millis()));
         }
 
         let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
         if let Ok(date) = result {
-            return Ok(date
+            let timestamp = date
                 .and_hms_opt(00, 00, 00)
                 .unwrap()
                 .and_utc()
-                .timestamp_millis());
+                .timestamp_millis();
+            return Ok(TimeIndexEntry::from(timestamp));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%.3f");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
         }
 
         let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%");
         if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
+            return Ok(TimeIndexEntry::from(datetime.and_utc().timestamp_millis()));
         }
 
         Err(ParseTimeError::InvalidDateTimeString(self.to_string()))
     }
 }
 
+pub trait TryIntoTimeNeedsSecondaryIndex: TryIntoTime {}
+impl TryIntoTimeNeedsSecondaryIndex for i64 {}
+impl<Tz: TimeZone> TryIntoTimeNeedsSecondaryIndex for DateTime<Tz> {}
+impl TryIntoTimeNeedsSecondaryIndex for NaiveDateTime {}
+impl TryIntoTimeNeedsSecondaryIndex for &str {}
+
 /// Used to handle automatic injection of secondary index if not explicitly provided
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),
+}
+
+pub trait AsTimeInput {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
+}
+
+impl AsTimeInput for TimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.i()))
+    }
+}
+
+impl<T: TryIntoTimeNeedsSecondaryIndex> AsTimeInput for T {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Simple(self.try_into_time()?.t()))
+    }
 }
 
 pub trait TryIntoInputTime {
@@ -132,33 +161,28 @@ impl TryIntoInputTime for InputTime {
     }
 }
 
-impl TryIntoInputTime for TimeIndexEntry {
+impl<T: AsTimeInput> TryIntoInputTime for T {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.t(), self.i()))
+        self.try_into_input_time()
     }
 }
 
-impl<T: TryIntoTime> TryIntoInputTime for T {
+impl<T: TryIntoTimeNeedsSecondaryIndex> TryIntoInputTime for (T, usize) {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Simple(self.try_into_time()?))
-    }
-}
-
-impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.0.try_into_time()?, self.1))
+        Ok(InputTime::Indexed(self.0.try_into_time()?.t(), self.1))
     }
 }
 
 pub trait IntoTimeWithFormat {
-    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError>;
+    fn parse_time(&self, fmt: &str) -> Result<TimeIndexEntry, ParseTimeError>;
 }
 
 impl IntoTimeWithFormat for &str {
-    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError> {
-        Ok(NaiveDateTime::parse_from_str(self, fmt)?
+    fn parse_time(&self, fmt: &str) -> Result<TimeIndexEntry, ParseTimeError> {
+        let timestamp = NaiveDateTime::parse_from_str(self, fmt)?
             .and_utc()
-            .timestamp_millis())
+            .timestamp_millis();
+        Ok(TimeIndexEntry::from(timestamp))
     }
 }
 
@@ -476,6 +500,30 @@ impl Add<Interval> for i64 {
                     .and_utc()
                     .timestamp_millis()
                     + millis as i64
+            }
+        }
+    }
+}
+
+impl Add<Interval> for TimeIndexEntry {
+    type Output = TimeIndexEntry;
+    fn add(self, rhs: Interval) -> Self::Output {
+        match rhs.size {
+            IntervalSize::Discrete(number) => TimeIndexEntry::from(self.0 + (number as i64)),
+            IntervalSize::Temporal { millis, months } => {
+                // first we add the number of months and then the number of milliseconds for
+                // consistency with the implementation of Sub (we revert back the steps) so we
+                // guarantee that:  time + interval - interval = time
+                let datetime = DateTime::from_timestamp_millis(self.0)
+                    .unwrap_or_else(|| {
+                        panic!("{self} cannot be interpreted as a milliseconds timestamp")
+                    })
+                    .naive_utc();
+                let timestamp = (datetime + Months::new(months))
+                    .and_utc()
+                    .timestamp_millis()
+                    + millis as i64;
+                TimeIndexEntry(timestamp, self.1)
             }
         }
     }
