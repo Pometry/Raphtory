@@ -126,7 +126,7 @@ mod test_node_property_filtered_graph {
         let filter_expr = NodeFilter::name()
             .eq("John")
             .and(NodeFilter::property("band").eq("Dead & Company"));
-        let filtered_nodes = g.nodes().filter_iter(filter_expr).unwrap();
+        let filtered_nodes = g.nodes().filter(filter_expr).unwrap();
 
         // filter_nodes doesn't filter the iterator, it only filters the view of the nodes which includes history, edges, etc.
         assert_eq!(

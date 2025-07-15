@@ -740,12 +740,12 @@ mod test_index {
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
             let filter = NodeFilter::property("p1")
-                .eq(5f64)
+                .eq(5u64)
                 .or(NodeFilter::property("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = NodeFilter::property("y").lt(false);
+            let filter = NodeFilter::property("y").eq(false);
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["raphtory"]);
 
@@ -812,7 +812,7 @@ mod test_index {
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
             let filter = NodeFilter::property("p1")
-                .eq(5f64)
+                .eq(5u64)
                 .or(NodeFilter::property("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);

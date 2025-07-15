@@ -104,7 +104,7 @@ mod tests_node_type_filtered_subgraph {
             api::view::filter_ops::BaseFilterOps,
             graph::{
                 graph::assert_graph_equal,
-                views::filter::model::{NodeFilter, PropertyFilterOps},
+                views::filter::model::{EdgeFilter, NodeFilter, PropertyFilterOps},
             },
         },
         prelude::*,
@@ -157,7 +157,7 @@ mod tests_node_type_filtered_subgraph {
         );
 
         assert!(type_filtered_subgraph
-            .filter(NodeFilter::property("p1").eq(1u64))
+            .filter(EdgeFilter::property("p1").eq(1u64))
             .unwrap()
             .edges()
             .is_empty())

@@ -712,7 +712,7 @@ mod test_exploded_edge_property_filtered_graph {
         g.add_edge(0, 0, 1, [("test", Prop::I32(1))], None).unwrap();
 
         let gwf = g
-            .filter(ExplodedEdgeFilter::property("test").gt(0i64))
+            .filter(ExplodedEdgeFilter::property("test").gt(0))
             .unwrap()
             .window(-1, 0);
         assert_eq!(gwf.count_nodes(), 0);
@@ -723,7 +723,7 @@ mod test_exploded_edge_property_filtered_graph {
 
         let gfw = g
             .window(-1, 0)
-            .filter(ExplodedEdgeFilter::property("test").gt(0i64))
+            .filter(ExplodedEdgeFilter::property("test").gt(0))
             .unwrap();
         assert_eq!(gfw.count_edges(), 0);
         let gm = gfw.materialize().unwrap();
