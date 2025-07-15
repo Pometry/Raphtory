@@ -197,7 +197,7 @@ impl PropMapper {
                 let existing_dtype = self
                     .get_dtype(id)
                     .expect("Existing id should always have a dtype");
-                if existing_dtype == dtype {
+                if unify_types(&existing_dtype, &dtype, &mut false).is_ok() {
                     Ok(Some(id))
                 } else {
                     Err(PropError::PropertyTypeError {

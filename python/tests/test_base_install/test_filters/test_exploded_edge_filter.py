@@ -7,21 +7,21 @@ from datetime import datetime
 def test_event_graph():
 
     g = Graph()
-    g.add_edge(1,1,2,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(2,1,2,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(3,1,2,layer="blue",properties={"weight":3,"name":"greg"})
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
+    g.add_edge(2, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(3, 1, 2, layer="blue", properties={"weight": 3, "name": "greg"})
 
-    g.add_edge(1,1,3,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(2,1,3,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(3,1,3,layer="red",properties={"weight":3,"name":"greg"})
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
+    g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(3, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     weight_e3 = filter.Property("weight") == 3
     weight_lt3 = filter.Property("weight") < 3
     name_bob = filter.Property("name") == "bob"
 
     f_g = g.filter_exploded_edges(filter=weight_e3)
-    e1 = f_g.edge(1,2)
-    e2 = f_g.edge(1,3)
+    e1 = f_g.edge(1, 2)
+    e2 = f_g.edge(1, 3)
     assert e1.deletions() == []
     assert e2.deletions() == []
 
@@ -30,12 +30,12 @@ def test_event_graph():
 
     assert e2.layer_names == ["red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(3,3)]
-    assert e2.properties.temporal.get("weight").items() == [(3,3)]
+    assert e1.properties.temporal.get("weight").items() == [(3, 3)]
+    assert e2.properties.temporal.get("weight").items() == [(3, 3)]
 
     f_g = g.filter_exploded_edges(filter=weight_lt3 & name_bob)
-    e1 = f_g.edge(1,2)
-    e2 = f_g.edge(1,3)
+    e1 = f_g.edge(1, 2)
+    e2 = f_g.edge(1, 3)
 
     assert e1.deletions() == []
     assert e2.deletions() == []
@@ -45,41 +45,42 @@ def test_event_graph():
 
     assert e2.layer_names == ["blue"]
 
-    assert e1.properties.temporal.get("weight").items() == [(1,1)]
-    assert e2.properties.temporal.get("weight").items() == [(1,1)]
+    assert e1.properties.temporal.get("weight").items() == [(1, 1)]
+    assert e2.properties.temporal.get("weight").items() == [(1, 1)]
 
     f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
-    e1 = f_g.edge(1,2)
-    e2 = f_g.edge(1,3)
+    e1 = f_g.edge(1, 2)
+    e2 = f_g.edge(1, 3)
 
     assert e1.deletions() == []
     assert e2.deletions() == []
 
-    assert list(e1.history()) == [1,3]
-    assert list(e2.history()) == [1,3]
+    assert list(e1.history()) == [1, 3]
+    assert list(e2.history()) == [1, 3]
 
-    assert e2.layer_names == ["blue","red"]
+    assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(1,1),(3,3)]
-    assert e2.properties.temporal.get("weight").items() == [(1,1),(3,3)]
+    assert e1.properties.temporal.get("weight").items() == [(1, 1), (3, 3)]
+    assert e2.properties.temporal.get("weight").items() == [(1, 1), (3, 3)]
+
 
 def test_event_graph_same_time_event():
     g = Graph()
-    g.add_edge(1,1,2,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(1,1,2,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(1,1,2,layer="blue",properties={"weight":3,"name":"greg"})
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 3, "name": "greg"})
 
-    g.add_edge(1,1,3,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(1,1,3,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(1,1,3,layer="red",properties={"weight":3,"name":"greg"})
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     weight_e3 = filter.Property("weight") == 3
     weight_lt3 = filter.Property("weight") < 3
     name_bob = filter.Property("name") == "bob"
 
     f_g = g.filter_exploded_edges(filter=weight_lt3 & name_bob)
-    e1 = f_g.edge(1,2)
-    e2 = f_g.edge(1,3)
+    e1 = f_g.edge(1, 2)
+    e2 = f_g.edge(1, 3)
 
     assert e1.deletions() == []
     assert e2.deletions() == []
@@ -89,57 +90,69 @@ def test_event_graph_same_time_event():
 
     assert e2.layer_names == ["blue"]
 
-    assert e1.properties.temporal.get("weight").items() == [(1,1)]
-    assert e2.properties.temporal.get("weight").items() == [(1,1)]
+    assert e1.properties.temporal.get("weight").items() == [(1, 1)]
+    assert e2.properties.temporal.get("weight").items() == [(1, 1)]
 
     f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
-    e1 = f_g.edge(1,2)
-    e2 = f_g.edge(1,3)
+    e1 = f_g.edge(1, 2)
+    e2 = f_g.edge(1, 3)
 
     assert e1.deletions() == []
     assert e2.deletions() == []
 
-    assert list(e1.history()) == [1,1]
-    assert list(e2.history()) == [1,1]
+    assert list(e1.history()) == [1, 1]
+    assert list(e2.history()) == [1, 1]
 
-    assert e2.layer_names == ["blue","red"]
+    assert e2.layer_names == ["blue", "red"]
 
+    assert e1.properties.temporal.get("weight").items() == [(1, 1), (1, 3)]
+    assert e2.properties.temporal.get("weight").items() == [(1, 1), (1, 3)]
 
-    assert e1.properties.temporal.get("weight").items() == [(1,1),(1,3)]
-    assert e2.properties.temporal.get("weight").items() == [(1,1),(1,3)]
 
 def test_event_graph_with_edge_node_filter():
     g = Graph()
-    g.add_edge(timestamp=1,src=1,dst=2,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(1,1,2,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(1,1,2,layer="blue",properties={"weight":3,"name":"greg"})
+    g.add_edge(
+        timestamp=1, src=1, dst=2, layer="blue", properties={"weight": 1, "name": "bob"}
+    )
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 3, "name": "greg"})
 
-    g.add_edge(1,1,3,layer="blue",properties={"weight":1,"name":"bob"})
-    g.add_edge(1,1,3,layer="blue",properties={"weight":2,"name":"dave"})
-    g.add_edge(1,1,3,layer="red",properties={"weight":3,"name":"greg"})
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     weight_e3 = filter.Property("weight") == 3
     name_filter = filter.Node.name() == "1"
 
     with pytest.raises(Exception) as e:
         g.filter_exploded_edges(weight_e3 | name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(e.value)
+    assert "Only property filters are supported for exploded edge filtering" in str(
+        e.value
+    )
 
     with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(name_filter|weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(e.value)
+        g.filter_exploded_edges(name_filter | weight_e3)
+    assert "Only property filters are supported for exploded edge filtering" in str(
+        e.value
+    )
 
     with pytest.raises(Exception) as e:
         g.filter_exploded_edges(weight_e3 & name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(e.value)
+    assert "Only property filters are supported for exploded edge filtering" in str(
+        e.value
+    )
 
     with pytest.raises(Exception) as e:
-        g.filter_exploded_edges(name_filter&weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(e.value)
+        g.filter_exploded_edges(name_filter & weight_e3)
+    assert "Only property filters are supported for exploded edge filtering" in str(
+        e.value
+    )
 
     with pytest.raises(Exception) as e:
         g.filter_exploded_edges(name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(e.value)
+    assert "Only property filters are supported for exploded edge filtering" in str(
+        e.value
+    )
 
 
 def test_event_graph_all_property_types():
@@ -158,8 +171,8 @@ def test_event_graph_all_property_types():
             "active": True,
             "created": datetime(2023, 1, 1),
             "tags": ["friend", "colleague"],
-            "meta": {"role": "engineer"}
-        }
+            "meta": {"role": "engineer"},
+        },
     )
 
     g.add_edge(
@@ -174,8 +187,8 @@ def test_event_graph_all_property_types():
             "active": False,
             "created": datetime(2023, 5, 1),
             "tags": ["project_x"],
-            "meta": {"role": "manager"}
-        }
+            "meta": {"role": "manager"},
+        },
     )
 
     g.add_edge(
@@ -190,8 +203,8 @@ def test_event_graph_all_property_types():
             "active": True,
             "created": datetime(2024, 1, 15),
             "tags": [],
-            "meta": {}
-        }
+            "meta": {},
+        },
     )
 
     g.add_edge(
@@ -206,8 +219,8 @@ def test_event_graph_all_property_types():
             "active": True,
             "created": datetime(2023, 3, 14),
             "tags": ["team_a"],
-            "meta": {"location": "NYC"}
-        }
+            "meta": {"location": "NYC"},
+        },
     )
 
     g.add_edge(
@@ -222,8 +235,8 @@ def test_event_graph_all_property_types():
             "active": False,
             "created": datetime(2024, 6, 10),
             "tags": ["team_b", "remote"],
-            "meta": {"location": "SF", "level": 2}
-        }
+            "meta": {"location": "SF", "level": 2},
+        },
     )
 
     g.add_edge(
@@ -238,10 +251,9 @@ def test_event_graph_all_property_types():
             "active": True,
             "created": datetime(2025, 1, 1),
             "tags": ["consultant"],
-            "meta": {"contract": True}
-        }
+            "meta": {"contract": True},
+        },
     )
-
 
     test_cases = [
         # weight (int)
@@ -255,7 +267,6 @@ def test_event_graph_all_property_types():
         (filter.Property("weight").is_not_in([3]), 4),
         (filter.Property("weight").is_some(), 6),
         (filter.Property("weight").is_none(), 0),
-
         # confidence (float)
         (filter.Property("confidence") == 0.95, 1),
         (filter.Property("confidence") != 0.80, 5),
@@ -267,7 +278,6 @@ def test_event_graph_all_property_types():
         (filter.Property("confidence").is_not_in([0.75]), 5),
         (filter.Property("confidence").is_some(), 6),
         (filter.Property("confidence").is_none(), 0),
-
         # name (str)
         (filter.Property("name") == "bob", 2),
         (filter.Property("name") != "greg", 4),
@@ -277,16 +287,14 @@ def test_event_graph_all_property_types():
         (filter.Property("name").not_contains("eg"), 4),
         (filter.Property("name").is_some(), 6),
         (filter.Property("name").is_none(), 0),
-
         # active (bool)
         (filter.Property("active") == True, 4),
         (filter.Property("active") != False, 4),
         (filter.Property("active").is_in([True]), 4),
-        (filter.Property("active").is_in([True,False]), 6),
+        (filter.Property("active").is_in([True, False]), 6),
         (filter.Property("active").is_not_in([False]), 4),
         (filter.Property("active").is_some(), 6),
         (filter.Property("active").is_none(), 0),
-
         # created (datetime)
         (filter.Property("created") == datetime(2023, 1, 1), 1),
         (filter.Property("created") != datetime(2023, 1, 1), 5),
@@ -294,38 +302,49 @@ def test_event_graph_all_property_types():
         (filter.Property("created") > datetime(2024, 1, 1), 3),
         (filter.Property("created") <= datetime(2023, 5, 1), 3),
         (filter.Property("created") >= datetime(2024, 1, 15), 3),
-        (filter.Property("created").is_in([
-            datetime(2023, 1, 1),
-            datetime(2024, 6, 10)
-        ]), 2),
-        (filter.Property("created").is_not_in([
-            datetime(2024, 6, 10),
-            datetime(2025, 1, 1)
-        ]), 4),
+        (
+            filter.Property("created").is_in(
+                [datetime(2023, 1, 1), datetime(2024, 6, 10)]
+            ),
+            2,
+        ),
+        (
+            filter.Property("created").is_not_in(
+                [datetime(2024, 6, 10), datetime(2025, 1, 1)]
+            ),
+            4,
+        ),
         (filter.Property("created").is_some(), 6),
         (filter.Property("created").is_none(), 0),
-
         # tags (list of str)
         (filter.Property("tags") == ["team_b", "remote"], 1),
         (filter.Property("tags") != ["team_b", "remote"], 5),
-        (filter.Property("tags").is_in([["team_b", "remote"],["team_a"]]),2),
-        (filter.Property("tags").is_not_in([["team_b", "remote"],["team_a"]]),4),
-        #(filter.Property("tags").contains("team_a"), 1), #This says wrong type - asks for list of strings
-        #(filter.Property("tags").not_contains("team_z"), 6), #This says wrong type - asks for list of strings
+        (filter.Property("tags").is_in([["team_b", "remote"], ["team_a"]]), 2),
+        (filter.Property("tags").is_not_in([["team_b", "remote"], ["team_a"]]), 4),
+        # (filter.Property("tags").contains("team_a"), 1), #This says wrong type - asks for list of strings
+        # (filter.Property("tags").not_contains("team_z"), 6), #This says wrong type - asks for list of strings
         (filter.Property("tags").is_some(), 6),
         (filter.Property("tags").is_none(), 0),
-
         # meta (dict)
-        #(filter.Property("meta") == {"location": "SF", "level": 2}, 1), # broken as you have to provide all keys which can possibly exist within this map
-        #(filter.Property("meta") != {"location": "SF", "level": 2}, 5), # broken as you have to provide all keys which can possibly exist within this map
-        (filter.Property("meta").is_in([{"location": "SF", "level": 2},{"contract": True}]),2),
-        (filter.Property("meta").is_not_in([{"location": "SF", "level": 2},{"contract": True}]),4),
-        #(filter.Property("meta").contains("role"), 2), #This says wrong type - asks for map
-        #(filter.Property("meta").not_contains("salary"), 6), #This says wrong type - asks for map
+        (filter.Property("meta") == {"location": "SF", "level": 2}, 1),
+        (filter.Property("meta") != {"location": "SF", "level": 2}, 5),
+        (
+            filter.Property("meta").is_in(
+                [{"location": "SF", "level": 2}, {"contract": True}]
+            ),
+            2,
+        ),
+        (
+            filter.Property("meta").is_not_in(
+                [{"location": "SF", "level": 2}, {"contract": True}]
+            ),
+            4,
+        ),
+        # (filter.Property("meta").contains("role"), 2), #This says wrong type - asks for map
+        # (filter.Property("meta").not_contains("salary"), 6), #This says wrong type - asks for map
         (filter.Property("meta").is_some(), 6),
         (filter.Property("meta").is_none(), 0),
-
-        #fake property
+        # fake property
         (filter.Property("blah") == 2, 0),
         (filter.Property("blah") != 3, 0),
         (filter.Property("blah") < 3, 0),
@@ -343,50 +362,42 @@ def test_event_graph_all_property_types():
     ]
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter_exploded_edges(expr).edges.explode()
-        assert len(result) == expected, f"Test {i} failed: expected {expected}, got {len(result)}"
+        assert (
+            len(result) == expected
+        ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
-
         # Integers (weight)
-        #filter.Property("weight").contains(2), # Panics
-        #filter.Property("weight").not_contains(3),# Panics
-
+        # filter.Property("weight").contains(2), # Panics
+        # filter.Property("weight").not_contains(3),# Panics
         # Floats (confidence)
-        #filter.Property("confidence").contains(0.9), #Panics
-        #filter.Property("confidence").not_contains(0.8), #Panics
-
-        #Strings (name)
-        #filter.Property("name") < "blah",  #Actually runs and returns no edges
-        #filter.Property("name") > "blah",  #Actually runs and returns 6 edges
-        #filter.Property("name") <= "blah", #Actually runs and returns no edges
-        #filter.Property("name") >= "blah", #Actually runs and returns 6 edges
-
+        # filter.Property("confidence").contains(0.9), #Panics
+        # filter.Property("confidence").not_contains(0.8), #Panics
+        # Strings (name)
+        # filter.Property("name") < "blah",  #Actually runs and returns no edges
+        # filter.Property("name") > "blah",  #Actually runs and returns 6 edges
+        # filter.Property("name") <= "blah", #Actually runs and returns no edges
+        # filter.Property("name") >= "blah", #Actually runs and returns 6 edges
         # Booleans (active)
-        #filter.Property("active").contains(True), #Panics
-        #filter.Property("active").not_contains(False), #Panics
-        #filter.Property("active") < True, #Actually runs returns 2 edges
-        #filter.Property("active") > False, #Actually runs returns 4 edges
-        #filter.Property("active") >= False, #Runs returns 4 edges
+        # filter.Property("active").contains(True), #Panics
+        # filter.Property("active").not_contains(False), #Panics
+        # filter.Property("active") < True, #Actually runs returns 2 edges
+        # filter.Property("active") > False, #Actually runs returns 4 edges
+        # filter.Property("active") >= False, #Runs returns 4 edges
         # filter.Property("active") <= False, # Runs and returns 2 edges
-
-
         # Datetimes (created)
-        #filter.Property("created").contains(datetime(2023, 1, 1)), #panics
-        #filter.Property("created").not_contains(datetime(2023, 1, 1)), #panics
-
+        # filter.Property("created").contains(datetime(2023, 1, 1)), #panics
+        # filter.Property("created").not_contains(datetime(2023, 1, 1)), #panics
         # Lists (tags) — odd comparisons
-        #filter.Property("tags") < ["x"], #Somehow works and returns 6
-        #filter.Property("tags") > ["a"], #Somehow works and returns 5
-        #filter.Property("tags") <= ["team_b"], #returns 5
-        #filter.Property("tags") >= ["consultant"], Returns 5
-
+        # filter.Property("tags") < ["x"], #Somehow works and returns 6
+        # filter.Property("tags") > ["a"], #Somehow works and returns 5
+        # filter.Property("tags") <= ["team_b"], #returns 5
+        # filter.Property("tags") >= ["consultant"], Returns 5
         # Dicts (meta) — contains() expects a key, but here simulates wrong context
-        #filter.Property("meta") < {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        #filter.Property("meta") > {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        #filter.Property("meta") <= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-        #filter.Property("meta") >= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
-
-
+        # filter.Property("meta") < {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
+        # filter.Property("meta") > {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
+        # filter.Property("meta") <= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
+        # filter.Property("meta") >= {"location": "SF", "level": 2,"contract":False,"role":"blah"}, #somehow runs and returns 0
     ]
 
     for i, expr in enumerate(nonsense_filter_cases):
@@ -397,92 +408,205 @@ def test_event_graph_all_property_types():
 
     wrong_types = [
         # Integers (weight)
-        (filter.Property("weight") == "2", "Wrong type for property weight: expected I64 but actual type is Str"),
-        (filter.Property("weight") != "3", "Wrong type for property weight: expected I64 but actual type is Str"),
-        (filter.Property("weight") < "3", "Wrong type for property weight: expected I64 but actual type is Str"),
-        (filter.Property("weight") > "1", "Wrong type for property weight: expected I64 but actual type is Str"),
-        (filter.Property("weight") <= "2", "Wrong type for property weight: expected I64 but actual type is Str"),
-        (filter.Property("weight") >= "3", "Wrong type for property weight: expected I64 but actual type is Str"),
-        #(filter.Property("weight").is_in(["1", "2"]), "Wrong type for property weight: expected I64 but actual type is Str"), #actually does the filter
-        #(filter.Property("weight").is_not_in(["3"]), "Wrong type for property weight: expected I64 but actual type is Str"),  #actually does the filter
-        #(filter.Property("weight").contains("bo"), "Function not available"), #should fail on contains not type
-        #(filter.Property("weight").not_contains("eg"), "Function not available"), #should fail on contains not type
-
+        (
+            filter.Property("weight") == "2",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        (
+            filter.Property("weight") != "3",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        (
+            filter.Property("weight") < "3",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        (
+            filter.Property("weight") > "1",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        (
+            filter.Property("weight") <= "2",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        (
+            filter.Property("weight") >= "3",
+            "Wrong type for property weight: expected I64 but actual type is Str",
+        ),
+        # (filter.Property("weight").is_in(["1", "2"]), "Wrong type for property weight: expected I64 but actual type is Str"), #actually does the filter
+        # (filter.Property("weight").is_not_in(["3"]), "Wrong type for property weight: expected I64 but actual type is Str"),  #actually does the filter
+        # (filter.Property("weight").contains("bo"), "Function not available"), #should fail on contains not type
+        # (filter.Property("weight").not_contains("eg"), "Function not available"), #should fail on contains not type
         # Floats (confidence)
-        (filter.Property("confidence") == "2", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        (filter.Property("confidence") != "3", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        (filter.Property("confidence") < "3", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        (filter.Property("confidence") > "1", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        (filter.Property("confidence") <= "2", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        (filter.Property("confidence") >= "3", "Wrong type for property confidence: expected F64 but actual type is Str"),
-        #(filter.Property("confidence").is_in(["1", "2"]), "Wrong type for property confidence: expected F64 but actual type is Str"), #actually does the filter
-        #(filter.Property("confidence").is_not_in(["3"]), "Wrong type for property confidence: expected F64 but actual type is Str"),  #actually does the filter
-        #(filter.Property("confidence").contains("bo"), "Function not available"), #should fail on contains not type
-        #(filter.Property("confidence").not_contains("eg"), "Function not available"), #should fail on contains not type
-
+        (
+            filter.Property("confidence") == "2",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        (
+            filter.Property("confidence") != "3",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        (
+            filter.Property("confidence") < "3",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        (
+            filter.Property("confidence") > "1",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        (
+            filter.Property("confidence") <= "2",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        (
+            filter.Property("confidence") >= "3",
+            "Wrong type for property confidence: expected F64 but actual type is Str",
+        ),
+        # (filter.Property("confidence").is_in(["1", "2"]), "Wrong type for property confidence: expected F64 but actual type is Str"), #actually does the filter
+        # (filter.Property("confidence").is_not_in(["3"]), "Wrong type for property confidence: expected F64 but actual type is Str"),  #actually does the filter
+        # (filter.Property("confidence").contains("bo"), "Function not available"), #should fail on contains not type
+        # (filter.Property("confidence").not_contains("eg"), "Function not available"), #should fail on contains not type
         # # Strings (name)
-        (filter.Property("name") == 2, "Wrong type for property name: expected Str but actual type is I64"),
-        (filter.Property("name") != 3, "Wrong type for property name: expected Str but actual type is I64"),
-        (filter.Property("name") < 3, "Wrong type for property name: expected Str but actual type is I64"),
-        (filter.Property("name") > 1, "Wrong type for property name: expected Str but actual type is I64"),
-        (filter.Property("name") <= 2, "Wrong type for property name: expected Str but actual type is I64"),
-        (filter.Property("name") >= 3, "Wrong type for property name: expected Str but actual type is I64"),
+        (
+            filter.Property("name") == 2,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
+        (
+            filter.Property("name") != 3,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
+        (
+            filter.Property("name") < 3,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
+        (
+            filter.Property("name") > 1,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
+        (
+            filter.Property("name") <= 2,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
+        (
+            filter.Property("name") >= 3,
+            "Wrong type for property name: expected Str but actual type is I64",
+        ),
         # (filter.Property("name").is_in([1, 2]), "Wrong type for property name: expected Str but actual type is I64"), #actually does the filter
         # (filter.Property("name").is_not_in([3]), "Wrong type for property name: expected Str but actual type is I64"),  #actually does the filter
         # (filter.Property("name").contains(2), "Function not available"), #should fail on contains not type
         # (filter.Property("name").not_contains(3), "Function not available"), #should fail on contains not type
-
-
         # # Booleans (active)
-        (filter.Property("active") == 2, "Wrong type for property active: expected Bool but actual type is I64"),
-        (filter.Property("active") != 3, "Wrong type for property active: expected Bool but actual type is I64"),
-        (filter.Property("active") < 3, "Wrong type for property active: expected Bool but actual type is I64"),
-        (filter.Property("active") > 1, "Wrong type for property active: expected Bool but actual type is I64"),
-        (filter.Property("active") <= 2, "Wrong type for property active: expected Bool but actual type is I64"),
-        (filter.Property("active") >= 3, "Wrong type for property active: expected Bool but actual type is I64"),
+        (
+            filter.Property("active") == 2,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
+        (
+            filter.Property("active") != 3,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
+        (
+            filter.Property("active") < 3,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
+        (
+            filter.Property("active") > 1,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
+        (
+            filter.Property("active") <= 2,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
+        (
+            filter.Property("active") >= 3,
+            "Wrong type for property active: expected Bool but actual type is I64",
+        ),
         # (filter.Property("active").is_in([1, 2]), "Wrong type for property active: expected Bool but actual type is I64"), #actually does the filter
-        #(filter.Property("active").is_not_in([3]), "Wrong type for property active: expected Bool but actual type is I64"),  #actually does the filter
-        #(filter.Property("active").contains(2), "Function not available"), #should fail on contains not type
-        #(filter.Property("active").not_contains(3), "Function not available"), #should fail on contains not type
-
+        # (filter.Property("active").is_not_in([3]), "Wrong type for property active: expected Bool but actual type is I64"),  #actually does the filter
+        # (filter.Property("active").contains(2), "Function not available"), #should fail on contains not type
+        # (filter.Property("active").not_contains(3), "Function not available"), #should fail on contains not type
         # # Datetimes (created)
-        (filter.Property("created") == 2, "Wrong type for property created: expected NDTime but actual type is I64"),
-        (filter.Property("created") != 3, "Wrong type for property created: expected NDTime but actual type is I64"),
-        (filter.Property("created") < 3, "Wrong type for property created: expected NDTime but actual type is I64"),
-        (filter.Property("created") > 1, "Wrong type for property created: expected NDTime but actual type is I64"),
-        (filter.Property("created") <= 2, "Wrong type for property created: expected NDTime but actual type is I64"),
-        (filter.Property("created") >= 3, "Wrong type for property created: expected NDTime but actual type is I64"),
-        #(filter.Property("created").is_in([1, 2]), "Wrong type for property created: expected NDTime but actual type is I64"), #actually does the filter
-        #(filter.Property("created").is_not_in([3]), "Wrong type for property created: expected NDTime but actual type is I64"),  #actually does the filter
-        #(filter.Property("created").contains(2), "Function not available"), #should fail on contains not type
-        #(filter.Property("created").not_contains(3), "Function not available"), #should fail on contains not type
-
+        (
+            filter.Property("created") == 2,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        (
+            filter.Property("created") != 3,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        (
+            filter.Property("created") < 3,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        (
+            filter.Property("created") > 1,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        (
+            filter.Property("created") <= 2,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        (
+            filter.Property("created") >= 3,
+            "Wrong type for property created: expected NDTime but actual type is I64",
+        ),
+        # (filter.Property("created").is_in([1, 2]), "Wrong type for property created: expected NDTime but actual type is I64"), #actually does the filter
+        # (filter.Property("created").is_not_in([3]), "Wrong type for property created: expected NDTime but actual type is I64"),  #actually does the filter
+        # (filter.Property("created").contains(2), "Function not available"), #should fail on contains not type
+        # (filter.Property("created").not_contains(3), "Function not available"), #should fail on contains not type
         # # Lists (tags)
-        (filter.Property("tags") == 2, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        (filter.Property("tags") != 3, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        (filter.Property("tags") < 3, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        (filter.Property("tags") > 1, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        (filter.Property("tags") <= 2, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        (filter.Property("tags") >= 3, "Wrong type for property tags: expected List(Str) but actual type is I64"),
-        #(filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
-        #(filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
-        #(filter.Property("tags").contains(2), "Function not available"), #should fail on contains not type
-        #(filter.Property("tags").not_contains(3), "Function not available"), #should fail on contains not type
-
+        (
+            filter.Property("tags") == 2,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        (
+            filter.Property("tags") != 3,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        (
+            filter.Property("tags") < 3,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        (
+            filter.Property("tags") > 1,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        (
+            filter.Property("tags") <= 2,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        (
+            filter.Property("tags") >= 3,
+            "Wrong type for property tags: expected List(Str) but actual type is I64",
+        ),
+        # (filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
+        # (filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
+        # (filter.Property("tags").contains(2), "Function not available"), #should fail on contains not type
+        # (filter.Property("tags").not_contains(3), "Function not available"), #should fail on contains not type
         # # Dicts (meta)
-        (filter.Property("meta") == 2, """Wrong type for property meta: expected Map"""),
-        (filter.Property("meta") != 3, """Wrong type for property meta: expected Map"""),
+        (
+            filter.Property("meta") == 2,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.Property("meta") != 3,
+            """Wrong type for property meta: expected Map""",
+        ),
         (filter.Property("meta") < 3, """Wrong type for property meta: expected Map"""),
         (filter.Property("meta") > 1, """Wrong type for property meta: expected Map"""),
-        (filter.Property("meta") <= 2, """Wrong type for property meta: expected Map"""),
-        (filter.Property("meta") >= 3, """Wrong type for property meta: expected Map"""),
-        #(filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
-        #(filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
-        #(filter.Property("meta").contains(2), "Function not available"), #should fail on contains not type
-        #(filter.Property("meta").not_contains(3), "Function not available"), #should fail on contains not type
+        (
+            filter.Property("meta") <= 2,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.Property("meta") >= 3,
+            """Wrong type for property meta: expected Map""",
+        ),
+        # (filter.Property("tags").is_in([1, 2]), "Wrong type for property tags: expected NDTime but actual type is I64"), #actually does the filter
+        # (filter.Property("tags").is_not_in([3]), "Wrong type for property tags: expected NDTime but actual type is I64"),  #actually does the filter
+        # (filter.Property("meta").contains(2), "Function not available"), #should fail on contains not type
+        # (filter.Property("meta").not_contains(3), "Function not available"), #should fail on contains not type
     ]
 
-    for i, (expr,message) in enumerate(wrong_types):
+    for i, (expr, message) in enumerate(wrong_types):
         with pytest.raises(Exception) as e:
             print(len(g.filter_exploded_edges(expr).edges.explode()))
         print(e.value)
