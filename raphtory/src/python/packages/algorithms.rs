@@ -4,24 +4,17 @@
 use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
-        bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
-        centrality::{
+        bipartite::max_weight_matching::{max_weight_matching as mwm, Matching}, centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
             degree_centrality::degree_centrality as degree_centrality_rs, hits::hits as hits_rs,
             pagerank::unweighted_page_rank,
-        },
-        community_detection::{
+        }, community_detection::{
             label_propagation::label_propagation as label_propagation_rs,
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
-        },
-        components,
-        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
-        embeddings::fast_rp::fast_rp as fast_rp_rs,
-        layout::{
+        }, components, cores::k_core::k_core_set, dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError}, embeddings::fast_rp::fast_rp as fast_rp_rs, layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
             fruchterman_reingold::fruchterman_reingold_unbounded as fruchterman_reingold_rs,
-        },
-        metrics::{
+        }, metrics::{
             balance::balance as balance_rs,
             clustering_coefficient::{
                 global_clustering_coefficient::global_clustering_coefficient as global_clustering_coefficient_rs,
@@ -39,8 +32,7 @@ use crate::{
                 all_local_reciprocity as all_local_reciprocity_rs,
                 global_reciprocity as global_reciprocity_rs,
             },
-        },
-        motifs::{
+        }, motifs::{
             global_temporal_three_node_motifs::{
                 global_temporal_three_node_motif as global_temporal_three_node_motif_rs,
                 temporal_three_node_motif_multi as global_temporal_three_node_motif_general_rs,
@@ -48,20 +40,18 @@ use crate::{
             local_temporal_three_node_motifs::temporal_three_node_motif as local_three_node_rs,
             local_triangle_count::local_triangle_count as local_triangle_count_rs,
             temporal_rich_club_coefficient::temporal_rich_club_coefficient as temporal_rich_club_rs,
-        },
-        pathing::{
+        }, pathing::{
             dijkstra::dijkstra_single_source_shortest_paths as dijkstra_single_source_shortest_paths_rs,
             single_source_shortest_path::single_source_shortest_path as single_source_shortest_path_rs,
             temporal_reachability::temporally_reachable_nodes as temporal_reachability_rs,
-        },
-        projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
+        }, projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs
     },
     db::{
         api::{state::NodeState, view::internal::DynamicGraph},
         graph::{node::NodeView, nodes::Nodes},
     },
     errors::GraphError,
-    prelude::Graph,
+    prelude::{Graph, GraphViewOps},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
@@ -745,6 +735,23 @@ pub fn label_propagation(
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Determines which nodes are in the k-core for a given value of k
+///
+/// Arguments:
+///     graph (GraphView): A reference to the graph
+///     k (int): Value of k such that the returned nodes have degree > k (recursively)
+///     iter_count (int): The number of iterations to run
+///     threads (int, optional): number of threads to run on
+///
+/// Returns:
+///     list[Node]: A list of nodes in the k core
+///
+#[pyfunction]
+#[pyo3[signature = (graph, k, iter_count, threads=None)]]
+pub fn k_core(graph: &PyGraphView, k: usize, iter_count: usize, threads: Option<usize>) -> Vec<NodeView<'static, DynamicGraph>> {
+    k_core_set(&graph.graph, k, iter_count, threads).iter().map(|vid| graph.graph.node(vid).unwrap()).collect()
 }
 
 /// Simulate an SEIR dynamic on the network
