@@ -4,9 +4,8 @@ use crate::{
         api::{
             state::{Index, LazyNodeState, NodeOp},
             view::{
-                internal::{BaseFilter, FilterOps, NodeList, Static},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, ExplodedEdgePropertyFilterOps,
-                IntoDynBoxed, IntoDynamic,
+                internal::{BaseFilter, FilterOps, NodeList, OneHopFilter, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
         graph::{create_node_type_filter, edges::NestedEdges, node::NodeView, path::PathFromGraph},
@@ -29,7 +28,7 @@ use std::{
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G> {
     pub(crate) base_graph: G,
-    pub(crate) graph: GH,
+    pub(crate) one_hop_graph: GH,
     pub(crate) nodes: Option<Index<VID>>,
     pub(crate) node_types_filter: Option<Arc<[bool]>>,
     _marker: PhantomData<&'graph ()>,
@@ -81,7 +80,7 @@ impl<'graph, G: IntoDynamic, GH: IntoDynamic> Nodes<'graph, G, GH> {
     pub fn into_dyn(self) -> Nodes<'graph, DynamicGraph> {
         Nodes {
             base_graph: self.base_graph.into_dynamic(),
-            graph: self.graph.into_dynamic(),
+            one_hop_graph: self.one_hop_graph.into_dynamic(),
             nodes: self.nodes,
             node_types_filter: self.node_types_filter,
             _marker: Default::default(),
@@ -97,7 +96,7 @@ where
     fn from(value: Nodes<'graph, G, GH>) -> Self {
         Nodes {
             base_graph: value.base_graph.into_dynamic(),
-            graph: value.graph.into_dynamic(),
+            one_hop_graph: value.one_hop_graph.into_dynamic(),
             nodes: value.nodes,
             node_types_filter: value.node_types_filter,
             _marker: PhantomData,
@@ -112,30 +111,12 @@ where
     pub fn new(graph: G) -> Self {
         Self {
             base_graph: graph.clone(),
-            graph,
+            one_hop_graph: graph,
             nodes: None,
             node_types_filter: None,
             _marker: PhantomData,
         }
     }
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph>
-    for Nodes<'graph, G, GH>
-{
-}
-
-impl<
-        'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph> + ExplodedEdgePropertyFilterOps<'graph>,
-    > ExplodedEdgePropertyFilterOps<'graph> for Nodes<'graph, G, GH>
-{
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodePropertyFilterOps<'graph>
-    for Nodes<'graph, G, GH>
-{
 }
 
 impl<'graph, G, GH> Nodes<'graph, G, GH>
@@ -151,7 +132,7 @@ where
     ) -> Self {
         Self {
             base_graph,
-            graph,
+            one_hop_graph: graph,
             nodes,
             node_types_filter,
             _marker: PhantomData,
@@ -160,14 +141,14 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            None => self.graph.node_list(),
+            None => self.one_hop_graph.node_list(),
             Some(elems) => NodeList::List { elems },
         }
     }
 
     pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
-        let g = self.graph.core_graph().lock();
-        let view = self.graph.clone();
+        let g = self.one_hop_graph.core_graph().lock();
+        let view = self.one_hop_graph.clone();
         let node_types_filter = self.node_types_filter.clone();
         self.node_list().into_par_iter().filter(move |&vid| {
             let node = g.core_node(vid);
@@ -181,7 +162,7 @@ where
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH> {
         Nodes::new_filtered(
             self.base_graph.clone(),
-            self.graph.clone(),
+            self.one_hop_graph.clone(),
             Some(index),
             self.node_types_filter.clone(),
         )
@@ -189,9 +170,9 @@ where
 
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
-        let g = self.graph.core_graph().lock();
+        let g = self.one_hop_graph.core_graph().lock();
         let node_types_filter = self.node_types_filter.clone();
-        let view = self.graph.clone();
+        let view = self.one_hop_graph.clone();
         self.node_list().into_iter().filter(move |&vid| {
             let node = g.core_node(vid);
             node_types_filter
@@ -231,7 +212,7 @@ where
                 if self.is_list_filtered() {
                     self.par_iter_refs().count()
                 } else {
-                    self.graph.node_list().len()
+                    self.one_hop_graph.node_list().len()
                 }
             }
             Some(nodes) => {
@@ -260,12 +241,12 @@ where
         node_types: I,
     ) -> Nodes<'graph, G, GH> {
         let node_types_filter = Some(create_node_type_filter(
-            self.graph.node_meta().node_type_meta(),
+            self.one_hop_graph.node_meta().node_type_meta(),
             node_types,
         ));
         Nodes {
             base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
+            one_hop_graph: self.one_hop_graph.clone(),
             nodes: self.nodes.clone(),
             node_types_filter,
             _marker: PhantomData,
@@ -278,7 +259,7 @@ where
     ) -> Nodes<'graph, G, GH> {
         let index: Index<_> = nodes
             .into_iter()
-            .filter_map(|n| self.graph.node(n).map(|n| n.node))
+            .filter_map(|n| self.one_hop_graph.node(n).map(|n| n.node))
             .collect();
         self.indexed(index)
     }
@@ -288,19 +269,19 @@ where
     }
 
     pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
-        self.graph.node_meta().get_prop_id(prop_name, true)
+        self.one_hop_graph.node_meta().get_prop_id(prop_name, true)
     }
 
     pub fn get_temporal_prop_id(&self, prop_name: &str) -> Option<usize> {
-        self.graph.node_meta().get_prop_id(prop_name, false)
+        self.one_hop_graph.node_meta().get_prop_id(prop_name, false)
     }
 
     fn is_list_filtered(&self) -> bool {
-        self.node_types_filter.is_some() || !self.graph.node_list_trusted()
+        self.node_types_filter.is_some() || !self.one_hop_graph.node_list_trusted()
     }
 
     pub fn is_filtered(&self) -> bool {
-        self.node_types_filter.is_some() || self.graph.filtered()
+        self.node_types_filter.is_some() || self.one_hop_graph.filtered()
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {
@@ -359,7 +340,7 @@ where
         });
         NestedEdges {
             base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
+            graph: self.one_hop_graph.clone(),
             nodes,
             edges,
         }
@@ -382,6 +363,33 @@ where
     }
 }
 
+impl<'graph, Current, G> OneHopFilter<'graph> for Nodes<'graph, G, Current>
+where
+    G: GraphViewOps<'graph> + 'graph,
+    Current: GraphViewOps<'graph> + 'graph,
+{
+    type OneHopGraph = Current;
+    type OneHopFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph> =
+        Nodes<'graph, G, FilteredGraph>;
+
+    fn one_hop_graph(&self) -> &Self::OneHopGraph {
+        &self.one_hop_graph
+    }
+
+    fn apply_one_hop_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: FilteredGraph,
+    ) -> Self::OneHopFiltered<FilteredGraph> {
+        Nodes {
+            base_graph: self.base_graph.clone(),
+            one_hop_graph: filtered_graph,
+            nodes: self.nodes.clone(),
+            node_types_filter: self.node_types_filter.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<'graph, Current, G> BaseFilter<'graph> for Nodes<'graph, Current, G>
 where
     Current: GraphViewOps<'graph> + 'graph,
@@ -400,7 +408,7 @@ where
     ) -> Self::Filtered<Next> {
         Nodes {
             base_graph: filtered_graph,
-            graph: self.graph.clone(),
+            one_hop_graph: self.one_hop_graph.clone(),
             nodes: self.nodes.clone(),
             node_types_filter: self.node_types_filter.clone(),
             _marker: PhantomData,

@@ -1,14 +1,12 @@
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
+        api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
         graph::views::filter::{
-            internal::{CreateEdgeFilter, CreateNodeFilter},
+            internal::CreateFilter,
             model::{AsEdgeFilter, AsNodeFilter},
         },
     },
-    prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
-    },
+    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
 
 #[cfg(feature = "search")]
@@ -62,12 +60,12 @@ pub trait ApplyFilter {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
 }
 
-pub struct FilterNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
+pub struct FilterNodes<F: AsNodeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> {
+impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
-            .filter_nodes(self.0.clone())
+            .filter(self.0.clone())
             .unwrap()
             .nodes()
             .iter()
@@ -78,14 +76,14 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> 
     }
 }
 
-pub struct FilterNeighbours<F: AsNodeFilter + CreateNodeFilter + Clone>(F, String, Direction);
+pub struct FilterNeighbours<F: AsNodeFilter + CreateFilter + Clone>(F, String, Direction);
 
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbours<F> {
+impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let filter_applied = graph
             .node(self.1.clone())
             .unwrap()
-            .filter_nodes(self.0.clone())
+            .filter(self.0.clone())
             .unwrap();
 
         let mut results = match self.2 {
@@ -101,9 +99,9 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbour
     }
 }
 
-pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
+pub struct SearchNodes<F: AsNodeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
+impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
@@ -121,12 +119,12 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> 
     }
 }
 
-pub struct FilterEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
+pub struct FilterEdges<F: AsEdgeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> {
+impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
-            .filter_edges(self.0.clone())
+            .filter(self.0.clone())
             .unwrap()
             .edges()
             .iter()
@@ -137,9 +135,9 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> 
     }
 }
 
-pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
+pub struct SearchEdges<F: AsEdgeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> {
+impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
@@ -160,7 +158,7 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> 
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl AsNodeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -179,7 +177,7 @@ pub fn assert_filter_neighbours_results(
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl AsNodeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -196,7 +194,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl AsNodeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -216,7 +214,7 @@ pub fn assert_search_nodes_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateEdgeFilter + Clone,
+    filter: impl AsEdgeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -233,7 +231,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_search_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateEdgeFilter + Clone,
+    filter: impl AsEdgeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -302,9 +300,9 @@ fn assert_results(
     }
 }
 
-pub fn filter_nodes(graph: &Graph, filter: impl CreateNodeFilter) -> Vec<String> {
+pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
     let mut results = graph
-        .filter_nodes(filter)
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -326,9 +324,9 @@ pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
     results
 }
 
-pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
+pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
     let mut results = graph
-        .filter_edges(filter)
+        .filter(filter)
         .unwrap()
         .edges()
         .iter()

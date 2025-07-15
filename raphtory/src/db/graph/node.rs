@@ -23,10 +23,7 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            view::{
-                internal::NodeTimeSemanticsOps, DynamicGraph, ExplodedEdgePropertyFilterOps,
-                IntoDynamic,
-            },
+            view::{internal::NodeTimeSemanticsOps, DynamicGraph, IntoDynamic},
         },
         graph::edges::Edges,
     },
@@ -158,14 +155,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         }
     }
 }
-
-impl<'graph, G: GraphViewOps<'graph>> EdgePropertyFilterOps<'graph> for NodeView<'graph, G> {}
-impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilterOps<'graph>
-    for NodeView<'graph, G>
-{
-}
-
-impl<'graph, G: GraphViewOps<'graph>> NodePropertyFilterOps<'graph> for NodeView<'graph, G> {}
 
 impl<'graph, Current> BaseFilter<'graph> for NodeView<'graph, Current>
 where

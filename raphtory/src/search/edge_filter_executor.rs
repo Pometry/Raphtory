@@ -6,7 +6,7 @@ use crate::{
             views::filter::model::{
                 edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
                 property_filter::{PropertyRef, Temporal},
-                Filter,
+                EdgeFilter, Filter,
             },
         },
     },
@@ -97,7 +97,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
@@ -115,7 +115,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         graph: &G,
         prop_id: usize,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -144,7 +144,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
@@ -164,7 +164,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -196,7 +196,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
@@ -255,7 +255,7 @@ impl<'a> EdgeFilterExecutor<'a> {
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {

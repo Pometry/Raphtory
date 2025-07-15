@@ -1,14 +1,10 @@
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::filter::internal::{CreateEdgeFilter, CreateNodeFilter},
-        },
+        api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
+        graph::{edge::EdgeView, node::NodeView, views::filter::internal::CreateFilter},
     },
     errors::GraphError,
-    prelude::{EdgePropertyFilterOps, GraphViewOps, NodePropertyFilterOps},
+    prelude::GraphViewOps,
     search::property_index::PropertyIndex,
 };
 use ahash::HashSet;
@@ -130,12 +126,12 @@ pub(crate) fn get_reader(index: &Arc<Index>) -> Result<IndexReader, GraphError> 
 
 pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(
     graph: &G,
-    filter: &(impl CreateNodeFilter + Clone),
+    filter: &(impl CreateFilter + Clone),
     limit: usize,
     offset: usize,
 ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
     let filtered_nodes = graph
-        .filter_nodes(filter.clone())?
+        .filter(filter.clone())?
         .nodes()
         .iter()
         .map(|n| NodeView::new_internal(graph.clone(), n.node))
@@ -147,12 +143,12 @@ pub(crate) fn fallback_filter_nodes<G: StaticGraphViewOps>(
 
 pub(crate) fn fallback_filter_edges<G: StaticGraphViewOps>(
     graph: &G,
-    filter: &(impl CreateEdgeFilter + Clone),
+    filter: &(impl CreateFilter + Clone),
     limit: usize,
     offset: usize,
 ) -> Result<Vec<EdgeView<G>>, GraphError> {
     let filtered_edges = graph
-        .filter_edges(filter.clone())?
+        .filter(filter.clone())?
         .edges()
         .iter()
         .map(|e| EdgeView::new(graph.clone(), e.edge))
@@ -633,11 +629,13 @@ mod test_index {
                 api::view::{IndexSpec, IndexSpecBuilder},
                 graph::{
                     assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
-                    views::filter::model::{ComposableFilter, PropertyFilterOps},
+                    views::filter::model::{
+                        ComposableFilter, EdgeFilter, NodeFilter, PropertyFilterOps,
+                    },
                 },
             },
             errors::GraphError,
-            prelude::{AdditionOps, Graph, IndexMutationOps, PropertyFilter, StableDecode},
+            prelude::{AdditionOps, Graph, IndexMutationOps, StableDecode},
             serialise::{GraphFolder, StableEncode},
         };
 
@@ -709,15 +707,15 @@ mod test_index {
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = PropertyFilter::property("p1")
+            let filter = NodeFilter::property("p1")
                 .eq(5u64)
-                .and(PropertyFilter::property("x").eq(true));
+                .and(NodeFilter::property("x").eq(true));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry"]);
 
-            let filter = PropertyFilter::property("e_p1")
+            let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .and(PropertyFilter::property("e_y").eq(false));
+                .and(EdgeFilter::property("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
@@ -741,19 +739,19 @@ mod test_index {
             );
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = PropertyFilter::property("p1")
-                .eq(5u64)
-                .or(PropertyFilter::property("y").eq(false));
+            let filter = NodeFilter::property("p1")
+                .eq(5f64)
+                .or(NodeFilter::property("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = PropertyFilter::property("y").eq(false);
+            let filter = NodeFilter::property("y").lt(false);
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["raphtory"]);
 
-            let filter = PropertyFilter::property("e_p1")
+            let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .or(PropertyFilter::property("e_y").eq(false));
+                .or(EdgeFilter::property("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -778,15 +776,15 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = PropertyFilter::property("p1")
+            let filter = NodeFilter::property("p1")
                 .eq(5u64)
-                .and(PropertyFilter::property("x").eq(true));
+                .and(NodeFilter::property("x").eq(true));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry"]);
 
-            let filter = PropertyFilter::property("e_p1")
+            let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .or(PropertyFilter::property("e_y").eq(false));
+                .or(EdgeFilter::property("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -813,15 +811,15 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
-            let filter = PropertyFilter::property("p1")
-                .eq(5u64)
-                .or(PropertyFilter::property("y").eq(false));
+            let filter = NodeFilter::property("p1")
+                .eq(5f64)
+                .or(NodeFilter::property("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = PropertyFilter::property("e_p1")
+            let filter = EdgeFilter::property("e_p1")
                 .lt(5f64)
-                .or(PropertyFilter::property("e_y").eq(false));
+                .or(EdgeFilter::property("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -855,9 +853,9 @@ mod test_index {
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter::property("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter::property("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -871,9 +869,9 @@ mod test_index {
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter::property("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter::property("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
@@ -893,9 +891,9 @@ mod test_index {
             let graph = Graph::decode(path.clone()).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter::property("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter::property("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -913,9 +911,9 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
 
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let results = search_nodes(&graph, PropertyFilter::property("y").eq(false));
+            let results = search_nodes(&graph, NodeFilter::property("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, EdgeFilter::property("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
@@ -1004,7 +1002,7 @@ mod test_index {
                 .build();
             create_index_fn(&graph, index_spec.clone()).unwrap();
 
-            let filter = PropertyFilter::property("p2").temporal().latest().eq(50u64);
+            let filter = NodeFilter::property("p2").temporal().latest().eq(50u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["pometry"]);
 
             let node = graph
@@ -1012,20 +1010,17 @@ mod test_index {
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
 
-            let filter = PropertyFilter::property("p1")
-                .temporal()
-                .latest()
-                .eq(100u64);
+            let filter = NodeFilter::property("p1").temporal().latest().eq(100u64);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.add_constant_properties([("z", true)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(true);
+            let filter = NodeFilter::property("z").constant().eq(true);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.update_constant_properties([("z", false)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(false);
+            let filter = NodeFilter::property("z").constant().eq(false);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
         }
 
@@ -1047,21 +1042,18 @@ mod test_index {
                 .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("p1")
-                .temporal()
-                .latest()
-                .eq(100u64);
+            let filter = EdgeFilter::property("p1").temporal().latest().eq(100u64);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.add_constant_properties([("z", true)], None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(true);
+            let filter = EdgeFilter::property("z").constant().eq(true);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.update_constant_properties([("z", false)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(false);
+            let filter = EdgeFilter::property("z").constant().eq(false);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
         }
 
@@ -1078,14 +1070,14 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(spec).unwrap();
 
-            let f1 = PropertyFilter::property("x").eq(true);
+            let f1 = NodeFilter::property("x").eq(true);
             assert_eq!(
                 filter_nodes(&graph, f1.clone()),
                 vec!["pometry".to_string()]
             );
             assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
 
-            let f2 = PropertyFilter::property("e_y").eq(false);
+            let f2 = EdgeFilter::property("e_y").eq(false);
             assert_eq!(
                 filter_edges(&graph, f2.clone()),
                 vec!["raphtory->pometry".to_string()]
@@ -1107,13 +1099,13 @@ mod test_index {
 
             graph.create_index_in_ram_with_spec(spec).unwrap();
 
-            let f1 = PropertyFilter::property("x").eq(true);
+            let f1 = NodeFilter::property("x").eq(true);
             assert_eq!(
                 filter_nodes(&graph, f1.clone()),
                 vec!["pometry".to_string()]
             );
             assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
-            let f2 = PropertyFilter::property("e_y").eq(false);
+            let f2 = EdgeFilter::property("e_y").eq(false);
             assert_eq!(
                 filter_edges(&graph, f2.clone()),
                 vec!["raphtory->pometry".to_string()]

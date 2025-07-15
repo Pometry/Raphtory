@@ -1,13 +1,12 @@
 //! Defines the `ViewApi` trait, which represents the API for querying a view of the graph.
 
 mod edge;
-mod edge_property_filter;
 mod exploded_edge_property_filter;
+pub(crate) mod filter_ops;
 pub(crate) mod graph;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
-mod node_property_filter;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
@@ -16,8 +15,7 @@ use ouroboros::self_referencing;
 use std::marker::PhantomData;
 
 use crate::db::api::view::internal::{filtered_node::FilteredNodeStorageOps, GraphView};
-pub use edge_property_filter::EdgePropertyFilterOps;
-pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
+pub use filter_ops::{BaseFilterOps, IterFilterOps};
 pub use graph::*;
 pub use internal::{
     BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynHop, IntoDynamic, MaterializedGraph,
@@ -25,7 +23,6 @@ pub use internal::{
 pub use layer::*;
 pub(crate) use node::BaseNodeViewOps;
 pub use node::NodeViewOps;
-pub use node_property_filter::NodePropertyFilterOps;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
     Direction,

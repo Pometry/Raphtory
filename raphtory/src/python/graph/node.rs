@@ -492,7 +492,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
 {
     fn from(value: Nodes<'static, G, GH>) -> Self {
-        let graph = value.graph.into_dynamic();
+        let graph = value.one_hop_graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
             nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
@@ -938,7 +938,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
         Self {
             path: PathFromGraph {
                 base_graph: value.base_graph.into_dynamic(),
-                graph: value.graph.into_dynamic(),
+                one_hop_graph: value.one_hop_graph.into_dynamic(),
                 op: value.op,
                 nodes: value.nodes,
             },
@@ -990,7 +990,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     fn from(value: PathFromNode<'static, G, GH>) -> Self {
         Self {
             path: PathFromNode {
-                graph: value.graph.clone().into_dynamic(),
+                one_hop_graph: value.one_hop_graph.clone().into_dynamic(),
                 base_graph: value.base_graph.clone().into_dynamic(),
                 op: value.op.clone(),
             },

@@ -23,7 +23,7 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Temporal {
@@ -68,13 +68,14 @@ pub enum PropertyFilterValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PropertyFilter {
+pub struct PropertyFilter<M> {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
+    _phantom: PhantomData<M>,
 }
 
-impl Display for PropertyFilter {
+impl<M> Display for PropertyFilter<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prop_ref_str = match &self.prop_ref {
             PropertyRef::Property(name) => name.to_string(),
@@ -105,12 +106,13 @@ impl Display for PropertyFilter {
     }
 }
 
-impl PropertyFilter {
+impl<M> PropertyFilter<M> {
     pub fn eq(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Eq,
+            _phantom: PhantomData,
         }
     }
 
@@ -119,6 +121,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ne,
+            _phantom: PhantomData,
         }
     }
 
@@ -127,6 +130,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Le,
+            _phantom: PhantomData,
         }
     }
 
@@ -135,6 +139,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Ge,
+            _phantom: PhantomData,
         }
     }
 
@@ -143,6 +148,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Lt,
+            _phantom: PhantomData,
         }
     }
 
@@ -151,6 +157,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Gt,
+            _phantom: PhantomData,
         }
     }
 
@@ -159,6 +166,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::In,
+            _phantom: PhantomData,
         }
     }
 
@@ -167,6 +175,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Set(Arc::new(prop_values.into_iter().collect())),
             operator: FilterOperator::NotIn,
+            _phantom: PhantomData,
         }
     }
 
@@ -175,6 +184,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsNone,
+            _phantom: PhantomData,
         }
     }
 
@@ -183,6 +193,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::None,
             operator: FilterOperator::IsSome,
+            _phantom: PhantomData,
         }
     }
 
@@ -191,6 +202,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::Contains,
+            _phantom: PhantomData,
         }
     }
 
@@ -199,6 +211,7 @@ impl PropertyFilter {
             prop_ref,
             prop_value: PropertyFilterValue::Single(prop_value.into()),
             operator: FilterOperator::NotContains,
+            _phantom: PhantomData,
         }
     }
 
@@ -215,6 +228,7 @@ impl PropertyFilter {
                 levenshtein_distance,
                 prefix_match,
             },
+            _phantom: PhantomData,
         }
     }
 

@@ -2,8 +2,10 @@ use crate::{
     db::{
         api::view::BoxableGraphView,
         graph::views::filter::{
-            internal::CreateEdgeFilter,
-            model::{property_filter::PropertyFilter, AndFilter, Filter, NotFilter, OrFilter},
+            internal::CreateFilter,
+            model::{
+                property_filter::PropertyFilter, AndFilter, EdgeFilter, Filter, NotFilter, OrFilter,
+            },
         },
     },
     errors::GraphError,
@@ -23,7 +25,7 @@ impl Display for EdgeFieldFilter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompositeEdgeFilter {
     Edge(Filter),
-    Property(PropertyFilter),
+    Property(PropertyFilter<EdgeFilter>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Not(Box<CompositeEdgeFilter>),
@@ -41,35 +43,33 @@ impl Display for CompositeEdgeFilter {
     }
 }
 
-impl CreateEdgeFilter for CompositeEdgeFilter {
-    type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+impl CreateFilter for CompositeEdgeFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
 
-    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
-            CompositeEdgeFilter::Edge(i) => {
-                Ok(Arc::new(EdgeFieldFilter(i).create_edge_filter(graph)?))
-            }
-            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_edge_filter(graph)?)),
+            CompositeEdgeFilter::Edge(i) => Ok(Arc::new(EdgeFieldFilter(i).create_filter(graph)?)),
+            CompositeEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::And(l, r) => Ok(Arc::new(
                 AndFilter {
                     left: l.deref().clone(),
                     right: r.deref().clone(),
                 }
-                .create_edge_filter(graph)?,
+                .create_filter(graph)?,
             )),
             CompositeEdgeFilter::Or(l, r) => Ok(Arc::new(
                 OrFilter {
                     left: l.deref().clone(),
                     right: r.deref().clone(),
                 }
-                .create_edge_filter(graph)?,
+                .create_filter(graph)?,
             )),
             CompositeEdgeFilter::Not(filter) => {
                 let base = filter.deref().clone();
-                Ok(Arc::new(NotFilter(base).create_edge_filter(graph)?))
+                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
             }
         }
     }

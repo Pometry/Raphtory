@@ -444,11 +444,11 @@ mod test {
                             cached_view::test::test_filters_cached_view::{
                                 CachedGraphTransformer, WindowedCachedGraphTransformer,
                             },
-                            filter::model::PropertyFilterOps,
+                            filter::model::{NodeFilter, PropertyFilterOps},
                         },
                     },
                 },
-                prelude::{AdditionOps, PropertyFilter},
+                prelude::AdditionOps,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -481,7 +481,7 @@ mod test {
 
             #[test]
             fn test_nodes_filters() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = NodeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -502,7 +502,7 @@ mod test {
             #[test]
             fn test_nodes_filters_w() {
                 // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = NodeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N6"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -522,7 +522,7 @@ mod test {
 
             #[test]
             fn test_nodes_filters_pg_w() {
-                let filter = PropertyFilter::property("p1").ge(2u64);
+                let filter = NodeFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2", "N5", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -553,11 +553,11 @@ mod test {
                             cached_view::test::test_filters_cached_view::{
                                 CachedGraphTransformer, WindowedCachedGraphTransformer,
                             },
-                            filter::model::PropertyFilterOps,
+                            filter::model::{EdgeFilter, PropertyFilterOps},
                         },
                     },
                 },
-                prelude::{AdditionOps, PropertyFilter},
+                prelude::AdditionOps,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -591,7 +591,7 @@ mod test {
             #[test]
             fn test_edges_filters() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
@@ -611,7 +611,7 @@ mod test {
 
             #[test]
             fn test_edges_filter_w() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
                 assert_filter_edges_results(
                     init_graph,
@@ -632,7 +632,7 @@ mod test {
             #[test]
             fn test_edges_filters_pg_w() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").ge(2u64);
+                let filter = EdgeFilter::property("p1").ge(2u64);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
                 assert_filter_edges_results(
                     init_graph,

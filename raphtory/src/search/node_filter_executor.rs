@@ -6,7 +6,7 @@ use crate::{
             views::filter::model::{
                 node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
                 property_filter::{PropertyRef, Temporal},
-                Filter,
+                Filter, NodeFilter,
             },
         },
     },
@@ -96,7 +96,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -114,7 +114,7 @@ impl<'a> NodeFilterExecutor<'a> {
         graph: &G,
         prop_id: usize,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -143,7 +143,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -163,7 +163,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -214,7 +214,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -274,7 +274,7 @@ impl<'a> NodeFilterExecutor<'a> {
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
