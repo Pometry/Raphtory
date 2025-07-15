@@ -312,7 +312,7 @@ where
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::Range { timeindex, range } => {
                 let start = max(range.start, w.start);
-                let end = min(range.start, w.start);
+                let end = min(range.end, w.end);
                 if end <= start {
                     TimeIndexWindow::Empty
                 } else {

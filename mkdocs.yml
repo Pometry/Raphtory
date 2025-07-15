@@ -1,0 +1,133 @@
+site_name: Raphtory Documentation
+site_url: !ENV READTHEDOCS_CANONICAL_URL
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.png
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: primary
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+  features:
+    - navigation.tracking
+    - navigation.instant
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.footer
+    - content.tabs.link
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+extra_css:
+  - stylesheets/extra.css
+plugins:
+  - search:
+      lang: en
+  - markdown-exec
+  - macros:
+      module_name: docs/scripts/macro
+  - gen-files:
+      scripts:
+        - docs/scripts/gen_docs_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_if_no_docstring: true
+            allow_inspection: false
+            docstring_style: google
+            docstring_options:
+              returns_type_in_property_summary: true
+              returns_named_value: false
+          paths: [ "python/python" ]
+          inventories:
+            - https://docs.python.org/3/objects.inv
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: "#"
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - def_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences
+  - pymdownx.blocks.tab:
+      alternate_style: True
+      combine_header_slug: True
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
+  - pymdownx.snippets:
+      base_path: [ ".", "docs/src/" ]
+      check_paths: true
+      dedent_subsections: true
+  - footnotes
+  - markdown_hide_code
+repo_url: https://github.com/pometry/raphtory
+repo_name: pometry/raphtory
+nav:
+  - Home: index.md
+  - User Guide:
+      - user-guide/installation.md
+      - Getting data into Raphtory:
+          - user-guide/ingestion/0_dummy_index.md
+          - user-guide/ingestion/1_intro.md
+          - user-guide/ingestion/2_direct-updates.md
+          - user-guide/ingestion/3_dataframes.md
+          - user-guide/ingestion/4_saving.md
+      - Querying:
+          - user-guide/querying/0_dummy_index.md
+          - user-guide/querying/1_intro.md
+          - user-guide/querying/2_graph-metrics.md
+          - user-guide/querying/3_node-metrics.md
+          - user-guide/querying/4_edge-metrics.md
+          - user-guide/querying/5_properties.md
+          - user-guide/querying/6_chaining.md
+      - Graph views:
+          - user-guide/views/0_dummy_index.md
+          - user-guide/views/1_intro.md
+          - user-guide/views/2_time.md
+          - user-guide/views/3_layer.md
+          - user-guide/views/4_subgraph.md
+          - user-guide/views/5_materialize.md
+      - Running Algorithms:
+          - user-guide/algorithms/0_dummy_index.md
+          - user-guide/algorithms/1_intro.md
+          - user-guide/algorithms/2_graph-algorithms.md
+          - user-guide/algorithms/3_node-algorithms.md
+          - user-guide/algorithms/4_view-algorithms.md
+      - Exporting:
+          - user-guide/export/0_dummy_index.md
+          - user-guide/export/1_intro.md
+          - user-guide/export/2_dataframes.md
+          - user-guide/export/3_networkx.md
+      - GraphQL and User Interface:
+          - user-guide/graphql/0_dummy_index.md
+          - user-guide/graphql/1_intro.md
+          - user-guide/graphql/2_run-server.md
+          - user-guide/graphql/3_writing-queries.md
+          - user-guide/graphql/4_running-ui.md
+      - Temporal graph representations:
+          - user-guide/persistent-graph/0_dummy_index.md
+          - user-guide/persistent-graph/1_intro.md
+          - user-guide/persistent-graph/2_ambiguity.md
+          - user-guide/persistent-graph/3_views.md
+  - API: reference/
+  - Pometry: https://www.pometry.com/

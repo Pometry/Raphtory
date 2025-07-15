@@ -23,6 +23,7 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
+use std::path::PathBuf;
 use raphtory_api::core::storage::timeindex::AsTime;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
@@ -142,16 +143,18 @@ impl PyGraphView {
     ///   embedding (Callable[[list], list]): the embedding function to translate documents to embeddings
     ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///   cache (str, optional): the path to use to store the cache for embeddings.
     ///   verbose (bool): whether or not to print logs reporting the progress. Defaults to False.
     ///
     /// Returns:
     ///   VectorisedGraph: A VectorisedGraph with all the documents/embeddings computed and with an initial empty selection
-    #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
+    #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), cache = None, verbose = false))]
     fn vectorise(
         &self,
         embedding: Bound<PyFunction>,
         nodes: TemplateConfig,
         edges: TemplateConfig,
+        cache: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
         let template = DocumentTemplate {
@@ -159,9 +162,13 @@ impl PyGraphView {
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
         let embedding = embedding.unbind();
-        let cache = VectorCache::in_memory(embedding);
         let graph = self.graph.clone();
         execute_async_task(move || async move {
+            let cache = if let Some(cache) = cache {
+                VectorCache::on_disk(&PathBuf::from(cache), embedding).await?
+            } else {
+                VectorCache::in_memory(embedding)
+            };
             Ok(graph.vectorise(cache, template, None, verbose).await?)
         })
     }

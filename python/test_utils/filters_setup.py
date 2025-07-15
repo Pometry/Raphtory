@@ -305,13 +305,13 @@ def create_test_graph(g):
             "prop4": True,
             "prop5": [1, 2, 3],
         },
-        "fire_nation"
+        "fire_nation",
     )
     g.add_node(
         1,
         "b",
         {"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False},
-        "fire_nation"
+        "fire_nation",
     )
     g.add_node(
         1,
@@ -323,13 +323,13 @@ def create_test_graph(g):
             "prop4": True,
             "prop5": [5, 6, 7],
         },
-        "water_tribe"
+        "water_tribe",
     )
     g.add_node(
         1,
         "d",
         {"prop1": 30, "prop2": 31.3, "prop3": "abc444", "prop4": False},
-        "air_nomads"
+        "air_nomads",
     )
     g.add_edge(
         2,
@@ -368,4 +368,3 @@ def create_test_graph(g):
         },
     )
     return g
-

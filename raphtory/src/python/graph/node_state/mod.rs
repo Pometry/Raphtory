@@ -24,6 +24,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         LatestDateTimeView,
         NodeStateOptionDateTime,
         HistoryView,
+        EdgeHistoryCountView,
         NodeStateListI64,
         HistoryDateTimeView,
         NodeStateOptionListDateTime,

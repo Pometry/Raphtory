@@ -15,21 +15,30 @@ build-all: rust-build
 rust-test:
 	cargo test -q
 
-test-all: rust-test
-	cd python && pytest
-
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
 
 run-graphql:
 	cargo run --release -p raphtory-graphql
 
-rust-test-all:
-	cargo test --all --no-default-features
-	cargo check -p raphtory --no-default-features --features "io"
-	cargo check -p raphtory --no-default-features --features "python"
-	cargo check -p raphtory --no-default-features --features "search"
-	cargo check -p raphtory --no-default-features --features "vectors"
+rust-test-all: activate-storage
+	cargo nextest run --all --features=storage
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+
+rust-test-all-public:
+	cargo nextest run --all
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
+
+
+python-test: activate-storage
+	cd python && tox run && tox run -e storage
+
+python-test-public:
+	cd python && tox run
+
+test-all: rust-test-all python-test
+
+test-all-public: rust-test-all-public python-test-public
 
 activate-storage:
 	./scripts/activate_private_storage.py
@@ -53,6 +62,8 @@ tidy: rust-fmt build-python stubs python-fmt
 
 tidy-public: rust-fmt build-python-public stubs python-fmt
 
+check-pr: tidy-public test-all
+
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
 
@@ -70,8 +81,27 @@ build-python: activate-storage
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
 
-python-docs:
-	cd docs && make html
+install-mkdocs:
+	pip install mkdocs
+
+install-doc-deps:
+	pip install -r docs/requirements.txt 
+
+gen-doc-pages: install-doc-deps
+	python docs/scripts/gen_docs_pages.py
+
+clean-doc-pages:
+	rm -rf docs/reference && rm -rf docs/tmp/saved_graph
+
+python-docs-serve: install-doc-deps
+	mkdocs serve
+
+python-docs-build: install-doc-deps
+	mkdocs build
+
+run-docs-tests: install-doc-deps clean-doc-pages
+	cd docs/user-guide && \
+	pytest --markdown-docs -m markdown-docs --markdown-docs-syntax=superfences
 
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736

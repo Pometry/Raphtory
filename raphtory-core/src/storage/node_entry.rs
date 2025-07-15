@@ -70,6 +70,7 @@ impl<'a> Debug for NodePtr<'a> {
             .field("gid", self.node.global_id())
             .field("vid", &self.node.vid)
             .field("node_type", &self.node.node_type)
+            .field("layers", &self.node.layers)
             .field(
                 "constant_properties",
                 &self
@@ -79,6 +80,7 @@ impl<'a> Debug for NodePtr<'a> {
                     .collect_vec(),
             )
             .field("temporal_properties", &self.into_rows().collect_vec())
+            .field("additions", self.node.timestamps())
             .finish()
     }
 }

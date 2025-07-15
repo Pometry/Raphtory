@@ -10,7 +10,6 @@ mod serialise;
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/serialise.rs"));
 }
-
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
@@ -18,6 +17,8 @@ use crate::{
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
+#[cfg(feature = "storage")]
+use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
@@ -28,11 +29,13 @@ use tracing::info;
 
 const GRAPH_FILE_NAME: &str = "graph";
 const META_FILE_NAME: &str = ".raph";
+const INDEX_PATH: &str = "index";
+const VECTORS_PATH: &str = "vectors";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
-    prefer_zip_format: bool,
+    pub(crate) write_as_zip_format: bool,
 }
 
 pub enum GraphReader {
@@ -53,7 +56,7 @@ impl GraphFolder {
     pub fn new_as_zip(path: impl AsRef<Path>) -> Self {
         let folder: GraphFolder = path.into();
         Self {
-            prefer_zip_format: true,
+            write_as_zip_format: true,
             ..folder
         }
     }
@@ -69,7 +72,11 @@ impl GraphFolder {
 
     // TODO: make private once possible
     pub fn get_vectors_path(&self) -> PathBuf {
-        self.root_folder.join("vectors")
+        self.root_folder.join(VECTORS_PATH)
+    }
+
+    pub fn get_index_path(&self) -> PathBuf {
+        self.root_folder.join(INDEX_PATH)
     }
 
     // TODO: make private once possible
@@ -77,8 +84,12 @@ impl GraphFolder {
         &self.root_folder
     }
 
+    pub fn is_zip(&self) -> bool {
+        self.root_folder.is_file()
+    }
+
     pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
-        if self.root_folder.is_file() {
+        if self.is_zip() {
             let file = File::open(&self.root_folder)?;
             let mut archive = ZipArchive::new(file)?;
             let mut entry = archive.by_name(GRAPH_FILE_NAME)?;
@@ -104,28 +115,28 @@ impl GraphFolder {
 
     #[cfg(feature = "search")]
     fn write_index(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
-        if self.prefer_zip_format {
-            graph.persist_index_to_disk_zip(&self.root_folder)
+        if self.write_as_zip_format {
+            graph.persist_index_to_disk_zip(&self)
         } else {
-            graph.persist_index_to_disk(&self.root_folder)
+            graph.persist_index_to_disk(&self)
         }
     }
 
     fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {
         let bytes = graph.encode_to_vec();
-        if self.prefer_zip_format {
-            let file = File::create(&self.root_folder)?;
+        if self.write_as_zip_format {
+            let file = File::create_new(&self.root_folder)?;
             let mut zip = ZipWriter::new(file);
             zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
             zip.write_all(&bytes)
         } else {
             self.ensure_clean_root_dir()?;
-            let mut file = File::create(self.get_graph_path())?;
+            let mut file = File::create_new(self.get_graph_path())?;
             file.write_all(&bytes)
         }
     }
 
-    pub fn read_metadata(&self) -> Result<GraphMetadata, io::Error> {
+    pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
         match self.try_read_metadata() {
             Ok(data) => Ok(data),
             Err(e) => {
@@ -135,11 +146,25 @@ impl GraphFolder {
                         info!(
                             "Metadata file does not exist or is invalid. Attempting to recreate..."
                         );
-                        let graph = MaterializedGraph::decode(self)?;
+                        let graph: MaterializedGraph = if self.is_disk_graph() {
+                            #[cfg(not(feature = "storage"))]
+                            return Err(GraphError::DiskGraphNotFound);
+                            #[cfg(feature = "storage")]
+                            {
+                                use crate::prelude::IntoGraph;
+
+                                MaterializedGraph::from(
+                                    DiskGraphStorage::load_from_dir(self.get_graph_path())?
+                                        .into_graph(),
+                                )
+                            }
+                        } else {
+                            MaterializedGraph::decode(self)?
+                        };
                         self.write_metadata(&graph)?;
-                        self.try_read_metadata()
+                        Ok(self.try_read_metadata()?)
                     }
-                    _ => Err(e),
+                    _ => Err(e.into()),
                 }
             }
         }
@@ -170,7 +195,7 @@ impl GraphFolder {
             edge_count,
             properties: properties.as_vec(),
         };
-        if self.prefer_zip_format {
+        if self.write_as_zip_format {
             let file = File::options()
                 .read(true)
                 .write(true)
@@ -185,7 +210,7 @@ impl GraphFolder {
         }
     }
 
-    pub(crate) fn get_appendable_graph_file(&self) -> Result<File, GraphError> {
+    pub(crate) fn get_appendable_graph_file(&self) -> Result<File, io::Error> {
         let path = self.get_graph_path();
         Ok(OpenOptions::new().append(true).open(path)?)
     }
@@ -202,6 +227,11 @@ impl GraphFolder {
         File::create_new(self.root_folder.join(META_FILE_NAME))?;
         Ok(())
     }
+
+    fn is_disk_graph(&self) -> bool {
+        let path = self.get_graph_path();
+        path.is_dir()
+    }
 }
 
 impl<P: AsRef<Path>> From<P> for GraphFolder {
@@ -209,7 +239,7 @@ impl<P: AsRef<Path>> From<P> for GraphFolder {
         let path: &Path = value.as_ref();
         Self {
             root_folder: path.to_path_buf(),
-            prefer_zip_format: false,
+            write_as_zip_format: false,
         }
     }
 }
@@ -235,9 +265,10 @@ mod zip_tests {
     fn test_load_cached_from_zip() {
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
-        graph.encode(GraphFolder::new_as_zip(&temp_file)).unwrap();
-        let result = Graph::load_cached(&temp_file);
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let zip_path = tmp_dir.path().join("graph.zip");
+        graph.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
+        let result = Graph::load_cached(&zip_path);
         assert!(result.is_err());
     }
 
@@ -248,8 +279,9 @@ mod zip_tests {
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
 
-        let temp_file = tempfile::NamedTempFile::new().unwrap();
-        let folder = GraphFolder::new_as_zip(&temp_file);
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let zip_path = tmp_dir.path().join("graph.zip");
+        let folder = GraphFolder::new_as_zip(&zip_path);
         folder.write_graph_data(&graph).unwrap();
 
         let err = folder.try_read_metadata();

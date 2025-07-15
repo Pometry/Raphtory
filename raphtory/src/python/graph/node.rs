@@ -21,21 +21,17 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::InternalExplodedEdgeFilterOps,
         },
     },
     errors::GraphError,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             history::PyHistory,
             node::internal::OneHopFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,
@@ -235,6 +231,14 @@ impl PyNode {
     ///     History: A History object for the node, providing access to time information
     pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.node.clone())))
+    }
+
+    /// Get the number of edge events for this node
+    ///
+    /// Returns:
+    ///     int: The number of edge events
+    pub fn edge_history_count(&self) -> usize {
+        self.node.edge_history_count()
     }
 
     /// Check if the node is active, i.e., it's history is not empty
@@ -587,6 +591,16 @@ impl PyNodes {
         self.nodes.history()
     }
 
+    /// Return the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     EdgeHistoryCountView: a view of the edge history counts
+    fn edge_history_count(
+        &self,
+    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+        self.nodes.edge_history_count()
+    }
+
     /// The node types
     ///
     /// Returns:
@@ -808,6 +822,12 @@ impl PyPathFromGraph {
         PyHistory::new(History::new(Arc::new(path)))
     }
 
+    /// Returns the number of edge updates for each node
+    fn edge_history_count(&self) -> NestedUsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// the node properties
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
@@ -956,6 +976,15 @@ impl PyPathFromNode {
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
+    }
+
+    /// Get the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     UsizeIterable:
+    fn edge_history_count(&self) -> UsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
     }
 
     /// the node earliest times

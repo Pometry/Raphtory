@@ -641,6 +641,16 @@ impl_lazy_node_state_ord!(
 impl_one_hop!(HistoryView<ops::HistoryOp>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
+impl_lazy_node_state_num!(
+    EdgeHistoryCountView<ops::EdgeHistoryCount<DynamicGraph>>,
+    "EdgeHistoryCountView",
+    "int"
+);
+impl_one_hop!(
+    EdgeHistoryCountView<ops::EdgeHistoryCount>,
+    "EdgeHistoryCountView"
+);
+
 type HistoryDateTime<G> = ops::Map<ops::HistoryOp<'static, G>, Option<Vec<DateTime<Utc>>>>;
 impl_lazy_node_state_ord!(
     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,

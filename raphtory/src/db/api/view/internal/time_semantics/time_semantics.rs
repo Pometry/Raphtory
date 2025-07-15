@@ -8,7 +8,7 @@ use crate::db::api::view::internal::{
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -186,17 +186,61 @@ impl NodeTimeSemanticsOps for TimeSemantics {
     ) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, semantics => semantics.node_tprop_last_at_window(node, view, prop_id, t, w))
     }
+
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count(node, view))
+    }
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        for_all!(self, semantics => semantics.node_edge_history_count_window(node, view, w))
+    }
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn handle_edge_update_filter<G: GraphView>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        for_all!(self, semantics => semantics.handle_edge_update_filter(t, eid, view))
+    }
+
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        for_all!(self, semantics => semantics.include_edge(edge, view, layer_id))
+    }
+
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_ids, w))
+        for_all!(self, semantics => semantics.include_edge_window(edge, view, layer_id, w))
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        for_all!(self, semantics => semantics.include_exploded_edge(elid, t, view))
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        for_all!(self, semantics => semantics.include_exploded_edge_window(elid, t, view, w))
     }
 
     fn edge_history<'graph, G: GraphView + 'graph>(

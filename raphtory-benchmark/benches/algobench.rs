@@ -110,7 +110,7 @@ pub fn graphgen_large_concomp(c: &mut Criterion) {
         &graph,
         |b, graph| {
             b.iter(|| {
-                let result = weakly_connected_components(graph, 20, None);
+                let result = weakly_connected_components(graph);
                 black_box(result);
             });
         },

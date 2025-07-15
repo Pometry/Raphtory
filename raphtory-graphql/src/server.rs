@@ -16,7 +16,8 @@ use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
     get,
     listener::TcpListener,
-    middleware::{Cors, CorsEndpoint},
+    middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
+    web::CompressionLevel,
     EndpointExt, Route, Server,
 };
 use raphtory::{
@@ -111,7 +112,7 @@ impl GraphServer {
         global_template: Option<DocumentTemplate>,
     ) -> GraphResult<Self> {
         self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding)?, // TODO: better do this lazily, actually do it when running the server
+            cache: VectorCache::on_disk(cache, embedding).await?, // TODO: better do this lazily, actually do it when running the server
             global_template,
             individual_templates: Default::default(),
         });
@@ -202,7 +203,7 @@ impl GraphServer {
         let work_dir = self.data.work_dir.clone();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
-        let app: CorsEndpoint<Route> = self
+        let app = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
             .await?;
 
@@ -230,7 +231,7 @@ impl GraphServer {
     async fn generate_endpoint(
         self,
         tracer: Option<Tracer>,
-    ) -> Result<CorsEndpoint<Route>, ServerError> {
+    ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
         let schema_builder = schema_builder.extension(MutationAuth);
@@ -251,7 +252,8 @@ impl GraphServer {
             .at("/saved-graphs", get(ui))
             .at("/playground", get(ui))
             .at("/health", get(health))
-            .with(Cors::new());
+            .with(Cors::new())
+            .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)
     }
 

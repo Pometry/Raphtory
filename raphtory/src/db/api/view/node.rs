@@ -79,6 +79,8 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>>;
 
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
+
     //Returns true if the node has any updates within the current window, otherwise false
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>>;
 
@@ -195,12 +197,18 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         };
         self.map(op)
     }
-
-    #[inline]
     fn history(&self) -> Self::ValueType<ops::HistoryOp<'graph, Self::Graph>> {
         let op = ops::HistoryOp {
             graph: self.graph().clone(),
             _phantom: PhantomData,
+        };
+        self.map(op)
+    }
+
+    #[inline]
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
+        let op = ops::EdgeHistoryCount {
+            graph: self.graph().clone(),
         };
         self.map(op)
     }

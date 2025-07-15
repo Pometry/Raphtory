@@ -7,6 +7,7 @@ use crate::{
         Base, InheritViewOps,
     },
 };
+use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -15,17 +16,22 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    path::PathBuf,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 use tracing::info;
 
+#[cfg(feature = "search")]
+use crate::search::graph_index::MutableGraphIndex;
 use crate::{db::api::view::IndexSpec, errors::GraphError};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropType},
     GidRef,
 };
-use raphtory_core::storage::{raw_edges::WriteLockedEdges, WriteLockedNodes};
+use raphtory_core::storage::{
+    raw_edges::{EdgeWGuard, WriteLockedEdges},
+    EntryMut, NodeSlot, WriteLockedNodes,
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
@@ -38,6 +44,7 @@ use raphtory_storage::{
 #[cfg(feature = "proto")]
 use {
     crate::serialise::incremental::{GraphWriter, InternalCache},
+    crate::serialise::GraphFolder,
     once_cell::sync::OnceCell,
 };
 
@@ -49,7 +56,7 @@ pub struct Storage {
     pub(crate) cache: OnceCell<GraphWriter>,
     #[cfg(feature = "search")]
     #[serde(skip)]
-    pub(crate) index: OnceCell<GraphIndex>,
+    pub(crate) index: RwLock<GraphIndex>,
     // vector index
 }
 
@@ -81,7 +88,7 @@ impl Storage {
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
             #[cfg(feature = "search")]
-            index: OnceCell::new(),
+            index: RwLock::new(GraphIndex::Empty),
         }
     }
 
@@ -91,7 +98,7 @@ impl Storage {
             #[cfg(feature = "proto")]
             cache: OnceCell::new(),
             #[cfg(feature = "search")]
-            index: OnceCell::new(),
+            index: RwLock::new(GraphIndex::Empty),
         }
     }
 
@@ -109,80 +116,135 @@ impl Storage {
         &self,
         map_fn: impl FnOnce(&GraphIndex) -> Result<(), GraphError>,
     ) -> Result<(), GraphError> {
-        if let Some(index) = self.index.get() {
-            map_fn(index)
-        } else {
-            Ok(())
+        map_fn(&self.index.read())?;
+        Ok(())
+    }
+
+    #[cfg(feature = "search")]
+    #[inline]
+    fn if_index_mut(
+        &self,
+        map_fn: impl FnOnce(&MutableGraphIndex) -> Result<(), GraphError>,
+    ) -> Result<(), GraphError> {
+        let guard = self.index.read();
+        match guard.deref() {
+            GraphIndex::Empty => {}
+            GraphIndex::Mutable(i) => map_fn(i)?,
+            GraphIndex::Immutable(_) => {
+                drop(guard);
+                let mut guard = self.index.write();
+                guard.make_mutable_if_needed()?;
+                if let GraphIndex::Mutable(m) = guard.deref_mut() {
+                    map_fn(m)?
+                }
+            }
         }
+        Ok(())
     }
 }
 
 #[cfg(feature = "search")]
 impl Storage {
     pub(crate) fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
-        let index = self.index.get().ok_or(GraphError::GraphIndexIsMissing)?;
-        Ok(index.index_spec.read().clone())
+        Ok(self.index.read().index_spec())
     }
 
-    pub(crate) fn get_or_load_index(&self, path: PathBuf) -> Result<&GraphIndex, GraphError> {
-        self.index.get_or_try_init(|| {
-            let index = GraphIndex::load_from_path(&path)?;
-            Ok(index)
-        })
-    }
-
-    pub(crate) fn get_or_create_index(
-        &self,
-        index_spec: IndexSpec,
-    ) -> Result<&GraphIndex, GraphError> {
-        let index = self.index.get_or_try_init(|| {
-            let cached_graph_path = self.get_cache().map(|cache| cache.folder.get_base_path());
-            GraphIndex::create(&self.graph, false, cached_graph_path)
-        })?;
-        index.update(&self.graph, index_spec)?;
-        Ok(index)
-    }
-
-    pub(crate) fn get_or_create_index_in_ram(
-        &self,
-        index_spec: IndexSpec,
-    ) -> Result<&GraphIndex, GraphError> {
-        let index = self
-            .index
-            .get_or_try_init(|| GraphIndex::create(&self.graph, true, None))?;
-
-        if index.path.is_some() {
-            return Err(GraphError::FailedToCreateIndexInRam);
-        }
-
-        index.update(&self.graph, index_spec)?;
-
-        Ok(index)
-    }
-
-    pub(crate) fn get_index(&self) -> Option<&GraphIndex> {
-        self.index.get()
-    }
-
-    pub(crate) fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
-        if let Some(index) = self.get_index() {
-            if index.path.is_none() {
-                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
-                return Ok(());
+    pub(crate) fn load_index_if_empty(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let guard = self.index.read();
+        match guard.deref() {
+            GraphIndex::Empty => {
+                drop(guard);
+                let mut guard = self.index.write();
+                if let e @ GraphIndex::Empty = guard.deref_mut() {
+                    let index = GraphIndex::load_from_path(&path)?;
+                    *e = index;
+                }
             }
-            index.persist_to_disk(path)?
+            _ => {}
         }
         Ok(())
     }
 
-    pub(crate) fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
-        if let Some(index) = self.get_index() {
-            if index.path.is_none() {
+    pub(crate) fn create_index_if_empty(&self, index_spec: IndexSpec) -> Result<(), GraphError> {
+        {
+            let guard = self.index.read();
+            match guard.deref() {
+                GraphIndex::Empty => {
+                    drop(guard);
+                    let mut guard = self.index.write();
+                    if let e @ GraphIndex::Empty = guard.deref_mut() {
+                        let cached_graph_path = self.get_cache().map(|cache| cache.folder.clone());
+                        let index = GraphIndex::create(&self.graph, false, cached_graph_path)?;
+                        *e = index;
+                    }
+                }
+                _ => {}
+            }
+        }
+        self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
+        Ok(())
+    }
+
+    pub(crate) fn create_index_in_ram_if_empty(
+        &self,
+        index_spec: IndexSpec,
+    ) -> Result<(), GraphError> {
+        {
+            let guard = self.index.read();
+            match guard.deref() {
+                GraphIndex::Empty => {
+                    drop(guard);
+                    let mut guard = self.index.write();
+                    if let e @ GraphIndex::Empty = guard.deref_mut() {
+                        let index = GraphIndex::create(&self.graph, true, None)?;
+                        *e = index;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if self.index.read().path().is_some() {
+            return Err(GraphError::OnDiskIndexAlreadyExists);
+        }
+        self.if_index_mut(|index| index.update(&self.graph, index_spec))?;
+        Ok(())
+    }
+
+    pub(crate) fn get_index(&self) -> &RwLock<GraphIndex> {
+        &self.index
+    }
+
+    pub(crate) fn is_indexed(&self) -> bool {
+        self.index.read().is_indexed()
+    }
+
+    pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let guard = self.get_index().read();
+        if guard.is_indexed() {
+            if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            index.persist_to_disk_zip(path)?
+            self.if_index(|index| index.persist_to_disk(path))?;
         }
+        Ok(())
+    }
+
+    pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+        let guard = self.get_index().read();
+        if guard.is_indexed() {
+            if guard.path().is_none() {
+                info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
+                return Ok(());
+            }
+            self.if_index(|index| index.persist_to_disk_zip(path))?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn drop_index(&self) -> Result<(), GraphError> {
+        let mut guard = self.index.write();
+        *guard = GraphIndex::Empty;
         Ok(())
     }
 }
@@ -325,7 +387,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_node_update(t, v, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
+        self.if_index_mut(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
 
         Ok(())
     }
@@ -347,7 +409,7 @@ impl InternalAdditionOps for Storage {
         });
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
+        self.if_index_mut(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
 
         Ok(id)
     }
@@ -365,7 +427,7 @@ impl InternalAdditionOps for Storage {
         self.if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| {
+        self.if_index_mut(|index| {
             index.add_edge_update(&self.graph, MaybeNew::Existing(edge), t, layer, props)
         })?;
 
@@ -413,34 +475,36 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+        let lock = self
+            .graph
             .internal_add_constant_node_properties(vid, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_node_constant_properties(vid, props))?;
+        self.if_index_mut(|index| index.add_node_constant_properties(vid, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_update_constant_node_properties(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+        let lock = self
+            .graph
             .internal_update_constant_node_properties(vid, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.update_node_constant_properties(vid, props))?;
+        self.if_index_mut(|index| index.update_node_constant_properties(vid, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_add_constant_edge_properties(
@@ -448,17 +512,18 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EdgeWGuard, Self::Error> {
+        let lock = self
+            .graph
             .internal_add_constant_edge_properties(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.add_edge_constant_properties(eid, layer, props))?;
+        self.if_index_mut(|index| index.add_edge_constant_properties(eid, layer, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 
     fn internal_update_constant_edge_properties(
@@ -466,17 +531,18 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph
+    ) -> Result<EdgeWGuard, Self::Error> {
+        let lock = self
+            .graph
             .internal_update_constant_edge_properties(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index(|index| index.update_edge_constant_properties(eid, layer, props))?;
+        self.if_index_mut(|index| index.update_edge_constant_properties(eid, layer, props))?;
 
-        Ok(())
+        Ok(lock)
     }
 }
 

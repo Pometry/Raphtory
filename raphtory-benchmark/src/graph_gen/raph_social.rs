@@ -388,15 +388,12 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
     Ok(g)
 }
 
-pub fn generate_data_load_graph_save(
-    output_dir: &str,
+pub fn generate_graph(
     num_people: usize,
     num_forums: usize,
     num_posts: usize,
     num_comments: usize,
-) -> Result<(), Box<dyn Error>> {
-    fs::create_dir_all(output_dir)?;
-
+) -> Graph {
     let mut rng = thread_rng();
     let graph = Graph::new();
 
@@ -580,8 +577,19 @@ pub fn generate_data_load_graph_save(
             .expect("Failed to add comment-post edge");
     }
 
-    graph.encode(output_dir).expect("Failed to save graph");
+    graph
+}
 
+pub fn generate_data_load_graph_save(
+    output_dir: &str,
+    num_people: usize,
+    num_forums: usize,
+    num_posts: usize,
+    num_comments: usize,
+) -> Result<(), Box<dyn Error>> {
+    fs::create_dir_all(output_dir)?;
+    let graph = generate_graph(num_people, num_forums, num_posts, num_comments);
+    graph.encode(output_dir).expect("Failed to save graph");
     Ok(())
 }
 

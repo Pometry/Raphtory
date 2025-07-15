@@ -126,7 +126,7 @@ crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
 jsonwebtoken = "9.3.1"
 spki = "0.7.3"
-poem = { version = "3.0.1", features = ["cookie"] }
+poem = { version = "3.0.1", features = ["compression"] }
 opentelemetry = "0.27.1"
 opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.27.0" }
@@ -165,7 +165,7 @@ arrow-buffer = { version = "=53.2.0" }
 arrow-schema = { version = "=53.2.0" }
 arrow-array = { version = "=53.2.0" }
 arrow-ipc = { version = "=53.2.0" }
-moka = { version = "0.12.7", features = ["sync"] }
+moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }

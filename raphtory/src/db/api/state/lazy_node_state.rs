@@ -322,7 +322,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
         &self,
         index: usize,
     ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value<'_>)> {
-        if self.graph().nodes_filtered() {
+        if self.graph().filtered() {
             self.iter().nth(index)
         } else {
             let vid = match self.graph().node_list() {

@@ -4,7 +4,7 @@ use super::{
     node::GqlNode,
     vectorised_graph::{IntoWindowTuple, Window},
 };
-use crate::{embeddings::EmbedQuery, model::blocking};
+use crate::{embeddings::EmbedQuery, rayon::blocking_compute};
 use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -39,7 +39,7 @@ impl GqlVectorSelection {
 
     async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
-        blocking(move || {
+        blocking_compute(move || {
             let docs = cloned.get_documents_with_scores()?.into_iter();
             Ok(docs
                 .map(|(doc, score)| GqlDocument {
@@ -55,7 +55,7 @@ impl GqlVectorSelection {
 
     async fn add_nodes(&self, nodes: Vec<String>) -> Self {
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             selection.add_nodes(nodes);
             selection.into()
         })
@@ -64,7 +64,7 @@ impl GqlVectorSelection {
 
     async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
             selection.add_edges(edges);
             selection.into()
@@ -75,7 +75,7 @@ impl GqlVectorSelection {
     async fn expand(&self, hops: usize, window: Option<Window>) -> Self {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             selection.expand(hops, window);
             selection.into()
         })
@@ -92,7 +92,7 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             selection.expand_entities_by_similarity(&vector, limit, window)?;
             Ok(selection.into())
         })
@@ -109,7 +109,7 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             selection.expand_nodes_by_similarity(&vector, limit, window)?;
             Ok(selection.into())
         })
@@ -126,7 +126,7 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking(move || {
+        blocking_compute(move || {
             selection.expand_edges_by_similarity(&vector, limit, window)?;
             Ok(selection.into())
         })

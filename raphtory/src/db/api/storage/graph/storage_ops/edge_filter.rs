@@ -1,26 +1,77 @@
 use super::GraphStorage;
-use crate::{core::entities::LayerIds, db::api::view::internal::EdgeFilterOps};
+use crate::{
+    core::entities::LayerIds,
+    db::api::view::internal::{
+        InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+    },
+};
 use raphtory_api::core::{entities::ELID, storage::timeindex::TimeIndexEntry};
 use raphtory_storage::graph::edges::edge_ref::EdgeStorageRef;
 
-impl EdgeFilterOps for GraphStorage {
-    fn edges_filtered(&self) -> bool {
+impl InternalEdgeFilterOps for GraphStorage {
+    #[inline]
+    fn internal_edge_filtered(&self) -> bool {
         false
     }
 
-    fn edge_history_filtered(&self) -> bool {
+    #[inline]
+    fn internal_edge_list_trusted(&self) -> bool {
+        true
+    }
+
+    #[inline]
+    fn internal_filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
+        true
+    }
+
+    fn node_filter_includes_edge_filter(&self) -> bool {
+        true
+    }
+}
+
+impl InternalExplodedEdgeFilterOps for GraphStorage {
+    #[inline]
+    fn internal_exploded_edge_filtered(&self) -> bool {
+        false
+    }
+    #[inline]
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
+        true
+    }
+    #[inline]
+    fn internal_filter_exploded_edge(
+        &self,
+        _eid: ELID,
+        _t: TimeIndexEntry,
+        _layer_ids: &LayerIds,
+    ) -> bool {
+        true
+    }
+
+    #[inline]
+    fn node_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
+}
+
+impl InternalEdgeLayerFilterOps for GraphStorage {
+    #[inline]
+    fn internal_edge_layer_filtered(&self) -> bool {
         false
     }
 
-    fn edge_list_trusted(&self) -> bool {
+    #[inline]
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
         true
     }
 
-    fn filter_edge_history(&self, _eid: ELID, _t: TimeIndexEntry, _layer_ids: &LayerIds) -> bool {
+    #[inline]
+    fn internal_filter_edge_layer(&self, _edge: EdgeStorageRef, _layer: usize) -> bool {
         true
     }
 
-    fn filter_edge(&self, _edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
+    #[inline]
+    fn node_filter_includes_edge_layer_filter(&self) -> bool {
         true
     }
 }

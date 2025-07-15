@@ -1,5 +1,5 @@
 use minijinja::{Environment, Value};
-use pyo3::{pyclass, pymethods};
+use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
 use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
@@ -69,7 +69,7 @@ impl PyUpdate {
 ///     name (GID): the id of the node
 ///     node_type (str, optional): the node type
 ///     constant_properties (PropInput, optional): the constant properties
-///     updates: (list[RemoteUpdate], optional): the temporal updates
+///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
@@ -322,4 +322,104 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
         .render(context)
         .map_err(|e| GraphError::JinjaError(e.to_string()))?;
     Ok(query)
+}
+
+/// Specifies that **all** properties should be included when creating an index.
+/// Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+#[derive(Clone, Serialize, PartialEq)]
+#[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
+pub enum PyAllPropertySpec {
+    /// Include all properties (both constant and temporal).
+    #[serde(rename = "ALL")]
+    All,
+    /// Include only constant properties.
+    #[serde(rename = "ALL_CONSTANT")]
+    AllConstant,
+    /// Include only temporal properties.
+    #[serde(rename = "ALL_TEMPORAL")]
+    AllTemporal,
+}
+
+/// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+///
+/// Arguments:
+///     constant (list[str]): Constant property names. Defaults to [].
+///     temporal (list[str]): Temporal property names. Defaults to [].
+#[derive(Clone, Serialize)]
+#[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
+pub struct PySomePropertySpec {
+    /// Constant property names to include in the index.
+    pub constant: Vec<String>,
+    /// Temporal property names to include in the index.
+    pub temporal: Vec<String>,
+}
+
+#[pymethods]
+impl PySomePropertySpec {
+    #[new]
+    #[pyo3(signature = (constant = vec![], temporal = vec![]))]
+    fn new(constant: Vec<String>, temporal: Vec<String>) -> Self {
+        Self { constant, temporal }
+    }
+}
+
+/// Create a `PropsInput` by choosing to include all/some properties explicitly.
+///
+/// Arguments:
+///     all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+///     some (SomePropertySpec, optional): Explicitly list the properties to include.
+///
+/// Raises:
+///     ValueError: If neither `all` and `some` are specified.
+#[derive(Clone, Serialize)]
+#[pyclass(name = "PropsInput", module = "raphtory.graphql")]
+pub struct PyPropsInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub all: Option<PyAllPropertySpec>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub some: Option<PySomePropertySpec>,
+}
+
+#[pymethods]
+impl PyPropsInput {
+    #[new]
+    #[pyo3(signature = (all=None, some=None))]
+    fn new(all: Option<PyAllPropertySpec>, some: Option<PySomePropertySpec>) -> PyResult<Self> {
+        if all.is_none() && some.is_none() {
+            Err(PyValueError::new_err(
+                "PropsInput must have exactly one of 'all' or 'some'",
+            ))
+        } else {
+            Ok(Self { all, some })
+        }
+    }
+}
+
+/// Create a `RemoteIndexSpec` specifying which node and edge properties to index.
+///
+/// Arguments:
+///     node_props (PropsInput): Property spec for nodes.
+///     edge_props (PropsInput): Property spec for edges.
+#[derive(Clone, Serialize)]
+#[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql")]
+pub struct PyRemoteIndexSpec {
+    /// Property inclusion specification for nodes.
+    #[serde(rename = "nodeProps")]
+    pub node_props: PyPropsInput,
+    /// Property inclusion specification for edges.
+    #[serde(rename = "edgeProps")]
+    pub edge_props: PyPropsInput,
+}
+
+#[pymethods]
+impl PyRemoteIndexSpec {
+    #[new]
+    #[pyo3(signature = (node_props, edge_props))]
+    fn new(node_props: PyPropsInput, edge_props: PyPropsInput) -> Self {
+        Self {
+            node_props,
+            edge_props,
+        }
+    }
 }

@@ -3,12 +3,14 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            graph::GqlGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
-            namespaces::Namespaces, vectorised_graph::GqlVectorisedGraph,
+            collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
+            mutable_graph::GqlMutableGraph, namespace::Namespace,
+            vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
     paths::valid_path,
+    rayon::blocking_compute,
     url_encode::{url_decode_graph, url_encode_graph},
 };
 use async_graphql::Context;
@@ -22,6 +24,8 @@ use raphtory::{
     prelude::*,
     serialise::InternalStableDecode,
 };
+#[cfg(feature = "storage")]
+use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -30,16 +34,13 @@ use std::{
 };
 use zip::ZipArchive;
 
-#[cfg(feature = "storage")]
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-
 pub(crate) mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
-pub(crate) async fn blocking<F, R>(f: F) -> R
+pub(crate) async fn blocking_io<F, R>(f: F) -> R
 where
     F: FnOnce() -> R + Send + 'static,
     R: Send + 'static,
@@ -94,6 +95,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Ok(data
             .get_graph(path)
+            .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
 
@@ -103,21 +105,23 @@ impl QueryRoot {
 
         let graph = data
             .get_graph(path.as_ref())
+            .await
             .map(|(g, folder)| GqlMutableGraph::new(folder, g))?;
         Ok(graph)
     }
 
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).ok()?.0.vectors?;
+        let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
 
-    async fn namespaces<'a>(ctx: &Context<'a>) -> Namespaces {
+    async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
-        Namespaces::new(root.get_all_namespaces())
+        GqlCollection::new(root.get_all_namespaces().into())
     }
+
     async fn namespace<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -131,6 +135,7 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
+
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
@@ -143,7 +148,7 @@ impl QueryRoot {
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path)?.0.graph.clone();
+        let g = data.get_graph(path).await?.0.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
     }
@@ -164,7 +169,7 @@ impl Mut {
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        data.delete_graph(&path)?;
+        data.delete_graph(&path).await?;
         Ok(true)
     }
 
@@ -187,7 +192,7 @@ impl Mut {
     async fn move_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         Self::copy_graph(ctx, path, new_path).await?;
         let data = ctx.data_unchecked::<Data>();
-        data.delete_graph(path)?;
+        data.delete_graph(path).await?;
         Ok(true)
     }
 
@@ -198,7 +203,7 @@ impl Mut {
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path)?.0.graph.materialize()?;
+        let graph = data.get_graph(path).await?.0.graph;
 
         #[cfg(feature = "storage")]
         if let GraphStorage::Disk(_) = graph.core_graph() {
@@ -229,7 +234,7 @@ impl Mut {
             MaterializedGraph::decode_from_bytes(&buf)?
         };
         if overwrite {
-            let _ignored = data.delete_graph(&path);
+            let _ignored = data.delete_graph(&path).await;
         }
         data.insert_graph(&path, graph).await?;
         Ok(path)
@@ -248,7 +253,7 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let g: MaterializedGraph = url_decode_graph(graph)?;
         if overwrite {
-            let _ignored = data.delete_graph(path);
+            let _ignored = data.delete_graph(path).await;
         }
         data.insert_graph(path, g).await?;
         Ok(path.to_owned())
@@ -266,13 +271,50 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let parent_graph = data.get_graph(parent_path)?.0.graph;
-        let new_subgraph = parent_graph.subgraph(nodes).materialize()?;
+        let parent_graph = data.get_graph(parent_path).await?.0.graph;
+        let new_subgraph =
+            blocking_compute(move || parent_graph.subgraph(nodes).materialize()).await?;
         if overwrite {
-            let _ignored = data.delete_graph(&new_path);
+            let _ignored = data.delete_graph(&new_path).await;
         }
         data.insert_graph(&new_path, new_subgraph).await?;
         Ok(new_path)
+    }
+
+    async fn create_index<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        index_spec: Option<IndexSpecInput>,
+        in_ram: bool,
+    ) -> Result<bool> {
+        #[cfg(feature = "search")]
+        {
+            let data = ctx.data_unchecked::<Data>();
+            let graph = data.get_graph(path).await?.0.graph;
+            match index_spec {
+                Some(index_spec) => {
+                    let index_spec = index_spec.to_index_spec(graph.clone())?;
+                    if in_ram {
+                        graph.create_index_in_ram_with_spec(index_spec)
+                    } else {
+                        graph.create_index_with_spec(index_spec)
+                    }
+                }
+                None => {
+                    if in_ram {
+                        graph.create_index_in_ram()
+                    } else {
+                        graph.create_index()
+                    }
+                }
+            }?;
+
+            Ok(true)
+        }
+        #[cfg(not(feature = "search"))]
+        {
+            Err(GraphError::IndexingNotSupported.into())
+        }
     }
 }
 

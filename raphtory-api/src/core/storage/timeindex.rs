@@ -1,4 +1,5 @@
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
 
@@ -128,6 +129,13 @@ pub trait TimeIndexOps<'a>: Sized + Clone + Send + Sync + 'a {
     fn is_empty(&self) -> bool {
         self.clone().iter().next().is_none()
     }
+
+    fn merge<R: TimeIndexOps<'a, IndexType = Self::IndexType>>(
+        self,
+        other: R,
+    ) -> MergedTimeIndex<Self, R> {
+        MergedTimeIndex(self, other)
+    }
 }
 
 impl<'a, T: TimeIndexOps<'a> + Clone> TimeIndexOps<'a> for &'a T {
@@ -152,6 +160,48 @@ impl<'a, T: TimeIndexOps<'a> + Clone> TimeIndexOps<'a> for &'a T {
 
     fn len(&self) -> usize {
         T::len(*self)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MergedTimeIndex<L, R>(pub L, pub R);
+
+impl<'a, L: TimeIndexOps<'a>, R: TimeIndexOps<'a, IndexType = L::IndexType>> TimeIndexOps<'a>
+    for MergedTimeIndex<L, R>
+{
+    type IndexType = L::IndexType;
+    type RangeType = MergedTimeIndex<L::RangeType, R::RangeType>;
+
+    fn active(&self, w: Range<Self::IndexType>) -> bool {
+        self.0.active(w.clone()) || self.1.active(w.clone())
+    }
+
+    fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
+        MergedTimeIndex(self.0.range(w.clone()), self.1.range(w.clone()))
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.0.first().into_iter().chain(self.1.first()).min()
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.0.last().into_iter().chain(self.1.last()).max()
+    }
+
+    fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.0.iter().merge(self.1.iter())
+    }
+
+    fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
+        self.0.iter_rev().merge_by(self.1.iter_rev(), |l, r| l >= r)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len() + self.1.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty() && self.1.is_empty()
     }
 }
 

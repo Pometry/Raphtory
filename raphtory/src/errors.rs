@@ -111,7 +111,7 @@ pub enum WriteError {
 
     #[cfg(feature = "proto")]
     #[error("Failed to write delta to cache: {0}")]
-    WriteError(io::Error),
+    WriteError(#[from] io::Error),
 }
 
 pub type GraphResult<T> = Result<T, GraphError>;
@@ -151,11 +151,8 @@ pub enum GraphError {
         #[from]
         source: LoadError,
     },
-    #[error("Disk graph not found")]
+    #[error("Storage feature not enabled")]
     DiskGraphNotFound,
-
-    #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
-    IndexMissing,
 
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
@@ -166,8 +163,8 @@ pub enum GraphError {
     #[error("Failed to persist index.")]
     FailedToPersistIndex,
 
-    #[error("Graph index is missing")]
-    GraphIndexIsMissing,
+    #[error("Cannot persist RAM index")]
+    CannotPersistRamIndex,
 
     #[error("Failed to remove existing graph index: {0}")]
     FailedToRemoveExistingGraphIndex(PathBuf),
@@ -412,14 +409,23 @@ pub enum GraphError {
     #[error("Filter must contain at least one filter condition.")]
     ParsingError,
 
+    #[error("Node filter is not supported for edge filtering")]
+    NodeFilterIsNotEdgeFilter,
+
+    #[error("Only property filters are supported for exploded edge filtering")]
+    NotExplodedEdgeFilter,
+
     #[error("Indexing not supported")]
     IndexingNotSupported,
 
-    #[error("Failed to create index in ram")]
-    FailedToCreateIndexInRam,
+    #[error("Failed to create index in ram. There already exists an on disk index.")]
+    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
+
+    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
+    ZippedGraphCannotBeCached,
 }
 
 impl From<ConstPropError> for GraphError {

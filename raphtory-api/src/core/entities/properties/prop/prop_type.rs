@@ -117,6 +117,18 @@ impl PropType {
     pub fn has_cmp(&self) -> bool {
         self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
     }
+
+    pub fn homogeneous_map_value_type(&self) -> Option<PropType> {
+        if let PropType::Map(map) = self {
+            let mut iter = map.values();
+            if let Some(first) = iter.next() {
+                if iter.all(|v| v == first) {
+                    return Some(first.clone());
+                }
+            }
+        }
+        None
+    }
 }
 
 #[cfg(feature = "storage")]

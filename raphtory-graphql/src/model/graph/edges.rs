@@ -1,12 +1,15 @@
-use crate::model::{
-    graph::{
-        edge::GqlEdge,
-        filtering::EdgesViewCollection,
-        windowset::GqlEdgesWindowSet,
-        WindowDuration,
-        WindowDuration::{Duration, Epoch},
+use crate::{
+    model::{
+        graph::{
+            edge::GqlEdge,
+            filtering::EdgesViewCollection,
+            windowset::GqlEdgesWindowSet,
+            WindowDuration,
+            WindowDuration::{Duration, Epoch},
+        },
+        sorting::{EdgeSortBy, SortByTime},
     },
-    sorting::{EdgeSortBy, SortByTime},
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
@@ -20,7 +23,6 @@ use raphtory::{
 };
 use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
-use tokio::task::spawn_blocking;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edges")]
@@ -56,30 +58,20 @@ impl GqlEdges {
     }
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(names)))
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(names)))
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
     async fn layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.ee.valid_layers(name))
     }
 
     async fn exclude_layer(&self, name: String) -> Self {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.update(self_clone.ee.exclude_valid_layers(name)))
-            .await
-            .unwrap()
+        self.update(self.ee.exclude_valid_layers(name))
     }
 
     async fn rolling(
@@ -87,47 +79,37 @@ impl GqlEdges {
         window: WindowDuration,
         step: Option<WindowDuration>,
     ) -> Result<GqlEdgesWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match window {
+        match window {
             Duration(window_duration) => match step {
                 Some(step) => match step {
                     Duration(step_duration) => Ok(GqlEdgesWindowSet::new(
-                        self_clone
-                            .ee
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.ee.rolling(window_duration, Some(step_duration))?,
                     )),
                     Epoch(_) => Err(GraphError::MismatchedIntervalTypes),
                 },
                 None => Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_duration, None)?,
+                    self.ee.rolling(window_duration, None)?,
                 )),
             },
             Epoch(window_duration) => match step {
                 Some(step) => match step {
                     Duration(_) => Err(GraphError::MismatchedIntervalTypes),
                     Epoch(step_duration) => Ok(GqlEdgesWindowSet::new(
-                        self_clone
-                            .ee
-                            .rolling(window_duration, Some(step_duration))?,
+                        self.ee.rolling(window_duration, Some(step_duration))?,
                     )),
                 },
                 None => Ok(GqlEdgesWindowSet::new(
-                    self_clone.ee.rolling(window_duration, None)?,
+                    self.ee.rolling(window_duration, None)?,
                 )),
             },
-        })
-        .await
-        .unwrap()
+        }
     }
 
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || match step {
-            Duration(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
-            Epoch(step) => Ok(GqlEdgesWindowSet::new(self_clone.ee.expanding(step)?)),
-        })
-        .await
-        .unwrap()
+        match step {
+            Duration(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
+            Epoch(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
+        }
     }
 
     async fn window(&self, start: i64, end: i64) -> Self {
@@ -171,75 +153,51 @@ impl GqlEdges {
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
         for view in views {
-            let mut count = 0;
-            if let Some(_) = view.default_layer {
-                count += 1;
-                return_view = return_view.default_layer().await;
-            }
-            if let Some(layers) = view.layers {
-                count += 1;
-                return_view = return_view.layers(layers).await;
-            }
-            if let Some(layers) = view.exclude_layers {
-                count += 1;
-                return_view = return_view.exclude_layers(layers).await;
-            }
-            if let Some(layer) = view.layer {
-                count += 1;
-                return_view = return_view.layer(layer).await;
-            }
-            if let Some(layer) = view.exclude_layer {
-                count += 1;
-                return_view = return_view.exclude_layer(layer).await;
-            }
-            if let Some(window) = view.window {
-                count += 1;
-                return_view = return_view.window(window.start, window.end).await;
-            }
-            if let Some(time) = view.at {
-                count += 1;
-                return_view = return_view.at(time).await;
-            }
-            if let Some(_) = view.latest {
-                count += 1;
-                return_view = return_view.latest().await;
-            }
-            if let Some(time) = view.snapshot_at {
-                count += 1;
-                return_view = return_view.snapshot_at(time).await;
-            }
-            if let Some(_) = view.snapshot_latest {
-                count += 1;
-                return_view = return_view.snapshot_latest().await;
-            }
-            if let Some(time) = view.before {
-                count += 1;
-                return_view = return_view.before(time).await;
-            }
-            if let Some(time) = view.after {
-                count += 1;
-                return_view = return_view.after(time).await;
-            }
-            if let Some(window) = view.shrink_window {
-                count += 1;
-                return_view = return_view.shrink_window(window.start, window.end).await;
-            }
-            if let Some(time) = view.shrink_start {
-                count += 1;
-                return_view = return_view.shrink_start(time).await;
-            }
-            if let Some(time) = view.shrink_end {
-                count += 1;
-                return_view = return_view.shrink_end(time).await;
-            }
-            if count > 1 {
-                return Err(GraphError::TooManyViewsSet);
+            return_view = match view {
+                EdgesViewCollection::DefaultLayer(apply) => {
+                    if apply {
+                        return_view.default_layer().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::Latest(apply) => {
+                    if apply {
+                        return_view.latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::SnapshotLatest(apply) => {
+                    if apply {
+                        return_view.snapshot_latest().await
+                    } else {
+                        return_view
+                    }
+                }
+                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
+                EdgesViewCollection::ExcludeLayers(layers) => {
+                    return_view.exclude_layers(layers).await
+                }
+                EdgesViewCollection::Layer(layer) => return_view.layer(layer).await,
+                EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
+                EdgesViewCollection::Window(window) => {
+                    return_view.window(window.start, window.end).await
+                }
+                EdgesViewCollection::At(at) => return_view.at(at).await,
+                EdgesViewCollection::Before(time) => return_view.before(time).await,
+                EdgesViewCollection::After(time) => return_view.after(time).await,
+                EdgesViewCollection::ShrinkWindow(window) => {
+                    return_view.shrink_window(window.start, window.end).await
+                }
+                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
+                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
             }
         }
 
         Ok(return_view)
     }
-
     async fn explode(&self) -> Self {
         self.update(self.ee.explode())
     }
@@ -250,7 +208,7 @@ impl GqlEdges {
 
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             let sorted: Arc<[_]> = self_clone
                 .ee
                 .iter()
@@ -308,7 +266,6 @@ impl GqlEdges {
             ))
         })
         .await
-        .unwrap()
     }
 
     ////////////////////////
@@ -329,25 +286,33 @@ impl GqlEdges {
 
     async fn count(&self) -> usize {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.iter().count())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.ee.len()).await
     }
 
-    async fn page(&self, limit: usize, offset: usize) -> Vec<GqlEdge> {
+    /// Fetch one "page" of items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            let start = offset * limit;
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.iter().skip(start).take(limit).collect()
         })
         .await
-        .unwrap()
     }
 
     async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        spawn_blocking(move || self_clone.iter().collect())
-            .await
-            .unwrap()
+        blocking_compute(move || self_clone.iter().collect()).await
     }
 }
