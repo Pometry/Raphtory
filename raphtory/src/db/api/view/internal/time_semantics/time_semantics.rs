@@ -49,7 +49,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_earliest_time(node, view))
     }
 
@@ -57,7 +57,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_latest_time(node, view))
     }
 
@@ -66,7 +66,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_earliest_time_window(node, view, w))
     }
 
@@ -75,7 +75,7 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.node_latest_time_window(node, view, w))
     }
 
@@ -83,8 +83,16 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history(node, view))
+    }
+
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_history_rev(node, view))
     }
 
     fn node_history_window<'graph, G: GraphView + 'graph>(
@@ -92,8 +100,17 @@ impl NodeTimeSemanticsOps for TimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_history_window(node, view, w))
+    }
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = TimeIndexEntry> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_history_window_rev(node, view, w))
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(
@@ -235,6 +252,15 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.edge_history(edge, view, layer_ids))
     }
 
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_history_rev(edge, view, layer_ids))
+    }
+
     fn edge_history_window<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -243,6 +269,16 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.edge_history_window(edge, view, layer_ids, w))
+    }
+
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_history_window_rev(edge, view, layer_ids, w))
     }
 
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
@@ -304,7 +340,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_earliest_time(e, view))
     }
 
@@ -313,7 +349,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_earliest_time_window(e, view, w))
     }
 
@@ -323,7 +359,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_earliest_time(e, view, t, layer))
     }
 
@@ -334,7 +370,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_earliest_time_window(e, view, t, layer, w))
     }
 
@@ -342,7 +378,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         &self,
         e: EdgeStorageRef,
         view: G,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_latest_time(e, view))
     }
 
@@ -351,7 +387,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         e: EdgeStorageRef,
         view: G,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_latest_time_window(e, view, w))
     }
 
@@ -361,7 +397,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         view: G,
         t: TimeIndexEntry,
         layer: usize,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_latest_time(e, view, t, layer))
     }
 
@@ -372,7 +408,7 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         t: TimeIndexEntry,
         layer: usize,
         w: Range<i64>,
-    ) -> Option<i64> {
+    ) -> Option<TimeIndexEntry> {
         for_all!(self, semantics => semantics.edge_exploded_latest_time_window(e, view, t, layer, w))
     }
 

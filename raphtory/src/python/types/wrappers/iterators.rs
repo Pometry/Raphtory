@@ -1,6 +1,8 @@
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use ouroboros::self_referencing;
-use pyo3::{pyclass, pymethods, BoundObject, IntoPyObject, PyObject, PyRef, PyResult, Python};
+use pyo3::{
+    pyclass, pymethods, BoundObject, IntoPyObject, PyErr, PyObject, PyRef, PyResult, Python,
+};
 
 #[pyclass]
 #[self_referencing]
@@ -51,6 +53,30 @@ where
                     .map_err(|e| e.into())?
                     .into_any()
                     .unbind())
+            })
+        })
+        .into_dyn_boxed()
+    }
+}
+
+pub trait IntoPyIterResult<'a> {
+    fn into_py_iter_result(self) -> BoxedLIter<'a, PyResult<PyObject>>;
+}
+
+impl<'a, T, E, I: Iterator<Item = Result<T, E>> + Send + Sync + 'a> IntoPyIterResult<'a> for I
+where
+    T: for<'py> IntoPyObject<'py>,
+    E: Into<PyErr>,
+{
+    fn into_py_iter_result(self) -> BoxedLIter<'a, PyResult<PyObject>> {
+        self.map(|item| {
+            Python::with_gil(|py| match item.into() {
+                Ok(value) => Ok(value
+                    .into_pyobject(py)
+                    .map_err(|e| e.into())?
+                    .into_any()
+                    .unbind()),
+                Err(err) => Err(err.into()),
             })
         })
         .into_dyn_boxed()

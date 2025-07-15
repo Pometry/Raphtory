@@ -84,6 +84,7 @@ mod bipartite_graph_tests {
         },
         prelude::NO_PROPS,
     };
+    use raphtory_api::core::storage::timeindex::AsTime;
 
     #[test]
     fn small_delta_test() {
@@ -105,9 +106,23 @@ mod bipartite_graph_tests {
         }
         let new_graph = temporal_bipartite_projection(&g, 1, "Right".to_string());
         assert!(new_graph.has_edge("A", "B"));
-        assert_eq!(new_graph.edge("A", "B").unwrap().latest_time(), Some(3));
+        assert_eq!(
+            new_graph
+                .edge("A", "B")
+                .unwrap()
+                .latest_time()
+                .map(|t| t.t()),
+            Some(3)
+        );
         assert!(new_graph.has_edge("C", "B"));
-        assert_eq!(new_graph.edge("C", "B").unwrap().latest_time(), Some(10));
+        assert_eq!(
+            new_graph
+                .edge("C", "B")
+                .unwrap()
+                .latest_time()
+                .map(|t| t.t()),
+            Some(10)
+        );
         assert!(!new_graph.has_edge("A", "C"));
     }
 
@@ -132,11 +147,39 @@ mod bipartite_graph_tests {
         let new_graph = temporal_bipartite_projection(&g, 3, "Right".to_string());
 
         assert!(new_graph.has_edge("A", "B"));
-        assert_eq!(new_graph.edge("A", "B").unwrap().earliest_time(), Some(3));
-        assert_eq!(new_graph.edge("B", "A").unwrap().latest_time(), Some(7));
+        assert_eq!(
+            new_graph
+                .edge("A", "B")
+                .unwrap()
+                .earliest_time()
+                .map(|t| t.t()),
+            Some(3)
+        );
+        assert_eq!(
+            new_graph
+                .edge("B", "A")
+                .unwrap()
+                .latest_time()
+                .map(|t| t.t()),
+            Some(7)
+        );
         assert!(new_graph.has_edge("C", "B"));
-        assert_eq!(new_graph.edge("C", "B").unwrap().earliest_time(), Some(5));
-        assert_eq!(new_graph.edge("C", "B").unwrap().latest_time(), Some(10));
+        assert_eq!(
+            new_graph
+                .edge("C", "B")
+                .unwrap()
+                .earliest_time()
+                .map(|t| t.t()),
+            Some(5)
+        );
+        assert_eq!(
+            new_graph
+                .edge("C", "B")
+                .unwrap()
+                .latest_time()
+                .map(|t| t.t()),
+            Some(10)
+        );
         assert!(!new_graph.has_edge("A", "C"));
     }
 }

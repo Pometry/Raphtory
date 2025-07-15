@@ -1,5 +1,5 @@
 use ouroboros::self_referencing;
-use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
+pub use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
 
 #[self_referencing]
 pub struct GenLockedIter<'a, O, OUT> {

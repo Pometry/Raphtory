@@ -4,7 +4,10 @@ use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{TimeError, TimeIndexEntry},
+        },
     },
     inherit::Base,
     iter::IntoDynBoxed,
@@ -18,20 +21,18 @@ pub trait TemporalPropertyViewOps {
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)>;
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
-        self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
+        self.temporal_iter(id).map(|(t, _)| t).into_dyn_boxed()
     }
 
-    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
-        self.temporal_iter_rev(id)
-            .map(|(t, _)| t.t())
-            .into_dyn_boxed()
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
+        self.temporal_iter_rev(id).map(|(t, _)| t).into_dyn_boxed()
     }
 
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.temporal_history_iter(id)
             .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
+            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
@@ -120,17 +121,17 @@ where
     }
 
     #[inline]
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         self.base().temporal_history_iter(id)
     }
 
     #[inline]
-    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<i64> {
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         self.base().temporal_history_iter_rev(id)
     }
 
     #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
+    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.base().temporal_history_date_time(id)
     }
 

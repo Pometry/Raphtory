@@ -4,6 +4,8 @@ mod edge;
 mod edge_property_filter;
 mod exploded_edge_property_filter;
 pub(crate) mod graph;
+pub mod history;
+pub mod history_ref;
 pub mod internal;
 mod layer;
 pub(crate) mod node;

@@ -2,7 +2,7 @@ use crate::{
     api::core::storage::arc_str::ArcStr,
     core::{
         entities::{LayerIds, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::{TimeError, TimeIndexEntry},
     },
     db::{
         api::{

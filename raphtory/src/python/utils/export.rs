@@ -58,7 +58,7 @@ pub(crate) fn extract_properties<P>(
             }
         }
         item.temporal()
-            .histories()
+            .histories_timestamps()
             .iter()
             .for_each(|(prop_name, (time, prop_val))| {
                 let column_name = if is_prop_both_temp_and_const.contains(prop_name.as_ref()) {
@@ -90,7 +90,7 @@ pub(crate) fn extract_properties<P>(
             } else {
                 let vec_props = prop_view
                     .iter()
-                    .map(|(k, v)| Prop::from(vec![Prop::from(k), v]))
+                    .map(|(k, v)| Prop::from(vec![Prop::from(k.t()), v]))
                     .collect_vec();
                 let wrapped = Prop::List(Arc::from(vec_props));
                 let _ = properties_map.insert(column_name, wrapped);

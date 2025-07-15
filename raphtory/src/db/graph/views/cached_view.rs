@@ -284,6 +284,7 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::prelude::*;
+    use raphtory_api::core::storage::timeindex::AsTime;
 
     #[test]
     fn empty_graph() {
@@ -382,8 +383,8 @@ mod test {
                     .take(graph.unique_layers().count() / 2)
                     .collect_vec();
 
-                let earliest = graph.earliest_time().unwrap();
-                let latest = graph.latest_time().unwrap();
+                let earliest = graph.earliest_time().unwrap().t();
+                let latest = graph.latest_time().unwrap().t();
                 let middle = earliest + (latest - earliest) / 2;
 
                 if !layers.is_empty() && earliest < middle && middle < latest {

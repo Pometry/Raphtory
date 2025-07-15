@@ -29,10 +29,10 @@ pub trait GraphTimeSemanticsOps {
     fn edge_time_semantics(&self) -> TimeSemantics;
 
     /// Returns the start of the current view or `None` if unbounded
-    fn view_start(&self) -> Option<i64>;
+    fn view_start(&self) -> Option<TimeIndexEntry>;
 
     /// Returns the end of the current view or `None` if unbounded
-    fn view_end(&self) -> Option<i64>;
+    fn view_end(&self) -> Option<TimeIndexEntry>;
 
     /// Returns the timestamp for the earliest activity
     fn earliest_time_global(&self) -> Option<i64>;
@@ -137,11 +137,11 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         self.graph().edge_time_semantics()
     }
     #[inline]
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         self.graph().view_start()
     }
     #[inline]
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         self.graph().view_end()
     }
     #[inline]

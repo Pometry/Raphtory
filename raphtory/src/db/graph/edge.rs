@@ -7,7 +7,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{iter::GenLockedIter, time::IntoTime},
+        utils::iter::GenLockedIter,
     },
     db::{
         api::{
@@ -32,7 +32,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
-use raphtory_core::entities::graph::tgraph::InvalidLayer;
+use raphtory_core::{entities::graph::tgraph::InvalidLayer, utils::time::AsTimeInput};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
@@ -175,7 +175,7 @@ impl<
             + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
-    pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+    pub fn delete<T: AsTimeInput>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
@@ -709,7 +709,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'gr
 mod test_edge {
     use crate::{db::api::view::time::TimeOps, prelude::*, test_storage, test_utils::test_graph};
     use itertools::Itertools;
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
     use std::collections::HashMap;
 
     #[test]
@@ -844,6 +844,6 @@ mod test_edge {
     fn test_layers_earliest_time() {
         let g = Graph::new();
         let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
-        assert_eq!(e.earliest_time(), Some(1));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
     }
 }

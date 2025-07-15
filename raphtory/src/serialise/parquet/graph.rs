@@ -9,7 +9,10 @@ use crate::{
 use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use parquet::format::KeyValue;
-use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};
+use raphtory_api::{
+    core::storage::{arc_str::ArcStr, timeindex::AsTime},
+    GraphType,
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
@@ -27,7 +30,10 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
                 .properties()
                 .temporal()
                 .into_iter()
-                .map(|(k, view)| view.into_iter().map(move |(t, prop)| (k.clone(), t, prop)))
+                .map(|(k, view)| {
+                    view.into_iter()
+                        .map(move |(t, prop)| (k.clone(), t.t(), prop))
+                })
                 .kmerge_by(|(_, t1, _), (_, t2, _)| t1 < t2);
 
             let mut row = HashMap::<ArcStr, Prop>::new();

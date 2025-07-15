@@ -186,7 +186,7 @@ impl PyGraphView {
                 }
             }
             if include_update_history.unwrap_or(true) {
-                properties.set_item("update_history", v.history())?;
+                properties.set_item("update_history", v.history().t().collect())?;
             }
             match v.node_type() {
                 None => {}
@@ -226,7 +226,7 @@ impl PyGraphView {
                         const_props_py.set_item(key, value)?;
                     }
                     properties.set_item("constant", const_props_py)?;
-                    let prop_hist = e.properties().temporal().histories();
+                    let prop_hist = e.properties().temporal().histories_timestamps();
                     let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
                     for (key, value) in prop_hist {
                         prop_hist_map.entry(key).or_default().push(value);
@@ -246,7 +246,7 @@ impl PyGraphView {
                 if explode_edges.unwrap_or(true) {
                     properties.set_item("update_history", e.time()?)?;
                 } else {
-                    properties.set_item("update_history", e.history())?;
+                    properties.set_item("update_history", e.history().t().collect())?;
                 }
             }
             let edge_tuple = PyTuple::new(

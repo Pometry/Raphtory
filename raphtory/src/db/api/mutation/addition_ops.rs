@@ -16,7 +16,10 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::dict_mapper::MaybeNew::{Existing, New},
+    storage::{
+        dict_mapper::MaybeNew::{Existing, New},
+        timeindex::AsTime,
+    },
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
@@ -67,7 +70,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self, Self>, GraphError> {
-        let time: i64 = t.parse_time(fmt)?;
+        let time: i64 = t.parse_time(fmt)?.t();
         self.add_node(time, v, props, node_type)
     }
 
@@ -109,7 +112,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        let time: i64 = t.parse_time(fmt)?;
+        let time: i64 = t.parse_time(fmt)?.t();
         self.add_edge(time, src, dst, props, layer)
     }
 }
