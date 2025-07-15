@@ -91,7 +91,7 @@ assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == 
     Rank 5: VIOLETTE with a score of 0.05759
     ```
 
-Links to more complex queries
+Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../../views/2_time/). 
 
 ## Start the UI server
 
