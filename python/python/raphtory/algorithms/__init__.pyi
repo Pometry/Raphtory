@@ -62,6 +62,7 @@ __all__ = [
     "hits",
     "balance",
     "label_propagation",
+    "k_core",
     "temporal_SEIR",
     "louvain",
     "fruchterman_reingold",
@@ -626,6 +627,23 @@ def label_propagation(
 
     Returns:
         list[set[Node]]: A list of sets each containing nodes that have been grouped
+
+    """
+
+def k_core(
+    graph: GraphView, k: int, iter_count: int, threads: Optional[int] = None
+) -> list[Node]:
+    """
+    Determines which nodes are in the k-core for a given value of k
+
+    Arguments:
+        graph (GraphView): A reference to the graph
+        k (int): Value of k such that the returned nodes have degree > k (recursively)
+        iter_count (int): The number of iterations to run
+        threads (int, optional): number of threads to run on
+
+    Returns:
+        list[Node]: A list of nodes in the k core
 
     """
 
