@@ -187,28 +187,13 @@ impl PropMapper {
         }
     }
 
-    pub fn get_and_validate(
-        &self,
-        prop: &str,
-        dtype: PropType,
-    ) -> Result<Option<usize>, PropError> {
-        match self.get_id(prop) {
-            Some(id) => {
-                let existing_dtype = self
-                    .get_dtype(id)
-                    .expect("Existing id should always have a dtype");
-                if unify_types(&existing_dtype, &dtype, &mut false).is_ok() {
-                    Ok(Some(id))
-                } else {
-                    Err(PropError::PropertyTypeError {
-                        name: prop.to_string(),
-                        expected: existing_dtype,
-                        actual: dtype,
-                    })
-                }
-            }
-            None => Ok(None),
-        }
+    pub fn get_id_and_dtype(&self, prop: &str) -> Option<(usize, PropType)> {
+        self.get_id(prop).map(|id| {
+            let existing_dtype = self
+                .get_dtype(id)
+                .expect("Existing id should always have a dtype");
+            (id, existing_dtype)
+        })
     }
 
     pub fn get_or_create_and_validate(

@@ -15,7 +15,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
-        prop::{sort_comparable_props, Prop},
+        prop::{sort_comparable_props, unify_types, Prop, PropType},
     },
     storage::arc_str::ArcStr,
 };
@@ -218,17 +218,93 @@ impl PropertyFilter {
         }
     }
 
+    fn validate(&self, dtype: &PropType, validate_as_map: bool) -> Result<(), GraphError> {
+        match self.operator {
+            FilterOperator::Eq | FilterOperator::Ne => {
+                let filter_dtype = match &self.prop_value {
+                    PropertyFilterValue::None => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
+                    }
+                    PropertyFilterValue::Single(value) => value.dtype(),
+                    PropertyFilterValue::Set(_) => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
+                    }
+                };
+                let actual_filter_dtype = if validate_as_map {
+                    filter_dtype.homogeneous_map_value_type().ok_or(
+                        GraphError::InvalidHomogeneousMap(dtype.clone(), filter_dtype),
+                    )?
+                } else {
+                    filter_dtype
+                };
+                unify_types(dtype, &actual_filter_dtype, &mut false)?;
+            }
+            FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge => {
+                let filter_dtype = match &self.prop_value {
+                    PropertyFilterValue::None => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
+                    }
+                    PropertyFilterValue::Single(value) => value.dtype(),
+                    PropertyFilterValue::Set(_) => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
+                    }
+                };
+                if !filter_dtype.has_cmp() {
+                    return Err(GraphError::InvalidFilterCmp(filter_dtype));
+                }
+                let actual_filter_dtype = if validate_as_map {
+                    filter_dtype.homogeneous_map_value_type().ok_or(
+                        GraphError::InvalidHomogeneousMap(dtype.clone(), filter_dtype),
+                    )?
+                } else {
+                    filter_dtype
+                };
+                unify_types(dtype, &actual_filter_dtype, &mut false)?;
+            }
+            FilterOperator::In | FilterOperator::NotIn => match &self.prop_value {
+                PropertyFilterValue::None => {
+                    return Err(GraphError::InvalidFilterExpectSetGotNone(self.operator))
+                }
+                PropertyFilterValue::Single(_) => {
+                    return Err(GraphError::InvalidFilterExpectSetGotSingle(self.operator))
+                }
+                PropertyFilterValue::Set(_) => {}
+            },
+            FilterOperator::IsSome | FilterOperator::IsNone => {}
+            FilterOperator::Contains
+            | FilterOperator::NotContains
+            | FilterOperator::FuzzySearch { .. } => {
+                if validate_as_map {
+                    return Err(GraphError::InvalidContains(self.operator));
+                }
+                match &self.prop_value {
+                    PropertyFilterValue::None => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
+                    }
+                    PropertyFilterValue::Single(v) => {
+                        if !matches!(dtype, PropType::Str) || !matches!(v.dtype(), PropType::Str) {
+                            return Err(GraphError::InvalidContains(self.operator));
+                        }
+                    }
+                    PropertyFilterValue::Set(_) => {
+                        return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
+                    }
+                };
+            }
+        }
+        Ok(())
+    }
     pub fn resolve_temporal_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
         match self.prop_ref {
             PropertyRef::ConstantProperty(_) => Ok(None),
             _ => {
                 let prop_name = self.prop_ref.name();
-                if let PropertyFilterValue::Single(value) = &self.prop_value {
-                    Ok(meta
-                        .temporal_prop_meta()
-                        .get_and_validate(prop_name, value.dtype())?)
-                } else {
-                    Ok(meta.temporal_prop_meta().get_id(prop_name))
+                match meta.temporal_prop_meta().get_id_and_dtype(prop_name) {
+                    None => Ok(None),
+                    Some((id, dtype)) => {
+                        self.validate(&dtype, false)?;
+                        Ok(Some(id))
+                    }
                 }
             }
         }
@@ -240,19 +316,12 @@ impl PropertyFilter {
         resolve_to_map: bool,
     ) -> Result<Option<usize>, GraphError> {
         let prop_name = self.prop_ref.name();
-        if let PropertyFilterValue::Single(value) = &self.prop_value {
-            if resolve_to_map {
-                if let Some(inner_type) = value.dtype().homogeneous_map_value_type() {
-                    return Ok(meta
-                        .const_prop_meta()
-                        .get_and_validate(prop_name, inner_type)?);
-                }
+        match meta.const_prop_meta().get_id_and_dtype(prop_name) {
+            None => Ok(None),
+            Some((id, dtype)) => {
+                self.validate(&dtype, resolve_to_map)?;
+                Ok(Some(id))
             }
-            Ok(meta
-                .const_prop_meta()
-                .get_and_validate(prop_name, value.dtype())?)
-        } else {
-            Ok(meta.const_prop_meta().get_id(prop_name))
         }
     }
 

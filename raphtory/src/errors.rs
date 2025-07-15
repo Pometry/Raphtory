@@ -368,7 +368,25 @@ pub enum GraphError {
     NotSupported,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
-    InvalidFilter(FilterOperator),
+    InvalidFilterExpectSingleGotNone(FilterOperator),
+
+    #[error("Operator {0} requires a single value, but a set was provided.")]
+    InvalidFilterExpectSingleGotSet(FilterOperator),
+
+    #[error("Comparison not implemented for {0}")]
+    InvalidFilterCmp(PropType),
+
+    #[error("Expected a homogeneous map with inner type {0}, got {1}")]
+    InvalidHomogeneousMap(PropType, PropType),
+
+    #[error("Operator {0} requires a set of values, but a single value was provided.")]
+    InvalidFilterExpectSetGotSingle(FilterOperator),
+
+    #[error("Operator {0} requires a set of values, but none was provided.")]
+    InvalidFilterExpectSetGotNone(FilterOperator),
+
+    #[error("Operator {0} is only supported for strings.")]
+    InvalidContains(FilterOperator),
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
