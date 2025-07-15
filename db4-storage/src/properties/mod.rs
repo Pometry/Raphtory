@@ -284,8 +284,7 @@ impl<'a> PropMutEntry<'a> {
         {
             t_prop_row
         } else {
-            let row = self.properties.t_properties.push_null();
-            row
+            self.properties.t_properties.push_null()
         };
 
         if self.properties.times_from_props.len() <= self.row {

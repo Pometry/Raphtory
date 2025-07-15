@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{
     gen_t_props::GenTProps,
@@ -127,4 +127,22 @@ pub fn calculate_size_recursive(path: &Path) -> Result<usize, std::io::Error> {
         size += path.metadata()?.len() as usize;
     }
     Ok(size)
+}
+
+pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+    if path.is_dir() {
+        for entry in std::fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let entry_path = entry.path();
+            if entry_path.is_dir() {
+                paths.extend(collect_tree_paths(&entry_path));
+            } else {
+                paths.push(entry_path);
+            }
+        }
+    } else {
+        paths.push(path.to_path_buf());
+    }
+    paths
 }
