@@ -3,70 +3,62 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use serde::{Deserialize, Serialize};
 
 use crate::error::DBV4Error;
 use crate::wal::{LSN, TransactionID, WalEntryOps};
+use crate::wal::no_wal::NoWal;
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NoWalEntry;
-
-impl<'a> WalEntryOps<'a> for NoWalEntry {
-    fn begin_txn(_txn_id: TransactionID) -> Self {
-        NoWalEntry
+impl WalEntryOps for NoWal {
+    fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn commit_txn(_txn_id: TransactionID) -> Self {
-        NoWalEntry
+    fn log_end_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_edge(
+    fn log_add_edge(
+        &self,
         _txn_id: TransactionID,
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
         _layer_id: usize,
-        _t_props: &'a [(usize, Prop)],
-        _c_props: &'a [(usize, Prop)],
-    ) -> Self {
-        NoWalEntry
+        _t_props: &[(usize, Prop)],
+        _c_props: &[(usize, Prop)],
+    ) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_node_id(_txn_id: TransactionID, _gid: GID, _vid: VID) -> Self {
-        NoWalEntry
+    fn log_node_id(&self, _txn_id: TransactionID, _gid: GID, _vid: VID) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_edge_id(_txn_id: TransactionID, _src: VID, _dst: VID, _eid: EID) -> Self {
-        NoWalEntry
+    fn log_edge_id(&self, _txn_id: TransactionID, _src: VID, _dst: VID, _eid: EID) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_new_const_prop_ids<PN: AsRef<str>>(
+    fn log_const_prop_ids<PN: AsRef<str>>(
+        &self,
         _txn_id: TransactionID,
-        _props: &'a [MaybeNew<(PN, usize, Prop)>],
-    ) -> Self {
-        NoWalEntry
+        _props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_new_temporal_prop_ids<PN: AsRef<str>>(
+    fn log_temporal_prop_ids<PN: AsRef<str>>(
+        &self,
         _txn_id: TransactionID,
-        _props: &'a [MaybeNew<(PN, usize, Prop)>],
-    ) -> Self {
-        NoWalEntry
+        _props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn add_layer_id(_txn_id: TransactionID, _name: &'a str, _id: usize) -> Self {
-        NoWalEntry
+    fn log_layer_id(&self, _txn_id: TransactionID, _name: &str, _id: usize) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn checkpoint(_lsn: LSN) -> Self {
-        NoWalEntry
-    }
-
-    fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error> {
-        Ok(vec![])
-    }
-
-    fn from_bytes(_bytes: &[u8]) -> Result<Self, DBV4Error> {
-        Ok(NoWalEntry)
+    fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 }

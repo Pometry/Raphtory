@@ -18,6 +18,7 @@ pub struct WalRecord {
     pub data: Vec<u8>,
 }
 
+/// Core Wal methods.
 pub trait WalOps {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error>
     where
@@ -38,24 +39,26 @@ pub trait WalOps {
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
-pub trait WalEntryOps<'a> {
-    fn begin_txn(txn_id: TransactionID) -> Self;
+// High-level, raphtory-specific logging methods.
+pub trait WalEntryOps {
+    fn log_begin_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
 
-    fn commit_txn(txn_id: TransactionID) -> Self;
+    fn log_end_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
 
-    fn add_edge(
+    fn log_add_edge(
+        &self,
         txn_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
         layer_id: usize,
-        t_props: &'a [(usize, Prop)],
-        c_props: &'a [(usize, Prop)],
-    ) -> Self;
+        t_props: &[(usize, Prop)],
+        c_props: &[(usize, Prop)],
+    ) -> Result<LSN, DBV4Error>;
 
-    fn add_node_id(txn_id: TransactionID, gid: GID, vid: VID) -> Self;
+    fn log_node_id(&self, txn_id: TransactionID, gid: GID, vid: VID) -> Result<LSN, DBV4Error>;
 
-    fn add_edge_id(txn_id: TransactionID, src: VID, dst: VID, eid: EID) -> Self;
+    fn log_edge_id(&self, txn_id: TransactionID, src: VID, dst: VID, eid: EID) -> Result<LSN, DBV4Error>;
 
     /// Log new constant prop name -> prop id mappings.
     ///
@@ -63,10 +66,11 @@ pub trait WalEntryOps<'a> {
     ///
     /// * `txn_id` - The transaction ID
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value)
-    fn add_new_const_prop_ids<PN: AsRef<str>>(
+    fn log_const_prop_ids<PN: AsRef<str>>(
+        &self,
         txn_id: TransactionID,
-        props: &'a [MaybeNew<(PN, usize, Prop)>],
-    ) -> Self;
+        props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<LSN, DBV4Error>;
 
     /// Log new temporal prop name -> prop id mappings.
     ///
@@ -74,22 +78,23 @@ pub trait WalEntryOps<'a> {
     ///
     /// * `txn_id` - The transaction ID
     /// * `props` - A slice containing new or existing tuples of (prop name, id, value).
-    fn add_new_temporal_prop_ids<PN: AsRef<str>>(
+    fn log_temporal_prop_ids<PN: AsRef<str>>(
+        &self,
         txn_id: TransactionID,
-        props: &'a [MaybeNew<(PN, usize, Prop)>],
-    ) -> Self;
+        props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<LSN, DBV4Error>;
 
-    fn add_layer_id(txn_id: TransactionID, name: &'a str, id: usize) -> Self;
+    fn log_layer_id(&self, txn_id: TransactionID, name: &str, id: usize) -> Result<LSN, DBV4Error>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.
-    fn checkpoint(lsn: LSN) -> Self;
+    fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, DBV4Error>;
 
-    // Methods to serialize/deserialize
+    // // Methods to serialize/deserialize
 
-    fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
+    // fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
 
-    fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error>
-    where
-        Self: Sized;
+    // fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error>
+    // where
+    //     Self: Sized;
 }
