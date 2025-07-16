@@ -87,6 +87,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeTypeFilte
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeTypeFilteredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeTypeFilteredGraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        true
+    }
+
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.node_types_filter

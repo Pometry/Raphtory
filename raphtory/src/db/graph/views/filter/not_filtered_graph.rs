@@ -3,8 +3,8 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps,
-                InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+                FilterOps, GraphView, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
@@ -23,7 +23,10 @@ use raphtory_api::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+    graph::{
+        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -68,21 +71,27 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for NotFilteredGra
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for NotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for NotFilteredGraph<G, T> {}
 
-impl<G: InternalNodeFilterOps, T: InternalNodeFilterOps> InternalNodeFilterOps
-    for NotFilteredGraph<G, T>
-{
+impl<G: GraphView, T: GraphView> InternalNodeFilterOps for NotFilteredGraph<G, T> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered() || self.filter.internal_nodes_filtered()
+    }
+
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_node(node, layer_ids)
-            && !self.filter.internal_filter_node(node, layer_ids)
+        self.graph.internal_filter_node(node, layer_ids) && {
+            !self.filter.internal_nodes_filtered()
+                || !self
+                    .filter
+                    .internal_filter_node(node, self.filter.layer_ids())
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeLayerFilterOps
+impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeLayerFilterOps
     for NotFilteredGraph<G, T>
 {
     fn internal_edge_layer_filtered(&self) -> bool {
-        true
+        self.graph.internal_edge_layer_filtered() || self.filter.internal_edge_layer_filtered()
     }
 
     fn internal_layer_filter_edge_list_trusted(&self) -> bool {
@@ -90,15 +99,19 @@ impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeLayerFilterOps
     }
 
     fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
-        self.graph.filter_edge_layer(edge, layer) && !self.filter.filter_edge_layer(edge, layer)
+        self.graph.internal_filter_edge_layer(edge, layer) && {
+            !self.filter.internal_edge_layer_filtered()
+                || !self.filter.internal_filter_edge_layer(edge, layer)
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalExplodedEdgeFilterOps
+impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalExplodedEdgeFilterOps
     for NotFilteredGraph<G, T>
 {
     fn internal_exploded_edge_filtered(&self) -> bool {
-        true
+        self.graph.internal_exploded_edge_filtered()
+            || self.filter.internal_exploded_edge_filtered()
     }
 
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
@@ -111,16 +124,19 @@ impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalExplodedEdgeFilterOp
         t: TimeIndexEntry,
         _layer_ids: &LayerIds,
     ) -> bool {
-        self.graph.filter_exploded_edge(eid, t) && !self.filter.filter_exploded_edge(eid, t)
+        self.graph.filter_exploded_edge(eid, t) && {
+            !self.filter.internal_exploded_edge_filtered()
+                || !self.filter.filter_exploded_edge(eid, t)
+        }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeFilterOps
+impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeFilterOps
     for NotFilteredGraph<G, T>
 {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        true
+        self.graph.internal_edge_filtered() || self.filter.internal_edge_filtered()
     }
 
     #[inline]
@@ -129,7 +145,12 @@ impl<'graph, G: GraphViewOps<'graph>, T: FilterOps> InternalEdgeFilterOps
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, _layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge(edge) && !self.filter.filter_edge(edge)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_edge(edge, layer_ids) && {
+            !self.filter.internal_edge_filtered()
+                || !self
+                    .filter
+                    .internal_filter_edge(edge, self.filter.layer_ids())
+        }
     }
 }

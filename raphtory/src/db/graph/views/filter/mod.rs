@@ -3840,7 +3840,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-
+            
             assert_search_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,

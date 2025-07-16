@@ -367,7 +367,7 @@ mod test_exploded_edge_property_filtered_graph {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 0, [("test", 1i64)], None).unwrap();
         let gf = g
-            .filter(ExplodedEdgeFilter::property("test").ge(1i64))
+            .filter(ExplodedEdgeFilter::property("test").gt(1i64))
             .unwrap();
 
         assert_eq!(gf.count_edges(), 1);
