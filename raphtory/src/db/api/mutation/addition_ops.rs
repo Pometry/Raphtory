@@ -328,18 +328,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
-        // Log any layer -> layer id mappings
-        match (layer, layer_id) {
-            // Only log if layer is specified & is a new layer
-            (Some(layer), New(layer_id)) => {
-                let wal_entry = WalEntry::add_layer_id(txn_id, layer, layer_id);
-                self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
-            }
-            _ => {}
-        }
-
-        let layer_id = layer_id.inner();
-
         // Log any node -> node id mappings
         // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
@@ -362,6 +350,19 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let src_id = src_id.inner();
         let dst_id = dst_id.inner();
 
+        // Log any layer -> layer id mappings
+        match (layer, layer_id) {
+            // Only log if layer is specified & is a new layer
+            (Some(layer), New(layer_id)) => {
+                let wal_entry = WalEntry::add_layer_id(txn_id, layer, layer_id);
+                self.wal().append(&wal_entry.to_bytes().unwrap()).unwrap();
+            }
+            _ => {}
+        }
+
+        let layer_id = layer_id.inner();
+
+        // Holds all locks for nodes and edge until add_edge_op goes out of scope
         let mut add_edge_op = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;

@@ -9,15 +9,15 @@ use crate::error::DBV4Error;
 use crate::wal::{LSN, TransactionID, WalEntryBuilder};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EmptyWalEntry;
+pub struct NoWalEntry;
 
-impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
+impl<'a> WalEntryBuilder<'a> for NoWalEntry {
     fn begin_txn(_txn_id: TransactionID) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn commit_txn(_txn_id: TransactionID) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_edge(
@@ -29,37 +29,37 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
         _t_props: &'a [(usize, Prop)],
         _c_props: &'a [(usize, Prop)],
     ) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_node_id(_txn_id: TransactionID, _gid: GID, _vid: VID) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_edge_id(_txn_id: TransactionID, _src: VID, _dst: VID, _eid: EID) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_new_const_prop_ids<PN: AsRef<str>>(
         _txn_id: TransactionID,
         _props: &'a [MaybeNew<(PN, usize, Prop)>],
     ) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_new_temporal_prop_ids<PN: AsRef<str>>(
         _txn_id: TransactionID,
         _props: &'a [MaybeNew<(PN, usize, Prop)>],
     ) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn add_layer_id(_txn_id: TransactionID, _name: &'a str, _id: usize) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn checkpoint(_lsn: LSN) -> Self {
-        EmptyWalEntry
+        NoWalEntry
     }
 
     fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error> {
@@ -67,6 +67,6 @@ impl<'a> WalEntryBuilder<'a> for EmptyWalEntry {
     }
 
     fn from_bytes(_bytes: &[u8]) -> Result<Self, DBV4Error> {
-        Ok(EmptyWalEntry)
+        Ok(NoWalEntry)
     }
 }
