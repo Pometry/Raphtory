@@ -83,6 +83,28 @@ pub trait CoreGraphOps: Send + Sync {
         self.core_graph().unfiltered_num_layers()
     }
 
+    /// Return the id of the single layer if `layer_ids` reduces to a graph with a single layer, else None
+    fn single_layer(&self, layer_ids: &LayerIds) -> Option<usize> {
+        match layer_ids {
+            LayerIds::None => None,
+            LayerIds::All => {
+                if self.unfiltered_num_layers() == 1 {
+                    Some(0)
+                } else {
+                    None
+                }
+            }
+            LayerIds::One(id) => Some(*id),
+            LayerIds::Multiple(ids) => {
+                if ids.len() == 1 {
+                    Some(ids.0[0])
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
     fn core_graph(&self) -> &GraphStorage;
 
     #[inline]

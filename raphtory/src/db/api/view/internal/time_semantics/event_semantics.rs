@@ -755,38 +755,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         };
 
         let layer_ids = view.layer_ids();
-        match layer_ids {
-            LayerIds::None => return None,
-            LayerIds::All => match view.unfiltered_num_layers() {
-                0 => return None,
-                1 => {
-                    return if layer_filter(0) {
-                        e.constant_prop_layer(0, prop_id)
-                    } else {
-                        None
-                    }
-                }
-                _ => {}
-            },
-            LayerIds::One(layer_id) => {
-                return if layer_filter(*layer_id) {
-                    e.constant_prop_layer(*layer_id, prop_id)
-                } else {
-                    None
-                }
-            }
-            _ => {}
-        };
-        let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(layer, v)| (view.get_layer_name(layer), v))
-            .peekable();
-        if values.peek().is_some() {
-            Some(Prop::map(values))
-        } else {
-            None
-        }
+        view.single_layer(layer_ids)
+            .filter(|&layer| layer_filter(layer))
+            .and_then(|layer| e.constant_prop_layer(layer, prop_id))
     }
 
     fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
@@ -803,36 +774,8 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         };
 
         let layer_ids = view.layer_ids();
-        match layer_ids {
-            LayerIds::None => return None,
-            LayerIds::All => match view.unfiltered_num_layers() {
-                0 => return None,
-                1 => {
-                    return if layer_filter(0) {
-                        e.constant_prop_layer(0, prop_id)
-                    } else {
-                        None
-                    }
-                }
-                _ => {}
-            },
-            LayerIds::One(layer_id) => {
-                return if layer_filter(*layer_id) {
-                    e.constant_prop_layer(*layer_id, prop_id)
-                } else {
-                    None
-                }
-            }
-            _ => {}
-        };
-        let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
-            .filter_map(|(layer, v)| layer_filter(layer).then(|| (view.get_layer_name(layer), v)))
-            .peekable();
-        if values.peek().is_some() {
-            Some(Prop::map(values))
-        } else {
-            None
-        }
+        view.single_layer(layer_ids)
+            .filter(|&layer| layer_filter(layer))
+            .and_then(|layer| e.constant_prop_layer(layer, prop_id))
     }
 }

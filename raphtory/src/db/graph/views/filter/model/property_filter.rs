@@ -218,7 +218,7 @@ impl PropertyFilter {
         }
     }
 
-    fn validate(&self, dtype: &PropType, validate_as_map: bool) -> Result<(), GraphError> {
+    fn validate(&self, dtype: &PropType) -> Result<(), GraphError> {
         match self.operator {
             FilterOperator::Eq | FilterOperator::Ne => {
                 let filter_dtype = match &self.prop_value {
@@ -230,14 +230,7 @@ impl PropertyFilter {
                         return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
                     }
                 };
-                let actual_filter_dtype = if validate_as_map {
-                    filter_dtype.homogeneous_map_value_type().ok_or(
-                        GraphError::InvalidHomogeneousMap(dtype.clone(), filter_dtype),
-                    )?
-                } else {
-                    filter_dtype
-                };
-                unify_types(dtype, &actual_filter_dtype, &mut false)
+                unify_types(dtype, &filter_dtype, &mut false)
                     .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
             }
             FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge => {
@@ -253,14 +246,7 @@ impl PropertyFilter {
                 if !filter_dtype.has_cmp() {
                     return Err(GraphError::InvalidFilterCmp(filter_dtype));
                 }
-                let actual_filter_dtype = if validate_as_map {
-                    filter_dtype.homogeneous_map_value_type().ok_or(
-                        GraphError::InvalidHomogeneousMap(dtype.clone(), filter_dtype),
-                    )?
-                } else {
-                    filter_dtype
-                };
-                unify_types(dtype, &actual_filter_dtype, &mut false)
+                unify_types(dtype, &filter_dtype, &mut false)
                     .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
             }
             FilterOperator::In | FilterOperator::NotIn => match &self.prop_value {
@@ -276,9 +262,6 @@ impl PropertyFilter {
             FilterOperator::Contains
             | FilterOperator::NotContains
             | FilterOperator::FuzzySearch { .. } => {
-                if validate_as_map {
-                    return Err(GraphError::InvalidContains(self.operator));
-                }
                 match &self.prop_value {
                     PropertyFilterValue::None => {
                         return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
@@ -304,7 +287,7 @@ impl PropertyFilter {
                 match meta.temporal_prop_meta().get_id_and_dtype(prop_name) {
                     None => Ok(None),
                     Some((id, dtype)) => {
-                        self.validate(&dtype, false)?;
+                        self.validate(&dtype)?;
                         Ok(Some(id))
                     }
                 }
@@ -312,16 +295,12 @@ impl PropertyFilter {
         }
     }
 
-    pub fn resolve_constant_prop_id(
-        &self,
-        meta: &Meta,
-        resolve_to_map: bool,
-    ) -> Result<Option<usize>, GraphError> {
+    pub fn resolve_constant_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
         let prop_name = self.prop_ref.name();
         match meta.const_prop_meta().get_id_and_dtype(prop_name) {
             None => Ok(None),
             Some((id, dtype)) => {
-                self.validate(&dtype, resolve_to_map)?;
+                self.validate(&dtype)?;
                 Ok(Some(id))
             }
         }
