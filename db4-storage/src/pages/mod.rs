@@ -131,14 +131,18 @@ impl<
 
         let ext = EXT::default();
 
-        let nodes = Arc::new(NodeStorageInner::load(
-            nodes_path,
-            max_page_len_nodes,
-            ext.clone(),
-        )?);
         let edges = Arc::new(EdgeStorageInner::load(
             edges_path,
             max_page_len_edges,
+            ext.clone(),
+        )?);
+
+        let edge_meta = edges.edge_meta().clone();
+
+        let nodes = Arc::new(NodeStorageInner::load(
+            nodes_path,
+            max_page_len_nodes,
+            edge_meta,
             ext.clone(),
         )?);
 
@@ -163,10 +167,14 @@ impl<
         let edges_path = graph_dir.as_ref().join("edges");
         let ext = EXT::default();
 
+        let node_meta = Arc::new(node_meta);
+        let edge_meta = Arc::new(edge_meta);
+
         let nodes = Arc::new(NodeStorageInner::new_with_meta(
             nodes_path,
             max_page_len_nodes,
             node_meta,
+            edge_meta.clone(),
             ext.clone(),
         ));
         let edges = Arc::new(EdgeStorageInner::new_with_meta(

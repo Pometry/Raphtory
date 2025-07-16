@@ -120,7 +120,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     pub fn new_with_meta(
         edges_path: impl AsRef<Path>,
         max_page_len: usize,
-        edge_meta: Meta,
+        edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
@@ -130,13 +130,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             free_pages: free_pages.try_into().unwrap(),
             edges_path: edges_path.as_ref().to_path_buf(),
             max_page_len,
-            prop_meta: edge_meta.into(),
+            prop_meta: edge_meta,
             ext,
         }
     }
 
     pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
-        Self::new_with_meta(edges_path, max_page_len, Meta::new(), ext)
+        Self::new_with_meta(edges_path, max_page_len, Meta::new().into(), ext)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {

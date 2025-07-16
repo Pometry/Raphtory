@@ -219,6 +219,11 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
+        // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
+        self.node_meta().layer_meta().set_id(
+            self.edge_meta().layer_meta().get_name(id.inner()),
+            id.inner(),
+        );
         if let MaybeNew::New(id) = id {
             if id > MAX_LAYER {
                 Err(TooManyLayers)?;

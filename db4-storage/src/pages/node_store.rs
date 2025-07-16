@@ -27,7 +27,8 @@ pub struct NodeStorageInner<NS, EXT> {
     layer_counter: Arc<GraphStats>,
     nodes_path: PathBuf,
     max_page_len: usize,
-    prop_meta: Arc<Meta>,
+    node_meta: Arc<Meta>,
+    edge_meta: Arc<Meta>,
     ext: EXT,
 }
 
@@ -87,14 +88,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         }
     }
 
-    pub fn new(nodes_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
-        Self::new_with_meta(nodes_path, max_page_len, Meta::new(), ext)
-    }
-
     pub fn new_with_meta(
         nodes_path: impl AsRef<Path>,
         max_page_len: usize,
-        node_meta: Meta,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
         Self {
@@ -102,13 +100,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             layer_counter: GraphStats::new().into(),
             nodes_path: nodes_path.as_ref().to_path_buf(),
             max_page_len,
-            prop_meta: node_meta.into(),
+            node_meta,
+            edge_meta,
             ext,
         }
     }
 
     pub fn node_meta(&self) -> &Arc<Meta> {
-        &self.prop_meta
+        &self.node_meta
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedNodePages<'a, NS> {
@@ -142,7 +141,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn prop_meta(&self) -> &Arc<Meta> {
-        &self.prop_meta
+        &self.node_meta
     }
 
     #[inline(always)]
@@ -178,11 +177,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     pub fn load(
         nodes_path: impl AsRef<Path>,
         max_page_len: usize,
+        edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, DBV4Error> {
         let nodes_path = nodes_path.as_ref();
 
-        let meta = Arc::new(Meta::new());
+        let node_meta = Arc::new(Meta::new());
         let mut pages = std::fs::read_dir(nodes_path)?
             .filter(|entry| {
                 entry
@@ -197,8 +197,15 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                     .path()
                     .file_stem()
                     .and_then(|name| name.to_str().and_then(|name| name.parse::<usize>().ok()))?;
-                let page = NS::load(page_id, max_page_len, meta.clone(), nodes_path, ext.clone())
-                    .map(|page| (page_id, page));
+                let page = NS::load(
+                    page_id,
+                    max_page_len,
+                    node_meta.clone(),
+                    edge_meta.clone(),
+                    nodes_path,
+                    ext.clone(),
+                )
+                .map(|page| (page_id, page));
                 Some(page)
             })
             .collect::<Result<HashMap<_, _>, _>>()?;
@@ -212,7 +219,14 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         let pages = (0..=max_page)
             .map(|page_id| {
                 let np = pages.remove(&page_id).unwrap_or_else(|| {
-                    NS::new(page_id, max_page_len, meta.clone(), nodes_path, ext.clone())
+                    NS::new(
+                        page_id,
+                        max_page_len,
+                        node_meta.clone(),
+                        edge_meta.clone(),
+                        nodes_path,
+                        ext.clone(),
+                    )
                 });
                 Arc::new(np)
             })
@@ -244,7 +258,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             nodes_path: nodes_path.to_path_buf(),
             max_page_len,
             layer_counter: GraphStats::from(layer_counts).into(),
-            prop_meta: meta,
+            node_meta,
+            edge_meta,
             ext,
         })
     }
@@ -291,7 +306,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                     Arc::new(NS::new(
                         segment_id,
                         self.max_page_len,
-                        self.prop_meta.clone(),
+                        self.node_meta.clone(),
+                        self.edge_meta.clone(),
                         self.nodes_path.clone(),
                         self.ext.clone(),
                     ))

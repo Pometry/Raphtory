@@ -52,13 +52,13 @@ pub trait TimeIndexOps<'a>: Sized + Clone + Send + Sync + 'a {
 
     #[inline]
     fn active_t(&self, w: Range<i64>) -> bool {
-        self.active(Self::IndexType::range(w))
+        self.active(<Self::IndexType as AsTime>::range(w))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType;
 
     fn range_t(&self, w: Range<i64>) -> Self::RangeType {
-        self.range(Self::IndexType::range(w))
+        self.range(<Self::IndexType as AsTime>::range(w))
     }
 
     fn first_t(&self) -> Option<i64> {

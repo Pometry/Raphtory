@@ -211,7 +211,7 @@ impl DictMapper {
     }
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
-        self.map.read().get(name).map(|id| *id)
+        self.map.read().get(name).copied()
     }
 
     /// Explicitly set the id for a key (useful for initialising the map in parallel)
