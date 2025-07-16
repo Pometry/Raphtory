@@ -27,7 +27,7 @@ use storage::{
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    wal::{TransactionID, WalOps, WalEntryBuilder},
+    wal::{TransactionID, WalOps, WalEntryOps},
     Extension, ES, NS, Wal, WalEntry
 };
 

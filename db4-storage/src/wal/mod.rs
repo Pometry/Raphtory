@@ -38,7 +38,7 @@ pub trait WalOps {
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
-pub trait WalEntryBuilder<'a> {
+pub trait WalEntryOps<'a> {
     fn begin_txn(txn_id: TransactionID) -> Self;
 
     fn commit_txn(txn_id: TransactionID) -> Self;

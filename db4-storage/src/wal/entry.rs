@@ -6,12 +6,12 @@ use raphtory_core::{
 use serde::{Deserialize, Serialize};
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, TransactionID, WalEntryBuilder};
+use crate::wal::{LSN, TransactionID, WalEntryOps};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoWalEntry;
 
-impl<'a> WalEntryBuilder<'a> for NoWalEntry {
+impl<'a> WalEntryOps<'a> for NoWalEntry {
     fn begin_txn(_txn_id: TransactionID) -> Self {
         NoWalEntry
     }

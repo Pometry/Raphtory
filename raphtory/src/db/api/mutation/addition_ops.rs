@@ -20,7 +20,7 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
-use storage::wal::{WalEntryBuilder, WalOps};
+use storage::wal::{WalEntryOps, WalOps};
 use storage::WalEntry;
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
