@@ -305,7 +305,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        // Log any new prop name -> prop id mappings
+        // Log prop name -> prop id mappings
         self.wal().log_temporal_prop_ids(txn_id, &props_with_status).unwrap();
 
         let props = props_with_status
@@ -325,33 +325,23 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
-        // Log any node -> node id mappings
+        // Log node -> node id mappings
         // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-        match (src_id, src.as_node_ref().as_gid_ref().left()) {
-            (New(src_id), Some(gid)) => {
-                self.wal().log_node_id(txn_id, gid.into(), src_id).unwrap();
-            }
-            _ => {}
+        if let Some(gid) = src.as_node_ref().as_gid_ref().left() {
+            self.wal().log_node_id(txn_id, gid.into(), src_id.inner()).unwrap();
         }
 
-        match (dst_id, dst.as_node_ref().as_gid_ref().left()) {
-            (New(dst_id), Some(gid)) => {
-                self.wal().log_node_id(txn_id, gid.into(), dst_id).unwrap();
-            }
-            _ => {}
+        if let Some(gid) = dst.as_node_ref().as_gid_ref().left() {
+            self.wal().log_node_id(txn_id, gid.into(), dst_id.inner()).unwrap();
         }
 
         let src_id = src_id.inner();
         let dst_id = dst_id.inner();
 
-        // Log any layer -> layer id mappings
-        match (layer, layer_id) {
-            // Only log if layer is specified & is a new layer
-            (Some(layer), New(layer_id)) => {
-                self.wal().log_layer_id(txn_id, layer, layer_id).unwrap();
-            }
-            _ => {}
+        // Log layer -> layer id mappings
+        if let Some(layer) = layer {
+            self.wal().log_layer_id(txn_id, layer, layer_id.inner()).unwrap();
         }
 
         let layer_id = layer_id.inner();
