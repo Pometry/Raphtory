@@ -489,7 +489,7 @@ mod graph_index_test {
         prelude::{AdditionOps, Graph, GraphViewOps},
     };
 
-    use crate::db::graph::views::filter::model::{EdgeFilter, NodeFilter};
+    use crate::db::graph::views::filter::model::{EdgeFilter, NodeFilter, PropertyFilterFactory};
     #[cfg(feature = "search")]
     use crate::{
         db::graph::assertions::{search_edges, search_nodes},

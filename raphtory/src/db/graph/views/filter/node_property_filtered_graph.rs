@@ -104,7 +104,8 @@ mod test_node_property_filtered_graph {
             graph::{
                 graph::assert_edges_equal,
                 views::filter::model::{
-                    ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                    ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterFactory,
+                    PropertyFilterOps,
                 },
             },
         },

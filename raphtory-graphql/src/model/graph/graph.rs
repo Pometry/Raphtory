@@ -28,8 +28,8 @@ use raphtory::{
         api::{
             properties::dyn_props::DynProperties,
             view::{
-                DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps, StaticGraphViewOps,
-                TimeOps,
+                BaseFilterOps, DynamicGraph, IntoDynamic, NodeViewOps, SearchableGraphOps,
+                StaticGraphViewOps, TimeOps,
             },
         },
         graph::{
@@ -457,7 +457,7 @@ impl GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_nodes(filter)?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
@@ -470,7 +470,7 @@ impl GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_edges(filter)?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),

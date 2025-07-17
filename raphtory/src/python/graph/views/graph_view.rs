@@ -4,8 +4,9 @@ use crate::{
         api::{
             properties::Properties,
             view::{
+                filter_ops::BaseFilterOps,
                 internal::{BaseFilter, DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph},
-                ExplodedEdgePropertyFilterOps, LayerOps, StaticGraphViewOps,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -19,7 +20,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    internal::CreateExplodedEdgeFilter,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
@@ -36,7 +36,7 @@ use crate::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::{filter_expr::PyFilterExpr, prop::PyPropertyFilter},
+            wrappers::filter_expr::PyFilterExpr,
         },
         utils::PyNodeRef,
     },
@@ -85,9 +85,8 @@ pub struct PyGraphView {
 }
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_node_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
+impl_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {

@@ -21,6 +21,7 @@ use std::{
     borrow::Cow,
     fmt,
     fmt::{Display, Formatter},
+    marker::PhantomData,
     ops::Deref,
     sync::Arc,
 };
@@ -482,11 +483,11 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     }
 }
 
-fn build_property_filter(
+fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
     value: Option<Value>,
-) -> Result<PropertyFilter, GraphError> {
+) -> Result<PropertyFilter<M>, GraphError> {
     let prop = value.clone().map(Prop::try_from).transpose()?;
 
     validate_operator_value_pair(operator, &value)?;
@@ -503,10 +504,11 @@ fn build_property_filter(
         prop_ref,
         prop_value,
         operator: operator.into(),
+        _phantom: PhantomData,
     })
 }
 
-impl TryFrom<PropertyFilterExpr> for PropertyFilter {
+impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
@@ -514,7 +516,7 @@ impl TryFrom<PropertyFilterExpr> for PropertyFilter {
     }
 }
 
-impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
+impl<M> TryFrom<ConstantPropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
@@ -526,7 +528,7 @@ impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
     }
 }
 
-impl TryFrom<TemporalPropertyFilterExpr> for PropertyFilter {
+impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {

@@ -72,7 +72,7 @@ pub struct PropertyFilter<M> {
     pub prop_ref: PropertyRef,
     pub prop_value: PropertyFilterValue,
     pub operator: FilterOperator,
-    _phantom: PhantomData<M>,
+    pub _phantom: PhantomData<M>,
 }
 
 impl<M> Display for PropertyFilter<M> {

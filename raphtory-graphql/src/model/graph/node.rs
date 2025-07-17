@@ -28,16 +28,10 @@ pub struct GqlNode {
     pub(crate) vv: NodeView<'static, DynamicGraph>,
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<'static, G, GH>> for GqlNode
-{
-    fn from(value: NodeView<'static, G, GH>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for GqlNode {
+    fn from(value: NodeView<'static, G>) -> Self {
         Self {
-            vv: NodeView::new_one_hop_filtered(
-                value.base_graph.into_dynamic(),
-                value.graph.into_dynamic(),
-                value.node,
-            ),
+            vv: NodeView::new_one_hop_filtered(value.graph.into_dynamic(), value.node),
         }
     }
 }
@@ -328,7 +322,7 @@ impl GqlNode {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_nodes_applied = self_clone.vv.filter_nodes(filter)?;
+            let filtered_nodes_applied = self_clone.vv.filter(filter)?;
             Ok(self_clone.update(filtered_nodes_applied.into_dynamic()))
         })
         .await

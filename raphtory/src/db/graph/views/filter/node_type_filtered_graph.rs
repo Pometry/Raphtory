@@ -108,7 +108,9 @@ mod tests_node_type_filtered_subgraph {
             api::view::filter_ops::BaseFilterOps,
             graph::{
                 graph::assert_graph_equal,
-                views::filter::model::{EdgeFilter, NodeFilter, PropertyFilterOps},
+                views::filter::model::{
+                    EdgeFilter, NodeFilter, PropertyFilterFactory, PropertyFilterOps,
+                },
             },
         },
         prelude::*,
@@ -343,7 +345,7 @@ mod tests_node_type_filtered_subgraph {
                 assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
                 TestVariants,
             };
-            use crate::db::graph::views::filter::model::NodeFilter;
+            use crate::db::graph::views::filter::model::{NodeFilter, PropertyFilterFactory};
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]
@@ -578,7 +580,7 @@ mod tests_node_type_filtered_subgraph {
             }
 
             use crate::db::graph::assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants};
-            use crate::db::graph::views::filter::model::EdgeFilter;
+            use crate::db::graph::views::filter::model::{EdgeFilter, PropertyFilterFactory};
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]

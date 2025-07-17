@@ -119,7 +119,8 @@ mod test_edge_property_filtered_graph {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                        ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
+                        PropertyFilterOps,
                     },
                 },
             },

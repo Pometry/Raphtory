@@ -739,7 +739,9 @@ mod test_graph_storage {
         use crate::{
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::filter::model::{NodeFilter, PropertyFilterOps},
+                graph::views::filter::model::{
+                    NodeFilter, PropertyFilterFactory, PropertyFilterOps,
+                },
             },
             prelude::{Graph, IndexMutationOps, NodeViewOps},
         };
@@ -768,7 +770,9 @@ mod test_graph_storage {
         use crate::{
             db::{
                 api::view::SearchableGraphOps,
-                graph::views::filter::model::{EdgeFilter, PropertyFilterOps},
+                graph::views::filter::model::{
+                    EdgeFilter, PropertyFilterFactory, PropertyFilterOps,
+                },
             },
             prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
         };

@@ -88,10 +88,10 @@ impl<'graph, G: IntoDynamic, GH: IntoDynamic> Nodes<'graph, G, GH> {
     }
 }
 
-impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph, DynamicGraph>
+impl<'graph, G, GH> From<Nodes<'graph, G, GH>> for Nodes<'graph, DynamicGraph>
 where
-    G: GraphViewOps<'graph> + IntoDynamic,
-    GH: GraphViewOps<'graph> + IntoDynamic + Static,
+    G: GraphViewOps<'graph> + IntoDynamic + Static,
+    GH: GraphViewOps<'graph> + IntoDynamic,
 {
     fn from(value: Nodes<'graph, G, GH>) -> Self {
         Nodes {

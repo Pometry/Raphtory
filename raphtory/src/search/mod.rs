@@ -630,7 +630,8 @@ mod test_index {
                 graph::{
                     assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
                     views::filter::model::{
-                        ComposableFilter, EdgeFilter, NodeFilter, PropertyFilterOps,
+                        ComposableFilter, EdgeFilter, NodeFilter, PropertyFilterFactory,
+                        PropertyFilterOps,
                     },
                 },
             },

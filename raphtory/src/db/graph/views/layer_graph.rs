@@ -280,7 +280,7 @@ mod test_layers {
                     TestVariants,
                 },
                 views::{
-                    filter::model::NodeFilter,
+                    filter::model::{NodeFilter, PropertyFilterFactory},
                     layer_graph::test_layers::test_filters_layer_graph::{
                         LayeredGraphTransformer, LayeredGraphWindowTransformer,
                     },
@@ -555,7 +555,7 @@ mod test_layers {
                             assert_filter_edges_results, assert_search_edges_results, TestVariants,
                         },
                         views::{
-                            filter::model::{EdgeFilter, PropertyFilterOps},
+                            filter::model::{EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
                             layer_graph::test_layers::test_filters_layer_graph::{
                                 LayeredGraphTransformer, LayeredGraphWindowTransformer,
                             },

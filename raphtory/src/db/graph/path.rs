@@ -4,18 +4,15 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{BaseFilter, OneHopFilter},
-                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed,
+                internal::{BaseFilter, OneHopFilter, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
             },
         },
         graph::{
             create_node_type_filter,
             edges::{Edges, NestedEdges},
             node::NodeView,
-            views::{
-                filter::node_type_filtered_graph::NodeTypeFilteredGraph, layer_graph::LayeredGraph,
-                window_graph::WindowedGraph,
-            },
         },
     },
     prelude::*,
@@ -272,35 +269,15 @@ where
     }
 }
 
-impl From<PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>>
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<PathFromNode<'static, G, DynamicGraph>>
     for PathFromNode<'static, DynamicGraph, DynamicGraph>
 {
-    fn from(value: PathFromNode<'static, DynamicGraph, LayeredGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.one_hop_graph.clone()), move || {
-            (value.op)()
-        })
-    }
-}
-
-impl From<PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>>
-    for PathFromNode<'static, DynamicGraph, DynamicGraph>
-{
-    fn from(value: PathFromNode<'static, DynamicGraph, WindowedGraph<DynamicGraph>>) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.one_hop_graph.clone()), move || {
-            (value.op)()
-        })
-    }
-}
-
-impl From<PathFromNode<'static, DynamicGraph, NodeTypeFilteredGraph<DynamicGraph>>>
-    for PathFromNode<'static, DynamicGraph, DynamicGraph>
-{
-    fn from(
-        value: PathFromNode<'static, DynamicGraph, NodeTypeFilteredGraph<DynamicGraph>>,
-    ) -> Self {
-        PathFromNode::new(DynamicGraph::new(value.one_hop_graph.clone()), move || {
-            (value.op)()
-        })
+    fn from(value: PathFromNode<'static, G, DynamicGraph>) -> Self {
+        PathFromNode {
+            base_graph: value.base_graph.into(),
+            one_hop_graph: value.one_hop_graph.into_dynamic(),
+            op: value.op.clone(),
+        }
     }
 }
 

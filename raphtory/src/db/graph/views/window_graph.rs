@@ -1276,7 +1276,10 @@ mod views_test {
             use std::sync::Arc;
 
             use crate::{
-                db::graph::views::window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
+                db::graph::views::{
+                    filter::model::PropertyFilterFactory,
+                    window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
+                },
                 prelude::GraphViewOps,
             };
 
@@ -3687,7 +3690,8 @@ mod views_test {
                         },
                         views::{
                             filter::model::{
-                                ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                                ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
+                                PropertyFilterOps,
                             },
                             window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
                         },

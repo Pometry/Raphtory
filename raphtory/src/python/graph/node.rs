@@ -19,7 +19,6 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::CreateExplodedEdgeFilter,
         },
     },
     errors::GraphError,
@@ -31,7 +30,7 @@ use crate::{
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
+            wrappers::{filter_expr::PyFilterExpr, iterables::*},
         },
         utils::{PyNodeRef, PyTime},
     },
@@ -78,7 +77,6 @@ impl_nodeviewops!(
     "Edges",
     "PathFromNode"
 );
-impl_edge_property_filter_ops!(PyNode<NodeView<'static, DynamicGraph>>, node, "Node");
 
 impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for PyNode {
     fn from(value: NodeView<'static, G>) -> Self {
@@ -462,11 +460,6 @@ impl_nodeviewops!(
     "NestedEdges",
     "PathFromGraph"
 );
-impl_edge_property_filter_ops!(
-    PyNodes<Nodes<'static, DynamicGraph, DynamicGraph>>,
-    nodes,
-    "Nodes"
-);
 
 #[pymethods]
 impl PyNodes {
@@ -718,7 +711,7 @@ impl PyNodes {
         convert_datetime: bool,
     ) -> PyResult<PyObject> {
         let mut column_names = vec![String::from("name"), String::from("type")];
-        let meta = self.nodes.graph.node_meta();
+        let meta = self.nodes.graph().node_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
 
         let node_tuples: Vec<_> = self
@@ -807,11 +800,6 @@ impl_iterable_mixin!(
     Vec<Vec<NodeView<'static, DynamicGraph>>>,
     "list[list[Node]]",
     "node"
-);
-impl_edge_property_filter_ops!(
-    PyPathFromGraph<PathFromGraph<'static, DynamicGraph, DynamicGraph>>,
-    path,
-    "PathFromGraph"
 );
 
 #[pymethods]
@@ -977,11 +965,6 @@ impl_iterable_mixin!(
     Vec<NodeView<'static, DynamicGraph>>,
     "list[Node]",
     "node"
-);
-impl_edge_property_filter_ops!(
-    PyPathFromNode<PathFromNode<'static, DynamicGraph, DynamicGraph>>,
-    path,
-    "PathFromNode"
 );
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>

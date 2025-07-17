@@ -26,13 +26,10 @@ pub struct GqlEdge {
     pub(crate) ee: EdgeView<DynamicGraph>,
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<EdgeView<G, GH>> for GqlEdge
-{
-    fn from(value: EdgeView<G, GH>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic> From<EdgeView<G>> for GqlEdge {
+    fn from(value: EdgeView<G>) -> Self {
         Self {
             ee: EdgeView {
-                base_graph: value.base_graph.into_dynamic(),
                 graph: value.graph.into_dynamic(),
                 edge: value.edge,
             },
@@ -41,12 +38,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 }
 
 impl GqlEdge {
-    pub(crate) fn from_ref<
-        G: StaticGraphViewOps + IntoDynamic,
-        GH: StaticGraphViewOps + IntoDynamic,
-    >(
-        value: EdgeView<&G, &GH>,
-    ) -> Self {
+    pub(crate) fn from_ref<G: StaticGraphViewOps + IntoDynamic>(value: EdgeView<&G>) -> Self {
         value.cloned().into()
     }
 }

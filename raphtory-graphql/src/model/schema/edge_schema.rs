@@ -62,25 +62,19 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
         .iter()
         .filter_map(|(key, value)| {
             let value = value?;
-            let temporal_prop = edge
-                .base_graph
-                .edge_meta()
-                .get_prop_id(&key.to_string(), false);
-            let constant_prop = edge
-                .base_graph
-                .edge_meta()
-                .get_prop_id(&key.to_string(), true);
+            let temporal_prop = edge.graph.edge_meta().get_prop_id(&key.to_string(), false);
+            let constant_prop = edge.graph.edge_meta().get_prop_id(&key.to_string(), true);
 
             let key_with_prop_type = if temporal_prop.is_some() {
                 let p_type = edge
-                    .base_graph
+                    .graph
                     .edge_meta()
                     .temporal_prop_meta()
                     .get_dtype(temporal_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
             } else if constant_prop.is_some() {
                 let p_type = edge
-                    .base_graph
+                    .graph
                     .edge_meta()
                     .const_prop_meta()
                     .get_dtype(constant_prop.unwrap());

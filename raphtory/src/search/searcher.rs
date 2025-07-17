@@ -77,7 +77,8 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterFactory,
+                    PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps},
@@ -162,7 +163,8 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                    AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
+                    PropertyFilterOps,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},

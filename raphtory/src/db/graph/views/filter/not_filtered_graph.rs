@@ -23,10 +23,7 @@ use raphtory_api::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
 };
 
 #[derive(Debug, Clone)]

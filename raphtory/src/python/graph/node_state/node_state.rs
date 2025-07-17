@@ -7,10 +7,7 @@ use crate::{
                 ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
                 OrderedNodeStateOps,
             },
-            view::{
-                internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
-                StaticGraphViewOps,
-            },
+            view::{DynamicGraph, GraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
@@ -467,31 +464,11 @@ macro_rules! impl_node_state_num {
     };
 }
 
-macro_rules! impl_one_hop {
-        ($name:ident<$($path:ident)::+>, $py_name:literal) => {
-            impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
-                for LazyNodeState<'static, $($path)::+<G>, DynamicGraph, DynamicGraph>
-            {
-                type Target = $name;
-                type Output = Bound<'py, Self::Target>;
-                type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
-
-                fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                    self.into_dyn_hop().into_pyobject(py)
-                }
-            }
-
-            impl_timeops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>, $py_name);
-            impl_layerops!($name, inner, LazyNodeState<'static, $($path)::+<DynamicGraph>, DynamicGraph>, $py_name);
-        }
-    }
-
 impl_lazy_node_state_num!(
     DegreeView<ops::Degree<DynamicGraph>>,
     "NodeStateUsize",
     "int"
 );
-impl_one_hop!(DegreeView<ops::Degree>, "DegreeView");
 impl_node_state_group_by_ops!(DegreeView, usize);
 
 impl_node_state_num!(NodeStateUsize<usize>, "NodeStateUsize", "int");
@@ -507,14 +484,12 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<i64>);
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
 impl_node_state_group_by_ops!(LatestTimeView, Option<i64>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
@@ -534,10 +509,6 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionDateTime",
     "Optional[datetime]"
 );
-impl_one_hop!(
-    EarliestDateTimeView<EarliestDateTime>,
-    "EarliestDateTimeView"
-);
 impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
 
 type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
@@ -546,7 +517,6 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionDateTime",
     "Optional[datetime]"
 );
-impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
 impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 impl_node_state_ord!(
     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
@@ -560,17 +530,12 @@ impl_lazy_node_state_ord!(
     "NodeStateListI64",
     "list[int]"
 );
-impl_one_hop!(HistoryView<ops::History>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
 impl_lazy_node_state_num!(
     EdgeHistoryCount<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
     "int"
-);
-impl_one_hop!(
-    EdgeHistoryCount<ops::EdgeHistoryCount>,
-    "EdgeHistoryCountView"
 );
 
 type HistoryDateTime<G> = ops::Map<ops::History<G>, Option<Vec<DateTime<Utc>>>>;
@@ -579,7 +544,6 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionListDateTime",
     "Optional[list[datetime]]"
 );
-impl_one_hop!(HistoryDateTimeView<HistoryDateTime>, "HistoryDateTimeView");
 impl_node_state_ord!(
     NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>,
     "NodeStateOptionListDateTime",

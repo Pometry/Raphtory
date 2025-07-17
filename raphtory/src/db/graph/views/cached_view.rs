@@ -444,7 +444,7 @@ mod test {
                             cached_view::test::test_filters_cached_view::{
                                 CachedGraphTransformer, WindowedCachedGraphTransformer,
                             },
-                            filter::model::{NodeFilter, PropertyFilterOps},
+                            filter::model::{NodeFilter, PropertyFilterFactory, PropertyFilterOps},
                         },
                     },
                 },
@@ -553,7 +553,7 @@ mod test {
                             cached_view::test::test_filters_cached_view::{
                                 CachedGraphTransformer, WindowedCachedGraphTransformer,
                             },
-                            filter::model::{EdgeFilter, PropertyFilterOps},
+                            filter::model::{EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
                         },
                     },
                 },

@@ -168,7 +168,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Static>
+impl<G: StaticGraphViewOps + IntoDynamic + Static, GH: StaticGraphViewOps + IntoDynamic>
     From<Edges<'static, G, GH>> for Edges<'static, DynamicGraph>
 {
     fn from(value: Edges<'static, G, GH>) -> Self {
