@@ -35,6 +35,13 @@ impl Default for Meta {
 }
 
 impl Meta {
+    pub fn layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
+        (0..self.meta_layer.len()).map(move |id| {
+            let name = self.meta_layer.get_name(id);
+            (id, name)
+        })
+    }
+
     pub fn set_const_prop_meta(&mut self, meta: PropMapper) {
         self.meta_prop_constant = meta;
     }

@@ -4,10 +4,7 @@ use std::{
 };
 
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::properties::{prop::Prop, tprop::TPropOps},
-    storage::dict_mapper::MaybeNew,
-};
+use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::{
     entities::{ELID, VID},
     storage::timeindex::TimeIndexOps,
@@ -43,6 +40,19 @@ pub fn check_edges_support<
     let graph_dir = tempfile::tempdir().unwrap();
     let graph = make_graph(graph_dir.path());
     let mut nodes = HashSet::new();
+    for (_, _, layer) in &edges {
+        if let Some(layer) = layer {
+            for layer in 0..=*layer {
+                let name = layer.to_string();
+                graph
+                    .edge_meta()
+                    .get_or_create_layer_id(Some(name.as_ref()));
+                graph
+                    .node_meta()
+                    .get_or_create_layer_id(Some(name.as_ref()));
+            }
+        }
+    }
 
     for (src, dst, _) in &edges {
         nodes.insert(*src);
@@ -56,15 +66,11 @@ pub fn check_edges_support<
                 let lsn = 0;
                 let timestamp = 0;
 
-                if let Some(layer_id) = layer_id {
-                    let mut session = graph.write_session(*src, *dst, None);
-                    let eid = session.add_static_edge(*src, *dst, lsn);
-                    let elid = eid.map(|eid| eid.with_layer(*layer_id));
-
-                    session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
-                } else {
-                    let _ = graph.add_edge(timestamp, *src, *dst)?;
-                }
+                let layer_id = layer_id.unwrap_or(0);
+                let mut session = graph.write_session(*src, *dst, None);
+                let eid = session.add_static_edge(*src, *dst, lsn);
+                let elid = eid.map(|eid| eid.with_layer(layer_id));
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
 
                 Ok::<_, DBV4Error>(())
             })
@@ -76,22 +82,12 @@ pub fn check_edges_support<
                 let lsn = 0;
                 let timestamp = 0;
 
-                if let Some(layer_id) = layer_id {
-                    let mut session = graph.write_session(*src, *dst, None);
-                    let eid = session.add_static_edge(*src, *dst, lsn).inner();
-                    let elid = eid.with_layer(*layer_id);
+                let layer_id = layer_id.unwrap_or(0);
 
-                    session.add_edge_into_layer(
-                        timestamp,
-                        *src,
-                        *dst,
-                        MaybeNew::Existing(elid),
-                        lsn,
-                        [],
-                    );
-                } else {
-                    let _ = graph.add_edge(timestamp, *src, *dst)?;
-                }
+                let mut session = graph.write_session(*src, *dst, None);
+                let eid = session.add_static_edge(*src, *dst, lsn);
+                let elid = eid.map(|e| e.with_layer(layer_id));
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
 
                 Ok::<_, DBV4Error>(())
             })
@@ -172,16 +168,16 @@ pub fn check_edges_support<
                     let elid = ELID::new(eid, layer_id);
                     let (src, dst) = edges.get_edge(elid).unwrap();
 
-                    assert_eq!(src, n, "{stage} layer: {}", layer_id);
-                    assert_eq!(dst, exp_dst, "{stage} layer: {}", layer_id);
+                    assert_eq!(src, n, "{stage} layer: {layer_id}");
+                    assert_eq!(dst, exp_dst, "{stage} layer: {layer_id}");
                 }
 
                 for (exp_src, eid) in adj.inb_edges(layer_id) {
                     let elid = ELID::new(eid, layer_id);
                     let (src, dst) = edges.get_edge(elid).unwrap();
 
-                    assert_eq!(src, exp_src, "{stage} layer: {}", layer_id);
-                    assert_eq!(dst, n, "{stage} layer: {}", layer_id);
+                    assert_eq!(src, exp_src, "{stage} layer: {layer_id}");
+                    assert_eq!(dst, n, "{stage} layer: {layer_id}");
                 }
             }
         }
@@ -429,12 +425,12 @@ pub fn check_graph_with_props_support<
                 .edge_meta()
                 .temporal_prop_meta()
                 .get_id(prop_name)
-                .unwrap_or_else(|| panic!("Failed to get prop id for {}", prop_name));
+                .unwrap_or_else(|| panic!("Failed to get prop id for {prop_name}"));
 
             let edge = graph
                 .nodes()
                 .get_edge(src, dst, 0)
-                .unwrap_or_else(|| panic!("Failed to get edge ({:?}, {:?}) from graph", src, dst));
+                .unwrap_or_else(|| panic!("Failed to get edge ({src:?}, {dst:?}) from graph"));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
             let layer_id = 0;
@@ -445,8 +441,7 @@ pub fn check_graph_with_props_support<
 
             assert_eq!(
                 actual_props, props,
-                "Expected properties for edge ({:?}, {:?}) to be {:?}, but got {:?}",
-                src, dst, props, actual_props
+                "Expected properties for edge ({src:?}, {dst:?}) to be {props:?}, but got {actual_props:?}"
             );
 
             // Check const props
@@ -456,16 +451,12 @@ pub fn check_graph_with_props_support<
                         .edge_meta()
                         .const_prop_meta()
                         .get_id(name)
-                        .unwrap_or_else(|| panic!("Failed to get prop id for {}", name));
+                        .unwrap_or_else(|| panic!("Failed to get prop id for {name}"));
                     let actual_props = e.c_prop(layer_id, prop_id);
                     assert_eq!(
                         actual_props.as_ref(),
                         Some(prop),
-                        "Expected const properties for edge ({:?}, {:?}) to be {:?}, but got {:?}",
-                        src,
-                        dst,
-                        prop,
-                        actual_props
+                        "Expected const properties for edge ({src:?}, {dst:?}) to be {prop:?}, but got {actual_props:?}"
                     );
                 }
             }
@@ -484,8 +475,7 @@ pub fn check_graph_with_props_support<
 
             assert_eq!(
                 actual_additions_ts, ts,
-                "Expected node additions for node ({:?}) to be {:?}, but got {:?}",
-                node_id, ts, actual_additions_ts
+                "Expected node additions for node ({node_id:?}) to be {ts:?}, but got {actual_additions_ts:?}"
             );
         }
     };

@@ -49,7 +49,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     fn load(
         page_id: usize,
         max_page_len: usize,
-        meta: Arc<Meta>,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
         ext: Self::Extension,
     ) -> Result<Self, DBV4Error>
@@ -58,7 +59,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     fn new(
         page_id: usize,
         max_page_len: usize,
-        meta: Arc<Meta>,
+        node_meta: Arc<Meta>,
+        edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
         ext: Self::Extension,
     ) -> Self;

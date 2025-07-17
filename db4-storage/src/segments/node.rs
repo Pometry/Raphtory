@@ -345,7 +345,8 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     fn load(
         _page_id: usize,
         _max_page_len: usize,
-        _meta: Arc<Meta>,
+        _node_meta: Arc<Meta>,
+        _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
     ) -> Result<Self, DBV4Error>
@@ -359,6 +360,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         page_id: usize,
         max_page_len: usize,
         meta: Arc<Meta>,
+        _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
     ) -> Self {

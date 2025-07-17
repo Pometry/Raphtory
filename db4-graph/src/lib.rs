@@ -9,13 +9,10 @@ use std::{
 use raphtory_api::core::{
     entities::{self, properties::meta::Meta},
     input::input_node::InputNode,
-    storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        nodes::node_ref::NodeRef,
-        properties::graph_meta::GraphMeta,
+        graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta,
         GidRef, LayerIds, EID, VID,
     },
     storage::timeindex::TimeIndexEntry,
@@ -107,7 +104,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new() -> Self {
         let node_meta = Meta::new();
         let edge_meta = Meta::new();
-        Self::new_with_meta(Default::default(), node_meta, edge_meta)
+        Self::new_with_meta(GraphDir::default(), node_meta, edge_meta)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {

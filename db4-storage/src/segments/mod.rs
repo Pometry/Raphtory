@@ -160,6 +160,10 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry)> {
         self.items.iter_ones().filter_map(move |l_pos| {
             let entry = self.data.get(&LocalPOS(l_pos))?;
