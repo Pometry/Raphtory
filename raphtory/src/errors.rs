@@ -123,6 +123,9 @@ pub enum GraphError {
     #[error(transparent)]
     MutationError(#[from] MutationError),
 
+    #[error(transparent)]
+    PropError(#[from] PropError),
+
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
 
@@ -445,12 +448,6 @@ impl From<ConstPropError> for GraphError {
 
 impl From<TPropError> for GraphError {
     fn from(value: TPropError) -> Self {
-        Self::MutationError(value.into())
-    }
-}
-
-impl From<PropError> for GraphError {
-    fn from(value: PropError) -> Self {
         Self::MutationError(value.into())
     }
 }

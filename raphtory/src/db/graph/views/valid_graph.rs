@@ -311,7 +311,7 @@ mod tests {
                 .constant()
                 .get("const_test")
                 .unwrap(),
-            Prop::map([("_default", 2)])
+            2.into()
         );
         assert_eq!(
             gw.edge(0, 1)

@@ -728,7 +728,7 @@ mod test_deletions {
                 .constant()
                 .iter()
                 .collect_vec(),
-            [("test".into(), Prop::map([("_default", "test")]))]
+            [("test".into(), "test".into())]
         );
         let gw = g.after(1);
         assert!(gw
@@ -748,7 +748,7 @@ mod test_deletions {
                 .constant()
                 .iter()
                 .collect_vec(),
-            [("test".into(), Prop::map([("_default", "test")]))]
+            [("test".into(), "test".into())]
         );
     }
 

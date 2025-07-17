@@ -2421,36 +2421,6 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -2506,36 +2476,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     vec![TestGraphVariants::PersistentGraph],
-                // );
             }
 
             #[test]
@@ -2591,36 +2531,6 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -2828,36 +2738,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -2913,36 +2793,6 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -3000,36 +2850,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -4718,36 +4538,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -4764,7 +4554,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4777,6 +4567,13 @@ mod views_test {
                 let expected_results = vec![
                     "N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(6..9),
+                    filter.clone(),
+                    &expected_results,
+                    vec![TestGraphVariants::PersistentDiskGraph],
+                );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -4820,7 +4617,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4829,28 +4626,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -4905,36 +4680,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -5254,36 +4999,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1.9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
