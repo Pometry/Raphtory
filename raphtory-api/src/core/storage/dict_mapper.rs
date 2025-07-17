@@ -98,6 +98,10 @@ impl<Index> BorrowMut<Index> for MaybeNew<Index> {
 }
 
 impl DictMapper {
+    pub fn contains(&self, key: &str) -> bool {
+        self.map.contains_key(key)
+    }
+
     pub fn deep_clone(&self) -> Self {
         let reverse_map = self.reverse_map.read().clone();
 
