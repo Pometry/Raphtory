@@ -6,7 +6,6 @@ use crate::{
     },
 };
 use db4_graph::WriteLockedGraph;
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
         entities::{
@@ -24,10 +23,7 @@ use raphtory_core::{
     entities::{nodes::node_ref::NodeRef, ELID},
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
-use storage::{
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension,
-};
+use storage::Extension;
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;

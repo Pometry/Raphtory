@@ -8,10 +8,7 @@ use std::{
 
 use crate::{
     LocalPOS,
-    api::{
-        edges::EdgeSegmentOps,
-        nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
-    },
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     properties::props_meta_writer::PropsMetaWriter,
@@ -19,7 +16,6 @@ use crate::{
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
-use either::Either;
 use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;

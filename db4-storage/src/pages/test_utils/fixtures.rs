@@ -3,8 +3,6 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::VID;
 use std::collections::HashMap;
 
-use crate::segments::node;
-
 use super::props::{make_props, prop_type};
 
 pub type AddEdge = (

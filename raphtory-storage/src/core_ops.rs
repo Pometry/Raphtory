@@ -22,10 +22,7 @@ use raphtory_core::{
     },
     storage::locked_view::LockedView,
 };
-use std::{
-    iter,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{iter, sync::Arc};
 use storage::resolver::GIDResolverOps;
 
 /// Check if two Graph views point at the same underlying storage

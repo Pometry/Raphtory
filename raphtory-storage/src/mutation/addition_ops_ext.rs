@@ -1,7 +1,4 @@
-use std::ops::DerefMut;
-
 use db4_graph::{TemporalGraph, WriteLockedGraph};
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
@@ -11,23 +8,15 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers,
-        nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
     },
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    error::DBV4Error,
-    pages::{
-        node_page::writer::{node_info_as_props, NodeWriter},
-        session::WriteSession,
-        NODE_ID_PROP_KEY,
-    },
+    pages::{node_page::writer::node_info_as_props, session::WriteSession, NODE_ID_PROP_KEY},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, ES, NS,
 };
 
