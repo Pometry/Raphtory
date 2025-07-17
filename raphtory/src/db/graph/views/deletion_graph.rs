@@ -143,8 +143,6 @@ impl InheritListOps for PersistentGraph {}
 
 impl InheritCoreGraphOps for PersistentGraph {}
 
-impl HasDeletionOps for PersistentGraph {}
-
 impl InheritPropertiesOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}

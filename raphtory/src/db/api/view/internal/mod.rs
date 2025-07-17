@@ -1,14 +1,3 @@
-mod core_deletion_ops;
-mod edge_filter_ops;
-mod filter_ops;
-mod into_dynamic;
-mod list_ops;
-mod materialize;
-mod node_filter_ops;
-mod one_hop_filter;
-pub(crate) mod time_semantics;
-mod wrapped_graph;
-
 use crate::{
     db::{
         api::{
@@ -24,7 +13,16 @@ use std::{
     sync::Arc,
 };
 
-pub use core_deletion_ops::*;
+mod edge_filter_ops;
+mod filter_ops;
+mod into_dynamic;
+mod list_ops;
+mod materialize;
+mod node_filter_ops;
+mod one_hop_filter;
+pub(crate) mod time_semantics;
+mod wrapped_graph;
+
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
@@ -90,8 +88,6 @@ impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
-
-impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 
 impl<G: InheritViewOps> InheritAllEdgeFilterOps for G {}
 

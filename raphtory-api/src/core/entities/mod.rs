@@ -487,7 +487,7 @@ impl LayerIds {
 }
 
 impl From<Vec<usize>> for LayerIds {
-    fn from(mut v: Vec<usize>) -> Self {
+    fn from(v: Vec<usize>) -> Self {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
