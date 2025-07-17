@@ -100,6 +100,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         hits,
         balance,
         label_propagation,
+        k_core,
         temporal_SEIR,
         louvain,
         fruchterman_reingold,
