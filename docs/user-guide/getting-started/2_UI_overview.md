@@ -40,6 +40,6 @@ The **Graph view** consists of the following elements:
 
 ## GraphQL playground
 
-![UI Search page](../../assets/images/raphtory_ui_graphiql_playground.png)
+![UI Search page](../../assets/images/raphtory_ui_graphiql_playground_query.png)
 
 This page allows you to access the standard [GraphiQL](https://github.com/graphql/graphiql) playground.

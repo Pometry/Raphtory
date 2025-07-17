@@ -88,7 +88,7 @@ nav:
       - user-guide/installation.md
       - Get started:
         - user-guide/getting-started/0_dummy_index.md
-        - user-guide/getting-started/1_get_started.md
+        - user-guide/getting-started/1_intro.md
         - user-guide/getting-started/2_UI_overview.md
       - Graph data:
           - user-guide/ingestion/0_dummy_index.md
