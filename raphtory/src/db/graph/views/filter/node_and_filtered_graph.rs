@@ -128,7 +128,7 @@ where
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.left
             .is_node_prop_update_available_window(prop_id, node_id, time, w.clone())
@@ -154,7 +154,7 @@ where
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.left
             .is_node_prop_update_latest_window(prop_id, node_id, time, w.clone())

@@ -125,8 +125,8 @@ impl<'graph, G: GraphViewOps<'graph>> Base for WindowedGraph<G> {
 
 impl<G: BoxableGraphView + Clone> WindowedGraph<G> {
     #[inline(always)]
-    fn window_bound(&self) -> Range<i64> {
-        self.start_bound().t()..self.end_bound().t()
+    fn window_bound(&self) -> Range<TimeIndexEntry> {
+        self.start_bound()..self.end_bound()
     }
 
     fn start_bound(&self) -> TimeIndexEntry {
@@ -192,7 +192,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.graph
             .is_node_prop_update_available_window(prop_id, node_id, time, w)
@@ -213,7 +213,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.graph
             .is_node_prop_update_latest_window(prop_id, node_id, time, w)
@@ -243,7 +243,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.graph
             .is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
@@ -274,7 +274,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.graph
             .is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
@@ -360,13 +360,13 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
             return iter::empty().into_dyn_boxed();
         }
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound().t(), self.end_bound().t())
+            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
             .into_dyn_boxed()
     }
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph
-            .temporal_prop_iter_window(id, self.start_bound().t(), self.end_bound().t())
+            .temporal_prop_iter_window(id, self.start_bound(), self.end_bound())
             .rev()
             .into_dyn_boxed()
     }
@@ -455,7 +455,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return false;
         }
         self.graph
-            .has_temporal_prop_window(prop_id, self.start_bound().t()..self.end_bound().t())
+            .has_temporal_prop_window(prop_id, self.start_bound()..self.end_bound())
     }
 
     fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
@@ -463,18 +463,18 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return iter::empty().into_dyn_dboxed();
         }
         self.graph
-            .temporal_prop_iter_window(prop_id, self.start_bound().t(), self.end_bound().t())
+            .temporal_prop_iter_window(prop_id, self.start_bound(), self.end_bound())
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.graph.has_temporal_prop_window(prop_id, w.start..w.end)
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph.temporal_prop_iter_window(prop_id, start, end)
     }

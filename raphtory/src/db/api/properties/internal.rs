@@ -1,12 +1,11 @@
-use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
-use chrono::{DateTime, Utc};
+use crate::{db::api::view::BoxedLIter};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
         storage::{
             arc_str::ArcStr,
-            timeindex::{TimeError, TimeIndexEntry},
+            timeindex::{TimeIndexEntry},
         },
     },
     inherit::Base,
@@ -27,12 +26,6 @@ pub trait TemporalPropertyViewOps {
 
     fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         self.temporal_iter_rev(id).map(|(t, _)| t).into_dyn_boxed()
-    }
-
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.temporal_history_iter(id)
-            .map(|t| t.dt())
-            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<Prop> {
@@ -128,11 +121,6 @@ where
     #[inline]
     fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<TimeIndexEntry> {
         self.base().temporal_history_iter_rev(id)
-    }
-
-    #[inline]
-    fn temporal_history_date_time(&self, id: usize) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.base().temporal_history_date_time(id)
     }
 
     #[inline]

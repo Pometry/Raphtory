@@ -2,7 +2,7 @@ use crate::{
     api::core::storage::arc_str::ArcStr,
     core::{
         entities::{LayerIds, EID, VID},
-        storage::timeindex::{TimeError, TimeIndexEntry},
+        storage::timeindex::{TimeIndexEntry},
     },
     db::{
         api::{
@@ -15,7 +15,6 @@ use crate::{
     },
     prelude::*,
 };
-use chrono::{DateTime, Utc};
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{core::entities::properties::prop::PropType, iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
@@ -127,7 +126,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {
@@ -160,7 +159,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {
@@ -197,7 +196,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {
@@ -234,7 +233,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         match self {
             MaterializedGraph::EventGraph(g) => {

@@ -26,7 +26,6 @@ use crate::{
         utils::{NumpyArray, PyGenericIterator, PyTime},
     },
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
@@ -36,7 +35,7 @@ use raphtory_api::core::{
     entities::properties::prop::{Prop, PropUnwrap},
     storage::{
         arc_str::ArcStr,
-        timeindex::{AsTime, TimeError, TimeIndexEntry},
+        timeindex::{AsTime, TimeIndexEntry},
     },
 };
 use raphtory_core::utils::time::IntoTime;
@@ -234,14 +233,6 @@ impl PyTemporalProp {
     /// List of ordered deduplicated property values
     pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.ordered_dedupe(latest_time)
-    }
-
-    /// List update datetimes and corresponding property values
-    pub fn items_date_time(&self) -> Result<Vec<(DateTime<Utc>, Prop)>, TimeError> {
-        self.prop
-            .iter()
-            .map(|(t, p)| t.dt().map(|dt| (dt, p)))
-            .collect::<Result<Vec<_>, TimeError>>()
     }
 
     /// Iterate over `items`

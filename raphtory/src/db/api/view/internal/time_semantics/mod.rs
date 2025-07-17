@@ -69,7 +69,7 @@ pub trait GraphTimeSemanticsOps {
     ///
     /// * `prop_id` - The id of the property to retrieve.
     /// * `w` - time window
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool;
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool;
 
     /// Returns all temporal values of the graph property with the given name
     /// that fall within the specified time window.
@@ -88,8 +88,8 @@ pub trait GraphTimeSemanticsOps {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)>;
 
     /// Returns the value and update time for the temporal graph property at or before a given timestamp
@@ -173,7 +173,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.graph().has_temporal_prop_window(prop_id, w)
     }
 
@@ -181,8 +181,8 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_iter_window(prop_id, start, end)
     }

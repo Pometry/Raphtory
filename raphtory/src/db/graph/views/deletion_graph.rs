@@ -202,7 +202,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.temporal_prop_iter_window(prop_id, w.start, w.end)
             .next()
             .is_some()
@@ -211,17 +211,17 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
+            let first = persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty)
+                .map(|v| (start, v));
             first
                 .into_iter()
                 .chain(GenLockedDIter::from(prop, |prop| {
                     prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
+                        .iter_window(start..end)
                         .into_dyn_dboxed()
                 }))
                 .into_dyn_dboxed()
@@ -270,18 +270,18 @@ impl NodeHistoryFilter for PersistentGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        if time.t() >= w.end {
+        if time >= w.end {
             false
-        } else if w.contains(&time.t()) {
+        } else if w.contains(&time) {
             true
         } else {
             let nse = self.0.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
-                .last_before(TimeIndexEntry::start(w.start))
-                .map(|(t, _)| t.t().eq(&time.t()))
+                .last_before(w.start)
+                .map(|(t, _)| t.eq(&time))
                 .unwrap_or(false);
             x
         }
@@ -301,13 +301,13 @@ impl NodeHistoryFilter for PersistentGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        time.t() < w.end && {
+        time < w.end && {
             let nse = self.0.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
-                .active(time.next()..TimeIndexEntry::start(w.end));
+                .active(time.next()..w.end);
             !x
         }
     }
@@ -332,18 +332,18 @@ impl EdgeHistoryFilter for PersistentGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        if time.t() >= w.end {
+        if time >= w.end {
             false
-        } else if w.contains(&time.t()) {
+        } else if w.contains(&time) {
             true
         } else {
             let ese = self.core_edge(edge_id);
             let bool = ese
                 .temporal_prop_layer(layer_id, prop_id)
-                .last_before(TimeIndexEntry::start(w.start))
-                .map(|(t, _)| time.t().eq(&t.t()))
+                .last_before(w.start)
+                .map(|(t, _)| time.eq(&t))
                 .unwrap_or(false);
             bool
         }
@@ -368,9 +368,9 @@ impl EdgeHistoryFilter for PersistentGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        time.t() < w.end && {
+        time < w.end && {
             let time = time.next();
             let ese = self.core_edge(edge_id);
 
@@ -378,7 +378,7 @@ impl EdgeHistoryFilter for PersistentGraph {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time..w.end)
                 });
 
                 // If no layer has a future update, return true
