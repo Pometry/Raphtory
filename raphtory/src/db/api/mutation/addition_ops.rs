@@ -20,7 +20,7 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
-use storage::wal::{WalEntryOps};
+use storage::wal::{WalEntryOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -377,6 +377,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Log transaction end
         self.wal().log_end_txn(txn_id).unwrap();
+
+        // Flush all wal entries to disk.
+        self.wal().sync().unwrap();
 
         Ok(EdgeView::new(
             self.clone(),

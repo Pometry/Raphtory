@@ -24,6 +24,10 @@ impl WalOps for NoWal {
         Ok(0)
     }
 
+    fn sync(&self) -> Result<(), DBV4Error> {
+        Ok(())
+    }
+
     fn wait_for_sync(&self, _lsn: LSN) {}
 
     fn rotate(&self, _cutoff_lsn: LSN) -> Result<(), DBV4Error> {

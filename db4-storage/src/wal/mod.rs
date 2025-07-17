@@ -29,6 +29,9 @@ pub trait WalOps {
     /// Appends data to the WAL and returns the assigned LSN.
     fn append(&self, data: &[u8]) -> Result<LSN, DBV4Error>;
 
+    /// Immediately flushes in-memory WAL entries to disk.
+    fn sync(&self) -> Result<(), DBV4Error>;
+
     /// Blocks until the WAL has fsynced the given LSN to disk.
     fn wait_for_sync(&self, lsn: LSN);
 
