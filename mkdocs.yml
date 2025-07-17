@@ -129,5 +129,6 @@ nav:
           - user-guide/persistent-graph/1_intro.md
           - user-guide/persistent-graph/2_ambiguity.md
           - user-guide/persistent-graph/3_views.md
-  - API: reference/
+  - Python API: reference/
+  - GraphQL API: reference/graphql/graphql_API.md
   - Pometry: https://www.pometry.com/
