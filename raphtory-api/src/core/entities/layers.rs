@@ -1,4 +1,5 @@
 use crate::core::storage::arc_str::ArcStr;
+use indexmap::IndexSet;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelExtend, ParallelIterator,
@@ -132,11 +133,11 @@ pub enum LayerVariants<None, All, One, Multiple> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Multiple(pub Arc<[usize]>);
+pub struct Multiple(pub Arc<IndexSet<usize>>);
 
 impl<'a> IntoIterator for &'a Multiple {
     type Item = usize;
-    type IntoIter = Copied<std::slice::Iter<'a, usize>>;
+    type IntoIter = Copied<indexmap::set::Iter<'a, usize>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter().copied()
@@ -145,8 +146,8 @@ impl<'a> IntoIterator for &'a Multiple {
 
 impl Multiple {
     #[inline]
-    pub fn binary_search(&self, pos: &usize) -> Option<usize> {
-        self.0.binary_search(pos).ok()
+    pub fn contains(&self, id: usize) -> bool {
+        self.0.contains(&id)
     }
 
     #[inline]
@@ -161,8 +162,13 @@ impl Multiple {
     }
 
     #[inline]
-    pub fn find(&self, id: usize) -> Option<usize> {
-        self.0.get(id).copied()
+    pub fn get_id_by_index(&self, index: usize) -> Option<usize> {
+        self.0.get_index(index).copied()
+    }
+
+    #[inline]
+    pub fn get_index_by_id(&self, id: usize) -> Option<usize> {
+        self.0.get_index_of(&id)
     }
 
     #[inline]
@@ -180,11 +186,16 @@ impl Multiple {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
+
+    pub fn is_sorted(&self) -> bool {
+        self.0.iter().is_sorted()
+    }
 }
 
 impl FromIterator<usize> for Multiple {
     fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        Multiple(iter.into_iter().collect())
+        let inner = iter.into_iter().collect();
+        Multiple(Arc::new(inner))
     }
 }
 

@@ -13,7 +13,7 @@ use crate::{
         graph::views::filter::{internal::CreateEdgeFilter, PropertyFilter},
     },
     errors::GraphError,
-    prelude::{GraphViewOps, LayerOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
@@ -50,7 +50,6 @@ impl CreateEdgeFilter for PropertyFilter {
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
         let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
-        let resolve_to_map = graph.num_layers() > 1;
         let c_prop_id = self.resolve_constant_prop_id(graph.edge_meta())?;
         Ok(EdgePropertyFilteredGraph::new(
             graph, t_prop_id, c_prop_id, self,

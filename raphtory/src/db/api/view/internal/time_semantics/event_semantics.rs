@@ -755,9 +755,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         };
 
         let layer_ids = view.layer_ids();
-        view.single_layer(layer_ids)
-            .filter(|&layer| layer_filter(layer))
-            .and_then(|layer| e.constant_prop_layer(layer, prop_id))
+        e.constant_prop_iter(layer_ids, prop_id)
+            .filter(|(layer, _)| layer_filter(*layer))
+            .map(|(_, v)| v)
+            .next()
     }
 
     fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
@@ -774,8 +775,9 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         };
 
         let layer_ids = view.layer_ids();
-        view.single_layer(layer_ids)
-            .filter(|&layer| layer_filter(layer))
-            .and_then(|layer| e.constant_prop_layer(layer, prop_id))
+        e.constant_prop_iter(layer_ids, prop_id)
+            .filter(|(layer, _)| layer_filter(*layer))
+            .map(|(_, v)| v)
+            .next()
     }
 }

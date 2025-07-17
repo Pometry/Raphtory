@@ -425,7 +425,7 @@ impl LayerIds {
                     None
                 }
             }
-            LayerIds::Multiple(ids) => ids.binary_search(&layer_id).map(|_| layer_id),
+            LayerIds::Multiple(ids) => ids.contains(layer_id).then_some(layer_id),
             LayerIds::None => None,
         }
     }
@@ -491,11 +491,7 @@ impl From<Vec<usize>> for LayerIds {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => {
-                v.sort_unstable();
-                v.dedup();
-                LayerIds::Multiple(v.into())
-            }
+            _ => LayerIds::Multiple(v.into()),
         }
     }
 }
@@ -505,12 +501,7 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => {
-                let mut v = v.to_vec();
-                v.sort_unstable();
-                v.dedup();
-                LayerIds::Multiple(v.into())
-            }
+            _ => LayerIds::Multiple(v.into_iter().collect()),
         }
     }
 }
