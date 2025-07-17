@@ -15,7 +15,7 @@ use crate::{
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
         components,
-        cores::k_core::k_core as k_core_rs,
+        cores::k_core::k_core_set,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
         embeddings::fast_rp::fast_rp as fast_rp_rs,
         layout::{
@@ -58,11 +58,18 @@ use crate::{
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
     db::{
-        api::{state::NodeState, view::internal::DynamicGraph},
-        graph::{node::NodeView, nodes::Nodes, views::node_subgraph::NodeSubgraph},
+        api::{
+            state::{Index, NodeState},
+            view::internal::DynamicGraph,
+        },
+        graph::{
+            node::NodeView,
+            nodes::Nodes,
+            views::{filter::internal::CreateNodeFilter, node_subgraph::NodeSubgraph},
+        },
     },
     errors::GraphError,
-    prelude::{Graph, GraphViewOps},
+    prelude::{Graph, GraphViewOps, NodePropertyFilterOps},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},
@@ -73,6 +80,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -766,8 +774,14 @@ pub fn k_core(
     k: usize,
     iter_count: usize,
     threads: Option<usize>,
-) -> Nodes<'static, NodeSubgraph<DynamicGraph>> {
-    k_core_rs(&graph.graph, k, iter_count, threads).nodes()
+) -> Nodes<'static, DynamicGraph> {
+    let v_set = k_core_set(&graph.graph, k, iter_count, threads);
+    let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
+        None
+    } else {
+        Some(Index::from_iter(v_set))
+    };
+    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), index, None)
 }
 
 /// Simulate an SEIR dynamic on the network
