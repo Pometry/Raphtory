@@ -328,8 +328,7 @@ def test_all_property_types(GraphClass):
         (filter.Property("name") >= "dave", 4),
         (filter.Property("name").is_in([1, 2]), 0),
         (filter.Property("name").is_not_in([3, "dave"]), 4),
-        (filter.Property("name").fuzzy_search("gabe",2,False),2 ),
-
+        (filter.Property("name").fuzzy_search("gabe", 2, False), 2),
         # active (bool)
         (filter.Property("active") == True, 4),
         (filter.Property("active") != False, 4),
@@ -443,7 +442,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("weight").fuzzy_search("blah",2,False),
+            filter.Property("weight").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Floats (confidence)
@@ -456,7 +455,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("confidence").fuzzy_search("blah",2,False),
+            filter.Property("confidence").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Booleans (active)
@@ -469,7 +468,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("active").fuzzy_search("blah",2,False),
+            filter.Property("active").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Datetimes (created)
@@ -482,7 +481,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("created").fuzzy_search("blah",2,False),
+            filter.Property("created").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         # Lists (tags) — odd comparisons
@@ -495,7 +494,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("tags").fuzzy_search("blah",2,False),
+            filter.Property("tags").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         (filter.Property("tags") < ["x"], "Comparison not implemented for List<Str>"),
@@ -518,7 +517,7 @@ def test_all_property_types(GraphClass):
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
         (
-            filter.Property("meta").fuzzy_search("blah",2,False),
+            filter.Property("meta").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
         (
@@ -653,7 +652,7 @@ def test_all_property_types(GraphClass):
             filter.Property("name").not_contains(3),
             "Operator NOT_CONTAINS is only supported for strings.",
         ),
-        #Booleans (active)
+        # Booleans (active)
         (
             filter.Property("active") == 2,
             "Wrong type for property active: expected Bool but actual type is I64",
@@ -788,8 +787,9 @@ def test_all_property_types(GraphClass):
         assert message in str(e.value)
 
     with pytest.raises(Exception) as e:
-        filter.Property("name").fuzzy_search(2,2,False)
+        filter.Property("name").fuzzy_search(2, 2, False)
     assert "'int' object cannot be converted to 'PyString'" in str(e.value)
+
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_temporal_constant(GraphClass):
