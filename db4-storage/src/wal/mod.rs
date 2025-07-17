@@ -42,8 +42,10 @@ pub trait WalOps {
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
-// High-level, raphtory-specific logging methods.
+// High-level, raphtory-specific logging & recovery methods.
 pub trait WalEntryOps {
+    type Entry: 'static;
+
     fn log_begin_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
 
     fn log_end_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
@@ -93,11 +95,5 @@ pub trait WalEntryOps {
     /// `lsn` has been persisted to disk.
     fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, DBV4Error>;
 
-    // // Methods to serialize/deserialize
-
-    // fn to_bytes(&self) -> Result<Vec<u8>, DBV4Error>;
-
-    // fn from_bytes(bytes: &[u8]) -> Result<Self, DBV4Error>
-    // where
-    //     Self: Sized;
+    fn recover(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, Self::Entry), DBV4Error>>;
 }

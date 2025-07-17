@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, GID, VID},
@@ -9,6 +11,8 @@ use crate::wal::{LSN, TransactionID, WalEntryOps};
 use crate::wal::no_wal::NoWal;
 
 impl WalEntryOps for NoWal {
+    type Entry = ();
+
     fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
@@ -60,5 +64,9 @@ impl WalEntryOps for NoWal {
 
     fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, DBV4Error> {
         Ok(0)
+    }
+
+    fn recover(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), DBV4Error>> {
+        std::iter::once(Ok((0, ())))
     }
 }
