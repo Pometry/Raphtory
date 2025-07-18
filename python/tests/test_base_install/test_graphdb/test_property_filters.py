@@ -46,14 +46,14 @@ def test_property_filter_nodes():
         assert sorted(graph.filter(filter_expr).nodes.id) == sorted(expected_ids)
 
     test_edge_cases = [
-        (filter.Edge.property("node_str") == "first", []),
-        (filter.Edge.property("node_str") != "first", [(1, 2), (2, 3), (3, 4)]),
-        (filter.Edge.property("node_bool").is_none(), [(1, 2), (2, 3)]),
-        (filter.Edge.property("node_int") != 1, [(1, 2), (2, 3), (3, 4)]),
-        (filter.Edge.property("node_int") > 2, [(3, 4)]),
-        (filter.Edge.property("node_int") >= 1, [(1, 2), (2, 3), (3, 4)]),
-        (filter.Edge.property("node_int") < 3, [(1, 2)]),
-        (filter.Edge.property("node_int") <= 2, [(1, 2)]),
+        (filter.Node.property("node_str") == "first", []),
+        (filter.Node.property("node_str") != "first", [(1, 2), (2, 3), (3, 4)]),
+        (filter.Node.property("node_bool").is_none(), [(1, 2), (2, 3)]),
+        (filter.Node.property("node_int") != 1, [(1, 2), (2, 3), (3, 4)]),
+        (filter.Node.property("node_int") > 2, [(3, 4)]),
+        (filter.Node.property("node_int") >= 1, [(1, 2), (2, 3), (3, 4)]),
+        (filter.Node.property("node_int") < 3, [(1, 2)]),
+        (filter.Node.property("node_int") <= 2, [(1, 2)]),
     ]
 
     for filter_expr, expected_ids in test_edge_cases:

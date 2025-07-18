@@ -84,6 +84,7 @@ def test_latest_and_active():
                     "list": [
                         {"name": "1", "history": [3]},
                         {"name": "2", "history": [3]},
+                        {"name": "3", "history": []},
                         {"name": "4", "history": [3]},
                     ]
                 },
