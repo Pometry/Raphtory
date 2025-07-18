@@ -20,6 +20,9 @@ pub(crate) enum LayerCol<'a> {
     Utf8View { col: &'a Utf8ViewArray },
 }
 
+#[derive(
+    Iterator, DoubleEndedIterator, ExactSizeIterator, ParallelIterator, IndexedParallelIterator,
+)]
 pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Name(Name),
     Utf8(Utf8),
@@ -27,59 +30,8 @@ pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Utf8View(Utf8View),
 }
 
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            LayerColVariants::Name($pattern) => $result,
-            LayerColVariants::Utf8($pattern) => $result,
-            LayerColVariants::LargeUtf8($pattern) => $result,
-            LayerColVariants::Utf8View($pattern) => $result,
         }
-    };
-}
-
-impl<
-        V: Send,
-        Name: ParallelIterator<Item = V>,
-        Utf8: ParallelIterator<Item = V>,
-        LargeUtf8: ParallelIterator<Item = V>,
-        Utf8View: ParallelIterator<Item = V>,
-    > ParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
-{
-    type Item = V;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: UnindexedConsumer<Self::Item>,
-    {
-        for_all!(self, iter => iter.drive_unindexed(consumer))
     }
-
-    fn opt_len(&self) -> Option<usize> {
-        for_all!(self, iter => iter.opt_len())
-    }
-}
-
-impl<
-        V: Send,
-        Name: IndexedParallelIterator<Item = V>,
-        Utf8: IndexedParallelIterator<Item = V>,
-        LargeUtf8: IndexedParallelIterator<Item = V>,
-        Utf8View: IndexedParallelIterator<Item = V>,
-    > IndexedParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
-{
-    fn len(&self) -> usize {
-        for_all!(self, iter => iter.len())
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        for_all!(self, iter => iter.drive(consumer))
-    }
-
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
-        for_all!(self, iter => iter.with_producer(callback))
-    }
-}
 
 impl<'a> LayerCol<'a> {
     pub fn par_iter(self) -> impl IndexedParallelIterator<Item = Option<&'a str>> {
