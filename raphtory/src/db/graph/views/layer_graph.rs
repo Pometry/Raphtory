@@ -266,12 +266,7 @@ mod test_layers {
         }
 
         mod test_nodes_filters_layer_graph {
-            use crate::{
-                db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
-                },
-                prelude::AdditionOps,
-            };
+            use crate::{db::api::view::StaticGraphViewOps, prelude::AdditionOps};
             use raphtory_api::core::entities::properties::prop::Prop;
 
             use crate::db::graph::{
@@ -280,7 +275,10 @@ mod test_layers {
                     TestVariants,
                 },
                 views::{
-                    filter::model::{NodeFilter, PropertyFilterFactory},
+                    filter::model::{
+                        node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                        PropertyFilterFactory,
+                    },
                     layer_graph::test_layers::test_filters_layer_graph::{
                         LayeredGraphTransformer, LayeredGraphWindowTransformer,
                     },
@@ -555,7 +553,10 @@ mod test_layers {
                             assert_filter_edges_results, assert_search_edges_results, TestVariants,
                         },
                         views::{
-                            filter::model::{EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
+                            filter::model::{
+                                edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             layer_graph::test_layers::test_filters_layer_graph::{
                                 LayeredGraphTransformer, LayeredGraphWindowTransformer,
                             },

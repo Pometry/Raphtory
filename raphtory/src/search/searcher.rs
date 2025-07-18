@@ -66,7 +66,10 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{db::graph::views::filter::model::NodeFilter, prelude::*};
+    use crate::{
+        db::graph::views::filter::model::node_filter::{NodeFilter, NodeFilterBuilderOps},
+        prelude::*,
+    };
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tracing::info;
@@ -77,8 +80,9 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterFactory,
-                    PropertyFilterOps,
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    property_filter::PropertyFilterOps,
+                    AsNodeFilter, PropertyFilterFactory,
                 },
             },
             prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps},
@@ -163,8 +167,9 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
-                    PropertyFilterOps,
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    property_filter::PropertyFilterOps,
+                    AsEdgeFilter, PropertyFilterFactory,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
@@ -259,16 +264,15 @@ mod search_tests {
     #[cfg(feature = "proto")]
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
-        use crate::db::graph::views::filter::model::NodeFilterBuilderOps;
         global_info_logger();
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 
         let now = SystemTime::now();
 
-        let elapsed = now.elapsed().unwrap().as_secs();
+        let elapsed = now.elapsed()?.as_secs();
         info!("indexing took: {:?}", elapsed);
-        graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram()?;
 
         let filter = NodeFilter::name().eq("DEV-1690");
         let issues = graph.search_nodes(filter, 5, 0)?;

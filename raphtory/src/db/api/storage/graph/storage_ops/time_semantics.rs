@@ -740,7 +740,8 @@ mod test_graph_storage {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    NodeFilter, PropertyFilterFactory, PropertyFilterOps,
+                    node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
                 },
             },
             prelude::{Graph, IndexMutationOps, NodeViewOps},
@@ -771,7 +772,8 @@ mod test_graph_storage {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    EdgeFilter, PropertyFilterFactory, PropertyFilterOps,
+                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
                 },
             },
             prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},

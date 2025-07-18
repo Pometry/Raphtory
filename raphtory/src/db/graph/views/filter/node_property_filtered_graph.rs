@@ -10,7 +10,7 @@ use crate::{
         },
         graph::views::filter::{
             internal::CreateFilter,
-            model::{property_filter::PropertyFilter, NodeFilter},
+            model::{node_filter::NodeFilter, property_filter::PropertyFilter},
         },
     },
     errors::GraphError,
@@ -104,8 +104,9 @@ mod test_node_property_filtered_graph {
             graph::{
                 graph::assert_edges_equal,
                 views::filter::model::{
-                    ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterFactory,
-                    PropertyFilterOps,
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    property_filter::PropertyFilterOps,
+                    ComposableFilter, PropertyFilterFactory,
                 },
             },
         },

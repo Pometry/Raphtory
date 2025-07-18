@@ -10,7 +10,9 @@ use crate::{
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::EdgeFilter, PropertyFilter},
+        graph::views::filter::{
+            internal::CreateFilter, model::edge_filter::EdgeFilter, PropertyFilter,
+        },
     },
     errors::GraphError,
     prelude::{GraphViewOps, LayerOps},
@@ -119,8 +121,9 @@ mod test_edge_property_filtered_graph {
                 views::{
                     deletion_graph::PersistentGraph,
                     filter::model::{
-                        ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
-                        PropertyFilterOps,
+                        edge_filter::{EdgeFilter, EdgeFilterOps},
+                        property_filter::PropertyFilterOps,
+                        ComposableFilter, PropertyFilterFactory,
                     },
                 },
             },
@@ -178,8 +181,6 @@ mod test_edge_property_filtered_graph {
 
     #[test]
     fn test_edge_filter_persistent() {
-        use crate::db::graph::views::filter::model::PropertyFilterOps;
-
         let g = PersistentGraph::new();
         g.add_edge(0, "Jimi", "John", [("band", "JH Experience")], None)
             .unwrap();

@@ -109,7 +109,8 @@ mod tests_node_type_filtered_subgraph {
             graph::{
                 graph::assert_graph_equal,
                 views::filter::model::{
-                    EdgeFilter, NodeFilter, PropertyFilterFactory, PropertyFilterOps,
+                    edge_filter::EdgeFilter, node_filter::NodeFilter,
+                    property_filter::PropertyFilterOps, PropertyFilterFactory,
                 },
             },
         },
@@ -307,12 +308,7 @@ mod tests_node_type_filtered_subgraph {
         }
 
         mod test_nodes_filters_node_type_filtered_subgraph {
-            use crate::{
-                db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
-                },
-                prelude::AdditionOps,
-            };
+            use crate::{db::api::view::StaticGraphViewOps, prelude::AdditionOps};
             use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -345,7 +341,9 @@ mod tests_node_type_filtered_subgraph {
                 assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
                 TestVariants,
             };
-            use crate::db::graph::views::filter::model::{NodeFilter, PropertyFilterFactory};
+            use crate::db::graph::views::filter::model::node_filter::NodeFilter;
+            use crate::db::graph::views::filter::model::property_filter::PropertyFilterOps;
+            use crate::db::graph::views::filter::model::PropertyFilterFactory;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]
@@ -471,7 +469,8 @@ mod tests_node_type_filtered_subgraph {
         mod test_edges_filters_node_type_filtered_subgraph {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
+                    api::view::StaticGraphViewOps,
+                    graph::views::filter::model::property_filter::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, NO_PROPS},
             };
@@ -580,7 +579,8 @@ mod tests_node_type_filtered_subgraph {
             }
 
             use crate::db::graph::assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants};
-            use crate::db::graph::views::filter::model::{EdgeFilter, PropertyFilterFactory};
+            use crate::db::graph::views::filter::model::{PropertyFilterFactory};
+            use crate::db::graph::views::filter::model::edge_filter::EdgeFilter;
             use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
 
             #[test]

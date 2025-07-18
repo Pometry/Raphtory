@@ -2,10 +2,15 @@ use crate::{
     db::graph::views::filter::{
         internal::CreateFilter,
         model::{
-            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AndFilter,
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps,
-            InternalNodeFilterBuilderOps, NodeFilter, NotFilter, OrFilter, PropertyFilterBuilder,
-            TemporalPropertyFilterBuilder, TryAsEdgeFilter, TryAsNodeFilter,
+            edge_filter::{
+                CompositeEdgeFilter, EdgeEndpointFilter, EdgeFilter, EdgeFilterOps,
+                InternalEdgeFilterBuilderOps,
+            },
+            node_filter::{CompositeNodeFilter, InternalNodeFilterBuilderOps, NodeFilter},
+            not_filter::NotFilter,
+            or_filter::OrFilter,
+            property_filter::{PropertyFilterBuilder, TemporalPropertyFilterBuilder},
+            AndFilter, PropertyFilterFactory, TryAsEdgeFilter, TryAsNodeFilter,
         },
     },
     errors::GraphError,
@@ -285,6 +290,11 @@ impl PyNodeFilter {
     fn node_type() -> PyNodeFilterOp {
         PyNodeFilterOp(Arc::new(NodeFilter::node_type()))
     }
+
+    #[staticmethod]
+    fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
+        NodeFilter::property(name).into_pyobject(py)
+    }
 }
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
@@ -368,7 +378,24 @@ impl PyEdgeFilter {
     fn dst() -> PyEdgeEndpoint {
         PyEdgeEndpoint(EdgeFilter::dst())
     }
+
+    #[staticmethod]
+    fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
+        EdgeFilter::property(name).into_pyobject(py)
+    }
 }
+
+#[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyExplodedEdgeFilter;
+
+// #[pymethods]
+// impl PyExplodedEdgeFilter {
+//     #[staticmethod]
+//     fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
+//         ExplodedEdgeFilter::property(name).into_pyobject(py)
+//     }
+// }
 
 pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let filter_module = PyModule::new(py, "filter")?;

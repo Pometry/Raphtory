@@ -484,12 +484,12 @@ fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
 
 #[cfg(test)]
 mod graph_index_test {
-    use crate::{
-        db::graph::views::filter::model::PropertyFilterOps,
-        prelude::{AdditionOps, Graph, GraphViewOps},
-    };
+    use crate::prelude::{AdditionOps, Graph, GraphViewOps};
 
-    use crate::db::graph::views::filter::model::{EdgeFilter, NodeFilter, PropertyFilterFactory};
+    use crate::db::graph::views::filter::model::{
+        edge_filter::EdgeFilter, node_filter::NodeFilter, property_filter::PropertyFilterOps,
+        PropertyFilterFactory,
+    };
     #[cfg(feature = "search")]
     use crate::{
         db::graph::assertions::{search_edges, search_nodes},

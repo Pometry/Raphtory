@@ -4,8 +4,9 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                AsNodeFilter, InternalNodeFilterBuilderOps, NodeFilterBuilderOps,
-                PropertyFilterOps, TryAsEdgeFilter, TryAsNodeFilter,
+                node_filter::{InternalNodeFilterBuilderOps, NodeFilterBuilderOps},
+                property_filter::PropertyFilterOps,
+                AsNodeFilter, TryAsEdgeFilter, TryAsNodeFilter,
             },
         },
     },

@@ -5,7 +5,14 @@ use crate::{
             view::{node::NodeViewOps, EdgeViewOps},
         },
         graph::{
-            edge::EdgeView, node::NodeView, views::filter::model::filter_operator::FilterOperator,
+            edge::EdgeView,
+            node::NodeView,
+            views::filter::model::{
+                edge_filter::{CompositeEdgeFilter, EdgeFilter},
+                filter_operator::FilterOperator,
+                node_filter::{CompositeNodeFilter, NodeFilter},
+                AsEdgeFilter, AsNodeFilter, TryAsEdgeFilter, TryAsNodeFilter,
+            },
         },
     },
     errors::GraphError,
@@ -23,7 +30,7 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, sync::Arc};
+use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Temporal {
@@ -336,5 +343,225 @@ impl<M> PropertyFilter<M> {
     ) -> bool {
         let props = EdgeView::new(graph, edge.out_ref()).properties();
         self.is_property_matched(t_prop_id, c_prop_id, props)
+    }
+}
+
+impl AsNodeFilter for PropertyFilter<NodeFilter> {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Property(self.clone())
+    }
+}
+
+impl TryAsNodeFilter for PropertyFilter<NodeFilter> {
+    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Property(self.clone()))
+    }
+}
+
+impl AsEdgeFilter for PropertyFilter<EdgeFilter> {
+    fn as_edge_filter(&self) -> CompositeEdgeFilter {
+        CompositeEdgeFilter::Property(self.clone())
+    }
+}
+
+impl TryAsEdgeFilter for PropertyFilter<NodeFilter> {
+    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl TryAsNodeFilter for PropertyFilter<EdgeFilter> {
+    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl TryAsEdgeFilter for PropertyFilter<EdgeFilter> {
+    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(CompositeEdgeFilter::Property(self.clone()))
+    }
+}
+
+pub trait InternalPropertyFilterOps: Send + Sync {
+    type Marker: Clone + Send + Sync + 'static;
+
+    fn property_ref(&self) -> PropertyRef;
+}
+
+impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
+    type Marker = T::Marker;
+
+    fn property_ref(&self) -> PropertyRef {
+        self.deref().property_ref()
+    }
+}
+
+pub trait PropertyFilterOps: InternalPropertyFilterOps {
+    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn is_none(&self) -> PropertyFilter<Self::Marker>;
+
+    fn is_some(&self) -> PropertyFilter<Self::Marker>;
+
+    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn fuzzy_search(
+        &self,
+        prop_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PropertyFilter<Self::Marker>;
+}
+
+impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
+    fn eq(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::eq(self.property_ref(), value.into())
+    }
+
+    fn ne(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::ne(self.property_ref(), value.into())
+    }
+
+    fn le(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::le(self.property_ref(), value.into())
+    }
+
+    fn ge(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::ge(self.property_ref(), value.into())
+    }
+
+    fn lt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::lt(self.property_ref(), value.into())
+    }
+
+    fn gt(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::gt(self.property_ref(), value.into())
+    }
+
+    fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::is_in(self.property_ref(), values)
+    }
+
+    fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::is_not_in(self.property_ref(), values)
+    }
+
+    fn is_none(&self) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::is_none(self.property_ref())
+    }
+
+    fn is_some(&self) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::is_some(self.property_ref())
+    }
+
+    fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::contains(self.property_ref(), value.into())
+    }
+
+    fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::not_contains(self.property_ref(), value.into())
+    }
+
+    fn fuzzy_search(
+        &self,
+        prop_value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::fuzzy_search(
+            self.property_ref(),
+            prop_value.into(),
+            levenshtein_distance,
+            prefix_match,
+        )
+    }
+}
+
+#[derive(Clone)]
+pub struct PropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M> PropertyFilterBuilder<M> {
+    pub fn new(prop: impl Into<String>) -> Self {
+        Self(prop.into(), PhantomData)
+    }
+}
+
+impl<M> PropertyFilterBuilder<M> {
+    pub fn constant(self) -> ConstPropertyFilterBuilder<M> {
+        ConstPropertyFilterBuilder(self.0, PhantomData)
+    }
+
+    pub fn temporal(self) -> TemporalPropertyFilterBuilder<M> {
+        TemporalPropertyFilterBuilder(self.0, PhantomData)
+    }
+}
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for PropertyFilterBuilder<M> {
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::Property(self.0.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct ConstPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for ConstPropertyFilterBuilder<M> {
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::ConstantProperty(self.0.clone())
+    }
+}
+
+#[derive(Clone)]
+pub struct AnyTemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
+    for AnyTemporalPropertyFilterBuilder<M>
+{
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
+    }
+}
+
+#[derive(Clone)]
+pub struct LatestTemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
+    for LatestTemporalPropertyFilterBuilder<M>
+{
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
+    }
+}
+
+#[derive(Clone)]
+pub struct TemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M> TemporalPropertyFilterBuilder<M> {
+    pub fn any(self) -> AnyTemporalPropertyFilterBuilder<M> {
+        AnyTemporalPropertyFilterBuilder(self.0, PhantomData)
+    }
+
+    pub fn latest(self) -> LatestTemporalPropertyFilterBuilder<M> {
+        LatestTemporalPropertyFilterBuilder(self.0, PhantomData)
     }
 }

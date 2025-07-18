@@ -4,9 +4,9 @@ use crate::{
         graph::{
             edge::EdgeView,
             views::filter::model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
                 property_filter::{PropertyRef, Temporal},
-                EdgeFilter, Filter,
+                Filter,
             },
         },
     },

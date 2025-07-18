@@ -9,7 +9,7 @@ use crate::{
                 NodeHistoryFilter, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::OrFilter},
+        graph::views::filter::{internal::CreateFilter, model::or_filter::OrFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,

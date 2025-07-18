@@ -19,11 +19,10 @@ pub mod or_filtered_graph;
 #[cfg(test)]
 mod test_fluent_builder_apis {
     use crate::db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        node_filter::CompositeNodeFilter,
-        property_filter::{PropertyFilter, PropertyRef, Temporal},
-        AsEdgeFilter, AsNodeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, Filter,
-        NodeFilter, NodeFilterBuilderOps, PropertyFilterFactory, PropertyFilterOps,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter, EdgeFilterOps},
+        node_filter::{CompositeNodeFilter, NodeFilter, NodeFilterBuilderOps},
+        property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef, Temporal},
+        AsEdgeFilter, AsNodeFilter, ComposableFilter, Filter, PropertyFilterFactory,
     };
 
     #[test]
@@ -224,10 +223,10 @@ mod test_fluent_builder_apis {
 mod test_composite_filters {
     use crate::{
         db::graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter,
-            node_filter::CompositeNodeFilter,
-            property_filter::{PropertyFilter, PropertyRef},
-            EdgeFilter, Filter, NodeFilter, PropertyFilterFactory, PropertyFilterOps,
+            edge_filter::{CompositeEdgeFilter, EdgeFilter},
+            node_filter::{CompositeNodeFilter, NodeFilter},
+            property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef},
+            Filter, PropertyFilterFactory,
         },
         prelude::IntoProp,
     };
@@ -489,7 +488,10 @@ pub(crate) mod test_filters {
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                         },
                         views::filter::{
-                            model::{NodeFilter, PropertyFilterFactory, PropertyFilterOps},
+                            model::{
+                                node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             test_filters::IdentityGraphTransformer,
                         },
                     },
@@ -837,7 +839,10 @@ pub(crate) mod test_filters {
                         },
                         views::filter::{
                             internal::CreateFilter,
-                            model::{EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
+                            model::{
+                                edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             test_filters::IdentityGraphTransformer,
                         },
                     },
@@ -1417,15 +1422,16 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::db::graph::views::filter::{
-            model::PropertyFilterOps, test_filters::init_nodes_graph,
-        };
+        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
         use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
-                model::{ComposableFilter, NodeFilter, NotFilter, PropertyFilterFactory},
+                model::{
+                    node_filter::NodeFilter, not_filter::NotFilter,
+                    property_filter::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+                },
                 test_filters::IdentityGraphTransformer,
             },
         };
@@ -1869,7 +1875,10 @@ pub(crate) mod test_filters {
                 TestVariants,
             },
             views::filter::{
-                model::{ComposableFilter, EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
+                model::{
+                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps, ComposableFilter,
+                    PropertyFilterFactory,
+                },
                 test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
@@ -2334,13 +2343,14 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_filter {
-        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
-
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
-                model::{ComposableFilter, NodeFilter, NodeFilterBuilderOps},
-                test_filters::IdentityGraphTransformer,
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_nodes_graph, IdentityGraphTransformer},
             },
         };
 
@@ -2674,17 +2684,19 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
         use raphtory_api::core::Direction;
 
-        use crate::db::graph::views::filter::model::{
-            AsNodeFilter, ComposableFilter, NodeFilter, NodeFilterBuilderOps,
-            PropertyFilterFactory, PropertyFilterOps,
-        };
-
         use crate::db::graph::{
             assertions::{
                 assert_filter_neighbours_results, assert_filter_nodes_results,
                 assert_search_nodes_results, TestVariants,
             },
-            views::filter::test_filters::IdentityGraphTransformer,
+            views::filter::{
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    property_filter::PropertyFilterOps,
+                    AsNodeFilter, ComposableFilter, PropertyFilterFactory,
+                },
+                test_filters::IdentityGraphTransformer,
+            },
         };
 
         #[test]
@@ -3109,13 +3121,14 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_filter {
-        use crate::db::graph::views::filter::test_filters::init_edges_graph;
-
         use crate::db::graph::{
             assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants},
             views::filter::{
-                model::{ComposableFilter, EdgeFilter, EdgeFilterOps},
-                test_filters::IdentityGraphTransformer,
+                model::{
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
 
@@ -3452,8 +3465,9 @@ pub(crate) mod test_filters {
             },
             views::filter::{
                 model::{
-                    AndFilter, AsEdgeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps,
-                    PropertyFilterFactory, PropertyFilterOps,
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    property_filter::PropertyFilterOps,
+                    AndFilter, AsEdgeFilter, ComposableFilter, PropertyFilterFactory,
                 },
                 test_filters::{init_edges_graph, IdentityGraphTransformer},
                 EdgeFieldFilter,

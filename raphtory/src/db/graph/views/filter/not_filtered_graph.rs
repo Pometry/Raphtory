@@ -9,7 +9,7 @@ use crate::{
                 InternalExplodedEdgeFilterOps, InternalNodeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::NotFilter},
+        graph::views::filter::{internal::CreateFilter, model::not_filter::NotFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,

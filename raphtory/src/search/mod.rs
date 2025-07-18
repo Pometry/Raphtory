@@ -165,7 +165,10 @@ mod test_index {
         use crate::{
             db::{
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec, StaticGraphViewOps},
-                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
+                graph::views::filter::model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    AsNodeFilter,
+                },
             },
             errors::GraphError,
             prelude::*,
@@ -630,8 +633,9 @@ mod test_index {
                 graph::{
                     assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
                     views::filter::model::{
-                        ComposableFilter, EdgeFilter, NodeFilter, PropertyFilterFactory,
-                        PropertyFilterOps,
+                        edge_filter::EdgeFilter, node_filter::NodeFilter,
+                        property_filter::PropertyFilterOps, ComposableFilter,
+                        PropertyFilterFactory,
                     },
                 },
             },

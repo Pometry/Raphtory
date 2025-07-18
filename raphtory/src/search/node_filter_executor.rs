@@ -4,9 +4,9 @@ use crate::{
         graph::{
             node::NodeView,
             views::filter::model::{
-                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
                 property_filter::{PropertyRef, Temporal},
-                Filter, NodeFilter,
+                Filter,
             },
         },
     },

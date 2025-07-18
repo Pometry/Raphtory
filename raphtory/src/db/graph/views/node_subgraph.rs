@@ -380,7 +380,10 @@ mod subgraph_tests {
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                         },
                         views::{
-                            filter::model::{NodeFilter, PropertyFilterFactory, PropertyFilterOps},
+                            filter::model::{
+                                node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             node_subgraph::subgraph_tests::test_filters_node_subgraph::{
                                 NodeSubgraphTransformer, TestGraphVariants,
                                 WindowedNodeSubgraphTransformer,
@@ -544,7 +547,10 @@ mod subgraph_tests {
                             assert_filter_edges_results, assert_search_edges_results, TestVariants,
                         },
                         views::{
-                            filter::model::{EdgeFilter, PropertyFilterFactory, PropertyFilterOps},
+                            filter::model::{
+                                edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             node_subgraph::subgraph_tests::test_filters_node_subgraph::{
                                 NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
                             },

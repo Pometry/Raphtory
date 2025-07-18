@@ -470,15 +470,11 @@ impl_lazy_node_state_num!(
     "int"
 );
 impl_node_state_group_by_ops!(DegreeView, usize);
-
 impl_node_state_num!(NodeStateUsize<usize>, "NodeStateUsize", "int");
 impl_node_state_group_by_ops!(NodeStateUsize, usize);
-
 impl_node_state_num!(NodeStateU64<u64>, "NodeStateU64", "int");
-
 impl_lazy_node_state_ord!(IdView<ops::Id>, "NodeStateGID", "GID");
 impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
-
 impl_lazy_node_state_ord!(
     EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
     "NodeStateOptionI64",
@@ -497,7 +493,6 @@ impl_node_state_ord!(
     "Optional[int]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionI64, Option<i64>);
-
 impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
@@ -510,8 +505,6 @@ impl_lazy_node_state_ord!(
     "Optional[datetime]"
 );
 impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
-
-type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Option<DateTime<Utc>>>;
 impl_lazy_node_state_ord!(
     LatestDateTimeView<ops::Map<ops::LatestTime<DynamicGraph>, Option<DateTime<Utc>>>>,
     "NodeStateOptionDateTime",
@@ -524,14 +517,12 @@ impl_node_state_ord!(
     "Optional[datetime]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
-
 impl_lazy_node_state_ord!(
     HistoryView<ops::History<DynamicGraph>>,
     "NodeStateListI64",
     "list[int]"
 );
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
-
 impl_lazy_node_state_num!(
     EdgeHistoryCount<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
@@ -549,7 +540,6 @@ impl_node_state_ord!(
     "NodeStateOptionListDateTime",
     "Optional[list[datetime]]"
 );
-
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,
     "NodeStateOptionStr",
@@ -562,57 +552,45 @@ impl_node_state_ord!(
     "Optional[str]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionStr, Option<ArcStr>);
-
 impl_node_state_ord!(
     NodeStateListDateTime<Vec<DateTime<Utc>>>,
     "NodeStateListDateTime",
     "list[datetime]"
 );
-
 impl_node_state_num!(NodeStateF64<f64>, "NodeStateF64", "float");
-
 impl_node_state_ord!(NodeStateSEIR<Infected>, "NodeStateSEIR", "Infected");
-
 impl_node_state!(
     NodeStateNodes<Nodes<'static, DynamicGraph>>,
     "NodeStateNodes",
     "Nodes"
 );
-
 impl_node_state!(
     NodeStateReachability<Vec<(i64, String)>>,
     "NodeStateReachability",
     "list[Tuple[int, str]]"
 );
-
 impl_node_state_ord!(
     NodeStateI64Tuple<(i64, i64)>,
     "NodeStateI64Tuple",
     "Tuple[int, int]"
 );
-
 impl_node_state_ord!(NodeStateMotifs<Vec<usize>>, "NodeStateMotifs", "list[int]");
-
 impl_node_state_ord!(
     NodeStateHits<(f32, f32)>,
     "NodeStateHits",
     "Tuple[float, float]"
 );
-
 impl_node_state!(
     NodeStateWeightedSP<(f64, Nodes<'static, DynamicGraph>)>,
     "NodeStateWeightedSP",
     "Tuple[float, Nodes]"
 );
-
 impl_node_state!(NodeLayout<[f32; 2]>, "NodeLayout", "list[float]");
-
 impl_node_state!(
     NodeStateListF64<Vec<f64>>,
     "NodeStateListF64",
     "list[float]"
 );
-
 impl_node_state!(
     NodeStateF64String<(f64, String)>,
     "NodeStateF64String",

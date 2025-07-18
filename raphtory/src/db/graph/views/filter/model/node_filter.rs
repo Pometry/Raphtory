@@ -4,7 +4,10 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                property_filter::PropertyFilter, AndFilter, Filter, NodeFilter, NotFilter, OrFilter,
+                edge_filter::CompositeEdgeFilter,
+                property_filter::{PropertyFilter, PropertyFilterBuilder},
+                AndFilter, AsNodeFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
+                TryAsEdgeFilter, TryAsNodeFilter,
             },
         },
     },
@@ -99,5 +102,155 @@ impl CreateFilter for CompositeNodeFilter {
                 Ok(Arc::new(NotFilter(base).create_filter(graph)?))
             }
         }
+    }
+}
+
+impl AsNodeFilter for CompositeNodeFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        self.clone()
+    }
+}
+
+impl TryAsNodeFilter for CompositeNodeFilter {
+    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(self.clone())
+    }
+}
+
+impl TryAsEdgeFilter for CompositeNodeFilter {
+    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+pub trait InternalNodeFilterBuilderOps: Send + Sync {
+    type NodeFilterType: From<Filter>
+        + CreateFilter
+        + AsNodeFilter
+        + TryAsNodeFilter
+        + TryAsEdgeFilter
+        + Clone
+        + 'static;
+
+    fn field_name(&self) -> &'static str;
+}
+
+impl<T: InternalNodeFilterBuilderOps> InternalNodeFilterBuilderOps for Arc<T> {
+    type NodeFilterType = T::NodeFilterType;
+
+    fn field_name(&self) -> &'static str {
+        self.deref().field_name()
+    }
+}
+
+pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
+    fn eq(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::eq(self.field_name(), value).into()
+    }
+
+    fn ne(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::ne(self.field_name(), value).into()
+    }
+
+    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
+        Filter::is_in(self.field_name(), values).into()
+    }
+
+    fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> Self::NodeFilterType {
+        Filter::is_not_in(self.field_name(), values).into()
+    }
+
+    fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::contains(self.field_name(), value).into()
+    }
+
+    fn not_contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::not_contains(self.field_name(), value.into()).into()
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> Self::NodeFilterType {
+        Filter::fuzzy_search(self.field_name(), value, levenshtein_distance, prefix_match).into()
+    }
+}
+
+impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
+
+pub struct NodeNameFilterBuilder;
+
+impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
+    type NodeFilterType = NodeNameFilter;
+
+    fn field_name(&self) -> &'static str {
+        "node_name"
+    }
+}
+
+pub struct NodeTypeFilterBuilder;
+
+impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
+    type NodeFilterType = NodeTypeFilter;
+
+    fn field_name(&self) -> &'static str {
+        "node_type"
+    }
+}
+
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub struct NodeFilter;
+
+impl NodeFilter {
+    pub fn name() -> NodeNameFilterBuilder {
+        NodeNameFilterBuilder
+    }
+
+    pub fn node_type() -> NodeTypeFilterBuilder {
+        NodeTypeFilterBuilder
+    }
+}
+
+impl PropertyFilterFactory<NodeFilter> for NodeFilter {
+    fn property(name: impl Into<String>) -> PropertyFilterBuilder<NodeFilter> {
+        PropertyFilterBuilder::new(name)
+    }
+}
+
+impl AsNodeFilter for NodeNameFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Node(self.0.clone())
+    }
+}
+
+impl TryAsNodeFilter for NodeNameFilter {
+    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(self.as_node_filter())
+    }
+}
+
+impl TryAsEdgeFilter for NodeNameFilter {
+    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+impl AsNodeFilter for NodeTypeFilter {
+    fn as_node_filter(&self) -> CompositeNodeFilter {
+        CompositeNodeFilter::Node(self.0.clone())
+    }
+}
+
+impl TryAsNodeFilter for NodeTypeFilter {
+    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(self.as_node_filter())
+    }
+}
+
+impl TryAsEdgeFilter for NodeTypeFilter {
+    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }

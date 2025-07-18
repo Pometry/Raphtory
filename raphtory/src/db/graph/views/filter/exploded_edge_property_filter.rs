@@ -10,7 +10,7 @@ use crate::{
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::ExplodedEdgeFilter},
+        graph::views::filter::{internal::CreateFilter, model::edge_filter::ExplodedEdgeFilter},
     },
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
@@ -165,7 +165,10 @@ mod test_exploded_edge_property_filtered_graph {
                 },
                 views::{
                     deletion_graph::PersistentGraph,
-                    filter::model::{ExplodedEdgeFilter, PropertyFilterOps},
+                    filter::model::{
+                        edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
+                        PropertyFilterFactory,
+                    },
                 },
             },
         },

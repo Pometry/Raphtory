@@ -1261,9 +1261,7 @@ mod views_test {
                             assert_filter_nodes_results, assert_search_nodes_results,
                             TestGraphVariants, TestVariants,
                         },
-                        views::filter::model::{
-                            ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
-                        },
+                        views::filter::model::ComposableFilter,
                     },
                 },
                 prelude::{AdditionOps, PropertyAdditionOps},
@@ -1277,7 +1275,11 @@ mod views_test {
 
             use crate::{
                 db::graph::views::{
-                    filter::model::PropertyFilterFactory,
+                    filter::model::{
+                        node_filter::{NodeFilter, NodeFilterBuilderOps},
+                        property_filter::PropertyFilterOps,
+                        PropertyFilterFactory,
+                    },
                     window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
                 },
                 prelude::GraphViewOps,
@@ -3690,8 +3692,9 @@ mod views_test {
                         },
                         views::{
                             filter::model::{
-                                ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterFactory,
-                                PropertyFilterOps,
+                                edge_filter::{EdgeFilter, EdgeFilterOps},
+                                property_filter::PropertyFilterOps,
+                                ComposableFilter, PropertyFilterFactory,
                             },
                             window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
                         },
