@@ -31,7 +31,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use rayon::prelude::*;
 use std::{
     fs::File,
     ops::Range,
@@ -126,29 +126,26 @@ pub(crate) fn run_encode(
 
     if size > 0 {
         let chunk_size = (size / rayon::current_num_threads()).max(128);
-        let iter = (0..size).step_by(chunk_size);
+        let iter = (0..size).into_par_iter().step_by(chunk_size);
 
         let num_digits = iter.len().to_string().len();
 
-        iter.enumerate()
-            .par_bridge()
-            .try_for_each(|(chunk, first)| {
-                let props = WriterProperties::builder()
-                    .set_compression(Compression::SNAPPY)
-                    .build();
-                let items = first..(first + chunk_size).min(size);
+        iter.enumerate().try_for_each(|(chunk, first)| {
+            let props = WriterProperties::builder()
+                .set_compression(Compression::SNAPPY)
+                .build();
+            let items = first..(first + chunk_size).min(size);
 
-                let node_file =
-                    File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
-                let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+            let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+            let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
 
-                let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+            let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
 
-                encode_fn(items, g, &mut decoder, &mut writer)?;
+            encode_fn(items, g, &mut decoder, &mut writer)?;
 
-                writer.close()?;
-                Ok::<_, GraphError>(())
-            })?;
+            writer.close()?;
+            Ok::<_, GraphError>(())
+        })?;
     }
     Ok(())
 }
