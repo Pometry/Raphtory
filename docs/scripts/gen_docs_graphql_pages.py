@@ -1,5 +1,8 @@
 import subprocess
 
+import os
+print(os.getcwd())
+
 result = subprocess.run(
     [
         "npx", "graphql-markdown",
