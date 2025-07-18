@@ -8,6 +8,7 @@ schema_dir = root / "raphtory-graphql"
 
 import os
 print(os.getcwd())
+print(os.listdir)
 
 result = subprocess.run(
     [
