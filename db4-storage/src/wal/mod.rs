@@ -43,7 +43,7 @@ pub trait WalOps {
 }
 
 // High-level, raphtory-specific logging & recovery methods.
-pub trait WalEntryOps {
+pub trait GraphWalOps {
     type Entry: 'static;
 
     fn log_begin_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;

@@ -7,10 +7,10 @@ use raphtory_core::{
 };
 
 use crate::error::DBV4Error;
-use crate::wal::{LSN, TransactionID, WalEntryOps};
+use crate::wal::{LSN, TransactionID, GraphWalOps};
 use crate::wal::no_wal::NoWal;
 
-impl WalEntryOps for NoWal {
+impl GraphWalOps for NoWal {
     type Entry = ();
 
     fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
