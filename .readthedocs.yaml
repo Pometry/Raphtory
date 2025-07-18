@@ -9,6 +9,7 @@ build:
   os: "ubuntu-24.04"
   tools:
     python: "3"
+    nodejs: "latest"
   # We recommend using a requirements file for reproducible builds.
   # This is just a quick example to get started.
   # https://docs.readthedocs.io/page/guides/reproducible-builds.html
@@ -16,6 +17,7 @@ build:
     pre_install:
       - pip install mkdocs
       - pip install -r docs/requirements.txt
+
 
 mkdocs:
   configuration: mkdocs.yml
