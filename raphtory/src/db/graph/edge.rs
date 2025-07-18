@@ -735,12 +735,18 @@ mod test_edge {
         graph
             .add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
             .unwrap()
-            .add_constant_properties([("test_prop", "test_val")], Some("layer 1"))
+            .add_constant_properties([("test_prop", "test_val")], None)
             .unwrap();
         graph
             .add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
             .unwrap()
-            .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
+            .add_constant_properties([("test_prop", "test_val"), ("other", "2")], None)
+            .unwrap();
+
+        graph
+            .add_edge(1, 2, 3, NO_PROPS, Some("layer 3"))
+            .unwrap()
+            .add_constant_properties([("test_prop", "test_val"), ("other", "3")], None)
             .unwrap();
 
         // FIXME: #18 constant prop for edges
@@ -752,7 +758,7 @@ mod test_edge {
                     .properties()
                     .constant()
                     .get("test_prop"),
-                Some([("layer 1", "test_val")].into_prop_map())
+                Some("test_val".into())
             );
             assert_eq!(
                 graph
@@ -761,8 +767,30 @@ mod test_edge {
                     .properties()
                     .constant()
                     .get("test_prop"),
-                Some([("layer 2", "test_val")].into_prop_map())
+                Some("test_val".into())
             );
+
+            assert_eq!(
+                graph
+                    .edge(2, 3)
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("other"),
+                Some("2".into())
+            );
+
+            assert_eq!(
+                graph
+                    .valid_layers(["layer 3", "layer 2"])
+                    .edge(2, 3)
+                    .unwrap()
+                    .properties()
+                    .constant()
+                    .get("other"),
+                Some("3".into())
+            );
+
             for e in graph.edges() {
                 for ee in e.explode() {
                     assert_eq!(

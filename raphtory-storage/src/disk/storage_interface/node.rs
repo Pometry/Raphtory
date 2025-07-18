@@ -215,7 +215,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             LayerIds::One(id) => Some(&self.graph.layers()[*id]),
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => return 0,
-                1 => Some(&self.graph.layers()[ids.find(0).unwrap()]),
+                1 => Some(&self.graph.layers()[ids.get_id_by_index(0).unwrap()]),
                 _ => None,
             },
         };

@@ -38,7 +38,6 @@ indexmap = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 dashmap = { workspace = true }
-enum_dispatch = { workspace = true }
 ordered-float = { workspace = true }
 glam = { workspace = true }
 quad-rand = { workspace = true }

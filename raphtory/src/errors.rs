@@ -123,6 +123,9 @@ pub enum GraphError {
     #[error(transparent)]
     MutationError(#[from] MutationError),
 
+    #[error(transparent)]
+    PropError(#[from] PropError),
+
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
 
@@ -368,7 +371,25 @@ pub enum GraphError {
     NotSupported,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
-    InvalidFilter(FilterOperator),
+    InvalidFilterExpectSingleGotNone(FilterOperator),
+
+    #[error("Operator {0} requires a single value, but a set was provided.")]
+    InvalidFilterExpectSingleGotSet(FilterOperator),
+
+    #[error("Comparison not implemented for {0}")]
+    InvalidFilterCmp(PropType),
+
+    #[error("Expected a homogeneous map with inner type {0}, got {1}")]
+    InvalidHomogeneousMap(PropType, PropType),
+
+    #[error("Operator {0} requires a set of values, but a single value was provided.")]
+    InvalidFilterExpectSetGotSingle(FilterOperator),
+
+    #[error("Operator {0} requires a set of values, but none was provided.")]
+    InvalidFilterExpectSetGotNone(FilterOperator),
+
+    #[error("Operator {0} is only supported for strings.")]
+    InvalidContains(FilterOperator),
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
@@ -427,12 +448,6 @@ impl From<ConstPropError> for GraphError {
 
 impl From<TPropError> for GraphError {
     fn from(value: TPropError) -> Self {
-        Self::MutationError(value.into())
-    }
-}
-
-impl From<PropError> for GraphError {
-    fn from(value: PropError) -> Self {
         Self::MutationError(value.into())
     }
 }

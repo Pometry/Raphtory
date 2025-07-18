@@ -143,8 +143,6 @@ impl InheritListOps for PersistentGraph {}
 
 impl InheritCoreGraphOps for PersistentGraph {}
 
-impl HasDeletionOps for PersistentGraph {}
-
 impl InheritPropertiesOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}
@@ -730,7 +728,7 @@ mod test_deletions {
                 .constant()
                 .iter()
                 .collect_vec(),
-            [("test".into(), Prop::map([("_default", "test")]))]
+            [("test".into(), "test".into())]
         );
         let gw = g.after(1);
         assert!(gw
@@ -750,7 +748,7 @@ mod test_deletions {
                 .constant()
                 .iter()
                 .collect_vec(),
-            [("test".into(), Prop::map([("_default", "test")]))]
+            [("test".into(), "test".into())]
         );
     }
 

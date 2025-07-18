@@ -2,11 +2,9 @@ use crate::{
     core::entities::{EID, VID},
     db::api::{state::Index, view::Base},
 };
-use enum_dispatch::enum_dispatch;
 use rayon::{iter::Either, prelude::*};
 use std::hash::Hash;
 
-#[enum_dispatch]
 pub trait ListOps {
     fn node_list(&self) -> NodeList;
 

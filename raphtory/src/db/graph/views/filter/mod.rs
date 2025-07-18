@@ -886,7 +886,7 @@ pub(crate) mod test_filters {
                     PropertyAdditionOps,
                 },
             };
-            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_api::core::entities::properties::prop::{Prop, PropUnwrap};
             use raphtory_storage::mutation::{
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
@@ -1041,17 +1041,13 @@ pub(crate) mod test_filters {
                     .properties()
                     .constant()
                     .get("z")
-                    .unwrap();
-                assert_eq!("{\"fire_nation\": true}", prop.to_string());
+                    .unwrap_bool();
+                assert!(prop);
 
-                let filter2 = PropertyFilter::property("z")
-                    .constant()
-                    .eq(Prop::map([("fire_nation", true)]));
+                let filter2 = PropertyFilter::property("z").constant().eq(true);
                 assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
 
-                let filter = PropertyFilter::property("p1")
-                    .constant()
-                    .eq(Prop::map([("_default", 1u64)]));
+                let filter = PropertyFilter::property("p1").constant().eq(1u64);
                 assert_eq!(
                     filter_edges(&graph, filter),
                     vec![

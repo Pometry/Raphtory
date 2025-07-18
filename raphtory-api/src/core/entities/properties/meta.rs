@@ -187,28 +187,13 @@ impl PropMapper {
         }
     }
 
-    pub fn get_and_validate(
-        &self,
-        prop: &str,
-        dtype: PropType,
-    ) -> Result<Option<usize>, PropError> {
-        match self.get_id(prop) {
-            Some(id) => {
-                let existing_dtype = self
-                    .get_dtype(id)
-                    .expect("Existing id should always have a dtype");
-                if existing_dtype == dtype {
-                    Ok(Some(id))
-                } else {
-                    Err(PropError::PropertyTypeError {
-                        name: prop.to_string(),
-                        expected: existing_dtype,
-                        actual: dtype,
-                    })
-                }
-            }
-            None => Ok(None),
-        }
+    pub fn get_id_and_dtype(&self, prop: &str) -> Option<(usize, PropType)> {
+        self.get_id(prop).map(|id| {
+            let existing_dtype = self
+                .get_dtype(id)
+                .expect("Existing id should always have a dtype");
+            (id, existing_dtype)
+        })
     }
 
     pub fn get_or_create_and_validate(
@@ -227,7 +212,7 @@ impl PropMapper {
                     return Ok(wrapped_id);
                 }
             } else {
-                return Err(PropError::PropertyTypeError {
+                return Err(PropError {
                     name: prop.to_owned(),
                     expected: old_type.clone(),
                     actual: dtype,
@@ -242,7 +227,7 @@ impl PropMapper {
                     dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
-                    Err(PropError::PropertyTypeError {
+                    Err(PropError {
                         name: prop.to_owned(),
                         expected: old_type,
                         actual: dtype,
@@ -309,7 +294,7 @@ mod tests {
             .unwrap();
         let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U16);
         assert!(result.is_err());
-        if let Err(PropError::PropertyTypeError {
+        if let Err(PropError {
             name,
             expected,
             actual,

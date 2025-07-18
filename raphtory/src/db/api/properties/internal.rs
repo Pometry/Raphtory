@@ -1,6 +1,5 @@
 use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
 use chrono::{DateTime, Utc};
-use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
@@ -10,7 +9,6 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
-#[enum_dispatch]
 pub trait TemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
     fn temporal_value(&self, id: usize) -> Option<Prop>;
@@ -49,7 +47,6 @@ pub trait TemporalPropertiesRowView {
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 }
 
-#[enum_dispatch]
 pub trait ConstantPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
@@ -64,7 +61,6 @@ pub trait ConstantPropertiesOps: Send + Sync {
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
 
-#[enum_dispatch]
 pub trait TemporalPropertiesOps {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize>;
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr;

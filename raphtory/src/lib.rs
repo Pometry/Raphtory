@@ -161,13 +161,15 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 #[cfg(test)]
 mod test_utils {
     use crate::{db::api::storage::storage::Storage, prelude::*};
+    use ahash::HashSet;
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
+    use indexmap::IndexSet;
     use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -665,12 +667,24 @@ mod test_utils {
         g
     }
 
-    pub(crate) fn build_graph_layer(
-        graph_fix: &GraphFixture,
-        layers: impl Into<Layer>,
-    ) -> Arc<Storage> {
+    pub(crate) fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
         let g = Arc::new(Storage::default());
-        let layers = layers.into();
+        let actual_layer_set: HashSet<_> = graph_fix
+            .edges()
+            .filter(|(_, updates)| {
+                !updates.deletions.is_empty() || !updates.props.t_props.is_empty()
+            })
+            .map(|((_, _, layer), _)| layer.unwrap_or("_default"))
+            .collect();
+
+        // make sure the graph has the layers in the right order
+        for layer in layers {
+            if actual_layer_set.contains(layer) {
+                g.resolve_layer(Some(layer)).unwrap();
+            }
+        }
+
+        let layers = g.edge_meta().layer_meta();
 
         for ((src, dst, layer), updates) in graph_fix.edges() {
             // properties always exist in the graph

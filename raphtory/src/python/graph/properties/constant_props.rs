@@ -33,7 +33,10 @@ impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
 
 impl<'a, P: PropertiesOps> Repr for ConstantProperties<'a, P> {
     fn repr(&self) -> String {
-        format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
+        format!(
+            "ConstantProperties({{{}}})",
+            iterator_dict_repr(self.iter())
+        )
     }
 }
 
