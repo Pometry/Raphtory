@@ -3,14 +3,11 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::AdditionOps,
 };
-use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
-use rayon::{
-    iter::{
-        plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
-        IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
-    },
-    prelude::*,
+use iter_enum::{
+    DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
+use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
+use rayon::prelude::*;
 
 #[derive(Copy, Clone)]
 pub(crate) enum LayerCol<'a> {
