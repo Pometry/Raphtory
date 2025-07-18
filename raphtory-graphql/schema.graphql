@@ -1,0 +1,803 @@
+schema {
+  query: QueryRoot
+  mutation: MutRoot
+}
+
+input ConstantPropertyFilterExpr {
+  name: String!
+  operator: Operator!
+  value: Value
+}
+
+type Document {
+  entity: GqlDocumentEntity!
+  content: String!
+  embedding: [Float!]!
+  life: [Int!]!
+}
+
+type Edge {
+  defaultLayer: Edge!
+  layers(names: [String!]!): Edge!
+  excludeLayers(names: [String!]!): Edge!
+  layer(name: String!): Edge!
+  excludeLayer(name: String!): Edge!
+  window(start: Int!, end: Int!): Edge!
+  at(time: Int!): Edge!
+  latest: Edge!
+  snapshotAt(time: Int!): Edge!
+  snapshotLatest: Edge!
+  before(time: Int!): Edge!
+  after(time: Int!): Edge!
+  shrinkWindow(start: Int!, end: Int!): Edge!
+  shrinkStart(start: Int!): Edge!
+  shrinkEnd(end: Int!): Edge!
+  applyViews(views: [EdgeViewCollection!]!): Edge!
+  earliestTime: Int
+  firstUpdate: Int
+  latestTime: Int
+  lastUpdate: Int
+  time: Int!
+  start: Int
+  end: Int
+  src: Node!
+  dst: Node!
+  id: [String!]!
+  properties: GqlProperties!
+  layerNames: [String!]!
+  layerName: String!
+  explode: GqlEdges!
+  explodeLayers: GqlEdges!
+  history: [Int!]!
+  deletions: [Int!]!
+  isValid: Boolean!
+  isActive: Boolean!
+  isDeleted: Boolean!
+  isSelfLoop: Boolean!
+  nbr: Node!
+}
+
+input EdgeAddition {
+  src: String!
+  dst: String!
+  layer: String
+  constantProperties: [GqlPropInput!]
+  updates: [TpropInput!]
+}
+
+input EdgeFilter {
+  src: NodeFieldFilter
+  dst: NodeFieldFilter
+  property: PropertyFilterExpr
+  constantProperty: ConstantPropertyFilterExpr
+  temporalProperty: TemporalPropertyFilterExpr
+  and: [EdgeFilter!]
+  or: [EdgeFilter!]
+}
+
+type EdgeSchema {
+  """Returns the type of source for these edges"""
+  srcType: String!
+
+  """Returns the type of destination for these edges"""
+  dstType: String!
+
+  """
+  Returns the list of property schemas for edges connecting these types of nodes
+  """
+  properties: [PropertySchema!]!
+}
+
+input EdgeSortBy {
+  reverse: Boolean
+  src: Boolean
+  dst: Boolean
+  time: SortByTime
+  property: String
+}
+
+input EdgeViewCollection {
+  defaultLayer: Boolean
+  layers: [String!]
+  excludeLayers: [String!]
+  layer: String
+  excludeLayer: String
+  window: Window
+  at: Int
+  latest: Boolean
+  snapshotAt: Int
+  snapshotLatest: Boolean
+  before: Int
+  after: Int
+  shrinkWindow: Window
+  shrinkStart: Int
+  shrinkEnd: Int
+}
+
+input EdgesViewCollection {
+  defaultLayer: Boolean
+  layers: [String!]
+  excludeLayers: [String!]
+  layer: String
+  excludeLayer: String
+  window: Window
+  at: Int
+  latest: Boolean
+  snapshotAt: Int
+  snapshotLatest: Boolean
+  before: Int
+  after: Int
+  shrinkWindow: Window
+  shrinkStart: Int
+  shrinkEnd: Int
+}
+
+input FilterCondition {
+  operator: Operator!
+  value: Value
+}
+
+input FilterProperty {
+  property: String!
+  condition: FilterCondition!
+}
+
+type GqlConstantProperties {
+  get(key: String!): GqlProp
+  contains(key: String!): Boolean!
+  keys: [String!]!
+  values(keys: [String!]): [GqlProp!]!
+}
+
+union GqlDocumentEntity = Node | Edge | Graph
+
+type GqlEdges {
+  defaultLayer: GqlEdges!
+  layers(names: [String!]!): GqlEdges!
+  excludeLayers(names: [String!]!): GqlEdges!
+  layer(name: String!): GqlEdges!
+  excludeLayer(name: String!): GqlEdges!
+  window(start: Int!, end: Int!): GqlEdges!
+  at(time: Int!): GqlEdges!
+  latest: GqlEdges!
+  snapshotAt(time: Int!): GqlEdges!
+  snapshotLatest: GqlEdges!
+  before(time: Int!): GqlEdges!
+  after(time: Int!): GqlEdges!
+  shrinkWindow(start: Int!, end: Int!): GqlEdges!
+  shrinkStart(start: Int!): GqlEdges!
+  shrinkEnd(end: Int!): GqlEdges!
+  applyViews(views: [EdgesViewCollection!]!): GqlEdges!
+  explode: GqlEdges!
+  explodeLayers: GqlEdges!
+  sorted(sortBys: [EdgeSortBy!]!): GqlEdges!
+  start: Int
+  end: Int
+  count: Int!
+  page(limit: Int!, offset: Int!): [Edge!]!
+  list: [Edge!]!
+}
+
+type GqlGraph {
+  uniqueLayers: [String!]!
+  defaultLayer: GqlGraph!
+  layers(names: [String!]!): GqlGraph!
+  excludeLayers(names: [String!]!): GqlGraph!
+  layer(name: String!): GqlGraph!
+  excludeLayer(name: String!): GqlGraph!
+  subgraph(nodes: [String!]!): GqlGraph!
+  subgraphId(nodes: [Int!]!): GqlGraph!
+  subgraphNodeTypes(nodeTypes: [String!]!): GqlGraph!
+  excludeNodes(nodes: [String!]!): GqlGraph!
+  excludeNodesId(nodes: [Int!]!): GqlGraph!
+
+  """
+  Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+  """
+  window(start: Int!, end: Int!): GqlGraph!
+  at(time: Int!): GqlGraph!
+  latest: GqlGraph!
+  snapshotAt(time: Int!): GqlGraph!
+  snapshotLatest: GqlGraph!
+  before(time: Int!): GqlGraph!
+  after(time: Int!): GqlGraph!
+  shrinkWindow(start: Int!, end: Int!): GqlGraph!
+  shrinkStart(start: Int!): GqlGraph!
+  shrinkEnd(end: Int!): GqlGraph!
+  created: Int!
+  lastOpened: Int!
+  lastUpdated: Int!
+  earliestTime: Int
+  latestTime: Int
+  start: Int
+  end: Int
+  earliestEdgeTime(includeNegative: Boolean): Int
+  latestEdgeTime(includeNegative: Boolean): Int
+  countEdges: Int!
+  countTemporalEdges: Int!
+  countNodes: Int!
+  hasNode(name: String!): Boolean!
+  hasNodeId(id: Int!): Boolean!
+  hasEdge(src: String!, dst: String!, layer: String): Boolean!
+  hasEdgeId(src: Int!, dst: Int!, layer: String): Boolean!
+  node(name: String!): Node
+  nodeId(id: Int!): Node
+
+  """query (optionally a subset of) the nodes in the graph"""
+  nodes(ids: [String!]): GqlNodes!
+  edge(src: String!, dst: String!): Edge
+  edgeId(src: Int!, dst: Int!): Edge
+  edges: GqlEdges!
+  properties: GqlProperties!
+  name: String!
+  path: String!
+  namespace: String!
+  schema: GraphSchema!
+  algorithms: GraphAlgorithmPlugin!
+  sharedNeighbours(selectedNodes: [String!]!): [Node!]!
+
+  """
+  Export all nodes and edges from this graph view to another existing graph
+  """
+  exportTo(path: String!): Boolean!
+  nodeFilter(property: String!, condition: FilterCondition!): GqlGraph!
+  edgeFilter(property: String!, condition: FilterCondition!): GqlGraph!
+  searchNodes(filter: NodeFilter!, limit: Int!, offset: Int!): [Node!]!
+  searchEdges(filter: EdgeFilter!, limit: Int!, offset: Int!): [Edge!]!
+  applyViews(views: [GraphViewCollection!]!): GqlGraph!
+}
+
+type GqlGraphMetadata {
+  nodeCount: Int!
+  edgeCount: Int!
+  properties: [GqlProp!]!
+}
+
+enum GqlGraphType {
+  PERSISTENT
+  EVENT
+}
+
+type GqlGraphs {
+  name: [String!]!
+  path: [String!]!
+  namespace: [String]!
+  created: [Int!]!
+  lastOpened: [Int!]!
+  lastUpdated: [Int!]!
+}
+
+type GqlMutableEdge {
+  """Use to check if adding the edge was successful"""
+  success: Boolean!
+
+  """Get the non-mutable edge for querying"""
+  edge: Edge!
+
+  """Get the mutable source node of the edge"""
+  src: GqlMutableNode!
+
+  """Get the mutable destination node of the edge"""
+  dst: GqlMutableNode!
+
+  """Mark the edge as deleted at time `time`"""
+  delete(time: Int!, layer: String): Boolean!
+
+  """
+  Add constant properties to the edge (errors if the value already exists)
+  
+  If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+  need to be specified again.
+  """
+  addConstantProperties(properties: [GqlPropInput!]!, layer: String): Boolean!
+
+  """
+  Update constant properties of the edge (existing values are overwritten)
+  
+  If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+  need to be specified again.
+  """
+  updateConstantProperties(properties: [GqlPropInput!]!, layer: String): Boolean!
+
+  """
+  Add temporal property updates to the edge
+  
+  If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+  need to be specified again.
+  """
+  addUpdates(time: Int!, properties: [GqlPropInput!], layer: String): Boolean!
+}
+
+type GqlMutableGraph {
+  """Get the non-mutable graph"""
+  graph: GqlGraph!
+
+  """Get mutable existing node"""
+  node(name: String!): GqlMutableNode
+
+  """Add a new node or add updates to an existing node"""
+  addNode(time: Int!, name: String!, properties: [GqlPropInput!], nodeType: String): GqlMutableNode!
+
+  """Create a new node or fail if it already exists"""
+  createNode(time: Int!, name: String!, properties: [GqlPropInput!], nodeType: String): GqlMutableNode!
+
+  """Add a batch of nodes"""
+  addNodes(nodes: [NodeAddition!]!): Boolean!
+
+  """Get a mutable existing edge"""
+  edge(src: String!, dst: String!): GqlMutableEdge
+
+  """Add a new edge or add updates to an existing edge"""
+  addEdge(time: Int!, src: String!, dst: String!, properties: [GqlPropInput!], layer: String): GqlMutableEdge!
+
+  """Add a batch of edges"""
+  addEdges(edges: [EdgeAddition!]!): Boolean!
+
+  """Mark an edge as deleted (creates the edge if it did not exist)"""
+  deleteEdge(time: Int!, src: String!, dst: String!, layer: String): GqlMutableEdge!
+
+  """Add temporal properties to graph"""
+  addProperties(t: Int!, properties: [GqlPropInput!]!): Boolean!
+
+  """
+  Add constant properties to graph (errors if the property already exists)
+  """
+  addConstantProperties(properties: [GqlPropInput!]!): Boolean!
+
+  """Update constant properties of the graph (overwrites existing values)"""
+  updateConstantProperties(properties: [GqlPropInput!]!): Boolean!
+}
+
+type GqlMutableNode {
+  """Use to check if adding the node was successful"""
+  success: Boolean!
+
+  """Get the non-mutable `Node`"""
+  node: Node!
+
+  """
+  Add constant properties to the node (errors if the property already exists)
+  """
+  addConstantProperties(properties: [GqlPropInput!]!): Boolean!
+
+  """Set the node type (errors if the node already has a non-default type)"""
+  setNodeType(newType: String!): Boolean!
+
+  """
+  Update constant properties of the node (overwrites existing property values)
+  """
+  updateConstantProperties(properties: [GqlPropInput!]!): Boolean!
+
+  """Add temporal property updates to the node"""
+  addUpdates(time: Int!, properties: [GqlPropInput!]): Boolean!
+}
+
+type GqlNodes {
+  defaultLayer: GqlNodes!
+  layers(names: [String!]!): GqlNodes!
+  excludeLayers(names: [String!]!): GqlNodes!
+  layer(name: String!): GqlNodes!
+  excludeLayer(name: String!): GqlNodes!
+  window(start: Int!, end: Int!): GqlNodes!
+  at(time: Int!): GqlNodes!
+  latest: GqlNodes!
+  snapshotAt(time: Int!): GqlNodes!
+  snapshotLatest: GqlNodes!
+  before(time: Int!): GqlNodes!
+  after(time: Int!): GqlNodes!
+  shrinkWindow(start: Int!, end: Int!): GqlNodes!
+  shrinkStart(start: Int!): GqlNodes!
+  shrinkEnd(end: Int!): GqlNodes!
+  typeFilter(nodeTypes: [String!]!): GqlNodes!
+  nodeFilter(property: String!, condition: FilterCondition!): GqlNodes!
+  applyViews(views: [NodesViewCollection!]!): GqlNodes!
+  sorted(sortBys: [NodeSortBy!]!): GqlNodes!
+  start: Int
+  end: Int
+  count: Int!
+  page(limit: Int!, offset: Int!): [Node!]!
+  list: [Node!]!
+  ids: [String!]!
+}
+
+type GqlPathFromNode {
+  layers(names: [String!]!): GqlPathFromNode!
+  excludeLayers(names: [String!]!): GqlPathFromNode!
+  layer(name: String!): GqlPathFromNode!
+  excludeLayer(name: String!): GqlPathFromNode!
+  window(start: Int!, end: Int!): GqlPathFromNode!
+  at(time: Int!): GqlPathFromNode!
+  snapshotLatest: GqlPathFromNode!
+  snapshotAt(time: Int!): GqlPathFromNode!
+  latest: GqlPathFromNode!
+  before(time: Int!): GqlPathFromNode!
+  after(time: Int!): GqlPathFromNode!
+  shrinkWindow(start: Int!, end: Int!): GqlPathFromNode!
+  shrinkStart(start: Int!): GqlPathFromNode!
+  shrinkEnd(end: Int!): GqlPathFromNode!
+  typeFilter(nodeTypes: [String!]!): GqlPathFromNode!
+  start: Int
+  end: Int
+  count: Int!
+  page(limit: Int!, offset: Int!): [Node!]!
+  list: [Node!]!
+  ids: [String!]!
+}
+
+type GqlProp {
+  key: String!
+  asString: String!
+  value: GqlPropOutputVal!
+}
+
+input GqlPropInput {
+  key: String!
+  value: Value!
+}
+
+scalar GqlPropOutputVal
+
+type GqlPropTuple {
+  time: Int!
+  asString: String!
+  value: GqlPropOutputVal!
+}
+
+type GqlProperties {
+  get(key: String!): GqlProp
+  contains(key: String!): Boolean!
+  keys: [String!]!
+  values(keys: [String!]): [GqlProp!]!
+  temporal: GqlTemporalProperties!
+  constant: GqlConstantProperties!
+}
+
+type GqlTemporalProp {
+  key: String!
+  history: [Int!]!
+  values: [String!]!
+  at(t: Int!): String
+  latest: String
+  unique: [String!]!
+  orderedDedupe(latestTime: Boolean!): [GqlPropTuple!]!
+}
+
+type GqlTemporalProperties {
+  get(key: String!): GqlTemporalProp
+  contains(key: String!): Boolean!
+  keys: [String!]!
+  values(keys: [String!]): [GqlTemporalProp!]!
+}
+
+type GqlVectorisedGraph {
+  algorithms: VectorAlgorithmPlugin!
+}
+
+type Graph {
+  name: String!
+}
+
+type GraphAlgorithmPlugin {
+  pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+  shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+}
+
+type GraphSchema {
+  nodes: [NodeSchema!]!
+  layers: [LayerSchema!]!
+}
+
+input GraphViewCollection {
+  defaultLayer: Boolean
+  layers: [String!]
+  excludeLayers: [String!]
+  layer: String
+  excludeLayer: String
+  subgraph: [String!]
+  subgraphId: [Int!]
+  subgraphNodeTypes: [String!]
+  excludeNodes: [String!]
+  excludeNodesId: [Int!]
+  window: Window
+  at: Int
+  latest: Boolean
+  snapshotAt: Int
+  snapshotLatest: Boolean
+  before: Int
+  after: Int
+  shrinkWindow: Window
+  shrinkStart: Int
+  shrinkEnd: Int
+  nodeFilter: FilterProperty
+  edgeFilter: FilterProperty
+}
+
+type LayerSchema {
+  """Returns the name of the layer with this schema"""
+  name: String!
+
+  """Returns the list of edge schemas for this edge layer"""
+  edges: [EdgeSchema!]!
+}
+
+type MetaGraph {
+  name: String
+  path: String!
+  created: Int!
+  lastOpened: Int!
+  lastUpdated: Int!
+  metadata: GqlGraphMetadata!
+}
+
+type MutRoot {
+  plugins: MutationPlugin!
+  deleteGraph(path: String!): Boolean!
+  newGraph(path: String!, graphType: GqlGraphType!): Boolean!
+  moveGraph(path: String!, newPath: String!): Boolean!
+  copyGraph(path: String!, newPath: String!): Boolean!
+
+  """
+  Use GQL multipart upload to send new graphs to server
+  
+  Returns::
+  name of the new graph
+  """
+  uploadGraph(path: String!, graph: Upload!, overwrite: Boolean!): String!
+
+  """
+  Send graph bincode as base64 encoded string
+  
+  Returns::
+  path of the new graph
+  """
+  sendGraph(path: String!, graph: String!, overwrite: Boolean!): String!
+
+  """
+  Create a subgraph out of some existing graph in the server
+  
+  Returns::
+  name of the new graph
+  """
+  createSubgraph(parentPath: String!, nodes: [String!]!, newPath: String!, overwrite: Boolean!): String!
+}
+
+type MutationPlugin {
+  NoOps: String!
+}
+
+type Namespace {
+  graphs: [MetaGraph!]!
+  path: String
+  parent: Namespace
+  children: [Namespace!]!
+}
+
+type Node {
+  id: String!
+  name: String!
+  defaultLayer: Node!
+  layers(names: [String!]!): Node!
+  excludeLayers(names: [String!]!): Node!
+  layer(name: String!): Node!
+  excludeLayer(name: String!): Node!
+  window(start: Int!, end: Int!): Node!
+  at(time: Int!): Node!
+  latest: Node!
+  snapshotAt(time: Int!): Node!
+  snapshotLatest: Node!
+  before(time: Int!): Node!
+  after(time: Int!): Node!
+  shrinkWindow(start: Int!, end: Int!): Node!
+  shrinkStart(start: Int!): Node!
+  shrinkEnd(end: Int!): Node!
+  applyViews(views: [NodeViewCollection!]!): Node!
+  earliestTime: Int
+  firstUpdate: Int
+  latestTime: Int
+  lastUpdate: Int
+  start: Int
+  end: Int
+  history: [Int!]!
+  isActive: Boolean!
+  nodeType: String
+  properties: GqlProperties!
+
+  """Returns the number of edges connected to this node"""
+  degree: Int!
+
+  """Returns the number edges with this node as the source"""
+  outDegree: Int!
+
+  """Returns the number edges with this node as the destination"""
+  inDegree: Int!
+  inComponent: GqlNodes!
+  outComponent: GqlNodes!
+  edges: GqlEdges!
+  outEdges: GqlEdges!
+  inEdges: GqlEdges!
+  neighbours: GqlPathFromNode!
+  inNeighbours: GqlPathFromNode!
+  outNeighbours: GqlPathFromNode!
+}
+
+input NodeAddition {
+  name: String!
+  nodeType: String
+  constantProperties: [GqlPropInput!]
+  updates: [TpropInput!]
+}
+
+enum NodeField {
+  NODE_NAME
+  NODE_TYPE
+}
+
+input NodeFieldFilter {
+  field: NodeField!
+  operator: Operator!
+  value: String!
+}
+
+input NodeFilter {
+  node: NodeFieldFilter
+  property: PropertyFilterExpr
+  constantProperty: ConstantPropertyFilterExpr
+  temporalProperty: TemporalPropertyFilterExpr
+  and: [NodeFilter!]
+  or: [NodeFilter!]
+}
+
+type NodeSchema {
+  typeName: String!
+
+  """Returns the list of property schemas for this node"""
+  properties: [PropertySchema!]!
+}
+
+input NodeSortBy {
+  reverse: Boolean
+  id: Boolean
+  time: SortByTime
+  property: String
+}
+
+input NodeViewCollection {
+  defaultLayer: Boolean
+  layers: [String!]
+  excludeLayers: [String!]
+  layer: String
+  excludeLayer: String
+  window: Window
+  at: Int
+  latest: Boolean
+  snapshotAt: Int
+  snapshotLatest: Boolean
+  before: Int
+  after: Int
+  shrinkWindow: Window
+  shrinkStart: Int
+  shrinkEnd: Int
+}
+
+input NodesViewCollection {
+  defaultLayer: Boolean
+  layers: [String!]
+  excludeLayers: [String!]
+  layer: String
+  excludeLayer: String
+  window: Window
+  at: Int
+  latest: Boolean
+  snapshotAt: Int
+  snapshotLatest: Boolean
+  before: Int
+  after: Int
+  shrinkWindow: Window
+  shrinkStart: Int
+  shrinkEnd: Int
+  typeFilter: [String!]
+  nodeFilter: FilterProperty
+}
+
+input ObjectEntry {
+  key: String!
+  value: Value!
+}
+
+enum Operator {
+  EQUAL
+  NOT_EQUAL
+  GREATER_THAN_OR_EQUAL
+  LESS_THAN_OR_EQUAL
+  GREATER_THAN
+  LESS_THAN
+  IS_NONE
+  IS_SOME
+  ANY
+  NOT_ANY
+}
+
+type PagerankOutput {
+  name: String!
+  rank: Float!
+}
+
+input PropertyFilterExpr {
+  name: String!
+  operator: Operator!
+  value: Value
+}
+
+type PropertySchema {
+  key: String!
+  propertyType: String!
+  variants: [String!]!
+}
+
+type QueryPlugin {
+  globalSearch(query: String!, limit: Int!): [Document!]!
+  customSearch(query: String!): [Document!]!
+}
+
+type QueryRoot {
+  hello: String!
+
+  """Returns a graph"""
+  graph(path: String!): GqlGraph!
+  updateGraph(path: String!): GqlMutableGraph!
+  vectorisedGraph(path: String!): GqlVectorisedGraph
+  namespaces: [Namespace!]!
+  namespace(path: String!): Namespace!
+  root: Namespace!
+  graphs: GqlGraphs!
+  plugins: QueryPlugin!
+  receiveGraph(path: String!): String!
+}
+
+type ShortestPathOutput {
+  target: String!
+  nodes: [String!]!
+}
+
+enum SortByTime {
+  LATEST
+  EARLIEST
+}
+
+input TemporalPropertyFilterExpr {
+  name: String!
+  temporal: TemporalType!
+  operator: Operator!
+  value: Value
+}
+
+enum TemporalType {
+  ANY
+  LATEST
+}
+
+input TpropInput {
+  time: Int!
+  properties: [GqlPropInput!]
+}
+
+scalar Upload
+
+input Value {
+  u64: Int
+  i64: Int
+  f64: Float
+  str: String
+  bool: Boolean
+  list: [Value!]
+  object: [ObjectEntry!]
+}
+
+type VectorAlgorithmPlugin {
+  similaritySearch(query: String!, limit: Int!, start: Int, end: Int): [Document!]!
+}
+
+input Window {
+  start: Int!
+  end: Int!
+}
