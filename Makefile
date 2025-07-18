@@ -62,7 +62,7 @@ tidy: rust-fmt build-python stubs python-fmt
 
 tidy-public: rust-fmt build-python-public stubs python-fmt
 
-check-pr: tidy-public test-all
+check-pr: test-all tidy-public
 
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
