@@ -1,5 +1,4 @@
-from raphtory import filter, Prop
-import pytest
+from raphtory import filter
 from filters_setup import (
     init_nodes_graph,
     init_nodes_graph1,
@@ -22,8 +21,8 @@ def init_graph_for_secondary_indexes(graph):
 @with_disk_variants(init_nodes_graph)
 def test_constant_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").constant() == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1").constant() == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"])
         assert result_ids == expected_ids
 
@@ -33,8 +32,8 @@ def test_constant_semantics():
 @with_disk_variants(init_nodes_graph)
 def test_temporal_any_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().any() == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1").temporal().any() == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"])
         assert result_ids == expected_ids
 
@@ -46,8 +45,8 @@ def test_temporal_any_semantics():
 )
 def test_temporal_any_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().any() == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1").temporal().any() == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(
             ["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"]
         )
@@ -59,8 +58,8 @@ def test_temporal_any_semantics_for_secondary_indexes():
 @with_disk_variants(init_nodes_graph)
 def test_temporal_latest_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().latest() == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1").temporal().latest() == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
 
@@ -72,8 +71,8 @@ def test_temporal_latest_semantics():
 )
 def test_temporal_latest_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().latest() == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1").temporal().latest() == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N16", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
 
@@ -83,8 +82,8 @@ def test_temporal_latest_semantics_for_secondary_indexes():
 @with_disk_variants(init_nodes_graph)
 def test_property_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N14", "N15", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
 
@@ -96,8 +95,8 @@ def test_property_semantics():
 )
 def test_property_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N14", "N15", "N16", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
 
@@ -107,8 +106,8 @@ def test_property_semantics_for_secondary_indexes():
 @with_disk_variants(init_nodes_graph1)
 def test_property_semantics_only_constant():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N2"])
         assert result_ids == expected_ids
 
@@ -118,8 +117,8 @@ def test_property_semantics_only_constant():
 @with_disk_variants(init_nodes_graph2)
 def test_property_semantics_only_temporal():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
+        filter_expr = filter.Node.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N3"])
         assert result_ids == expected_ids
 
