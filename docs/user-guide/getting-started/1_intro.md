@@ -7,7 +7,7 @@ Our powerful visual interface allows analysts to explore data and trace the evol
 Raphtory is written in Rust for speed and safety. However, you can interact with your graphs using:
 
 - [Python][raphtory] - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
-- [GraphQL](../../graphql/1_intro/) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
+- [GraphQL](../graphql/1_intro.md) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
 - [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products. 
 
 ## Ingest a simple dataset
@@ -60,7 +60,7 @@ You can print the state of the graph object to verify it exists.
     ```
 
 
-For more details, see [Creating a graph](../../ingestion/1_intro/).
+For more details, see [Creating a graph](../ingestion/1_intro.md).
 
 ## Query your data
 
@@ -91,7 +91,7 @@ assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == 
     Rank 5: VIOLETTE with a score of 0.05759
     ```
 
-Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../../views/2_time/). 
+Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../views/2_time.md). 
 
 ## Start the UI server
 
@@ -118,4 +118,4 @@ You can use the **Query Builder** to select the graph you created and identify w
 
 ![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
 
-For more information see the full [User Interface overview](../2_UI_overview/)
+For more information see the full [User Interface overview](2_UI_overview.md)
