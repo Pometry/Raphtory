@@ -14,7 +14,7 @@ Raphtory is written in Rust for speed and safety. However, you can interact with
 
 You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file. 
 
-To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`](../../../reference/raphtory/Classes/Graph/#raphtory.Graph.load_edges_from_pandas) method and assigning each of the parameters appropriately. 
+To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`][raphtory.Graph.load_edges_from_pandas] method and assigning each of the parameters appropriately. 
 
 /// tab | :fontawesome-brands-python: Python
 ```python
@@ -97,9 +97,9 @@ Once you have identified some interesting features, you can performed more detai
 
 To start the Raphtory UI you need to:
 
-1. Create a [GraphServer](../../../reference/raphtory/Modules/graphql/Classes/GraphServer/#raphtory.graphql.GraphServer) and client.
+1. Create a [GraphServer][raphtory.graphql.GraphServer] and client.
     - Every `GraphServer` needs a working directory, you can name this anything.
-2. Start the server and get a [RaphtoryClient](../../../reference/raphtory/Modules/graphql/Classes/GraphServer/#raphtory.graphql.RaphtoryClient).
+2. Start the server and get a [RaphtoryClient][raphtory.graphql.RaphtoryClient].
 3. Send the relevant graphs to this client (in this case you only have one graph available).
 
 /// tab | :fontawesome-brands-python: Python
