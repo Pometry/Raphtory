@@ -18,17 +18,20 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    python::{graph::history::PyHistory, types::repr::Repr, utils::PyTime},
+    python::{graph::history::PyHistory, types::repr::Repr},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::prelude::*;
-use raphtory_api::core::{
-    entities::GID,
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{TimeError, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{TimeError, TimeIndexEntry},
+        },
     },
+    python::timeindex::PyTime,
 };
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},

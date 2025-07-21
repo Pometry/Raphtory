@@ -1,10 +1,9 @@
 use crate::{
-    core::utils::time::IntoTime,
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::PyDocument,
-        utils::{execute_async_task, PyNodeRef, PyTime},
+        utils::{execute_async_task, PyNodeRef},
     },
     vectors::{
         cache::VectorCache,
@@ -23,7 +22,10 @@ use pyo3::{
     prelude::*,
     types::{PyFunction, PyList},
 };
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::{
+    core::{storage::timeindex::AsTime, utils::time::IntoTime},
+    python::timeindex::PyTime,
+};
 use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;

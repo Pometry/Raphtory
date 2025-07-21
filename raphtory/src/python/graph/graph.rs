@@ -18,7 +18,7 @@ use crate::{
             io::pandas_loaders::*, node::PyNode, views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
     serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
@@ -26,7 +26,10 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::{
+    core::{entities::GID, storage::arc_str::ArcStr},
+    python::timeindex::PyTime,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,

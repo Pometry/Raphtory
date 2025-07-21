@@ -1,39 +1,46 @@
-use crate::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
+use crate::core::{
+    storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
+    utils::time::{IntoTime, TryIntoTimeNeedsSecondaryIndex},
+};
 use chrono::{DateTime, Utc};
 use pyo3::{exceptions::PyException, prelude::*};
+use serde::Serialize;
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
-    type Target = PyRaphtoryTime;
+    type Target = PyTime;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyRaphtoryTime::from(self).into_pyobject(py)
-    }
-}
-
-impl<'source> FromPyObject<'source> for TimeIndexEntry {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let py_time = ob.downcast::<PyRaphtoryTime>()?;
-        Ok(py_time.get().inner())
+        PyTime::from(self).into_pyobject(py)
     }
 }
 
 #[pyclass(name = "RaphtoryTime", module = "raphtory", frozen, eq, ord)]
-#[derive(Debug, Clone, PartialEq, Ord, PartialOrd, Eq)]
-pub struct PyRaphtoryTime {
+#[derive(Debug, Clone, Serialize, PartialEq, Ord, PartialOrd, Eq)]
+pub struct PyTime {
     time: TimeIndexEntry,
 }
 
-impl PyRaphtoryTime {
-    /// Get the internal TimeIndexEntry
+impl PyTime {
+    fn new(time: TimeIndexEntry) -> Self {
+        Self { time }
+    }
+
     pub fn inner(&self) -> TimeIndexEntry {
         self.time
     }
+
+    pub const MIN: PyTime = PyTime {
+        time: TimeIndexEntry::MIN,
+    };
+    pub const MAX: PyTime = PyTime {
+        time: TimeIndexEntry::MAX,
+    };
 }
 
 #[pymethods]
-impl PyRaphtoryTime {
+impl PyTime {
     /// Get the datetime representation of the time
     pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         self.time.dt()
@@ -54,21 +61,29 @@ impl PyRaphtoryTime {
 
     // TODO: Might wanna remove this later
     #[staticmethod]
-    pub fn new(t: i64, s: usize) -> Self {
+    pub fn create(t: i64, s: usize) -> Self {
         Self {
             time: TimeIndexEntry::new(t, s),
         }
     }
 }
 
-impl From<TimeIndexEntry> for PyRaphtoryTime {
+impl IntoTime for PyTime {
+    fn into_time(self) -> TimeIndexEntry {
+        self.time
+    }
+}
+
+impl TryIntoTimeNeedsSecondaryIndex for PyTime {}
+
+impl From<TimeIndexEntry> for PyTime {
     fn from(time: TimeIndexEntry) -> Self {
         Self { time }
     }
 }
 
-impl From<PyRaphtoryTime> for TimeIndexEntry {
-    fn from(value: PyRaphtoryTime) -> Self {
+impl From<PyTime> for TimeIndexEntry {
+    fn from(value: PyTime) -> Self {
         value.inner()
     }
 }

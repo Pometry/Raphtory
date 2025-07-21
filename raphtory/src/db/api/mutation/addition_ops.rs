@@ -1,14 +1,8 @@
 use super::time_from_input;
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
-        utils::time::IntoTimeWithFormat,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{
-            mutation::{CollectProperties, TryIntoInputTime},
-            view::StaticGraphViewOps,
-        },
+        api::{mutation::CollectProperties, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
@@ -20,6 +14,7 @@ use raphtory_api::core::{
         dict_mapper::MaybeNew::{Existing, New},
         timeindex::AsTime,
     },
+    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 

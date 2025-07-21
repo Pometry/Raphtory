@@ -1,15 +1,18 @@
 use crate::{
-    core::{
-        storage::timeindex::AsTime,
-        utils::time::{Interval, IntoTime},
-    },
+    core::{storage::timeindex::AsTime, utils::time::Interval},
     db::api::view::{
         internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
         time::internal::InternalTimeOps,
     },
 };
-use raphtory_api::{core::storage::timeindex::TimeIndexEntry, GraphType};
-use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
+use raphtory_api::{
+    core::{
+        storage::timeindex::TimeIndexEntry,
+        utils::time::{IntoTime, ParseTimeError},
+    },
+    GraphType,
+};
+use raphtory_core::utils::time::IntervalSize;
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -420,7 +423,6 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSe
 #[cfg(test)]
 mod time_tests {
     use crate::{
-        core::utils::time::TryIntoTime,
         db::{
             api::{
                 mutation::AdditionOps,
@@ -435,8 +437,10 @@ mod time_tests {
         test_storage,
     };
     use itertools::Itertools;
-    use raphtory_api::core::storage::timeindex::AsTime;
-    use raphtory_core::utils::time::ParseTimeError;
+    use raphtory_api::core::{
+        storage::timeindex::AsTime,
+        utils::time::{ParseTimeError, TryIntoTime},
+    };
 
     // start inclusive, end exclusive
     fn graph_with_timeline(start: i64, end: i64) -> Graph {

@@ -14,10 +14,10 @@ pub use import_ops::ImportOps;
 #[cfg(feature = "search")]
 pub use index_ops::IndexMutationOps;
 pub use property_addition_ops::PropertyAdditionOps;
+pub(crate) use raphtory_api::core::utils::time::{InputTime, TryIntoInputTime};
 use raphtory_api::core::{
     entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
 };
-pub(crate) use raphtory_core::utils::time::{InputTime, TryIntoInputTime};
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 
 pub fn time_from_input<G: InternalAdditionOps<Error: Into<GraphError>>, T: TryIntoInputTime>(

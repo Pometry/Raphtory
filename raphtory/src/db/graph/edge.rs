@@ -11,7 +11,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::{
                 internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
                 Properties,
@@ -31,8 +31,9 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    utils::time::{AsTimeInput, TryIntoInputTime},
 };
-use raphtory_core::{entities::graph::tgraph::InvalidLayer, utils::time::AsTimeInput};
+use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{

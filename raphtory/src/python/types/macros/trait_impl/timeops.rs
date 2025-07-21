@@ -46,7 +46,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_api::core::utils::time::ParseTimeError> {
                 self.$field.expanding(step)
             }
 
@@ -66,7 +66,7 @@ macro_rules! impl_timeops {
                 &self,
                 window:$crate::core::utils::time::Interval,
                 step: Option<$crate::core::utils::time::Interval>,
-            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_api::core::utils::time::ParseTimeError> {
                 self.$field.rolling(window, step)
             }
 
@@ -80,8 +80,8 @@ macro_rules! impl_timeops {
             #[doc = concat!("    ", $name, ":")]
             pub fn window(
                 &self,
-                start: $crate::python::utils::PyTime,
-                end: $crate::python::utils::PyTime,
+                start: $crate::api::python::timeindex::PyTime,
+                end: $crate::api::python::timeindex::PyTime,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
                     .window(start, end)
@@ -94,7 +94,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn at(&self, time: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
 
@@ -115,7 +115,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn snapshot_at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn snapshot_at(&self, time: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.snapshot_at(time)
             }
 
@@ -136,7 +136,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn before(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn before(&self, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
 
@@ -147,7 +147,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn after(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn after(&self, start: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
 
@@ -158,7 +158,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn shrink_start(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn shrink_start(&self, start: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_start(start)
             }
 
@@ -168,7 +168,7 @@ macro_rules! impl_timeops {
             ///     end (RaphtoryTime): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_end(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_end(&self, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                     self.$field.shrink_end(end)
             }
 
@@ -180,7 +180,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::python::utils::PyTime, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_window(&self, start: $crate::api::python::timeindex::PyTime, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_window(start, end)
             }
         }

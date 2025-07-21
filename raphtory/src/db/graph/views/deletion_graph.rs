@@ -215,14 +215,12 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty)
-                .map(|v| (start, v));
+            let first =
+                persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty).map(|v| (start, v));
             first
                 .into_iter()
                 .chain(GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(start..end)
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 }))
                 .into_dyn_dboxed()
         } else {
@@ -305,9 +303,7 @@ impl NodeHistoryFilter for PersistentGraph {
     ) -> bool {
         time < w.end && {
             let nse = self.0.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..w.end);
+            let x = nse.tprop(prop_id).active(time.next()..w.end);
             !x
         }
     }

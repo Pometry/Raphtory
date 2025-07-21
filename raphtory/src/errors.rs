@@ -10,12 +10,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::TimeError,
 };
-use raphtory_core::{
-    entities::{
-        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{ConstPropError, TPropError},
-    },
-    utils::time::ParseTimeError,
+use raphtory_core::entities::{
+    graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+    properties::props::{ConstPropError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
@@ -39,6 +36,7 @@ use {
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
+use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 

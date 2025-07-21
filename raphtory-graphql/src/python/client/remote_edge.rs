@@ -3,8 +3,11 @@ use crate::python::client::{
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory::errors::GraphError;
+use raphtory_api::{
+    core::{entities::properties::prop::Prop, utils::time::IntoTime},
+    python::timeindex::PyTime,
+};
 use std::collections::HashMap;
 
 /// A remote edge reference

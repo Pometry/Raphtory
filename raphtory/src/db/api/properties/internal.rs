@@ -1,12 +1,9 @@
-use crate::{db::api::view::BoxedLIter};
+use crate::db::api::view::BoxedLIter;
 use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{TimeIndexEntry},
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     inherit::Base,
     iter::IntoDynBoxed,

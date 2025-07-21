@@ -617,9 +617,11 @@ mod db_tests {
             arc_str::{ArcStr, OptionAsStr},
             timeindex::{AsTime, TimeIndexEntry},
         },
-        utils::logging::global_info_logger,
+        utils::{
+            logging::global_info_logger,
+            time::{ParseTimeError, TryIntoTime},
+        },
     };
-    use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
     use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use rayon::join;
     use std::{

@@ -19,14 +19,17 @@ use crate::{
     prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
     python::{
         graph::{edge::PyEdge, index::PyIndexSpec, node::PyNode, views::graph_view::PyGraphView},
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
     serialise::StableEncode,
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr};
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::arc_str::ArcStr,
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        storage::arc_str::ArcStr,
+    },
+    python::timeindex::PyTime,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{

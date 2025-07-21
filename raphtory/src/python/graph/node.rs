@@ -32,7 +32,7 @@ use crate::{
             properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
     *,
 };
@@ -51,10 +51,13 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::{arc_str::ArcStr, timeindex::AsTime},
-    utils::hashing::calculate_hash,
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        storage::{arc_str::ArcStr, timeindex::AsTime},
+        utils::hashing::calculate_hash,
+    },
+    python::timeindex::PyTime,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};

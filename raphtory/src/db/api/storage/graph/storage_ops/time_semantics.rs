@@ -103,9 +103,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
             .into_iter()
             .flat_map(move |prop| {
                 GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(start..end)
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 })
             })
             .into_dyn_dboxed()
@@ -182,9 +180,7 @@ impl NodeHistoryFilter for GraphStorage {
     ) -> bool {
         w.contains(&time) && {
             let nse = self.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..w.end);
+            let x = nse.tprop(prop_id).active(time.next()..w.end);
             !x
         }
     }

@@ -4,7 +4,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input, CollectProperties},
             properties::internal::{
                 ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
             },
@@ -35,6 +35,7 @@ use crate::{
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{

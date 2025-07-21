@@ -23,7 +23,7 @@ use crate::{
                 prop::{PropHistItems, PropValue},
             },
         },
-        utils::{NumpyArray, PyGenericIterator, PyTime},
+        utils::{NumpyArray, PyGenericIterator},
     },
 };
 use itertools::Itertools;
@@ -31,14 +31,17 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropUnwrap},
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::properties::prop::{Prop, PropUnwrap},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, TimeIndexEntry},
+        },
+        utils::time::IntoTime,
     },
+    python::timeindex::PyTime,
 };
-use raphtory_core::utils::time::IntoTime;
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
