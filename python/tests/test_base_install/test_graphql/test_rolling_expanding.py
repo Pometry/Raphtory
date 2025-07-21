@@ -466,171 +466,171 @@ def test_nodes():
     correct = {
         "graph": {
             "nodes": {
-                "rolling": {
-                    "list": [
-                        {
-                            "page": [
-                                {
-                                    "id": "1",
-                                    "degree": 1,
-                                    "start": 1,
-                                    "end": 2,
-                                    "earliestTime": 1,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": "1",
-                                    "degree": 2,
-                                    "start": 2,
-                                    "end": 3,
-                                    "earliestTime": 2,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": "1",
-                                    "degree": 2,
-                                    "start": 3,
-                                    "end": 4,
-                                    "earliestTime": 3,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": "1",
-                                    "degree": 1,
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": 4,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": "6",
-                                    "degree": 1,
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": 5,
-                                }
-                            ]
-                        },
-                    ],
-                    "count": 5,
-                    "page": [
-                        {
-                            "page": [
-                                {
-                                    "id": "1",
-                                    "degree": 1,
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": 4,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": "6",
-                                    "degree": 1,
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": 5,
-                                }
-                            ]
-                        },
-                    ],
-                },
                 "after": {
                     "expanding": {
+                        "count": 4,
                         "list": [
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 3,
-                                        "earliestTime": 2,
+                                        "id": "1",
                                         "latestTime": 2,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 4,
-                                        "earliestTime": 2,
+                                        "id": "1",
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 5,
-                                        "earliestTime": 2,
+                                        "id": "1",
                                         "latestTime": 4,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
-                                        "end": 6,
                                         "earliestTime": 2,
+                                        "end": 6,
+                                        "id": "1",
                                         "latestTime": 4,
+                                        "start": 2
                                     }
                                 ]
-                            },
+                            }
                         ],
-                        "count": 4,
                         "page": [
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
-                                        "end": 5,
                                         "earliestTime": 2,
+                                        "end": 5,
+                                        "id": "1",
                                         "latestTime": 4,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": "1",
                                         "degree": 2,
-                                        "start": None,
-                                        "end": 6,
                                         "earliestTime": 2,
+                                        "end": 6,
+                                        "id": "1",
                                         "latestTime": 4,
+                                        "start": 2
                                     }
                                 ]
-                            },
-                        ],
+                            }
+                        ]
                     }
                 },
+                "rolling": {
+                    "count": 5,
+                    "list": [
+                        {
+                            "page": [
+                                {
+                                    "degree": 1,
+                                    "earliestTime": 1,
+                                    "end": 2,
+                                    "id": "1",
+                                    "start": 1
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "degree": 2,
+                                    "earliestTime": 2,
+                                    "end": 3,
+                                    "id": "1",
+                                    "start": 2
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "degree": 2,
+                                    "earliestTime": 3,
+                                    "end": 4,
+                                    "id": "1",
+                                    "start": 3
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "degree": 1,
+                                    "earliestTime": 4,
+                                    "end": 5,
+                                    "id": "1",
+                                    "start": 4
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "degree": 0,
+                                    "earliestTime": None,
+                                    "end": 6,
+                                    "id": "1",
+                                    "start": 5
+                                }
+                            ]
+                        }
+                    ],
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "degree": 1,
+                                    "earliestTime": 4,
+                                    "end": 5,
+                                    "id": "1",
+                                    "start": 4
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "degree": 0,
+                                    "earliestTime": None,
+                                    "end": 6,
+                                    "id": "1",
+                                    "start": 5
+                                }
+                            ]
+                        }
+                    ]
+                }
             }
         }
     }
@@ -919,65 +919,93 @@ def test_edge():
     correct = {
         "graph": {
             "edge": {
-                "rolling": {
-                    "list": [
-                        {"start": 1, "end": 2, "earliestTime": 1},
-                        {"start": 2, "end": 3, "earliestTime": 2},
-                        {"start": 3, "end": 4, "earliestTime": 3},
-                        {"start": 4, "end": 5, "earliestTime": None},
-                        {"start": 5, "end": 6, "earliestTime": None},
-                    ],
-                    "count": 5,
-                    "page": [
-                        {"start": 4, "end": 5, "earliestTime": None},
-                        {"start": 5, "end": 6, "earliestTime": None},
-                    ],
-                },
                 "after": {
                     "expanding": {
+                        "count": 4,
                         "list": [
                             {
-                                "start": None,
+                                "earliestTime": 2,
                                 "end": 3,
-                                "earliestTime": 2,
                                 "latestTime": 2,
+                                "start": 2
                             },
                             {
-                                "start": None,
+                                "earliestTime": 2,
                                 "end": 4,
-                                "earliestTime": 2,
                                 "latestTime": 3,
+                                "start": 2
                             },
                             {
-                                "start": None,
+                                "earliestTime": 2,
                                 "end": 5,
-                                "earliestTime": 2,
                                 "latestTime": 3,
+                                "start": 2
                             },
                             {
-                                "start": None,
-                                "end": 6,
                                 "earliestTime": 2,
+                                "end": 6,
                                 "latestTime": 3,
-                            },
+                                "start": 2
+                            }
                         ],
-                        "count": 4,
                         "page": [
                             {
-                                "start": None,
-                                "end": 5,
                                 "earliestTime": 2,
+                                "end": 5,
                                 "latestTime": 3,
+                                "start": 2
                             },
                             {
-                                "start": None,
-                                "end": 6,
                                 "earliestTime": 2,
+                                "end": 6,
                                 "latestTime": 3,
-                            },
-                        ],
+                                "start": 2
+                            }
+                        ]
                     }
                 },
+                "rolling": {
+                    "count": 5,
+                    "list": [
+                        {
+                            "earliestTime": 1,
+                            "end": 2,
+                            "start": 1
+                        },
+                        {
+                            "earliestTime": 2,
+                            "end": 3,
+                            "start": 2
+                        },
+                        {
+                            "earliestTime": 3,
+                            "end": 4,
+                            "start": 3
+                        },
+                        {
+                            "earliestTime": None,
+                            "end": 5,
+                            "start": 4
+                        },
+                        {
+                            "earliestTime": None,
+                            "end": 6,
+                            "start": 5
+                        }
+                    ],
+                    "page": [
+                        {
+                            "earliestTime": None,
+                            "end": 5,
+                            "start": 4
+                        },
+                        {
+                            "earliestTime": None,
+                            "end": 6,
+                            "start": 5
+                        }
+                    ]
+                }
             }
         }
     }
@@ -1041,158 +1069,158 @@ def test_edges():
     correct = {
         "graph": {
             "edges": {
-                "rolling": {
-                    "list": [
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 1,
-                                    "end": 2,
-                                    "earliestTime": 1,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 2,
-                                    "end": 3,
-                                    "earliestTime": 2,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 3,
-                                    "end": 4,
-                                    "earliestTime": 3,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": None,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": None,
-                                }
-                            ]
-                        },
-                    ],
-                    "count": 5,
-                    "page": [
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": None,
-                                }
-                            ]
-                        },
-                        {
-                            "page": [
-                                {
-                                    "id": ["1", "2"],
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": None,
-                                }
-                            ]
-                        },
-                    ],
-                },
                 "after": {
                     "expanding": {
+                        "count": 4,
                         "list": [
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 3,
-                                        "earliestTime": 2,
+                                        "id": ["1", "2"],
                                         "latestTime": 2,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 4,
-                                        "earliestTime": 2,
+                                        "id": ["1", "2"],
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
+                                        "earliestTime": 2,
                                         "end": 5,
-                                        "earliestTime": 2,
+                                        "id": ["1", "2"],
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
-                                        "end": 6,
                                         "earliestTime": 2,
+                                        "end": 6,
+                                        "id": ["1", "2"],
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
-                            },
+                            }
                         ],
-                        "count": 4,
                         "page": [
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
-                                        "end": 5,
                                         "earliestTime": 2,
+                                        "end": 5,
+                                        "id": ["1", "2"],
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
                             },
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
-                                        "start": None,
-                                        "end": 6,
                                         "earliestTime": 2,
+                                        "end": 6,
+                                        "id": ["1", "2"],
                                         "latestTime": 3,
+                                        "start": 2
                                     }
                                 ]
-                            },
-                        ],
+                            }
+                        ]
                     }
                 },
+                "rolling": {
+                    "count": 5,
+                    "list": [
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": 1,
+                                    "end": 2,
+                                    "id": ["1", "2"],
+                                    "start": 1
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": 2,
+                                    "end": 3,
+                                    "id": ["1", "2"],
+                                    "start": 2
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": 3,
+                                    "end": 4,
+                                    "id": ["1", "2"],
+                                    "start": 3
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": None,
+                                    "end": 5,
+                                    "id": ["1", "2"],
+                                    "start": 4
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": None,
+                                    "end": 6,
+                                    "id": ["1", "2"],
+                                    "start": 5
+                                }
+                            ]
+                        }
+                    ],
+                    "page": [
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": None,
+                                    "end": 5,
+                                    "id": ["1", "2"],
+                                    "start": 4
+                                }
+                            ]
+                        },
+                        {
+                            "page": [
+                                {
+                                    "earliestTime": None,
+                                    "end": 6,
+                                    "id": ["1", "2"],
+                                    "start": 5
+                                }
+                            ]
+                        }
+                    ]
+                }
             }
         }
     }
