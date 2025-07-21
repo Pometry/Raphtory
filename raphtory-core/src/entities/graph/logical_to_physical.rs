@@ -58,11 +58,11 @@ impl Map {
                     .par_iter()
                     .enumerate()
                     .try_for_each(|(shard_id, shard)| {
-                        work_fn(ResolverShard::U64 {
-                            guard: shard.write(),
+                        work_fn(ResolverShard::U64(ResolverShardT::new(
+                            shard.write(),
                             map,
                             shard_id,
-                        })
+                        )))
                     })
             }
             Map::Str(map) => {
@@ -71,11 +71,11 @@ impl Map {
                     .par_iter()
                     .enumerate()
                     .try_for_each(|(shard_id, shard)| {
-                        work_fn(ResolverShard::Str {
-                            guard: shard.write(),
+                        work_fn(ResolverShard::Str(ResolverShardT::new(
+                            shard.write(),
                             map,
                             shard_id,
-                        })
+                        )))
                     })
             }
         }
@@ -94,108 +94,79 @@ pub struct Mapping {
 }
 
 pub enum ResolverShard<'a> {
-    U64 {
-        guard: RwLockWriteGuard<'a, RawTable<(u64, SharedValue<VID>)>>,
-        map: &'a FxDashMap<u64, VID>,
-        shard_id: usize,
-    },
-    Str {
-        guard: RwLockWriteGuard<'a, RawTable<(String, SharedValue<VID>)>>,
-        map: &'a FxDashMap<String, VID>,
-        shard_id: usize,
-    },
-}
-
-pub struct U64ResolverShard<'a> {
-    guard: RwLockWriteGuard<'a, RawTable<(u64, SharedValue<VID>)>>,
-    map: &'a FxDashMap<u64, VID>,
-    shard_id: usize,
-}
-
-pub struct StrResolverShard<'a> {
-    guard: RwLockWriteGuard<'a, RawTable<(String, SharedValue<VID>)>>,
-    map: &'a FxDashMap<String, VID>,
-    shard_id: usize,
+    U64(ResolverShardT<'a, u64>),
+    Str(ResolverShardT<'a, String>),
 }
 
 impl<'a> ResolverShard<'a> {
-    pub fn resolve_nodes_u64<'b, I: Iterator<Item = (usize, u64)>>(
-        &mut self,
-        nodes: impl Fn() -> I,
-        next_id: impl FnOnce() -> VID,
-    ) {
-    }
-
-    pub fn resolve_nodes_str<'b, I: Iterator<Item = (usize, &'b str)>>(
-        &mut self,
-        nodes: impl Fn() -> I,
-        next_id: impl FnOnce() -> VID,
-    ) {
-    }
-
-    pub fn resolve_node<'b>(&mut self, node_ref: GidRef<'b>, next_id: impl FnOnce() -> VID) -> VID {
+    pub fn shard_id(&self) -> usize {
         match self {
-            ResolverShard::U64 {
-                guard,
-                map,
-                shard_id,
-            } => {
-                if let GidRef::U64(id) = node_ref {
-                    let shard_ind = map.determine_map(&id);
-                    let mut factory = map.hasher().clone();
-                    let hash = factory.hash_one(&id);
-                    // let data = (id, SharedValue::new(value))
+            ResolverShard::U64(ResolverShardT { shard_id, .. }) => *shard_id,
+            ResolverShard::Str(ResolverShardT { shard_id, .. }) => *shard_id,
+        }
+    }
 
-                    match guard.get(hash, |(k, _)| k == &id) {
-                        Some((_, vid)) => {
-                            // Node already exists, do nothing
-                            *(vid.get())
-                        }
-                        None => {
-                            // Node does not exist, create it
-                            let vid = next_id();
+    pub fn as_u64(&self) -> Option<&ResolverShardT<'a, u64>> {
+        if let ResolverShard::U64(shard) = self {
+            Some(shard)
+        } else {
+            None
+        }
+    }
 
-                            guard.insert(hash, (id, SharedValue::new(vid)), |t| {
-                                factory.hash_one(t.0)
-                            });
-                            vid
-                        }
-                    }
-                } else {
-                    panic!("Expected GidRef::U64, got {:?}", node_ref);
-                }
+    pub fn as_str(&self) -> Option<&ResolverShardT<'a, String>> {
+        if let ResolverShard::Str(shard) = self {
+            Some(shard)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct ResolverShardT<'a, T> {
+    guard: RwLockWriteGuard<'a, RawTable<(T, SharedValue<VID>)>>,
+    map: &'a FxDashMap<T, VID>,
+    shard_id: usize,
+}
+
+impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
+    pub fn new(
+        guard: RwLockWriteGuard<'a, RawTable<(T, SharedValue<VID>)>>,
+        map: &'a FxDashMap<T, VID>,
+        shard_id: usize,
+    ) -> Self {
+        Self {
+            guard,
+            map,
+            shard_id,
+        }
+    }
+    pub fn resolve_node(&mut self, id: &T, next_id: impl FnOnce() -> VID) -> Option<VID> {
+        let shard_ind = self.map.determine_map(id);
+        if shard_ind != self.shard_id {
+            // This shard does not contain the id, return None
+            return None;
+        }
+        let factory = self.map.hasher().clone();
+        let hash = factory.hash_one(id);
+        // let data = (id, SharedValue::new(value))
+
+        match self.guard.get(hash, |(k, _)| k == id) {
+            Some((_, vid)) => {
+                // Node already exists, do nothing
+                Some(*(vid.get()))
             }
-            ResolverShard::Str {
-                guard,
-                map,
-                shard_id,
-            } => {
-                if let GidRef::Str(id) = node_ref {
-                    let shard_ind = map.determine_map(id);
-                    let mut factory = map.hasher().clone();
-                    let hash = factory.hash_one(&id);
+            None => {
+                // Node does not exist, create it
+                let vid = next_id();
 
-                    match guard.get(hash, |(k, _)| k == &id) {
-                        Some((_, vid)) => {
-                            // Node already exists, do nothing
-                            *(vid.get())
-                        }
-                        None => {
-                            // Node does not exist, create it
-                            let vid = next_id();
-
-                            guard.insert(hash, (id.to_owned(), SharedValue::new(vid)), |t| {
-                                factory.hash_one(&t.0)
-                            });
-                            vid
-                        }
-                    }
-                } else {
-                    panic!("Expected GidRef::Str, got {:?}", node_ref);
-                }
+                self.guard
+                    .insert(hash, (id.clone(), SharedValue::new(vid)), |t| {
+                        factory.hash_one(&t.0)
+                    });
+                Some(vid)
             }
-        };
-        VID(0)
+        }
     }
 }
 
