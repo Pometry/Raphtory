@@ -1,4 +1,4 @@
-use crate::db::api::properties::{internal::PropertiesOps, Properties};
+use crate::db::api::properties::{internal::InternalPropertiesOps, Properties};
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -21,7 +21,7 @@ pub(crate) fn extract_properties<P>(
     prop_time_dict: &mut HashMap<i64, HashMap<String, Prop>>,
     start_time: i64,
 ) where
-    P: PropertiesOps + Clone,
+    P: InternalPropertiesOps + Clone,
 {
     let properties = item.constant().as_map();
     let properties_collected: HashMap<String, Prop> = properties

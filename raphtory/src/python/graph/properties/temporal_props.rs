@@ -2,7 +2,7 @@ use crate::{
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
-            internal::PropertiesOps,
+            internal::InternalPropertiesOps,
             TemporalProperties, TemporalPropertyView,
         },
         view::internal::{DynamicGraph, Static},
@@ -361,7 +361,9 @@ impl PyTemporalProp {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for PyTemporalProp {
+impl<P: InternalPropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>>
+    for PyTemporalProp
+{
     fn from(value: TemporalPropertyView<P>) -> Self {
         Self {
             prop: TemporalPropertyView {
@@ -372,7 +374,7 @@ impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for
     }
 }
 
-impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
     for TemporalProperties<P>
 {
     type Target = PyTemporalProperties;
@@ -404,7 +406,7 @@ impl<'py> IntoPyObject<'py> for DynTemporalProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
+impl<P: InternalPropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
         format!(
             "TemporalProperties({{{}}})",
@@ -413,7 +415,7 @@ impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
     }
 }
 
-impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
+impl<P: InternalPropertiesOps> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
         format!("TemporalProp({})", iterator_repr(self.iter()))
     }
@@ -431,7 +433,9 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py> for TemporalPropertyView<P> {
+impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+    for TemporalPropertyView<P>
+{
     type Target = PyTemporalProp;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;

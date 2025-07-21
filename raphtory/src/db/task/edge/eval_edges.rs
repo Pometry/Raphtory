@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::Properties,
+            properties::{ConstantProperties, Properties},
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
@@ -170,6 +170,10 @@ impl<
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.edges.as_props()
+    }
+
+    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+        self.edges.as_metadata()
     }
 
     fn map_nodes<F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(

@@ -9,7 +9,7 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
-pub trait TemporalPropertyViewOps {
+pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
     fn temporal_value(&self, id: usize) -> Option<Prop>;
 
@@ -47,7 +47,7 @@ pub trait TemporalPropertiesRowView {
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 }
 
-pub trait ConstantPropertiesOps: Send + Sync {
+pub trait InternalConstantPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
@@ -61,12 +61,12 @@ pub trait ConstantPropertiesOps: Send + Sync {
     fn get_const_prop(&self, id: usize) -> Option<Prop>;
 }
 
-pub trait TemporalPropertiesOps {
+pub trait InternalTemporalPropertiesOps: Send + Sync {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize>;
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr;
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_>;
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize>;
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(
             self.temporal_prop_ids()
                 .map(|id| self.get_temporal_prop_name(id)),
@@ -74,13 +74,16 @@ pub trait TemporalPropertiesOps {
     }
 }
 
-pub trait PropertiesOps:
-    TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps
+pub trait InternalPropertiesOps:
+    InternalTemporalPropertiesOps + InternalTemporalPropertyViewOps + InternalConstantPropertiesOps
 {
 }
 
-impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps> PropertiesOps
-    for P
+impl<
+        P: InternalTemporalPropertiesOps
+            + InternalTemporalPropertyViewOps
+            + InternalConstantPropertiesOps,
+    > InternalPropertiesOps for P
 {
 }
 
@@ -92,9 +95,9 @@ pub trait InheritPropertiesOps: Base {}
 impl<P: InheritPropertiesOps> InheritConstantPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
-impl<P: InheritTemporalPropertyViewOps + Send + Sync> TemporalPropertyViewOps for P
+impl<P: InheritTemporalPropertyViewOps + Send + Sync> InternalTemporalPropertyViewOps for P
 where
-    P::Base: TemporalPropertyViewOps,
+    P::Base: InternalTemporalPropertyViewOps,
 {
     #[inline]
     fn dtype(&self, id: usize) -> PropType {
@@ -148,9 +151,9 @@ where
 
 impl<P: InheritTemporalPropertiesOps> InheritTemporalPropertyViewOps for P {}
 
-impl<P: InheritTemporalPropertiesOps + Send + Sync> TemporalPropertiesOps for P
+impl<P: InheritTemporalPropertiesOps + Send + Sync> InternalTemporalPropertiesOps for P
 where
-    P::Base: TemporalPropertiesOps,
+    P::Base: InternalTemporalPropertiesOps,
 {
     #[inline]
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
@@ -163,19 +166,19 @@ where
     }
 
     #[inline]
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         self.base().temporal_prop_ids()
     }
 
     #[inline]
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         self.base().temporal_prop_keys()
     }
 }
 
-impl<P: InheritConstantPropertiesOps + Send + Sync> ConstantPropertiesOps for P
+impl<P: InheritConstantPropertiesOps + Send + Sync> InternalConstantPropertiesOps for P
 where
-    P::Base: ConstantPropertiesOps,
+    P::Base: InternalConstantPropertiesOps,
 {
     #[inline]
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

@@ -13,8 +13,11 @@ use crate::{
         api::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::{
-                internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-                Properties,
+                internal::{
+                    InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
+                    InternalTemporalPropertyViewOps,
+                },
+                ConstantProperties, Properties,
             },
             view::{
                 internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
@@ -254,6 +257,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         Properties::new(self.clone())
     }
 
+    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+        ConstantProperties::new(self.clone())
+    }
+
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
@@ -410,7 +417,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalConstantPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
@@ -455,7 +462,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantProperti
     }
 }
 
-impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalPropertyViewOps
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporalPropertyViewOps
     for EdgeView<G, GH>
 {
     fn dtype(&self, id: usize) -> PropType {
@@ -627,7 +634,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalProperty
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporalPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
@@ -642,11 +649,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalProperti
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(0..self.graph.edge_meta().temporal_prop_meta().len())
     }
 
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         let reverse_map = self.graph.edge_meta().temporal_prop_meta().get_keys();
         Box::new(
             self.temporal_prop_ids()
@@ -752,31 +759,16 @@ mod test_edge {
         // FIXME: #18 constant prop for edges
         test_graph(&graph, |graph| {
             assert_eq!(
-                graph
-                    .edge(1, 2)
-                    .unwrap()
-                    .properties()
-                    .constant()
-                    .get("test_prop"),
+                graph.edge(1, 2).unwrap().metadata().get("test_prop"),
                 Some("test_val".into())
             );
             assert_eq!(
-                graph
-                    .edge(2, 3)
-                    .unwrap()
-                    .properties()
-                    .constant()
-                    .get("test_prop"),
+                graph.edge(2, 3).unwrap().metadata().get("test_prop"),
                 Some("test_val".into())
             );
 
             assert_eq!(
-                graph
-                    .edge(2, 3)
-                    .unwrap()
-                    .properties()
-                    .constant()
-                    .get("other"),
+                graph.edge(2, 3).unwrap().metadata().get("other"),
                 Some("2".into())
             );
 
@@ -785,18 +777,14 @@ mod test_edge {
                     .valid_layers(["layer 3", "layer 2"])
                     .edge(2, 3)
                     .unwrap()
-                    .properties()
-                    .constant()
+                    .metadata()
                     .get("other"),
                 Some("3".into())
             );
 
             for e in graph.edges() {
                 for ee in e.explode() {
-                    assert_eq!(
-                        ee.properties().constant().get("test_prop"),
-                        Some("test_val".into())
-                    )
+                    assert_eq!(ee.metadata().get("test_prop"), Some("test_val".into()))
                 }
             }
         });

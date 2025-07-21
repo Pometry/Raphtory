@@ -6,7 +6,8 @@ use crate::{
         api::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
-                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps,
             },
             view::{
                 internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
@@ -24,8 +25,8 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::NodeTimeSemanticsOps, DynamicGraph, ExplodedEdgePropertyFilterOps,
-                IntoDynamic,
+                internal::{GraphView, NodeTimeSemanticsOps},
+                DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynamic,
             },
         },
         graph::edges::Edges,
@@ -228,7 +229,7 @@ impl<'a, G, GH: CoreGraphOps> Hash for NodeView<'a, G, GH> {
     }
 }
 
-impl<'graph, G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
+impl<'graph, G: GraphView, GH: GraphView> InternalTemporalPropertiesOps
     for NodeView<'graph, G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
@@ -243,12 +244,14 @@ impl<'graph, G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(0..self.graph.node_meta().temporal_prop_meta().len())
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'graph, G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
+    for NodeView<'graph, G, GH>
+{
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .node_meta()
@@ -315,7 +318,9 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstantPropertiesOps for NodeView<'graph, G, GH> {
+impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalConstantPropertiesOps
+    for NodeView<'graph, G, GH>
+{
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().const_prop_meta().get_id(name)
     }

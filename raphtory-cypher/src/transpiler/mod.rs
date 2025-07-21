@@ -4,7 +4,7 @@ use itertools::Itertools;
 use raphtory::{
     api::core::Direction,
     core::entities::{edges::edge_ref::Dir, VID},
-    db::{api::properties::internal::ConstantPropertiesOps, graph::node::NodeView},
+    db::{api::properties::internal::InternalConstantPropertiesOps, graph::node::NodeView},
     prelude::*,
 };
 use sqlparser::ast::{

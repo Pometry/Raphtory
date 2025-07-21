@@ -722,32 +722,14 @@ mod test_deletions {
         e.add_constant_properties([("test", "test")], None).unwrap();
         g.delete_edge(1, 1, 2, None).unwrap();
         assert_eq!(
-            g.edge(1, 2)
-                .unwrap()
-                .properties()
-                .constant()
-                .iter()
-                .collect_vec(),
+            g.edge(1, 2).unwrap().metadata().as_vec(),
             [("test".into(), "test".into())]
         );
         let gw = g.after(1);
-        assert!(gw
-            .edge(1, 2)
-            .unwrap()
-            .properties()
-            .constant()
-            .iter()
-            .next()
-            .is_none());
+        assert!(gw.edge(1, 2).unwrap().metadata().iter().next().is_none());
         let g_before = g.before(1);
         assert_eq!(
-            g_before
-                .edge(1, 2)
-                .unwrap()
-                .properties()
-                .constant()
-                .iter()
-                .collect_vec(),
+            g_before.edge(1, 2).unwrap().metadata().as_vec(),
             [("test".into(), "test".into())]
         );
     }

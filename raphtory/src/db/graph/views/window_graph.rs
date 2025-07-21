@@ -42,7 +42,8 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InheritConstantPropertiesOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps,
             },
             state::Index,
             view::{
@@ -339,7 +340,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for WindowedGraph<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .graph_meta()
@@ -379,7 +380,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for WindowedGraph<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .get_temporal_prop_id(name)
@@ -390,7 +391,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
         self.graph.get_temporal_prop_name(id)
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(
             self.graph
                 .temporal_prop_ids()

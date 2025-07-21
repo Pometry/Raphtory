@@ -1,7 +1,9 @@
 use crate::{
     db::{
         api::{
-            properties::internal::{ConstantPropertiesOps, InheritPropertiesOps, PropertiesOps},
+            properties::internal::{
+                InheritPropertiesOps, InternalConstantPropertiesOps, InternalPropertiesOps,
+            },
             storage::storage::Storage,
         },
         graph::views::deletion_graph::PersistentGraph,
@@ -50,8 +52,8 @@ pub trait BoxableGraphView:
     + InternalLayerOps
     + GraphTimeSemanticsOps
     + InternalMaterialize
-    + PropertiesOps
-    + ConstantPropertiesOps
+    + InternalPropertiesOps
+    + InternalConstantPropertiesOps
     + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
@@ -70,8 +72,8 @@ impl<
             + InternalLayerOps
             + GraphTimeSemanticsOps
             + InternalMaterialize
-            + PropertiesOps
-            + ConstantPropertiesOps
+            + InternalPropertiesOps
+            + InternalConstantPropertiesOps
             + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter

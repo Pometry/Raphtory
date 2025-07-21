@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            properties::Properties,
+            properties::{ConstantProperties, Properties},
             view::{
                 internal::{OneHopFilter, Static},
                 BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
@@ -147,6 +147,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.map(|g, e| Properties::new(EdgeView::new(g.clone(), e)))
+    }
+
+    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+        self.map(|g, e| ConstantProperties::new(EdgeView::new(g.clone(), e)))
     }
 
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
@@ -298,6 +302,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.map(|g, e| Properties::new(EdgeView::new(g.clone(), e)))
+    }
+
+    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+        self.map(|g, e| ConstantProperties::new(EdgeView::new(g.clone(), e)))
     }
 
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(

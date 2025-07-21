@@ -1,6 +1,6 @@
 use crate::{
     db::api::properties::{
-        dyn_props::DynConstProperties, internal::PropertiesOps, ConstantProperties,
+        dyn_props::DynConstProperties, internal::InternalPropertiesOps, ConstantProperties,
     },
     python::{
         graph::properties::{
@@ -19,7 +19,7 @@ use pyo3::{
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{collections::HashMap, sync::Arc};
 
-impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
     for ConstantProperties<'static, P>
 {
     type Target = PyConstantProperties;
@@ -31,7 +31,7 @@ impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
     }
 }
 
-impl<'a, P: PropertiesOps> Repr for ConstantProperties<'a, P> {
+impl<'a, P: InternalPropertiesOps> Repr for ConstantProperties<'a, P> {
     fn repr(&self) -> String {
         format!(
             "ConstantProperties({{{}}})",
@@ -133,7 +133,7 @@ impl PyConstantProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<ConstantProperties<'static, P>>
+impl<P: InternalPropertiesOps + Send + Sync + 'static> From<ConstantProperties<'static, P>>
     for PyConstantProperties
 {
     fn from(value: ConstantProperties<P>) -> Self {

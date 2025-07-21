@@ -2,7 +2,7 @@ use crate::{
     db::api::{
         properties::{
             dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
-            internal::PropertiesOps,
+            internal::InternalPropertiesOps,
             Properties,
         },
         view::internal::{DynamicGraph, Static},
@@ -165,7 +165,7 @@ impl<P: Into<DynProperties>> From<P> for PyProperties {
     }
 }
 
-impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
     for Properties<P>
 {
     type Target = PyProperties;
@@ -197,7 +197,7 @@ impl<'py> IntoPyObject<'py> for DynProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone> Repr for Properties<P> {
+impl<P: InternalPropertiesOps + Clone> Repr for Properties<P> {
     fn repr(&self) -> String {
         format!("Properties({{{}}})", iterator_dict_repr(self.iter()))
     }

@@ -7,7 +7,7 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, Prop},
+    prelude::*,
 };
 use indexmap::IndexSet;
 use raphtory_api::core::{

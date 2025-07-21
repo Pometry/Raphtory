@@ -124,6 +124,7 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
+                properties::PropertiesOps,
                 state::{
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },

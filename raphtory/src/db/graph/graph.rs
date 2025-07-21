@@ -143,12 +143,12 @@ pub fn assert_node_equal_layer<
         n2.latest_time()
     );
     assert_eq!(
-        n1.properties().constant().as_map(),
-        n2.properties().constant().as_map(),
+        n1.metadata().as_map(),
+        n2.metadata().as_map(),
         "mismatched constant properties for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
-        n1.properties().constant().as_map(),
-        n2.properties().constant().as_map()
+        n1.metadata().as_map(),
+        n2.metadata().as_map()
     );
     assert_eq!(
         n1.properties().temporal().as_map(),
@@ -325,8 +325,8 @@ pub fn assert_edges_equal_layer<
             e1.id(),
         );
         assert_eq!(
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map(),
+            e1.metadata().as_map(),
+            e2.metadata().as_map(),
             "mismatched constant properties for edge {:?}{layer_tag}",
             e1.id(),
         );
@@ -436,8 +436,8 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
         "mismatched latest time{layer_tag}",
     );
     assert_eq!(
-        g1.properties().constant().as_map(),
-        g2.properties().constant().as_map(),
+        g1.metadata().as_map(),
+        g2.metadata().as_map(),
         "mismatched graph constant properties{layer_tag}",
     );
     assert_eq!(
@@ -588,7 +588,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         db::{
             api::{
-                properties::internal::ConstantPropertiesOps,
+                properties::internal::InternalConstantPropertiesOps,
                 view::{
                     internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                     time::internal::InternalTimeOps,
@@ -621,6 +621,7 @@ mod db_tests {
     use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
+        fs::metadata,
         ops::Range,
     };
     #[cfg(feature = "proto")]
@@ -647,25 +648,15 @@ mod db_tests {
         )?;
 
         let e1 = g.edge(0, 0).unwrap();
-        let actual = e1
-            .properties()
-            .constant()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect::<Vec<_>>();
-        assert!(actual.contains(&("x".to_string(), Prop::map([("n", Prop::U64(23))]))));
+        let actual = e1.metadata().as_map();
+        assert_eq!(actual.get("x"), Some(&Prop::map([("n", Prop::U64(23))])));
 
         let e2 = g.edge(0, 1).unwrap();
-        let actual = e2
-            .properties()
-            .constant()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect::<Vec<_>>();
+        let actual = e2.metadata().as_vec();
         assert_eq!(
             actual,
             vec![(
-                "a".to_string(),
+                "a".into(),
                 Prop::map([("b", Prop::str("baa")), ("a", Prop::U8(1))])
             )]
         );
@@ -843,10 +834,7 @@ mod db_tests {
         assert_eq!(res.name(), "B");
         assert_eq!(res.history(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(
-            res.properties().constant().get("con").unwrap(),
-            Prop::I64(11)
-        );
+        assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
 
         let gg = Graph::new();
         gg.add_node(1, "B", NO_PROPS, None).unwrap();
@@ -947,7 +935,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -970,10 +958,7 @@ mod db_tests {
         assert_eq!(res.name(), "Y");
         assert_eq!(res.history(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(
-            res.properties().constant().get("con").unwrap(),
-            Prop::I64(11)
-        );
+        assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
     }
 
     #[test]
@@ -1009,7 +994,7 @@ mod db_tests {
         assert_eq!(y.name(), "Q");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -1032,7 +1017,7 @@ mod db_tests {
         assert_eq!(y.name(), "Q");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(y.properties().constant().get("con").unwrap(), Prop::I64(11));
+        assert_eq!(y.metadata().get("con").unwrap(), Prop::I64(11));
     }
 
     #[test]
@@ -1085,7 +1070,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1, 2]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
 
         let e_src = gg.edge("X", "Y").unwrap().src().name();
         let e_dst = gg.edge("X", "Y").unwrap().dst().name();
@@ -1130,7 +1115,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -1177,7 +1162,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
         let x = gg.node("Z").unwrap();
         assert_eq!(x.name(), "Z");
         assert_eq!(x.history(), vec![1]);
@@ -1233,7 +1218,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -1244,11 +1229,11 @@ mod db_tests {
         let ed = g.edge("A", "B").unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
             .unwrap();
-        info!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.metadata().as_map());
         g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
         ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
             .unwrap();
-        info!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.metadata().as_map());
     }
 
     #[test]
@@ -1551,48 +1536,36 @@ mod db_tests {
             .is_err());
 
         assert_eq!(
-            v11.properties().constant().keys().collect::<Vec<_>>(),
+            v11.metadata().keys().collect::<Vec<_>>(),
             vec!["a", "b", "c"]
         );
-        assert!(v22.properties().constant().keys().next().is_none());
-        assert!(v33.properties().constant().keys().next().is_none());
+        assert!(v22.metadata().keys().next().is_none());
+        assert!(v33.metadata().keys().next().is_none());
+        assert_eq!(v44.metadata().keys().collect::<Vec<_>>(), vec!["e"]);
+        assert_eq!(v55.metadata().keys().collect::<Vec<_>>(), vec!["f"]);
         assert_eq!(
-            v44.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["e"]
-        );
-        assert_eq!(
-            v55.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["f"]
-        );
-        assert_eq!(
-            edge1111.properties().constant().keys().collect::<Vec<_>>(),
+            edge1111.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"] // all edges get all ids anyhow
         );
         assert_eq!(
-            edge3311.properties().constant().keys().collect::<Vec<_>>(),
+            edge3311.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"]
         );
         assert_eq!(
-            edge2233.properties().constant().keys().collect::<Vec<_>>(),
+            edge2233.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"]
         );
 
-        assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
-        assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
-        assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
-        assert_eq!(v22.properties().constant().get("b"), None);
-        assert_eq!(v44.properties().constant().get("e"), Some(Prop::U8(1)));
-        assert_eq!(v55.properties().constant().get("f"), Some(Prop::U16(1)));
-        assert_eq!(v22.properties().constant().get("a"), None);
-        assert_eq!(
-            edge1111.properties().constant().get("d"),
-            Some(Prop::U64(1111))
-        );
-        assert_eq!(
-            edge3311.properties().constant().get("a"),
-            Some(Prop::U64(3311))
-        );
-        assert_eq!(edge2233.properties().constant().get("a"), None);
+        assert_eq!(v11.metadata().get("a"), Some(Prop::U64(11)));
+        assert_eq!(v11.metadata().get("b"), Some(Prop::I64(11)));
+        assert_eq!(v11.metadata().get("c"), Some(Prop::U32(11)));
+        assert_eq!(v22.metadata().get("b"), None);
+        assert_eq!(v44.metadata().get("e"), Some(Prop::U8(1)));
+        assert_eq!(v55.metadata().get("f"), Some(Prop::U16(1)));
+        assert_eq!(v22.metadata().get("a"), None);
+        assert_eq!(edge1111.metadata().get("d"), Some(Prop::U64(1111)));
+        assert_eq!(edge3311.metadata().get("a"), Some(Prop::U64(3311)));
+        assert_eq!(edge2233.metadata().get("a"), None);
 
         // cannot add properties to non-existant layer
         assert!(edge1111
@@ -2549,7 +2522,7 @@ mod db_tests {
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
+            .all(|(name, value)| g.metadata().get(&name).unwrap() == value)
     }
 
     #[test]
@@ -2568,10 +2541,7 @@ mod db_tests {
             .map(|(name, _)| name.into())
             .collect::<HashSet<_>>();
 
-        assert_eq!(
-            g.properties().constant().keys().collect::<HashSet<_>>(),
-            props_names
-        );
+        assert_eq!(g.metadata().keys().collect::<HashSet<_>>(), props_names);
 
         let data = vec![
             ("key1", Prop::I64(10)),
@@ -2588,7 +2558,7 @@ mod db_tests {
             .collect::<HashSet<_>>();
 
         assert_eq!(
-            g.properties().constant().keys().collect::<HashSet<_>>(),
+            g.metadata().keys().collect::<HashSet<_>>(),
             props_names.union(&props_names2).cloned().collect()
         );
     }
@@ -2609,7 +2579,7 @@ mod db_tests {
             .map(|(name, _)| name)
             .collect::<HashSet<_>>();
 
-        g.properties().constant().keys().collect::<HashSet<_>>() == props_names
+        g.metadata().keys().collect::<HashSet<_>>() == props_names
     }
 
     #[quickcheck]

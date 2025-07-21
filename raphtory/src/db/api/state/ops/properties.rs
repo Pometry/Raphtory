@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{properties::Properties, state::NodeOp},
+        api::{
+            properties::{ConstantProperties, Properties},
+            state::NodeOp,
+        },
         graph::node::NodeView,
     },
     prelude::GraphViewOps,
@@ -29,5 +32,28 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GetMetadata<'graph, G> {
+    pub(crate) graph: G,
+    _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G> GetMetadata<'graph, G> {
+    pub fn new(graph: G) -> Self {
+        Self {
+            graph,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetMetadata<'graph, G> {
+    type Output = ConstantProperties<'graph, NodeView<'graph, G, G>>;
+
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
+        ConstantProperties::new(NodeView::new_internal(self.graph.clone(), node))
     }
 }
