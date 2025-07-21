@@ -260,7 +260,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match &filter.prop_ref {
-            PropertyRef::ConstantProperty(prop_name) => {
+            PropertyRef::Metadata(prop_name) => {
                 self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self

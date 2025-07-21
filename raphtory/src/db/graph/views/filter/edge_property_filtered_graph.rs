@@ -42,8 +42,8 @@ impl CreateEdgeFilter for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
-        Ok(EdgePropertyFilteredGraph::new(graph, t_prop_id, self))
+        let prop_id = self.resolve_prop_id(graph.edge_meta());
+        Ok(EdgePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }
 

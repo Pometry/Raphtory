@@ -449,7 +449,7 @@ pub struct ConstPropertyFilterBuilder(pub String);
 
 impl InternalPropertyFilterOps for ConstPropertyFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::ConstantProperty(self.0.clone())
+        PropertyRef::Metadata(self.0.clone())
     }
 }
 

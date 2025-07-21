@@ -45,7 +45,7 @@ mod test_fluent_builder_apis {
         let filter_expr = PropertyFilter::property("p").constant().eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
-            PropertyRef::ConstantProperty("p".to_string()),
+            PropertyRef::Metadata("p".to_string()),
             "raphtory",
         ));
         assert_eq!(node_property_filter, node_property_filter2);
@@ -122,7 +122,7 @@ mod test_fluent_builder_apis {
                                 "fire_nation",
                             ))),
                             Box::new(CompositeNodeFilter::Property(PropertyFilter::eq(
-                                PropertyRef::ConstantProperty("p2".to_string()),
+                                PropertyRef::Metadata("p2".to_string()),
                                 2u64,
                             ))),
                         )),
@@ -197,7 +197,7 @@ mod test_fluent_builder_apis {
                         Box::new(CompositeEdgeFilter::And(
                             Box::new(CompositeEdgeFilter::Edge(Filter::eq("src", "fire_nation"))),
                             Box::new(CompositeEdgeFilter::Property(PropertyFilter::eq(
-                                PropertyRef::ConstantProperty("p2".into()),
+                                PropertyRef::Metadata("p2".into()),
                                 2u64,
                             ))),
                         )),
@@ -499,10 +499,7 @@ mod test_composite_filters {
 
 #[cfg(test)]
 pub(crate) mod test_filters {
-    use crate::{
-        db::api::view::StaticGraphViewOps,
-        prelude::{AdditionOps, PropertyAdditionOps},
-    };
+    use crate::{db::api::view::StaticGraphViewOps, prelude::*};
     use raphtory_api::core::entities::properties::prop::IntoProp;
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
@@ -533,7 +530,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
-                prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
+                prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
             use raphtory_storage::mutation::{
@@ -881,10 +878,7 @@ pub(crate) mod test_filters {
                         },
                     },
                 },
-                prelude::{
-                    AdditionOps, EdgePropertyFilterOps, Graph, GraphViewOps, NodeViewOps,
-                    PropertyAdditionOps,
-                },
+                prelude::*,
             };
             use raphtory_api::core::entities::properties::prop::{Prop, PropUnwrap};
             use raphtory_storage::mutation::{
@@ -1038,8 +1032,7 @@ pub(crate) mod test_filters {
                 let prop = graph
                     .edge("shivam", "kapoor")
                     .unwrap()
-                    .properties()
-                    .constant()
+                    .metadata()
                     .get("z")
                     .unwrap_bool();
                 assert!(prop);

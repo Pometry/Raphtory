@@ -305,20 +305,14 @@ mod tests {
 
         let gw = g.valid().window(-1, 1);
         assert_eq!(
-            gw.edge(0, 1)
-                .unwrap()
-                .properties()
-                .constant()
-                .get("const_test")
-                .unwrap(),
+            gw.edge(0, 1).unwrap().metadata().get("const_test").unwrap(),
             2.into()
         );
         assert_eq!(
             gw.edge(0, 1)
                 .unwrap()
                 .default_layer()
-                .properties()
-                .constant()
+                .metadata()
                 .get("const_test")
                 .unwrap(),
             2.into()

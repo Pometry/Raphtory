@@ -518,11 +518,7 @@ impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
     type Error = GraphError;
 
     fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
-        build_property_filter(
-            PropertyRef::ConstantProperty(expr.name),
-            expr.operator,
-            expr.value,
-        )
+        build_property_filter(PropertyRef::Metadata(expr.name), expr.operator, expr.value)
     }
 }
 

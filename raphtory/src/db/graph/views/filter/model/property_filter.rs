@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            properties::{internal::PropertiesOps, Properties},
+            properties::{internal::InternalPropertiesOps, ConstantProperties, Properties},
             view::{node::NodeViewOps, EdgeViewOps},
         },
         graph::{
@@ -9,7 +9,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, PropertiesOps},
 };
 use itertools::Itertools;
 use raphtory_api::core::{
@@ -34,7 +34,7 @@ pub enum Temporal {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PropertyRef {
     Property(String),
-    ConstantProperty(String),
+    Metadata(String),
     TemporalProperty(String, Temporal),
 }
 
@@ -44,7 +44,7 @@ impl Display for PropertyRef {
             PropertyRef::TemporalProperty(name, temporal) => {
                 write!(f, "TemporalProperty({}, {:?})", name, temporal)
             }
-            PropertyRef::ConstantProperty(name) => write!(f, "ConstantProperty({})", name),
+            PropertyRef::Metadata(name) => write!(f, "Metadata({})", name),
             PropertyRef::Property(name) => write!(f, "Property({})", name),
         }
     }
@@ -54,7 +54,7 @@ impl PropertyRef {
     pub fn name(&self) -> &str {
         match self {
             PropertyRef::Property(name)
-            | PropertyRef::ConstantProperty(name)
+            | PropertyRef::Metadata(name)
             | PropertyRef::TemporalProperty(name, _) => name,
         }
     }
@@ -78,7 +78,7 @@ impl Display for PropertyFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let prop_ref_str = match &self.prop_ref {
             PropertyRef::Property(name) => name.to_string(),
-            PropertyRef::ConstantProperty(name) => format!("const({})", name),
+            PropertyRef::Metadata(name) => format!("const({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Latest) => {
                 format!("temporal_latest({})", name)
@@ -279,31 +279,11 @@ impl PropertyFilter {
         }
         Ok(())
     }
-    pub fn resolve_temporal_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
-        match self.prop_ref {
-            PropertyRef::ConstantProperty(_) => Ok(None),
-            _ => {
-                let prop_name = self.prop_ref.name();
-                match meta.temporal_prop_meta().get_id_and_dtype(prop_name) {
-                    None => Ok(None),
-                    Some((id, dtype)) => {
-                        self.validate(&dtype)?;
-                        Ok(Some(id))
-                    }
-                }
-            }
-        }
-    }
 
-    pub fn resolve_constant_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
+    pub fn resolve_prop_id(&self, meta: &Meta) -> Option<usize> {
         let prop_name = self.prop_ref.name();
-        match meta.const_prop_meta().get_id_and_dtype(prop_name) {
-            None => Ok(None),
-            Some((id, dtype)) => {
-                self.validate(&dtype)?;
-                Ok(Some(id))
-            }
-        }
+        let is_static = matches!(self.prop_ref, PropertyRef::Metadata(_));
+        meta.get_prop_id(prop_name, is_static)
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
@@ -311,28 +291,17 @@ impl PropertyFilter {
         self.operator.apply_to_property(value, other)
     }
 
-    fn is_property_matched<I: PropertiesOps + Clone>(
+    fn is_property_matched<I: InternalPropertiesOps + Clone>(
         &self,
         t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
         props: Properties<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Property(_) => {
-                let prop_value = t_prop_id
-                    .and_then(|prop_id| {
-                        props
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .and_then(|prop_view| prop_view.latest())
-                    })
-                    .or_else(|| c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id)));
+                let prop_value = t_prop_id.and_then(|prop_id| props.get_by_id(prop_id));
                 self.matches(prop_value.as_ref())
             }
-            PropertyRef::ConstantProperty(_) => {
-                let prop_value = c_prop_id.and_then(|prop_id| props.constant().get_by_id(prop_id));
-                self.matches(prop_value.as_ref())
-            }
+            PropertyRef::Metadata(_) => false,
             PropertyRef::TemporalProperty(_, Temporal::Any) => t_prop_id.is_some_and(|prop_id| {
                 props
                     .temporal()
@@ -352,25 +321,55 @@ impl PropertyFilter {
         }
     }
 
+    fn is_metadata_matched<I: InternalPropertiesOps + Clone>(
+        &self,
+        c_prop_id: Option<usize>,
+        props: ConstantProperties<I>,
+    ) -> bool {
+        match self.prop_ref {
+            PropertyRef::Metadata(_) => {
+                let prop_value = c_prop_id.and_then(|id| props.get_by_id(id));
+                self.matches(prop_value.as_ref())
+            }
+            _ => false,
+        }
+    }
+
     pub fn matches_node<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
+        prop_id: Option<usize>,
         node: NodeStorageRef,
     ) -> bool {
-        let props = NodeView::new_internal(graph, node.vid()).properties();
-        self.is_property_matched(t_prop_id, c_prop_id, props)
+        let node = NodeView::new_internal(graph, node.vid());
+        match self.prop_ref {
+            PropertyRef::Metadata(_) => {
+                let props = node.metadata();
+                self.is_metadata_matched(prop_id, props)
+            }
+            PropertyRef::TemporalProperty(_, _) | PropertyRef::Property(_) => {
+                let props = node.properties();
+                self.is_property_matched(prop_id, props)
+            }
+        }
     }
 
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
+        prop_id: Option<usize>,
         edge: EdgeStorageRef,
     ) -> bool {
-        let props = EdgeView::new(graph, edge.out_ref()).properties();
-        self.is_property_matched(t_prop_id, c_prop_id, props)
+        let edge = EdgeView::new(graph, edge.out_ref());
+        match self.prop_ref {
+            PropertyRef::Metadata(_) => {
+                let props = edge.metadata();
+                self.is_metadata_matched(prop_id, props)
+            }
+            PropertyRef::TemporalProperty(_, _) | PropertyRef::Property(_) => {
+                let props = edge.properties();
+                self.is_property_matched(prop_id, props)
+            }
+        }
     }
 }

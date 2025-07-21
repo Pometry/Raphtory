@@ -27,9 +27,6 @@ pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Utf8View(Utf8View),
 }
 
-        }
-    }
-
 impl<'a> LayerCol<'a> {
     pub fn par_iter(self) -> impl IndexedParallelIterator<Item = Option<&'a str>> {
         match self {
