@@ -1163,12 +1163,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && (!e.additions(layer).is_empty()
                     || !e.filtered_deletions(layer, &view).is_empty())
         };
-
-        let layer_ids = view.layer_ids();
-        e.constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(_, v)| v)
-            .next()
+        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
     }
 
     fn constant_edge_prop_window<'graph, G: GraphViewOps<'graph>>(
@@ -1187,11 +1182,6 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     || deletions.active_t(exclusive_start..w.end)
                     || alive_before(additions, deletions, exclusive_start))
         };
-
-        let layer_ids = view.layer_ids();
-        e.constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(_, v)| v)
-            .next()
+        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
     }
 }

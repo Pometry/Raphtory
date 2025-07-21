@@ -1,9 +1,11 @@
-use crate::db::api::view::internal::{
-    time_semantics::{
-        filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
-        time_semantics_ops::NodeTimeSemanticsOps,
+use crate::{
+    db::api::view::internal::{
+        time_semantics::{
+            filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
+            time_semantics_ops::NodeTimeSemanticsOps,
+        },
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
     },
-    EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
 };
 use either::Either;
 use itertools::Itertools;
@@ -753,12 +755,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             view.internal_filter_edge_layer(e, layer)
                 && !e.filtered_additions(layer, &view).is_empty()
         };
-
-        let layer_ids = view.layer_ids();
-        e.constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(_, v)| v)
-            .next()
+        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
     }
 
     fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
@@ -773,11 +770,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .range_t(w.clone())
                 .is_empty()
         };
-
-        let layer_ids = view.layer_ids();
-        e.constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(_, v)| v)
-            .next()
+        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
     }
 }

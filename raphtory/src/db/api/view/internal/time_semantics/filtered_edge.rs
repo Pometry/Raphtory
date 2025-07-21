@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, LayerOps},
 };
 use either::Either;
 use raphtory_api::core::{
@@ -274,6 +274,13 @@ pub trait FilteredEdgeStorageOps<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a;
+
+    fn filtered_constant_edge_prop<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+        prop_id: usize,
+        layer_filter: impl Fn(usize) -> bool,
+    ) -> Option<Prop>;
 }
 
 impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
@@ -378,6 +385,30 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
                     )
                 })
         })
+    }
+
+    fn filtered_constant_edge_prop<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+        prop_id: usize,
+        layer_filter: impl Fn(usize) -> bool,
+    ) -> Option<Prop> {
+        let layer_ids = view.layer_ids();
+        let mut values = self
+            .constant_prop_iter(layer_ids, prop_id)
+            .filter(|(layer, _)| layer_filter(*layer));
+        if view.num_layers() > 1 {
+            let mut values = values.peekable();
+            if values.peek().is_some() {
+                Some(Prop::map(
+                    values.map(|(layer_id, v)| (view.get_layer_name(layer_id), v)),
+                ))
+            } else {
+                None
+            }
+        } else {
+            values.next().map(|(_, v)| v)
+        }
     }
 }
 
