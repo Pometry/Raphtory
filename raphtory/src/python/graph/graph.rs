@@ -26,9 +26,9 @@ use crate::{
     },
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
-use raphtory_api::{
-    core::{entities::GID, storage::arc_str::ArcStr},
-    python::timeindex::PyTime,
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
@@ -221,7 +221,7 @@ impl PyGraph {
     )]
     pub fn add_node(
         &self,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         id: GID,
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
@@ -262,7 +262,7 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn create_node(
         &self,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -297,7 +297,7 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, properties, secondary_index = None))]
     pub fn add_properties(
         &self,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         properties: HashMap<String, Prop>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
@@ -361,7 +361,7 @@ impl PyGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
     pub fn add_edge(
         &self,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,

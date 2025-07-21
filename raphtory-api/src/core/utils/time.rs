@@ -141,6 +141,15 @@ pub enum InputTime {
     Indexed(i64, usize),
 }
 
+impl InputTime {
+    pub fn set_index(self, index: usize) -> Self {
+        match self {
+            InputTime::Simple(time) => InputTime::Indexed(time, index),
+            InputTime::Indexed(time, _) => InputTime::Indexed(time, index),
+        }
+    }
+}
+
 pub trait AsTimeInput {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
 }
@@ -173,9 +182,9 @@ impl<T: AsTimeInput> TryIntoInputTime for T {
     }
 }
 
-impl<T: TryIntoTimeNeedsSecondaryIndex> TryIntoInputTime for (T, usize) {
+impl<T: AsTimeInput> TryIntoInputTime for (T, usize) {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.0.try_into_time()?.t(), self.1))
+        Ok(self.0.try_into_input_time()?.set_index(self.1))
     }
 }
 

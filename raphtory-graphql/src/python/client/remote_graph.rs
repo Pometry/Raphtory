@@ -5,12 +5,10 @@ use crate::python::client::{
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
-use raphtory_api::{
-    core::{
-        entities::{properties::prop::Prop, GID},
-        utils::time::IntoTime,
-    },
-    python::timeindex::PyTime,
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+    utils::time::IntoTime,
 };
 use std::collections::HashMap;
 
@@ -206,7 +204,7 @@ impl PyRemoteGraph {
     pub fn add_node(
         &self,
         py: Python,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -223,7 +221,7 @@ impl PyRemoteGraph {
 
         let query_context = context! {
             path => self.path,
-            time => timestamp.into_time(),
+            time => timestamp.into_time().t(),
             name => id.to_string(),
             properties => properties.map(|p| build_property_string(p)),
             node_type => node_type
@@ -252,7 +250,7 @@ impl PyRemoteGraph {
     pub fn create_node(
         &self,
         py: Python,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -269,7 +267,7 @@ impl PyRemoteGraph {
 
         let query_context = context! {
             path => self.path,
-            time => timestamp.into_time(),
+            time => timestamp.into_time().t(),
             name => id.to_string(),
             properties => properties.map(|p| build_property_string(p)),
             node_type => node_type
@@ -296,7 +294,7 @@ impl PyRemoteGraph {
     pub fn add_property(
         &self,
         py: Python,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
         let template = r#"
@@ -308,7 +306,7 @@ impl PyRemoteGraph {
         "#;
         let query_context = context! {
             path => self.path,
-            t => timestamp.into_time(),
+            t => timestamp.into_time().t(),
             properties => build_property_string(properties),
         };
 
@@ -396,7 +394,7 @@ impl PyRemoteGraph {
     pub fn add_edge(
         &self,
         py: Python,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -414,7 +412,7 @@ impl PyRemoteGraph {
 
         let query_context = context! {
             path => self.path,
-            time => timestamp.into_time(),
+            time => timestamp.into_time().t(),
             src => src.to_string(),
             dst => dst.to_string(),
             properties => properties.map(|p| build_property_string(p)),
@@ -445,7 +443,7 @@ impl PyRemoteGraph {
     pub fn delete_edge(
         &self,
         py: Python,
-        timestamp: PyTime,
+        timestamp: TimeIndexEntry,
         src: GID,
         dst: GID,
         layer: Option<&str>,
@@ -462,7 +460,7 @@ impl PyRemoteGraph {
 
         let query_context = context! {
             path => self.path,
-            time => timestamp.into_time(),
+            time => timestamp.into_time().t(),
             src => src.to_string(),
             dst => dst.to_string(),
             layer => layer

@@ -71,7 +71,7 @@ use crate::{
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::{core::Direction, python::timeindex::PyTime};
+use raphtory_api::core::{storage::timeindex::TimeIndexEntry, Direction};
 use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -779,7 +779,7 @@ pub fn temporal_SEIR(
     graph: &PyGraphView,
     seeds: crate::python::algorithm::epidemics::PySeed,
     infection_prob: f64,
-    initial_infection: PyTime,
+    initial_infection: TimeIndexEntry,
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     rng_seed: Option<u64>,

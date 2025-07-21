@@ -51,13 +51,10 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::{
-    core::{
-        entities::{properties::prop::Prop, GID},
-        storage::{arc_str::ArcStr, timeindex::AsTime},
-        utils::hashing::calculate_hash,
-    },
-    python::timeindex::PyTime,
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::{arc_str::ArcStr, timeindex::AsTime},
+    utils::hashing::calculate_hash,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
@@ -390,7 +387,7 @@ impl PyMutableNode {
     #[pyo3(signature = (t, properties=None, secondary_index=None))]
     pub fn add_updates(
         &self,
-        t: PyTime,
+        t: TimeIndexEntry,
         properties: Option<HashMap<String, Prop>>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {

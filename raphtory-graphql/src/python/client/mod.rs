@@ -4,6 +4,7 @@ use raphtory::errors::GraphError;
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
+        storage::timeindex::TimeIndexEntry,
         utils::time::IntoTime,
     },
     python::timeindex::PyTime,
@@ -64,8 +65,11 @@ impl Serialize for PyUpdate {
 impl PyUpdate {
     #[new]
     #[pyo3(signature = (time, properties=None))]
-    pub(crate) fn new(time: PyTime, properties: Option<HashMap<String, Prop>>) -> Self {
-        Self { time, properties }
+    pub(crate) fn new(time: TimeIndexEntry, properties: Option<HashMap<String, Prop>>) -> Self {
+        Self {
+            time: PyTime::new(time),
+            properties,
+        }
     }
 }
 

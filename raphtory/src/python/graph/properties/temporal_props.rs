@@ -31,16 +31,13 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
 };
-use raphtory_api::{
-    core::{
-        entities::properties::prop::{Prop, PropUnwrap},
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{AsTime, TimeIndexEntry},
-        },
-        utils::time::IntoTime,
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropUnwrap},
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
     },
-    python::timeindex::PyTime,
+    utils::time::IntoTime,
 };
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
@@ -243,7 +240,7 @@ impl PyTemporalProp {
         py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner.iter())
     }
     /// Get the value of the property at time `t`
-    pub fn at(&self, t: PyTime) -> Option<Prop> {
+    pub fn at(&self, t: TimeIndexEntry) -> Option<Prop> {
         self.prop.at(t.into_time().t())
     }
     /// Get the latest value of the property
@@ -614,7 +611,7 @@ impl PyTemporalPropList {
         (move || builder().map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default())).into()
     }
 
-    pub fn at(&self, t: PyTime) -> PyPropValueList {
+    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueList {
         let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
@@ -802,7 +799,7 @@ impl PyTemporalPropListList {
         .into()
     }
 
-    pub fn at(&self, t: PyTime) -> PyPropValueListList {
+    pub fn at(&self, t: TimeIndexEntry) -> PyPropValueListList {
         let t = t.into_time().t();
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()

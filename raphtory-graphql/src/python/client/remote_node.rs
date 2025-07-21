@@ -4,9 +4,10 @@ use crate::python::client::{
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
-use raphtory_api::{
-    core::{entities::properties::prop::Prop, utils::time::IntoTime},
-    python::timeindex::PyTime,
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, TimeIndexEntry},
+    utils::time::IntoTime,
 };
 use std::collections::HashMap;
 
@@ -69,7 +70,7 @@ impl PyRemoteNode {
     pub fn add_updates(
         &self,
         py: Python,
-        t: PyTime,
+        t: TimeIndexEntry,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let template = r#"
@@ -85,7 +86,7 @@ impl PyRemoteNode {
         let query_context = context! {
             path => self.path,
             name => self.id,
-            t => t.into_time(),
+            t => t.into_time().t(),
             properties =>  properties.map(|p| build_property_string(p)),
         };
 

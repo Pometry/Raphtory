@@ -23,15 +23,12 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::prelude::*;
-use raphtory_api::{
-    core::{
-        entities::GID,
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{TimeError, TimeIndexEntry},
-        },
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{TimeError, TimeIndexEntry},
     },
-    python::timeindex::PyTime,
 };
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -396,7 +393,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
     fn add_updates(
         &self,
-        t: PyTime,
+        t: TimeIndexEntry,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         secondary_index: Option<usize>,
@@ -418,7 +415,7 @@ impl PyMutableEdge {
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to .
     #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
+    fn delete(&self, t: TimeIndexEntry, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
     }
 

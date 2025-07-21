@@ -23,7 +23,7 @@ pub struct PyTime {
 }
 
 impl PyTime {
-    fn new(time: TimeIndexEntry) -> Self {
+    pub fn new(time: TimeIndexEntry) -> Self {
         Self { time }
     }
 
