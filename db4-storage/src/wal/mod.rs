@@ -139,4 +139,18 @@ pub trait GraphWalReplayer {
         dst: VID,
         eid: EID,
     ) -> Result<(), DBV4Error>;
+
+    fn replay_const_prop_ids<PN: AsRef<str>>(
+        &self,
+        txn_id: TransactionID,
+        props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<(), DBV4Error>;
+
+    fn replay_temporal_prop_ids<PN: AsRef<str>>(
+        &self,
+        txn_id: TransactionID,
+        props: &[MaybeNew<(PN, usize, Prop)>],
+    ) -> Result<(), DBV4Error>;
+
+    fn replay_layer_id(&self, txn_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error>;
 }
