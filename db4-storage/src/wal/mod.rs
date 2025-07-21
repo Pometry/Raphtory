@@ -107,14 +107,14 @@ pub trait GraphWal {
     ) -> impl Iterator<Item = Result<(LSN, Self::Entry), DBV4Error>>;
 
     /// Replays and applies all the wal entries in the given directory to the given graph.
-    fn replay_to_graph<G: GraphWalReplayer>(
+    fn replay_to_graph<G: GraphReplayer>(
         dir: impl AsRef<Path>,
         graph: &mut G,
     ) -> Result<(), DBV4Error>;
 }
 
 /// Define callbacks for replaying from wal
-pub trait GraphWalReplayer {
+pub trait GraphReplayer {
     fn replay_begin_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;
 
     fn replay_end_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;

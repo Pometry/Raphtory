@@ -9,7 +9,7 @@ use raphtory_core::{
 use crate::wal::no_wal::NoWal;
 use crate::{
     error::DBV4Error,
-    wal::{GraphWal, GraphWalReplayer, TransactionID, LSN},
+    wal::{GraphWal, GraphReplayer, TransactionID, LSN},
 };
 
 impl GraphWal for NoWal {
@@ -83,7 +83,7 @@ impl GraphWal for NoWal {
         std::iter::once(Ok((0, ())))
     }
 
-    fn replay_to_graph<G: GraphWalReplayer>(
+    fn replay_to_graph<G: GraphReplayer>(
         _dir: impl AsRef<Path>,
         _graph: &mut G,
     ) -> Result<(), DBV4Error> {
