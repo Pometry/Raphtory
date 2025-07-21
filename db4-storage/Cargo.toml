@@ -12,10 +12,10 @@ edition = "2024"
 
 [dependencies]
 raphtory-api.workspace = true
-raphtory-core = {workspace = true}
+raphtory-core = { workspace = true }
 # db4-common = {path = "../db4-common"}
 
-bitvec.workspace = true
+bitvec = { workspace = true, features = ["serde"] }
 bigdecimal.workspace = true
 polars-arrow.workspace = true
 rustc-hash.workspace = true
@@ -35,16 +35,17 @@ itertools.workspace = true
 thiserror.workspace = true
 postcard.workspace = true
 
-proptest = {workspace = true, optional = true}
-tempfile = {workspace = true, optional = true}
-iter-enum = {workspace = true, features = ["rayon"]}
-chrono = {workspace = true, optional = true}
+proptest = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+iter-enum = { workspace = true, features = ["rayon"] }
+chrono = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true
 chrono.workspace = true
 rayon.workspace = true
+bincode.workspace = true
 
 [features]
 test-utils = ["proptest", "tempfile", "chrono"]

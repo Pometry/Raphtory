@@ -34,6 +34,10 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
         }
     }
 
+    pub fn segment(&self) -> &NS {
+        self.page
+    }
+
     #[inline(always)]
     pub fn writer(&mut self) -> NodeWriter<'_, &mut MemNodeSegment, NS> {
         NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
@@ -63,7 +67,7 @@ pub struct WriteLockedNodePages<'a, NS> {
     writers: Vec<LockedNodePage<'a, NS>>,
 }
 
-impl<'a, NS> Default for WriteLockedNodePages<'_, NS> {
+impl<NS> Default for WriteLockedNodePages<'_, NS> {
     fn default() -> Self {
         Self {
             writers: Vec::new(),
@@ -92,5 +96,9 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.writers.len()
     }
 }

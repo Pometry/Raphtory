@@ -11,7 +11,7 @@ pub struct GraphStats {
 
 impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
-        let layers = iter.into_iter().map(AtomicUsize::new).collect();
+        let layers = iter.into_iter().map(|_| Default::default()).collect();
         Self {
             layers,
             earliest: MinCounter::new(),
@@ -29,7 +29,7 @@ impl Default for GraphStats {
 impl GraphStats {
     pub fn new() -> Self {
         let layers = boxcar::Vec::new();
-        layers.push_with(|_| AtomicUsize::new(0));
+        layers.push_with(|_| Default::default());
         Self {
             layers,
             earliest: MinCounter::new(),
@@ -89,7 +89,7 @@ impl GraphStats {
             self.layers.reserve(layer_id + 1 - self.layers.count());
 
             loop {
-                let new_layer_id = self.layers.push_with(|_| AtomicUsize::new(0));
+                let new_layer_id = self.layers.push_with(|_| Default::default());
                 if new_layer_id >= layer_id {
                     loop {
                         if let Some(counter) = self.layers.get(layer_id) {

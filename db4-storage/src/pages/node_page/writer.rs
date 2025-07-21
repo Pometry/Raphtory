@@ -12,7 +12,7 @@ use std::ops::DerefMut;
 #[derive(Debug)]
 pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> {
     pub page: &'a NS,
-    pub writer: MP, // TODO: rename to m_segment
+    pub mut_segment: MP,
     pub l_counter: &'a GraphStats,
 }
 
@@ -20,7 +20,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
         Self {
             page,
-            writer,
+            mut_segment: writer,
             l_counter: global_num_nodes,
         }
     }
@@ -62,7 +62,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let is_new_node = self.writer.add_outbound_edge(t, src_pos, dst, e_id, lsn);
+        let is_new_node = self
+            .mut_segment
+            .add_outbound_edge(t, src_pos, dst, e_id, lsn);
 
         if is_new_node && !self.page.check_node(src_pos, layer_id) {
             self.l_counter.increment(layer_id);
@@ -105,7 +107,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
         let layer = e_id.layer();
         let dst_pos = dst_pos.into();
-        let is_new_node = self.writer.add_inbound_edge(t, dst_pos, src, e_id, lsn);
+        let is_new_node = self
+            .mut_segment
+            .add_inbound_edge(t, dst_pos, src, e_id, lsn);
 
         if is_new_node && !self.page.check_node(dst_pos, layer) {
             self.l_counter.increment(layer);
@@ -120,9 +124,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
-        self.writer.as_mut()[layer_id].set_lsn(lsn);
+        self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
         self.l_counter.update_time(t.t());
-        let is_new_node = self.writer.add_props(t, pos, layer_id, props);
+        let is_new_node = self.mut_segment.add_props(t, pos, layer_id, props);
         if is_new_node && !self.page.check_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -135,8 +139,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
-        self.writer.as_mut()[layer_id].set_lsn(lsn);
-        let is_new_node = self.writer.update_c_props(pos, layer_id, props);
+        self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
+        let is_new_node = self.mut_segment.update_c_props(pos, layer_id, props);
         if is_new_node && !self.page.check_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -145,18 +149,18 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID, lsn: u64) {
         let layer_id = e_id.layer();
         self.l_counter.update_time(t.t());
-        self.writer.as_mut()[layer_id].set_lsn(lsn);
-        self.writer.update_timestamp(t, pos, e_id);
+        self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
+        self.mut_segment.update_timestamp(t, pos, e_id);
     }
 
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.page
-            .get_out_edge(pos, dst, layer_id, self.writer.deref())
+            .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
     }
 
     pub fn get_inb_edge(&self, pos: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
         self.page
-            .get_inb_edge(pos, src, layer_id, self.writer.deref())
+            .get_inb_edge(pos, src, layer_id, self.mut_segment.deref())
     }
 
     pub fn store_node_id_and_node_type(
@@ -197,9 +201,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
-        // S::persist_node_page(self.est_size, self.page, self.writer.deref_mut());
         self.page
-            .notify_write(self.writer.deref_mut())
+            .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");
     }
 }

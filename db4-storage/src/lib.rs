@@ -91,7 +91,7 @@ pub mod error {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 #[repr(transparent)]
 pub struct LocalPOS(pub usize);
 

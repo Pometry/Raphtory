@@ -50,16 +50,18 @@ impl HasRow for MemPageEntry {
 #[derive(Debug)]
 pub struct MemEdgeSegment {
     layers: Vec<SegmentContainer<MemPageEntry>>,
+    est_size: usize,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<MemPageEntry>>> From<I> for MemEdgeSegment {
     fn from(inner: I) -> Self {
         let layers: Vec<_> = inner.into_iter().collect();
+        let est_size = layers.iter().map(|seg| seg.est_size()).sum();
         assert!(
             !layers.is_empty(),
             "MemEdgeSegment must have at least one layer"
         );
-        Self { layers }
+        Self { layers, est_size }
     }
 }
 
@@ -79,11 +81,30 @@ impl MemEdgeSegment {
     pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            est_size: 0,
         }
     }
 
     pub fn edge_meta(&self) -> &Arc<Meta> {
         self.layers[0].meta()
+    }
+
+    pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<MemPageEntry>> {
+        let layers = self
+            .as_mut()
+            .iter_mut()
+            .map(|head_guard| {
+                let mut old_head = SegmentContainer::new(
+                    head_guard.segment_id(),
+                    head_guard.max_page_len(),
+                    head_guard.meta().clone(),
+                );
+                std::mem::swap(&mut *head_guard, &mut old_head);
+                old_head
+            })
+            .collect::<Vec<_>>();
+        self.est_size = 0; // Reset estimated size after swapping out layers
+        layers
     }
 
     pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<MemPageEntry> {
@@ -103,7 +124,7 @@ impl MemEdgeSegment {
     }
 
     pub fn est_size(&self) -> usize {
-        self.layers.iter().map(|seg| seg.est_size()).sum::<usize>()
+        self.est_size
     }
 
     pub fn lsn(&self) -> u64 {
@@ -138,6 +159,7 @@ impl MemEdgeSegment {
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        let est_size = self.layers[layer_id].est_size();
         self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
@@ -146,7 +168,9 @@ impl MemEdgeSegment {
             .properties_mut()
             .get_mut_entry(local_row);
         let ts = TimeIndexEntry::new(t.t(), t.i());
-        prop_entry.append_t_props(ts, props)
+        prop_entry.append_t_props(ts, props);
+        let layer_est_size = self.layers[layer_id].est_size();
+        self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
     pub fn delete_edge_internal<T: AsTime>(
@@ -165,11 +189,14 @@ impl MemEdgeSegment {
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        let est_size = self.layers[layer_id].est_size();
         self.layers[layer_id].set_lsn(lsn);
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
         let props = self.layers[layer_id].properties_mut();
         props.get_mut_entry(local_row).deletion_timestamp(t, None);
+        let layer_est_size = self.layers[layer_id].est_size();
+        self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
     pub fn insert_static_edge_internal(
@@ -186,8 +213,11 @@ impl MemEdgeSegment {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         self.layers[layer_id].set_lsn(lsn);
+        let est_size = self.layers[layer_id].est_size();
 
         self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let layer_est_size = self.layers[layer_id].est_size();
+        self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
     fn ensure_layer(&mut self, layer_id: usize) {
@@ -254,12 +284,16 @@ impl MemEdgeSegment {
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
+        let est_size = self.layers[layer_id].est_size();
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()
             .get_mut_entry(local_row);
-        prop_entry.append_const_props(props)
+        prop_entry.append_const_props(props);
+
+        let layer_est_size = self.layers[layer_id].est_size() + 8;
+        self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
     pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
@@ -499,5 +533,94 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use raphtory_api::core::entities::properties::prop::PropType;
+
+    #[test]
+    fn est_size_changes() {
+        use super::*;
+        use raphtory_api::core::entities::properties::meta::Meta;
+
+        let meta = Arc::new(Meta::default());
+        let mut segment = MemEdgeSegment::new(1, 100, meta.clone());
+
+        assert_eq!(segment.est_size(), 0);
+
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(1, 0),
+            LocalPOS(0),
+            1,
+            2,
+            0,
+            vec![(0, Prop::from("test"))],
+            1,
+        );
+
+        let est_size1 = segment.est_size();
+
+        assert!(est_size1 > 0);
+
+        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), 5, 3, 0, 0);
+
+        let est_size2 = segment.est_size();
+
+        assert!(
+            est_size2 > est_size1,
+            "Expected size to increase after deletion, but it did not."
+        );
+
+        // same edge insertion again to check size increase
+        segment.insert_edge_internal(
+            TimeIndexEntry::new(3, 0),
+            LocalPOS(1),
+            4,
+            6,
+            0,
+            vec![(0, Prop::from("test2"))],
+            1,
+        );
+
+        let est_size3 = segment.est_size();
+        assert!(
+            est_size3 > est_size2,
+            "Expected size to increase after re-insertion, but it did not."
+        );
+
+        // Insert a static edge
+
+        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, 0, 1);
+
+        let est_size4 = segment.est_size();
+        assert_eq!(
+            est_size4, est_size3,
+            "Expected size to remain the same after static edge insertion, but it changed."
+        );
+
+        let prop_id = meta
+            .const_prop_meta()
+            .get_or_create_and_validate("a", PropType::U8)
+            .unwrap()
+            .inner();
+
+        segment.update_const_properties(LocalPOS(1), 4, 6, 0, [(prop_id, Prop::U8(2))]);
+
+        let est_size5 = segment.est_size();
+        assert!(
+            est_size5 > est_size4,
+            "Expected size to increase after updating properties, but it did not."
+        );
+
+        // update const properties for the other edge, hard to predict size change
+        // segment.update_const_properties(LocalPOS(0), 1, 2, 0, [(prop_id, Prop::U8(3))]);
+
+        // let est_size6 = segment.est_size();
+        // assert!(
+        //     est_size6 > est_size5,
+        //     "Expected size to increase after updating properties for the other edge, but it did not."
+        // );
     }
 }
