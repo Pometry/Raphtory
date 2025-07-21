@@ -35,6 +35,12 @@ impl<P: InternalPropertiesOps + Send + Sync + Static + 'static> From<Metadata<'s
     }
 }
 
+impl From<Metadata<'static, DynamicGraph>> for DynConstProperties {
+    fn from(value: Metadata<'static, DynamicGraph>) -> Self {
+        Metadata::new(Arc::new(value.props))
+    }
+}
+
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
 

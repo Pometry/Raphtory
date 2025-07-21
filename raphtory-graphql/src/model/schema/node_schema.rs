@@ -5,7 +5,7 @@ use raphtory::{
         api::view::DynamicGraph,
         graph::views::filter::node_type_filtered_graph::NodeTypeFilteredGraph,
     },
-    prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
+    prelude::*,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;

@@ -5,7 +5,7 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
-    prelude::{EdgeViewOps, GraphViewOps},
+    prelude::*,
 };
 use std::collections::HashSet;
 

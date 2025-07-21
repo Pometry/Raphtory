@@ -10,6 +10,7 @@ use raphtory::{
         TemporalPropertyView,
     },
     errors::GraphError,
+    prelude::*,
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
@@ -353,9 +354,9 @@ impl GqlConstantProperties {
         Self { props }
     }
 }
-impl From<DynConstProperties> for GqlConstantProperties {
-    fn from(value: DynConstProperties) -> Self {
-        GqlConstantProperties::new(value)
+impl<P: Into<DynConstProperties>> From<P> for GqlConstantProperties {
+    fn from(value: P) -> Self {
+        GqlConstantProperties::new(value.into())
     }
 }
 
@@ -403,10 +404,6 @@ impl GqlProperties {
     async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
-
-    async fn constant(&self) -> GqlConstantProperties {
-        self.props.constant().into()
-    }
 }
 
 #[ResolvedObjectFields]
@@ -431,7 +428,7 @@ impl GqlConstantProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -443,7 +440,7 @@ impl GqlConstantProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })

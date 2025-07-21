@@ -8,7 +8,7 @@ use crate::{
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
-            property::GqlProperties,
+            property::{GqlConstantProperties, GqlProperties},
             windowset::GqlGraphWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -359,6 +359,10 @@ impl GqlGraph {
 
     async fn properties(&self) -> GqlProperties {
         Into::<DynProperties>::into(self.graph.properties()).into()
+    }
+
+    async fn metadata(&self) -> GqlConstantProperties {
+        self.graph.metadata().into()
     }
 
     ////////////////////////
