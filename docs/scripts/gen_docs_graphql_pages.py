@@ -3,7 +3,7 @@ from pathlib import Path
 
 root = Path(__file__).parent.parent.parent
 doc_root = Path("reference")
-graphql_dir = doc_root / "reference" / "graphql"
+graphql_dir = doc_root / "graphql"
 schema_dir = root / "raphtory-graphql"
 
 import os

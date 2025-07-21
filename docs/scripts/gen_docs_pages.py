@@ -5,7 +5,7 @@ from pathlib import Path
 import mkdocs_gen_files
 
 root = Path(__file__).parent.parent.parent
-doc_root = Path("reference")
+doc_root = Path("reference") / "python"
 stubs_source = root / "python" / "python"
 src = stubs_source
 nav = mkdocs_gen_files.Nav()
