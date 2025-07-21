@@ -27,7 +27,7 @@ use std::{
 };
 use storage::{
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension, Wal,
+    Extension, WalImpl,
 };
 use tracing::info;
 
@@ -479,7 +479,7 @@ impl InternalAdditionOps for Storage {
         self.graph.mutable().unwrap().transaction_manager.as_ref()
     }
 
-    fn wal(&self) -> &Wal {
+    fn wal(&self) -> &WalImpl {
         self.graph.mutable().unwrap().wal.as_ref()
     }
 }

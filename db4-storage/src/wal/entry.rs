@@ -6,11 +6,13 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 
-use crate::error::DBV4Error;
-use crate::wal::{LSN, TransactionID, GraphWalOps};
 use crate::wal::no_wal::NoWal;
+use crate::{
+    error::DBV4Error,
+    wal::{GraphWal, GraphWalReplayer, TransactionID, LSN},
+};
 
-impl GraphWalOps for NoWal {
+impl GraphWal for NoWal {
     type Entry = ();
 
     fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
@@ -38,7 +40,13 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn log_edge_id(&self, _txn_id: TransactionID, _src: VID, _dst: VID, _eid: EID) -> Result<LSN, DBV4Error> {
+    fn log_edge_id(
+        &self,
+        _txn_id: TransactionID,
+        _src: VID,
+        _dst: VID,
+        _eid: EID,
+    ) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
@@ -58,7 +66,12 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn log_layer_id(&self, _txn_id: TransactionID, _name: &str, _id: usize) -> Result<LSN, DBV4Error> {
+    fn log_layer_id(
+        &self,
+        _txn_id: TransactionID,
+        _name: &str,
+        _id: usize,
+    ) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
@@ -66,7 +79,14 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn recover(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), DBV4Error>> {
+    fn replay_iter(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), DBV4Error>> {
         std::iter::once(Ok((0, ())))
+    }
+
+    fn replay_to_graph<G: GraphWalReplayer>(
+        _dir: impl AsRef<Path>,
+        _graph: &mut G,
+    ) -> Result<(), DBV4Error> {
+        todo!()
     }
 }

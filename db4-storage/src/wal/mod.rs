@@ -19,7 +19,7 @@ pub struct WalRecord {
 }
 
 /// Core Wal methods.
-pub trait WalOps {
+pub trait Wal {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error>
     where
         Self: Sized;
@@ -42,8 +42,8 @@ pub trait WalOps {
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
-// High-level, raphtory-specific logging & recovery methods.
-pub trait GraphWalOps {
+// Raphtory-specific logging & replay methods.
+pub trait GraphWal {
     type Entry: 'static;
 
     fn log_begin_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
@@ -63,7 +63,13 @@ pub trait GraphWalOps {
 
     fn log_node_id(&self, txn_id: TransactionID, gid: GID, vid: VID) -> Result<LSN, DBV4Error>;
 
-    fn log_edge_id(&self, txn_id: TransactionID, src: VID, dst: VID, eid: EID) -> Result<LSN, DBV4Error>;
+    fn log_edge_id(
+        &self,
+        txn_id: TransactionID,
+        src: VID,
+        dst: VID,
+        eid: EID,
+    ) -> Result<LSN, DBV4Error>;
 
     /// Log new constant prop name -> prop id mappings.
     ///
@@ -95,5 +101,42 @@ pub trait GraphWalOps {
     /// `lsn` has been persisted to disk.
     fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, DBV4Error>;
 
-    fn recover(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, Self::Entry), DBV4Error>>;
+    /// Returns an iterator over the wal entries in the given directory.
+    fn replay_iter(
+        dir: impl AsRef<Path>,
+    ) -> impl Iterator<Item = Result<(LSN, Self::Entry), DBV4Error>>;
+
+    /// Replays and applies all the wal entries in the given directory to the given graph.
+    fn replay_to_graph<G: GraphWalReplayer>(
+        dir: impl AsRef<Path>,
+        graph: &mut G,
+    ) -> Result<(), DBV4Error>;
+}
+
+/// Define callbacks for replaying from wal
+pub trait GraphWalReplayer {
+    fn replay_begin_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;
+
+    fn replay_end_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;
+
+    fn replay_add_edge(
+        &self,
+        txn_id: TransactionID,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+        layer_id: usize,
+        t_props: &[(usize, Prop)],
+        c_props: &[(usize, Prop)],
+    ) -> Result<(), DBV4Error>;
+
+    fn replay_node_id(&self, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
+
+    fn replay_edge_id(
+        &self,
+        txn_id: TransactionID,
+        src: VID,
+        dst: VID,
+        eid: EID,
+    ) -> Result<(), DBV4Error>;
 }

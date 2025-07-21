@@ -24,8 +24,8 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
-    wal::{TransactionID, WalOps},
-    Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, NS,
+    wal::{TransactionID, Wal},
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
@@ -44,7 +44,7 @@ pub struct TemporalGraph<EXT = Extension> {
     pub graph_meta: Arc<GraphMeta>,
     graph_dir: GraphDir,
     pub transaction_manager: Arc<TransactionManager>,
-    pub wal: Arc<Wal>,
+    pub wal: Arc<WalImpl>,
 }
 
 #[derive(Debug)]

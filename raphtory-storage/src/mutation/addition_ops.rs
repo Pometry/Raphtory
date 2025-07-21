@@ -23,7 +23,7 @@ use raphtory_core::{
     entities::{nodes::node_ref::NodeRef, ELID},
     storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
 };
-use storage::{Extension, Wal};
+use storage::{Extension, WalImpl};
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -110,7 +110,7 @@ pub trait InternalAdditionOps {
 
     fn transaction_manager(&self) -> &TransactionManager;
 
-    fn wal(&self) -> &Wal;
+    fn wal(&self) -> &WalImpl;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -301,7 +301,7 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable().unwrap().transaction_manager.as_ref()
     }
 
-    fn wal(&self) -> &Wal {
+    fn wal(&self) -> &WalImpl {
         self.mutable().unwrap().wal.as_ref()
     }
 }
@@ -421,7 +421,7 @@ where
     }
 
     #[inline]
-    fn wal(&self) -> &Wal {
+    fn wal(&self) -> &WalImpl {
         self.base().wal()
     }
 }

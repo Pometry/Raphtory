@@ -24,7 +24,7 @@ use storage::{
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, ES, NS, Wal
+    Extension, ES, NS, WalImpl
 };
 
 use crate::mutation::{
@@ -342,7 +342,7 @@ impl InternalAdditionOps for TemporalGraph {
         &self.transaction_manager
     }
 
-    fn wal(&self) -> &Wal {
+    fn wal(&self) -> &WalImpl {
         &self.wal
     }
 }
