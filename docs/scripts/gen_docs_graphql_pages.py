@@ -26,8 +26,11 @@ output_str = result.stdout
 
 doc_path = graphql_dir / "graphql_API.md"
 
+nav = mkdocs_gen_files.Nav()
+nav['graphql'] = doc_path.as_posix()
+
 with mkdocs_gen_files.open(doc_path, "w") as fd:
     print(f"{frontmatter}", file=fd)
     print(f"{output_str}", file=fd)
 
-    #mkdocs_gen_files.set_edit_path(doc_path, 'foo')
+    mkdocs_gen_files.set_edit_path(doc_path, doc_path)
