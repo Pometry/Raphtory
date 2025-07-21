@@ -1,5 +1,6 @@
 use crate::{
     config::{app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG},
+    model::App,
     python::server::{
         running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
     },

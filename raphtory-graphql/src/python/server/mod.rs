@@ -1,11 +1,12 @@
 use crate::{
+    model::App,
     python::{
         server::{running_server::ServerHandler, server::PyGraphServer},
         RUNNING_SERVER_CONSUMED_MSG,
     },
     GraphServer,
 };
-use pyo3::{exceptions::PyException, PyRefMut, PyResult};
+use pyo3::{exceptions::PyException, PyRefMut, PyResult, Python};
 use raphtory_api::python::error::adapt_err_value;
 
 pub mod running_server;

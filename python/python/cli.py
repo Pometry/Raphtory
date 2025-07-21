@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from raphtory.graphql import GraphServer
+from raphtory.graphql import GraphServer, schema
 
 
 def run_server(args):
@@ -22,7 +22,7 @@ def run_server(args):
 
 
 def print_schema(_args):
-    print("hello world")
+    print(schema())
 
 
 def main():
