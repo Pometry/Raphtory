@@ -42,7 +42,7 @@ impl CreateNodeFilter for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.node_meta());
+        let prop_id = self.resolve_prop_id(graph.node_meta())?;
         Ok(NodePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }

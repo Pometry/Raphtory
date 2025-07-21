@@ -1,4 +1,7 @@
-use crate::{prelude::GraphViewOps, serialise::GraphFolder};
+use crate::{
+    prelude::{GraphViewOps, PropertiesOps},
+    serialise::GraphFolder,
+};
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use serde::{Deserialize, Serialize};
 

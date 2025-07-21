@@ -1,6 +1,6 @@
 use crate::db::api::{
     properties::{
-        internal::InternalPropertiesOps, ConstantProperties, Properties, TemporalProperties,
+        internal::InternalPropertiesOps, Metadata, Properties, TemporalProperties,
         TemporalPropertyView,
     },
     view::{internal::Static, DynamicGraph},
@@ -25,13 +25,13 @@ impl From<Properties<DynamicGraph>> for DynProperties {
     }
 }
 
-pub type DynConstProperties = ConstantProperties<'static, DynProps>;
+pub type DynConstProperties = Metadata<'static, DynProps>;
 
-impl<P: InternalPropertiesOps + Send + Sync + Static + 'static> From<ConstantProperties<'static, P>>
+impl<P: InternalPropertiesOps + Send + Sync + Static + 'static> From<Metadata<'static, P>>
     for DynConstProperties
 {
-    fn from(value: ConstantProperties<P>) -> Self {
-        ConstantProperties::new(Arc::new(value.props))
+    fn from(value: Metadata<P>) -> Self {
+        Metadata::new(Arc::new(value.props))
     }
 }
 

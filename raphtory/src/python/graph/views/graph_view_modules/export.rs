@@ -1,7 +1,4 @@
-use crate::{
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
-    python::graph::views::graph_view::PyGraphView,
-};
+use crate::{prelude::*, python::graph::views::graph_view::PyGraphView};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyTuple},
@@ -172,7 +169,7 @@ impl PyGraphView {
             let properties = PyDict::new(py);
             if include_node_properties.unwrap_or(true) {
                 if include_property_history.unwrap_or(true) {
-                    let const_props = v.properties().constant().as_map();
+                    let const_props = v.metadata().as_map();
                     let const_props_py = PyDict::new(py);
                     for (key, value) in const_props {
                         const_props_py.set_item(key, value)?;
@@ -220,7 +217,7 @@ impl PyGraphView {
             let dst = e.dst().name();
             if include_edge_properties.unwrap_or(true) {
                 if include_property_history.unwrap_or(true) {
-                    let const_props = e.properties().constant().as_map();
+                    let const_props = e.metadata().as_map();
                     let const_props_py = PyDict::new(py);
                     for (key, value) in const_props {
                         const_props_py.set_item(key, value)?;

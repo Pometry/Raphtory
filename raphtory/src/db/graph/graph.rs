@@ -621,7 +621,6 @@ mod db_tests {
     use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
-        fs::metadata,
         ops::Range,
     };
     #[cfg(feature = "proto")]

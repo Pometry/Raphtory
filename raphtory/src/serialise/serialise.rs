@@ -1161,7 +1161,7 @@ mod proto_test {
             .layers("a")
             .unwrap();
 
-        for (new, old) in edge.properties().constant().iter().zip(props.iter()) {
+        for (new, old) in edge.metadata().iter_filtered().zip(props.iter()) {
             assert_eq!(new.0, old.0);
             assert_eq!(new.1, old.1);
         }
@@ -1185,8 +1185,7 @@ mod proto_test {
         let node = g2.node("Alice").expect("Failed to get node");
 
         assert!(props.into_iter().all(|(name, expected)| {
-            node.properties()
-                .constant()
+            node.metadata()
                 .get(name)
                 .filter(|prop| prop == &expected)
                 .is_some()

@@ -5,7 +5,7 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
@@ -22,11 +22,14 @@ use crate::{
         },
     },
     errors::GraphError,
+    prelude::PropertiesOps,
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
-            properties::{PropertiesView, PyNestedPropsIterable},
+            properties::{
+                MetadataView, PropertiesView, PyConstPropsListList, PyNestedPropsIterable,
+            },
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
@@ -204,6 +207,15 @@ impl PyNode {
     #[getter]
     pub fn properties(&self) -> Properties<NodeView<'static, DynamicGraph, DynamicGraph>> {
         self.node.properties()
+    }
+
+    /// The metadata (constant properties) of the node
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, NodeView<'static, DynamicGraph, DynamicGraph>> {
+        self.node.metadata()
     }
 
     /// Returns the type of node
@@ -687,6 +699,16 @@ impl PyNodes {
         (move || nodes.properties().into_iter_values()).into()
     }
 
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     MetadataView: A view of the node properties
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let nodes = self.nodes.clone();
+        (move || nodes.metadata().into_iter_values()).into()
+    }
+
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
@@ -757,6 +779,7 @@ impl PyNodes {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().unwrap_or(0),
@@ -910,6 +933,13 @@ impl PyPathFromGraph {
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> PyConstPropsListList {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node degrees
@@ -1083,6 +1113,13 @@ impl PyPathFromNode {
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node in-degrees

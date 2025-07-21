@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        InternalPropertyFilterOps, PropertyFilterBuilder, PropertyFilterOps,
+        InternalPropertyFilterOps, MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps,
         TemporalPropertyFilterBuilder,
     },
     python::{
@@ -152,11 +152,37 @@ impl PyPropertyFilterBuilder {
         )
     }
 
-    fn constant(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps(Arc::new(self.0.clone().constant()))
-    }
-
     fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
         PyTemporalPropertyFilterBuilder(self.0.clone().temporal())
+    }
+}
+
+#[pyclass(frozen, name = "Metadata", module = "raphtory.filter", extends=PyPropertyFilterOps
+)]
+#[derive(Clone)]
+pub struct PyMetadataFilterBuilder;
+
+impl<'py> IntoPyObject<'py> for MetadataFilterBuilder {
+    type Target = PyMetadataFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(
+            py,
+            (PyMetadataFilterBuilder, PyPropertyFilterOps(Arc::new(self))),
+        )
+    }
+}
+
+#[pymethods]
+impl PyMetadataFilterBuilder {
+    #[new]
+    fn new(name: String) -> (Self, PyPropertyFilterOps) {
+        let builder = MetadataFilterBuilder(name);
+        (
+            PyMetadataFilterBuilder,
+            PyPropertyFilterOps(Arc::new(builder)),
+        )
     }
 }

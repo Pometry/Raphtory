@@ -18,7 +18,7 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
-use crate::db::{api::properties::ConstantProperties, task::eval_graph::EvalGraph};
+use crate::db::{api::properties::Metadata, task::eval_graph::EvalGraph};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
@@ -97,7 +97,7 @@ impl<
         self.edge.as_props()
     }
 
-    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.edge.as_metadata()
     }
 

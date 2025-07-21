@@ -7,7 +7,7 @@
 use crate::{
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             view::{
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
@@ -272,10 +272,19 @@ impl PyEdge {
     /// Returns a view of the properties of the edge.
     ///
     /// Returns:
-    ///   Properties on the Edge.
+    ///   Properties: Properties on the Edge.
     #[getter]
     pub fn properties(&self) -> Properties<EdgeView<DynamicGraph, DynamicGraph>> {
         self.edge.properties()
+    }
+
+    /// Gets the metadata (constant properties) of an edge
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, EdgeView<DynamicGraph, DynamicGraph>> {
+        self.edge.metadata()
     }
 
     /// Gets the earliest time of an edge.

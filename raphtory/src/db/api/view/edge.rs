@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::InternalPropertiesOps, ConstantProperties, Properties},
+            properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
                 internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
                 BoxableGraphView, IntoDynBoxed,
@@ -115,7 +115,7 @@ pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>>;
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
@@ -169,7 +169,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
     /// Return a vview of the metadata of the edge
-    fn metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>>;
+    fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
     fn src(&self) -> Self::Nodes;
@@ -377,7 +377,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.as_props()
     }
 
-    fn metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+    fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.as_metadata()
     }
 

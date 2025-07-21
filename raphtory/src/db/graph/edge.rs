@@ -17,7 +17,7 @@ use crate::{
                     InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
                     InternalTemporalPropertyViewOps,
                 },
-                ConstantProperties, Properties,
+                Metadata, Properties,
             },
             view::{
                 internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
@@ -257,8 +257,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         Properties::new(self.clone())
     }
 
-    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
-        ConstantProperties::new(self.clone())
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
+        Metadata::new(self.clone())
     }
 
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(

@@ -77,12 +77,19 @@ impl Meta {
         }
     }
 
-    #[inline]
     pub fn get_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
             self.meta_prop_constant.get_id(name)
         } else {
             self.meta_prop_temporal.get_id(name)
+        }
+    }
+
+    pub fn get_prop_id_and_type(&self, name: &str, is_static: bool) -> Option<(usize, PropType)> {
+        if is_static {
+            self.meta_prop_constant.get_id_and_dtype(name)
+        } else {
+            self.meta_prop_temporal.get_id_and_dtype(name)
         }
     }
 

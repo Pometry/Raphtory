@@ -12,18 +12,18 @@ use raphtory_api::{
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
-pub struct ConstantProperties<'a, P: InternalConstantPropertiesOps> {
+pub struct Metadata<'a, P: InternalConstantPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> Debug for ConstantProperties<'a, P> {
+impl<'a, P: InternalConstantPropertiesOps + Sync> Debug for Metadata<'a, P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> PropertiesOps for ConstantProperties<'a, P> {
+impl<'a, P: InternalConstantPropertiesOps + Sync> PropertiesOps for Metadata<'a, P> {
     fn get_by_id(&self, id: usize) -> Option<Prop> {
         self.props.get_const_prop(id)
     }
@@ -41,7 +41,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> PropertiesOps for ConstantProp
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> ConstantProperties<'a, P> {
+impl<'a, P: InternalConstantPropertiesOps + Sync> Metadata<'a, P> {
     pub(crate) fn new(props: P) -> Self {
         Self {
             props,
@@ -50,7 +50,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> ConstantProperties<'a, P> {
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync + 'a> IntoIterator for ConstantProperties<'a, P> {
+impl<'a, P: InternalConstantPropertiesOps + Sync + 'a> IntoIterator for Metadata<'a, P> {
     type Item = (ArcStr, Option<Prop>);
     type IntoIter = BoxedLIter<'a, Self::Item>;
 
@@ -61,7 +61,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync + 'a> IntoIterator for Constant
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> IntoIterator for &'a ConstantProperties<'a, P> {
+impl<'a, P: InternalConstantPropertiesOps + Sync> IntoIterator for &'a Metadata<'a, P> {
     type Item = (ArcStr, Option<Prop>);
     type IntoIter = Box<dyn Iterator<Item = (ArcStr, Option<Prop>)> + 'a>;
 
@@ -71,7 +71,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> IntoIterator for &'a ConstantP
 }
 
 impl<'a, P: InternalConstantPropertiesOps + Sync, O: PropertiesOps> PartialEq<O>
-    for ConstantProperties<'a, P>
+    for Metadata<'a, P>
 {
     fn eq(&self, other: &O) -> bool {
         self.iter().eq(other.iter())

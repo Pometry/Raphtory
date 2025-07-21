@@ -429,10 +429,6 @@ impl PropertyFilterBuilder {
 }
 
 impl PropertyFilterBuilder {
-    pub fn constant(self) -> ConstPropertyFilterBuilder {
-        ConstPropertyFilterBuilder(self.0)
-    }
-
     pub fn temporal(self) -> TemporalPropertyFilterBuilder {
         TemporalPropertyFilterBuilder(self.0)
     }
@@ -445,9 +441,9 @@ impl InternalPropertyFilterOps for PropertyFilterBuilder {
 }
 
 #[derive(Clone)]
-pub struct ConstPropertyFilterBuilder(pub String);
+pub struct MetadataFilterBuilder(pub String);
 
-impl InternalPropertyFilterOps for ConstPropertyFilterBuilder {
+impl InternalPropertyFilterOps for MetadataFilterBuilder {
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Metadata(self.0.clone())
     }
@@ -485,8 +481,12 @@ impl TemporalPropertyFilterBuilder {
 }
 
 impl PropertyFilter {
-    pub fn property(name: impl AsRef<str>) -> PropertyFilterBuilder {
-        PropertyFilterBuilder(name.as_ref().to_string())
+    pub fn property(name: impl Into<String>) -> PropertyFilterBuilder {
+        PropertyFilterBuilder(name.into())
+    }
+
+    pub fn metadata(name: impl Into<String>) -> MetadataFilterBuilder {
+        MetadataFilterBuilder(name.into())
     }
 }
 

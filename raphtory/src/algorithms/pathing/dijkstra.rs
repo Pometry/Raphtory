@@ -222,7 +222,6 @@ mod dijkstra_tests {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::*,
         test_storage,
     };
 

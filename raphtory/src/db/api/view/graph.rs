@@ -7,7 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::InternalConstantPropertiesOps, ConstantProperties, Properties},
+            properties::{internal::InternalConstantPropertiesOps, Metadata, Properties},
             view::{internal::*, *},
         },
         graph::{
@@ -139,7 +139,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn properties(&self) -> Properties<Self>;
 
     /// Get a view of the metadat for this graph
-    fn metadata(&self) -> ConstantProperties<Self>;
+    fn metadata(&self) -> Metadata<'graph, Self>;
 }
 
 #[cfg(feature = "search")]
@@ -607,8 +607,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Properties::new(self.clone())
     }
 
-    fn metadata(&self) -> ConstantProperties<Self> {
-        ConstantProperties::new(self.clone())
+    fn metadata(&self) -> Metadata<'graph, Self> {
+        Metadata::new(self.clone())
     }
 }
 

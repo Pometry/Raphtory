@@ -10,7 +10,7 @@ use crate::{
                 InternalTemporalPropertyViewOps,
             },
             view::{
-                internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
+                internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },

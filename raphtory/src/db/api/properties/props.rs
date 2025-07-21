@@ -1,6 +1,4 @@
-use crate::db::api::properties::{
-    constant_props::ConstantProperties, internal::*, temporal_props::TemporalProperties,
-};
+use crate::db::api::properties::{internal::*, temporal_props::TemporalProperties};
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::arc_str::ArcStr},
     iter::IntoDynBoxed,
@@ -10,7 +8,6 @@ use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
 };
-use uuid::ClockSequence;
 
 /// View of the properties of an entity (graph|node|edge)
 #[derive(Clone)]

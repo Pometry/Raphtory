@@ -42,7 +42,7 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_const_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p").constant().eq("raphtory");
+        let filter_expr = PropertyFilter::metadata("p").eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Metadata("p".to_string()),
@@ -99,7 +99,7 @@ mod test_fluent_builder_apis {
     fn test_node_filter_composition() {
         let node_composite_filter = NodeFilter::name()
             .eq("fire_nation")
-            .and(PropertyFilter::property("p2").constant().eq(2u64))
+            .and(PropertyFilter::metadata("p2").eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
                 PropertyFilter::property("p3")
@@ -177,7 +177,7 @@ mod test_fluent_builder_apis {
         let edge_composite_filter = EdgeFilter::src()
             .name()
             .eq("fire_nation")
-            .and(PropertyFilter::property("p2").constant().eq(2u64))
+            .and(PropertyFilter::metadata("p2").eq(2u64))
             .and(PropertyFilter::property("p1").eq(1u64))
             .and(
                 PropertyFilter::property("p3")
@@ -622,7 +622,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_constant_semantics() {
-                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                let filter = PropertyFilter::metadata("p1").eq(1u64);
                 let expected_results = vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -978,7 +978,7 @@ pub(crate) mod test_filters {
             fn test_constant_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                let filter = PropertyFilter::metadata("p1").eq(1u64);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N9->N10",
@@ -1015,7 +1015,7 @@ pub(crate) mod test_filters {
 
                 let graph = init_graph(Graph::new());
 
-                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                let filter = PropertyFilter::metadata("p1").eq(1u64);
                 assert_eq!(
                     filter_edges(&graph, filter.clone()),
                     vec![
@@ -1037,10 +1037,10 @@ pub(crate) mod test_filters {
                     .unwrap_bool();
                 assert!(prop);
 
-                let filter2 = PropertyFilter::property("z").constant().eq(true);
+                let filter2 = PropertyFilter::metadata("z").eq(true);
                 assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
 
-                let filter = PropertyFilter::property("p1").constant().eq(1u64);
+                let filter = PropertyFilter::metadata("p1").eq(1u64);
                 assert_eq!(
                     filter_edges(&graph, filter),
                     vec![

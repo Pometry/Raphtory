@@ -1020,12 +1020,12 @@ mod test_index {
 
             node.add_constant_properties([("z", true)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(true);
+            let filter = PropertyFilter::metadata("z").eq(true);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
 
             node.update_constant_properties([("z", false)]).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(false);
+            let filter = PropertyFilter::metadata("z").eq(false);
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["shivam"]);
         }
 
@@ -1055,13 +1055,13 @@ mod test_index {
 
             edge.add_constant_properties([("z", true)], None).unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(true);
+            let filter = PropertyFilter::metadata("z").eq(true);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
 
             edge.update_constant_properties([("z", false)], None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
-            let filter = PropertyFilter::property("z").constant().eq(false);
+            let filter = PropertyFilter::metadata("z").eq(false);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
         }
 

@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            properties::{internal::InternalPropertiesOps, ConstantProperties, Properties},
+            properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{node::NodeViewOps, EdgeViewOps},
         },
         graph::{
@@ -280,10 +280,16 @@ impl PropertyFilter {
         Ok(())
     }
 
-    pub fn resolve_prop_id(&self, meta: &Meta) -> Option<usize> {
+    pub fn resolve_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
         let prop_name = self.prop_ref.name();
         let is_static = matches!(self.prop_ref, PropertyRef::Metadata(_));
-        meta.get_prop_id(prop_name, is_static)
+        match meta.get_prop_id_and_type(prop_name, is_static) {
+            None => Ok(None),
+            Some((id, dtype)) => {
+                self.validate(&dtype)?;
+                Ok(Some(id))
+            }
+        }
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
@@ -324,7 +330,7 @@ impl PropertyFilter {
     fn is_metadata_matched<I: InternalPropertiesOps + Clone>(
         &self,
         c_prop_id: Option<usize>,
-        props: ConstantProperties<I>,
+        props: Metadata<I>,
     ) -> bool {
         match self.prop_ref {
             PropertyRef::Metadata(_) => {

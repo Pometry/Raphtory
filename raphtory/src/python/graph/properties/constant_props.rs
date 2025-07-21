@@ -1,7 +1,8 @@
 use crate::{
     db::api::properties::{
-        dyn_props::DynConstProperties, internal::InternalPropertiesOps, ConstantProperties,
+        dyn_props::DynConstProperties, internal::InternalPropertiesOps, Metadata,
     },
+    prelude::PropertiesOps,
     python::{
         graph::properties::{
             props::PyPropsComp, PyConstPropsListListCmp, PyPropValueList, PyPropValueListList,
@@ -20,36 +21,33 @@ use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::Arc
 use std::{collections::HashMap, sync::Arc};
 
 impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
-    for ConstantProperties<'static, P>
+    for Metadata<'static, P>
 {
-    type Target = PyConstantProperties;
+    type Target = PyMetadata;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyConstantProperties::from(self).into_pyobject(py)
+        PyMetadata::from(self).into_pyobject(py)
     }
 }
 
-impl<'a, P: InternalPropertiesOps> Repr for ConstantProperties<'a, P> {
+impl<'a, P: InternalPropertiesOps> Repr for Metadata<'a, P> {
     fn repr(&self) -> String {
-        format!(
-            "ConstantProperties({{{}}})",
-            iterator_dict_repr(self.iter())
-        )
+        format!("Metadata({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
 /// A view of constant properties of an entity
-#[pyclass(name = "ConstantProperties", module = "raphtory", frozen)]
-pub struct PyConstantProperties {
+#[pyclass(name = "Metadata", module = "raphtory", frozen)]
+pub struct PyMetadata {
     props: DynConstProperties,
 }
 
-py_eq!(PyConstantProperties, PyPropsComp);
+py_eq!(PyMetadata, PyPropsComp);
 
 #[pymethods]
-impl PyConstantProperties {
+impl PyMetadata {
     /// lists the available property keys
     ///
     /// Returns:
@@ -71,7 +69,7 @@ impl PyConstantProperties {
     /// Returns:
     ///     list[Tuple[str, PropValue]]: the property keys with corresponding values
     pub fn items(&self) -> Vec<(ArcStr, Prop)> {
-        self.props.iter().collect()
+        self.props.as_vec()
     }
 
     /// get property value by key
@@ -133,27 +131,25 @@ impl PyConstantProperties {
     }
 }
 
-impl<P: InternalPropertiesOps + Send + Sync + 'static> From<ConstantProperties<'static, P>>
-    for PyConstantProperties
-{
-    fn from(value: ConstantProperties<P>) -> Self {
-        PyConstantProperties {
-            props: ConstantProperties::new(Arc::new(value.props)),
+impl<P: InternalPropertiesOps + Send + Sync + 'static> From<Metadata<'static, P>> for PyMetadata {
+    fn from(value: Metadata<P>) -> Self {
+        PyMetadata {
+            props: Metadata::new(Arc::new(value.props)),
         }
     }
 }
 
-impl Repr for PyConstantProperties {
+impl Repr for PyMetadata {
     fn repr(&self) -> String {
         self.props.repr()
     }
 }
 
-py_iterable_base!(PyConstPropsList, DynConstProperties, PyConstantProperties);
-py_eq!(PyConstPropsList, PyPropsListCmp);
+py_iterable_base!(MetadataView, DynConstProperties, PyMetadata);
+py_eq!(MetadataView, PyPropsListCmp);
 
 #[pymethods]
-impl PyConstPropsList {
+impl MetadataView {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .map(|p| p.keys().collect::<Vec<_>>())
@@ -204,11 +200,7 @@ impl PyConstPropsList {
     }
 }
 
-py_nested_iterable_base!(
-    PyConstPropsListList,
-    DynConstProperties,
-    PyConstantProperties
-);
+py_nested_iterable_base!(PyConstPropsListList, DynConstProperties, PyMetadata);
 py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 
 #[pymethods]

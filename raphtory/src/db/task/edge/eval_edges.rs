@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{ConstantProperties, Properties},
+            properties::{Metadata, Properties},
             view::{internal::OneHopFilter, BaseEdgeViewOps, BoxedLIter},
         },
         graph::edges::Edges,
@@ -172,7 +172,7 @@ impl<
         self.edges.as_props()
     }
 
-    fn as_metadata(&self) -> Self::ValueType<ConstantProperties<'graph, Self::PropType>> {
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.edges.as_metadata()
     }
 

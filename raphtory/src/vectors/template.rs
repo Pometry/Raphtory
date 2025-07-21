@@ -4,7 +4,7 @@ use crate::{
         api::properties::TemporalPropertyView,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::*,
 };
 use minijinja::{
     value::{Enumerator, Object},
@@ -96,8 +96,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplate
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
             constant_properties: value
-                .properties()
-                .constant()
+                .metadata()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
@@ -208,8 +207,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
             constant_properties: value
-                .properties()
-                .constant()
+                .metadata()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),

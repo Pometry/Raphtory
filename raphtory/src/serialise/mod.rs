@@ -13,7 +13,9 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
+    db::api::view::MaterializedGraph,
+    errors::GraphError,
+    prelude::{GraphViewOps, PropertiesOps},
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;

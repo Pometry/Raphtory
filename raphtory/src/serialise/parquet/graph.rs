@@ -1,6 +1,6 @@
 use crate::{
     errors::GraphError,
-    prelude::{GraphViewOps, Prop},
+    prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
         model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
         PERSISTENT_GRAPH_TYPE, TIME_COL,
@@ -99,7 +99,7 @@ pub fn encode_graph_cprop(
         GRAPH_C_PATH,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
         |_, g, decoder, writer| {
-            let row = g.properties().constant().as_map();
+            let row = g.metadata().as_map();
 
             let rows = vec![Row { t: 0, row }];
             decoder.serialize(&rows)?;

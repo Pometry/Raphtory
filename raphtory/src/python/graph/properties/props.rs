@@ -7,9 +7,10 @@ use crate::{
         },
         view::internal::{DynamicGraph, Static},
     },
+    prelude::PropertiesOps,
     python::{
         graph::properties::{
-            PyConstPropsList, PyConstPropsListList, PyConstantProperties, PyTemporalPropsList,
+            MetadataView, PyConstPropsListList, PyMetadata, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -38,7 +39,7 @@ impl PartialEq for PyPropsComp {
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstantProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetadata>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
@@ -50,8 +51,8 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
     }
 }
 
-impl From<&PyConstantProperties> for PyPropsComp {
-    fn from(value: &PyConstantProperties) -> Self {
+impl From<&PyMetadata> for PyPropsComp {
+    fn from(value: &PyMetadata) -> Self {
         Self(value.as_dict())
     }
 }
@@ -138,12 +139,6 @@ impl PyProperties {
         self.props.temporal()
     }
 
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> DynConstProperties {
-        self.props.constant()
-    }
-
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
@@ -214,7 +209,7 @@ pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<MetadataView>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
             Ok(p.deref().into())
@@ -226,8 +221,8 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
     }
 }
 
-impl From<&PyConstPropsList> for PyPropsListCmp {
-    fn from(value: &PyConstPropsList) -> Self {
+impl From<&MetadataView> for PyPropsListCmp {
+    fn from(value: &MetadataView) -> Self {
         Self(
             value
                 .items()
@@ -329,13 +324,6 @@ impl PropertiesView {
     pub fn temporal(&self) -> PyTemporalPropsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.temporal())).into()
-    }
-
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> PyConstPropsList {
-        let builder = self.builder.clone();
-        (move || builder().map(|p| p.constant())).into()
     }
 
     /// Convert properties view to a dict
@@ -463,13 +451,6 @@ impl PyNestedPropsIterable {
     pub fn temporal(&self) -> PyTemporalPropsListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
-    }
-
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> PyConstPropsListList {
-        let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|p| p.constant()))).into()
     }
 
     /// Convert properties view to a dict

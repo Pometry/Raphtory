@@ -565,7 +565,7 @@ mod graph_index_test {
             .add_constant_properties([("x", 1u64)])
             .unwrap();
 
-        let filter = PropertyFilter::property("x").constant().eq(1u64);
+        let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
 
         graph
@@ -573,7 +573,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::property("x").constant().eq(1u64);
+        let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
@@ -581,7 +581,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::property("x").constant().eq(2u64);
+        let filter = PropertyFilter::metadata("x").eq(2u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
     }
 
@@ -596,7 +596,7 @@ mod graph_index_test {
             .add_constant_properties([("x", 1u64)], None)
             .unwrap();
 
-        let filter = PropertyFilter::property("x").constant().eq(1u64);
+        let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
 
         graph
@@ -604,7 +604,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)], None)
             .unwrap();
-        let filter = PropertyFilter::property("x").constant().eq(1u64);
+        let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_edges(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
@@ -612,7 +612,7 @@ mod graph_index_test {
             .unwrap()
             .update_constant_properties([("x", 2u64)], None)
             .unwrap();
-        let filter = PropertyFilter::property("x").constant().eq(2u64);
+        let filter = PropertyFilter::metadata("x").eq(2u64);
         assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
     }
 }
