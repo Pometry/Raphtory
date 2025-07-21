@@ -6,10 +6,6 @@ root = Path(__file__).parent.parent.parent
 graphql_dir = root /"docs" / "reference" / "graphql"
 schema_dir = root / "raphtory-graphql"
 
-import os
-print(os.getcwd())
-print(os.listdir)
-
 result = subprocess.run(
     [
         "npx", "graphql-markdown",
