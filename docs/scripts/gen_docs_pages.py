@@ -108,5 +108,5 @@ raphtory = griffe.load(
 
 gen_module(("raphtory",), raphtory)
 
-with mkdocs_gen_files.open("reference/SUMMARY.md", "w") as nav_file:
+with mkdocs_gen_files.open("reference/python/SUMMARY.md", "w") as nav_file:
     nav_file.writelines(nav.build_literate_nav())

@@ -6,7 +6,7 @@ Our powerful visual interface allows analysts to explore data and trace the evol
 
 Raphtory is written in Rust for speed and safety. However, you can interact with your graphs using:
 
-- [Python](../../../reference/raphtory/) - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
+- [Python][raphtory] - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
 - [GraphQL](../../graphql/1_intro/) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
 - [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products. 
 
