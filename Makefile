@@ -87,6 +87,9 @@ install-mkdocs:
 install-doc-deps:
 	pip install -r docs/requirements.txt
 
+install-node-tools:
+	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && nvm install node
+
 gen-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
 
