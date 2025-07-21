@@ -2,8 +2,8 @@ import subprocess
 from pathlib import Path
 
 root = Path(__file__).parent.parent.parent
-doc_root = Path("reference")
-graphql_dir = doc_root / "graphql"
+
+graphql_dir = root /"docs" / "reference" / "graphql"
 schema_dir = root / "raphtory-graphql"
 
 import os
