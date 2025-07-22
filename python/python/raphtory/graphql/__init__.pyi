@@ -38,6 +38,7 @@ __all__ = [
     "AllPropertySpec",
     "encode_graph",
     "decode_graph",
+    "schema",
 ]
 
 class GraphServer(object):
@@ -754,4 +755,12 @@ def decode_graph(graph: str) -> Union[Graph, PersistentGraph]:
 
     Returns:
         Union[Graph, PersistentGraph]: the decoded graph
+    """
+
+def schema():
+    """
+    Returns the raphtory graphql server schema
+
+    Returns
+        str: Graphql schema
     """
