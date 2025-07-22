@@ -22,13 +22,13 @@ mod test_fluent_builder_apis {
         edge_filter::{CompositeEdgeFilter, EdgeFilter, EdgeFilterOps},
         node_filter::{CompositeNodeFilter, NodeFilter, NodeFilterBuilderOps},
         property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef, Temporal},
-        AsEdgeFilter, AsNodeFilter, ComposableFilter, Filter, PropertyFilterFactory,
+        ComposableFilter, Filter, PropertyFilterFactory, TryAsCompositeFilter,
     };
 
     #[test]
     fn test_node_property_filter_build() {
         let filter_expr = NodeFilter::property("p").eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Property("p".to_string()),
             "raphtory",
@@ -39,7 +39,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_const_property_filter_build() {
         let filter_expr = NodeFilter::property("p").constant().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::ConstantProperty("p".to_string()),
             "raphtory",
@@ -50,7 +50,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_any_temporal_property_filter_build() {
         let filter_expr = NodeFilter::property("p").temporal().any().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
@@ -61,7 +61,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_latest_temporal_property_filter_build() {
         let filter_expr = NodeFilter::property("p").temporal().latest().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
@@ -72,7 +72,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_name_filter_build() {
         let filter_expr = NodeFilter::name().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(node_property_filter, node_property_filter2);
     }
@@ -80,7 +80,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_type_filter_build() {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
         assert_eq!(node_property_filter, node_property_filter2);
     }
@@ -100,7 +100,8 @@ mod test_fluent_builder_apis {
             )
             .or(NodeFilter::node_type().eq("raphtory"))
             .or(NodeFilter::property("p5").eq(9u64))
-            .as_node_filter();
+            .try_as_composite_node_filter()
+            .unwrap();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(
             Box::new(CompositeNodeFilter::Or(
@@ -149,7 +150,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_src_filter_build() {
         let filter_expr = EdgeFilter::src().name().eq("raphtory");
-        let edge_property_filter = filter_expr.as_edge_filter();
+        let edge_property_filter = filter_expr.try_as_composite_edge_filter().unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
     }
@@ -157,7 +158,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_dst_filter_build() {
         let filter_expr = EdgeFilter::dst().name().eq("raphtory");
-        let edge_property_filter = filter_expr.as_edge_filter();
+        let edge_property_filter = filter_expr.try_as_composite_edge_filter().unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
     }
@@ -178,7 +179,8 @@ mod test_fluent_builder_apis {
             )
             .or(EdgeFilter::src().name().eq("raphtory"))
             .or(EdgeFilter::property("p5").eq(9u64))
-            .as_edge_filter();
+            .try_as_composite_edge_filter()
+            .unwrap();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(
             Box::new(CompositeEdgeFilter::Or(
@@ -2693,7 +2695,7 @@ pub(crate) mod test_filters {
                 model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
                     property_filter::PropertyFilterOps,
-                    AsNodeFilter, ComposableFilter, PropertyFilterFactory,
+                    ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
                 },
                 test_filters::IdentityGraphTransformer,
             },
@@ -2768,7 +2770,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2802,7 +2804,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2838,7 +2840,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2872,7 +2874,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2906,7 +2908,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2940,7 +2942,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2974,7 +2976,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -3009,7 +3011,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -3467,7 +3469,7 @@ pub(crate) mod test_filters {
                 model::{
                     edge_filter::{EdgeFilter, EdgeFilterOps},
                     property_filter::PropertyFilterOps,
-                    AndFilter, AsEdgeFilter, ComposableFilter, PropertyFilterFactory,
+                    AndFilter, ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
                 },
                 test_filters::{init_edges_graph, IdentityGraphTransformer},
                 EdgeFieldFilter,
@@ -3562,7 +3564,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3596,7 +3598,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3637,7 +3639,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3672,7 +3674,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3706,7 +3708,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3741,7 +3743,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3776,7 +3778,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3813,7 +3815,7 @@ pub(crate) mod test_filters {
                 TestVariants::NonDiskOnly,
             );
 
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,

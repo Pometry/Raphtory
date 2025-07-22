@@ -19,8 +19,7 @@ use crate::{
             views::{
                 cached_view::CachedView,
                 filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                    model::TryAsCompositeFilter, node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 node_subgraph::NodeSubgraph,
                 valid_graph::ValidGraph,
@@ -143,14 +142,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -856,7 +855,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -869,10 +868,10 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
+        fallback_filter_nodes(self, &filter.try_as_composite_node_filter()?, limit, offset)
     }
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -885,7 +884,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
+        fallback_filter_edges(self, &filter.try_as_composite_edge_filter()?, limit, offset)
     }
 
     fn is_indexed(&self) -> bool {

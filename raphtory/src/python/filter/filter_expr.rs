@@ -1,18 +1,17 @@
-use crate::db::api::view::BoxableGraphView;
-use crate::prelude::GraphViewOps;
-use crate::python::filter::create_filter::DynInternalFilterOps;
 use crate::{
-    db::graph::views::filter::{
-        internal::CreateFilter,
-        model::{
-            edge_filter::{CompositeEdgeFilter},
-            node_filter::CompositeNodeFilter,
-            not_filter::NotFilter,
-            or_filter::OrFilter,
-            AndFilter, TryAsEdgeFilter, TryAsNodeFilter,
+    db::{
+        api::view::BoxableGraphView,
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::{
+                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+                not_filter::NotFilter, or_filter::OrFilter, AndFilter, TryAsCompositeFilter,
+            },
         },
     },
     errors::GraphError,
+    prelude::GraphViewOps,
+    python::filter::create_filter::DynInternalFilterOps,
 };
 use pyo3::prelude::*;
 use std::sync::Arc;
@@ -23,11 +22,11 @@ pub struct PyFilterExpr(pub Arc<dyn DynInternalFilterOps>);
 
 impl PyFilterExpr {
     pub fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.0.try_as_node_filter()
+        self.0.try_as_composite_node_filter()
     }
 
     pub fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.0.try_as_edge_filter()
+        self.0.try_as_composite_edge_filter()
     }
 }
 
@@ -63,15 +62,3 @@ impl CreateFilter for PyFilterExpr {
         self.0.create_filter(graph)
     }
 }
-
-#[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
-#[derive(Clone)]
-pub struct PyExplodedEdgeFilter;
-
-// #[pymethods]
-// impl PyExplodedEdgeFilter {
-//     #[staticmethod]
-//     fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
-//         ExplodedEdgeFilter::property(name).into_pyobject(py)
-//     }
-// }

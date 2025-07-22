@@ -1,7 +1,8 @@
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, AsEdgeFilter,
-        AsNodeFilter, TryAsEdgeFilter, TryAsNodeFilter,
+        edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
+        node_filter::CompositeNodeFilter,
+        TryAsCompositeFilter,
     },
     errors::GraphError,
 };
@@ -16,30 +17,24 @@ impl<T: Display> Display for NotFilter<T> {
     }
 }
 
-impl<T: AsNodeFilter> AsNodeFilter for NotFilter<T> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        CompositeNodeFilter::Not(Box::new(self.0.as_node_filter()))
-    }
-}
-
-impl<T: TryAsNodeFilter> TryAsNodeFilter for NotFilter<T> {
-    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+impl<T: TryAsCompositeFilter> TryAsCompositeFilter for NotFilter<T> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::Not(Box::new(
-            self.0.try_as_node_filter()?,
+            self.0.try_as_composite_node_filter()?,
         )))
     }
-}
 
-impl<T: AsEdgeFilter> AsEdgeFilter for NotFilter<T> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Not(Box::new(self.0.as_edge_filter()))
-    }
-}
-
-impl<T: TryAsEdgeFilter> TryAsEdgeFilter for NotFilter<T> {
-    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
         Ok(CompositeEdgeFilter::Not(Box::new(
-            self.0.try_as_edge_filter()?,
+            self.0.try_as_composite_edge_filter()?,
+        )))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(CompositeExplodedEdgeFilter::Not(Box::new(
+            self.0.try_as_composite_exploded_edge_filter()?,
         )))
     }
 }

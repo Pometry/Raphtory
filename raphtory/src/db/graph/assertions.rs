@@ -1,10 +1,7 @@
 use crate::{
     db::{
         api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
-        graph::views::filter::{
-            internal::CreateFilter,
-            model::{AsEdgeFilter, AsNodeFilter},
-        },
+        graph::views::filter::internal::CreateFilter,
     },
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
@@ -20,6 +17,7 @@ use {
 
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
+use crate::db::graph::views::filter::model::TryAsCompositeFilter;
 
 pub enum TestGraphVariants {
     Graph,
@@ -60,9 +58,9 @@ pub trait ApplyFilter {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
 }
 
-pub struct FilterNodes<F: AsNodeFilter + CreateFilter + Clone>(F);
+pub struct FilterNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
@@ -76,9 +74,9 @@ impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     }
 }
 
-pub struct FilterNeighbours<F: AsNodeFilter + CreateFilter + Clone>(F, String, Direction);
+pub struct FilterNeighbours<F: TryAsCompositeFilter + CreateFilter + Clone>(F, String, Direction);
 
-impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let filter_applied = graph
             .node(self.1.clone())
@@ -99,9 +97,9 @@ impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F>
     }
 }
 
-pub struct SearchNodes<F: AsNodeFilter + CreateFilter + Clone>(F);
+pub struct SearchNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
@@ -119,9 +117,9 @@ impl<F: AsNodeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
     }
 }
 
-pub struct FilterEdges<F: AsEdgeFilter + CreateFilter + Clone>(F);
+pub struct FilterEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
             .filter(self.0.clone())
@@ -135,9 +133,9 @@ impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     }
 }
 
-pub struct SearchEdges<F: AsEdgeFilter + CreateFilter + Clone>(F);
+pub struct SearchEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         #[cfg(feature = "search")]
         {
@@ -158,7 +156,7 @@ impl<F: AsEdgeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -177,7 +175,7 @@ pub fn assert_filter_neighbours_results(
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl AsNodeFilter + CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -194,7 +192,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -214,7 +212,7 @@ pub fn assert_search_nodes_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -231,7 +229,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_search_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -313,7 +311,7 @@ pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
 }
 
 #[cfg(feature = "search")]
-pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
+pub fn search_nodes(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
     let mut results = graph
         .search_nodes(filter, 10, 0)
         .expect("Failed to search nodes")
@@ -337,7 +335,7 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
 }
 
 #[cfg(feature = "search")]
-pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
+pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
     let mut results = graph
         .search_edges(filter, 10, 0)
         .expect("Failed to filter edges")

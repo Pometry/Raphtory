@@ -1,7 +1,7 @@
 use crate::python::filter::{
-    edge_filter_builders::{PyEdgeEndpoint, PyEdgeFilter, PyEdgeFilterOp},
+    edge_filter_builders::{PyEdgeEndpoint, PyEdgeFilter, PyEdgeFilterOp, PyExplodedEdgeFilter},
     filter_expr::PyFilterExpr,
-    node_filter_builders::{PyNodeFilter},
+    node_filter_builders::PyNodeFilter,
     property_filter_builders::{PyPropertyFilterBuilder, PyTemporalPropertyFilterBuilder},
 };
 use pyo3::{
@@ -22,6 +22,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     filter_module.add_class::<PyEdgeFilterOp>()?;
     filter_module.add_class::<PyEdgeEndpoint>()?;
     filter_module.add_class::<PyEdgeFilter>()?;
+    filter_module.add_class::<PyExplodedEdgeFilter>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;
     filter_module.add_class::<PyTemporalPropertyFilterBuilder>()?;
     filter_module.add_class::<PyPropertyFilterBuilder>()?;

@@ -28,11 +28,7 @@ use crate::{
             node::internal::BaseFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{iterables::*},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,

@@ -167,7 +167,7 @@ mod test_index {
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec, StaticGraphViewOps},
                 graph::views::filter::model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    AsNodeFilter,
+                    TryAsCompositeFilter,
                 },
             },
             errors::GraphError,
@@ -195,7 +195,7 @@ mod test_index {
             graph
         }
 
-        fn assert_search_results<T: AsNodeFilter + Clone>(
+        fn assert_search_results<T: TryAsCompositeFilter + Clone>(
             graph: &Graph,
             filter: &T,
             expected: Vec<&str>,

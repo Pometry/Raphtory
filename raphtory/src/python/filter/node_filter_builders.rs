@@ -1,14 +1,15 @@
 use crate::{
+    db::graph::views::filter::model::{
+        node_filter::{InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps},
+        PropertyFilterFactory,
+    },
     python::{
-        filter::filter_expr::{PyFilterExpr},
+        filter::{filter_expr::PyFilterExpr, property_filter_builders::PyPropertyFilterBuilder},
         types::iterable::FromIterable,
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
 use std::sync::Arc;
-use crate::db::graph::views::filter::model::node_filter::{InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps};
-use crate::db::graph::views::filter::model::PropertyFilterFactory;
-use crate::python::filter::property_filter_builders::PyPropertyFilterBuilder;
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]

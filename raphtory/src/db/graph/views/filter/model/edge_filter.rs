@@ -6,8 +6,8 @@ use crate::{
             model::{
                 node_filter::CompositeNodeFilter,
                 property_filter::{PropertyFilter, PropertyFilterBuilder},
-                AndFilter, AsEdgeFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsEdgeFilter, TryAsNodeFilter,
+                AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
+                TryAsCompositeFilter,
             },
         },
     },
@@ -37,8 +37,8 @@ pub enum CompositeEdgeFilter {
 impl Display for CompositeEdgeFilter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Edge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
             CompositeEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
@@ -78,22 +78,34 @@ impl CreateFilter for CompositeEdgeFilter {
     }
 }
 
-impl TryAsNodeFilter for CompositeEdgeFilter {
-    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+impl TryAsCompositeFilter for CompositeEdgeFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Ok(self.clone())
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
 }
 
-impl AsEdgeFilter for CompositeEdgeFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.clone()
-    }
-}
-
-impl TryAsEdgeFilter for CompositeEdgeFilter {
-    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(self.clone())
-    }
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CompositeExplodedEdgeFilter {
+    Property(PropertyFilter<ExplodedEdgeFilter>),
+    And(
+        Box<CompositeExplodedEdgeFilter>,
+        Box<CompositeExplodedEdgeFilter>,
+    ),
+    Or(
+        Box<CompositeExplodedEdgeFilter>,
+        Box<CompositeExplodedEdgeFilter>,
+    ),
+    Not(Box<CompositeExplodedEdgeFilter>),
 }
 
 pub trait InternalEdgeFilterBuilderOps: Send + Sync {
@@ -225,20 +237,18 @@ impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {
     }
 }
 
-impl AsEdgeFilter for EdgeFieldFilter {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        CompositeEdgeFilter::Edge(self.0.clone())
-    }
-}
-
-impl TryAsNodeFilter for EdgeFieldFilter {
-    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+impl TryAsCompositeFilter for EdgeFieldFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
     }
-}
 
-impl TryAsEdgeFilter for EdgeFieldFilter {
-    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
         Ok(CompositeEdgeFilter::Edge(self.0.clone()))
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
     }
 }

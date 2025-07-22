@@ -260,28 +260,28 @@ def test_filtering_valid():
     e = g.filter(f).edge(1, 2)
     assert e is None
     # assert list(e.properties.temporal.get("weight").values) == [1,2] -- this would be the case for filter_edge_layer?
-    
+
     # TODO: Enable these test once exploded edge property filter is enabled
-    # f = filter.Property("weight") < 3
-    # e = g.valid().filter_exploded_edges(f).edge(1, 2)
-    # assert e.is_valid() == False  # latest update is now a deletion
-    # assert list(e.properties.temporal.get("weight").values()) == [
-    #     1,
-    #     2,
-    # ]  # property value gone (makes sense)
-    # 
-    # e2 = g.valid().filter_exploded_edges(f).edge(1, 3)
-    # assert e2.is_valid() == True  # dead in red but not blue
-    # assert list(e.properties.temporal.get("weight").values()) == [
-    #     1,
-    #     2,
-    # ]  # property values the same
-    # 
-    # f = filter.Property("weight") > 5
-    # e = g.filter_exploded_edges(f).edge(
-    #     1, 2
-    # )  # this should be probably be filtered out (along with edges that only have deletions) as we discussed
-    # assert list(e.properties.temporal.get("weight").values()) == []
+    f = filter.ExplodedEdge.property("weight") < 3
+    e = g.valid().filter(f).edge(1, 2)
+    assert e.is_valid() == False  # latest update is now a deletion
+    assert list(e.properties.temporal.get("weight").values()) == [
+        1,
+        2,
+    ]  # property value gone (makes sense)
+
+    e2 = g.valid().filter(f).edge(1, 3)
+    assert e2.is_valid() == True  # dead in red but not blue
+    assert list(e.properties.temporal.get("weight").values()) == [
+        1,
+        2,
+    ]  # property values the same
+
+    f = filter.ExplodedEdge.property("weight") > 5
+    e = g.filter(f).edge(
+        1, 2
+    )  # this should be probably be filtered out (along with edges that only have deletions) as we discussed
+    assert list(e.properties.temporal.get("weight").values()) == []
 
 
 # TODO this will not pass until we fix hanging edges

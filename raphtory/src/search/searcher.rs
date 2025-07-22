@@ -1,11 +1,7 @@
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::filter::model::{AsEdgeFilter, AsNodeFilter},
-        },
+        graph::{edge::EdgeView, node::NodeView, views::filter::model::TryAsCompositeFilter},
     },
     errors::GraphError,
     search::{
@@ -37,9 +33,9 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: AsNodeFilter,
+        F: TryAsCompositeFilter,
     {
-        let filter = filter.as_node_filter();
+        let filter = filter.try_as_composite_node_filter()?;
         self.node_filter_executor
             .filter_nodes(graph, &filter, limit, offset)
     }
@@ -53,12 +49,26 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: AsEdgeFilter,
+        F: TryAsCompositeFilter,
     {
-        let filter = filter.as_edge_filter();
+        let filter = filter.try_as_composite_edge_filter()?;
         self.edge_filter_executor
             .filter_edges(graph, &filter, limit, offset)
     }
+
+    // pub fn search_exploded_edges<G, F>(
+    //     &self,
+    //     graph: &G,
+    //     filter: F,
+    //     limit: usize,
+    //     offset: usize,
+    // ) -> Result<Vec<EdgeView<G>>, GraphError>
+    // where
+    //     G: StaticGraphViewOps,
+    //     F: TryAsCompositeFilter
+    // {
+    //
+    // }
 }
 
 // TODO: All search tests in graph views (db/graph/views) should include
@@ -82,14 +92,14 @@ mod search_tests {
                 graph::views::filter::model::{
                     node_filter::{NodeFilter, NodeFilterBuilderOps},
                     property_filter::PropertyFilterOps,
-                    AsNodeFilter, PropertyFilterFactory,
+                    PropertyFilterFactory, TryAsCompositeFilter,
                 },
             },
             prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
-        fn fuzzy_search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
+        fn fuzzy_search_nodes(filter: impl TryAsCompositeFilter) -> Vec<String> {
             let graph = Graph::new();
             graph
                 .add_node(
@@ -169,14 +179,14 @@ mod search_tests {
                 graph::views::filter::model::{
                     edge_filter::{EdgeFilter, EdgeFilterOps},
                     property_filter::PropertyFilterOps,
-                    AsEdgeFilter, PropertyFilterFactory,
+                    PropertyFilterFactory, TryAsCompositeFilter,
                 },
             },
             prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
-        fn fuzzy_search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
+        fn fuzzy_search_edges(filter: impl TryAsCompositeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
             graph
                 .add_edge(

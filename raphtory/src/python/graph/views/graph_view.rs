@@ -35,9 +35,7 @@ use crate::{
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{edge::PyEdge, node::PyNode},
-        types::{
-            repr::{Repr, StructReprBuilder},
-        },
+        types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
 };

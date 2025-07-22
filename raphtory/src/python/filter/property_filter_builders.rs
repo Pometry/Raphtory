@@ -1,16 +1,19 @@
 use crate::{
-    python::{
-        filter::filter_expr::{PyFilterExpr},
-        types::iterable::FromIterable,
+    db::graph::views::filter::{
+        internal::CreateFilter,
+        model::{
+            property_filter::{
+                PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
+            },
+            TryAsCompositeFilter,
+        },
     },
+    prelude::PropertyFilter,
+    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
-use crate::db::graph::views::filter::internal::CreateFilter;
-use crate::db::graph::views::filter::model::property_filter::{PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder};
-use crate::db::graph::views::filter::model::{TryAsEdgeFilter, TryAsNodeFilter};
-use crate::prelude::PropertyFilter;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
@@ -48,7 +51,7 @@ pub trait DynPropertyFilterOps: Send + Sync {
 impl<F> DynPropertyFilterOps for F
 where
     F: PropertyFilterOps,
-    PropertyFilter<F::Marker>: CreateFilter + TryAsEdgeFilter + TryAsNodeFilter,
+    PropertyFilter<F::Marker>: CreateFilter + TryAsCompositeFilter,
 {
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.eq(value)))
@@ -197,9 +200,9 @@ trait DynTemporalPropertyFilterBuilderOps: Send + Sync {
 }
 
 impl<M: Clone + Send + Sync + 'static> DynTemporalPropertyFilterBuilderOps
-for TemporalPropertyFilterBuilder<M>
+    for TemporalPropertyFilterBuilder<M>
 where
-    PropertyFilter<M>: CreateFilter + TryAsEdgeFilter + TryAsNodeFilter,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     fn any(&self) -> PyPropertyFilterOps {
         PyPropertyFilterOps(Arc::new(self.clone().any()))
@@ -236,7 +239,7 @@ trait DynPropertyFilterBuilderOps: Send + Sync {
 
 impl<M: Clone + Send + Sync + 'static> DynPropertyFilterBuilderOps for PropertyFilterBuilder<M>
 where
-    PropertyFilter<M>: CreateFilter + TryAsEdgeFilter + TryAsNodeFilter,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     fn constant(&self) -> PyPropertyFilterOps {
         PyPropertyFilterOps(Arc::new(self.clone().constant()))
@@ -254,7 +257,7 @@ pub struct PyPropertyFilterBuilder(Arc<dyn DynPropertyFilterBuilderOps>);
 
 impl<'py, M: Clone + Send + Sync + 'static> IntoPyObject<'py> for PropertyFilterBuilder<M>
 where
-    PropertyFilter<M>: CreateFilter + TryAsEdgeFilter + TryAsNodeFilter,
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
     type Target = PyPropertyFilterBuilder;
     type Output = Bound<'py, Self::Target>;

@@ -1,7 +1,7 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::{
     db::graph::views::filter::model::{
-        edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+        edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter, EdgeFieldFilter},
         filter_operator::FilterOperator,
         node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
@@ -144,43 +144,29 @@ impl Filter {
 }
 
 // Fluent Composite Filter Builder APIs
-pub trait AsNodeFilter: Send + Sync {
-    fn as_node_filter(&self) -> CompositeNodeFilter;
+pub trait TryAsCompositeFilter: Send + Sync {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError>;
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError>;
 }
 
-impl<T: AsNodeFilter + ?Sized> AsNodeFilter for Arc<T> {
-    fn as_node_filter(&self) -> CompositeNodeFilter {
-        self.deref().as_node_filter()
+impl<T: TryAsCompositeFilter + ?Sized> TryAsCompositeFilter for Arc<T> {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        self.deref().try_as_composite_node_filter()
     }
-}
 
-pub trait TryAsNodeFilter: Send + Sync {
-    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
-}
-
-impl<T: TryAsNodeFilter + ?Sized> TryAsNodeFilter for Arc<T> {
-    fn try_as_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        self.deref().try_as_node_filter()
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        self.deref().try_as_composite_edge_filter()
     }
-}
 
-pub trait AsEdgeFilter: Send + Sync {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter;
-}
-
-impl<T: AsEdgeFilter + ?Sized> AsEdgeFilter for Arc<T> {
-    fn as_edge_filter(&self) -> CompositeEdgeFilter {
-        self.deref().as_edge_filter()
-    }
-}
-
-pub trait TryAsEdgeFilter: Send + Sync {
-    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError>;
-}
-
-impl<T: TryAsEdgeFilter + ?Sized> TryAsEdgeFilter for Arc<T> {
-    fn try_as_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        self.deref().try_as_edge_filter()
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        self.deref().try_as_composite_exploded_edge_filter()
     }
 }
 
