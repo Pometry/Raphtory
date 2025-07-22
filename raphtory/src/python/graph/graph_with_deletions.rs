@@ -217,32 +217,32 @@ impl PyPersistentGraph {
         }
     }
 
-    /// Adds static properties to the graph.
+    /// Adds metadata to the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     metadata (dict): The static properties of the graph.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.graph.add_metadata(properties)
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.graph.add_metadata(metadata)
     }
 
-    /// Updates static properties to the graph.
+    /// Updates metadata of the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     metadata (dict): The static properties of the graph.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.graph.update_metadata(properties)
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.graph.update_metadata(metadata)
     }
 
     /// Adds a new edge with the given source and destination nodes and properties to the graph.

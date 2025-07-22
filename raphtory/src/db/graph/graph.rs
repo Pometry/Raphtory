@@ -588,7 +588,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         db::{
             api::{
-                properties::internal::InternalMetadataPropertiesOps,
+                properties::internal::InternalMetadataOps,
                 view::{
                     internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                     time::internal::InternalTimeOps,
@@ -628,7 +628,7 @@ mod db_tests {
     use tracing::{error, info};
 
     #[test]
-    fn edge_const_props() -> Result<(), GraphError> {
+    fn edge_metadata() -> Result<(), GraphError> {
         let g = Graph::new();
 
         g.add_edge(0, 0, 0, NO_PROPS, None)?;
@@ -682,20 +682,20 @@ mod db_tests {
             assert!(result.end.is_some());
 
             assert_eq!(
-                graph.const_prop_keys().collect::<Vec<_>>(),
+                graph.metadata_keys().collect::<Vec<_>>(),
                 Vec::<ArcStr>::new()
             );
             assert_eq!(
-                graph.const_prop_ids().collect::<Vec<_>>(),
+                graph.metadata_ids().collect::<Vec<_>>(),
                 Vec::<usize>::new()
             );
             assert_eq!(
-                graph.const_prop_values().collect::<Vec<_>>(),
+                graph.metadata_values().collect::<Vec<_>>(),
                 Vec::<Option<Prop>>::new()
             );
             assert!(graph.metadata().get_by_id(1).is_none());
-            assert!(graph.get_const_prop_id("1").is_none());
-            assert!(graph.get_const_prop(1).is_none());
+            assert!(graph.get_metadata_id("1").is_none());
+            assert!(graph.get_metadata(1).is_none());
             assert_eq!(graph.count_nodes(), 0);
             assert_eq!(graph.count_edges(), 0);
             assert_eq!(graph.count_temporal_edges(), 0);

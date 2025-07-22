@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
     python::{
         graph::properties::{
-            MetadataView, PropertiesView, PyConstPropsListList, PyNestedPropsIterable,
+            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -503,7 +503,7 @@ impl PyNestedEdges {
 
     /// Get a view of the constant properties (meta-data) only.
     #[getter]
-    pub fn metadata(&self) -> PyConstPropsListList {
+    pub fn metadata(&self) -> PyMetadataListList {
         let edges = self.edges.clone();
         (move || edges.metadata()).into()
     }

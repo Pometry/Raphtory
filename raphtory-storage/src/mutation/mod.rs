@@ -43,7 +43,7 @@ pub enum MutationError {
     #[error(transparent)]
     IllegalPropType(#[from] IllegalPropType),
     #[error(transparent)]
-    ConstPropError(#[from] MetadataError),
+    MetadataError(#[from] MetadataError),
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,

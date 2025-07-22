@@ -27,9 +27,7 @@ use crate::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
-            properties::{
-                MetadataView, PropertiesView, PyConstPropsListList, PyNestedPropsIterable,
-            },
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
@@ -435,24 +433,24 @@ impl PyMutableNode {
         }
     }
 
-    /// Add constant properties to a node in the graph.
+    /// Add metadata to a node in the graph.
     /// This function is used to add properties to a node that remain constant and do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.node.add_metadata(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.add_metadata(metadata)
     }
 
-    /// Update constant properties of a node in the graph overwriting existing values.
+    /// Update metadata of a node in the graph overwriting existing values.
     /// This function is used to add properties to a node that remain constant and do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        self.node.update_metadata(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.update_metadata(metadata)
     }
 
     /// Return a string representation of the node.
@@ -931,7 +929,7 @@ impl PyPathFromGraph {
 
     /// the node metadata
     #[getter]
-    fn metadata(&self) -> PyConstPropsListList {
+    fn metadata(&self) -> PyMetadataListList {
         let path = self.path.clone();
         (move || path.metadata()).into()
     }

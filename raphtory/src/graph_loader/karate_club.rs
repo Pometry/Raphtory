@@ -93,11 +93,11 @@ pub fn karate_club_graph() -> Graph {
     // Add properties
     for v in 0..34 {
         let node = graph.node(v).unwrap();
-        let mut const_prop = "Officer";
+        let mut metadata = "Officer";
         if club1.contains(&v) {
-            const_prop = "Mr. Hi";
+            metadata = "Mr. Hi";
         }
-        node.add_metadata([("club", const_prop)])
+        node.add_metadata([("club", metadata)])
             .map_err(|err| error!("{:?}", err))
             .ok();
     }

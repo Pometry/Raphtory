@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritPropertiesOps, InternalMetadataPropertiesOps, InternalPropertiesOps,
+                InheritPropertiesOps, InternalMetadataOps, InternalPropertiesOps,
             },
             storage::storage::Storage,
         },
@@ -53,7 +53,7 @@ pub trait BoxableGraphView:
     + GraphTimeSemanticsOps
     + InternalMaterialize
     + InternalPropertiesOps
-    + InternalMetadataPropertiesOps
+    + InternalMetadataOps
     + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
@@ -73,7 +73,7 @@ impl<
             + GraphTimeSemanticsOps
             + InternalMaterialize
             + InternalPropertiesOps
-            + InternalMetadataPropertiesOps
+            + InternalMetadataOps
             + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter

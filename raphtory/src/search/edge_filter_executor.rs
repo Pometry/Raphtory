@@ -140,7 +140,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         }
     }
 
-    fn apply_const_property_filter<G: StaticGraphViewOps>(
+    fn apply_metadata_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         prop_name: &str,
@@ -152,7 +152,7 @@ impl<'a> EdgeFilterExecutor<'a> {
             .index
             .edge_index
             .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?
+            .get_metadata_index(graph.edge_meta(), prop_name)?
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
@@ -204,7 +204,7 @@ impl<'a> EdgeFilterExecutor<'a> {
             .index
             .edge_index
             .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?;
+            .get_metadata_index(graph.edge_meta(), prop_name)?;
         let tpi = self
             .index
             .edge_index
@@ -261,7 +261,7 @@ impl<'a> EdgeFilterExecutor<'a> {
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match &filter.prop_ref {
             PropertyRef::Metadata(prop_name) => {
-                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
+                self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
                 .apply_temporal_property_filter(

@@ -458,36 +458,36 @@ impl PyMutableEdge {
         self.edge.delete(t, layer)
     }
 
-    /// Add constant properties to an edge in the graph.
+    /// Add metadata to an edge in the graph.
     /// This function is used to add properties to an edge that remain constant and do not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.add_metadata(properties, layer)
+        self.edge.add_metadata(metadata, layer)
     }
 
-    /// Update constant properties of an edge in the graph overwriting existing values.
+    /// Update metadata of an edge in the graph overwriting existing values.
     /// This function is used to add properties to an edge that remains constant and does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    #[pyo3(signature = (properties, layer=None))]
+    #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.update_metadata(properties, layer)
+        self.edge.update_metadata(metadata, layer)
     }
 
     fn __repr__(&self) -> String {

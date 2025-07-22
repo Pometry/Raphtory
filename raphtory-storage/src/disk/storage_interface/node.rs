@@ -79,7 +79,7 @@ impl<'a> DiskNode<'a> {
     }
 
     pub fn node_metadata_ids(self) -> BoxedLIter<'a, usize> {
-        match &self.graph.node_properties().const_props {
+        match &self.graph.node_properties().metadata {
             None => Box::new(std::iter::empty()),
             Some(props) => {
                 Box::new((0..props.num_props()).filter(move |id| props.has_prop(self.vid, *id)))
@@ -277,7 +277,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     }
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
-        let cprops = self.graph.node_properties().const_props.as_ref()?;
+        let cprops = self.graph.node_properties().metadata.as_ref()?;
         let prop_type = cprops.prop_dtype(prop_id);
         match prop_type.data_type {
             ArrowDataType::Int32 => cprops.prop_native::<i32>(self.vid, prop_id).map(Prop::I32),

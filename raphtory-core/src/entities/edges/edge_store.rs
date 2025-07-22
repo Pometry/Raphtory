@@ -26,7 +26,7 @@ pub struct EdgeStore {
 
 pub trait EdgeDataLike<'a> {
     fn temporal_prop_ids(self) -> impl Iterator<Item = usize> + 'a;
-    fn const_prop_ids(self) -> impl Iterator<Item = usize> + 'a;
+    fn metadata_ids(self) -> impl Iterator<Item = usize> + 'a;
 }
 
 impl<'a, T: Deref<Target = EdgeLayer> + 'a> EdgeDataLike<'a> for T {
@@ -41,7 +41,7 @@ impl<'a, T: Deref<Target = EdgeLayer> + 'a> EdgeDataLike<'a> for T {
         })
     }
 
-    fn const_prop_ids(self) -> impl Iterator<Item = usize> + 'a {
+    fn metadata_ids(self) -> impl Iterator<Item = usize> + 'a {
         GenLockedIter::from(self, |layer| {
             Box::new(
                 layer

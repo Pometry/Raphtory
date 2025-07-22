@@ -14,7 +14,7 @@ use crate::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::{
                 internal::{
-                    InternalMetadataPropertiesOps, InternalTemporalPropertiesOps,
+                    InternalMetadataOps, InternalTemporalPropertiesOps,
                     InternalTemporalPropertyViewOps,
                 },
                 Metadata, Properties,
@@ -417,14 +417,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadataPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadataOps
     for EdgeView<G, GH>
 {
-    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+    fn get_metadata_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().metadata_mapper().get_id(name)
     }
 
-    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+    fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
             .edge_meta()
             .metadata_mapper()
@@ -432,16 +432,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
             .clone()
     }
 
-    fn const_prop_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<usize> {
         Box::new(0..self.graph.edge_meta().metadata_mapper().len())
     }
 
-    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
+    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
         let reverse_map = self.graph.edge_meta().metadata_mapper().get_keys();
-        Box::new(self.const_prop_ids().map(move |id| reverse_map[id].clone()))
+        Box::new(self.metadata_ids().map(move |id| reverse_map[id].clone()))
     }
 
-    fn get_const_prop(&self, id: usize) -> Option<Prop> {
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             match self.edge.layer() {

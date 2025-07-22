@@ -41,7 +41,7 @@ mod test_fluent_builder_apis {
     }
 
     #[test]
-    fn test_node_const_property_filter_build() {
+    fn test_node_metadata_filter_build() {
         let filter_expr = PropertyFilter::metadata("p").eq("raphtory");
         let node_property_filter = filter_expr.as_node_filter();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(

@@ -94,7 +94,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Edges<'graph, G,
         self.iter().map(|e| e.cloned()).collect()
     }
 
-    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+    pub fn get_metadata_id(&self, prop_name: &str) -> Option<usize> {
         self.graph.edge_meta().get_prop_id(prop_name, true)
     }
 

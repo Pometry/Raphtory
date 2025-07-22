@@ -6,7 +6,7 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     db::api::properties::{
-        dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
+        dyn_props::{DynMetadata, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
     errors::GraphError,
@@ -345,18 +345,18 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 }
 
 #[derive(ResolvedObject, Clone)]
-#[graphql(name = "ConstantProperties")]
-pub(crate) struct GqlConstantProperties {
-    props: DynConstProperties,
+#[graphql(name = "Metadata")]
+pub(crate) struct GqlMetadata {
+    props: DynMetadata,
 }
-impl GqlConstantProperties {
-    pub(crate) fn new(props: DynConstProperties) -> Self {
+impl GqlMetadata {
+    pub(crate) fn new(props: DynMetadata) -> Self {
         Self { props }
     }
 }
-impl<P: Into<DynConstProperties>> From<P> for GqlConstantProperties {
+impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
     fn from(value: P) -> Self {
-        GqlConstantProperties::new(value.into())
+        GqlMetadata::new(value.into())
     }
 }
 
@@ -407,7 +407,7 @@ impl GqlProperties {
 }
 
 #[ResolvedObjectFields]
-impl GqlConstantProperties {
+impl GqlMetadata {
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())

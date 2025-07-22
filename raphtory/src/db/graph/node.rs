@@ -6,8 +6,7 @@ use crate::{
         api::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
-                InternalMetadataPropertiesOps, InternalTemporalPropertiesOps,
-                InternalTemporalPropertyViewOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
             view::{
                 internal::{OneHopFilter, Static},
@@ -318,14 +317,12 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataPropertiesOps
-    for NodeView<'graph, G, GH>
-{
-    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
+impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G, GH> {
+    fn get_metadata_id(&self, name: &str) -> Option<usize> {
         self.graph.node_meta().metadata_mapper().get_id(name)
     }
 
-    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+    fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
             .node_meta()
             .metadata_mapper()
@@ -333,11 +330,11 @@ impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataPropertiesOps
             .clone()
     }
 
-    fn const_prop_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<usize> {
         self.graph.node_metadata_ids(self.node)
     }
 
-    fn get_const_prop(&self, id: usize) -> Option<Prop> {
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
         self.graph.node_metadata(self.node, id)
     }
 }

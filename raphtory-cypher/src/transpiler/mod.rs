@@ -4,7 +4,7 @@ use itertools::Itertools;
 use raphtory::{
     api::core::Direction,
     core::entities::{edges::edge_ref::Dir, VID},
-    db::{api::properties::internal::InternalMetadataPropertiesOps, graph::node::NodeView},
+    db::{api::properties::internal::InternalMetadataOps, graph::node::NodeView},
     prelude::*,
 };
 use sqlparser::ast::{
@@ -560,7 +560,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
     let edge_counts = graph
         .nodes()
         .into_iter()
-        .filter(|node| node.get_const_prop(0).is_some())
+        .filter(|node| node.get_metadata(0).is_some())
         .count();
 
     if edge_counts > 0 {
@@ -603,7 +603,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
                     panic!("unexpected edge direction");
                 };
 
-                if let Some(Prop::Bool(out)) = n.get_const_prop(0) {
+                if let Some(Prop::Bool(out)) = n.get_metadata(0) {
                     // this is an edge
 
                     let current_edge_dir = if out { Direction::OUT } else { Direction::IN };
@@ -660,7 +660,7 @@ fn parse_tables_2(query: &Query) -> (Vec<sql_ast::TableWithJoins>, Vec<Expr>) {
 
             additional_filters.extend(unique_edges);
 
-            if parent.get_const_prop(0).is_some() {
+            if parent.get_metadata(0).is_some() {
                 last_edge = Some(parent.clone());
             }
             seen.insert(parent.node);
