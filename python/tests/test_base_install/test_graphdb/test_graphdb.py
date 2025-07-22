@@ -505,15 +505,18 @@ def test_graph_properties():
     time_property_test(2, "prop 3", None)
 
     # testing properties
-    assert g.properties.as_dict() == {'prop 4': 11, 'prop 5': 'world', 'prop 6': True}
+    assert g.properties.as_dict() == {"prop 4": 11, "prop 5": "world", "prop 6": True}
 
     assert g.properties.temporal.latest() == {
         "prop 4": 11,
         "prop 5": "world",
         "prop 6": True,
     }
-    assert g.before(3).properties.as_dict() == {'prop 5': 'world', 'prop 6': True, 'prop 4': 11}
-
+    assert g.before(3).properties.as_dict() == {
+        "prop 5": "world",
+        "prop 6": True,
+        "prop 4": 11,
+    }
 
     # testing property histories
     assert g.properties.temporal.histories() == {
@@ -529,9 +532,7 @@ def test_graph_properties():
     }
 
     # testing property names
-    expected_names = sorted(
-        ["prop 4", "prop 5", "prop 6"]
-    )
+    expected_names = sorted(["prop 4", "prop 5", "prop 6"])
     assert sorted(g.properties.keys()) == expected_names
 
     expected_names_no_static = sorted(["prop 4", "prop 5", "prop 6"])
@@ -841,9 +842,11 @@ def test_node_properties():
         assert "prop 5" not in g.nodes.properties
         assert "prop 5" not in g.nodes.out_neighbours.properties
 
-        assert "prop 2" not in g.at(1).node(1).properties.as_dict() #TODO should be as dict?
- #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
-#        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
+        assert (
+            "prop 2" not in g.at(1).node(1).properties.as_dict()
+        )  # TODO should be as dict?
+        #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
+        #        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
 
         assert "static prop" in g.node(1).metadata
         assert "static prop" in g.nodes.metadata
@@ -1022,7 +1025,9 @@ def test_edge_properties():
         assert "prop 4" in g.edge(1, 2).properties
         assert "prop 2" in g.edge(1, 2).properties
         assert "prop 5" not in g.edge(1, 2).properties
-        assert "prop 2" not in g.at(1).edge(1, 2).properties.as_dict() #TODO should be as dict? - Properties now returns all keys here
+        assert (
+            "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
+        )  # TODO should be as dict? - Properties now returns all keys here
 
     def check(g):
         assert g.at(1).edge(1, 2).metadata.get("static prop") == 123
@@ -1427,13 +1432,9 @@ def test_static_prop_change():
 def test_metadata_update():
     def updates(v):
         v.update_metadata({"prop1": "value1", "prop2": 123})
-        assert (
-            v.metadata.get("prop1") == "value1" and v.metadata.get("prop2") == 123
-        )
+        assert v.metadata.get("prop1") == "value1" and v.metadata.get("prop2") == 123
         v.update_metadata({"prop1": "value2", "prop2": 345})
-        assert (
-            v.metadata.get("prop1") == "value2" and v.metadata.get("prop2") == 345
-        )
+        assert v.metadata.get("prop1") == "value2" and v.metadata.get("prop2") == 345
 
         v.add_metadata({"name": "value1"})
         v.update_metadata({"name": "value2"})

@@ -34,7 +34,12 @@ def search_edges(graph, filter_expr):
 
 def test_with_all_props_index_spec():
     graph = init_graph(Graph())
-    spec = IndexSpecBuilder(graph).with_all_node_props().with_all_edge_props().build()
+    spec = (
+        IndexSpecBuilder(graph)
+        .with_all_node_properties_and_metadata()
+        .with_all_edge_properties_and_metadata()
+        .build()
+    )
 
     graph.create_index_in_ram_with_spec(spec)
 
@@ -51,10 +56,10 @@ def test_with_selected_props_index_spec():
     graph = init_graph(Graph())
     spec = (
         IndexSpecBuilder(graph)
-        .with_const_node_props(["y"])
-        .with_temp_node_props(["p1"])
-        .with_const_edge_props(["e_y"])
-        .with_temp_edge_props(["e_p1"])
+        .with_node_metadata(["y"])
+        .with_node_properties(["p1"])
+        .with_edge_metadata(["e_y"])
+        .with_edge_properties(["e_p1"])
         .build()
     )
 
@@ -77,7 +82,7 @@ def test_with_selected_props_index_spec():
 def test_with_invalid_property_returns_error():
     graph = init_graph(Graph())
     try:
-        IndexSpecBuilder(graph).with_const_node_props(["xyz"])
+        IndexSpecBuilder(graph).with_node_metadata(["xyz"])
         assert False, "Expected error for unknown property"
     except Exception as e:
         assert "xyz" in str(e)
@@ -104,9 +109,10 @@ def test_mixed_node_and_edge_props_index_spec():
     graph = init_graph(Graph())
     spec = (
         IndexSpecBuilder(graph)
-        .with_const_node_props(["x"])
-        .with_all_temp_node_props()
-        .with_all_edge_props()
+        .with_node_metadata(["x"])
+        .with_node_metadata(["y"])
+        .with_all_node_properties()
+        .with_all_edge_properties()
         .build()
     )
 
@@ -127,9 +133,9 @@ def test_get_index_spec():
     graph = init_graph(Graph())
     spec = (
         IndexSpecBuilder(graph)
-        .with_const_node_props(["x"])
-        .with_all_temp_node_props()
-        .with_all_edge_props()
+        .with_node_metadata(["x"])
+        .with_all_node_properties()
+        .with_all_edge_properties()
         .build()
     )
 

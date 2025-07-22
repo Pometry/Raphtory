@@ -122,7 +122,7 @@ def assert_expected_node_types(g):
 
 
 def assert_expected_node_property_tag(g):
-    assert g.nodes.properties.constant.get("tag").collect() == [
+    assert g.nodes.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -133,7 +133,7 @@ def assert_expected_node_property_tag(g):
 
 
 def assert_expected_node_property_type(g):
-    assert dict(zip(g.nodes.id, g.nodes.properties.constant.get("type"))) == {
+    assert dict(zip(g.nodes.id, g.nodes.metadata.get("type"))) == {
         1: "Person 1",
         2: "Person 2",
         3: "Person 3",
@@ -144,7 +144,7 @@ def assert_expected_node_property_type(g):
 
 
 def assert_expected_node_property_dept(g):
-    assert g.nodes.properties.constant.get("dept").collect() == [
+    assert g.nodes.metadata.get("dept").collect() == [
         "Sales",
         "Sales",
         "Sales",
@@ -158,7 +158,7 @@ def assert_expected_edge_properties(g):
     assert dict(
         zip(
             g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
-            g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
+            g.layers(["layer 1", "layer 2", "layer 3"]).edges.metadata.get(
                 "marbles_const"
             ),
         )
@@ -167,7 +167,7 @@ def assert_expected_edge_properties(g):
         (2, 3): {"layer 2": "blue"},
         (3, 4): {"layer 3": "green"},
     }
-    assert dict(zip(g.edges.id, g.edges.properties.constant.get("tag"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("tag"))) == {
         (1, 2): {"layer 1": "test_tag"},
         (2, 3): {"layer 2": "test_tag"},
         (3, 4): {"layer 3": "test_tag"},
@@ -177,21 +177,21 @@ def assert_expected_edge_properties(g):
 
 
 def assert_expected_edge_properties_test_layer(g):
-    assert g.edges.properties.constant.get("type").collect() == [
+    assert g.edges.metadata.get("type").collect() == [
         "Edge",
         "Edge",
         "Edge",
         "Edge",
         "Edge",
     ]
-    assert g.edges.properties.constant.get("tag").collect() == [
+    assert g.edges.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
         "test_tag",
         "test_tag",
     ]
-    assert g.edges.properties.constant.get("tag").collect() == [
+    assert g.edges.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -567,7 +567,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     ]
     assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -621,7 +621,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},
@@ -698,7 +698,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     ]
     assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -765,7 +765,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},

@@ -96,7 +96,7 @@ def test_import_node_as():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") is None
-    assert y.metadat.get("con") is None
+    assert y.metadata.get("con") is None
 
 
 def test_import_node_as_merge():

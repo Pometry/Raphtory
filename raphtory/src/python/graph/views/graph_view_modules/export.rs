@@ -177,6 +177,9 @@ impl PyGraphView {
                     properties.set_item("constant", metadata_py)?;
                     properties.set_item("temporal", v.properties().temporal().histories())?;
                 } else {
+                    for (key, value) in v.metadata().as_map() {
+                        properties.set_item(key, value)?;
+                    }
                     for (key, value) in v.properties().as_map() {
                         properties.set_item(key, value)?;
                     }
@@ -232,6 +235,9 @@ impl PyGraphView {
                         prop_hist_map.into_iter().collect();
                     properties.set_item("temporal", output)?;
                 } else {
+                    for (key, value) in e.metadata().as_map() {
+                        properties.set_item(key, value)?;
+                    }
                     for (key, value) in e.properties().as_map() {
                         properties.set_item(key, value)?;
                     }
