@@ -7,7 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::InternalConstantPropertiesOps, Metadata, Properties},
+            properties::{internal::InternalMetadataPropertiesOps, Metadata, Properties},
             view::{internal::*, *},
         },
         graph::{

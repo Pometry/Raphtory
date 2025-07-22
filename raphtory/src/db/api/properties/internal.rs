@@ -47,7 +47,7 @@ pub trait TemporalPropertiesRowView {
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 }
 
-pub trait InternalConstantPropertiesOps: Send + Sync {
+pub trait InternalMetadataPropertiesOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_const_prop_id(&self, name: &str) -> Option<usize>;
     fn get_const_prop_name(&self, id: usize) -> ArcStr;
@@ -75,14 +75,14 @@ pub trait InternalTemporalPropertiesOps: Send + Sync {
 }
 
 pub trait InternalPropertiesOps:
-    InternalTemporalPropertiesOps + InternalTemporalPropertyViewOps + InternalConstantPropertiesOps
+    InternalTemporalPropertiesOps + InternalTemporalPropertyViewOps + InternalMetadataPropertiesOps
 {
 }
 
 impl<
         P: InternalTemporalPropertiesOps
             + InternalTemporalPropertyViewOps
-            + InternalConstantPropertiesOps,
+            + InternalMetadataPropertiesOps,
     > InternalPropertiesOps for P
 {
 }
@@ -176,9 +176,9 @@ where
     }
 }
 
-impl<P: InheritConstantPropertiesOps + Send + Sync> InternalConstantPropertiesOps for P
+impl<P: InheritConstantPropertiesOps + Send + Sync> InternalMetadataPropertiesOps for P
 where
-    P::Base: InternalConstantPropertiesOps,
+    P::Base: InternalMetadataPropertiesOps,
 {
     #[inline]
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

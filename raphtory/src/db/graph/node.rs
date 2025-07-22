@@ -6,7 +6,7 @@ use crate::{
         api::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
-                InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
+                InternalMetadataPropertiesOps, InternalTemporalPropertiesOps,
                 InternalTemporalPropertyViewOps,
             },
             view::{
@@ -318,7 +318,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalConstantPropertiesOps
+impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataPropertiesOps
     for NodeView<'graph, G, GH>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

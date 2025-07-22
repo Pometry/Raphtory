@@ -14,7 +14,7 @@ use crate::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::{
                 internal::{
-                    InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
+                    InternalMetadataPropertiesOps, InternalTemporalPropertiesOps,
                     InternalTemporalPropertyViewOps,
                 },
                 Metadata, Properties,
@@ -417,7 +417,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalConstantPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadataPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_const_prop_id(&self, name: &str) -> Option<usize> {

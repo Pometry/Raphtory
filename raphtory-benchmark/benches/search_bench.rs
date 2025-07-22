@@ -8,7 +8,7 @@ use raphtory::{
     db::{
         api::{
             properties::internal::{
-                InternalConstantPropertiesOps, InternalTemporalPropertiesOps,
+                InternalMetadataPropertiesOps, InternalTemporalPropertiesOps,
                 InternalTemporalPropertyViewOps,
             },
             view::SearchableGraphOps,

@@ -588,7 +588,7 @@ mod db_tests {
         algorithms::components::weakly_connected_components,
         db::{
             api::{
-                properties::internal::InternalConstantPropertiesOps,
+                properties::internal::InternalMetadataPropertiesOps,
                 view::{
                     internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                     time::internal::InternalTimeOps,

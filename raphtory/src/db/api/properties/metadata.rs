@@ -1,7 +1,7 @@
 use crate::{
     core::utils::iter::GenLockedIter,
     db::api::{
-        properties::{internal::InternalConstantPropertiesOps, PropertiesOps},
+        properties::{internal::InternalMetadataPropertiesOps, PropertiesOps},
         view::BoxedLIter,
     },
 };
@@ -12,18 +12,18 @@ use raphtory_api::{
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
-pub struct Metadata<'a, P: InternalConstantPropertiesOps> {
+pub struct Metadata<'a, P: InternalMetadataPropertiesOps> {
     pub(crate) props: P,
     _marker: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> Debug for Metadata<'a, P> {
+impl<'a, P: InternalMetadataPropertiesOps + Sync> Debug for Metadata<'a, P> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> PropertiesOps for Metadata<'a, P> {
+impl<'a, P: InternalMetadataPropertiesOps + Sync> PropertiesOps for Metadata<'a, P> {
     fn get_by_id(&self, id: usize) -> Option<Prop> {
         self.props.get_const_prop(id)
     }
@@ -41,7 +41,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> PropertiesOps for Metadata<'a,
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> Metadata<'a, P> {
+impl<'a, P: InternalMetadataPropertiesOps + Sync> Metadata<'a, P> {
     pub(crate) fn new(props: P) -> Self {
         Self {
             props,
@@ -50,7 +50,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> Metadata<'a, P> {
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync + 'a> IntoIterator for Metadata<'a, P> {
+impl<'a, P: InternalMetadataPropertiesOps + Sync + 'a> IntoIterator for Metadata<'a, P> {
     type Item = (ArcStr, Option<Prop>);
     type IntoIter = BoxedLIter<'a, Self::Item>;
 
@@ -61,7 +61,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync + 'a> IntoIterator for Metadata
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync> IntoIterator for &'a Metadata<'a, P> {
+impl<'a, P: InternalMetadataPropertiesOps + Sync> IntoIterator for &'a Metadata<'a, P> {
     type Item = (ArcStr, Option<Prop>);
     type IntoIter = Box<dyn Iterator<Item = (ArcStr, Option<Prop>)> + 'a>;
 
@@ -70,7 +70,7 @@ impl<'a, P: InternalConstantPropertiesOps + Sync> IntoIterator for &'a Metadata<
     }
 }
 
-impl<'a, P: InternalConstantPropertiesOps + Sync, O: PropertiesOps> PartialEq<O>
+impl<'a, P: InternalMetadataPropertiesOps + Sync, O: PropertiesOps> PartialEq<O>
     for Metadata<'a, P>
 {
     fn eq(&self, other: &O) -> bool {

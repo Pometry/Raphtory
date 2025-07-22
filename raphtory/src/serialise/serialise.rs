@@ -688,7 +688,7 @@ mod proto_test {
     use super::*;
     use crate::{
         db::{
-            api::{mutation::DeletionOps, properties::internal::InternalConstantPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::InternalMetadataPropertiesOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
