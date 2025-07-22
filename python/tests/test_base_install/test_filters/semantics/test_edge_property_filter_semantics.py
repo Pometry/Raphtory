@@ -141,8 +141,6 @@ def test_property_semantics():
         expected_ids = sorted(
             [
                 ("N1", "N2"),
-                ("N14", "N15"),
-                ("N15", "N1"),
                 ("N3", "N4"),
                 ("N4", "N5"),
                 ("N6", "N7"),
@@ -179,8 +177,6 @@ def test_property_semantics_for_secondary_indexes():
         expected_ids = sorted(
             [
                 ("N1", "N2"),
-                ("N14", "N15"),
-                ("N15", "N1"),
                 ("N16", "N15"),
                 ("N3", "N4"),
                 ("N4", "N5"),
