@@ -13,7 +13,7 @@ use crate::{
         graph::views::filter::internal::CreateExplodedEdgeFilter,
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, LayerOps, PropertyFilter},
 };
 use raphtory_api::{
     core::{
@@ -70,7 +70,7 @@ impl CreateExplodedEdgeFilter for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        let prop_id = self.resolve_prop_id(graph.edge_meta())?;
+        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(
             graph.clone(),
             prop_id,

@@ -1029,18 +1029,13 @@ pub(crate) mod test_filters {
                     .unwrap();
                 edge.add_constant_properties([("z", true)], Some("fire_nation"))
                     .unwrap();
-                let prop = graph
-                    .edge("shivam", "kapoor")
-                    .unwrap()
-                    .metadata()
-                    .get("z")
-                    .unwrap_bool();
-                assert!(prop);
+                let prop = graph.edge("shivam", "kapoor").unwrap().metadata().get("z");
+                assert_eq!(prop, Some(Prop::map([("fire_nation", true)])));
 
-                let filter2 = PropertyFilter::metadata("z").eq(true);
+                let filter2 = PropertyFilter::metadata("z").eq(Prop::map([("fire_nation", true)]));
                 assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
 
-                let filter = PropertyFilter::metadata("p1").eq(1u64);
+                let filter = PropertyFilter::metadata("p1").eq(Prop::map([("_default", 1u64)]));
                 assert_eq!(
                     filter_edges(&graph, filter),
                     vec![

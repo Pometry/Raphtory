@@ -218,36 +218,43 @@ impl PropertyFilter {
         }
     }
 
-    fn validate(&self, dtype: &PropType) -> Result<(), GraphError> {
+    fn validate_single_dtype(
+        &self,
+        expected: &PropType,
+        expect_map: bool,
+    ) -> Result<PropType, GraphError> {
+        let filter_dtype = match &self.prop_value {
+            PropertyFilterValue::None => {
+                return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
+            }
+            PropertyFilterValue::Single(value) => {
+                if expect_map {
+                    value.dtype().homogeneous_map_value_type().ok_or_else(|| {
+                        GraphError::InvalidHomogeneousMap(expected.clone(), value.dtype())
+                    })?
+                } else {
+                    value.dtype()
+                }
+            }
+            PropertyFilterValue::Set(_) => {
+                return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
+            }
+        };
+        unify_types(expected, &filter_dtype, &mut false)
+            .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
+        Ok(filter_dtype)
+    }
+
+    fn validate(&self, dtype: &PropType, expect_map: bool) -> Result<(), GraphError> {
         match self.operator {
             FilterOperator::Eq | FilterOperator::Ne => {
-                let filter_dtype = match &self.prop_value {
-                    PropertyFilterValue::None => {
-                        return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
-                    }
-                    PropertyFilterValue::Single(value) => value.dtype(),
-                    PropertyFilterValue::Set(_) => {
-                        return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
-                    }
-                };
-                unify_types(dtype, &filter_dtype, &mut false)
-                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
+                self.validate_single_dtype(dtype, expect_map)?;
             }
             FilterOperator::Lt | FilterOperator::Le | FilterOperator::Gt | FilterOperator::Ge => {
-                let filter_dtype = match &self.prop_value {
-                    PropertyFilterValue::None => {
-                        return Err(GraphError::InvalidFilterExpectSingleGotNone(self.operator))
-                    }
-                    PropertyFilterValue::Single(value) => value.dtype(),
-                    PropertyFilterValue::Set(_) => {
-                        return Err(GraphError::InvalidFilterExpectSingleGotSet(self.operator))
-                    }
-                };
+                let filter_dtype = self.validate_single_dtype(dtype, expect_map)?;
                 if !filter_dtype.has_cmp() {
                     return Err(GraphError::InvalidFilterCmp(filter_dtype));
                 }
-                unify_types(dtype, &filter_dtype, &mut false)
-                    .map_err(|e| e.with_name(self.prop_ref.name().to_owned()))?;
             }
             FilterOperator::In | FilterOperator::NotIn => match &self.prop_value {
                 PropertyFilterValue::None => {
@@ -280,13 +287,17 @@ impl PropertyFilter {
         Ok(())
     }
 
-    pub fn resolve_prop_id(&self, meta: &Meta) -> Result<Option<usize>, GraphError> {
+    pub fn resolve_prop_id(
+        &self,
+        meta: &Meta,
+        expect_map: bool,
+    ) -> Result<Option<usize>, GraphError> {
         let prop_name = self.prop_ref.name();
         let is_static = matches!(self.prop_ref, PropertyRef::Metadata(_));
         match meta.get_prop_id_and_type(prop_name, is_static) {
             None => Ok(None),
             Some((id, dtype)) => {
-                self.validate(&dtype)?;
+                self.validate(&dtype, is_static && expect_map)?;
                 Ok(Some(id))
             }
         }
