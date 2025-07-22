@@ -116,11 +116,11 @@ g = Graph()
 v = g.add_node(timestamp=1, id="User 1")
 e = g.add_edge(timestamp=2, src="User 1", dst="User 2")
 
-g.add_metadata(properties={"name": "Example Graph"})
+g.add_metadata(metadat={"name": "Example Graph"})
 v.add_metadata(
-    properties={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
+    metadata={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
 )
-e.add_metadata(properties={"data source": "https://link-to-repo.com"})
+e.add_metadata(metadata={"data source": "https://link-to-repo.com"})
 
 print(g)
 print(v)
