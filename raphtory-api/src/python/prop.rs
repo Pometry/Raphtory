@@ -92,16 +92,16 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
+        #[cfg(feature = "arrow")]
+        if let Ok(arrow) = ob.extract::<PyArray>() {
+            let (arr, _) = arrow.into_inner();
+            return Ok(Prop::Array(PropArray::Array(arr)));
+        }
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
         }
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));
-        }
-        #[cfg(feature = "arrow")]
-        if let Ok(arrow) = ob.extract::<PyArray>() {
-            let (arr, _) = arrow.into_inner();
-            return Ok(Prop::Array(PropArray::Array(arr)));
         }
         Err(PyTypeError::new_err(format!(
             "Could not convert {:?} to Prop",

@@ -1,4 +1,7 @@
-use crate::url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError};
+use crate::{
+    model::App,
+    url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError},
+};
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
     prelude::*,
@@ -79,6 +82,16 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<P
         JsonValue::Bool(b) => b.into_bound_py_any(py),
         JsonValue::Null => Ok(PyNone::get(py).to_owned().into_any()),
     }
+}
+
+/// Returns the raphtory graphql server schema
+///
+/// Returns
+///     str: Graphql schema
+#[pyfunction]
+pub fn schema() -> String {
+    let schema = App::create_schema().finish().unwrap(); //will only fail if something wrong with the build
+    schema.sdl()
 }
 
 /// Encode a graph using Base64 encoding

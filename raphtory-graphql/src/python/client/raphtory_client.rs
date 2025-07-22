@@ -28,6 +28,7 @@ use tracing::debug;
 pub struct PyRaphtoryClient {
     pub(crate) url: String,
     pub(crate) token: String,
+    client: Client,
 }
 
 impl PyRaphtoryClient {
@@ -75,7 +76,8 @@ impl PyRaphtoryClient {
             "variables": variables
         });
 
-        let response = Client::new()
+        let response = self
+            .client
             .post(&self.url)
             .bearer_auth(&self.token)
             .json(&request_body)
@@ -104,7 +106,8 @@ impl PyRaphtoryClient {
         {
             Ok(response) => {
                 if response.status() == 200 {
-                    Ok(Self { url, token })
+                    let client = Client::new();
+                    Ok(Self { url, token, client })
                 } else {
                     Err(PyValueError::new_err(format!(
                         "Could not connect to the given server - response {}",
@@ -204,9 +207,8 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
+        let client = self.client.clone();
         execute_async_task(move || async move {
-            let client = Client::new();
-
             let mut file =
                 File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
 
