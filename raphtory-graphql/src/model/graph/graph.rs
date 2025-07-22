@@ -8,7 +8,7 @@ use crate::{
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
-            property::{GqlConstantProperties, GqlProperties},
+            property::{GqlMetadata, GqlProperties},
             windowset::GqlGraphWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -361,7 +361,7 @@ impl GqlGraph {
         Into::<DynProperties>::into(self.graph.properties()).into()
     }
 
-    async fn metadata(&self) -> GqlConstantProperties {
+    async fn metadata(&self) -> GqlMetadata {
         self.graph.metadata().into()
     }
 
@@ -493,10 +493,10 @@ impl GqlGraph {
             let props = index_spec.props(&self.graph);
 
             Ok(GqlIndexSpec {
-                node_const_props: props.node_const_props,
-                node_temp_props: props.node_temp_props,
-                edge_const_props: props.edge_const_props,
-                edge_temp_props: props.edge_temp_props,
+                node_metadata: props.node_metadata,
+                node_properties: props.node_properties,
+                edge_metadata: props.edge_metadata,
+                edge_properties: props.edge_properties,
             })
         }
         #[cfg(not(feature = "search"))]

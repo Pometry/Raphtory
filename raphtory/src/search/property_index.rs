@@ -284,7 +284,7 @@ impl PropertyIndex {
         Ok(document)
     }
 
-    pub(crate) fn create_node_const_property_document(
+    pub(crate) fn create_node_metadata_document(
         &self,
         node_id: u64,
         prop_value: &Prop,
@@ -303,7 +303,7 @@ impl PropertyIndex {
         self.create_property_document(field_node_id, node_id, Some(time), None, prop_value)
     }
 
-    pub(crate) fn create_edge_const_property_document(
+    pub(crate) fn create_edge_metadata_document(
         &self,
         edge_id: u64,
         layer_id: usize,

@@ -7,17 +7,17 @@ def init_graph(graph):
         (1, "pometry", {"p1": 5, "p2": 50}, "fire_nation", {"x": True}),
         (1, "raphtory", {"p1": 10, "p2": 100}, "water_tribe", {"y": False}),
     ]
-    for t, name, props, group, const_props in nodes:
+    for t, name, props, group, metadata in nodes:
         n = graph.add_node(t, name, props, group)
-        n.add_metadata(const_props)
+        n.add_metadata(metadata)
 
     edges = [
         (1, "pometry", "raphtory", {"e_p1": 3.2, "e_p2": 10.0}, {"e_x": True}),
         (1, "raphtory", "pometry", {"e_p1": 4.0, "e_p2": 20.0}, {"e_y": False}),
     ]
-    for t, src, dst, props, const_props in edges:
+    for t, src, dst, props, metadata in edges:
         e = graph.add_edge(t, src, dst, props)
-        e.add_metadata(const_props)
+        e.add_metadata(metadata)
 
     return graph
 
@@ -137,48 +137,12 @@ def test_get_index_spec():
 
     returned_spec = graph.get_index_spec()
 
-    node_const_names = {name for name in returned_spec.node_const_props}
-    node_temp_names = {name for name in returned_spec.node_temp_props}
-    edge_const_names = {name for name in returned_spec.edge_const_props}
-    edge_temp_names = {name for name in returned_spec.edge_temp_props}
+    node_metadata_names = {name for name in returned_spec.node_metadata}
+    node_property_names = {name for name in returned_spec.node_properties}
+    edge_metadata_names = {name for name in returned_spec.edge_metadata}
+    edge_property_names = {name for name in returned_spec.edge_properties}
 
-    assert "x" in node_const_names
-    assert "p1" in node_temp_names or "p2" in node_temp_names
-    assert "e_x" in edge_const_names or "e_y" in edge_const_names
-    assert "e_p1" in edge_temp_names or "e_p2" in edge_temp_names
-
-
-def test_const_prop_fallback_when_const_prop_indexed():
-    graph = init_graph(Graph())
-    spec = (
-        IndexSpecBuilder(graph)
-        .with_const_node_props(["x"])
-        .with_const_edge_props(["e_y"])
-        .build()
-    )
-
-    graph.create_index_in_ram_with_spec(spec)
-
-    f1 = filter.Property("x") == True
-    assert sorted(search_nodes(graph, f1)) == sorted(["pometry"])
-
-    f1 = filter.Property("e_y") == False
-    assert sorted(search_edges(graph, f1)) == sorted(["raphtory->pometry"])
-
-
-def test_const_prop_fallback_when_const_prop_not_indexed():
-    graph = init_graph(Graph())
-    spec = (
-        IndexSpecBuilder(graph)
-        .with_all_temp_node_props()
-        .with_all_temp_edge_props()
-        .build()
-    )
-
-    graph.create_index_in_ram_with_spec(spec)
-
-    f1 = filter.Property("x") == True
-    assert sorted(search_nodes(graph, f1)) == sorted(["pometry"])
-
-    f1 = filter.Property("e_y") == False
-    assert sorted(search_edges(graph, f1)) == sorted(["raphtory->pometry"])
+    assert "x" in node_metadata_names
+    assert "p1" in node_property_names or "p2" in node_property_names
+    assert "e_x" in edge_metadata_names or "e_y" in edge_metadata_names
+    assert "e_p1" in edge_property_names or "e_p2" in edge_property_names

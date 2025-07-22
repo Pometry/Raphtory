@@ -1,11 +1,9 @@
 use crate::{
-    db::api::properties::{
-        dyn_props::DynConstProperties, internal::InternalPropertiesOps, Metadata,
-    },
+    db::api::properties::{dyn_props::DynMetadata, internal::InternalPropertiesOps, Metadata},
     prelude::PropertiesOps,
     python::{
         graph::properties::{
-            props::PyPropsComp, PyConstPropsListListCmp, PyPropValueList, PyPropValueListList,
+            props::PyPropsComp, PyMetadataListListCmp, PyPropValueList, PyPropValueListList,
             PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
@@ -40,7 +38,7 @@ impl<'a, P: InternalPropertiesOps> Repr for Metadata<'a, P> {
 /// A view of constant properties of an entity
 #[pyclass(name = "Metadata", module = "raphtory", frozen)]
 pub struct PyMetadata {
-    props: DynConstProperties,
+    props: DynMetadata,
 }
 
 py_eq!(PyMetadata, PyPropsComp);
@@ -144,7 +142,7 @@ impl Repr for PyMetadata {
     }
 }
 
-py_iterable_base!(MetadataView, DynConstProperties, PyMetadata);
+py_iterable_base!(MetadataView, DynMetadata, PyMetadata);
 py_eq!(MetadataView, PyPropsListCmp);
 
 #[pymethods]
@@ -198,11 +196,11 @@ impl MetadataView {
     }
 }
 
-py_nested_iterable_base!(PyConstPropsListList, DynConstProperties, PyMetadata);
-py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
+py_nested_iterable_base!(PyMetadataListList, DynMetadata, PyMetadata);
+py_eq!(PyMetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
-impl PyConstPropsListList {
+impl PyMetadataListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|mut it| it.next().map(|p| p.keys().collect()))

@@ -552,7 +552,7 @@ mod test {
     }
 
     #[test]
-    fn edge_const_props_maps() {
+    fn edge_metadata_maps() {
         let edges = EdgeFixture(
             [
                 (
@@ -831,7 +831,7 @@ mod test {
     }
 
     #[test]
-    fn node_const_props() {
+    fn node_metadata() {
         let nf = NodeFixture(
             [(
                 1,

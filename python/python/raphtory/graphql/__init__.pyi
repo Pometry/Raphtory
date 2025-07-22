@@ -695,12 +695,12 @@ class SomePropertySpec(object):
     Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 
     Arguments:
-        constant (list[str]): Constant property names. Defaults to [].
+        metadata (list[str]): Metadata property names. Defaults to [].
         temporal (list[str]): Temporal property names. Defaults to [].
     """
 
     def __new__(
-        cls, constant: list[str] = [], temporal: list[str] = []
+        cls, metadata: list[str] = [], temporal: list[str] = []
     ) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 

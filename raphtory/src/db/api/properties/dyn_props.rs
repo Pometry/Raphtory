@@ -25,17 +25,17 @@ impl From<Properties<DynamicGraph>> for DynProperties {
     }
 }
 
-pub type DynConstProperties = Metadata<'static, DynProps>;
+pub type DynMetadata = Metadata<'static, DynProps>;
 
 impl<P: InternalPropertiesOps + Send + Sync + Static + 'static> From<Metadata<'static, P>>
-    for DynConstProperties
+    for DynMetadata
 {
     fn from(value: Metadata<P>) -> Self {
         Metadata::new(Arc::new(value.props))
     }
 }
 
-impl From<Metadata<'static, DynamicGraph>> for DynConstProperties {
+impl From<Metadata<'static, DynamicGraph>> for DynMetadata {
     fn from(value: Metadata<'static, DynamicGraph>) -> Self {
         Metadata::new(Arc::new(value.props))
     }

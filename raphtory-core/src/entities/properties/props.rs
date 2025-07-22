@@ -7,7 +7,7 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, hash::Hash};
+use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
@@ -37,12 +37,6 @@ impl From<IllegalSet<Option<Prop>>> for MetadataError {
         let new = value.new_value.unwrap_or(Prop::str("NONE"));
         MetadataError::IllegalUpdate { old, new }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-enum PropId {
-    Constant(usize),
-    Temporal(usize),
 }
 
 impl Props {

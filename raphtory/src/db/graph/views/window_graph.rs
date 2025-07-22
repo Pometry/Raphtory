@@ -42,7 +42,7 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritConstantPropertiesOps, InternalTemporalPropertiesOps,
+                InheritMetadataPropertiesOps, InternalTemporalPropertiesOps,
                 InternalTemporalPropertyViewOps,
             },
             state::Index,
@@ -281,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritConstantPropertiesOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMetadataPropertiesOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 
@@ -1411,7 +1411,7 @@ mod views_test {
                     graph.add_node(*id, name, props.clone(), *layer).unwrap();
                 }
 
-                // Constant property assignments
+                // Metadata property assignments
                 let metadata = vec![
                     (
                         "N1",
@@ -3685,7 +3685,7 @@ mod views_test {
                         .unwrap();
                 }
 
-                // Constant property assignments
+                // Metadata property assignments
                 let metadata = vec![
                     (
                         "N1",

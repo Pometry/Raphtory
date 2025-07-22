@@ -4,7 +4,7 @@ use crate::{
         filtering::{NodeFilter, NodeViewCollection},
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
-        property::{GqlConstantProperties, GqlProperties},
+        property::{GqlMetadata, GqlProperties},
         windowset::GqlNodeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -266,7 +266,7 @@ impl GqlNode {
         Into::<DynProperties>::into(self.vv.properties()).into()
     }
 
-    async fn metadata(&self) -> GqlConstantProperties {
+    async fn metadata(&self) -> GqlMetadata {
         self.vv.metadata().into()
     }
 

@@ -139,7 +139,7 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
-    fn apply_const_property_filter<G: StaticGraphViewOps>(
+    fn apply_metadata_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         prop_name: &str,
@@ -151,7 +151,7 @@ impl<'a> NodeFilterExecutor<'a> {
             .index
             .node_index
             .entity_index
-            .get_const_property_index(graph.node_meta(), prop_name)?
+            .get_metadata_index(graph.node_meta(), prop_name)?
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
@@ -222,7 +222,7 @@ impl<'a> NodeFilterExecutor<'a> {
             .index
             .node_index
             .entity_index
-            .get_const_property_index(graph.node_meta(), prop_name)?;
+            .get_metadata_index(graph.node_meta(), prop_name)?;
         let tpi = self
             .index
             .node_index
@@ -280,7 +280,7 @@ impl<'a> NodeFilterExecutor<'a> {
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         match &filter.prop_ref {
             PropertyRef::Metadata(prop_name) => {
-                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
+                self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
                 .apply_temporal_property_filter(

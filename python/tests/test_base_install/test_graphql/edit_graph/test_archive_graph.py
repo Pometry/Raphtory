@@ -14,7 +14,7 @@ def test_archive_graph_fails_if_graph_not_found():
 
         query = """query {
                   updateGraph(path: "g1") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
@@ -31,7 +31,7 @@ def test_archive_graph_fails_if_graph_not_found_at_namespace():
 
         query = """query {
                   updateGraph(path: "shivam/g1") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
@@ -61,13 +61,13 @@ def test_archive_graph_succeeds():
         }
         update_archive_graph = """query {
                   updateGraph(path: "g1") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
         assert client.query(update_archive_graph) == {
-            "updateGraph": {"updateConstantProperties": True}
+            "updateGraph": {"updateMetadata": True}
         }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
@@ -77,13 +77,13 @@ def test_archive_graph_succeeds():
         )
         update_archive_graph = """query {
                   updateGraph(path: "g1") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 1 }}]
                     )
                   }
                 }"""
         assert client.query(update_archive_graph) == {
-            "updateGraph": {"updateConstantProperties": True}
+            "updateGraph": {"updateMetadata": True}
         }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
@@ -113,13 +113,13 @@ def test_archive_graph_succeeds_at_namespace():
         }
         update_archive_graph = """query {
                   updateGraph(path: "shivam/g2") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 0 }}]
                     )
                   }
                 }"""
         assert client.query(update_archive_graph) == {
-            "updateGraph": {"updateConstantProperties": True}
+            "updateGraph": {"updateMetadata": True}
         }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][
@@ -129,13 +129,13 @@ def test_archive_graph_succeeds_at_namespace():
         )
         update_archive_graph = """query {
                   updateGraph(path: "shivam/g2") {
-                    updateConstantProperties(
+                    updateMetadata(
                       properties: [{key: "isArchive", value: { u64: 1 }}]
                     )
                   }
                 }"""
         assert client.query(update_archive_graph) == {
-            "updateGraph": {"updateConstantProperties": True}
+            "updateGraph": {"updateMetadata": True}
         }
         assert (
             client.query(query_is_archive)["graph"]["properties"]["constant"]["get"][

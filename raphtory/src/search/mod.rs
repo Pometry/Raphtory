@@ -608,10 +608,10 @@ mod test_index {
             assert_eq!(
                 spec,
                 ResolvedIndexSpec {
-                    node_temp_props: vec!["p1".to_string()],
-                    node_const_props: vec![],
-                    edge_const_props: vec![],
-                    edge_temp_props: vec![]
+                    node_properties: vec!["p1".to_string()],
+                    node_metadata: vec![],
+                    edge_metadata: vec![],
+                    edge_properties: vec![]
                 }
             );
         }
@@ -651,9 +651,9 @@ mod test_index {
                 ),
             ];
 
-            for (time, name, props, group, const_props) in nodes {
+            for (time, name, props, group, metadata) in nodes {
                 let node = graph.add_node(time, name, props, group).unwrap();
-                node.add_metadata(const_props).unwrap();
+                node.add_metadata(metadata).unwrap();
             }
 
             let edges = vec![
@@ -675,9 +675,9 @@ mod test_index {
                 ),
             ];
 
-            for (time, src, dst, props, label, const_props) in edges {
+            for (time, src, dst, props, label, metadata) in edges {
                 let edge = graph.add_edge(time, src, dst, props, label).unwrap();
-                edge.add_metadata(const_props, label).unwrap();
+                edge.add_metadata(metadata, label).unwrap();
             }
 
             graph
@@ -687,8 +687,8 @@ mod test_index {
         fn test_with_all_props_index_spec() {
             let graph = init_graph(Graph::new());
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_all_node_props()
-                .with_all_edge_props()
+                .with_all_node_properties_and_metadata()
+                .with_all_edge_properties_and_metadata()
                 .build();
             assert_eq!(
                 index_spec.props(&graph).to_vec(),
@@ -718,13 +718,13 @@ mod test_index {
         fn test_with_selected_props_index_spec() {
             let graph = init_graph(Graph::new());
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p1"])
+                .with_node_properties(vec!["p1"])
                 .unwrap()
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
-                .with_temp_edge_props(vec!["e_p1"])
+                .with_edge_properties(vec!["e_p1"])
                 .unwrap()
                 .build();
             assert_eq!(
@@ -753,7 +753,7 @@ mod test_index {
         #[test]
         fn test_with_invalid_property_returns_error() {
             let graph = init_graph(Graph::new());
-            let result = IndexSpecBuilder::new(graph.clone()).with_const_node_props(["xyz"]);
+            let result = IndexSpecBuilder::new(graph.clone()).with_node_metadata(["xyz"]);
 
             assert!(matches!(result, Err(GraphError::PropertyMissingError(p)) if p == "xyz"));
         }
@@ -763,10 +763,10 @@ mod test_index {
             let graph = init_graph(Graph::new());
             let index_spec = IndexSpecBuilder::new(graph.clone()).build();
 
-            assert!(index_spec.node_const_props.is_empty());
-            assert!(index_spec.node_temp_props.is_empty());
+            assert!(index_spec.node_metadata.is_empty());
+            assert!(index_spec.node_properties.is_empty());
             assert!(index_spec.edge_metadata.is_empty());
-            assert!(index_spec.edge_temp_props.is_empty());
+            assert!(index_spec.edge_properties.is_empty());
 
             graph.create_index_in_ram_with_spec(index_spec).unwrap();
 
@@ -788,10 +788,10 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["x"])
+                .with_node_metadata(vec!["x"])
                 .unwrap()
-                .with_all_temp_node_props()
-                .with_all_edge_props()
+                .with_all_node_properties()
+                .with_all_edge_properties_and_metadata()
                 .build();
             assert_eq!(
                 index_spec.props(&graph).to_vec(),
@@ -823,10 +823,10 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["x"])
+                .with_node_metadata(vec!["x"])
                 .unwrap()
-                .with_all_temp_node_props()
-                .with_all_edge_props()
+                .with_all_node_properties()
+                .with_all_edge_properties_and_metadata()
                 .build();
 
             graph
@@ -841,7 +841,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
@@ -853,11 +853,11 @@ mod test_index {
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p2"])
+                .with_node_properties(vec!["p2"])
                 .unwrap()
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
@@ -874,7 +874,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
@@ -891,11 +891,11 @@ mod test_index {
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p2"])
+                .with_node_properties(vec!["p2"])
                 .unwrap()
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
@@ -916,13 +916,13 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p2"])
+                .with_node_properties(vec!["p2"])
                 .unwrap()
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
-                .with_temp_edge_props(vec!["e_p2"])
+                .with_edge_properties(vec!["e_p2"])
                 .unwrap()
                 .build();
 
@@ -942,11 +942,11 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p2"])
+                .with_node_properties(vec!["p2"])
                 .unwrap()
-                .with_const_edge_props(vec!["e_y"])
+                .with_edge_metadata(vec!["e_y"])
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
@@ -989,9 +989,9 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p1"])
+                .with_node_properties(vec!["p1"])
                 .unwrap()
                 .build();
             create_index_fn(&graph, index_spec.clone()).unwrap();
@@ -1028,9 +1028,9 @@ mod test_index {
             let graph = init_graph(Graph::new());
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["y"])
+                .with_node_metadata(vec!["y"])
                 .unwrap()
-                .with_temp_node_props(vec!["p2"])
+                .with_node_properties(vec!["p2"])
                 .unwrap()
                 .build();
             create_index_fn(&graph, index_spec.clone()).unwrap();
@@ -1054,65 +1054,6 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let filter = PropertyFilter::metadata("z").eq(false);
             assert_eq!(search_edges(&graph, filter.clone()), vec!["shivam->kapoor"]);
-        }
-
-        #[test]
-        fn test_const_prop_fallback_when_const_prop_indexed() {
-            let graph = init_graph(Graph::new());
-
-            let spec = IndexSpecBuilder::new(graph.clone())
-                .with_const_node_props(vec!["x"])
-                .unwrap()
-                .with_const_edge_props(vec!["e_y"])
-                .unwrap()
-                .build();
-
-            graph.create_index_in_ram_with_spec(spec).unwrap();
-
-            let f1 = PropertyFilter::metadata("x").eq(true);
-            assert_eq!(
-                filter_nodes(&graph, f1.clone()),
-                vec!["pometry".to_string()]
-            );
-            assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
-
-            let f2 = PropertyFilter::metadata("e_y").eq(false);
-            assert_eq!(
-                filter_edges(&graph, f2.clone()),
-                vec!["raphtory->pometry".to_string()]
-            );
-            assert_eq!(
-                search_edges(&graph, f2),
-                vec!["raphtory->pometry".to_string()]
-            );
-        }
-
-        #[test]
-        fn test_const_prop_fallback_when_const_prop_not_indexed() {
-            let graph = init_graph(Graph::new());
-
-            let spec = IndexSpecBuilder::new(graph.clone())
-                .with_all_temp_node_props()
-                .with_all_temp_edge_props()
-                .build();
-
-            graph.create_index_in_ram_with_spec(spec).unwrap();
-
-            let f1 = PropertyFilter::metadata("x").eq(true);
-            assert_eq!(
-                filter_nodes(&graph, f1.clone()),
-                vec!["pometry".to_string()]
-            );
-            assert_eq!(search_nodes(&graph, f1), vec!["pometry".to_string()]);
-            let f2 = PropertyFilter::property("e_y").eq(false);
-            assert_eq!(
-                filter_edges(&graph, f2.clone()),
-                vec!["raphtory->pometry".to_string()]
-            );
-            assert_eq!(
-                search_edges(&graph, f2),
-                vec!["raphtory->pometry".to_string()]
-            );
         }
     }
 }

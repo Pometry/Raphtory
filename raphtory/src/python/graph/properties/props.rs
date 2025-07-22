@@ -1,7 +1,7 @@
 use crate::{
     db::api::{
         properties::{
-            dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
+            dyn_props::{DynMetadata, DynProperties, DynTemporalProperties},
             internal::InternalPropertiesOps,
             Properties,
         },
@@ -10,7 +10,7 @@ use crate::{
     prelude::PropertiesOps,
     python::{
         graph::properties::{
-            MetadataView, PyConstPropsListList, PyMetadata, PyTemporalPropsList,
+            MetadataView, PyMetadata, PyMetadataListList, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -62,8 +62,8 @@ impl From<&PyProperties> for PyPropsComp {
     }
 }
 
-impl From<DynConstProperties> for PyPropsComp {
-    fn from(value: DynConstProperties) -> Self {
+impl From<DynMetadata> for PyPropsComp {
+    fn from(value: DynMetadata) -> Self {
         Self(value.as_map())
     }
 }
@@ -340,14 +340,14 @@ impl PropertiesView {
 }
 
 py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
-py_eq!(PyNestedPropsIterable, PyConstPropsListListCmp);
+py_eq!(PyNestedPropsIterable, PyMetadataListListCmp);
 
 #[derive(PartialEq, Clone)]
-pub struct PyConstPropsListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
+pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
+impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsListList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
@@ -359,8 +359,8 @@ impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
     }
 }
 
-impl From<&PyConstPropsListList> for PyConstPropsListListCmp {
-    fn from(value: &PyConstPropsListList) -> Self {
+impl From<&PyMetadataListList> for PyMetadataListListCmp {
+    fn from(value: &PyMetadataListList) -> Self {
         Self(
             value
                 .items()
@@ -371,7 +371,7 @@ impl From<&PyConstPropsListList> for PyConstPropsListListCmp {
     }
 }
 
-impl From<&PyNestedPropsIterable> for PyConstPropsListListCmp {
+impl From<&PyNestedPropsIterable> for PyMetadataListListCmp {
     fn from(value: &PyNestedPropsIterable) -> Self {
         Self(
             value

@@ -107,12 +107,11 @@ pub(crate) fn load_nodes_from_df<
                 .resolve_node_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols =
-            combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-                graph
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
 
         let time_col = df.time_col(time_index)?;
@@ -169,7 +168,7 @@ pub(crate) fn load_nodes_from_df<
                         t_props.extend(prop_cols.iter_row(idx));
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend(metadata_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
@@ -274,12 +273,11 @@ pub(crate) fn load_edges_from_df<
                 .resolve_edge_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols =
-            combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-                graph
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -426,7 +424,7 @@ pub(crate) fn load_edges_from_df<
                         t_props.extend(prop_cols.iter_row(idx));
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend(metadata_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
@@ -560,12 +558,11 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_cols =
-            combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-                graph
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_id_index)?;
 
@@ -613,7 +610,7 @@ pub(crate) fn load_node_props_from_df<
                         mut_node.node_type = *node_type;
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend(metadata_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
@@ -686,12 +683,11 @@ pub(crate) fn load_edges_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_cols =
-            combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-                graph
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -764,7 +760,7 @@ pub(crate) fn load_edges_props_from_df<
                     let shard_id = shard.shard_id();
                     if let Some(mut edge) = shard.get_mut(*eid) {
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
+                        c_props.extend(metadata_cols.iter_row(idx));
                         c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
@@ -836,18 +832,17 @@ pub(crate) fn load_graph_props_from_df<
                 .resolve_graph_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols =
-            combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
-                graph
-                    .resolve_graph_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_graph_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let time_col = df.time_col(time_index)?;
 
         time_col
             .par_iter()
             .zip(prop_cols.par_rows())
-            .zip(const_prop_cols.par_rows())
+            .zip(metadata_cols.par_rows())
             .enumerate()
             .try_for_each(|(id, ((time, t_props), c_props))| {
                 let time = time.ok_or(LoadError::MissingTimeError)?;

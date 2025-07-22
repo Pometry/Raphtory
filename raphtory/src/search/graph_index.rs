@@ -463,10 +463,10 @@ fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
     let edge_index = EdgeIndex::load_from_path(&index_path.join("edges"))?;
 
     let index_spec = IndexSpec {
-        node_const_props: node_index.resolve_const_props(),
-        node_temp_props: node_index.resolve_temp_props(),
-        edge_metadata: edge_index.resolve_const_props(),
-        edge_temp_props: edge_index.resolve_temp_props(),
+        node_metadata: node_index.resolve_metadata(),
+        node_properties: node_index.resolve_properties(),
+        edge_metadata: edge_index.resolve_metadata(),
+        edge_properties: edge_index.resolve_properties(),
     };
 
     Ok((
@@ -551,7 +551,7 @@ mod graph_index_test {
     }
 
     #[test]
-    fn test_node_const_property_graph_index_is_ok() {
+    fn test_node_metadata_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_nodes_graph(graph);
         graph.create_index_in_ram().unwrap();
@@ -578,7 +578,7 @@ mod graph_index_test {
     }
 
     #[test]
-    fn test_edge_const_property_graph_index_is_ok() {
+    fn test_edge_metadata_graph_index_is_ok() {
         let graph = Graph::new();
         let graph = init_edges_graph(graph);
         graph.create_index_in_ram().unwrap();

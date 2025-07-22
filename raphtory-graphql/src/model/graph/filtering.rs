@@ -193,7 +193,7 @@ impl Display for Operator {
 pub enum NodeFilter {
     Node(NodeFieldFilter),
     Property(PropertyFilterExpr),
-    ConstantProperty(ConstantPropertyFilterExpr),
+    Metadata(MetadataFilterExpr),
     TemporalProperty(TemporalPropertyFilterExpr),
     And(Vec<NodeFilter>),
     Or(Vec<NodeFilter>),
@@ -258,7 +258,7 @@ pub enum EdgeFilter {
     Src(NodeFieldFilter),
     Dst(NodeFieldFilter),
     Property(PropertyFilterExpr),
-    ConstantProperty(ConstantPropertyFilterExpr),
+    Metadata(MetadataFilterExpr),
     TemporalProperty(TemporalPropertyFilterExpr),
     And(Vec<EdgeFilter>),
     Or(Vec<EdgeFilter>),
@@ -279,13 +279,13 @@ impl PropertyFilterExpr {
 }
 
 #[derive(InputObject, Clone, Debug)]
-pub struct ConstantPropertyFilterExpr {
+pub struct MetadataFilterExpr {
     pub name: String,
     pub operator: Operator,
     pub value: Option<Value>,
 }
 
-impl ConstantPropertyFilterExpr {
+impl MetadataFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
         validate_operator_value_pair(self.operator, &self.value)
     }
@@ -355,7 +355,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                 prop.validate()?;
                 Ok(CompositeNodeFilter::Property(prop.try_into()?))
             }
-            NodeFilter::ConstantProperty(prop) => {
+            NodeFilter::Metadata(prop) => {
                 prop.validate()?;
                 Ok(CompositeNodeFilter::Property(prop.try_into()?))
             }
@@ -430,7 +430,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 prop.validate()?;
                 Ok(CompositeEdgeFilter::Property(prop.try_into()?))
             }
-            EdgeFilter::ConstantProperty(prop) => {
+            EdgeFilter::Metadata(prop) => {
                 prop.validate()?;
                 Ok(CompositeEdgeFilter::Property(prop.try_into()?))
             }
@@ -514,10 +514,10 @@ impl TryFrom<PropertyFilterExpr> for PropertyFilter {
     }
 }
 
-impl TryFrom<ConstantPropertyFilterExpr> for PropertyFilter {
+impl TryFrom<MetadataFilterExpr> for PropertyFilter {
     type Error = GraphError;
 
-    fn try_from(expr: ConstantPropertyFilterExpr) -> Result<Self, Self::Error> {
+    fn try_from(expr: MetadataFilterExpr) -> Result<Self, Self::Error> {
         build_property_filter(PropertyRef::Metadata(expr.name), expr.operator, expr.value)
     }
 }

@@ -333,8 +333,8 @@ pub enum PyAllPropertySpec {
     #[serde(rename = "ALL")]
     All,
     /// Include only constant properties.
-    #[serde(rename = "ALL_CONSTANT")]
-    AllConstant,
+    #[serde(rename = "ALL_METADATA")]
+    AllMetadata,
     /// Include only temporal properties.
     #[serde(rename = "ALL_TEMPORAL")]
     AllTemporal,
@@ -343,13 +343,13 @@ pub enum PyAllPropertySpec {
 /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 ///
 /// Arguments:
-///     constant (list[str]): Constant property names. Defaults to [].
+///     metadata (list[str]): Metadata property names. Defaults to [].
 ///     temporal (list[str]): Temporal property names. Defaults to [].
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
-    /// Constant property names to include in the index.
-    pub constant: Vec<String>,
+    /// Metadata property names to include in the index.
+    pub metadata: Vec<String>,
     /// Temporal property names to include in the index.
     pub temporal: Vec<String>,
 }
@@ -357,9 +357,9 @@ pub struct PySomePropertySpec {
 #[pymethods]
 impl PySomePropertySpec {
     #[new]
-    #[pyo3(signature = (constant = vec![], temporal = vec![]))]
-    fn new(constant: Vec<String>, temporal: Vec<String>) -> Self {
-        Self { constant, temporal }
+    #[pyo3(signature = (metadata = vec![], temporal = vec![]))]
+    fn new(metadata: Vec<String>, temporal: Vec<String>) -> Self {
+        Self { metadata, temporal }
     }
 }
 

@@ -785,12 +785,12 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_metadata(self, properties: PropInput) -> None:
+    def add_metadata(self, metadata: PropInput) -> None:
         """
         Adds static properties to the graph.
 
         Arguments:
-            properties (PropInput): The static properties of the graph.
+            metadata (PropInput): The static properties of the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1441,12 +1441,12 @@ class Graph(GraphView):
 
         """
 
-    def update_metadata(self, properties: PropInput) -> None:
+    def update_metadata(self, metadata: PropInput) -> None:
         """
         Updates static properties to the graph.
 
         Arguments:
-            properties (PropInput): The static properties of the graph.
+            metadata (PropInput): The static properties of the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1497,12 +1497,12 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_metadata(self, properties: dict) -> None:
+    def add_metadata(self, metadata: dict) -> None:
         """
-        Adds static properties to the graph.
+        Adds metadata to the graph.
 
         Arguments:
-            properties (dict): The static properties of the graph.
+            metadata (dict): The static properties of the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2206,12 +2206,12 @@ class PersistentGraph(GraphView):
           bytes:
         """
 
-    def update_metadata(self, properties: dict) -> None:
+    def update_metadata(self, metadata: dict) -> None:
         """
-        Updates static properties to the graph.
+        Updates metadata of the graph.
 
         Arguments:
-            properties (dict): The static properties of the graph.
+            metadata (dict): The static properties of the graph.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -4261,14 +4261,14 @@ class MutableNode(Node):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, properties: PropInput):
+    def add_metadata(self, metadata: PropInput):
         """
-        Add constant properties to a node in the graph.
+        Add metadata to a node in the graph.
         This function is used to add properties to a node that remain constant and do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+            metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
     def add_updates(
@@ -4305,14 +4305,14 @@ class MutableNode(Node):
             new_type (str): The new type to be set
         """
 
-    def update_metadata(self, properties: PropInput):
+    def update_metadata(self, metadata: PropInput):
         """
-        Update constant properties of a node in the graph overwriting existing values.
+        Update metadata of a node in the graph overwriting existing values.
         This function is used to add properties to a node that remain constant and do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+            metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
 class Edge(object):
@@ -5698,14 +5698,14 @@ class MutableEdge(Edge):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, properties: PropInput, layer: Optional[str] = None):
+    def add_metadata(self, metadata: PropInput, layer: Optional[str] = None):
         """
-        Add constant properties to an edge in the graph.
+        Add metadata to an edge in the graph.
         This function is used to add properties to an edge that remain constant and do not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (PropInput): A dictionary of properties to be added to the edge.
+            metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
@@ -5742,14 +5742,14 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want the deletion applied to .
         """
 
-    def update_metadata(self, properties: PropInput, layer: Optional[str] = None):
+    def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
         """
-        Update constant properties of an edge in the graph overwriting existing values.
+        Update metadata of an edge in the graph overwriting existing values.
         This function is used to add properties to an edge that remains constant and does not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (PropInput): A dictionary of properties to be added to the edge.
+            metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
@@ -6174,26 +6174,26 @@ class IndexSpecBuilder(object):
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def build(self): ...
-    def with_all_const_node_props(self): ...
-    def with_all_edge_const_props(self): ...
-    def with_all_edge_props(self): ...
-    def with_all_node_props(self): ...
-    def with_all_temp_edge_props(self): ...
-    def with_all_temp_node_props(self): ...
-    def with_const_edge_props(self, props): ...
-    def with_const_node_props(self, props): ...
-    def with_temp_edge_props(self, props): ...
-    def with_temp_node_props(self, props): ...
+    def with_all_edge_metadata(self): ...
+    def with_all_edge_properties(self): ...
+    def with_all_edge_properties_and_metadata(self): ...
+    def with_all_node_metadata(self): ...
+    def with_all_node_properties(self): ...
+    def with_all_node_properties_and_metadata(self): ...
+    def with_edge_metadata(self, props): ...
+    def with_edge_properties(self, props): ...
+    def with_node_metadata(self, props): ...
+    def with_node_properties(self, props): ...
 
 class IndexSpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edge_const_props(self): ...
+    def edge_metadata(self): ...
     @property
-    def edge_temp_props(self): ...
+    def edge_properties(self): ...
     @property
-    def node_const_props(self): ...
+    def node_metadata(self): ...
     @property
-    def node_temp_props(self): ...
+    def node_properties(self): ...

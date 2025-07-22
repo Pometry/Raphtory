@@ -25,33 +25,33 @@ pub struct PyIndexSpec {
 impl PyIndexSpec {
     fn __repr__(&self) -> PyResult<String> {
         let repr = format!(
-            "IndexSpec(\n  node_const_props=[{}],\n  node_temp_props=[{}],\n  edge_const_props=[{}],\n  edge_temp_props=[{}]\n)",
-            self.prop_repr(&self.spec.node_const_props, self.node_const_meta()),
-            self.prop_repr(&self.spec.node_temp_props, self.node_temp_meta()),
+            "IndexSpec(\n  node_node_metadata=[{}],\n  node_properties=[{}],\n  edge_metadata=[{}],\n  edge_properties=[{}]\n)",
+            self.prop_repr(&self.spec.node_metadata, self.node_const_meta()),
+            self.prop_repr(&self.spec.node_properties, self.node_temp_meta()),
             self.prop_repr(&self.spec.edge_metadata, self.edge_const_meta()),
-            self.prop_repr(&self.spec.edge_temp_props, self.edge_temp_meta()),
+            self.prop_repr(&self.spec.edge_properties, self.edge_temp_meta()),
         );
         Ok(repr)
     }
 
     #[getter]
-    fn node_const_props(&self) -> Vec<String> {
-        self.prop_names(&self.spec.node_const_props, self.node_const_meta())
+    fn node_metadata(&self) -> Vec<String> {
+        self.prop_names(&self.spec.node_metadata, self.node_const_meta())
     }
 
     #[getter]
-    fn node_temp_props(&self) -> Vec<String> {
-        self.prop_names(&self.spec.node_temp_props, self.node_temp_meta())
+    fn node_properties(&self) -> Vec<String> {
+        self.prop_names(&self.spec.node_properties, self.node_temp_meta())
     }
 
     #[getter]
-    fn edge_const_props(&self) -> Vec<String> {
+    fn edge_metadata(&self) -> Vec<String> {
         self.prop_names(&self.spec.edge_metadata, self.edge_const_meta())
     }
 
     #[getter]
-    fn edge_temp_props(&self) -> Vec<String> {
-        self.prop_names(&self.spec.edge_temp_props, self.edge_temp_meta())
+    fn edge_properties(&self) -> Vec<String> {
+        self.prop_names(&self.spec.edge_properties, self.edge_temp_meta())
     }
 }
 
@@ -105,63 +105,63 @@ impl PyIndexSpecBuilder {
         }
     }
 
-    pub fn with_all_node_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_node_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_node_props(),
+            builder: self.builder.clone().with_all_node_properties_and_metadata(),
         })
     }
 
-    pub fn with_all_const_node_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_node_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_const_node_props(),
+            builder: self.builder.clone().with_all_node_metadata(),
         })
     }
 
-    pub fn with_all_temp_node_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_node_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_temp_node_props(),
+            builder: self.builder.clone().with_all_node_properties(),
         })
     }
 
-    pub fn with_const_node_props(&mut self, props: Vec<String>) -> PyResult<Self> {
+    pub fn with_node_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_const_node_props(props)?,
+            builder: self.builder.clone().with_node_metadata(props)?,
         })
     }
 
-    pub fn with_temp_node_props(&mut self, props: Vec<String>) -> PyResult<Self> {
+    pub fn with_node_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_temp_node_props(props)?,
+            builder: self.builder.clone().with_node_properties(props)?,
         })
     }
 
-    pub fn with_all_edge_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_edge_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_edge_props(),
+            builder: self.builder.clone().with_all_edge_properties_and_metadata(),
         })
     }
 
-    pub fn with_all_edge_const_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_edge_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_edge_const_props(),
+            builder: self.builder.clone().with_all_edge_metadata(),
         })
     }
 
-    pub fn with_all_temp_edge_props(&mut self) -> PyResult<Self> {
+    pub fn with_all_edge_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_all_temp_edge_props(),
+            builder: self.builder.clone().with_all_edge_properties(),
         })
     }
 
-    pub fn with_const_edge_props(&mut self, props: Vec<String>) -> PyResult<Self> {
+    pub fn with_edge_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_const_edge_props(props)?,
+            builder: self.builder.clone().with_edge_metadata(props)?,
         })
     }
 
-    pub fn with_temp_edge_props(&mut self, props: Vec<String>) -> PyResult<Self> {
+    pub fn with_edge_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
-            builder: self.builder.clone().with_temp_edge_props(props)?,
+            builder: self.builder.clone().with_edge_properties(props)?,
         })
     }
 
