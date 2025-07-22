@@ -29,7 +29,7 @@ def init_graph_for_secondary_indexes(graph):
 @with_disk_variants(init_edges_graph, variants=["graph"])
 def test_metadata_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").constant() == 1
+        filter_expr = filter.Metadata("p1") == 1
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = sorted(
             [
@@ -218,9 +218,9 @@ def test_property_semantics_for_secondary_indexes_dsg():
 
 
 @with_disk_variants(init_edges_graph1, variants=["graph"])
-def test_property_semantics_only_constant():
+def test_property_semantics_only_metadata():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
+        filter_expr = filter.Metadata("p1") == 1
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = sorted([("N1", "N2"), ("N2", "N3")])
         assert result_ids == expected_ids
@@ -230,9 +230,9 @@ def test_property_semantics_only_constant():
 
 # Disk graph doesn't have constant edge properties
 @with_disk_variants(init_edges_graph1, variants=["event_disk_graph"])
-def test_property_semantics_only_constant2():
+def test_property_semantics_only_metadata2():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
+        filter_expr = filter.Metadata("p1") == 1
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = []
         assert result_ids == expected_ids
