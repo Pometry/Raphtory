@@ -6,9 +6,10 @@ history and for exploding edges. By default all history is included and the edge
 In the below example we call `to_networkx()` on the network traffic graph, keeping all the default arguments so that it
 exports the full history. We extract `ServerA` from this graph and print to show how the history is modelled.
 
-!!! info
-The resulting graph is a networkx `MultiDiGraph` since Raphtory graphs are both directed and have multiple edges between
-nodes.
+!!! 
+
+    The resulting graph is a networkx `MultiDiGraph` since Raphtory graphs are both directed and have multiple edges between
+    nodes.
 
 We call `to_networkx()` again, disabling the property and update history and reprint `ServerA` to show the difference.
 

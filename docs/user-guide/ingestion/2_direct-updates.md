@@ -119,6 +119,7 @@ assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, ea
     ```
 
 !!! warning
+
     A graph can index nodes by either integers or strings, not both at the same time.This means, for example, you cannot
     have `User 1` (a string) and `200` (an integer) as ids in the same graph.
 
@@ -188,6 +189,7 @@ In the example below, we are using all of these functions to add a mixture of pr
 graph.
 
 !!! warning
+
     Please note that once a `property key` is associated with one of the above types for a given node/edge/graph, attempting
     to add a value of a different type under the same key will result in an error. For `Lists` the values must all be the
     same type and for `Dictionaries` the values for each key must always be the same type.
@@ -262,9 +264,10 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=4, latest_tim
     ```
 
 !!! info
-When the output is printed only the latest property values are shown. The older values haven't been lost, in fact the
-history of all of these different property types can be queried, explored and aggregated, as you will see
-in [Property Queries](../querying/5_properties.md).
+
+    When the output is printed only the latest property values are shown. The older values haven't been lost, in fact the
+    history of all of these different property types can be queried, explored and aggregated, as you will see
+    in [Property Queries](../querying/5_properties.md).
 
 ### Constant Properties
 

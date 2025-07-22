@@ -9,6 +9,7 @@ In the below code example  the functions `count_edges()` and `count_temporal_edg
 Using `count_temporal_edges()` is useful if you want to imagine each edge update as a separate connection between the two nodes. The edges can be accessed in this manner via `edge.explode()`, as is discussed in [edge metrics and functions](../querying/4_edge-metrics.md).
 
 !!! info
+
     The property APIs are the same for the graph, nodes and edges, these are discussed together in [Property queries](../querying/5_properties.md).
 
 /// tab | :fontawesome-brands-python: Python
