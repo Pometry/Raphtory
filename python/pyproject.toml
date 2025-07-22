@@ -13,7 +13,7 @@ classifiers = [
 ]
 dependencies = [
     "pandas >= 2.0.3",
-    "pyarrow >=18",
+    "pyarrow >=18, <=19.0.1",
     "numpy >= 1.26.0",
 ]
 
