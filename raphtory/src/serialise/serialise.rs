@@ -709,20 +709,24 @@ mod proto_test {
 
         let graph = Graph::decode(path).unwrap();
 
-        let nodes = graph
+        let nodes_props = graph
             .nodes()
             .properties()
             .into_iter()
             .flat_map(|(_, props)| props.into_iter())
             .collect::<Vec<_>>();
         assert_eq!(
-            nodes,
-            vec![
-                ("a".into(), Some("a".into())),
-                ("z".into(), Some("a".into())),
-                ("a".into(), None)
-            ]
+            nodes_props,
+            vec![("a".into(), Some("a".into())), ("a".into(), None)]
         );
+
+        let nodes_metadata = graph
+            .nodes()
+            .metadata()
+            .into_iter()
+            .flat_map(|(_, props)| props.into_iter())
+            .collect::<Vec<_>>();
+        assert_eq!(nodes_metadata, vec![("z".into(), Some("a".into())),]);
     }
     #[test]
     fn can_read_previous_proto() {

@@ -347,8 +347,6 @@ mod template_tests {
              - changed to value_at_1 at 1
             key1: value1
             key2: value2
-            key1: value1
-            key2: value2
         "};
         assert_eq!(&rendered, expected);
 

@@ -22,11 +22,11 @@ run-graphql:
 	cargo run --release -p raphtory-graphql
 
 rust-test-all: activate-storage
-	cargo nextest run --all --features=storage
+	cargo nextest run --all --features=storage --no-fail-fast
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
 
 rust-test-all-public:
-	cargo nextest run --all
+	cargo nextest run --all --no-fail-fast
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
 
 

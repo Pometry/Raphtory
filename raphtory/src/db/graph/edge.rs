@@ -760,16 +760,19 @@ mod test_edge {
         test_graph(&graph, |graph| {
             assert_eq!(
                 graph.edge(1, 2).unwrap().metadata().get("test_prop"),
-                Some("test_val".into())
+                Some(Prop::map([("layer 1", "test_val")]))
             );
             assert_eq!(
                 graph.edge(2, 3).unwrap().metadata().get("test_prop"),
-                Some("test_val".into())
+                Some(Prop::map([
+                    ("layer 2", "test_val"),
+                    ("layer 3", "test_val")
+                ]))
             );
 
             assert_eq!(
                 graph.edge(2, 3).unwrap().metadata().get("other"),
-                Some("2".into())
+                Some(Prop::map([("layer 2", "2"), ("layer 3", "3")]))
             );
 
             assert_eq!(
@@ -779,7 +782,7 @@ mod test_edge {
                     .unwrap()
                     .metadata()
                     .get("other"),
-                Some("3".into())
+                Some(Prop::map([("layer 2", "2"), ("layer 3", "3")]))
             );
 
             for e in graph.edges() {
@@ -839,8 +842,8 @@ mod test_edge {
             .is_err()); // cannot add properties to a different layer
         e.add_constant_properties([("test", "test")], Some("test"))
             .unwrap(); // layer is consistent
-        assert_eq!(e.properties().get("test"), Some("test".into()));
-        assert_eq!(e.properties().get("test1"), Some("test1".into()));
+        assert_eq!(e.metadata().get("test"), Some("test".into()));
+        assert_eq!(e.metadata().get("test1"), Some("test1".into()));
     }
 
     #[test]
@@ -853,7 +856,7 @@ mod test_edge {
         assert!(e
             .update_constant_properties([("test1", "test2")], None)
             .is_ok());
-        assert_eq!(e.properties().get("test1"), Some("test2".into()));
+        assert_eq!(e.metadata().get("test1"), Some("test2".into()));
     }
 
     #[test]

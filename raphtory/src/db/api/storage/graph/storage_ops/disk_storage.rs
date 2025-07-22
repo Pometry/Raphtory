@@ -510,10 +510,11 @@ mod test {
         let disk_graph = mem_graph.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(disk_graph.count_nodes(), 1);
         let props = disk_graph.node(0).unwrap().properties();
+        let metadata = disk_graph.node(0).unwrap().metadata();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
-        assert_eq!(props.get("const_str").unwrap_str(), "test_c");
-        assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
+        assert_eq!(metadata.get("const_str").unwrap_str(), "test_c");
+        assert_eq!(metadata.get("const_float").unwrap_f64(), 0.314);
 
         let temp = disk_graph.node(0).unwrap().properties().temporal();
         assert_eq!(
@@ -531,10 +532,11 @@ mod test {
             .unwrap()
             .into();
         let props = disk_graph.node(0).unwrap().properties();
+        let metadata = disk_graph.node(0).unwrap().metadata();
         assert_eq!(props.get("test_num").unwrap_u64(), 0);
         assert_eq!(props.get("test_str").unwrap_str(), "test");
-        assert_eq!(props.get("const_str").unwrap_str(), "test_c");
-        assert_eq!(props.get("const_float").unwrap_f64(), 0.314);
+        assert_eq!(metadata.get("const_str").unwrap_str(), "test_c");
+        assert_eq!(metadata.get("const_float").unwrap_f64(), 0.314);
 
         let temp = disk_graph.node(0).unwrap().properties().temporal();
         assert_eq!(
@@ -605,7 +607,7 @@ mod test {
             disk_graph
                 .node(1)
                 .unwrap()
-                .properties()
+                .metadata()
                 .get("test")
                 .unwrap_str(),
             "test"
@@ -617,7 +619,7 @@ mod test {
             disk_graph
                 .node(1)
                 .unwrap()
-                .properties()
+                .metadata()
                 .get("test")
                 .unwrap_str(),
             "test"
@@ -1093,8 +1095,8 @@ mod storage_tests {
         );
         assert_eq!(n0.node_type().as_str(), Some("1"));
         let n1 = gm.node(1).unwrap();
-        assert_eq!(n1.properties().get("const_str"), Some(Prop::str("test")));
-        assert_eq!(n1.properties().get("const_str2").unwrap_str(), "test2");
+        assert_eq!(n1.metadata().get("const_str"), Some(Prop::str("test")));
+        assert_eq!(n1.metadata().get("const_str2").unwrap_str(), "test2");
         assert!(n1
             .properties()
             .temporal()

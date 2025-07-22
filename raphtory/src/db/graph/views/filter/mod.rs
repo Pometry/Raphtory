@@ -880,7 +880,7 @@ pub(crate) mod test_filters {
                 },
                 prelude::*,
             };
-            use raphtory_api::core::entities::properties::prop::{Prop, PropUnwrap};
+            use raphtory_api::core::entities::properties::prop::Prop;
             use raphtory_storage::mutation::{
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
