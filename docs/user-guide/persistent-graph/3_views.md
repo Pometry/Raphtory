@@ -84,7 +84,7 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=2, latest_time=5), Node(name=Bob, earliest_time=2, latest_time=5)) Edges(Edge(source=Alice, target=Bob, earliest_time=2, latest_time=5, layer(s)=[_default]))"
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=2, latest_time=5, properties=Properties({})), Node(name=Bob, earliest_time=2, latest_time=5, properties=Properties({}))) Edges(Edge(source=Alice, target=Bob, earliest_time=2, latest_time=5, layer(s)=[_default]))"
 ```
 
 !!! Output

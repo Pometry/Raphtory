@@ -45,7 +45,7 @@ property_g.add_node(
 )
 # Add some metadata properties
 v.add_metadata(
-    properties={
+    metadata={
         "inner data": {"name": "bob", "value list": [1, 2, 3]},
         "favourite greetings": ["hi", "hello", "howdy"],
     },
