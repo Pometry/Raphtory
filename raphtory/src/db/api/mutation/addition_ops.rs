@@ -368,7 +368,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Log edge -> edge id mappings
         // NOTE: We log edge id mappings after they are inserted into edge segments.
         // This is fine as long as we hold onto segment locks for the entire operation.
-        self.wal().log_edge_id(txn_id, src_id, dst_id, edge_id.inner().edge).unwrap();
+        self.wal().log_edge_id(txn_id, src_id, dst_id, edge_id.inner().edge, layer_id).unwrap();
 
         add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());

@@ -50,6 +50,7 @@ impl GraphReplayer for ReplayGraph {
         src: VID,
         dst: VID,
         eid: EID,
+        layer_id: usize,
     ) -> Result<(), DBV4Error> {
         Ok(())
     }

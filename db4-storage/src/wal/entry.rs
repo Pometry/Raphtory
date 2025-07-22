@@ -46,6 +46,7 @@ impl GraphWal for NoWal {
         _src: VID,
         _dst: VID,
         _eid: EID,
+        _layer_id: usize,
     ) -> Result<LSN, DBV4Error> {
         Ok(0)
     }

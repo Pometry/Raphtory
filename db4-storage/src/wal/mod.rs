@@ -69,6 +69,7 @@ pub trait GraphWal {
         src: VID,
         dst: VID,
         eid: EID,
+        layer_id: usize,
     ) -> Result<LSN, DBV4Error>;
 
     /// Log new constant prop name -> prop id mappings.
@@ -138,6 +139,7 @@ pub trait GraphReplayer {
         src: VID,
         dst: VID,
         eid: EID,
+        layer_id: usize,
     ) -> Result<(), DBV4Error>;
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
