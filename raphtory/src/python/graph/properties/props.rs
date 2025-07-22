@@ -272,7 +272,7 @@ impl PropertiesView {
 
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     fn __getitem__(&self, key: &str) -> PyResult<PyPropValueList> {
@@ -282,11 +282,9 @@ impl PropertiesView {
     /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().sorted().collect_vec())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     /// Get the values of the properties
@@ -409,7 +407,10 @@ impl PyNestedPropsIterable {
 
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     fn __getitem__(&self, key: &str) -> Result<PyPropValueListList, PyErr> {
@@ -419,11 +420,10 @@ impl PyNestedPropsIterable {
     /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .flat_map(|it| it.map(|p| p.keys().collect_vec()))
-            .kmerge()
-            .dedup()
-            .collect()
+            .filter_map(|mut it| it.next())
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     pub fn __iter__(&self) -> PyGenericIterator {

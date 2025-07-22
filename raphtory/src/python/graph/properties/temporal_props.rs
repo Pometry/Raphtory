@@ -490,11 +490,9 @@ py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 impl PyTemporalPropsList {
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().collect_vec())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
     fn values(&self) -> Vec<PyTemporalPropList> {
         self.keys()
@@ -550,7 +548,7 @@ impl PyTemporalPropsList {
     }
 
     fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     fn __iter__(&self) -> PyGenericIterator {
@@ -690,13 +688,9 @@ py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 impl PyTemporalPropsListList {
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .flat_map(
-                |it|             // FIXME: Still have to clone all those strings which sucks
-            it.map(|p| p.keys().collect_vec()),
-            )
-            .kmerge()
-            .dedup()
-            .collect()
+            .flat_map(|it| it.map(|p| p.keys().collect_vec()))
+            .next()
+            .unwrap_or_default()
     }
     fn values(&self) -> Vec<PyTemporalPropListList> {
         self.keys()
@@ -759,7 +753,10 @@ impl PyTemporalPropsListList {
     }
 
     fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     fn __iter__(&self) -> PyGenericIterator {

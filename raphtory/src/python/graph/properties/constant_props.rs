@@ -152,10 +152,9 @@ py_eq!(MetadataView, PyPropsListCmp);
 impl MetadataView {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .map(|p| p.keys().collect::<Vec<_>>())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     pub fn values(&self) -> Vec<PyPropValueList> {
@@ -185,7 +184,7 @@ impl MetadataView {
     }
 
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     pub fn __iter__(&self) -> PyGenericIterator {
@@ -207,10 +206,9 @@ py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
 impl PyConstPropsListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .flat_map(|it| it.map(|p| p.keys().collect::<Vec<_>>()))
-            .kmerge()
-            .dedup()
-            .collect()
+            .flat_map(|mut it| it.next().map(|p| p.keys().collect()))
+            .next()
+            .unwrap_or_default()
     }
 
     pub fn values(&self) -> Vec<PyPropValueListList> {
@@ -247,7 +245,10 @@ impl PyConstPropsListList {
     }
 
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
