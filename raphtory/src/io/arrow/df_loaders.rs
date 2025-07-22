@@ -20,7 +20,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::{
-    entities::{graph::logical_to_physical::Mapping, VID},
+    entities::{graph::logical_to_physical::Mapping, GidType, VID},
     storage::timeindex::AsTime,
 };
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -301,14 +301,57 @@ pub(crate) fn load_edges_from_df<
         let dst_col = df.node_col(dst_index)?;
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
+        let gid_type = src_col.dtype();
+
         let node_count = &write_locked_graph.graph().node_count;
 
-        resolver.run_with_locked(|mut shard| {
-            for id in src_col.iter().chain(dst_col.iter()) {
-                shard.resolve_node(id, || VID(node_count.fetch_add(1, Ordering::Relaxed)));
-                //.map_err(|_| LoadError::FatalError)?;
+        resolver.run_with_locked(|mut shard| match gid_type {
+            GidType::Str => {
+                let shard = shard.as_str().unwrap();
+                let src_iter = src_col.iter().map(|gid| gid.as_str().unwrap()).enumerate();
+
+                let dst_iter = dst_col.iter().map(|gid| gid.as_str().unwrap()).enumerate();
+
+                for (id, gid) in src_iter {
+                    if let Some(vid) =
+                        shard.resolve_node(gid, || VID(node_count.fetch_add(1, Ordering::Relaxed)))
+                    {
+                        src_col_shared[id].store(vid.0, Ordering::Relaxed);
+                    }
+                }
+
+                for (id, gid) in dst_iter {
+                    if let Some(vid) =
+                        shard.resolve_node(gid, || VID(node_count.fetch_add(1, Ordering::Relaxed)))
+                    {
+                        dst_col_shared[id].store(vid.0, Ordering::Relaxed);
+                    }
+                }
+                Ok::<_, LoadError>(())
             }
-            Ok::<(), LoadError>(())
+            GidType::U64 => {
+                let shard = shard.as_u64().unwrap();
+                let src_iter = src_col.iter().map(|gid| gid.as_u64().unwrap()).enumerate();
+
+                let dst_iter = dst_col.iter().map(|gid| gid.as_u64().unwrap()).enumerate();
+
+                for (id, gid) in src_iter {
+                    if let Some(vid) =
+                        shard.resolve_node(&gid, || VID(node_count.fetch_add(1, Ordering::Relaxed)))
+                    {
+                        src_col_shared[id].store(vid.0, Ordering::Relaxed);
+                    }
+                }
+
+                for (id, gid) in dst_iter {
+                    if let Some(vid) =
+                        shard.resolve_node(&gid, || VID(node_count.fetch_add(1, Ordering::Relaxed)))
+                    {
+                        dst_col_shared[id].store(vid.0, Ordering::Relaxed);
+                    }
+                }
+                Ok::<_, LoadError>(())
+            }
         })?;
 
         let time_col = df.time_col(time_index)?;

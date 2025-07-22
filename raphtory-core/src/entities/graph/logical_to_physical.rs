@@ -13,8 +13,8 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
+    borrow::Borrow,
     hash::{BuildHasher, Hash},
-    panic,
 };
 use thiserror::Error;
 
@@ -106,7 +106,7 @@ impl<'a> ResolverShard<'a> {
         }
     }
 
-    pub fn as_u64(&self) -> Option<&ResolverShardT<'a, u64>> {
+    pub fn as_u64(&mut self) -> Option<&mut ResolverShardT<'a, u64>> {
         if let ResolverShard::U64(shard) = self {
             Some(shard)
         } else {
@@ -114,7 +114,7 @@ impl<'a> ResolverShard<'a> {
         }
     }
 
-    pub fn as_str(&self) -> Option<&ResolverShardT<'a, String>> {
+    pub fn as_str(&mut self) -> Option<&mut ResolverShardT<'a, String>> {
         if let ResolverShard::Str(shard) = self {
             Some(shard)
         } else {
@@ -141,8 +141,12 @@ impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
             shard_id,
         }
     }
-    pub fn resolve_node(&mut self, id: &T, next_id: impl FnOnce() -> VID) -> Option<VID> {
-        let shard_ind = self.map.determine_map(id);
+    pub fn resolve_node<Q>(&mut self, id: &Q, next_id: impl FnOnce() -> VID) -> Option<VID>
+    where
+        T: Borrow<Q>,
+        Q: Eq + Hash + ToOwned<Owned = T> + ?Sized,
+    {
+        let shard_ind = self.map.determine_map(id.borrow());
         if shard_ind != self.shard_id {
             // This shard does not contain the id, return None
             return None;
@@ -151,7 +155,7 @@ impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
         let hash = factory.hash_one(id);
         // let data = (id, SharedValue::new(value))
 
-        match self.guard.get(hash, |(k, _)| k == id) {
+        match self.guard.get(hash, |(k, _)| k.borrow() == id) {
             Some((_, vid)) => {
                 // Node already exists, do nothing
                 Some(*(vid.get()))
@@ -161,7 +165,7 @@ impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
                 let vid = next_id();
 
                 self.guard
-                    .insert(hash, (id.clone(), SharedValue::new(vid)), |t| {
+                    .insert(hash, (id.borrow().to_owned(), SharedValue::new(vid)), |t| {
                         factory.hash_one(&t.0)
                     });
                 Some(vid)
