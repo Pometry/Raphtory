@@ -624,7 +624,7 @@ mod test_index {
             db::{
                 api::view::{IndexSpec, IndexSpecBuilder},
                 graph::{
-                    assertions::{filter_edges, filter_nodes, search_edges, search_nodes},
+                    assertions::{search_edges, search_nodes},
                     views::filter::model::{ComposableFilter, PropertyFilterOps},
                 },
             },
