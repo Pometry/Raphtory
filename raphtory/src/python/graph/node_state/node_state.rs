@@ -524,7 +524,7 @@ impl_lazy_node_state_ord!(
 );
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 impl_lazy_node_state_num!(
-    EdgeHistoryCount<ops::EdgeHistoryCount<DynamicGraph>>,
+    EdgeHistoryCountView<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
     "int"
 );

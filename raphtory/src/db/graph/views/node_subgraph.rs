@@ -295,7 +295,7 @@ mod subgraph_tests {
         graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(1, 3, 4, NO_PROPS, Some("1")).unwrap();
         let sg = graph.subgraph([0, 1, 3, 4]);
-        let cc = weakly_connected_components(&sg, 100, None);
+        let cc = weakly_connected_components(&sg);
         let groups = cc.groups();
         let group_sets = groups
             .iter()

@@ -260,6 +260,12 @@ impl From<u64> for GID {
     }
 }
 
+impl From<&u64> for GID {
+    fn from(value: &u64) -> Self {
+        GID::U64(*value)
+    }
+}
+
 impl From<String> for GID {
     fn from(id: String) -> Self {
         Self::Str(id)

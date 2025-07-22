@@ -32,8 +32,7 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
 ) -> NodeState<'graph, [f32; 2], G> {
     let virtual_graph = g.materialize().unwrap();
 
-    let connected_components =
-        weakly_connected_components(&virtual_graph, usize::MAX, None).groups();
+    let connected_components = weakly_connected_components(&virtual_graph).groups();
 
     if connected_components.len() > 1 {
         let degrees = virtual_graph.nodes().degree();

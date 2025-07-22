@@ -23,6 +23,7 @@ use crate::{
     },
     errors::GraphError,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::BaseFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
@@ -30,7 +31,7 @@ use crate::{
         types::{
             iterable::FromIterable,
             repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*},
+            wrappers::{iterables::*},
         },
         utils::{PyNodeRef, PyTime},
     },

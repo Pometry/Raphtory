@@ -33,10 +33,10 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{edge::PyEdge, node::PyNode},
         types::{
             repr::{Repr, StructReprBuilder},
-            wrappers::filter_expr::PyFilterExpr,
         },
         utils::PyNodeRef,
     },
@@ -302,7 +302,7 @@ impl PyGraphView {
 
     /// Get the nodes that match the properties name and value
     /// Arguments:
-    ///     properties_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, PropValue]): the properties name and value
     /// Returns:
     ///    list[Node]: the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
@@ -349,7 +349,7 @@ impl PyGraphView {
 
     /// Get the edges that match the properties name and value
     /// Arguments:
-    ///     properties_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, PropValue]): the properties name and value
     /// Returns:
     ///    list[Edge]: the edges that match the properties name and value
     #[pyo3(signature = (properties_dict))]

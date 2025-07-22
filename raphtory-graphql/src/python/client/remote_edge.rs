@@ -9,7 +9,9 @@ use std::collections::HashMap;
 
 /// A remote edge reference
 ///
-/// Returned by :meth:`RemoteGraph.edge`, :meth:`RemoteGraph.add_edge`, and :meth:`RemoteGraph.delete_edge`.
+/// Returned by [RemoteGraph.edge][raphtory.graphql.RemoteGraph.edge],
+/// [RemoteGraph.add_edge][raphtory.graphql.RemoteGraph.add_edge],
+/// and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
@@ -38,7 +40,7 @@ impl PyRemoteEdge {
     ///
     /// Parameters:
     ///     t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
+    ///     properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///     layer (str, optional): The layer you want the updates to be applied.
     ///
     /// Returns:
@@ -115,7 +117,7 @@ impl PyRemoteEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
@@ -156,7 +158,7 @@ impl PyRemoteEdge {
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
+    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:

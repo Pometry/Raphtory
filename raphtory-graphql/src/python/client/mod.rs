@@ -69,7 +69,7 @@ impl PyUpdate {
 ///     name (GID): the id of the node
 ///     node_type (str, optional): the node type
 ///     constant_properties (PropInput, optional): the constant properties
-///     updates: (list[RemoteUpdate], optional): the temporal updates
+///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
@@ -343,8 +343,8 @@ pub enum PyAllPropertySpec {
 /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
 ///
 /// Arguments:
-///     constant (List[str]): Constant property names. Defaults to `[]`.
-///     temporal (List[str]): Temporal property names. Defaults to `[]`.
+///     constant (list[str]): Constant property names. Defaults to [].
+///     temporal (list[str]): Temporal property names. Defaults to [].
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {

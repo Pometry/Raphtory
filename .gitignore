@@ -23,6 +23,7 @@ docs/logs/
 /docs/build/
 docs/nx.html
 docs/graph.html
+docs/tmp/
 .env
 pometry-arrow/
 
@@ -36,6 +37,9 @@ __pycache__/
 
 # Python
 *.egg-info
+
+# MkDocs
+*Site
 
 # Profiling
 profile.json

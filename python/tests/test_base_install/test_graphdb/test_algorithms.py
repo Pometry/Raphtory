@@ -49,10 +49,10 @@ def test_local_clustering_coefficient():
 
 def test_connected_components():
     g = gen_graph()
-    actual = algorithms.weakly_connected_components(g, 20)
-    expected = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0}
+    actual = algorithms.weakly_connected_components(g)
+    c = actual[1]
+    expected = {1: c, 2: c, 3: c, 4: c, 5: c, 6: c, 7: c, 8: c}
     assert actual == expected
-    assert actual["1"] == 0
 
 
 def test_largest_connected_component():
@@ -135,7 +135,7 @@ def test_out_component():
 
 def test_empty_algo():
     g = Graph()
-    assert algorithms.weakly_connected_components(g, 20) == {}
+    assert algorithms.weakly_connected_components(g) == {}
     assert algorithms.pagerank(g, 20) == {}
 
 
@@ -147,7 +147,7 @@ def test_algo_result_windowed_graph():
     g.add_edge(3, 5, 6, {})
     g.add_edge(10, 10, 11, {})
 
-    res_full_graph = algorithms.weakly_connected_components(g, 20)
+    res_full_graph = algorithms.weakly_connected_components(g)
     c1 = res_full_graph[1]
     c3 = res_full_graph[3]
     c5 = res_full_graph[5]
@@ -166,11 +166,11 @@ def test_algo_result_windowed_graph():
     assert res_full_graph == expected_full_graph
 
     g_window = g.window(0, 2)
-    res_window = algorithms.weakly_connected_components(g_window, 20)
+    res_window = algorithms.weakly_connected_components(g_window)
     assert res_window == {1: res_window[1], 2: res_window[1]}
 
     g_window = g.window(2, 3)
-    res_window = algorithms.weakly_connected_components(g_window, 20)
+    res_window = algorithms.weakly_connected_components(g_window)
     assert res_window == {3: res_window[3], 4: res_window[3]}
 
 
@@ -185,7 +185,7 @@ def test_algo_result_layered_graph():
     g_layer_zero_two = g.layer("ZERO-TWO")
     g_layer_three_five = g.layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two)
     c1 = res_zero_two[1]
     c2 = res_zero_two[4]
 
@@ -197,7 +197,7 @@ def test_algo_result_layered_graph():
         5: c2,
     }
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five)
     c6 = res_three_five[6]
     c7 = res_three_five[8]
     assert res_three_five == {
@@ -219,11 +219,11 @@ def test_algo_result_window_and_layered_graph():
     g_layer_zero_two = g.window(0, 1).layer("ZERO-TWO")
     g_layer_three_five = g.window(4, 5).layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two)
     c = res_zero_two[1]
     assert res_zero_two == {1: c, 2: c}
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five)
     c = res_three_five[8]
     assert res_three_five == {8: c, 9: c}
 
@@ -231,7 +231,7 @@ def test_algo_result_window_and_layered_graph():
 def test_algo_result():
     g = gen_graph()
 
-    actual = algorithms.weakly_connected_components(g, 20)
+    actual = algorithms.weakly_connected_components(g)
     c = actual[1]
     expected = {"1": c, "2": c, "3": c, "4": c, "5": c, "6": c, "7": c, "8": c}
     assert actual == expected
