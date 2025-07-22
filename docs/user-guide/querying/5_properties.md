@@ -45,7 +45,7 @@ property_g.add_node(
 )
 # Add some metadata properties
 v.add_metadata(
-    properties={
+    metadata={
         "inner data": {"name": "bob", "value list": [1, 2, 3]},
         "favourite greetings": ["hi", "hello", "howdy"],
     },
@@ -59,9 +59,9 @@ print("Latest value of balance:", properties.get("balance"))
 print("Property keys:", properties.as_dict(), "\n")
 
 # Access the keys of the constant and temporal properties individually
-constant_properties = properties.constant
+metadata = v.metadata
 temporal_properties = properties.temporal
-print("Constant property keys:", constant_properties.keys())
+print("Metadata keys:", metadata.keys())
 print("Constant property keys:", temporal_properties.keys())
 ```
 
@@ -70,13 +70,13 @@ print("Constant property keys:", temporal_properties.keys())
 !!! Output
 
     ```output
-    Property keys: ['count', 'greeting', 'encrypted', 'balance', 'inner data', 'favourite greetings']
-    Property values: [2, 'hello', True, 0.9, {'value list': [1, 2, 3], 'name': 'bob'}, ['hi', 'hello', 'howdy']]
-    Property tuples: [('count', 2), ('greeting', 'hello'), ('encrypted', True), ('balance', 0.9), ('inner data', {'value list': [1, 2, 3], 'name': 'bob'}), ('favourite greetings', ['hi', 'hello', 'howdy'])]
+    Property keys: ['count', 'greeting', 'encrypted', 'balance']
+    Property values: [2, 'hello', True, 0.9]
+    Property tuples: [('count', 2), ('greeting', 'hello'), ('encrypted', True), ('balance', 0.9)]
     Latest value of balance: 0.9
-    Property keys: {'inner data': {'value list': [1, 2, 3], 'name': 'bob'}, 'balance': 0.9, 'favourite greetings': ['hi', 'hello', 'howdy'], 'greeting': 'hello', 'count': 2, 'encrypted': True} 
+    Property keys: {'count': 2, 'balance': 0.9, 'greeting': 'hello', 'encrypted': True}  
 
-    Constant property keys: ['inner data', 'favourite greetings']
+    Metadata keys: ['inner data', 'favourite greetings']
     Constant property keys: ['count', 'greeting', 'encrypted', 'balance']
     ```
 

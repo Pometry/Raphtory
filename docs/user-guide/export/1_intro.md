@@ -11,8 +11,9 @@ each export function, depending on use case requirements. You can find a descrip
 the function.
 
 !!! Info
-If we are missing a format that you believe to be important, please raise
-an [issue](https://github.com/Pometry/Raphtory/issues) and it will be available before you know it!
+
+    If we are missing a format that you believe to be important, please raise
+    an [issue](https://github.com/Pometry/Raphtory/issues) and it will be available before you know it!
 
 The following example reuses the network traffic dataset from the [ingestion tutorial](../ingestion/3_dataframes.md) and
 the monkey interaction network from the [querying tutorial](../querying/1_intro.md). In the below code example you can

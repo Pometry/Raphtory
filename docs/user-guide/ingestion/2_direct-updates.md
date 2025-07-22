@@ -26,8 +26,8 @@ print(v)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)"
-assert str(v) == "Node(name=10, earliest_time=1, latest_time=1)"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1, properties=Properties({}))"
+assert str(v) == "Node(name=10, earliest_time=1, latest_time=1, properties=Properties({}))"
 ```
 
 Printing out the graph and the returned node we can see the update was successful and the earliest/latest time has been
@@ -36,8 +36,8 @@ updated.
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)
-    Node(name=10, earliest_time=1, latest_time=1)
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1, properties=Properties({}))
+    Node(name=10, earliest_time=1, latest_time=1, properties=Properties({}))
     ```
 
 ## Adding edges
@@ -63,14 +63,14 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1, properties=Properties({}))"
 assert str(e) == "Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1, properties=Properties({}))
     Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])
     ```
 
@@ -105,22 +105,23 @@ print(g.edge("User 1", "User 2"))
 ///
 
 ```{.python continuation hide}
-assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=123, latest_time=789)"
-assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=456, latest_time=789)"
+assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=123, latest_time=789, properties=Properties({}))"
+assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=456, latest_time=789, properties=Properties({}))"
 assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Node(name=User 1, earliest_time=123, latest_time=789)
-    Node(name=User 2, earliest_time=456, latest_time=789)
+    Node(name=User 1, earliest_time=123, latest_time=789, properties=Properties({}))
+    Node(name=User 2, earliest_time=456, latest_time=789, properties=Properties({}))
     Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])
     ```
 
 !!! warning
-A graph can index nodes by either integers or strings, not both at the same time.This means, for example, you cannot
-have `User 1` (a string) and `200` (an integer) as ids in the same graph.
+
+    A graph can index nodes by either integers or strings, not both at the same time.This means, for example, you cannot
+    have `User 1` (a string) and `200` (an integer) as ids in the same graph.
 
 ## Accepted timestamps
 
@@ -155,7 +156,7 @@ print(g.node(id=10).history_date_time())
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000, properties=Properties({}))"
 assert str(g.node(id=10).history()) == "[1609504320000 1612360860000]"
 assert str(g.node(id=10).history_date_time()) == "[datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]"
 ```
@@ -163,7 +164,7 @@ assert str(g.node(id=10).history_date_time()) == "[datetime.datetime(2021, 1, 1,
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000, properties=Properties({}))
     [1609504320000 1612360860000]
     [datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]
     ```
@@ -188,9 +189,10 @@ In the example below, we are using all of these functions to add a mixture of pr
 graph.
 
 !!! warning
-Please note that once a `property key` is associated with one of the above types for a given node/edge/graph, attempting
-to add a value of a different type under the same key will result in an error. For `Lists` the values must all be the
-same type and for `Dictionaries` the values for each key must always be the same type.
+
+    Please note that once a `property key` is associated with one of the above types for a given node/edge/graph, attempting
+    to add a value of a different type under the same key will result in an error. For `Lists` the values must all be the
+    same type and for `Dictionaries` the values for each key must always be the same type.
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -262,9 +264,10 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=4, latest_tim
     ```
 
 !!! info
-When the output is printed only the latest property values are shown. The older values haven't been lost, in fact the
-history of all of these different property types can be queried, explored and aggregated, as you will see
-in [Property Queries](../querying/5_properties.md).
+
+    When the output is printed only the latest property values are shown. The older values haven't been lost, in fact the
+    history of all of these different property types can be queried, explored and aggregated, as you will see
+    in [Property Queries](../querying/5_properties.md).
 
 ### Constant Properties
 
@@ -285,11 +288,11 @@ g = Graph()
 v = g.add_node(timestamp=1, id="User 1")
 e = g.add_edge(timestamp=2, src="User 1", dst="User 2")
 
-g.add_metadata(properties={"name": "Example Graph"})
+g.add_metadata(metadata={"name": "Example Graph"})
 v.add_metadata(
-    properties={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
+    metadata={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
 )
-e.add_metadata(properties={"data source": "https://link-to-repo.com"})
+e.add_metadata(metadata={"data source": "https://link-to-repo.com"})
 
 print(g)
 print(v)
@@ -299,17 +302,17 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({name: Example Graph}))"
-assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({date of birth: 1990-02-03 00:00:00}))"
-assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, properties={data source: https://link-to-repo.com}, layer(s)=[_default])"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({}))"
+assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({}))"
+assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, layer(s)=[_default])"
 ```
 
 !!! output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({name: Example Graph}))
-    Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({date of birth: 1990-02-03 00:00:00}))
-    Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, properties={data source: https://link-to-repo.com}, layer(s)=[_default])
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({}))
+    Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({}))
+    Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, layer(s)=[_default])
     ```    
 
 ## Edge Layers
