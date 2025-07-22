@@ -837,33 +837,23 @@ def test_temporal_constant(GraphClass):
     g.add_edge(1, 1, 2, layer="blue")
     g.add_edge(2, 1, 2, layer="blue")
     e = g.add_edge(3, 1, 2, layer="blue")
-    e.add_metadata(properties={"weight": 1, "name": "bob"})
+    e.add_metadata(metadata={"weight": 1, "name": "bob"})
     g.add_edge(1, 1, 3, layer="blue")
     g.add_edge(2, 1, 3, layer="blue")
     e = g.add_edge(3, 1, 3, layer="blue")
-    e.add_metadata(properties={"weight": 2, "name": "dave"})
+    e.add_metadata(metadata={"weight": 2, "name": "dave"})
 
     test_cases = [
-        (filter.Metadata("weight") == 2, 3),  # returns 0 instead of 1
-        (filter.Metadata("weight") != 3, 4),  # returns 0
-        (filter.Metadata("weight") < 3, 4),  # returns 0
-        (filter.Metadata("weight") > 1, 1),  # returns 0
-        (filter.Metadata("weight") <= 2, 4),  # returns 0
-        (filter.Metadata("weight") >= 3, 0),  # returns 0
-        (filter.Metadata("weight").is_in([1, 2]), 4),  # returns 0
-        (filter.Metadata("weight").is_not_in([3]), 4),  # returns 0
-        (filter.Metadata("weight").is_some(), 4),  # returns 0
-        (filter.Metadata("weight").is_none(), 2),  # returns 0
-        (filter.Metadata("weight") == 2, 1),  # returns 0 instead of 1
-        (filter.Metadata("weight") != 3, 4),  # returns 0
-        (filter.Metadata("weight") < 3, 4),  # returns 0
-        (filter.Metadata("weight") > 1, 1),  # returns 0
-        (filter.Metadata("weight") <= 2, 4),  # returns 0
-        (filter.Metadata("weight") >= 3, 0),  # returns 0
-        (filter.Metadata("weight").is_in([1, 2]), 4),  # returns 0
-        (filter.Metadata("weight").is_not_in([3]), 4),  # returns 0
-        (filter.Metadata("weight").is_some(), 4),  # returns 0
-        (filter.Metadata("weight").is_none(), 2),  # returns 0
+        (filter.Metadata("weight") == 2, 3),
+        (filter.Metadata("weight") != 3, 6),
+        (filter.Metadata("weight") < 3, 6),
+        (filter.Metadata("weight") > 1, 3),
+        (filter.Metadata("weight") <= 2, 6),
+        (filter.Metadata("weight") >= 3, 0),
+        (filter.Metadata("weight").is_in([1, 2]), 6),
+        (filter.Metadata("weight").is_not_in([3]), 6),
+        (filter.Metadata("weight").is_some(), 6),
+        (filter.Metadata("weight").is_none(), 0),
     ]
 
     for i, (expr, expected) in enumerate(test_cases):

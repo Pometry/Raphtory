@@ -86,9 +86,8 @@ def test_property_semantics():
         filter_expr = filter.Property("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N3", "N4", "N6", "N7"])
-        print(list(zip(graph.nodes.id,graph.nodes.properties.get("p1"))))
+        print(list(zip(graph.nodes.id, graph.nodes.properties.get("p1"))))
         assert result_ids == expected_ids
-
 
     return check
 
