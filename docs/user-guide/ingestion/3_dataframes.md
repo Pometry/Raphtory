@@ -1,14 +1,10 @@
 # Ingesting from dataframes
 
-If you prefer to initially manipulate your data in a `dataframe` before converting into a graph, Raphtory can directly
-ingest dataframes and convert these into node and edge updates.
+If you prefer to initially manipulate your data in a `dataframe` before converting into a graph, Raphtory can directly ingest dataframes and convert these into node and edge updates.
 
 ## Creating a graph from dataframes
 
-In the example below we are ingesting some network traffic data which includes different types of interactions between
-servers. First we read the data from disk into two dataframes, one for the server information (nodes) and one for the
-server interactions (edges). Then we convert the timestamp column to datetime objects. Finally, the two dataframes are
-printed out so you can see the headers and values.
+In the example below we are ingesting some network traffic data which includes different types of interactions between servers. First we read the data from disk into two dataframes, one for the server information (nodes) and one for the server interactions (edges). Then we convert the timestamp column to datetime objects. Finally, the two dataframes are printed out so you can see the headers and values.
 
 /// tab | :fontawesome-brands-python: Python
 
