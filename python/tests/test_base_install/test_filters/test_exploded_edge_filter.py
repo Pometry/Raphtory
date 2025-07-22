@@ -840,59 +840,35 @@ def test_temporal_constant(GraphClass):
     e.add_metadata(properties={"weight": 1, "name": "bob"})
     g.add_edge(1, 1, 3, layer="blue")
     g.add_edge(2, 1, 3, layer="blue")
-    e = g.add_edge(3, 1, 3, layer="red")
+    e = g.add_edge(3, 1, 3, layer="blue")
     e.add_metadata(properties={"weight": 2, "name": "dave"})
 
     test_cases = [
-        # (filter.Property("weight").constant() == 2, 1), # returns 0 instead of 1
-        # (filter.Property("weight").constant() != 3, 4), #returns 0
-        # (filter.Property("weight").constant() < 3, 4), #returns 0
-        # (filter.Property("weight").constant() > 1, 1), #returns 0
-        # (filter.Property("weight").constant() <= 2, 4), #returns 0
-        # (filter.Property("weight").constant() >= 3, 0), #returns 0
-        # (filter.Property("weight").constant().is_in([1, 2]), 4), #returns 0
-        # (filter.Property("weight").constant().is_not_in([3]), 4), #returns 0
-        # (filter.Property("weight").constant().is_some(), 4), #returns 0
-        # (filter.Property("weight").constant().is_none(), 2), #returns 0
-        # (filter.Property("weight").constant() == 2, 1), # returns 0 instead of 1
-        # (filter.Property("weight").constant() != 3, 4), #returns 0
-        # (filter.Property("weight").constant() < 3, 4), #returns 0
-        # (filter.Property("weight").constant() > 1, 1), #returns 0
-        # (filter.Property("weight").constant() <= 2, 4), #returns 0
-        # (filter.Property("weight").constant() >= 3, 0), #returns 0
-        # (filter.Property("weight").constant().is_in([1, 2]), 4), #returns 0
-        # (filter.Property("weight").constant().is_not_in([3]), 4), #returns 0
-        # (filter.Property("weight").constant().is_some(), 4), #returns 0
-        # (filter.Property("weight").constant().is_none(), 2), #returns 0
+        (filter.Metadata("weight") == 2, 3),  # returns 0 instead of 1
+        (filter.Metadata("weight") != 3, 4),  # returns 0
+        (filter.Metadata("weight") < 3, 4),  # returns 0
+        (filter.Metadata("weight") > 1, 1),  # returns 0
+        (filter.Metadata("weight") <= 2, 4),  # returns 0
+        (filter.Metadata("weight") >= 3, 0),  # returns 0
+        (filter.Metadata("weight").is_in([1, 2]), 4),  # returns 0
+        (filter.Metadata("weight").is_not_in([3]), 4),  # returns 0
+        (filter.Metadata("weight").is_some(), 4),  # returns 0
+        (filter.Metadata("weight").is_none(), 2),  # returns 0
+        (filter.Metadata("weight") == 2, 1),  # returns 0 instead of 1
+        (filter.Metadata("weight") != 3, 4),  # returns 0
+        (filter.Metadata("weight") < 3, 4),  # returns 0
+        (filter.Metadata("weight") > 1, 1),  # returns 0
+        (filter.Metadata("weight") <= 2, 4),  # returns 0
+        (filter.Metadata("weight") >= 3, 0),  # returns 0
+        (filter.Metadata("weight").is_in([1, 2]), 4),  # returns 0
+        (filter.Metadata("weight").is_not_in([3]), 4),  # returns 0
+        (filter.Metadata("weight").is_some(), 4),  # returns 0
+        (filter.Metadata("weight").is_none(), 2),  # returns 0
     ]
 
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter_exploded_edges(expr).edges.explode()
-        assert (
-            len(result) == expected
-        ), f"Test {i} failed: expected {expected}, got {len(result)}"
-
-    # How do temporal and constant properties overlap
-    g = PersistentGraph()
-
-    g.add_edge(1, 1, 2, layer="blue")  # gets the constant prop in persistent graph
-    g.add_edge(2, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
-    g.add_edge(3, 1, 2, layer="blue", properties={"weight": 2, "name": "bob"})
-    e = g.add_edge(4, 1, 2, layer="blue")  # gets weight 2 in persistent graph
-    e.add_metadata(properties={"weight": 3, "name": "bob"})
-
-    test_cases = [
-        # (filter.Property("weight") >= 1, 3), #returns 2 missing the constant prop
-        # (filter.Property("weight").constant() == 3, 3) #returns 0
-    ]
-
-    # if type(g) == Graph:
-    # test_cases.append((filter.Property("weight").temporal().any() > 0, 4)) #currently fails because constant missing - returns 2
-    # else:
-    # test_cases.append((filter.Property("weight").temporal().any() > 0, 4)) #currently fails because constant missing - returns 3
-
-    for i, (expr, expected) in enumerate(test_cases):
-        result = g.filter_exploded_edges(expr).edges.explode()
+        print(g.edges.explode().metadata.get("weight"))
         assert (
             len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
