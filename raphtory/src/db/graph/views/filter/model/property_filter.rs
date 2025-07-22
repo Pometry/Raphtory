@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
-            view::{node::NodeViewOps, EdgeViewOps},
+            view::{internal::GraphView, node::NodeViewOps, EdgeViewOps},
         },
         graph::{
             edge::EdgeView, node::NodeView, views::filter::model::filter_operator::FilterOperator,
@@ -13,11 +13,14 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::{
-        meta::Meta,
-        prop::{sort_comparable_props, unify_types, Prop, PropType},
+    entities::{
+        properties::{
+            meta::Meta,
+            prop::{sort_comparable_props, unify_types, Prop, PropType},
+        },
+        EID,
     },
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
@@ -378,6 +381,27 @@ impl PropertyFilter {
         edge: EdgeStorageRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
+        match self.prop_ref {
+            PropertyRef::Metadata(_) => {
+                let props = edge.metadata();
+                self.is_metadata_matched(prop_id, props)
+            }
+            PropertyRef::TemporalProperty(_, _) | PropertyRef::Property(_) => {
+                let props = edge.properties();
+                self.is_property_matched(prop_id, props)
+            }
+        }
+    }
+
+    pub fn matches_exploded_edge<G: GraphView>(
+        &self,
+        graph: &G,
+        prop_id: Option<usize>,
+        e: EID,
+        t: TimeIndexEntry,
+        layer: usize,
+    ) -> bool {
+        let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
                 let props = edge.metadata();
