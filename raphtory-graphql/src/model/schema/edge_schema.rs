@@ -66,7 +66,7 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
                 .base_graph
                 .edge_meta()
                 .get_prop_id(&key.to_string(), false);
-            let constant_prop = edge
+            let metadata = edge
                 .base_graph
                 .edge_meta()
                 .get_prop_id(&key.to_string(), true);
@@ -75,15 +75,15 @@ fn collect_edge_schema<'graph, G: GraphViewOps<'graph>>(edge: EdgeView<G>) -> Sc
                 let p_type = edge
                     .base_graph
                     .edge_meta()
-                    .temporal_prop_meta()
+                    .temporal_prop_mapper()
                     .get_dtype(temporal_prop.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
-            } else if constant_prop.is_some() {
+            } else if metadata.is_some() {
                 let p_type = edge
                     .base_graph
                     .edge_meta()
-                    .const_prop_meta()
-                    .get_dtype(constant_prop.unwrap());
+                    .metadata_mapper()
+                    .get_dtype(metadata.unwrap());
                 (key.to_string(), p_type.unwrap().to_string())
             } else {
                 (key.to_string(), "NONE".to_string())

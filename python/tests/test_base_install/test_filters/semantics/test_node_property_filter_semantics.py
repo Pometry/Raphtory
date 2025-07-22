@@ -20,7 +20,7 @@ def init_graph_for_secondary_indexes(graph):
 
 
 @with_disk_variants(init_nodes_graph)
-def test_constant_semantics():
+def test_metadata_semantics():
     def check(graph):
         filter_expr = filter.Property("p1").constant() == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)

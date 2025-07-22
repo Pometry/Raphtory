@@ -750,7 +750,7 @@ fn query_to_graph(query: &Query) -> Graph {
 
             let edge_node = graph.node(edge.as_str()).expect("edge not found");
             edge_node
-                .add_constant_properties([("direction", Prop::Bool(direction_flag))])
+                .add_metadata([("direction", Prop::Bool(direction_flag))])
                 .expect("failed to add properties");
 
             last_node = np;

@@ -114,7 +114,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
             .unwrap_or(DiskTProp::empty())
     }
 
-    fn constant_prop_layer(self, _layer_id: usize, _prop_id: usize) -> Option<Prop> {
+    fn metadata_layer(self, _layer_id: usize, _prop_id: usize) -> Option<Prop> {
         // TODO: constant edge properties not implemented in diskgraph yet
         None
     }

@@ -153,7 +153,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     }
 
     fn edge_prop_keys(&self) -> Vec<String> {
-        let props = self.edge_meta().temporal_prop_meta().get_keys();
+        let props = self.edge_meta().temporal_prop_mapper().get_keys();
         props.into_iter().map(|s| s.to_string()).collect()
     }
 
@@ -173,7 +173,7 @@ impl GraphLike<TimeIndexEntry> for Graph {
     ) -> Option<Box<dyn Array>> {
         let prop_type = self
             .edge_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_dtype(prop_id)
             .unwrap();
         arrow_array_from_props(
@@ -501,7 +501,7 @@ mod test {
                 None,
             )
             .unwrap();
-        node.add_constant_properties([
+        node.add_metadata([
             ("const_str", "test_c".into_prop()),
             ("const_float", 0.314f64.into_prop()),
         ])
@@ -571,7 +571,7 @@ mod test {
             ("prop 4", true.into_prop()),
         ];
         v.add_updates(3, props_t3).unwrap();
-        v.add_constant_properties([("static prop", 123)]).unwrap();
+        v.add_metadata([("static prop", 123)]).unwrap();
 
         let test_dir = TempDir::new().unwrap();
         let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
@@ -600,7 +600,7 @@ mod test {
     fn test_only_const_node_properties() {
         let g = Graph::new();
         let v = g.add_node(0, 1, NO_PROPS, None).unwrap();
-        v.add_constant_properties([("test", "test")]).unwrap();
+        v.add_metadata([("test", "test")]).unwrap();
         let test_dir = TempDir::new().unwrap();
         let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
         assert_eq!(
@@ -1040,7 +1040,7 @@ mod storage_tests {
         g1.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
         g1.node(1)
             .unwrap()
-            .add_constant_properties([("const_str", "test")])
+            .add_metadata([("const_str", "test")])
             .unwrap();
         g1.node(0)
             .unwrap()
@@ -1056,7 +1056,7 @@ mod storage_tests {
         g2.add_edge(2, 1, 2, [("test2", "test")], None).unwrap();
         g2.node(1)
             .unwrap()
-            .add_constant_properties([("const_str2", "test2")])
+            .add_metadata([("const_str2", "test2")])
             .unwrap();
         g2.node(0)
             .unwrap()

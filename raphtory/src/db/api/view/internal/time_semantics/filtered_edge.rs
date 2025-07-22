@@ -275,7 +275,7 @@ pub trait FilteredEdgeStorageOps<'a> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a;
 
-    fn filtered_constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn filtered_edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
         prop_id: usize,
@@ -387,7 +387,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
         })
     }
 
-    fn filtered_constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn filtered_edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         view: G,
         prop_id: usize,
@@ -395,7 +395,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
     ) -> Option<Prop> {
         let layer_ids = view.layer_ids();
         let mut values = self
-            .constant_prop_iter(layer_ids, prop_id)
+            .metadata_iter(layer_ids, prop_id)
             .filter(|(layer, _)| layer_filter(*layer));
         if view.num_layers() > 1 {
             let mut values = values.peekable();

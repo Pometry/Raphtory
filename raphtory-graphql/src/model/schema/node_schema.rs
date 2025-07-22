@@ -49,7 +49,7 @@ impl NodeSchema {
         let mut keys: Vec<String> = self
             .graph
             .node_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_keys()
             .into_iter()
             .map(|k| k.to_string())
@@ -57,12 +57,12 @@ impl NodeSchema {
         let mut property_types: Vec<String> = self
             .graph
             .node_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .dtypes()
             .iter()
             .map(|dtype| dtype.to_string())
             .collect();
-        for const_key in self.graph.node_meta().const_prop_meta().get_keys() {
+        for const_key in self.graph.node_meta().metadata_mapper().get_keys() {
             if self
                 .graph
                 .node_meta()
@@ -78,7 +78,7 @@ impl NodeSchema {
                 property_types.push(
                     self.graph
                         .node_meta()
-                        .const_prop_meta()
+                        .metadata_mapper()
                         .get_dtype(id)
                         .unwrap()
                         .to_string(),
@@ -170,7 +170,7 @@ mod test {
         )?;
 
         let node = g.node(1).unwrap();
-        node.add_constant_properties([("lol", Prop::str("smile"))])?;
+        node.add_metadata([("lol", Prop::str("smile"))])?;
 
         check_schema(&g);
 

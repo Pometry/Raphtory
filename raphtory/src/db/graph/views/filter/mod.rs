@@ -573,7 +573,7 @@ pub(crate) mod test_filters {
                     graph.add_node(*id, label, props.clone(), None).unwrap();
                 }
 
-                let constant_properties = [
+                let metadata = [
                     ("N1", [("p1", Prop::U64(1u64))]),
                     ("N4", [("p1", Prop::U64(2u64))]),
                     ("N9", [("p1", Prop::U64(1u64))]),
@@ -585,11 +585,11 @@ pub(crate) mod test_filters {
                     ("N15", [("p1", Prop::U64(1u64))]),
                 ];
 
-                for (node, props) in constant_properties.iter() {
+                for (node, props) in metadata.iter() {
                     graph
                         .node(node)
                         .unwrap()
-                        .add_constant_properties(props.clone())
+                        .add_metadata(props.clone())
                         .unwrap();
                 }
 
@@ -621,7 +621,7 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            fn test_constant_semantics() {
+            fn test_metadata_semantics() {
                 let filter = PropertyFilter::metadata("p1").eq(1u64);
                 let expected_results = vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"];
                 assert_filter_nodes_results(
@@ -725,7 +725,7 @@ pub(crate) mod test_filters {
             fn test_property_semantics() {
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N3", "N4", "N6", "N7"];
+                let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
                     IdentityGraphTransformer,
@@ -745,7 +745,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_property_semantics_for_secondary_indexes() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N16", "N3", "N4", "N6", "N7"];
+                let expected_results = vec!["N1", "N16", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph_for_secondary_indexes,
                     IdentityGraphTransformer,
@@ -780,16 +780,16 @@ pub(crate) mod test_filters {
                         graph.add_node(*id, label, props.clone(), None).unwrap();
                     }
 
-                    let constant_properties = [
+                    let metadata = [
                         ("N1", [("p1", Prop::U64(1u64))]),
                         ("N2", [("p1", Prop::U64(1u64))]),
                     ];
 
-                    for (node, props) in constant_properties.iter() {
+                    for (node, props) in metadata.iter() {
                         graph
                             .node(node)
                             .unwrap()
-                            .add_constant_properties(props.clone())
+                            .add_metadata(props.clone())
                             .unwrap();
                     }
 
@@ -797,7 +797,7 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = PropertyFilter::property("p1").ge(1u64);
-                let expected_results = vec!["N1", "N2"];
+                let expected_results = vec![];
                 assert_filter_nodes_results(
                     init_graph,
                     IdentityGraphTransformer,
@@ -927,7 +927,7 @@ pub(crate) mod test_filters {
                     graph.add_edge(time, src, dst, props, None).unwrap();
                 }
 
-                let constant_edges = [
+                let metadata_edges = [
                     ("N1", "N2", vec![("p1", Prop::U64(1u64))]),
                     ("N4", "N5", vec![("p1", Prop::U64(2u64))]),
                     ("N9", "N10", vec![("p1", Prop::U64(1u64))]),
@@ -939,11 +939,11 @@ pub(crate) mod test_filters {
                     ("N15", "N1", vec![("p1", Prop::U64(1u64))]),
                 ];
 
-                for (src, dst, props) in constant_edges {
+                for (src, dst, props) in metadata_edges {
                     graph
                         .edge(src, dst)
                         .unwrap()
-                        .add_constant_properties(props.clone(), None)
+                        .add_metadata(props.clone(), None)
                         .unwrap();
                 }
 
@@ -975,7 +975,7 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            fn test_constant_semantics() {
+            fn test_metadata_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::metadata("p1").eq(1u64);
@@ -1000,7 +1000,7 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            fn test_constant_semantics2() {
+            fn test_metadata_semantics2() {
                 fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
                     let mut results = graph
                         .filter_edges(filter)
@@ -1027,7 +1027,7 @@ pub(crate) mod test_filters {
                 let edge = graph
                     .add_edge(1, "shivam", "kapoor", [("p1", 100u64)], Some("fire_nation"))
                     .unwrap();
-                edge.add_constant_properties([("z", true)], Some("fire_nation"))
+                edge.add_metadata([("z", true)], Some("fire_nation"))
                     .unwrap();
                 let prop = graph.edge("shivam", "kapoor").unwrap().metadata().get("z");
                 assert_eq!(prop, Some(Prop::map([("fire_nation", true)])));
@@ -1164,10 +1164,8 @@ pub(crate) mod test_filters {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N16->N15", "N3->N4", "N4->N5", "N6->N7",
-                    "N7->N8",
-                ];
+                let expected_results =
+                    vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph_for_secondary_indexes,
                     IdentityGraphTransformer,
@@ -1205,16 +1203,16 @@ pub(crate) mod test_filters {
                         graph.add_edge(time, src, dst, props, None).unwrap();
                     }
 
-                    let constant_edges = [
+                    let metadata_edges = [
                         ("N1", "N2", vec![("p1", Prop::U64(1u64))]),
                         ("N2", "N3", vec![("p1", Prop::U64(1u64))]),
                     ];
 
-                    for (src, dst, props) in constant_edges {
+                    for (src, dst, props) in metadata_edges {
                         graph
                             .edge(src, dst)
                             .unwrap()
-                            .add_constant_properties(props.clone(), None)
+                            .add_metadata(props.clone(), None)
                             .unwrap();
                     }
 
@@ -1222,7 +1220,7 @@ pub(crate) mod test_filters {
                 }
 
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1->N2", "N2->N3"];
+                let expected_results = vec![];
                 assert_filter_edges_results(
                     init_graph,
                     IdentityGraphTransformer,

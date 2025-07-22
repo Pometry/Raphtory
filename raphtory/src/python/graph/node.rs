@@ -441,11 +441,8 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn add_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.add_constant_properties(properties)
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.add_metadata(properties)
     }
 
     /// Update constant properties of a node in the graph overwriting existing values.
@@ -454,11 +451,8 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn update_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.update_constant_properties(properties)
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.update_metadata(properties)
     }
 
     /// Return a string representation of the node.

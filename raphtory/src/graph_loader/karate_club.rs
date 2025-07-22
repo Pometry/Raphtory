@@ -97,7 +97,7 @@ pub fn karate_club_graph() -> Graph {
         if club1.contains(&v) {
             const_prop = "Mr. Hi";
         }
-        node.add_constant_properties([("club", const_prop)])
+        node.add_metadata([("club", const_prop)])
             .map_err(|err| error!("{:?}", err))
             .ok();
     }

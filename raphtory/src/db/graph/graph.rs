@@ -634,11 +634,11 @@ mod db_tests {
         g.add_edge(0, 0, 0, NO_PROPS, None)?;
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
 
-        g.edge(0, 0).unwrap().update_constant_properties(
+        g.edge(0, 0).unwrap().update_metadata(
             vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
             None,
         )?;
-        g.edge(0, 1).unwrap().update_constant_properties(
+        g.edge(0, 1).unwrap().update_metadata(
             vec![(
                 "a".to_string(),
                 Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
@@ -693,7 +693,7 @@ mod db_tests {
                 graph.const_prop_values().collect::<Vec<_>>(),
                 Vec::<Option<Prop>>::new()
             );
-            assert!(graph.constant_prop(1).is_none());
+            assert!(graph.metadata().get_by_id(1).is_none());
             assert!(graph.get_const_prop_id("1").is_none());
             assert!(graph.get_const_prop(1).is_none());
             assert_eq!(graph.count_nodes(), 0);
@@ -824,7 +824,7 @@ mod db_tests {
             .unwrap();
 
         assert_eq!(g_b.history(), vec![1]);
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
         let res = gg.import_node(&g_a, false).unwrap();
         assert_eq!(res.name(), "A");
@@ -909,7 +909,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
@@ -944,7 +944,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         gg.add_node(1, "Y", NO_PROPS, None).unwrap();
@@ -967,7 +967,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
 
         let gg = Graph::new();
@@ -1003,7 +1003,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         gg.add_node(1, "Q", NO_PROPS, None).unwrap();
@@ -1026,7 +1026,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+        g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
             .unwrap();
         let e_a_b = g
             .add_edge(
@@ -1087,7 +1087,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let e_a_b = g
             .add_edge(
                 2,
@@ -1124,7 +1124,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+        g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
             .unwrap();
         g.add_node(0, "C", NO_PROPS, None).unwrap();
         let e_a_b = g
@@ -1185,7 +1185,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let e_a_b = g
             .add_edge(
                 2,
@@ -1226,11 +1226,11 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         let ed = g.edge("A", "B").unwrap();
-        ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
+        ed.add_metadata(vec![("CCC", Prop::str("RED"))], None)
             .unwrap();
         info!("{:?}", ed.metadata().as_map());
         g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
-        ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
+        ed.add_metadata(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
             .unwrap();
         info!("{:?}", ed.metadata().as_map());
     }
@@ -1483,7 +1483,7 @@ mod db_tests {
     }
 
     #[test]
-    fn constant_properties() {
+    fn metadata() {
         let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
@@ -1508,31 +1508,26 @@ mod db_tests {
         let edge2233 = g.edge(&v22, &v33).unwrap();
         let edge3311 = g.edge(&v33, &v11).unwrap();
 
-        v11.add_constant_properties(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
+        v11.add_metadata(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
-        v11.add_constant_properties(vec![("c", Prop::U32(11))])
-            .unwrap();
+        v11.add_metadata(vec![("c", Prop::U32(11))]).unwrap();
 
-        v44.add_constant_properties(vec![("e", Prop::U8(1))])
-            .unwrap();
-        v55.add_constant_properties(vec![("f", Prop::U16(1))])
-            .unwrap();
+        v44.add_metadata(vec![("e", Prop::U8(1))]).unwrap();
+        v55.add_metadata(vec![("f", Prop::U16(1))]).unwrap();
         edge1111
-            .add_constant_properties(vec![("d", Prop::U64(1111))], None)
+            .add_metadata(vec![("d", Prop::U64(1111))], None)
             .unwrap();
         edge3311
-            .add_constant_properties(vec![("a", Prop::U64(3311))], None)
+            .add_metadata(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
         // cannot add properties to non-existant layer
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
 
         // cannot change property type
-        assert!(v22
-            .add_constant_properties(vec![("b", Prop::U64(22))])
-            .is_err());
+        assert!(v22.add_metadata(vec![("b", Prop::U64(22))]).is_err());
 
         assert_eq!(
             v11.metadata().keys().collect::<Vec<_>>(),
@@ -1568,12 +1563,12 @@ mod db_tests {
 
         // cannot add properties to non-existant layer
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
         g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
         // cannot add properties to layer without updates
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
     }
 
@@ -2230,8 +2225,7 @@ mod db_tests {
             Some("b"),
         )?;
 
-        let node = g.node(1).unwrap();
-        node.add_constant_properties([("lol", Prop::str("smile"))])?;
+        n1.add_metadata([("lol", Prop::str("smile"))])?;
 
         let node_1_props = n1
             .properties()
@@ -2243,9 +2237,10 @@ mod db_tests {
             vec![
                 ("t".to_string(), Prop::str("wallet")),
                 ("cost".to_string(), Prop::F64(99.5)),
-                ("lol".to_string(), Prop::str("smile"))
             ]
         );
+
+        assert_eq!(n1.metadata().as_vec(), [("lol".into(), "smile".into())]);
 
         Ok(())
     }
@@ -2507,7 +2502,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_constant_props(u64_props: HashMap<String, u64>) -> bool {
+    fn test_graph_metadata(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -2515,7 +2510,7 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -2525,7 +2520,7 @@ mod db_tests {
     }
 
     #[test]
-    fn test_graph_constant_props2() {
+    fn test_graph_metadata2() {
         let g = Graph::new();
 
         let as_props: Vec<(&str, Prop)> = vec![(
@@ -2533,7 +2528,7 @@ mod db_tests {
             Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
         )];
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
@@ -2549,7 +2544,7 @@ mod db_tests {
         ];
         let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::map(data))];
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names2: HashSet<ArcStr> = as_props
             .into_iter()
@@ -2563,7 +2558,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
+    fn test_graph_metadata_names(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -2571,7 +2566,7 @@ mod db_tests {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
@@ -4001,11 +3996,11 @@ mod db_tests {
     }
 
     #[test]
-    fn test_materialize_constant_edge_props() {
+    fn test_materialize_edge_metadata() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        e.add_constant_properties([("test", "test")], None).unwrap();
+        e.add_metadata([("test", "test")], None).unwrap();
         g.add_edge(10, 1, 2, NO_PROPS, Some("a")).unwrap();
 
         let gw = g.after(1);

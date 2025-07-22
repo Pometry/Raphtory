@@ -344,7 +344,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .graph_meta()
-            .temporal_prop_meta()
+            .temporal_mapper()
             .get_dtype(id)
             .unwrap()
     }
@@ -1412,7 +1412,7 @@ mod views_test {
                 }
 
                 // Constant property assignments
-                let constant_properties = vec![
+                let metadata = vec![
                     (
                         "N1",
                         vec![
@@ -1443,12 +1443,8 @@ mod views_test {
                 ];
 
                 // Apply constant properties
-                for (node, props) in constant_properties {
-                    graph
-                        .node(node)
-                        .unwrap()
-                        .add_constant_properties(props)
-                        .unwrap();
+                for (node, props) in metadata {
+                    graph.node(node).unwrap().add_metadata(props).unwrap();
                 }
 
                 graph
@@ -2014,7 +2010,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_eq() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N3", "N6", "N7"];
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2262,7 +2258,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_ne() {
                 let filter = PropertyFilter::property("p1").ne(1u64);
-                let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
+                let expected_results = vec!["N10", "N11", "N12", "N2", "N5", "N8", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2427,8 +2423,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_lt() {
                 let filter = PropertyFilter::property("p1").lt(3u64);
-                let expected_results =
-                    vec!["N1", "N14", "N15", "N2", "N3", "N5", "N6", "N7", "N8", "N9"];
+                let expected_results = vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2537,7 +2532,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_le() {
                 let filter = PropertyFilter::property("p1").le(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N3", "N6", "N7"];
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2690,7 +2685,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_gt() {
                 let filter = PropertyFilter::property("p1").gt(1u64);
-                let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
+                let expected_results = vec!["N10", "N11", "N12", "N2", "N5", "N8", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2800,8 +2795,7 @@ mod views_test {
             fn test_nodes_filters_pg_for_property_ge() {
                 let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec![
-                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
-                    "N8", "N9",
+                    "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
                 ];
                 assert_filter_nodes_results(
                     init_graph,
@@ -2962,7 +2956,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -3142,7 +3136,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_not_in() {
                 let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
-                let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
+                let expected_results = vec!["N10", "N11", "N12", "N2", "N5", "N8", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -3284,8 +3278,7 @@ mod views_test {
             fn test_nodes_filters_pg_for_property_is_some() {
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec![
-                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
-                    "N8", "N9",
+                    "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
                 ];
                 assert_filter_nodes_results(
                     init_graph,
@@ -3693,7 +3686,7 @@ mod views_test {
                 }
 
                 // Constant property assignments
-                let constant_properties = vec![
+                let metadata = vec![
                     (
                         "N1",
                         "N2",
@@ -3727,11 +3720,11 @@ mod views_test {
                     ("N15", "N1", vec![("p1", Prop::U64(1u64))], None),
                 ];
 
-                for (src, dst, props, layer) in constant_properties {
+                for (src, dst, props, layer) in metadata {
                     graph
                         .edge(src, dst)
                         .unwrap()
-                        .add_constant_properties(props, layer)
+                        .add_metadata(props, layer)
                         .unwrap();
                 }
 
@@ -4547,8 +4540,7 @@ mod views_test {
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").lt(3u64);
                 let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7",
-                    "N7->N8", "N8->N9", "N9->N10",
+                    "N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
                 assert_filter_edges_results(
                     init_graph,

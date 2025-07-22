@@ -1,6 +1,6 @@
 use crate::{
     entities::{
-        properties::props::{ConstPropError, Props, TPropError},
+        properties::props::{MetadataError, Props, TPropError},
         EID, VID,
     },
     storage::{
@@ -47,7 +47,7 @@ impl<'a, T: Deref<Target = EdgeLayer> + 'a> EdgeDataLike<'a> for T {
                 layer
                     .props()
                     .into_iter()
-                    .flat_map(|props| props.const_prop_ids()),
+                    .flat_map(|props| props.metadata_ids()),
             )
         })
     }
@@ -77,18 +77,14 @@ impl EdgeLayer {
         props.add_prop(t, prop_id, prop)
     }
 
-    pub fn add_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), ConstPropError> {
+    pub fn add_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.add_constant_prop(prop_id, prop)
+        props.add_metadata(prop_id, prop)
     }
 
-    pub fn update_constant_prop(
-        &mut self,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), ConstPropError> {
+    pub fn update_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.update_constant_prop(prop_id, prop)
+        props.update_metadata(prop_id, prop)
     }
 }
 

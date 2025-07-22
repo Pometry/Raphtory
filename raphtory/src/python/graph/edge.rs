@@ -466,12 +466,12 @@ impl PyMutableEdge {
     ///     properties (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     #[pyo3(signature = (properties, layer=None))]
-    fn add_constant_properties(
+    fn add_metadata(
         &self,
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.add_constant_properties(properties, layer)
+        self.edge.add_metadata(properties, layer)
     }
 
     /// Update constant properties of an edge in the graph overwriting existing values.
@@ -482,12 +482,12 @@ impl PyMutableEdge {
     ///     properties (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
     #[pyo3(signature = (properties, layer=None))]
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.update_constant_properties(properties, layer)
+        self.edge.update_metadata(properties, layer)
     }
 
     fn __repr__(&self) -> String {

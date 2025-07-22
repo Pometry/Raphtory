@@ -9,7 +9,7 @@ def init_graph(graph):
     ]
     for t, name, props, group, const_props in nodes:
         n = graph.add_node(t, name, props, group)
-        n.add_constant_properties(const_props)
+        n.add_metadata(const_props)
 
     edges = [
         (1, "pometry", "raphtory", {"e_p1": 3.2, "e_p2": 10.0}, {"e_x": True}),
@@ -17,7 +17,7 @@ def init_graph(graph):
     ]
     for t, src, dst, props, const_props in edges:
         e = graph.add_edge(t, src, dst, props)
-        e.add_constant_properties(const_props)
+        e.add_metadata(const_props)
 
     return graph
 

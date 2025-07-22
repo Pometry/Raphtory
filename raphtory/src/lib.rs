@@ -642,7 +642,7 @@ mod test_utils {
             }
             if let Some(e) = g.edge(src, dst) {
                 if !updates.props.c_props.is_empty() {
-                    e.add_constant_properties(updates.props.c_props.clone(), layer)
+                    e.add_metadata(updates.props.c_props.clone(), layer)
                         .unwrap();
                 }
             }
@@ -656,8 +656,7 @@ mod test_utils {
                 g.add_node(*t, node, props.clone(), None).unwrap();
             }
             if let Some(node) = g.node(node) {
-                node.add_constant_properties(updates.props.c_props.clone())
-                    .unwrap();
+                node.add_metadata(updates.props.c_props.clone()).unwrap();
                 if let Some(node_type) = updates.node_type {
                     node.set_node_type(node_type).unwrap();
                 }
@@ -703,7 +702,7 @@ mod test_utils {
                 }
                 if let Some(e) = g.edge(src, dst) {
                     if !updates.props.c_props.is_empty() {
-                        e.add_constant_properties(updates.props.c_props.clone(), layer)
+                        e.add_metadata(updates.props.c_props.clone(), layer)
                             .unwrap();
                     }
                 }
@@ -718,8 +717,7 @@ mod test_utils {
                 g.add_node(*t, node, props.clone(), None).unwrap();
             }
             if let Some(node) = g.node(node) {
-                node.add_constant_properties(updates.props.c_props.clone())
-                    .unwrap();
+                node.add_metadata(updates.props.c_props.clone()).unwrap();
                 if let Some(node_type) = updates.node_type {
                     node.set_node_type(node_type).unwrap();
                 }

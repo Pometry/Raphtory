@@ -15,13 +15,7 @@ use raphtory_api::{
     inherit::Base,
     iter::{BoxedIter, BoxedLIter},
 };
-use raphtory_core::{
-    entities::{
-        nodes::node_ref::NodeRef,
-        properties::{graph_meta::GraphMeta, tprop::TProp},
-    },
-    storage::locked_view::LockedView,
-};
+use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{
     iter,
     sync::{atomic::Ordering, Arc},
@@ -221,30 +215,6 @@ pub trait CoreGraphOps: Send + Sync {
         self.core_graph().internalise_node(v).unwrap()
     }
 
-    /// Gets a static graph property.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property.
-    ///
-    /// # Returns
-    /// The property value if it exists.
-    fn constant_prop(&self, id: usize) -> Option<Prop> {
-        self.graph_meta().get_constant(id)
-    }
-
-    /// Gets a temporal graph property.
-    ///
-    /// # Arguments
-    ///
-    /// * `name` - The name of the property.
-    ///
-    /// # Returns
-    /// The history of property values if it exists.
-    fn temporal_prop(&self, id: usize) -> Option<LockedView<TProp>> {
-        self.graph_meta().get_temporal_prop(id)
-    }
-
     /// Gets a static property of a given node given the name and node reference.
     ///
     /// # Arguments
@@ -254,7 +224,7 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The property value if it exists.
-    fn constant_node_prop(&self, v: VID, id: usize) -> Option<Prop> {
+    fn node_metadata(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
         core_node_entry.prop(id)
     }
@@ -267,9 +237,9 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The keys of the constant properties.
-    fn constant_node_prop_ids(&self, v: VID) -> BoxedLIter<usize> {
+    fn node_metadata_ids(&self, v: VID) -> BoxedLIter<usize> {
         let core_node_entry = self.core_node(v);
-        core_node_entry.prop_ids()
+        core_node_entry.metadata_ids()
     }
 
     /// Returns a vector of all ids of temporal properties within the given node

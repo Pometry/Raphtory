@@ -82,7 +82,7 @@ def test_add_updates():
         check_arr(e.history(), [1, 2, 3, 4, 5, 6])
 
 
-def test_add_constant_properties():
+def test_add_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -93,18 +93,18 @@ def test_add_constant_properties():
         edge = rg.add_edge(1, "ben", "hamza")
         rg.add_edge(1, "ben", "hamza", layer="test")
 
-        edge.add_constant_properties(props)
-        rg.edge("ben", "hamza").add_constant_properties(props2, layer="test")
+        edge.add_metadata(props)
+        rg.edge("ben", "hamza").add_metadata(props2, layer="test")
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.edge("ben", "hamza").layer("_default"), props)
         helper_test_props(g.edge("ben", "hamza").layer("test"), props2)
 
         with pytest.raises(Exception) as excinfo:
-            rg.edge("ben", "hamza").add_constant_properties({"prop_float": 3.0})
+            rg.edge("ben", "hamza").add_metadata({"prop_float": 3.0})
         assert "Attempted to change value of constant property" in str(excinfo.value)
 
 
-def test_update_constant_properties():
+def test_update_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -115,13 +115,13 @@ def test_update_constant_properties():
         edge = rg.add_edge(1, "ben", "hamza")
         rg.add_edge(1, "ben", "hamza", layer="test")
 
-        edge.update_constant_properties(props)
-        rg.edge("ben", "hamza").update_constant_properties(props2, layer="test")
+        edge.update_metadata(props)
+        rg.edge("ben", "hamza").update_metadata(props2, layer="test")
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.edge("ben", "hamza").layer("_default"), props)
         helper_test_props(g.edge("ben", "hamza").layer("test"), props2)
 
-        edge.update_constant_properties(props2)
+        edge.update_metadata(props2)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.edge("ben", "hamza").layer("_default"), props2)
 

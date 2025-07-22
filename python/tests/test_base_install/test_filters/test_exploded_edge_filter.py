@@ -837,11 +837,11 @@ def test_temporal_constant(GraphClass):
     g.add_edge(1, 1, 2, layer="blue")
     g.add_edge(2, 1, 2, layer="blue")
     e = g.add_edge(3, 1, 2, layer="blue")
-    e.add_constant_properties(properties={"weight": 1, "name": "bob"})
+    e.add_metadata(properties={"weight": 1, "name": "bob"})
     g.add_edge(1, 1, 3, layer="blue")
     g.add_edge(2, 1, 3, layer="blue")
     e = g.add_edge(3, 1, 3, layer="red")
-    e.add_constant_properties(properties={"weight": 2, "name": "dave"})
+    e.add_metadata(properties={"weight": 2, "name": "dave"})
 
     test_cases = [
         # (filter.Property("weight").constant() == 2, 1), # returns 0 instead of 1
@@ -879,7 +879,7 @@ def test_temporal_constant(GraphClass):
     g.add_edge(2, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
     g.add_edge(3, 1, 2, layer="blue", properties={"weight": 2, "name": "bob"})
     e = g.add_edge(4, 1, 2, layer="blue")  # gets weight 2 in persistent graph
-    e.add_constant_properties(properties={"weight": 3, "name": "bob"})
+    e.add_metadata(properties={"weight": 3, "name": "bob"})
 
     test_cases = [
         # (filter.Property("weight") >= 1, 3), #returns 2 missing the constant prop

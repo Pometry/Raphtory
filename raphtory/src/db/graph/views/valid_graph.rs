@@ -300,13 +300,13 @@ mod tests {
         g.add_edge(10, 1, 0, NO_PROPS, None).unwrap();
         g.add_edge(0, 0, 1, NO_PROPS, None)
             .unwrap()
-            .add_constant_properties([("const_test", 2)], None)
+            .add_metadata([("const_test", 2)], None)
             .unwrap();
 
         let gw = g.valid().window(-1, 1);
         assert_eq!(
             gw.edge(0, 1).unwrap().metadata().get("const_test").unwrap(),
-            2.into()
+            Prop::map([("_default", 2)])
         );
         assert_eq!(
             gw.edge(0, 1)

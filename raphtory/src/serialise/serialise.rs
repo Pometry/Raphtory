@@ -111,16 +111,16 @@ impl StableEncode for GraphStorage {
 
         // Graph Properties
         let graph_meta = storage.graph_meta();
-        for (id, key) in graph_meta.const_prop_meta().get_keys().iter().enumerate() {
+        for (id, key) in graph_meta.metadata_mapper().get_keys().iter().enumerate() {
             graph.new_graph_cprop(key, id);
         }
-        graph.update_graph_cprops(graph_meta.const_props());
+        graph.update_graph_cprops(graph_meta.metadata());
 
         for (id, (key, dtype)) in graph_meta
-            .temporal_prop_meta()
+            .temporal_mapper()
             .get_keys()
             .iter()
-            .zip(graph_meta.temporal_prop_meta().dtypes().iter())
+            .zip(graph_meta.temporal_mapper().dtypes().iter())
             .enumerate()
         {
             graph.new_graph_tprop(key, id, dtype);
@@ -163,7 +163,7 @@ impl StableEncode for GraphStorage {
         }
 
         // Node Properties
-        let n_const_meta = self.node_meta().const_prop_meta();
+        let n_const_meta = self.node_meta().metadata_mapper();
         for (id, (key, dtype)) in n_const_meta
             .get_keys()
             .iter()
@@ -172,7 +172,7 @@ impl StableEncode for GraphStorage {
         {
             graph.new_node_cprop(key, id, dtype);
         }
-        let n_temporal_meta = self.node_meta().temporal_prop_meta();
+        let n_temporal_meta = self.node_meta().temporal_prop_mapper();
         for (id, (key, dtype)) in n_temporal_meta
             .get_keys()
             .iter()
@@ -203,7 +203,7 @@ impl StableEncode for GraphStorage {
         }
 
         // Edge Properties
-        let e_const_meta = self.edge_meta().const_prop_meta();
+        let e_const_meta = self.edge_meta().metadata_mapper();
         for (id, (key, dtype)) in e_const_meta
             .get_keys()
             .iter()
@@ -212,7 +212,7 @@ impl StableEncode for GraphStorage {
         {
             graph.new_edge_cprop(key, id, dtype);
         }
-        let e_temporal_meta = self.edge_meta().temporal_prop_meta();
+        let e_temporal_meta = self.edge_meta().temporal_prop_mapper();
         for (id, (key, dtype)) in e_temporal_meta
             .get_keys()
             .iter()
@@ -245,9 +245,8 @@ impl StableEncode for GraphStorage {
                 graph.update_edge_cprops(
                     eid,
                     layer_id,
-                    (0..e_const_meta.len()).filter_map(|i| {
-                        edge.constant_prop_layer(layer_id, i).map(|prop| (i, prop))
-                    }),
+                    (0..e_const_meta.len())
+                        .filter_map(|i| edge.metadata_layer(layer_id, i).map(|prop| (i, prop))),
                 );
             }
         }
@@ -294,7 +293,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewNodeCprop(node_cprop) => {
                         let p_type = node_cprop.prop_type();
-                        storage.node_meta.const_prop_meta().set_id_and_dtype(
+                        storage.node_meta.metadata_mapper().set_id_and_dtype(
                             node_cprop.name.as_str(),
                             node_cprop.id as usize,
                             p_type,
@@ -302,7 +301,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewNodeTprop(node_tprop) => {
                         let p_type = node_tprop.prop_type();
-                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.node_meta.temporal_prop_mapper().set_id_and_dtype(
                             node_tprop.name.as_str(),
                             node_tprop.id as usize,
                             p_type,
@@ -310,11 +309,11 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
                         .graph_meta
-                        .const_prop_meta()
+                        .metadata_mapper()
                         .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
                     Meta::NewGraphTprop(graph_tprop) => {
                         let p_type = graph_tprop.prop_type();
-                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.graph_meta.temporal_mapper().set_id_and_dtype(
                             graph_tprop.name.as_str(),
                             graph_tprop.id as usize,
                             p_type,
@@ -326,7 +325,7 @@ impl InternalStableDecode for TemporalGraph {
                         .set_id(new_layer.name.as_str(), new_layer.id as usize),
                     Meta::NewEdgeCprop(edge_cprop) => {
                         let p_type = edge_cprop.prop_type();
-                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                        storage.edge_meta.metadata_mapper().set_id_and_dtype(
                             edge_cprop.name.as_str(),
                             edge_cprop.id as usize,
                             p_type,
@@ -334,7 +333,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
                         let p_type = edge_tprop.prop_type();
-                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.edge_meta.temporal_prop_mapper().set_id_and_dtype(
                             edge_tprop.name.as_str(),
                             edge_tprop.id as usize,
                             p_type,
@@ -349,9 +348,9 @@ impl InternalStableDecode for TemporalGraph {
             .into_par_iter_mut()
             .map(|mut shard| {
                 let mut const_prop_types =
-                    vec![PropType::Empty; storage.edge_meta.const_prop_meta().len()];
+                    vec![PropType::Empty; storage.edge_meta.metadata_mapper().len()];
                 let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.edge_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.edge_meta.temporal_prop_mapper().len()];
 
                 for edge in graph.edges.iter() {
                     if let Some(mut new_edge) = shard.get_mut(edge.eid()) {
@@ -385,7 +384,7 @@ impl InternalStableDecode for TemporalGraph {
                                         ) {
                                             const_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
                                         }
-                                        edge_layer.update_constant_prop(id, prop)?;
+                                        edge_layer.update_metadata(id, prop)?;
                                     }
                                 }
                             }
@@ -428,8 +427,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                storage.edge_meta.const_prop_meta(),
-                storage.edge_meta.temporal_prop_meta(),
+                storage.edge_meta.metadata_mapper(),
+                storage.edge_meta.temporal_prop_mapper(),
             );
         }
 
@@ -438,9 +437,9 @@ impl InternalStableDecode for TemporalGraph {
             .into_par_iter_mut()
             .map(|mut shard| {
                 let mut const_prop_types =
-                    vec![PropType::Empty; storage.node_meta.const_prop_meta().len()];
+                    vec![PropType::Empty; storage.node_meta.metadata_mapper().len()];
                 let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.node_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.node_meta.temporal_prop_mapper().len()];
 
                 for node in graph.nodes.iter() {
                     let vid = VID(node.vid as usize);
@@ -493,7 +492,7 @@ impl InternalStableDecode for TemporalGraph {
                                         ) {
                                             const_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
                                         }
-                                        node.update_constant_prop(id, prop)?;
+                                        node.update_metadata(id, prop)?;
                                     }
                                 }
                             }
@@ -545,8 +544,8 @@ impl InternalStableDecode for TemporalGraph {
             update_meta(
                 const_prop_types,
                 temp_prop_types,
-                storage.node_meta.const_prop_meta(),
-                storage.node_meta.temporal_prop_meta(),
+                storage.node_meta.metadata_mapper(),
+                storage.node_meta.temporal_prop_mapper(),
             );
         }
 
@@ -555,9 +554,9 @@ impl InternalStableDecode for TemporalGraph {
             .par_iter()
             .map(|update| {
                 let mut const_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.const_prop_meta().len()];
+                    vec![PropType::Empty; storage.graph_meta.metadata_mapper().len()];
                 let mut graph_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
 
                 if let Some(update) = update.update.as_ref() {
                     match update {
@@ -566,7 +565,7 @@ impl InternalStableDecode for TemporalGraph {
                             for (id, prop) in &c_props {
                                 const_prop_types[*id] = prop.dtype();
                             }
-                            storage.internal_update_constant_properties(&c_props)?;
+                            storage.internal_update_metadata(&c_props)?;
                         }
                         Update::UpdateGraphTprops(props) => {
                             let time = TimeIndexEntry(props.time, props.secondary as usize);
@@ -591,7 +590,7 @@ impl InternalStableDecode for TemporalGraph {
                 const_prop_types,
                 temp_prop_types,
                 &PropMapper::default(),
-                storage.graph_meta.temporal_prop_meta(),
+                storage.graph_meta.temporal_mapper(),
             );
         }
         Ok(storage)
@@ -917,13 +916,13 @@ mod proto_test {
             );
         };
 
-        let pm = graph.node_meta().const_prop_meta();
+        let pm = graph.node_meta().metadata_mapper();
         check_prop_mapper(pm);
 
-        let pm = graph.edge_meta().temporal_prop_meta();
+        let pm = graph.edge_meta().temporal_prop_mapper();
         check_prop_mapper(pm);
 
-        let pm = graph.graph_meta().temporal_prop_meta();
+        let pm = graph.graph_meta().temporal_mapper();
         check_prop_mapper(pm);
 
         let mut vec1 = actual.keys().collect::<Vec<_>>();
@@ -1003,7 +1002,7 @@ mod proto_test {
             .add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
 
-        n1.update_constant_properties([("name", Prop::Str("Bob".into()))])
+        n1.update_metadata([("name", Prop::Str("Bob".into()))])
             .expect("Failed to update constant properties");
 
         g1.encode(&temp_file).unwrap();
@@ -1069,7 +1068,7 @@ mod proto_test {
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
-        e1.update_constant_properties([("friends", true)], None)
+        e1.update_metadata([("friends", true)], None)
             .expect("Failed to update constant properties");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1153,7 +1152,7 @@ mod proto_test {
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
+        e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1180,7 +1179,7 @@ mod proto_test {
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
+        n.update_metadata(props.clone())
             .expect("Failed to update constant properties");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1202,7 +1201,7 @@ mod proto_test {
         write_props_to_vec(&mut props);
 
         let g1 = Graph::new();
-        g1.add_constant_properties(props.clone())
+        g1.add_metadata(props.clone())
             .expect("Failed to add constant properties");
 
         let tempdir = TempDir::new().unwrap();
@@ -1344,17 +1343,17 @@ mod proto_test {
         }
         g.write_updates().unwrap();
 
-        g.add_constant_properties(props.clone())
+        g.add_metadata(props.clone())
             .expect("Failed to add constant properties");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
+        n.update_metadata(props.clone())
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
+        e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
 
@@ -1391,17 +1390,17 @@ mod proto_test {
         }
         g.write_updates().unwrap();
 
-        g.add_constant_properties(props.clone())
+        g.add_metadata(props.clone())
             .expect("Failed to add constant properties");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
+        n.update_metadata(props.clone())
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
+        e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update constant properties");
         g.write_updates().unwrap();
 

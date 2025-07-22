@@ -13,7 +13,7 @@ use thiserror::Error;
 #[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
 pub struct Props {
     // properties
-    pub(crate) constant_props: LazyVec<Option<Prop>>,
+    pub(crate) metadata: LazyVec<Option<Prop>>,
     pub(crate) temporal_props: LazyVec<TProp>,
 }
 
@@ -26,16 +26,16 @@ pub enum TPropError {
 }
 
 #[derive(Error, Debug)]
-pub enum ConstPropError {
+pub enum MetadataError {
     #[error("Attempted to change value of constant property, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
 }
 
-impl From<IllegalSet<Option<Prop>>> for ConstPropError {
+impl From<IllegalSet<Option<Prop>>> for MetadataError {
     fn from(value: IllegalSet<Option<Prop>>) -> Self {
         let old = value.previous_value.unwrap_or(Prop::str("NONE"));
         let new = value.new_value.unwrap_or(Prop::str("NONE"));
-        ConstPropError::IllegalUpdate { old, new }
+        MetadataError::IllegalUpdate { old, new }
     }
 }
 
@@ -48,7 +48,7 @@ enum PropId {
 impl Props {
     pub fn new() -> Self {
         Self {
-            constant_props: Default::default(),
+            metadata: Default::default(),
             temporal_props: Default::default(),
         }
     }
@@ -62,23 +62,19 @@ impl Props {
         self.temporal_props.update(prop_id, |p| Ok(p.set(t, prop)?))
     }
 
-    pub fn add_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), ConstPropError> {
-        Ok(self.constant_props.set(prop_id, Some(prop))?)
+    pub fn add_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
+        Ok(self.metadata.set(prop_id, Some(prop))?)
     }
 
-    pub fn update_constant_prop(
-        &mut self,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), ConstPropError> {
-        self.constant_props.update(prop_id, |n| {
+    pub fn update_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
+        self.metadata.update(prop_id, |n| {
             *n = Some(prop);
             Ok(())
         })
     }
 
-    pub fn const_prop(&self, prop_id: usize) -> Option<&Prop> {
-        let prop = self.constant_props.get(prop_id)?;
+    pub fn metadata(&self, prop_id: usize) -> Option<&Prop> {
+        let prop = self.metadata.get(prop_id)?;
         prop.as_ref()
     }
 
@@ -86,8 +82,8 @@ impl Props {
         self.temporal_props.get(prop_id)
     }
 
-    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.constant_props.filled_ids()
+    pub fn metadata_ids(&self) -> impl Iterator<Item = usize> + '_ {
+        self.metadata.filled_ids()
     }
 
     pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + Sync + '_ {

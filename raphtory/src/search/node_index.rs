@@ -123,7 +123,7 @@ impl NodeIndex {
     }
 
     pub(crate) fn resolve_const_props(&self) -> HashSet<usize> {
-        let props = self.entity_index.const_property_indexes.read();
+        let props = self.entity_index.metadata_indexes.read();
         resolve_props(&props)
     }
 
@@ -141,8 +141,8 @@ impl NodeIndex {
             println!("Node doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let constant_property_indexes = self.entity_index.const_property_indexes.read();
-        for property_index in constant_property_indexes.iter().flatten() {
+        let metadata_indexes = self.entity_index.metadata_indexes.read();
+        for property_index in metadata_indexes.iter().flatten() {
             property_index.print()?;
         }
 
@@ -289,12 +289,12 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn add_node_constant_properties(
+    pub(crate) fn add_node_metadata(
         &self,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.const_property_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let prop_doc =
@@ -307,12 +307,12 @@ impl NodeIndex {
         Ok(())
     }
 
-    pub(crate) fn update_node_constant_properties(
+    pub(crate) fn update_node_metadata(
         &self,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.const_property_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let mut writer = index.index.writer(50_000_000)?;

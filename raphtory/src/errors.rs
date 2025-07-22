@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::{
     entities::{
         graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{ConstPropError, TPropError},
+        properties::props::{MetadataError, TPropError},
     },
     utils::time::ParseTimeError,
 };
@@ -440,8 +440,8 @@ pub enum GraphError {
     ZippedGraphCannotBeCached,
 }
 
-impl From<ConstPropError> for GraphError {
-    fn from(value: ConstPropError) -> Self {
+impl From<MetadataError> for GraphError {
+    fn from(value: MetadataError) -> Self {
         Self::MutationError(value.into())
     }
 }

@@ -72,7 +72,7 @@ def test_add_updates():
         check_arr(g.node("ben").history(), [1, 2, 3, 4])
 
 
-def test_add_constant_properties():
+def test_add_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -80,16 +80,16 @@ def test_add_constant_properties():
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
         node = rg.add_node(1, "ben")
-        node.add_constant_properties(props)
+        node.add_metadata(props)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.node("ben"), props)
 
         with pytest.raises(Exception) as excinfo:
-            rg.node("ben").add_constant_properties({"prop_float": 3.0})
+            rg.node("ben").add_metadata({"prop_float": 3.0})
         assert "Attempted to change value of constant property" in str(excinfo.value)
 
 
-def test_update_constant_properties():
+def test_update_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -97,10 +97,10 @@ def test_update_constant_properties():
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
         node = rg.add_node(1, "ben")
-        node.update_constant_properties(props)
+        node.update_metadata(props)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g.node("ben"), props)
 
-        rg.node("ben").update_constant_properties({"prop_float": 3.0})
+        rg.node("ben").update_metadata({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
         assert g.node("ben").properties.get("prop_float") == 3.0

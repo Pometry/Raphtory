@@ -18,9 +18,9 @@ def test_map_props():
         temp_dir = tempfile.mkdtemp()
         client = RaphtoryClient("http://localhost:1736")
         g = Graph()
-        g.update_constant_properties({"test": TEST_PROPS})
+        g.update_metadata({"test": TEST_PROPS})
         node = g.add_node(0, "test")
-        node.add_constant_properties({"test": TEST_PROPS})
+        node.add_metadata({"test": TEST_PROPS})
         g_path = temp_dir + "/test"
         g.save_to_zip(g_path)
         client.upload_graph(path="test", file_path=g_path, overwrite=True)
@@ -31,9 +31,9 @@ def test_map_props():
     with server.start():
         client.new_graph("test", "EVENT")
         rg = client.remote_graph("test")
-        rg.update_constant_properties({"test": TEST_PROPS})
+        rg.update_metadata({"test": TEST_PROPS})
         node = rg.add_node(0, "test")
-        node.add_constant_properties({"test": TEST_PROPS})
+        node.add_metadata({"test": TEST_PROPS})
         check_test_prop(client)
 
 

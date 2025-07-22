@@ -120,6 +120,10 @@ impl PyTemporalPropertyFilterBuilder {
     }
 }
 
+/// Construct a property filter
+///
+/// Arguments:
+///     name (str): the name of the property to filter
 #[pyclass(frozen, name = "Property", module = "raphtory.filter", extends=PyPropertyFilterOps
 )]
 #[derive(Clone)]
@@ -157,6 +161,10 @@ impl PyPropertyFilterBuilder {
     }
 }
 
+/// Construct a metadata filter
+///
+/// Arguments:
+///     name (str): the name of the property to filter
 #[pyclass(frozen, name = "Metadata", module = "raphtory.filter", extends=PyPropertyFilterOps
 )]
 #[derive(Clone)]

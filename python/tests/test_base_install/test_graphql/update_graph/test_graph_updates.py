@@ -42,23 +42,23 @@ def helper_test_props(entity, props):
             assert entity.properties.get(k) == v
 
 
-def test_add_constant_properties():
+def test_add_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
-        rg.add_constant_properties(props)
+        rg.add_metadata(props)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g, props)
 
         with pytest.raises(Exception) as excinfo:
-            rg.add_constant_properties({"prop_float": 3.0})
+            rg.add_metadata({"prop_float": 3.0})
         assert "Attempted to change value of constant property" in str(excinfo.value)
 
 
-def test_update_constant_properties():
+def test_update_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -66,11 +66,11 @@ def test_update_constant_properties():
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
 
-        rg.update_constant_properties(props)
+        rg.update_metadata(props)
         g = client.receive_graph("path/to/event_graph")
         helper_test_props(g, props)
 
-        rg.update_constant_properties({"prop_float": 3.0})
+        rg.update_metadata({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
         assert g.properties.get("prop_float") == 3.0
 

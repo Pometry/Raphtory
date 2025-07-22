@@ -108,9 +108,7 @@ def test_add_nodes():
         node_updates.append(RemoteNodeAddition("lucas", updates=[RemoteUpdate(1)]))
         # add constant properties
         lucas_props = make_props()
-        node_updates.append(
-            RemoteNodeAddition("lucas", constant_properties=lucas_props)
-        )
+        node_updates.append(RemoteNodeAddition("lucas", metadata=lucas_props))
         # add node_type
         node_updates.append(RemoteNodeAddition("lucas", node_type="person"))
         rg.add_nodes(node_updates)
@@ -149,7 +147,7 @@ def test_add_edges():
                 "ben",
                 "hamza",
                 layer="test",
-                constant_properties=make_props(),
+                metadata=make_props(),
                 updates=ben_hamza_updates,
             )
         )
@@ -173,9 +171,7 @@ def test_add_edges():
         )
         # add constant properties
         lucas_props = make_props()
-        edge_updates.append(
-            RemoteEdgeAddition("lucas", "hamza", constant_properties=lucas_props)
-        )
+        edge_updates.append(RemoteEdgeAddition("lucas", "hamza", metadata=lucas_props))
         rg.add_edges(edge_updates)
         g = client.receive_graph("path/to/event_graph")
         ben_hammza = g.edge("ben", "hamza")

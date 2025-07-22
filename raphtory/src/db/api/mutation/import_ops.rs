@@ -364,7 +364,7 @@ fn import_node_internal<
     graph
         .node(node_internal)
         .expect("node added")
-        .add_constant_properties(node.metadata().iter_filtered())?;
+        .add_metadata(node.metadata().iter_filtered())?;
 
     Ok(graph.node(node_internal).unwrap())
 }
@@ -423,7 +423,7 @@ fn import_edge_internal<
         graph
             .edge(&src_id, &dst_id)
             .expect("edge added")
-            .add_constant_properties(ee.metadata().iter_filtered(), Some(&layer_name))?;
+            .add_metadata(ee.metadata().iter_filtered(), Some(&layer_name))?;
     }
 
     Ok(graph.edge(&src_id, &dst_id).unwrap())

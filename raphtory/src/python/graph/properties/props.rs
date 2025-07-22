@@ -20,7 +20,6 @@ use crate::{
         utils::PyGenericIterator,
     },
 };
-use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,

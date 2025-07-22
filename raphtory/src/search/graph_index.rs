@@ -88,25 +88,21 @@ impl MutableGraphIndex {
         Ok(())
     }
 
-    pub(crate) fn add_node_constant_properties(
+    pub(crate) fn add_node_metadata(
         &self,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        self.index
-            .node_index
-            .add_node_constant_properties(node_id, props)?;
+        self.index.node_index.add_node_metadata(node_id, props)?;
         Ok(())
     }
 
-    pub(crate) fn update_node_constant_properties(
+    pub(crate) fn update_node_metadata(
         &self,
         node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        self.index
-            .node_index
-            .update_node_constant_properties(node_id, props)
+        self.index.node_index.update_node_metadata(node_id, props)
     }
 
     pub(crate) fn add_edge_update(
@@ -122,7 +118,7 @@ impl MutableGraphIndex {
             .add_edge_update(graph, edge_id, t, layer, props)
     }
 
-    pub(crate) fn add_edge_constant_properties(
+    pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
         layer: usize,
@@ -130,10 +126,10 @@ impl MutableGraphIndex {
     ) -> Result<(), GraphError> {
         self.index
             .edge_index
-            .add_edge_constant_properties(edge_id, layer, props)
+            .add_edge_metadata(edge_id, layer, props)
     }
 
-    pub(crate) fn update_edge_constant_properties(
+    pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
         layer: usize,
@@ -141,7 +137,7 @@ impl MutableGraphIndex {
     ) -> Result<(), GraphError> {
         self.index
             .edge_index
-            .update_edge_constant_properties(edge_id, layer, props)
+            .update_edge_metadata(edge_id, layer, props)
     }
 }
 
@@ -469,7 +465,7 @@ fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
     let index_spec = IndexSpec {
         node_const_props: node_index.resolve_const_props(),
         node_temp_props: node_index.resolve_temp_props(),
-        edge_const_props: edge_index.resolve_const_props(),
+        edge_metadata: edge_index.resolve_const_props(),
         edge_temp_props: edge_index.resolve_temp_props(),
     };
 
@@ -559,11 +555,7 @@ mod graph_index_test {
         let graph = Graph::new();
         let graph = init_nodes_graph(graph);
         graph.create_index_in_ram().unwrap();
-        graph
-            .node(1)
-            .unwrap()
-            .add_constant_properties([("x", 1u64)])
-            .unwrap();
+        graph.node(1).unwrap().add_metadata([("x", 1u64)]).unwrap();
 
         let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
@@ -571,7 +563,7 @@ mod graph_index_test {
         graph
             .node(1)
             .unwrap()
-            .update_constant_properties([("x", 2u64)])
+            .update_metadata([("x", 2u64)])
             .unwrap();
         let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), Vec::<&str>::new());
@@ -579,7 +571,7 @@ mod graph_index_test {
         graph
             .node(1)
             .unwrap()
-            .update_constant_properties([("x", 2u64)])
+            .update_metadata([("x", 2u64)])
             .unwrap();
         let filter = PropertyFilter::metadata("x").eq(2u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
@@ -593,7 +585,7 @@ mod graph_index_test {
         graph
             .edge(1, 2)
             .unwrap()
-            .add_constant_properties([("x", 1u64)], None)
+            .add_metadata([("x", 1u64)], None)
             .unwrap();
 
         let filter = PropertyFilter::metadata("x").eq(1u64);
@@ -602,7 +594,7 @@ mod graph_index_test {
         graph
             .edge(1, 2)
             .unwrap()
-            .update_constant_properties([("x", 2u64)], None)
+            .update_metadata([("x", 2u64)], None)
             .unwrap();
         let filter = PropertyFilter::metadata("x").eq(1u64);
         assert_eq!(search_edges(&graph, filter.clone()), Vec::<&str>::new());
@@ -610,7 +602,7 @@ mod graph_index_test {
         graph
             .edge(1, 2)
             .unwrap()
-            .update_constant_properties([("x", 2u64)], None)
+            .update_metadata([("x", 2u64)], None)
             .unwrap();
         let filter = PropertyFilter::metadata("x").eq(2u64);
         assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);

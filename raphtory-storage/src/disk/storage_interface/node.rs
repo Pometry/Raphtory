@@ -78,7 +78,7 @@ impl<'a> DiskNode<'a> {
             .collect()
     }
 
-    pub fn constant_node_prop_ids(self) -> BoxedLIter<'a, usize> {
+    pub fn node_metadata_ids(self) -> BoxedLIter<'a, usize> {
         match &self.graph.node_properties().const_props {
             None => Box::new(std::iter::empty()),
             Some(props) => {

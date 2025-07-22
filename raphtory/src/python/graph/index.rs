@@ -28,7 +28,7 @@ impl PyIndexSpec {
             "IndexSpec(\n  node_const_props=[{}],\n  node_temp_props=[{}],\n  edge_const_props=[{}],\n  edge_temp_props=[{}]\n)",
             self.prop_repr(&self.spec.node_const_props, self.node_const_meta()),
             self.prop_repr(&self.spec.node_temp_props, self.node_temp_meta()),
-            self.prop_repr(&self.spec.edge_const_props, self.edge_const_meta()),
+            self.prop_repr(&self.spec.edge_metadata, self.edge_const_meta()),
             self.prop_repr(&self.spec.edge_temp_props, self.edge_temp_meta()),
         );
         Ok(repr)
@@ -46,7 +46,7 @@ impl PyIndexSpec {
 
     #[getter]
     fn edge_const_props(&self) -> Vec<String> {
-        self.prop_names(&self.spec.edge_const_props, self.edge_const_meta())
+        self.prop_names(&self.spec.edge_metadata, self.edge_const_meta())
     }
 
     #[getter]
@@ -74,19 +74,19 @@ impl PyIndexSpec {
     }
 
     fn node_const_meta(&self) -> &PropMapper {
-        self.graph.node_meta().const_prop_meta()
+        self.graph.node_meta().metadata_mapper()
     }
 
     fn node_temp_meta(&self) -> &PropMapper {
-        self.graph.node_meta().temporal_prop_meta()
+        self.graph.node_meta().temporal_prop_mapper()
     }
 
     fn edge_const_meta(&self) -> &PropMapper {
-        self.graph.edge_meta().const_prop_meta()
+        self.graph.edge_meta().metadata_mapper()
     }
 
     fn edge_temp_meta(&self) -> &PropMapper {
-        self.graph.edge_meta().temporal_prop_meta()
+        self.graph.edge_meta().temporal_prop_mapper()
     }
 }
 

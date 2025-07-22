@@ -358,7 +358,7 @@ fn decode_graph_storage(
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
     if std::fs::exists(&c_edge_path)? {
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
-        let constant_properties = c_prop_columns
+        let metadata = c_prop_columns
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
@@ -368,7 +368,7 @@ fn decode_graph_storage(
             &c_edge_path,
             SRC_COL,
             DST_COL,
-            &constant_properties,
+            &metadata,
             None,
             None,
             Some(LAYER_COL),
@@ -815,7 +815,7 @@ mod test {
             g.add_properties(t, props).unwrap()
         }
 
-        g.add_constant_properties(nf.c_props).unwrap();
+        g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);

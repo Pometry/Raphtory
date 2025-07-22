@@ -52,7 +52,7 @@ def create_graph_with_deletions():
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
-    g.edge(edges[0][1], edges[0][2]).add_constant_properties({"static": "test"})
+    g.edge(edges[0][1], edges[0][2]).add_metadata({"static": "test"})
     g.delete_edge(10, edges[0][1], edges[0][2])
     return g
 
@@ -443,7 +443,7 @@ def test_graph_properties():
         "prop 4": [1, 2],
         "prop 5": {"x": 1, "y": "ok"},
     }
-    g.add_constant_properties(props)
+    g.add_metadata(props)
 
     sp = g.properties.constant.keys()
     sp.sort()
@@ -570,7 +570,7 @@ def create_graph_history_1():
     v.add_updates(2, props_t2)
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
     v.add_updates(3, props_t3)
-    v.add_constant_properties({"static prop": 123})
+    v.add_metadata({"static prop": 123})
     return g
 
 
@@ -1080,18 +1080,18 @@ def create_graph_edge_properties():
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
     e.add_updates(3, props_t3)
 
-    e.add_constant_properties({"static prop": 123})
+    e.add_metadata({"static prop": 123})
     return g
 
 
-def test_edge_constant_properties_layers():
+def test_edge_metadata_layers():
     g = Graph()
     g.add_edge(0, 1, 2, layer="a")
     g.add_edge(0, 1, 2)
-    g.edge(1, 2).add_constant_properties({"test": 1})
-    constant_exploded = g.layer("a").edges.explode().properties.constant
-    assert constant_exploded.values() == [[None]]
-    assert constant_exploded.keys() == ["test"]
+    g.edge(1, 2).add_metadata({"test": 1})
+    metadata_exploded = g.layer("a").edges.explode().properties.constant
+    assert metadata_exploded.values() == [[None]]
+    assert metadata_exploded.keys() == ["test"]
 
 
 def test_temporal_edge_properties_layers():
@@ -1402,7 +1402,7 @@ def test_static_prop_change():
     # with pytest.raises(Exception):
     g = Graph()
     v = g.add_node(0, 1)
-    v.add_constant_properties({"name": "value1"})
+    v.add_metadata({"name": "value1"})
 
     expected_msg = (
         """Exception: Failed to mutate graph\n"""
@@ -1414,22 +1414,22 @@ def test_static_prop_change():
 
     # with pytest.raises(Exception, match=re.escape(expected_msg)):
     with pytest.raises(Exception):
-        v.add_constant_properties({"name": "value2"})
+        v.add_metadata({"name": "value2"})
 
 
-def test_constant_property_update():
+def test_metadata_update():
     def updates(v):
-        v.update_constant_properties({"prop1": "value1", "prop2": 123})
+        v.update_metadata({"prop1": "value1", "prop2": 123})
         assert (
             v.properties.get("prop1") == "value1" and v.properties.get("prop2") == 123
         )
-        v.update_constant_properties({"prop1": "value2", "prop2": 345})
+        v.update_metadata({"prop1": "value2", "prop2": 345})
         assert (
             v.properties.get("prop1") == "value2" and v.properties.get("prop2") == 345
         )
 
-        v.add_constant_properties({"name": "value1"})
-        v.update_constant_properties({"name": "value2"})
+        v.add_metadata({"name": "value1"})
+        v.update_metadata({"name": "value2"})
         assert v.properties.get("name") == "value2"
 
     g = Graph()
@@ -1868,7 +1868,7 @@ def test_layer_name():
 
 def test_time():
     g = Graph()
-    g.add_constant_properties({"name": "graph"})
+    g.add_metadata({"name": "graph"})
 
     g.add_edge(0, 0, 1)
     g.add_edge(0, 0, 2)
@@ -2153,7 +2153,7 @@ def test_subgraph():
         mg.add_properties(1, props)
 
         props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
-        mg.add_constant_properties(props)
+        mg.add_metadata(props)
         x = mg.properties.keys()
         x.sort()
         assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
@@ -2192,7 +2192,7 @@ def test_materialize_graph():
     g.add_node(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_node(-1, 2, {"type": "wallet", "cost": 10.0})
     g.add_node(6, 3, {"type": "wallet", "cost": 76.0})
-    g.add_node(6, 4).add_constant_properties({"abc": "xyz"})
+    g.add_node(6, 4).add_metadata({"abc": "xyz"})
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
@@ -2200,7 +2200,7 @@ def test_materialize_graph():
     g.add_edge(8, 2, 4)
 
     sprop = {"sprop 1": "kaggle", "sprop 2": True}
-    g.add_constant_properties(sprop)
+    g.add_metadata(sprop)
     assert g.properties.constant == sprop
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for constant properties on edges
@@ -2231,7 +2231,7 @@ def test_materialize_graph():
         check_g_inner(mg)
 
         sprop2 = {"sprop 3": 11, "sprop 4": 10}
-        mg.add_constant_properties(sprop2)
+        mg.add_metadata(sprop2)
         sprop.update(sprop2)
         assert mg.properties.constant == sprop
 
@@ -2291,12 +2291,8 @@ def test_deletions():
 
 def test_edge_layer():
     g = Graph()
-    g.add_edge(1, 1, 2, layer="layer 1").add_constant_properties(
-        {"test_prop": "test_val"}
-    )
-    g.add_edge(1, 2, 3, layer="layer 2").add_constant_properties(
-        {"test_prop": "test_val 2"}
-    )
+    g.add_edge(1, 1, 2, layer="layer 1").add_metadata({"test_prop": "test_val"})
+    g.add_edge(1, 2, 3, layer="layer 2").add_metadata({"test_prop": "test_val 2"})
 
     # @with_disk_graph #FIXME: add support for edge constant properties
     def check(g):
@@ -2860,7 +2856,7 @@ def test_unique_temporal_properties():
     g.add_properties(2, {"name": "tarzan2"})
     g.add_properties(3, {"name": "tarzan2"})
     g.add_properties(2, {"salary": "1000"})
-    g.add_constant_properties({"type": "character"})
+    g.add_metadata({"type": "character"})
     g.add_edge(1, 1, 2, properties={"status": "open"})
     g.add_edge(2, 1, 2, properties={"status": "open"})
     g.add_edge(3, 1, 2, properties={"status": "review"})

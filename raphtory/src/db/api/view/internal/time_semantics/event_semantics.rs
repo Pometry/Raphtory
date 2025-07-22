@@ -743,7 +743,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef,
         view: G,
@@ -753,10 +753,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             view.internal_filter_edge_layer(e, layer)
                 && !e.filtered_additions(layer, &view).is_empty()
         };
-        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
@@ -768,6 +768,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .range_t(w.clone())
                 .is_empty()
         };
-        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 }

@@ -1152,7 +1152,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
-    fn constant_edge_prop<'graph, G: GraphViewOps<'graph>>(
+    fn edge_metadata<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
         view: G,
@@ -1163,10 +1163,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && (!e.additions(layer).is_empty()
                     || !e.filtered_deletions(layer, &view).is_empty())
         };
-        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 
-    fn constant_edge_prop_window<'graph, G: GraphViewOps<'graph>>(
+    fn edge_metadata_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeStorageRef,
         view: G,
@@ -1182,6 +1182,6 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     || deletions.active_t(exclusive_start..w.end)
                     || alive_before(additions, deletions, exclusive_start))
         };
-        e.filtered_constant_edge_prop(&view, prop_id, layer_filter)
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 }

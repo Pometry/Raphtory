@@ -114,25 +114,25 @@ pub(crate) fn get_column_names_from_props(
 ) -> HashSet<String> {
     let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
     let temporal_properties: HashSet<ArcStr> = edge_meta
-        .temporal_prop_meta()
+        .temporal_prop_mapper()
         .get_keys()
         .iter()
         .cloned()
         .collect();
-    let constant_properties: HashSet<ArcStr> = edge_meta
-        .const_prop_meta()
+    let metadata: HashSet<ArcStr> = edge_meta
+        .metadata_mapper()
         .get_keys()
         .iter()
         .cloned()
         .collect();
-    constant_properties
+    metadata
         .intersection(&temporal_properties)
         .for_each(|name| {
             column_names.push(format!("{}_constant", name));
             column_names.push(format!("{}_temporal", name));
             is_prop_both_temp_and_const.insert(name.to_string());
         });
-    constant_properties
+    metadata
         .symmetric_difference(&temporal_properties)
         .for_each(|name| {
             column_names.push(name.to_string());

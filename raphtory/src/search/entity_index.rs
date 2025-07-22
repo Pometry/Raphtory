@@ -32,7 +32,7 @@ use tantivy::{
 #[derive(Clone)]
 pub struct EntityIndex {
     pub(crate) index: Arc<Index>,
-    pub(crate) const_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
+    pub(crate) metadata_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
     pub(crate) temporal_property_indexes: Arc<RwLock<Vec<Option<PropertyIndex>>>>,
 }
 
@@ -42,7 +42,7 @@ impl EntityIndex {
         let index = new_index(schema, &path)?;
         Ok(Self {
             index: Arc::new(index),
-            const_property_indexes: Arc::new(RwLock::new(Vec::new())),
+            metadata_indexes: Arc::new(RwLock::new(Vec::new())),
             temporal_property_indexes: Arc::new(RwLock::new(Vec::new())),
         })
     }
@@ -59,7 +59,7 @@ impl EntityIndex {
 
         Ok(Self {
             index: Arc::new(index),
-            const_property_indexes: Arc::new(RwLock::new(const_property_indexes)),
+            metadata_indexes: Arc::new(RwLock::new(const_property_indexes)),
             temporal_property_indexes: Arc::new(RwLock::new(temporal_property_indexes)),
         })
     }
@@ -106,10 +106,10 @@ impl EntityIndex {
         path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
         let props = &index_spec.node_const_props;
-        let meta = graph.node_meta().const_prop_meta();
+        let meta = graph.node_meta().metadata_mapper();
         for (prop_name, prop_id, prop_type) in get_props(props, meta) {
             self.init_prop_indexes(
-                &self.const_property_indexes,
+                &self.metadata_indexes,
                 prop_id,
                 prop_name,
                 prop_type,
@@ -120,7 +120,7 @@ impl EntityIndex {
                 PropertyIndex::new_node_property,
             )?;
 
-            let indexes = self.const_property_indexes.read();
+            let indexes = self.metadata_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_nodes())
@@ -148,7 +148,7 @@ impl EntityIndex {
         path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
         let props = &index_spec.node_temp_props;
-        let meta = graph.node_meta().temporal_prop_meta();
+        let meta = graph.node_meta().temporal_prop_mapper();
         for (prop_name, prop_id, prop_type) in get_props(props, meta) {
             self.init_prop_indexes(
                 &self.temporal_property_indexes,
@@ -189,17 +189,17 @@ impl EntityIndex {
         Ok(())
     }
 
-    pub(crate) fn index_edge_const_props(
+    pub(crate) fn index_edge_metadata(
         &self,
         graph: &GraphStorage,
         index_spec: &IndexSpec,
         path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
-        let props = &index_spec.edge_const_props;
-        let meta = graph.edge_meta().const_prop_meta();
+        let props = &index_spec.edge_metadata;
+        let meta = graph.edge_meta().metadata_mapper();
         for (prop_name, prop_id, prop_type) in get_props(props, meta) {
             self.init_prop_indexes(
-                &self.const_property_indexes,
+                &self.metadata_indexes,
                 prop_id,
                 prop_name,
                 prop_type,
@@ -211,16 +211,14 @@ impl EntityIndex {
                 PropertyIndex::new_edge_property,
             )?;
 
-            let indexes = self.const_property_indexes.read();
+            let indexes = self.metadata_indexes.read();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
                 (0..graph.count_edges())
                     .into_par_iter()
                     .try_for_each(|e_id| {
                         let edge = graph.core_edge(EID(e_id));
-                        for (layer_id, prop_value) in
-                            edge.constant_prop_iter(&LayerIds::All, prop_id)
-                        {
+                        for (layer_id, prop_value) in edge.metadata_iter(&LayerIds::All, prop_id) {
                             let prop_doc = prop_index.create_edge_const_property_document(
                                 e_id as u64,
                                 layer_id,
@@ -243,7 +241,7 @@ impl EntityIndex {
         path: &Option<PathBuf>,
     ) -> Result<(), GraphError> {
         let props = &index_spec.edge_temp_props;
-        let meta = graph.edge_meta().temporal_prop_meta();
+        let meta = graph.edge_meta().temporal_prop_mapper();
         for (prop_name, prop_id, prop_type) in get_props(props, meta) {
             self.init_prop_indexes(
                 &self.temporal_property_indexes,
@@ -310,8 +308,8 @@ impl EntityIndex {
         prop_name: &str,
     ) -> Result<Option<(Arc<PropertyIndex>, usize)>, GraphError> {
         Ok(self.fetch_property_index(
-            &self.const_property_indexes,
-            meta.const_prop_meta().get_id(prop_name),
+            &self.metadata_indexes,
+            meta.metadata_mapper().get_id(prop_name),
         ))
     }
 
@@ -322,7 +320,7 @@ impl EntityIndex {
     ) -> Result<Option<(Arc<PropertyIndex>, usize)>, GraphError> {
         Ok(self.fetch_property_index(
             &self.temporal_property_indexes,
-            meta.temporal_prop_meta().get_id(prop_name),
+            meta.temporal_prop_mapper().get_id(prop_name),
         ))
     }
 }
