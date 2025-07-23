@@ -11,7 +11,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodeViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
@@ -191,86 +191,6 @@ impl<'a> NodeFilterExecutor<'a> {
         }
     }
 
-    // Property Semantics:
-    // There is a possibility that a const and temporal property share same name. This means that if a node
-    // or an edge doesn't have a value for that temporal property, we fall back to its const property value.
-    // Otherwise, the temporal property takes precedence.
-    //
-    // Search semantics:
-    // This means that a property filter criteria, say p == 1, is looked for in both the const and temporal
-    // property indexes for the given property name (if shared by both const and temporal properties). Now,
-    // if the filter matches to docs in const property index but there already is a temporal property with a
-    // different value, the doc is rejected i.e., fails the property filter criteria because temporal property
-    // takes precedence.
-    //          Search p == 1
-    //      t_prop      c_prop
-    //        T           T
-    //        T           F
-    //  (p=2) F     (p=1) T
-    //        F           F
-    //
-    // This applies to both node and edge properties.
-    fn apply_combined_property_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        prop_name: &str,
-        filter: &PropertyFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let cpi = self
-            .index
-            .node_index
-            .entity_index
-            .get_metadata_index(graph.node_meta(), prop_name)?;
-        let tpi = self
-            .index
-            .node_index
-            .entity_index
-            .get_temporal_property_index(graph.node_meta(), prop_name)?;
-
-        match (cpi, tpi) {
-            (Some((cpi, _)), Some((tpi, prop_id))) => {
-                let cpi_results = self.execute_or_fallback(graph, &cpi, filter, limit, offset)?;
-                let tpi_results = self.execute_or_fallback_temporal(
-                    graph,
-                    prop_id,
-                    &tpi,
-                    filter,
-                    limit,
-                    offset,
-                    LatestNodePropertyFilterCollector::new,
-                )?;
-
-                let filtered = cpi_results
-                    .into_iter()
-                    .filter(|n| {
-                        n.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|t| t.is_empty())
-                            .unwrap_or(true)
-                    })
-                    .collect::<HashSet<_>>();
-
-                let combined: Vec<NodeView<'static, G>> =
-                    filtered.into_iter().chain(tpi_results).collect();
-                Ok(combined)
-            }
-            (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
-            (None, Some((tpi, prop_id))) => self.execute_or_fallback_temporal(
-                graph,
-                prop_id,
-                &tpi,
-                filter,
-                limit,
-                offset,
-                LatestNodePropertyFilterCollector::new,
-            ),
-            _ => fallback_filter_nodes(graph, filter, limit, offset),
-        }
-    }
-
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -291,18 +211,15 @@ impl<'a> NodeFilterExecutor<'a> {
                     offset,
                     NodePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    LatestNodePropertyFilterCollector::new,
-                ),
-            PropertyRef::Property(prop_name) => {
-                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
-            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
+            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
+                graph,
+                prop_name,
+                filter,
+                limit,
+                offset,
+                LatestNodePropertyFilterCollector::new,
+            ),
         }
     }
 
