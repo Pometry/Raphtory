@@ -272,18 +272,15 @@ impl<'a> EdgeFilterExecutor<'a> {
                     offset,
                     EdgePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    LatestEdgePropertyFilterCollector::new,
-                ),
-            PropertyRef::Property(prop_name) => {
-                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
-            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
+            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
+                graph,
+                prop_name,
+                filter,
+                limit,
+                offset,
+                LatestEdgePropertyFilterCollector::new,
+            ),
         }
     }
 
