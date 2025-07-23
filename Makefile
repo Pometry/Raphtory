@@ -76,7 +76,7 @@ build-python-rtd:
 debug-stubs: debug-python stubs
 
 build-python: activate-storage
-	cd python && maturin develop -r --features=storage --extras=dev
+	cd python && maturin develop -r --features=storage,extension-module --extras=dev
 
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
