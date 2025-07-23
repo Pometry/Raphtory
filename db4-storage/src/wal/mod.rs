@@ -116,12 +116,13 @@ pub trait GraphWal {
 
 /// Define callbacks for replaying from wal
 pub trait GraphReplayer {
-    fn replay_begin_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;
+    fn replay_begin_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error>;
 
-    fn replay_end_txn(&self, txn_id: TransactionID) -> Result<(), DBV4Error>;
+    fn replay_end_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error>;
 
     fn replay_add_edge(
         &self,
+        lsn: LSN,
         txn_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
@@ -131,10 +132,11 @@ pub trait GraphReplayer {
         c_props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error>;
 
-    fn replay_node_id(&self, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
+    fn replay_node_id(&self, lsn: LSN, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
 
     fn replay_edge_id(
         &self,
+        lsn: LSN,
         txn_id: TransactionID,
         src: VID,
         dst: VID,
@@ -144,15 +146,17 @@ pub trait GraphReplayer {
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
         &self,
+        lsn: LSN,
         txn_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), DBV4Error>;
 
     fn replay_temporal_prop_ids<PN: AsRef<str>>(
         &self,
+        lsn: LSN,
         txn_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), DBV4Error>;
 
-    fn replay_layer_id(&self, txn_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error>;
+    fn replay_layer_id(&self, lsn: LSN, txn_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error>;
 }
