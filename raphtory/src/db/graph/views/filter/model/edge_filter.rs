@@ -108,6 +108,64 @@ pub enum CompositeExplodedEdgeFilter {
     Not(Box<CompositeExplodedEdgeFilter>),
 }
 
+impl Display for CompositeExplodedEdgeFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CompositeExplodedEdgeFilter::Property(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
+            CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
+            CompositeExplodedEdgeFilter::Not(filter) => write!(f, "(NOT {})", filter),
+        }
+    }
+}
+
+impl CreateFilter for CompositeExplodedEdgeFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        match self {
+            CompositeExplodedEdgeFilter::Property(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeExplodedEdgeFilter::And(l, r) => Ok(Arc::new(
+                AndFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_filter(graph)?,
+            )),
+            CompositeExplodedEdgeFilter::Or(l, r) => Ok(Arc::new(
+                OrFilter {
+                    left: l.deref().clone(),
+                    right: r.deref().clone(),
+                }
+                .create_filter(graph)?,
+            )),
+            CompositeExplodedEdgeFilter::Not(filter) => {
+                let base = filter.deref().clone();
+                Ok(Arc::new(NotFilter(base).create_filter(graph)?))
+            }
+        }
+    }
+}
+
+impl TryAsCompositeFilter for CompositeExplodedEdgeFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Ok(self.clone())
+    }
+}
+
 pub trait InternalEdgeFilterBuilderOps: Send + Sync {
     fn field_name(&self) -> &'static str;
 }

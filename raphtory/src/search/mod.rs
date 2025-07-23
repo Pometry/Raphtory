@@ -27,6 +27,7 @@ mod collectors;
 mod edge_filter_executor;
 pub mod edge_index;
 pub mod entity_index;
+mod exploded_edge_filter_executor;
 mod node_filter_executor;
 pub mod node_index;
 pub mod property_index;

@@ -16,10 +16,13 @@ use raphtory::{
             edge::EdgeView,
             node::NodeView,
             views::filter::model::{
+                edge_filter::{EdgeFilter, EdgeFilterOps},
                 filter_operator::{FilterOperator, FilterOperator::*},
-                ComposableFilter, EdgeFilter, EdgeFilterOps, InternalPropertyFilterOps, NodeFilter,
-                NodeFilterBuilderOps, PropertyFilterBuilder, PropertyFilterFactory,
-                PropertyFilterOps,
+                node_filter::{NodeFilter, NodeFilterBuilderOps},
+                property_filter::{
+                    InternalPropertyFilterOps, PropertyFilterBuilder, PropertyFilterOps,
+                },
+                ComposableFilter, PropertyFilterFactory,
             },
         },
     },

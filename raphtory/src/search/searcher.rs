@@ -5,7 +5,8 @@ use crate::{
     },
     errors::GraphError,
     search::{
-        edge_filter_executor::EdgeFilterExecutor, graph_index::Index,
+        edge_filter_executor::EdgeFilterExecutor,
+        exploded_edge_filter_executor::ExplodedEdgeFilterExecutor, graph_index::Index,
         node_filter_executor::NodeFilterExecutor,
     },
 };
@@ -14,6 +15,7 @@ use crate::{
 pub struct Searcher<'a> {
     node_filter_executor: NodeFilterExecutor<'a>,
     edge_filter_executor: EdgeFilterExecutor<'a>,
+    exploded_edge_filter_executor: ExplodedEdgeFilterExecutor<'a>,
 }
 
 impl<'a> Searcher<'a> {
@@ -21,6 +23,7 @@ impl<'a> Searcher<'a> {
         Self {
             node_filter_executor: NodeFilterExecutor::new(index),
             edge_filter_executor: EdgeFilterExecutor::new(index),
+            exploded_edge_filter_executor: ExplodedEdgeFilterExecutor::new(index),
         }
     }
 
@@ -56,19 +59,21 @@ impl<'a> Searcher<'a> {
             .filter_edges(graph, &filter, limit, offset)
     }
 
-    // pub fn search_exploded_edges<G, F>(
-    //     &self,
-    //     graph: &G,
-    //     filter: F,
-    //     limit: usize,
-    //     offset: usize,
-    // ) -> Result<Vec<EdgeView<G>>, GraphError>
-    // where
-    //     G: StaticGraphViewOps,
-    //     F: TryAsCompositeFilter
-    // {
-    //
-    // }
+    pub fn search_exploded_edges<G, F>(
+        &self,
+        graph: &G,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G>>, GraphError>
+    where
+        G: StaticGraphViewOps,
+        F: TryAsCompositeFilter,
+    {
+        let filter = filter.try_as_composite_exploded_edge_filter()?;
+        self.exploded_edge_filter_executor
+            .filter_exploded_edges(graph, &filter, limit, offset)
+    }
 }
 
 // TODO: All search tests in graph views (db/graph/views) should include
