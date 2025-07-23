@@ -737,13 +737,14 @@ mod proto_test {
         let graph = Graph::decode(path).unwrap();
 
         let actual: HashMap<_, _> = graph
-            .metadata_keys()
+            .node_meta()
+            .get_all_property_names(false)
+            .into_iter()
             .map(|key| {
                 let props = graph
                     .nodes()
-                    .properties()
-                    .into_iter()
-                    .map(|(_, prop)| prop.get(&key))
+                    .iter()
+                    .map(|n| n.properties().get(&key).or_else(|| n.metadata().get(&key)))
                     .collect::<Vec<_>>();
                 (key, props)
             })
