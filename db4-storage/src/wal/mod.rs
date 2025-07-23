@@ -127,22 +127,13 @@ pub trait GraphReplayer {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
+        eid: EID,
         layer_id: usize,
         t_props: &[(usize, Prop)],
         c_props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error>;
 
     fn replay_node_id(&self, lsn: LSN, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
-
-    fn replay_edge_id(
-        &self,
-        lsn: LSN,
-        txn_id: TransactionID,
-        src: VID,
-        dst: VID,
-        eid: EID,
-        layer_id: usize,
-    ) -> Result<(), DBV4Error>;
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
         &self,

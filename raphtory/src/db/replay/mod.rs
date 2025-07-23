@@ -1,6 +1,11 @@
 use db4_graph::TemporalGraph;
 use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
-use storage::{error::DBV4Error, wal::{GraphReplayer, TransactionID, LSN}, Extension};
+use storage::{
+    error::DBV4Error,
+    wal::{GraphReplayer, TransactionID, LSN},
+    Extension,
+    api::edges::EdgeSegmentOps,
+};
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID, EID, VID},
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
@@ -34,26 +39,24 @@ impl GraphReplayer for ReplayGraph {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
+        eid: EID,
         layer_id: usize,
         t_props: &[(usize, Prop)],
         c_props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error> {
+       let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
+
+        match edge_segment {
+            Some(edge_segment) => {
+                edge_segment.head().lsn();
+            }
+            _ => {}
+        }
+
         Ok(())
     }
 
     fn replay_node_id(&self, lsn: LSN, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error> {
-        Ok(())
-    }
-
-    fn replay_edge_id(
-        &self,
-        lsn: LSN,
-        txn_id: TransactionID,
-        src: VID,
-        dst: VID,
-        eid: EID,
-        layer_id: usize,
-    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 
