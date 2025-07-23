@@ -13,37 +13,19 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    Optional[int]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    Optional[RaphtoryTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn start(&self) -> Option<i64> {
-                self.$field.start()
-            }
-
-            #[doc = concat!(r" Gets the earliest datetime that this ", $name, r" is valid")]
-            ///
-            /// Returns:
-            #[doc = concat!(r"     Optional[datetime]: The earliest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
-            #[getter]
-            pub fn start_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
-                self.$field.start_date_time()
+            pub fn start(&self) -> Option<TimeIndexEntry> {
+                self.$field.start().into()
             }
 
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   Optional[int]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   Optional[RaphtoryTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
-            pub fn end(&self) -> Option<i64> {
-                self.$field.end()
-            }
-
-            #[doc = concat!(r" Gets the latest datetime that this ", $name, r" is valid")]
-            ///
-            /// Returns:
-            #[doc = concat!(r"     Optional[datetime]: The latest datetime that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
-            #[getter]
-            pub fn end_date_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
-                self.$field.end_date_time()
+            pub fn end(&self) -> Option<TimeIndexEntry> {
+                self.$field.end().into()
             }
 
             #[doc = concat!(r" Get the window size (difference between start and end) for this ", $name)]
@@ -64,7 +46,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_api::core::utils::time::ParseTimeError> {
                 self.$field.expanding(step)
             }
 
@@ -84,7 +66,7 @@ macro_rules! impl_timeops {
                 &self,
                 window:$crate::core::utils::time::Interval,
                 step: Option<$crate::core::utils::time::Interval>,
-            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+            ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_api::core::utils::time::ParseTimeError> {
                 self.$field.rolling(window, step)
             }
 
@@ -98,8 +80,8 @@ macro_rules! impl_timeops {
             #[doc = concat!("    ", $name, ":")]
             pub fn window(
                 &self,
-                start: $crate::python::utils::PyTime,
-                end: $crate::python::utils::PyTime,
+                start: $crate::api::python::timeindex::PyTime,
+                end: $crate::api::python::timeindex::PyTime,
             ) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field
                     .window(start, end)
@@ -112,7 +94,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn at(&self, time: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.at(time)
             }
 
@@ -133,7 +115,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn snapshot_at(&self, time: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn snapshot_at(&self, time: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.snapshot_at(time)
             }
 
@@ -154,7 +136,7 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn before(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn before(&self, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.before(end)
             }
 
@@ -165,40 +147,40 @@ macro_rules! impl_timeops {
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn after(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn after(&self, start: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.after(start)
             }
 
             /// Set the start of the window to the larger of `start` and `self.start()`
             ///
             /// Arguments:
-            ///    start (TimeInput): the new start time of the window
+            ///    start (RaphtoryTime): the new start time of the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            pub fn shrink_start(&self, start: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            pub fn shrink_start(&self, start: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_start(start)
             }
 
             /// Set the end of the window to the smaller of `end` and `self.end()`
             ///
             /// Arguments:
-            ///     end (TimeInput): the new end time of the window
+            ///     end (RaphtoryTime): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_end(&self, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_end(&self, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                     self.$field.shrink_end(end)
             }
 
             /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
             ///
             /// Arguments:
-            ///     start (TimeInput): the new start time for the window
-            ///     end (TimeInput): the new end time for the window
+            ///     start (RaphtoryTime): the new start time for the window
+            ///     end (RaphtoryTime): the new end time for the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
-            fn shrink_window(&self, start: $crate::python::utils::PyTime, end: $crate::python::utils::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
+            fn shrink_window(&self, start: $crate::api::python::timeindex::PyTime, end: $crate::api::python::timeindex::PyTime) -> <$base_type as TimeOps<'static>>::WindowedViewType {
                 self.$field.shrink_window(start, end)
             }
         }

@@ -32,7 +32,7 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
@@ -216,18 +216,21 @@ pub fn assert_node_equal_layer<
                     "mismatched edge_history_count for node {:?}{layer_tag}",
                     n1.id()
                 );
+                // history objects aren't identical because the nodes use different generic graph types
                 assert_eq!(
-                    n1.after(earliest).history(),
-                    n2.after(earliest).history(),
+                    n1.after(earliest.t()).history().t().collect(),
+                    n2.after(earliest.t()).history().t().collect(),
                     "mismatched history for node {:?}{layer_tag}",
                     n1.id()
                 );
             }
         }
     } else {
+        let n1_timestamps = n1.history().t().collect();
+        let n2_timestamps = n2.history().t().collect();
         assert_eq!(
-            n1.history(),
-            n2.history(),
+            n1_timestamps,
+            n2_timestamps,
             "mismatched history for node {:?}{layer_tag}",
             n1.id()
         );
@@ -354,8 +357,8 @@ pub fn assert_edges_equal_layer<
                 }
                 Some(earliest) => {
                     assert_eq!(
-                        e1.after(earliest).is_active(),
-                        e2.after(earliest).is_active(),
+                        e1.after(earliest.t()).is_active(),
+                        e2.after(earliest.t()).is_active(),
                         "mismatched is_active for edge {:?}{layer_tag}",
                         e1.id()
                     );
@@ -612,11 +615,13 @@ mod db_tests {
         entities::{GID, VID},
         storage::{
             arc_str::{ArcStr, OptionAsStr},
-            timeindex::TimeIndexEntry,
+            timeindex::{AsTime, TimeIndexEntry},
         },
-        utils::logging::global_info_logger,
+        utils::{
+            logging::global_info_logger,
+            time::{ParseTimeError, TryIntoTime},
+        },
     };
-    use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
     use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
     use rayon::join;
     use std::{
@@ -712,9 +717,7 @@ mod db_tests {
 
             assert!(graph.start().is_none());
             assert!(graph.end().is_none());
-            assert!(graph.earliest_date_time().is_none());
             assert_eq!(graph.earliest_time(), None);
-            assert!(graph.end_date_time().is_none());
             assert!(graph.timeline_end().is_none());
 
             assert!(graph.is_empty());
@@ -729,7 +732,6 @@ mod db_tests {
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());
             assert!(graph.latest_time().is_none());
-            assert!(graph.latest_date_time().is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.earliest_time_global().is_none());
         });
@@ -833,15 +835,15 @@ mod db_tests {
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
 
-        assert_eq!(g_b.history(), vec![1]);
+        assert_eq!(g_b.history().t().collect(), vec![1]);
         let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
         let res = gg.import_node(&g_a, false).unwrap();
         assert_eq!(res.name(), "A");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().t().collect(), vec![0]);
         let res = gg.import_node(&g_b, false).unwrap();
         assert_eq!(res.name(), "B");
-        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.history().t().collect(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(
             res.properties().constant().get("con").unwrap(),
@@ -927,7 +929,7 @@ mod db_tests {
         let gg = Graph::new();
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
         assert_eq!(res.name(), "X");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().t().collect(), vec![0]);
 
         let _ = gg.add_node(1, "Y", NO_PROPS, None).unwrap();
         let res = gg.import_node_as(&g_b, "Y", false);
@@ -945,7 +947,7 @@ mod db_tests {
         let y = gg.node("Y").unwrap();
 
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().t().collect(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -964,11 +966,11 @@ mod db_tests {
 
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
         assert_eq!(res.name(), "X");
-        assert_eq!(res.history(), vec![0]);
+        assert_eq!(res.history().t().collect(), vec![0]);
 
         let res = gg.import_node_as(&g_b, "Y", true).unwrap();
         assert_eq!(res.name(), "Y");
-        assert_eq!(res.history(), vec![1]);
+        assert_eq!(res.history().t().collect(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(
             res.properties().constant().get("con").unwrap(),
@@ -1007,7 +1009,7 @@ mod db_tests {
         assert_eq!(nodes, vec!["Q", "R"]); // Nodes up until first failure are imported
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().t().collect(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -1030,7 +1032,7 @@ mod db_tests {
         assert_eq!(nodes, vec!["P", "Q"]);
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().t().collect(), vec![1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(y.properties().constant().get("con").unwrap(), Prop::I64(11));
     }
@@ -1080,10 +1082,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y", "Z"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![1]);
+        assert_eq!(x.history().t().collect(), vec![1]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1, 2]);
+        assert_eq!(y.history().t().collect(), vec![1, 2]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
 
@@ -1125,10 +1127,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![2, 3]);
+        assert_eq!(x.history().t().collect(), vec![2, 3]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.history().t().collect(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -1175,12 +1177,12 @@ mod db_tests {
         assert_eq!(nodes, vec!["Y", "Z"]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![1]);
+        assert_eq!(y.history().t().collect(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
         let x = gg.node("Z").unwrap();
         assert_eq!(x.name(), "Z");
-        assert_eq!(x.history(), vec![1]);
+        assert_eq!(x.history().t().collect(), vec![1]);
 
         assert!(gg.edge("X", "Y").is_none());
 
@@ -1228,10 +1230,10 @@ mod db_tests {
         assert_eq!(nodes, vec!["X", "Y"]);
         let x = gg.node("X").unwrap();
         assert_eq!(x.name(), "X");
-        assert_eq!(x.history(), vec![2, 3]);
+        assert_eq!(x.history().t().collect(), vec![2, 3]);
         let y = gg.node("Y").unwrap();
         assert_eq!(y.name(), "Y");
-        assert_eq!(y.history(), vec![2, 3]);
+        assert_eq!(y.history().t().collect(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
         assert_eq!(y.properties().constant().get("con"), None);
     }
@@ -1439,7 +1441,7 @@ mod db_tests {
             .map_err(|err| error!("{:?}", err))
             .ok();
 
-        assert_eq!(g.latest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 5);
 
         let earliest_times = g
             .edge(1, 2)
@@ -1474,28 +1476,28 @@ mod db_tests {
             .map_err(|err| error!("{:?}", err))
             .ok();
 
-        assert_eq!(g.latest_time(), Some(5));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 5);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         let g = Graph::new();
 
         g.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
-        assert_eq!(g.latest_time(), Some(10));
-        assert_eq!(g.earliest_time(), Some(10));
+        assert_eq!(g.latest_time().unwrap().0, 10);
+        assert_eq!(g.earliest_time().unwrap().0, 10);
 
         g.add_node(5, 1, NO_PROPS, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
-        assert_eq!(g.latest_time(), Some(10));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 10);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         g.add_edge(20, 3, 4, NO_PROPS, None).unwrap();
-        assert_eq!(g.latest_time(), Some(20));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 20);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
 
         random_attachment(&g, 100, 10, None);
-        assert_eq!(g.latest_time(), Some(126));
-        assert_eq!(g.earliest_time(), Some(5));
+        assert_eq!(g.latest_time().unwrap().0, 126);
+        assert_eq!(g.earliest_time().unwrap().0, 5);
     }
 
     #[test]
@@ -1806,6 +1808,7 @@ mod db_tests {
                 .get("cool")
                 .unwrap()
                 .iter()
+                .map(|(x, y)| (x.t(), y))
                 .collect();
             assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
@@ -1817,6 +1820,7 @@ mod db_tests {
                 .get("cool")
                 .unwrap()
                 .iter()
+                .map(|(x, y)| (x.t(), y))
                 .collect();
             assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
         });
@@ -2145,7 +2149,7 @@ mod db_tests {
             res = graph.after(1).edge(1, 2).unwrap().latest_time().unwrap();
             assert_eq!(res, 2);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .edges()
@@ -2154,7 +2158,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .edges()
@@ -2163,7 +2167,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .at(1)
@@ -2173,7 +2177,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![1, 1]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .before(1)
@@ -2183,7 +2187,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .after(1)
@@ -2193,7 +2197,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![2, 2]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .at(1)
@@ -2203,7 +2207,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![1, 1]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .before(1)
@@ -2213,7 +2217,7 @@ mod db_tests {
                 .collect();
             assert_eq!(res_list, vec![0, 0]);
 
-            let res_list: Vec<i64> = graph
+            let res_list: Vec<TimeIndexEntry> = graph
                 .node(1)
                 .unwrap()
                 .after(1)
@@ -2362,13 +2366,14 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
+            let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history().t().collect();
 
             assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
+            let windowed_times_of_farquaad =
+                view.node("Lord Farquaad").unwrap().history().t().collect();
             assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
         });
     }
@@ -2385,13 +2390,13 @@ mod db_tests {
 
         // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
         test_graph(&graph, |graph| {
-            let times_of_one = graph.node(1).unwrap().history();
+            let times_of_one = graph.node(1).unwrap().history().t().collect();
 
             assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
 
             let view = graph.window(1, 8);
 
-            let windowed_times_of_one = view.node(1).unwrap().history();
+            let windowed_times_of_one = view.node(1).unwrap().history().t().collect();
             assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
         });
     }
@@ -2405,10 +2410,22 @@ mod db_tests {
         graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
         graph.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
         test_storage!(&graph, |graph| {
-            let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-            let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+            let times_of_onetwo = graph.edge(1, 2).unwrap().history().t().collect();
+            let times_of_four = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 5)
+                .history()
+                .t()
+                .collect();
             let view = graph.window(2, 5);
-            let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
+            let windowed_times_of_four = view
+                .edge(1, 4)
+                .unwrap()
+                .window(2, 4)
+                .history()
+                .t()
+                .collect();
 
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
@@ -2447,14 +2464,44 @@ mod db_tests {
         graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
         test_storage!(&graph, |graph| {
-            let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-            let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-            let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
-            let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
+            let times_of_onetwo = graph.edge(1, 2).unwrap().history().t().collect();
+            let times_of_four = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 5)
+                .history()
+                .t()
+                .collect();
+            let times_of_outside_window = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(1, 4)
+                .history()
+                .t()
+                .collect();
+            let times_of_four_higher = graph
+                .edge(1, 4)
+                .unwrap()
+                .window(6, 11)
+                .history()
+                .t()
+                .collect();
 
             let view = graph.window(1, 11);
-            let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
-            let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
+            let windowed_times_of_four = view
+                .edge(1, 4)
+                .unwrap()
+                .window(2, 5)
+                .history()
+                .t()
+                .collect();
+            let windowed_times_of_four_higher = view
+                .edge(1, 4)
+                .unwrap()
+                .window(8, 11)
+                .history()
+                .t()
+                .collect();
 
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
@@ -2487,8 +2534,8 @@ mod db_tests {
             .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
+        assert_eq!(g.latest_time().unwrap().0, latest_time);
 
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
@@ -2497,8 +2544,8 @@ mod db_tests {
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
+        assert_eq!(g.latest_time().unwrap().0, latest_time);
     }
 
     #[test]
@@ -2704,7 +2751,7 @@ mod db_tests {
                 .properties()
                 .temporal()
                 .iter()
-                .map(|(k, v)| (k.clone(), v.iter().collect()))
+                .map(|(k, v)| (k.clone(), v.iter().map(|(x, y)| (x.t(), y)).collect()))
                 .collect();
 
             let mut exp = HashMap::new();
@@ -2725,17 +2772,23 @@ mod db_tests {
 
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
-            assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
-            assert_eq!(graph.node(1).unwrap().latest_time(), Some(3));
+            assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().0, 1);
+            assert_eq!(graph.node(1).unwrap().latest_time().unwrap().0, 3);
 
-            assert_eq!(graph.at(2).node(1).unwrap().earliest_time(), Some(2));
-            assert_eq!(graph.at(2).node(1).unwrap().latest_time(), Some(2));
+            assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().0, 2);
+            assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().0, 2);
 
-            assert_eq!(graph.before(2).node(1).unwrap().earliest_time(), Some(1));
-            assert_eq!(graph.before(2).node(1).unwrap().latest_time(), Some(1));
+            assert_eq!(
+                graph.before(2).node(1).unwrap().earliest_time().unwrap().0,
+                2
+            );
+            assert_eq!(graph.before(2).node(1).unwrap().latest_time().unwrap().0, 1);
 
-            assert_eq!(graph.after(2).node(1).unwrap().earliest_time(), Some(3));
-            assert_eq!(graph.after(2).node(1).unwrap().latest_time(), Some(3));
+            assert_eq!(
+                graph.after(2).node(1).unwrap().earliest_time().unwrap().0,
+                3
+            );
+            assert_eq!(graph.after(2).node(1).unwrap().latest_time().unwrap().0, 3);
         })
     }
 
@@ -3224,7 +3277,7 @@ mod db_tests {
                                 ee.earliest_time() == ee.latest_time(),
                                 format!("times mismatched for {:?}", ee),
                             ); // times are the same for exploded edge
-                            let t = ee.earliest_time().unwrap();
+                            let t = ee.earliest_time().unwrap().t();
                             check(
                                 ee.at(t).is_active(),
                                 format!("exploded edge {:?} inactive at {}", ee, t),
@@ -3339,7 +3392,7 @@ mod db_tests {
                 .earliest_time()
                 .flatten()
                 .min();
-            assert_eq!(earliest_time, Some(2));
+            assert_eq!(earliest_time.map(|t| t.t()), Some(2));
 
             // dst and src on edge reset the filter
             let degrees: Vec<_> = v
@@ -3970,7 +4023,7 @@ mod db_tests {
             .unwrap()
             .ordered_dedupe(true)
             .into_iter()
-            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
             .collect_vec();
 
         assert_eq!(
@@ -3992,7 +4045,7 @@ mod db_tests {
             .unwrap()
             .ordered_dedupe(false)
             .into_iter()
-            .map(|(x, y)| (x, y.unwrap_str().to_string()))
+            .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
             .collect_vec();
 
         assert_eq!(

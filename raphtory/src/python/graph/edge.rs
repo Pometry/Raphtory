@@ -9,6 +9,7 @@ use crate::{
         api::{
             properties::Properties,
             view::{
+                history::History,
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
             },
@@ -17,17 +18,26 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    python::{types::repr::Repr, utils::PyTime},
+    python::{graph::history::PyHistory, types::repr::Repr},
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{TimeError, TimeIndexEntry},
+        },
+    },
+    python::timeindex::PyTime,
+};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
+    sync::Arc,
 };
 
 /// PyEdge is a Python class that represents an edge in the graph.
@@ -202,27 +212,8 @@ impl PyEdge {
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
     ///
-    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.edge.history();
-        history.into_pyarray(py)
-    }
-
-    /// Returns the number of times an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///    int: The number of times an edge is added or change to an edge is made.
-    ///
-    pub fn history_counts(&self) -> usize {
-        self.edge.history_counts()
-    }
-
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///     List[datetime]
-    ///
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.edge.history_date_time()
+    pub fn history(&self) -> PyHistory {
+        PyHistory::new(History::new(Arc::new(self.edge.clone())))
     }
 
     /// Returns a list of timestamps of when an edge is deleted
@@ -237,7 +228,7 @@ impl PyEdge {
     ///
     /// Returns:
     ///     List[datetime]
-    pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
+    pub fn deletions_data_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
         self.edge.deletions_date_time()
     }
 
@@ -281,37 +272,19 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     int: The earliest time of an edge
+    ///     RaphtoryTime: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.earliest_time()
-    }
-
-    /// Gets of earliest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the earliest datetime of an edge
-    #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.earliest_date_time()
     }
 
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     int: The latest time of an edge
+    ///     RaphtoryTime: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.latest_time()
-    }
-
-    /// Gets of latest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the latest datetime of an edge
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.latest_date_time()
     }
 
     /// Gets the time of an exploded edge.
@@ -346,7 +319,7 @@ impl PyEdge {
     /// Returns:
     ///     datetime: the datetime of an exploded edge
     #[getter]
-    pub fn date_time(&self) -> Option<DateTime<Utc>> {
+    pub fn date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
         self.edge.date_time()
     }
 }

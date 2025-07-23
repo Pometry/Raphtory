@@ -1,7 +1,13 @@
 use minijinja::{Environment, Value};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
-use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
-use raphtory_api::core::entities::{properties::prop::Prop, GID};
+use raphtory::errors::GraphError;
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        utils::time::IntoTime,
+    },
+    python::timeindex::PyTime,
+};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::collections::HashMap;

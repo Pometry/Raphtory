@@ -4,8 +4,14 @@ use crate::python::client::{
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
-use raphtory_api::core::entities::{properties::prop::Prop, GID};
+use raphtory::errors::GraphError;
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        utils::time::IntoTime,
+    },
+    python::timeindex::PyTime,
+};
 use std::collections::HashMap;
 
 #[derive(Clone)]

@@ -64,14 +64,14 @@ use crate::{
     prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
 };
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::Direction;
+use raphtory_api::{core::Direction, python::timeindex::PyTime};
 use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
