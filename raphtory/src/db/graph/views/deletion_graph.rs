@@ -726,7 +726,13 @@ mod test_deletions {
             [("test".into(), Prop::map([("_default", "test")]))]
         );
         let gw = g.after(1);
-        assert!(gw.edge(1, 2).unwrap().metadata().iter().next().is_none());
+        assert!(gw
+            .edge(1, 2)
+            .unwrap()
+            .metadata()
+            .iter_filtered()
+            .next()
+            .is_none());
         let g_before = g.before(1);
         assert_eq!(
             g_before.edge(1, 2).unwrap().metadata().as_vec(),
