@@ -703,13 +703,13 @@ mod test_index {
 
             let filter = PropertyFilter::property("p1")
                 .eq(5u64)
-                .and(PropertyFilter::property("x").eq(true));
+                .and(PropertyFilter::metadata("x").eq(true));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry"]);
 
             let filter = PropertyFilter::property("e_p1")
                 .lt(5f64)
-                .and(PropertyFilter::property("e_y").eq(false));
+                .and(PropertyFilter::metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
@@ -735,17 +735,17 @@ mod test_index {
 
             let filter = PropertyFilter::property("p1")
                 .eq(5u64)
-                .or(PropertyFilter::property("y").eq(false));
+                .or(PropertyFilter::metadata("y").eq(false));
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["pometry", "raphtory"]);
 
-            let filter = PropertyFilter::property("y").eq(false);
+            let filter = PropertyFilter::metadata("y").eq(false);
             let results = search_nodes(&graph, filter);
             assert_eq!(results, vec!["raphtory"]);
 
             let filter = PropertyFilter::property("e_p1")
                 .lt(5f64)
-                .or(PropertyFilter::property("e_y").eq(false));
+                .or(PropertyFilter::metadata("e_y").eq(false));
             let results = search_edges(&graph, filter);
             assert_eq!(results, vec!["pometry->raphtory", "raphtory->pometry"]);
         }
@@ -849,7 +849,7 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, PropertyFilter::metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -865,7 +865,7 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, PropertyFilter::metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
@@ -887,7 +887,7 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, PropertyFilter::metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
 
             let index_spec = IndexSpecBuilder::new(graph.clone())
@@ -907,7 +907,7 @@ mod test_index {
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
             let results = search_nodes(&graph, PropertyFilter::metadata("y").eq(false));
             assert_eq!(results, vec!["raphtory"]);
-            let results = search_edges(&graph, PropertyFilter::property("e_y").eq(false));
+            let results = search_edges(&graph, PropertyFilter::metadata("e_y").eq(false));
             assert_eq!(results, vec!["raphtory->pometry"]);
         }
 
