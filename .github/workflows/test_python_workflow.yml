@@ -57,12 +57,22 @@ jobs:
         run: |
           python -m pip install pytest tox
           python -m pip install -e examples/netflow
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Run Python tests
         run: |
           cd python && tox run
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
+      - name: Validate graphQL schema
+        run: |
+          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql
+      - name: Update docs from graphQL schema
+        run: |
+          python docs/scripts/gen_docs_graphql_pages.py
       - name: Check for uncommitted changes
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
