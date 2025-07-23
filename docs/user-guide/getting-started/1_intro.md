@@ -104,7 +104,7 @@ To start the Raphtory UI you need to:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-server = graphql.GraphServer("my-test/graphs")
+server = graphql.GraphServer(".idea/my-test/graphs")
 client = server.start().get_client()
 client.send_graph("OBS-graph",g,overwrite=True)
 ```
