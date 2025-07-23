@@ -8,7 +8,7 @@ use crate::segments::{
 pub trait PersistentStrategy: Default + Clone + std::fmt::Debug + Send + Sync + 'static {
     type NS;
     type ES;
-    fn persist_node_page<MP: DerefMut<Target = MemNodeSegment>>(
+    fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_page: &Self::NS,
         writer: MP,
@@ -26,7 +26,7 @@ impl PersistentStrategy for () {
     type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
 
-    fn persist_node_page<MP: DerefMut<Target = MemNodeSegment>>(
+    fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         _node_page: &Self::NS,
         _writer: MP,

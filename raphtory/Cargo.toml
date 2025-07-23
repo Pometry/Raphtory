@@ -128,6 +128,7 @@ io = [
     "dep:parquet",
     "dep:arrow-json",
     "proto",
+    "kdam",
 ]
 
 # search
@@ -145,7 +146,7 @@ vectors = [
     "dep:heed",
     "dep:sysinfo",
     "dep:moka",
-    "dep:tempfile", # also used for the storage feature
+    "dep:tempfile",          # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings
@@ -181,7 +182,7 @@ arrow = [
     "dep:polars-parquet",
     "polars-parquet?/compression",
     "raphtory-api/arrow",
-    "raphtory-core/arrow"
+    "raphtory-core/arrow",
 ]
 
 proto = [

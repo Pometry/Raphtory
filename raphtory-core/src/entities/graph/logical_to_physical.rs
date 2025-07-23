@@ -2,15 +2,20 @@ use crate::{
     entities::nodes::node_store::NodeStore,
     storage::{NodeSlot, UninitialisedEntry},
 };
-use dashmap::mapref::entry::Entry;
+use dashmap::{mapref::entry::Entry, RwLockWriteGuard, SharedValue};
 use either::Either;
+use hashbrown::raw::RawTable;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
     storage::{dict_mapper::MaybeNew, FxDashMap},
 };
+use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::hash::Hash;
+use std::{
+    hash::{BuildHasher, Hash},
+    panic,
+};
 use thiserror::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -41,6 +46,40 @@ impl Map {
             _ => None,
         }
     }
+
+    pub fn run_with_locked<E: Send, FN: Fn(ResolverShard<'_>) -> Result<(), E> + Send + Sync>(
+        &self,
+        work_fn: FN,
+    ) -> Result<(), E> {
+        match self {
+            Map::U64(map) => {
+                let shards = map.shards();
+                shards
+                    .par_iter()
+                    .enumerate()
+                    .try_for_each(|(shard_id, shard)| {
+                        work_fn(ResolverShard::U64(ResolverShardT::new(
+                            shard.write(),
+                            map,
+                            shard_id,
+                        )))
+                    })
+            }
+            Map::Str(map) => {
+                let shards = map.shards();
+                shards
+                    .par_iter()
+                    .enumerate()
+                    .try_for_each(|(shard_id, shard)| {
+                        work_fn(ResolverShard::Str(ResolverShardT::new(
+                            shard.write(),
+                            map,
+                            shard_id,
+                        )))
+                    })
+            }
+        }
+    }
 }
 
 impl Default for Map {
@@ -54,12 +93,101 @@ pub struct Mapping {
     map: OnceCell<Map>,
 }
 
+pub enum ResolverShard<'a> {
+    U64(ResolverShardT<'a, u64>),
+    Str(ResolverShardT<'a, String>),
+}
+
+impl<'a> ResolverShard<'a> {
+    pub fn shard_id(&self) -> usize {
+        match self {
+            ResolverShard::U64(ResolverShardT { shard_id, .. }) => *shard_id,
+            ResolverShard::Str(ResolverShardT { shard_id, .. }) => *shard_id,
+        }
+    }
+
+    pub fn as_u64(&self) -> Option<&ResolverShardT<'a, u64>> {
+        if let ResolverShard::U64(shard) = self {
+            Some(shard)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&ResolverShardT<'a, String>> {
+        if let ResolverShard::Str(shard) = self {
+            Some(shard)
+        } else {
+            None
+        }
+    }
+}
+
+pub struct ResolverShardT<'a, T> {
+    guard: RwLockWriteGuard<'a, RawTable<(T, SharedValue<VID>)>>,
+    map: &'a FxDashMap<T, VID>,
+    shard_id: usize,
+}
+
+impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
+    pub fn new(
+        guard: RwLockWriteGuard<'a, RawTable<(T, SharedValue<VID>)>>,
+        map: &'a FxDashMap<T, VID>,
+        shard_id: usize,
+    ) -> Self {
+        Self {
+            guard,
+            map,
+            shard_id,
+        }
+    }
+    pub fn resolve_node(&mut self, id: &T, next_id: impl FnOnce() -> VID) -> Option<VID> {
+        let shard_ind = self.map.determine_map(id);
+        if shard_ind != self.shard_id {
+            // This shard does not contain the id, return None
+            return None;
+        }
+        let factory = self.map.hasher().clone();
+        let hash = factory.hash_one(id);
+        // let data = (id, SharedValue::new(value))
+
+        match self.guard.get(hash, |(k, _)| k == id) {
+            Some((_, vid)) => {
+                // Node already exists, do nothing
+                Some(*(vid.get()))
+            }
+            None => {
+                // Node does not exist, create it
+                let vid = next_id();
+
+                self.guard
+                    .insert(hash, (id.clone(), SharedValue::new(vid)), |t| {
+                        factory.hash_one(&t.0)
+                    });
+                Some(vid)
+            }
+        }
+    }
+}
+
 impl Mapping {
     pub fn len(&self) -> usize {
         self.map.get().map_or(0, |map| match map {
             Map::U64(map) => map.len(),
             Map::Str(map) => map.len(),
         })
+    }
+
+    pub fn run_with_locked<E: Send, FN: Fn(ResolverShard<'_>) -> Result<(), E> + Send + Sync>(
+        &self,
+        work_fn: FN,
+    ) -> Result<(), E> {
+        let inner_map = self.map.get().unwrap();
+        inner_map.run_with_locked(work_fn)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn dtype(&self) -> Option<GidType> {
@@ -170,8 +298,7 @@ impl Mapping {
             });
             match gid {
                 GidRef::U64(id) => {
-                    map.as_u64()
-                        .ok_or_else(|| InvalidNodeId::InvalidNodeIdU64(id))?;
+                    map.as_u64().ok_or(InvalidNodeId::InvalidNodeIdU64(id))?;
                 }
                 GidRef::Str(id) => {
                     map.as_str()

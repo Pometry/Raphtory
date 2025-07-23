@@ -11,7 +11,6 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
-#[cfg(feature = "python")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -20,7 +19,10 @@ use raphtory_api::{
         storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
     },
 };
-use raphtory_core::storage::timeindex::AsTime;
+use raphtory_core::{
+    entities::{graph::logical_to_physical::Mapping, VID},
+    storage::timeindex::AsTime,
+};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
@@ -30,8 +32,8 @@ use std::{
         Arc,
     },
 };
+use storage::{api::nodes::NodeSegmentOps, resolver::mapping_resolver::MappingResolver};
 
-#[cfg(feature = "python")]
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
         .desc(des)
@@ -233,9 +235,7 @@ pub(crate) fn load_edges_from_df<
                 .map_err(into_graph_err)
         })?;
 
-    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
-    #[cfg(feature = "python")]
     let _ = pb.update(0);
     let mut start_idx = session
         .reserve_event_ids(df_view.num_rows)
@@ -249,7 +249,29 @@ pub(crate) fn load_edges_from_df<
     let cache = graph.get_cache();
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
-    for chunk in df_view.chunks {
+    // set the type of the resolver;
+    let resolver = Mapping::new();
+    let mut chunks = df_view.chunks.peekable();
+
+    if let Some(chunk) = chunks.peek() {
+        if let Ok(chunk) = chunk {
+            let src_col = chunk.node_col(src_index)?;
+            let dst_col = chunk.node_col(dst_index)?;
+            src_col.validate(graph, LoadError::MissingSrcError)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
+            let mut iter = src_col.iter();
+
+            if let Some(id) = iter.next() {
+                graph
+                    .resolve_node(id.as_node_ref())
+                    .map_err(|_| LoadError::FatalError)?; // initialize the type of the resolver
+            }
+        }
+    } else {
+        return Ok(());
+    }
+
+    for chunk in chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
             session
@@ -266,6 +288,10 @@ pub(crate) fn load_edges_from_df<
                     .map_err(into_graph_err)
             },
         )?;
+
+        let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
+        let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
+
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -275,8 +301,19 @@ pub(crate) fn load_edges_from_df<
         let dst_col = df.node_col(dst_index)?;
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
+        let node_count = &write_locked_graph.graph().node_count;
+
+        resolver.run_with_locked(|mut shard| {
+            for id in src_col.iter().chain(dst_col.iter()) {
+                shard.resolve_node(id, || VID(node_count.fetch_add(1, Ordering::Relaxed)));
+                //.map_err(|_| LoadError::FatalError)?;
+            }
+            Ok::<(), LoadError>(())
+        })?;
+
         let time_col = df.time_col(time_index)?;
 
+        let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
         // It's our graph, no one else can change it
         src_col_resolved.resize_with(df.len(), Default::default);
         src_col
@@ -288,6 +325,9 @@ pub(crate) fn load_edges_from_df<
                     .graph()
                     .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
+                if vid.is_new() {
+                    num_nodes.fetch_add(1, Ordering::Relaxed);
+                }
                 if let Some(cache) = cache {
                     cache.resolve_node(vid, gid);
                 }
@@ -305,6 +345,9 @@ pub(crate) fn load_edges_from_df<
                     .graph()
                     .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
+                if vid.is_new() {
+                    num_nodes.fetch_add(1, Ordering::Relaxed);
+                }
                 if let Some(cache) = cache {
                     cache.resolve_node(vid, gid);
                 }
@@ -312,8 +355,7 @@ pub(crate) fn load_edges_from_df<
                 Ok::<(), LoadError>(())
             })?;
 
-        write_locked_graph
-            .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
+        write_locked_graph.resize_chunks_to_num_nodes(num_nodes.load(Ordering::Relaxed));
 
         // resolve all the edges
         eid_col_resolved.resize_with(df.len(), Default::default);
@@ -324,10 +366,14 @@ pub(crate) fn load_edges_from_df<
             AtomicUsize::new(write_locked_graph.graph().internal_num_edges()).into();
         let next_edge_id = || num_edges.fetch_add(1, Ordering::Relaxed);
 
+        let mut per_segment_edge_count = Vec::with_capacity(write_locked_graph.nodes.len());
+        per_segment_edge_count.resize_with(write_locked_graph.nodes.len(), || AtomicUsize::new(0));
+
         write_locked_graph
             .nodes
             .par_iter_mut()
-            .for_each(|locked_page| {
+            .enumerate()
+            .for_each(|(page_id, locked_page)| {
                 for (row, ((((src, src_gid), dst), time), layer)) in src_col_resolved
                     .iter()
                     .zip(src_col.iter())
@@ -359,29 +405,44 @@ pub(crate) fn load_edges_from_df<
                             edge_id.with_layer(*layer),
                             0,
                         ); // FIXME: when we update this to work with layers use the correct layer
+                        per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
                     }
                 }
             });
 
         // link the destinations
-        write_locked_graph.nodes.par_iter_mut().for_each(|shard| {
-            for (row, ((((src, (dst, dst_gid)), eid), time), layer)) in src_col_resolved
-                .iter()
-                .zip(dst_col_resolved.iter().zip(dst_col.iter()))
-                .zip(eid_col_resolved.iter())
-                .zip(time_col.iter())
-                .zip(layer_col_resolved.iter())
-                .enumerate()
-            {
-                if let Some(dst_pos) = shard.resolve_pos(*dst) {
-                    let t = TimeIndexEntry(time, start_idx + row);
-                    let mut writer = shard.writer();
-                    writer.store_node_id(dst_pos, 0, dst_gid, 0);
-                    writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
-                    writer.add_inbound_edge(Some(t), dst_pos, *src, eid.with_layer(*layer), 0);
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(page_id, shard)| {
+                for (row, ((((src, (dst, dst_gid)), eid), time), layer)) in src_col_resolved
+                    .iter()
+                    .zip(dst_col_resolved.iter().zip(dst_col.iter()))
+                    .zip(eid_col_resolved.iter())
+                    .zip(time_col.iter())
+                    .zip(layer_col_resolved.iter())
+                    .enumerate()
+                {
+                    if let Some(dst_pos) = shard.resolve_pos(*dst) {
+                        let t = TimeIndexEntry(time, start_idx + row);
+                        let mut writer = shard.writer();
+                        writer.store_node_id(dst_pos, 0, dst_gid, 0);
+                        writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
+                        writer.add_inbound_edge(Some(t), dst_pos, *src, eid.with_layer(*layer), 0);
+                        per_segment_edge_count[page_id].fetch_add(1, Ordering::Relaxed);
+                    }
                 }
-            }
-        });
+            });
+
+        println!(
+            "Counts per shard: {:?}",
+            per_segment_edge_count
+                .iter()
+                .enumerate()
+                .filter(|(_, count)| count.load(Ordering::Relaxed) > 0)
+                .collect::<Vec<_>>()
+        );
 
         write_locked_graph.resize_chunks_to_num_edges(num_edges.load(Ordering::Relaxed));
 
@@ -427,7 +488,6 @@ pub(crate) fn load_edges_from_df<
         }
 
         start_idx += df.len();
-        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok(())

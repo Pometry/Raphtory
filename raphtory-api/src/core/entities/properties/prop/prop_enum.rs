@@ -195,7 +195,7 @@ impl Prop {
                     .reduce(|a, b| unify_types(&a?, &b?, &mut false))
                     .transpose()
                     .map(|e| e.unwrap_or(PropType::Empty))
-                    .unwrap_or_else(|e| panic!("Cannot unify types for list {:?}: {e:?}", list));
+                    .unwrap_or_else(|e| panic!("Cannot unify types for list {list:?}: {e:?}"));
                 PropType::List(Box::new(list_type))
             }
             Prop::Map(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),

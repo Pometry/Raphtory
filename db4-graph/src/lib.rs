@@ -32,8 +32,8 @@ use tempfile::TempDir;
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: usize = 10;
-const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 10;
+const DEFAULT_MAX_PAGE_LEN_NODES: usize = 50_000;
+const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 50_000;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
@@ -139,7 +139,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn new_with_meta(graph_dir: GraphDir, node_meta: Meta, edge_meta: Meta) -> Self {
-        edge_meta.get_or_create_layer_id(Some("static_graph"));
+        edge_meta.get_or_create_layer_id(Some("staticgraph"));
+        node_meta.get_or_create_layer_id(Some("staticgraph"));
         std::fs::create_dir_all(&graph_dir)
             .unwrap_or_else(|_| panic!("Failed to create graph directory at {graph_dir:?}"));
 
@@ -200,7 +201,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
-        self.storage.nodes().layer_num_nodes(0)
+        self.logical_to_physical.len()
     }
 
     #[inline]

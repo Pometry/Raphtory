@@ -24,6 +24,7 @@ pub mod additions;
 pub mod edge_entry;
 pub mod node_entry;
 
+#[derive(serde::Serialize)]
 pub struct SegmentContainer<T> {
     segment_id: usize,
     items: BitVec<u8, Msb0>,
@@ -41,8 +42,8 @@ impl<T: Debug> Debug for SegmentContainer<T> {
             .iter()
             .map(|x| if *x { 1 } else { 0 })
             .collect::<Vec<_>>();
-        let mut data = self.data.iter().map(|(k, v)| (k, v)).collect::<Vec<_>>();
-        data.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut data = self.data.iter().collect::<Vec<_>>();
+        data.sort_by(|a, b| a.0.cmp(b.0));
 
         f.debug_struct("SegmentContainer")
             .field("page_id", &self.segment_id)
@@ -75,9 +76,13 @@ impl<T: HasRow> SegmentContainer<T> {
 
     #[inline]
     pub fn est_size(&self) -> usize {
-        //FIXME: this is a rough estimate and should be improved
+        //TODO: this is a rough estimate and should be improved
         let data_size = (self.data.len() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
-        data_size + self.t_prop_est_size() + self.c_prop_est_size()
+        let timestamp_size = std::mem::size_of::<TimeIndexEntry>();
+        (self.properties.additions_count * timestamp_size)
+            + data_size
+            + self.t_prop_est_size()
+            + self.c_prop_est_size()
     }
 
     pub fn get(&self, item_pos: &LocalPOS) -> Option<&T> {
@@ -100,6 +105,10 @@ impl<T: HasRow> SegmentContainer<T> {
         self.properties.t_len()
     }
 
+    /// Reserves a local row for the given item position.
+    /// If the item position already exists, it returns a mutable reference to the existing item.
+    /// Left variant indicates that the item was already present,
+    /// Right variant indicates that a new item was created.
     pub(crate) fn reserve_local_row(&mut self, item_pos: LocalPOS) -> Either<&mut T, &mut T> {
         let local_row = self.data.len();
         self.set_item(item_pos);

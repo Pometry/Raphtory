@@ -46,16 +46,24 @@ impl Adj {
         }
     }
 
-    pub fn add_edge_into(&mut self, v: VID, e: EID) {
+    pub fn add_edge_into(&mut self, v: VID, e: EID) -> bool {
         match self {
-            Adj::Solo => *self = Self::new_into(v, e),
+            Adj::Solo => {
+                *self = Self::new_into(v, e);
+                true
+            }
             Adj::List { into, .. } => into.push(v, e),
         }
     }
 
-    pub fn add_edge_out(&mut self, v: VID, e: EID) {
+    /// Adds an edge in the out direction, creating a new adjacency if necessary.
+    /// Returns `true` if the edge was added, `false` if it already exists.
+    pub fn add_edge_out(&mut self, v: VID, e: EID) -> bool {
         match self {
-            Adj::Solo => *self = Self::new_out(v, e),
+            Adj::Solo => {
+                *self = Self::new_out(v, e);
+                true
+            }
             Adj::List { out, .. } => out.push(v, e),
         }
     }

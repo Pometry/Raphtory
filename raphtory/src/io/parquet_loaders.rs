@@ -94,23 +94,55 @@ pub fn load_edges_from_parquet<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
-        df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_from_df(
-            df_view,
-            time,
-            src,
-            dst,
-            properties,
-            constant_properties,
-            shared_constant_properties,
-            layer,
-            layer_col,
-            graph,
-        )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+    let all_files = get_parquet_file_paths(parquet_path)?
+        .into_iter()
+        .map(|file| {
+            let (names, _, num_rows) =
+                read_parquet_file(file, (!cols_to_check.is_empty()).then_some(&cols_to_check))?;
+            Ok::<_, GraphError>((names, num_rows))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let mut count_rows = 0;
+    let mut all_names = Vec::new();
+    for (names, num_rows) in all_files {
+        count_rows += num_rows;
+        if all_names.is_empty() {
+            all_names = names;
+        } else if all_names != names {
+            return Err(GraphError::LoadFailure(
+                "Parquet files have different column names".to_string(),
+            ));
+        }
     }
+
+    let all_df_view = get_parquet_file_paths(parquet_path)?
+        .into_iter()
+        .flat_map(|file| {
+            let df_view = process_parquet_file_to_df(file.as_path(), Some(&cols_to_check))
+                .expect("Failed to process Parquet file");
+            df_view.chunks
+        });
+
+    let df_view = DFView {
+        names: all_names,
+        chunks: all_df_view,
+        num_rows: count_rows,
+    };
+
+    load_edges_from_df(
+        df_view,
+        time,
+        src,
+        dst,
+        properties,
+        constant_properties,
+        shared_constant_properties,
+        layer,
+        layer_col,
+        graph,
+    )
+    .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
 
     Ok(())
 }
@@ -254,9 +286,9 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = chunks.into_iter().map(move |result| {
-        result.map(|r| DFChunk { chunk: r.to_vec() }).map_err(|e| {
-            GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
-        })
+        result
+            .map(|r| DFChunk { chunk: r.to_vec() })
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {e:?}")))
     });
 
     Ok(DFView {

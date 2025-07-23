@@ -16,7 +16,7 @@ use raphtory_core::{
 
 pub mod props_meta_writer;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, serde::Serialize)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
 
@@ -30,6 +30,7 @@ pub struct Properties {
     has_node_additions: bool,
     has_node_properties: bool,
     has_deletions: bool,
+    pub additions_count: usize,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -255,6 +256,7 @@ impl Properties {
     }
 
     fn update_earliest_latest(&mut self, t: TimeIndexEntry) {
+        self.additions_count += 1;
         let earliest = self.earliest.get_or_insert(t);
         if t < *earliest {
             *earliest = t;
@@ -324,6 +326,7 @@ impl<'a> PropMutEntry<'a> {
 
         let prop_timestamps = &mut self.properties.deletions[self.row];
         prop_timestamps.set(t, edge_id.unwrap_or_default());
+        self.properties.update_earliest_latest(t);
     }
 
     pub(crate) fn append_const_props<B: Borrow<(usize, Prop)>>(

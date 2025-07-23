@@ -24,7 +24,7 @@ use std::{
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
-    layer_counter: Arc<GraphStats>,
+    stats: Arc<GraphStats>,
     nodes_path: PathBuf,
     max_page_len: usize,
     node_meta: Arc<Meta>,
@@ -97,7 +97,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     ) -> Self {
         Self {
             pages: boxcar::Vec::new(),
-            layer_counter: GraphStats::new().into(),
+            stats: GraphStats::new().into(),
             nodes_path: nodes_path.as_ref().to_path_buf(),
             max_page_len,
             node_meta,
@@ -117,7 +117,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                 .map(|(page_id, page)| {
                     LockedNodePage::new(
                         page_id,
-                        &self.layer_counter,
+                        &self.stats,
                         self.max_page_len,
                         page.as_ref(),
                         page.head_mut(),
@@ -128,7 +128,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn num_layers(&self) -> usize {
-        self.layer_counter.len()
+        self.stats.len()
     }
 
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
@@ -151,19 +151,19 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     ) -> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
         let segment = self.get_or_create_segment(segment_id);
         let head = segment.head_mut();
-        NodeWriter::new(segment, &self.layer_counter, head)
+        NodeWriter::new(segment, &self.stats, head)
     }
 
     pub fn num_nodes(&self) -> usize {
-        self.layer_counter.get(0)
+        self.stats.get(0)
     }
 
     pub fn layer_num_nodes(&self, layer_id: usize) -> usize {
-        self.layer_counter.get(layer_id)
+        self.stats.get(layer_id)
     }
 
     pub fn stats(&self) -> &Arc<GraphStats> {
-        &self.layer_counter
+        &self.stats
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<NS>> {
@@ -257,7 +257,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             pages,
             nodes_path: nodes_path.to_path_buf(),
             max_page_len,
-            layer_counter: GraphStats::from(layer_counts).into(),
+            stats: GraphStats::from(layer_counts).into(),
             node_meta,
             edge_meta,
             ext,

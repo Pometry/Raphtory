@@ -262,7 +262,7 @@ impl NodeStore {
         }
     }
 
-    pub fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) {
+    pub fn add_edge(&mut self, v_id: VID, dir: Direction, layer: usize, edge_id: EID) -> bool {
         if layer >= self.layers.len() {
             self.layers.resize_with(layer + 1, || Adj::Solo);
         }
@@ -270,7 +270,7 @@ impl NodeStore {
         match dir {
             Direction::IN => self.layers[layer].add_edge_into(v_id, edge_id),
             Direction::OUT => self.layers[layer].add_edge_out(v_id, edge_id),
-            _ => {}
+            _ => false,
         }
     }
 

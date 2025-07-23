@@ -1,7 +1,7 @@
 use crate::{errors::LoadError, io::arrow::dataframe::DFChunk, prelude::AdditionOps};
 use arrow_array::{Array as ArrowArray, Int32Array, Int64Array};
 use polars_arrow::{
-    array::{Array, PrimitiveArray, StaticArray, Utf8Array},
+    array::{Array, PrimitiveArray, StaticArray, Utf8Array, Utf8ViewArray},
     datatypes::ArrowDataType,
     offset::Offset,
 };
@@ -82,6 +82,32 @@ impl NodeColOps for PrimitiveArray<i32> {
     fn null_count(&self) -> usize {
         Array::null_count(self)
     }
+    fn len(&self) -> usize {
+        Array::len(self)
+    }
+}
+
+impl NodeColOps for Utf8ViewArray {
+    fn get(&self, i: usize) -> Option<GidRef> {
+        if i >= self.len() {
+            None
+        } else {
+            // safety: bounds checked above
+            unsafe {
+                let value = self.value_unchecked(i);
+                Some(GidRef::Str(value))
+            }
+        }
+    }
+
+    fn dtype(&self) -> GidType {
+        GidType::Str
+    }
+
+    fn null_count(&self) -> usize {
+        Array::null_count(self)
+    }
+
     fn len(&self) -> usize {
         Array::len(self)
     }
@@ -304,6 +330,14 @@ impl<'a> TryFrom<&'a dyn Array> for NodeCol {
                 let col = value
                     .as_any()
                     .downcast_ref::<Utf8Array<i64>>()
+                    .unwrap()
+                    .clone();
+                Ok(NodeCol(Box::new(col)))
+            }
+            ArrowDataType::Utf8View => {
+                let col = value
+                    .as_any()
+                    .downcast_ref::<Utf8ViewArray>()
                     .unwrap()
                     .clone();
                 Ok(NodeCol(Box::new(col)))
