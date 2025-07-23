@@ -94,10 +94,16 @@ install-mkdocs:
 install-doc-deps:
 	pip install -r docs/requirements.txt
 
-gen-doc-pages: install-doc-deps
+gen-graphql-schema:
+	raphtory schema > raphtory-graphql/schema.graphql
+
+test-graphql-schema: install-node-tools
+	npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql
+
+gen-py-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
 
-gen-graphql-pages: install-node-tools
+gen-graphql-doc-pages: install-node-tools gen-graphql-schema
 	python docs/scripts/gen_docs_graphql_pages.py
 
 clean-doc-pages:
