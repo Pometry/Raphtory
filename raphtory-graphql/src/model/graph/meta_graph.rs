@@ -56,7 +56,7 @@ impl From<GraphMetadata> for GqlGraphMetadata {
             node_count: metadata.node_count,
             edge_count: metadata.edge_count,
             properties: metadata
-                .properties
+                .metadata
                 .into_iter()
                 .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
                 .collect(),
