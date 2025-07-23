@@ -63,3 +63,22 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
+      - name: Run python cleanup tasks
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: make python-tidy-no-build
+      - name: Validate graphql schema
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: make test-graphql-schema
+      - name: Check for uncommitted changes
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Changes detected. Committing and pushing..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "chore: apply tidy-public auto-fixes"
+            git push
+          else
+            echo "No changes to commit."
+          fi
