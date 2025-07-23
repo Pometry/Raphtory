@@ -80,6 +80,12 @@ rust-test-all-public:
 install-python:
 	cd python && maturin build && pip install ../target/wheels/*.whl
 
+build-python-public: deactivate-storage
+	cd python && maturin develop -r --extras=dev
+
+build-python: activate-storage
+	cd python && maturin develop -r --features=storage --extras=dev
+
 # Testing
 
 python-test: activate-storage
@@ -91,17 +97,11 @@ python-test-public:
 python-fmt:
 	cd python && black .
 
-build-python-public: deactivate-storage
-	cd python && maturin develop -r --extras=dev
-
 debug-python-public: deactivate-storage
 	cd python && maturin develop --profile=debug
 
 build-python-rtd:
 	cd python && maturin build --profile=build-fast && pip install ../target/wheels/*.whl
-
-build-python: activate-storage
-	cd python && maturin develop -r --features=storage --extras=dev
 
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
@@ -138,6 +138,8 @@ python-docs-serve: install-doc-deps
 
 python-docs-build: install-doc-deps
 	mkdocs build
+
+# Testing
 
 run-docs-tests: install-doc-deps clean-doc-pages
 	cd docs/user-guide && \
