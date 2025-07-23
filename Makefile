@@ -81,6 +81,13 @@ build-python: activate-storage
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
 
+install-node-tools:
+	@if command -v npx >/dev/null 2>&1; then \
+		echo "npx is already installed."; \
+	else \
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && nvm install node; \
+	fi
+
 install-mkdocs:
 	pip install mkdocs
 
@@ -89,6 +96,9 @@ install-doc-deps:
 
 gen-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
+
+gen-graphql-pages: install-node-tools
+	python docs/scripts/gen_docs_graphql_pages.py
 
 clean-doc-pages:
 	rm -rf docs/reference && rm -rf docs/tmp/saved_graph
