@@ -81,7 +81,7 @@ build-python: activate-storage
 debug-python: activate-storage
 	cd python && maturin develop --features=storage --extras=dev
 
-python-tidy-no-build: stubs python-fmt gen-graphql-schema
+python-tidy: stubs python-fmt gen-graphql-schema
 
 install-node-tools:
 	@if command -v npx >/dev/null 2>&1; then \

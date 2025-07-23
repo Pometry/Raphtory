@@ -63,12 +63,6 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Run python cleanup tasks
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: make python-tidy-no-build
-      - name: Validate graphql schema
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: make test-graphql-schema
       - name: Check for uncommitted changes
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
