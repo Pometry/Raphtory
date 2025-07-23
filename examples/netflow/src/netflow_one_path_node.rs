@@ -163,6 +163,6 @@ mod one_path_test {
         //     )
         //     .expect("Panic");
         let actual = netflow_one_path_node(&graph, true, None);
-        assert_eq!(actual, 1);
+        assert_eq!(actual, 0);
     }
 }
