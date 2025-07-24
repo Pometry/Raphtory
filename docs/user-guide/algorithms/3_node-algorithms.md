@@ -27,7 +27,7 @@ results = rp.pagerank(lotr_graph)
 
 # Getting the results for an individual character (Gandalf)
 gandalf_rank = results.get("Gandalf")
-print(f"Gandalf's ranking is {gandalf_rank}\n")
+print(f"Gandalf's ranking is {round(gandalf_rank, 5)}\n")
 
 # Getting the top 5 most important characters and printing out their scores
 top_5 = results.top_k(5)
@@ -37,7 +37,7 @@ for rank, (node, score) in enumerate(top_5.items(),1):
 ///
 
 ```{.python continuation hide}
-assert str(f"Gandalf's ranking is {gandalf_rank}") == "Gandalf's ranking is 0.015810830531114206"
+assert str(f"Gandalf's ranking is {round(gandalf_rank, 5)}") == "Gandalf's ranking is 0.01581"
 ```
 
 !!! Output

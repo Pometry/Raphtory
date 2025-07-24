@@ -17,5 +17,6 @@ build:
       - pip install mkdocs
       - pip install -r docs/requirements.txt
 
+
 mkdocs:
   configuration: mkdocs.yml
