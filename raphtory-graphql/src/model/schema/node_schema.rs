@@ -50,7 +50,7 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let mut keys: Vec<String> = self
+        let keys: Vec<String> = self
             .graph
             .node_meta()
             .temporal_prop_mapper()
@@ -104,7 +104,7 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        let mut keys: Vec<String> = self
+        let keys: Vec<String> = self
             .graph
             .node_meta()
             .metadata_mapper()
