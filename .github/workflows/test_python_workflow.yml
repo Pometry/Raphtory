@@ -80,10 +80,9 @@ jobs:
             echo "Changes detected. Committing and pushing..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            branch_name=$(git branch --show-current)
             git add .
             git commit -m "chore: apply tidy-public auto-fixes"
-            git push origin HEAD:$branch_name
+            git push origin HEAD
           else
             echo "No changes to commit."
           fi
