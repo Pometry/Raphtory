@@ -15,6 +15,7 @@ use std::{
     sync::Arc,
 };
 
+mod base_filter;
 mod edge_filter_ops;
 mod filter_ops;
 mod into_dynamic;
@@ -23,7 +24,6 @@ mod materialize;
 mod node_filter_ops;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
-mod base_filter;
 
 pub use base_filter::*;
 pub use edge_filter_ops::*;

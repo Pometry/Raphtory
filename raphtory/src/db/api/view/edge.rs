@@ -612,7 +612,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 mod test_edge_view {
     use crate::{prelude::*, test_storage, test_utils::test_graph};
     use std::string::ToString;
-    
+
     #[test]
     fn test_exploded_edge_properties() {
         let graph = Graph::new();

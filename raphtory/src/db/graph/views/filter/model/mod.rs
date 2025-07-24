@@ -6,14 +6,13 @@ use crate::{
         node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
         not_filter::NotFilter,
         or_filter::OrFilter,
-        property_filter::{PropertyFilter, PropertyFilterBuilder},
+        property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
     },
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
-use crate::db::graph::views::filter::model::property_filter::MetadataFilterBuilder;
 
 pub mod and_filter;
 pub mod edge_filter;

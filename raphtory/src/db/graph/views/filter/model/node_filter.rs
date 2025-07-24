@@ -5,7 +5,7 @@ use crate::{
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                property_filter::{PropertyFilter, PropertyFilterBuilder},
+                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
                 AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
                 TryAsCompositeFilter,
             },
@@ -15,7 +15,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
-use crate::db::graph::views::filter::model::property_filter::MetadataFilterBuilder;
 
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);

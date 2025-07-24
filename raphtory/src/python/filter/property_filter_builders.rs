@@ -1,15 +1,22 @@
 use crate::{
+    db::graph::views::filter::{
+        internal::CreateFilter,
+        model::{
+            edge_filter::{EdgeFilter, ExplodedEdgeFilter},
+            node_filter::NodeFilter,
+            property_filter::{
+                MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps,
+                TemporalPropertyFilterBuilder,
+            },
+            TryAsCompositeFilter,
+        },
+    },
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
-use crate::db::graph::views::filter::internal::CreateFilter;
-use crate::db::graph::views::filter::model::edge_filter::{EdgeFilter, ExplodedEdgeFilter};
-use crate::db::graph::views::filter::model::node_filter::NodeFilter;
-use crate::db::graph::views::filter::model::property_filter::{MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder};
-use crate::db::graph::views::filter::model::TryAsCompositeFilter;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
@@ -287,7 +294,9 @@ impl PyPropertyFilterBuilder {
 pub struct PyMetadataFilterBuilder;
 
 impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
-where PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,{
+where
+    PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
+{
     type Target = PyMetadataFilterBuilder;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;

@@ -27,7 +27,11 @@ pub struct NodePropertyFilteredGraph<G> {
 }
 
 impl<G> NodePropertyFilteredGraph<G> {
-    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter<NodeFilter>) -> Self {
+    pub(crate) fn new(
+        graph: G,
+        prop_id: Option<usize>,
+        filter: PropertyFilter<NodeFilter>,
+    ) -> Self {
         Self {
             graph,
             prop_id,

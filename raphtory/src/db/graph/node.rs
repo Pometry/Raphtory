@@ -1,32 +1,30 @@
 //! Defines the `Node` struct, which represents a node in the graph.
-use crate::db::api::view::internal::BaseFilter;
 use crate::{
-    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
+    core::{
+        entities::{
+            edges::edge_ref::EdgeRef,
+            nodes::node_ref::{AsNodeRef, NodeRef},
+            VID,
+        },
+        utils::iter::GenLockedIter,
+    },
     db::{
         api::{
             mutation::{time_from_input, CollectProperties, TryIntoInputTime},
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
+            state::NodeOp,
             view::{
-                internal::{GraphTimeSemanticsOps, Static},
-                BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
+                internal::{BaseFilter, GraphTimeSemanticsOps, NodeTimeSemanticsOps, Static},
+                BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
             },
         },
-        graph::path::PathFromNode,
-    },
-    prelude::*,
-};
-use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::iter::GenLockedIter},
-    db::{
-        api::{
-            state::NodeOp,
-            view::{internal::NodeTimeSemanticsOps, DynamicGraph, IntoDynamic},
-        },
-        graph::edges::Edges,
+        graph::{edges::Edges, path::PathFromNode},
     },
     errors::{into_graph_err, GraphError},
+    prelude::*,
 };
 use raphtory_api::core::{
     entities::properties::prop::PropType,

@@ -28,7 +28,11 @@ pub struct EdgePropertyFilteredGraph<G> {
 }
 
 impl<G> EdgePropertyFilteredGraph<G> {
-    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter<EdgeFilter>) -> Self {
+    pub(crate) fn new(
+        graph: G,
+        prop_id: Option<usize>,
+        filter: PropertyFilter<EdgeFilter>,
+    ) -> Self {
         Self {
             graph,
             prop_id,
