@@ -353,7 +353,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
         assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
-        
+
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
                 let a_type = a["propertyType"].as_str().unwrap_or("");
@@ -1507,7 +1507,7 @@ mod graphql_test {
         metadata {
           nodeCount
           edgeCount
-          properties {
+          metadata {
             key
             value
           }
@@ -1542,7 +1542,7 @@ mod graphql_test {
                             "metadata": {
                                 "nodeCount": 6,
                                 "edgeCount": 6,
-                                "properties": [
+                                "metadata": [
                                     {
                                         "key": "name",
                                         "value": "graph"
@@ -1585,7 +1585,7 @@ mod graphql_test {
         metadata {
           nodeCount
           edgeCount
-          properties {
+          metadata {
             key
             value
           }
@@ -1640,7 +1640,7 @@ mod graphql_test {
                             "metadata": {
                                 "nodeCount": 6,
                                 "edgeCount": 6,
-                                "properties": [
+                                "metadata": [
                                     {
                                         "key": "name",
                                         "value": "graph"
