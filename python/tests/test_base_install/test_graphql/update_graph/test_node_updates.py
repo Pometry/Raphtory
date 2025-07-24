@@ -2,6 +2,8 @@ import tempfile
 from datetime import datetime, timezone
 import pytest
 from dateutil import parser
+
+from utils import assert_has_properties, assert_has_metadata
 from raphtory.graphql import GraphServer, RaphtoryClient
 from numpy.testing import assert_equal as check_arr
 
@@ -32,15 +34,6 @@ def make_props():
     }
 
 
-def helper_test_props(entity, props):
-    for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
-
-
 def test_set_node_type():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
@@ -68,7 +61,7 @@ def test_add_updates():
         node.add_updates(3)
         rg.node("ben").add_updates(4)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.node("ben"), props)
+        assert_has_properties(g.node("ben"), props)
         check_arr(g.node("ben").history(), [1, 2, 3, 4])
 
 
@@ -82,7 +75,7 @@ def test_add_metadata():
         node = rg.add_node(1, "ben")
         node.add_metadata(props)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.node("ben"), props)
+        assert_has_metadata(g.node("ben"), props)
 
         with pytest.raises(Exception) as excinfo:
             rg.node("ben").add_metadata({"prop_float": 3.0})
@@ -99,8 +92,8 @@ def test_update_metadata():
         node = rg.add_node(1, "ben")
         node.update_metadata(props)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.node("ben"), props)
+        assert_has_metadata(g.node("ben"), props)
 
         rg.node("ben").update_metadata({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
-        assert g.node("ben").properties.get("prop_float") == 3.0
+        assert g.node("ben").metadata.get("prop_float") == 3.0

@@ -179,7 +179,7 @@ def test_search_nodes_for_property_eq():
 
     filter_expr = filter.Property("p1") == 1
     results = search_nodes(g, filter_expr)
-    assert ["N1", "N14", "N15", "N3", "N4", "N6", "N7"] == results
+    assert ["N1", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_ne():
@@ -194,8 +194,6 @@ def test_search_nodes_for_property_ne():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N3",
         "N4",
         "N6",
@@ -260,8 +258,6 @@ def test_search_nodes_for_property_is_not_in():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N3",
         "N4",
         "N6",
@@ -281,8 +277,6 @@ def test_search_nodes_for_property_is_some():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N2",
         "N3",
         "N4",
@@ -889,8 +883,6 @@ def test_search_edges_for_property_eq():
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -910,8 +902,6 @@ def test_search_edges_for_property_ne():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -997,8 +987,6 @@ def test_search_edges_for_property_is_not_in():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -1018,8 +1006,6 @@ def test_search_edges_for_property_is_some():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N2", "N3"),
         ("N3", "N4"),
         ("N4", "N5"),

@@ -26,7 +26,7 @@ def test_create_index_with_custom_spec(graph):
                 path: "g"
                 indexSpec: {
                   nodeProps: { all: ALL }
-                  edgeProps: { all: ALL_CONSTANT }
+                  edgeProps: { all: ALL_METADATA }
                 }
                 inRam: true
               )
@@ -39,10 +39,10 @@ def test_create_index_with_custom_spec(graph):
             query {
               graph(path: "g") {
                 getIndexSpec {
-                  nodeConstProps
-                  nodeTempProps
-                  edgeConstProps
-                  edgeTempProps
+                  nodeMetadata
+                  nodeProperties
+                  edgeMetadata
+                  edgeProperties
                 }
               }
             }
@@ -50,10 +50,10 @@ def test_create_index_with_custom_spec(graph):
             {
                 "graph": {
                     "getIndexSpec": {
-                        "nodeConstProps": ["p1"],
-                        "nodeTempProps": ["p1", "q1"],
-                        "edgeConstProps": ["p1"],
-                        "edgeTempProps": [],
+                        "nodeMetadata": ["p1"],
+                        "nodeProperties": ["p1", "q1"],
+                        "edgeMetadata": ["p1"],
+                        "edgeProperties": [],
                     }
                 }
             },
@@ -82,10 +82,10 @@ def test_create_index_with_default_spec(graph):
             query {
               graph(path: "g") {
                 getIndexSpec {
-                  nodeConstProps
-                  nodeTempProps
-                  edgeConstProps
-                  edgeTempProps
+                  nodeMetadata
+                  nodeProperties
+                  edgeMetadata
+                  edgeProperties
                 }
               }
             }
@@ -93,10 +93,10 @@ def test_create_index_with_default_spec(graph):
             {
                 "graph": {
                     "getIndexSpec": {
-                        "edgeConstProps": ["p1"],
-                        "edgeTempProps": ["p1", "q1"],
-                        "nodeConstProps": ["p1"],
-                        "nodeTempProps": ["p1", "q1"],
+                        "edgeMetadata": ["p1"],
+                        "edgeProperties": ["p1", "q1"],
+                        "nodeMetadata": ["p1"],
+                        "nodeProperties": ["p1", "q1"],
                     }
                 }
             },
@@ -140,9 +140,9 @@ def test_create_index_using_client(graph):
         }
 
         spec = RemoteIndexSpec(
-            node_props=PropsInput(all=AllPropertySpec.AllConstant),
+            node_props=PropsInput(all=AllPropertySpec.AllMetadata),
             edge_props=PropsInput(
-                some=SomePropertySpec(constant=["p1"], temporal=["q1"])
+                some=SomePropertySpec(metadata=["p1"], properties=["q1"])
             ),
         )
         client.create_index("g", spec, in_ram=True)
@@ -150,10 +150,10 @@ def test_create_index_using_client(graph):
         query = """query {
                      graph(path: "g") {
                        getIndexSpec {
-                         nodeConstProps
-                         nodeTempProps
-                         edgeConstProps
-                         edgeTempProps
+                         nodeMetadata
+                         nodeProperties
+                         edgeMetadata
+                         edgeProperties
                        }
                      }
                    }
@@ -161,10 +161,10 @@ def test_create_index_using_client(graph):
         assert client.query(query) == {
             "graph": {
                 "getIndexSpec": {
-                    "edgeConstProps": ["p1"],
-                    "edgeTempProps": ["q1"],
-                    "nodeConstProps": ["p1"],
-                    "nodeTempProps": [],
+                    "edgeMetadata": ["p1"],
+                    "edgeProperties": ["q1"],
+                    "nodeMetadata": ["p1"],
+                    "nodeProperties": [],
                 }
             }
         }

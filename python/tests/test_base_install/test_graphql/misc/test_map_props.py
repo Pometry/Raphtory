@@ -40,13 +40,13 @@ def test_map_props():
 def check_test_prop(client: RaphtoryClient):
     query = """{
         graph(path: "test") {
-            properties {
+            metadata {
                 get(key: "test") {
                     value
                 }
             }
             node(name: "test") {
-                properties {
+                metadata {
                     get(key: "test") {
                         value
                     }
@@ -55,5 +55,5 @@ def check_test_prop(client: RaphtoryClient):
         }
     }"""
     result = client.query(query)
-    assert result["graph"]["properties"]["get"]["value"] == TEST_PROPS
-    assert result["graph"]["node"]["properties"]["get"]["value"] == TEST_PROPS
+    assert result["graph"]["metadata"]["get"]["value"] == TEST_PROPS
+    assert result["graph"]["node"]["metadata"]["get"]["value"] == TEST_PROPS

@@ -4,7 +4,7 @@ from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
-from utils import assert_set_eq
+from utils import assert_set_eq, assert_has_metadata, assert_has_properties
 
 
 def make_props():
@@ -33,15 +33,6 @@ def make_props():
     }
 
 
-def helper_test_props(entity, props):
-    for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
-
-
 def test_add_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
@@ -51,7 +42,7 @@ def test_add_metadata():
         props = make_props()
         rg.add_metadata(props)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g, props)
+        assert_has_metadata(g, props)
 
         with pytest.raises(Exception) as excinfo:
             rg.add_metadata({"prop_float": 3.0})
@@ -68,11 +59,11 @@ def test_update_metadata():
 
         rg.update_metadata(props)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g, props)
+        assert_has_metadata(g, props)
 
         rg.update_metadata({"prop_float": 3.0})
         g = client.receive_graph("path/to/event_graph")
-        assert g.properties.get("prop_float") == 3.0
+        assert g.metadata.get("prop_float") == 3.0
 
 
 def test_add_properties():
@@ -88,7 +79,7 @@ def test_add_properties():
         rg.add_property(current_datetime, props)
         rg.add_property(naive_datetime, props)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g, props)
+        assert_has_properties(g, props)
 
         localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
         timestamps = [
@@ -113,7 +104,7 @@ def test_add_node():
         rg.add_node(current_datetime, "hamza", node_type="person")
         g = client.receive_graph("path/to/event_graph")
         assert g.node("ben").node_type == "person"
-        helper_test_props(g.node("ben"), props)
+        assert_has_properties(g.node("ben"), props)
 
         assert g.node("hamza").node_type == "person"
         assert g.node("1") is not None
@@ -132,7 +123,7 @@ def test_add_edge():
         rg.add_edge(3, "shivam", "lucas", properties=props)
 
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.edge("ben", "hamza"), props)
+        assert_has_properties(g.edge("ben", "hamza"), props)
 
         assert_set_eq(g.unique_layers, ["_default", "friends", "colleagues"])
         assert g.layer("friends").count_edges() == 1

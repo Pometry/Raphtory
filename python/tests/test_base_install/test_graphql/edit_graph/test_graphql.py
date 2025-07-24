@@ -328,61 +328,57 @@ def test_graph_properties_query():
                         history
                       }
                     }
-                    constant {
-                      values(keys:["prop5"]) {
-                        key
-                        value
-                      }
-                    }
+                  }
+                metadata {
+                  values(keys:["prop5"]) {
+                    key
+                    value
                   }
                 }
+              }
             }
           }
         }
         """
-        r = """
-        {
+        r = {
             "graph": {
-              "nodes": {
-                "list": [
-                  {
-                    "properties": {
-                      "values": [{ "key": "prop1", "asString": "val3" }],
-                      "temporal": {
-                        "values": [{"key": "prop2", "history": [1, 2, 3]}]
-                      },
-                      "constant": {
-                        "values": [{"key": "prop5", "value": "val4"}]
-                      }
-                    }
-                  }
-                ]
-              }
+                "nodes": {
+                    "list": [
+                        {
+                            "properties": {
+                                "values": [{"key": "prop1", "asString": "val3"}],
+                                "temporal": {
+                                    "values": [{"key": "prop2", "history": [1, 2, 3]}]
+                                },
+                            },
+                            "metadata": {"values": [{"key": "prop5", "value": "val4"}]},
+                        }
+                    ]
+                }
             }
         }
-        """
+
         s = client.query(q)
-        json_a = json.loads(json.dumps(s))
-        json_ra = json.loads(r)
+
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+            s["graph"]["nodes"]["list"][0]["metadata"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+            r["graph"]["nodes"]["list"][0]["metadata"]["values"],
             key=lambda x: x["key"],
         )
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["values"],
+            s["graph"]["nodes"]["list"][0]["properties"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["values"],
+            r["graph"]["nodes"]["list"][0]["properties"]["values"],
             key=lambda x: x["key"],
         )
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+            s["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+            r["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         )
 

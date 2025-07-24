@@ -3,8 +3,7 @@ from datetime import datetime, timezone
 from typing import List
 from dateutil import parser
 from numpy.testing import assert_equal as check_arr
-
-from utils import assert_set_eq
+from utils import assert_set_eq, assert_has_metadata
 from raphtory.graphql import (
     GraphServer,
     RaphtoryClient,
@@ -39,15 +38,6 @@ def make_props():
         "prop_datetime": current_datetime,
         "prop_naive_datetime": naive_datetime,
     }
-
-
-def helper_test_props(entity, props):
-    for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
 
 
 def make_props2():
@@ -129,7 +119,7 @@ def test_add_nodes():
         assert ben.node_type == "person"
         check_arr(hamza.history(), [1, 2])
         assert hamza.node_type is None
-        helper_test_props(lucas, lucas_props)
+        assert_has_metadata(lucas, lucas_props)
         assert lucas.node_type == "person"
 
 
@@ -190,4 +180,4 @@ def test_add_edges():
         assert_set_eq(ben_hammza.layer_names, {"_default", "test"})
         check_arr(hamza_lucas.history(), [1, 2])
         assert hamza_lucas.layer_names == ["_default"]
-        helper_test_props(lucas_hamza.layer("_default"), lucas_props)
+        assert_has_metadata(lucas_hamza.layer("_default"), lucas_props)
