@@ -1,19 +1,15 @@
 use crate::{
-    db::graph::views::filter::{
-        internal::CreateFilter,
-        model::{
-            property_filter::{
-                PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder,
-            },
-            TryAsCompositeFilter,
-        },
-    },
     prelude::PropertyFilter,
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyErr, Python};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::sync::Arc;
+use crate::db::graph::views::filter::internal::CreateFilter;
+use crate::db::graph::views::filter::model::edge_filter::{EdgeFilter, ExplodedEdgeFilter};
+use crate::db::graph::views::filter::model::node_filter::NodeFilter;
+use crate::db::graph::views::filter::model::property_filter::{MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps, TemporalPropertyFilterBuilder};
+use crate::db::graph::views::filter::model::TryAsCompositeFilter;
 
 pub trait DynPropertyFilterOps: Send + Sync {
     fn __eq__(&self, value: Prop) -> PyFilterExpr;
@@ -233,7 +229,6 @@ impl PyTemporalPropertyFilterBuilder {
 }
 
 trait DynPropertyFilterBuilderOps: Send + Sync {
-    fn constant(&self) -> PyPropertyFilterOps;
     fn temporal(&self) -> PyTemporalPropertyFilterBuilder;
 }
 
@@ -241,16 +236,16 @@ impl<M: Clone + Send + Sync + 'static> DynPropertyFilterBuilderOps for PropertyF
 where
     PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,
 {
-    fn constant(&self) -> PyPropertyFilterOps {
-        PyPropertyFilterOps(Arc::new(self.clone().constant()))
-    }
-
     fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
         PyTemporalPropertyFilterBuilder(Arc::new(self.clone().temporal()))
     }
 }
 
-#[pyclass(frozen, name = "PropertyFilterBuilder", module = "raphtory.filter", extends=PyPropertyFilterOps
+/// Construct a property filter
+///
+/// Arguments:
+///     name (str): the name of the property to filter
+#[pyclass(frozen, name = "Property", module = "raphtory.filter", extends=PyPropertyFilterOps
 )]
 #[derive(Clone)]
 pub struct PyPropertyFilterBuilder(Arc<dyn DynPropertyFilterBuilderOps>);
@@ -277,11 +272,51 @@ where
 
 #[pymethods]
 impl PyPropertyFilterBuilder {
-    fn constant(&self) -> PyPropertyFilterOps {
-        self.0.constant()
-    }
-
     fn temporal(&self) -> PyTemporalPropertyFilterBuilder {
         self.0.temporal()
+    }
+}
+
+/// Construct a metadata filter
+///
+/// Arguments:
+///     name (str): the name of the property to filter
+#[pyclass(frozen, name = "Metadata", module = "raphtory.filter", extends=PyPropertyFilterOps
+)]
+#[derive(Clone)]
+pub struct PyMetadataFilterBuilder;
+
+impl<'py, M: Send + Sync + Clone + 'static> IntoPyObject<'py> for MetadataFilterBuilder<M>
+where PropertyFilter<M>: CreateFilter + TryAsCompositeFilter,{
+    type Target = PyMetadataFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Bound::new(
+            py,
+            (PyMetadataFilterBuilder, PyPropertyFilterOps(Arc::new(self))),
+        )
+    }
+}
+
+#[pymethods]
+impl PyMetadataFilterBuilder {
+    #[staticmethod]
+    fn node(name: String) -> PyPropertyFilterOps {
+        let builder = MetadataFilterBuilder::<NodeFilter>::new(name);
+        PyPropertyFilterOps(Arc::new(builder))
+    }
+
+    #[staticmethod]
+    fn edge(name: String) -> PyPropertyFilterOps {
+        let builder = MetadataFilterBuilder::<EdgeFilter>::new(name);
+        PyPropertyFilterOps(Arc::new(builder))
+    }
+
+    #[staticmethod]
+    fn exploded_edge(name: String) -> PyPropertyFilterOps {
+        let builder = MetadataFilterBuilder::<ExplodedEdgeFilter>::new(name);
+        PyPropertyFilterOps(Arc::new(builder))
     }
 }

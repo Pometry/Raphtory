@@ -13,7 +13,9 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
+    db::api::view::MaterializedGraph,
+    errors::GraphError,
+    prelude::{GraphViewOps, PropertiesOps},
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
@@ -189,11 +191,11 @@ impl GraphFolder {
     fn write_metadata<'graph>(&self, graph: &impl GraphViewOps<'graph>) -> Result<(), GraphError> {
         let node_count = graph.count_nodes();
         let edge_count = graph.count_edges();
-        let properties = graph.properties();
+        let properties = graph.metadata();
         let metadata = GraphMetadata {
             node_count,
             edge_count,
-            properties: properties.as_vec(),
+            metadata: properties.as_vec(),
         };
         if self.write_as_zip_format {
             let file = File::options()
@@ -293,7 +295,7 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                properties: vec![]
+                metadata: vec![]
             }
         );
     }
@@ -314,7 +316,7 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                properties: vec![]
+                metadata: vec![]
             }
         );
     }

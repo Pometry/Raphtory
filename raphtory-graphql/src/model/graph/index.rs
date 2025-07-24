@@ -7,14 +7,14 @@ use raphtory::{
 #[derive(Enum)]
 pub enum AllPropertySpec {
     All,
-    AllConstant,
-    AllTemporal,
+    AllMetadata,
+    AllProperties,
 }
 
 #[derive(InputObject)]
 pub struct SomePropertySpec {
-    pub constant: Vec<String>,
-    pub temporal: Vec<String>,
+    pub metadata: Vec<String>,
+    pub properties: Vec<String>,
 }
 
 #[allow(dead_code)]
@@ -39,24 +39,24 @@ impl IndexSpecInput {
 
         builder = match self.node_props {
             PropsInput::All(spec) => match spec {
-                AllPropertySpec::All => builder.with_all_node_props(),
-                AllPropertySpec::AllConstant => builder.with_all_const_node_props(),
-                AllPropertySpec::AllTemporal => builder.with_all_temp_node_props(),
+                AllPropertySpec::All => builder.with_all_node_properties_and_metadata(),
+                AllPropertySpec::AllMetadata => builder.with_all_node_metadata(),
+                AllPropertySpec::AllProperties => builder.with_all_node_properties(),
             },
             PropsInput::Some(props) => builder
-                .with_const_node_props(props.constant)?
-                .with_temp_node_props(props.temporal)?,
+                .with_node_metadata(props.metadata)?
+                .with_node_properties(props.properties)?,
         };
 
         builder = match self.edge_props {
             PropsInput::All(spec) => match spec {
-                AllPropertySpec::All => builder.with_all_edge_props(),
-                AllPropertySpec::AllConstant => builder.with_all_edge_const_props(),
-                AllPropertySpec::AllTemporal => builder.with_all_temp_edge_props(),
+                AllPropertySpec::All => builder.with_all_edge_properties_and_metadata(),
+                AllPropertySpec::AllMetadata => builder.with_all_edge_metadata(),
+                AllPropertySpec::AllProperties => builder.with_all_edge_properties(),
             },
             PropsInput::Some(props) => builder
-                .with_const_edge_props(props.constant)?
-                .with_temp_edge_props(props.temporal)?,
+                .with_edge_metadata(props.metadata)?
+                .with_edge_properties(props.properties)?,
         };
 
         Ok(builder.build())
@@ -65,8 +65,8 @@ impl IndexSpecInput {
 
 #[derive(SimpleObject)]
 pub struct GqlIndexSpec {
-    pub node_const_props: Vec<String>,
-    pub node_temp_props: Vec<String>,
-    pub edge_const_props: Vec<String>,
-    pub edge_temp_props: Vec<String>,
+    pub node_metadata: Vec<String>,
+    pub node_properties: Vec<String>,
+    pub edge_metadata: Vec<String>,
+    pub edge_properties: Vec<String>,
 }

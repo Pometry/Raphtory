@@ -18,11 +18,11 @@ print(g)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None)"
+assert str(g) == "Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None, properties=Properties({}))"
 ```
 
 !!! Output
 
     ```python
-    Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None)
+    Graph(number_of_nodes=0, number_of_edges=0, number_of_temporal_edges=0, earliest_time=None, latest_time=None, properties=Properties({}))
     ```

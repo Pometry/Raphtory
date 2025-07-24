@@ -13,6 +13,7 @@ use crate::{
 };
 use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::model::property_filter::MetadataFilterBuilder;
 
 pub mod and_filter;
 pub mod edge_filter;
@@ -200,4 +201,5 @@ impl<T> ComposableFilter for NotFilter<T> {}
 
 pub trait PropertyFilterFactory<M> {
     fn property(name: impl Into<String>) -> PropertyFilterBuilder<M>;
+    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<M>;
 }

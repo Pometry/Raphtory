@@ -9,7 +9,7 @@ def init_graph(graph):
     # Adding nodes with properties
     graph.add_node(6, "N1", {"p1": 2}, "fire_nation")
     graph.add_node(7, "N1", {"p1": 1}, "fire_nation")
-    graph.node("N1").add_constant_properties({"p1": 1})
+    graph.node("N1").add_metadata({"p1": 1})
 
     graph.add_node(6, "N2", {"p1": 1}, "earth_kingdom")
     graph.add_node(7, "N2", {"p1": 2}, "earth_kingdom")
@@ -17,7 +17,7 @@ def init_graph(graph):
     graph.add_node(8, "N3", {"p1": 1}, "water_tribe")
 
     graph.add_node(9, "N4", {"p1": 1}, "water_tribe")
-    graph.node("N4").add_constant_properties({"p1": 2})
+    graph.node("N4").add_metadata({"p1": 2})
 
     graph.add_node(5, "N5", {"p1": 1}, "water_tribe")
     graph.add_node(6, "N5", {"p1": 2}, "water_tribe")
@@ -32,29 +32,29 @@ def init_graph(graph):
     graph.add_node(4, "N8", {"p1": 2}, "air_nomads")
 
     graph.add_node(2, "N9", {"p1": 2}, "earth_kingdom")
-    graph.node("N9").add_constant_properties({"p1": 1})
+    graph.node("N9").add_metadata({"p1": 1})
 
     graph.add_node(2, "N10", {"q1": 0}, "fire_nation")
     graph.add_node(2, "N10", {"p1": 3}, "fire_nation")
-    graph.node("N10").add_constant_properties({"p1": 1})
+    graph.node("N10").add_metadata({"p1": 1})
 
     graph.add_node(2, "N11", {"p1": 3}, "fire_nation")
     graph.add_node(2, "N11", {"q1": 0}, "fire_nation")
-    graph.node("N11").add_constant_properties({"p1": 1})
+    graph.node("N11").add_metadata({"p1": 1})
 
     graph.add_node(2, "N12", {"q1": 0}, "air_nomads")
     graph.add_node(3, "N12", {"p1": 3}, "air_nomads")
-    graph.node("N12").add_constant_properties({"p1": 1})
+    graph.node("N12").add_metadata({"p1": 1})
 
     graph.add_node(2, "N13", {"q1": 0}, "air_nomads")
     graph.add_node(3, "N13", {"p1": 3}, "air_nomads")
-    graph.node("N13").add_constant_properties({"p1": 1})
+    graph.node("N13").add_metadata({"p1": 1})
 
     graph.add_node(2, "N14", {"q1": 0}, "water_tribe")
-    graph.node("N14").add_constant_properties({"p1": 1})
+    graph.node("N14").add_metadata({"p1": 1})
 
     graph.add_node(2, "N15", {}, "water_tribe")  # NO_PROPS equivalent
-    graph.node("N15").add_constant_properties({"p1": 1})
+    graph.node("N15").add_metadata({"p1": 1})
 
     return graph
 
@@ -179,7 +179,7 @@ def test_search_nodes_for_property_eq():
 
     filter_expr = filter.Node.property("p1") == 1
     results = search_nodes(g, filter_expr)
-    assert ["N1", "N14", "N15", "N3", "N4", "N6", "N7"] == results
+    assert ["N1", "N3", "N4", "N6", "N7"] == results
 
 
 def test_search_nodes_for_property_ne():
@@ -194,8 +194,6 @@ def test_search_nodes_for_property_ne():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N3",
         "N4",
         "N6",
@@ -260,8 +258,6 @@ def test_search_nodes_for_property_is_not_in():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N3",
         "N4",
         "N6",
@@ -281,8 +277,6 @@ def test_search_nodes_for_property_is_some():
         "N11",
         "N12",
         "N13",
-        "N14",
-        "N15",
         "N2",
         "N3",
         "N4",
@@ -304,93 +298,93 @@ def test_search_nodes_for_property_is_none():
     assert [] == results
 
 
-def test_search_nodes_for_property_constant_eq():
+def test_search_nodes_for_metdata_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() == 1
+    filter_expr = filter.Metadata("p1") == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
-def test_search_nodes_for_property_constant_ne():
+def test_search_nodes_for_metadata_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() != 2
+    filter_expr = filter.Metadata("p1") != 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
-def test_search_nodes_for_property_constant_lt():
+def test_search_nodes_for_metadata_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() < 2
+    filter_expr = filter.Metadata("p1") < 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
-def test_search_nodes_for_property_constant_le():
+def test_search_nodes_for_metadata_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() <= 3
+    filter_expr = filter.Metadata("p1") <= 3
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
 
-def test_search_nodes_for_property_constant_gt():
+def test_search_nodes_for_metadata_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() > 1
+    filter_expr = filter.Metadata("p1") > 1
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
 
-def test_search_nodes_for_property_constant_ge():
+def test_search_nodes_for_metadata_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant() >= 2
+    filter_expr = filter.Metadata("p1") >= 2
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
 
-def test_search_nodes_for_property_constant_is_in():
+def test_search_nodes_for_metadata_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant().is_in([2])
+    filter_expr = filter.Metadata("p1").is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
 
-def test_search_nodes_for_property_constant_is_not_in():
+def test_search_nodes_for_metadata_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant().is_not_in([2])
+    filter_expr = filter.Metadata("p1").is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
 
-def test_search_nodes_for_property_constant_is_some():
+def test_search_nodes_for_metadata_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant().is_some()
+    filter_expr = filter.Metadata("p1").is_some()
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
-def test_search_nodes_for_property_constant_is_none():
+def test_search_nodes_for_metadata_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Node.property("p1").constant().is_none()
+    filter_expr = filter.Metadata("p1").is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -654,7 +648,7 @@ def test_search_nodes_for_composite_filter():
     g = init_graph(g)
 
     filter1 = filter.Node.node_type() == "fire_nation"
-    filter2 = filter.Node.property("p1").constant() > 1
+    filter2 = filter.Metadata("p1") > 1
     results = search_nodes(g, filter1 | filter2)
     assert ["N1", "N10", "N11", "N4", "N6"] == results
 
@@ -675,7 +669,7 @@ def init_edges_graph(graph):
     # Adding nodes with properties
     graph.add_edge(6, "N1", "N2", {"p1": 2}, "fire_nation")
     graph.add_edge(7, "N1", "N2", {"p1": 1}, "fire_nation")
-    graph.edge("N1", "N2").add_constant_properties({"p1": 1}, layer="fire_nation")
+    graph.edge("N1", "N2").add_metadata({"p1": 1}, layer="fire_nation")
 
     graph.add_edge(6, "N2", "N3", {"p1": 1}, "earth_kingdom")
     graph.add_edge(7, "N2", "N3", {"p1": 2}, "earth_kingdom")
@@ -683,7 +677,7 @@ def init_edges_graph(graph):
     graph.add_edge(8, "N3", "N4", {"p1": 1}, "water_tribe")
 
     graph.add_edge(9, "N4", "N5", {"p1": 1}, "water_tribe")
-    graph.edge("N4", "N5").add_constant_properties({"p1": 2}, layer="water_tribe")
+    graph.edge("N4", "N5").add_metadata({"p1": 2}, layer="water_tribe")
 
     graph.add_edge(5, "N5", "N6", {"p1": 1}, "water_tribe")
     graph.add_edge(6, "N5", "N6", {"p1": 2}, "water_tribe")
@@ -698,29 +692,29 @@ def init_edges_graph(graph):
     graph.add_edge(4, "N8", "N9", {"p1": 2}, "air_nomads")
 
     graph.add_edge(2, "N9", "N10", {"p1": 2}, "earth_kingdom")
-    graph.edge("N9", "N10").add_constant_properties({"p1": 1}, layer="earth_kingdom")
+    graph.edge("N9", "N10").add_metadata({"p1": 1}, layer="earth_kingdom")
 
     graph.add_edge(2, "N10", "N11", {"q1": 0}, "fire_nation")
     graph.add_edge(2, "N10", "N11", {"p1": 3}, "fire_nation")
-    graph.edge("N10", "N11").add_constant_properties({"p1": 1}, layer="fire_nation")
+    graph.edge("N10", "N11").add_metadata({"p1": 1}, layer="fire_nation")
 
     graph.add_edge(2, "N11", "N12", {"p1": 3}, "fire_nation")
     graph.add_edge(2, "N11", "N12", {"q1": 0}, "fire_nation")
-    graph.edge("N11", "N12").add_constant_properties({"p1": 1}, layer="fire_nation")
+    graph.edge("N11", "N12").add_metadata({"p1": 1}, layer="fire_nation")
 
     graph.add_edge(2, "N12", "N13", {"q1": 0}, "air_nomads")
     graph.add_edge(3, "N12", "N13", {"p1": 3}, "air_nomads")
-    graph.edge("N12", "N13").add_constant_properties({"p1": 1}, layer="air_nomads")
+    graph.edge("N12", "N13").add_metadata({"p1": 1}, layer="air_nomads")
 
     graph.add_edge(2, "N13", "N14", {"q1": 0}, "air_nomads")
     graph.add_edge(3, "N13", "N14", {"p1": 3}, "air_nomads")
-    graph.edge("N13", "N14").add_constant_properties({"p1": 1}, layer="air_nomads")
+    graph.edge("N13", "N14").add_metadata({"p1": 1}, layer="air_nomads")
 
     graph.add_edge(2, "N14", "N15", {"q1": 0}, "water_tribe")
-    graph.edge("N14", "N15").add_constant_properties({"p1": 1}, layer="water_tribe")
+    graph.edge("N14", "N15").add_metadata({"p1": 1}, layer="water_tribe")
 
     graph.add_edge(2, "N15", "N1", {}, "water_tribe")  # NO_PROPS equivalent
-    graph.edge("N15", "N1").add_constant_properties({"p1": 1}, layer="water_tribe")
+    graph.edge("N15", "N1").add_metadata({"p1": 1}, layer="water_tribe")
 
     return graph
 
@@ -889,8 +883,6 @@ def test_search_edges_for_property_eq():
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -910,8 +902,6 @@ def test_search_edges_for_property_ne():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -997,8 +987,6 @@ def test_search_edges_for_property_is_not_in():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N3", "N4"),
         ("N4", "N5"),
         ("N6", "N7"),
@@ -1018,8 +1006,6 @@ def test_search_edges_for_property_is_some():
         ("N11", "N12"),
         ("N12", "N13"),
         ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
         ("N2", "N3"),
         ("N3", "N4"),
         ("N4", "N5"),
@@ -1041,11 +1027,11 @@ def test_search_edges_for_property_is_none():
     assert [] == results
 
 
-def test_search_edges_for_property_constant_eq():
+def test_search_edges_for_metadata_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() == 1
+    filter_expr = filter.Metadata("p1") == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1059,11 +1045,11 @@ def test_search_edges_for_property_constant_eq():
     ] == results
 
 
-def test_search_edges_for_property_constant_ne():
+def test_search_edges_for_metadata_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() != 2
+    filter_expr = filter.Metadata("p1") != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1077,11 +1063,11 @@ def test_search_edges_for_property_constant_ne():
     ] == results
 
 
-def test_search_edges_for_property_constant_lt():
+def test_search_edges_for_metadata_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() < 2
+    filter_expr = filter.Metadata("p1") < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1095,11 +1081,11 @@ def test_search_edges_for_property_constant_lt():
     ] == results
 
 
-def test_search_edges_for_property_constant_le():
+def test_search_edges_for_metadata_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() <= 3
+    filter_expr = filter.Metadata("p1") <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1114,38 +1100,38 @@ def test_search_edges_for_property_constant_le():
     ] == results
 
 
-def test_search_edges_for_property_constant_gt():
+def test_search_edges_for_metadata_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() > 1
+    filter_expr = filter.Metadata("p1") > 1
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
 
-def test_search_edges_for_property_constant_ge():
+def test_search_edges_for_metadata_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant() >= 2
+    filter_expr = filter.Metadata("p1") >= 2
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
 
-def test_search_edges_for_property_constant_is_in():
+def test_search_edges_for_metadata_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant().is_in([2])
+    filter_expr = filter.Metadata("p1").is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
 
-def test_search_edges_for_property_constant_is_not_in():
+def test_search_edges_for_metadata_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant().is_not_in([2])
+    filter_expr = filter.Metadata("p1").is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1159,11 +1145,11 @@ def test_search_edges_for_property_constant_is_not_in():
     ] == results
 
 
-def test_search_edges_for_property_constant_is_some():
+def test_search_edges_for_metadata_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant().is_some()
+    filter_expr = filter.Metadata("p1").is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1179,11 +1165,11 @@ def test_search_edges_for_property_constant_is_some():
 
 
 @pytest.mark.skip(reason="Ignoring this test temporarily")
-def test_search_edges_for_property_constant_is_none():
+def test_search_edges_for_metadata_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Edge.property("p1").constant().is_none()
+    filter_expr = filter.Metadata("p1").is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 

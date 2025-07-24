@@ -2,7 +2,7 @@ use crate::{
     db::api::{
         properties::{
             dyn_props::{DynTemporalProperties, DynTemporalProperty},
-            internal::PropertiesOps,
+            internal::InternalPropertiesOps,
             TemporalProperties, TemporalPropertyView,
         },
         view::internal::{DynamicGraph, Static},
@@ -361,7 +361,9 @@ impl PyTemporalProp {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for PyTemporalProp {
+impl<P: InternalPropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>>
+    for PyTemporalProp
+{
     fn from(value: TemporalPropertyView<P>) -> Self {
         Self {
             prop: TemporalPropertyView {
@@ -372,7 +374,7 @@ impl<P: PropertiesOps + Send + Sync + 'static> From<TemporalPropertyView<P>> for
     }
 }
 
-impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
     for TemporalProperties<P>
 {
     type Target = PyTemporalProperties;
@@ -404,7 +406,7 @@ impl<'py> IntoPyObject<'py> for DynTemporalProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
+impl<P: InternalPropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
         format!(
             "TemporalProperties({{{}}})",
@@ -413,7 +415,7 @@ impl<P: PropertiesOps + Clone> Repr for TemporalProperties<P> {
     }
 }
 
-impl<P: PropertiesOps> Repr for TemporalPropertyView<P> {
+impl<P: InternalPropertiesOps> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
         format!("TemporalProp({})", iterator_repr(self.iter()))
     }
@@ -431,7 +433,9 @@ impl Repr for PyTemporalProperties {
     }
 }
 
-impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py> for TemporalPropertyView<P> {
+impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+    for TemporalPropertyView<P>
+{
     type Target = PyTemporalProp;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -486,11 +490,9 @@ py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 impl PyTemporalPropsList {
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().collect_vec())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
     fn values(&self) -> Vec<PyTemporalPropList> {
         self.keys()
@@ -546,7 +548,7 @@ impl PyTemporalPropsList {
     }
 
     fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     fn __iter__(&self) -> PyGenericIterator {
@@ -686,13 +688,9 @@ py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 impl PyTemporalPropsListList {
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .flat_map(
-                |it|             // FIXME: Still have to clone all those strings which sucks
-            it.map(|p| p.keys().collect_vec()),
-            )
-            .kmerge()
-            .dedup()
-            .collect()
+            .flat_map(|it| it.map(|p| p.keys().collect_vec()))
+            .next()
+            .unwrap_or_default()
     }
     fn values(&self) -> Vec<PyTemporalPropListList> {
         self.keys()
@@ -755,7 +753,10 @@ impl PyTemporalPropsListList {
     }
 
     fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     fn __iter__(&self) -> PyGenericIterator {

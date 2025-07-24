@@ -78,8 +78,8 @@ impl<'a> DiskNode<'a> {
             .collect()
     }
 
-    pub fn constant_node_prop_ids(self) -> BoxedLIter<'a, usize> {
-        match &self.graph.node_properties().const_props {
+    pub fn node_metadata_ids(self) -> BoxedLIter<'a, usize> {
+        match &self.graph.node_properties().metadata {
             None => Box::new(std::iter::empty()),
             Some(props) => {
                 Box::new((0..props.num_props()).filter(move |id| props.has_prop(self.vid, *id)))
@@ -215,7 +215,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
             LayerIds::One(id) => Some(&self.graph.layers()[*id]),
             LayerIds::Multiple(ids) => match ids.len() {
                 0 => return 0,
-                1 => Some(&self.graph.layers()[ids.find(0).unwrap()]),
+                1 => Some(&self.graph.layers()[ids.get_id_by_index(0).unwrap()]),
                 _ => None,
             },
         };
@@ -277,7 +277,7 @@ impl<'a> NodeStorageOps<'a> for DiskNode<'a> {
     }
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
-        let cprops = self.graph.node_properties().const_props.as_ref()?;
+        let cprops = self.graph.node_properties().metadata.as_ref()?;
         let prop_type = cprops.prop_dtype(prop_id);
         match prop_type.data_type {
             ArrowDataType::Int32 => cprops.prop_native::<i32>(self.vid, prop_id).map(Prop::I32),

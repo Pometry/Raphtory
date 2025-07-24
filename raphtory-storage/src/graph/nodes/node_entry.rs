@@ -83,14 +83,14 @@ impl<'b> NodeStorageEntry<'b> {
         }
     }
 
-    pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
+    pub fn metadata_ids(self) -> BoxedLIter<'b, usize> {
         match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
+            NodeStorageEntry::Mem(entry) => Box::new(entry.node().metadata_ids()),
             NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.as_ref().node().const_prop_ids())
+                Box::new(e.as_ref().node().metadata_ids())
             })),
             #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
+            NodeStorageEntry::Disk(node) => Box::new(node.node_metadata_ids()),
         }
     }
 

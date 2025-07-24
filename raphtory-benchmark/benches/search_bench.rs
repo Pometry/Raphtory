@@ -8,7 +8,7 @@ use raphtory::{
     db::{
         api::{
             properties::internal::{
-                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
             view::{BaseFilterOps, SearchableGraphOps},
         },
@@ -94,16 +94,13 @@ fn is_numeric_type(dtype: &PropType) -> bool {
     )
 }
 
-fn get_node_const_property_names(
-    node: &NodeView<Graph>,
-    only_numeric: bool,
-) -> Vec<(String, usize)> {
-    let const_props = node
-        .const_prop_keys()
+fn get_node_metadata_names(node: &NodeView<Graph>, only_numeric: bool) -> Vec<(String, usize)> {
+    let metadata = node
+        .metadata_keys()
         .filter_map(|k| {
             let prop_name = k.to_string();
-            let prop_id = node.get_const_prop_id(&prop_name)?;
-            let prop_value = node.get_const_prop(prop_id)?;
+            let prop_id = node.get_metadata_id(&prop_name)?;
+            let prop_value = node.get_metadata(prop_id)?;
             let dtype = prop_value.dtype();
             if only_numeric {
                 if is_numeric_type(&dtype) {
@@ -117,7 +114,7 @@ fn get_node_const_property_names(
         })
         .collect::<Vec<_>>();
 
-    const_props
+    metadata
 }
 
 fn get_node_temporal_property_names(
@@ -146,16 +143,13 @@ fn get_node_temporal_property_names(
     temporal_props
 }
 
-fn get_edge_const_property_names(
-    edge: &EdgeView<Graph>,
-    only_numeric: bool,
-) -> Vec<(String, usize)> {
-    let const_props = edge
-        .const_prop_keys()
+fn get_edge_metadata_names(edge: &EdgeView<Graph>, only_numeric: bool) -> Vec<(String, usize)> {
+    let metadata = edge
+        .metadata_keys()
         .filter_map(|k| {
             let prop_name = k.to_string();
-            let prop_id = edge.get_const_prop_id(&prop_name)?;
-            let prop_value = edge.get_const_prop(prop_id)?;
+            let prop_id = edge.get_metadata_id(&prop_name)?;
+            let prop_value = edge.get_metadata(prop_id)?;
             let dtype = prop_value.dtype();
             if only_numeric {
                 if is_numeric_type(&dtype) {
@@ -169,7 +163,7 @@ fn get_edge_const_property_names(
         })
         .collect::<Vec<_>>();
 
-    const_props
+    metadata
 }
 
 fn get_edge_temporal_property_names(
@@ -297,7 +291,7 @@ fn get_node_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> 
     for node_name in node_names.iter() {
         if let Some(node) = graph.node(node_name) {
             let prop_value = if is_const {
-                node.get_const_prop(*prop_id)
+                node.get_metadata(*prop_id)
             } else {
                 node.temporal_value(*prop_id)
             };
@@ -326,7 +320,7 @@ fn pick_node_property_filter(
     let mut rng = thread_rng();
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
-            node.get_const_prop(*prop_id)
+            node.get_metadata(*prop_id)
         } else {
             node.temporal_value(*prop_id)
         }?;
@@ -355,14 +349,14 @@ fn get_random_node_property_filters(
         if let Some(node) = graph.node(&node_name) {
             let mut chosen_filter = None;
 
-            let (const_props, temporal_props) = if filter_op.is_strictly_numeric_operation() {
+            let (metadata, temporal_props) = if filter_op.is_strictly_numeric_operation() {
                 (
-                    get_node_const_property_names(&node, true),
+                    get_node_metadata_names(&node, true),
                     get_node_temporal_property_names(&node, true),
                 )
             } else {
                 (
-                    get_node_const_property_names(&node, false),
+                    get_node_metadata_names(&node, false),
                     get_node_temporal_property_names(&node, false),
                 )
             };
@@ -373,8 +367,7 @@ fn get_random_node_property_filters(
             // property filters as there are nodes.
             let choice = rng.gen_bool(0.5);
             if choice {
-                chosen_filter =
-                    pick_node_property_filter(graph, &node, &const_props, true, filter_op);
+                chosen_filter = pick_node_property_filter(graph, &node, &metadata, true, filter_op);
                 if chosen_filter.is_none() {
                     chosen_filter =
                         pick_node_property_filter(graph, &node, &temporal_props, false, filter_op);
@@ -384,7 +377,7 @@ fn get_random_node_property_filters(
                     pick_node_property_filter(graph, &node, &temporal_props, false, filter_op);
                 if chosen_filter.is_none() {
                     chosen_filter =
-                        pick_node_property_filter(graph, &node, &const_props, true, filter_op);
+                        pick_node_property_filter(graph, &node, &metadata, true, filter_op);
                 }
             }
 
@@ -407,7 +400,7 @@ fn get_edge_property_samples(graph: &Graph, prop_id: &usize, is_const: bool) -> 
     for (src, dst) in edges.iter() {
         if let Some(edge) = graph.edge(src, dst) {
             let prop_value = if is_const {
-                edge.get_const_prop(*prop_id)
+                edge.get_metadata(*prop_id)
             } else {
                 edge.temporal_value(*prop_id)
             };
@@ -437,7 +430,7 @@ fn pick_edge_property_filter(
 
     if let Some((prop_name, prop_id)) = props.choose(&mut rng) {
         let prop_value = if is_const {
-            edge.get_const_prop(*prop_id)
+            edge.get_metadata(*prop_id)
         } else {
             edge.temporal_value(*prop_id)
         }?;
@@ -466,14 +459,14 @@ fn get_random_edge_property_filters(
         if let Some(edge) = graph.edge(&src, &dst) {
             let mut chosen_filter = None;
 
-            let (const_props, temporal_props) = if filter_op.is_strictly_numeric_operation() {
+            let (metadata, temporal_props) = if filter_op.is_strictly_numeric_operation() {
                 (
-                    get_edge_const_property_names(&edge, true),
+                    get_edge_metadata_names(&edge, true),
                     get_edge_temporal_property_names(&edge, true),
                 )
             } else {
                 (
-                    get_edge_const_property_names(&edge, false),
+                    get_edge_metadata_names(&edge, false),
                     get_edge_temporal_property_names(&edge, false),
                 )
             };
@@ -484,8 +477,7 @@ fn get_random_edge_property_filters(
             // property filters as there are edges.
             let choice = rng.gen_bool(0.5);
             if choice {
-                chosen_filter =
-                    pick_edge_property_filter(graph, &edge, &const_props, true, filter_op);
+                chosen_filter = pick_edge_property_filter(graph, &edge, &metadata, true, filter_op);
                 if chosen_filter.is_none() {
                     chosen_filter =
                         pick_edge_property_filter(graph, &edge, &temporal_props, false, filter_op);
@@ -495,7 +487,7 @@ fn get_random_edge_property_filters(
                     pick_edge_property_filter(graph, &edge, &temporal_props, false, filter_op);
                 if chosen_filter.is_none() {
                     chosen_filter =
-                        pick_edge_property_filter(graph, &edge, &const_props, true, filter_op);
+                        pick_edge_property_filter(graph, &edge, &metadata, true, filter_op);
                 }
             }
 

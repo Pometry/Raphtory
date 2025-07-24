@@ -21,7 +21,7 @@ use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{meta::Meta, prop::Prop},
-        GidRef, Layer, MAX_LAYER,
+        GidRef, Layer, Multiple, MAX_LAYER,
     },
     input::input_node::InputNode,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
@@ -198,22 +198,20 @@ impl TemporalGraph {
                 None => LayerIds::None,
             },
             Layer::Multiple(ids) => {
-                let mut new_layers = ids
+                let new_layers: Multiple = ids
                     .iter()
                     .flat_map(|id| self.edge_meta.get_layer_id(id))
-                    .collect::<Vec<_>>();
+                    .collect();
                 let num_layers = self.num_layers();
                 let num_new_layers = new_layers.len();
                 if num_new_layers == 0 {
                     LayerIds::None
                 } else if num_new_layers == 1 {
-                    LayerIds::One(new_layers[0])
-                } else if num_new_layers == num_layers {
+                    LayerIds::One(new_layers.get_id_by_index(0).unwrap())
+                } else if num_new_layers == num_layers && new_layers.is_sorted() {
                     LayerIds::All
                 } else {
-                    new_layers.sort_unstable();
-                    new_layers.dedup();
-                    LayerIds::Multiple(new_layers.into())
+                    LayerIds::Multiple(new_layers)
                 }
             }
         }

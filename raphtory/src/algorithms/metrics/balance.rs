@@ -87,16 +87,19 @@ pub fn balance<G: StaticGraphViewOps>(
     name: String,
     direction: Direction,
 ) -> Result<NodeState<'static, f64, G>, GraphError> {
-    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
-        Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
+    let weight_type = match graph.edge_meta().temporal_prop_mapper().get_id(&name) {
+        Some(weight_id) => graph
+            .edge_meta()
+            .temporal_prop_mapper()
+            .get_dtype(weight_id),
         None => graph
             .edge_meta()
-            .const_prop_meta()
+            .metadata_mapper()
             .get_id(&name)
             .map(|weight_id| {
                 graph
                     .edge_meta()
-                    .const_prop_meta()
+                    .metadata_mapper()
                     .get_dtype(weight_id)
                     .unwrap()
             }),

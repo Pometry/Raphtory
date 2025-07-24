@@ -1,15 +1,18 @@
-
 # Exporting to Pandas dataframes
 
-You can ingest from a set of dataframes, work on them in Raphtory formats then convert back into dataframes. Raphtory provides the `to_df()` function on both the `Nodes` and `Edges` for this purpose. 
+You can ingest from a set of dataframes, work on them in Raphtory formats then convert back into dataframes. Raphtory
+provides the `to_df()` function on both the `Nodes` and `Edges` for this purpose.
 
 ## Node Dataframe
 
-To explore the use of `to_df()` on the nodes we can first we call the function with default parameters. This exports only the latest property updates and utilises epoch timestamps - the output from this can be seen below. 
+To explore the use of `to_df()` on the nodes we can first we call the function with default parameters. This exports
+only the latest property updates and utilises epoch timestamps - the output from this can be seen below.
 
-To demonstrate flags, we call `to_df()` again, this time enabling the property history and utilising datetime timestamps. The output for this can also be seen below.
+To demonstrate flags, we call `to_df()` again, this time enabling the property history and utilising datetime
+timestamps. The output for this can also be seen below.
 
 /// tab | :fontawesome-brands-python: Python
+
 ```python
 from raphtory import Graph
 import pandas as pd
@@ -28,16 +31,16 @@ traffic_graph.load_edges_from_pandas(
     time="timestamp",
     properties=["data_size_MB"],
     layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 traffic_graph.load_nodes_from_pandas(
     df=server_nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
 df = traffic_graph.nodes.to_df()
@@ -48,6 +51,7 @@ df = traffic_graph.nodes.to_df(include_property_history=True, convert_datetime=T
 print("--- to_df with property history and datetime conversion ---")
 print(f"{df}\n")
 ```
+
 ///
 
 !!! Output
@@ -115,19 +119,25 @@ print(f"{df}\n")
 
 ## Edge Dataframe
 
-Exporting to an edge dataframe via `to_df()` generally works the same as for the nodes. However, by default this will export the property history for each edge, split by edge layer. This is because `to_df()` has an alternative flag to explode the edges and view each update individually (which will then ignore the `include_property_history` flag). 
+Exporting to an edge dataframe via `to_df()` generally works the same as for the nodes. However, by default this will
+export the property history for each edge, split by edge layer. This is because `to_df()` has an alternative flag to
+explode the edges and view each update individually (which will then ignore the `include_property_history` flag).
 
-In the below example we first create a subgraph of the monkey interactions, selecting `ANGELE` and `FELIPE` as the monkeys we are interested in. This isn't a required step, but helps to demonstrate the export of graph views. 
+In the below example we first create a subgraph of the monkey interactions, selecting `ANGELE` and `FELIPE` as the
+monkeys we are interested in. This isn't a required step, but helps to demonstrate the export of graph views.
 
-Then we call `to_df()` on the subgraph edges, setting no flags. In the output you can see the property history for each interaction type (layer) between `ANGELE` and `FELIPE`.
+Then we call `to_df()` on the subgraph edges, setting no flags. In the output you can see the property history for each
+interaction type (layer) between `ANGELE` and `FELIPE`.
 
-Finally, we call `to_df()` again, turning off the property history and exploding the edges. In the output you can see each interaction that occurred between `ANGELE` and `FELIPE`.
- 
-!!! info 
+Finally, we call `to_df()` again, turning off the property history and exploding the edges. In the output you can see
+each interaction that occurred between `ANGELE` and `FELIPE`.
+
+!!! info
 
     We have further reduced the graph to only one layer (`Grunting-Lipsmacking`) to reduce the output size.
 
 /// tab | :fontawesome-brands-python: Python
+
 ```python
 from raphtory import Graph
 import pandas as pd
@@ -163,10 +173,11 @@ df = grunting_graph.edges.to_df()
 print("Exploding the grunting-Lipsmacking layer")
 print(df)
 ```
+
 ///
 
 ```{.python continuation hide}
-assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000)"
+assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000, properties=Properties({}))"
 assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560526320000, latest_time=1561042620000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=1560526320000, latest_time=1562253540000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
 ```
 
@@ -225,7 +236,7 @@ assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, ea
     13                                    [1560526320000]  
     14                                    [1561110180000]  
 
-    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000)
+    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000, properties=Properties({}))
     Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560526320000, latest_time=1561042620000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=1560526320000, latest_time=1562253540000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))
     Exploding the grunting-Lipsmacking layer
         src     dst                 layer  \

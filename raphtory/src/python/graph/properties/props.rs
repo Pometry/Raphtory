@@ -1,15 +1,16 @@
 use crate::{
     db::api::{
         properties::{
-            dyn_props::{DynConstProperties, DynProperties, DynTemporalProperties},
-            internal::PropertiesOps,
+            dyn_props::{DynMetadata, DynProperties, DynTemporalProperties},
+            internal::InternalPropertiesOps,
             Properties,
         },
         view::internal::{DynamicGraph, Static},
     },
+    prelude::PropertiesOps,
     python::{
         graph::properties::{
-            PyConstPropsList, PyConstPropsListList, PyConstantProperties, PyTemporalPropsList,
+            MetadataView, PyMetadata, PyMetadataListList, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -19,7 +20,6 @@ use crate::{
         utils::PyGenericIterator,
     },
 };
-use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
@@ -38,7 +38,7 @@ impl PartialEq for PyPropsComp {
 
 impl<'source> FromPyObject<'source> for PyPropsComp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstantProperties>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetadata>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
             Ok(p.deref().into())
@@ -50,8 +50,8 @@ impl<'source> FromPyObject<'source> for PyPropsComp {
     }
 }
 
-impl From<&PyConstantProperties> for PyPropsComp {
-    fn from(value: &PyConstantProperties) -> Self {
+impl From<&PyMetadata> for PyPropsComp {
+    fn from(value: &PyMetadata) -> Self {
         Self(value.as_dict())
     }
 }
@@ -62,8 +62,8 @@ impl From<&PyProperties> for PyPropsComp {
     }
 }
 
-impl From<DynConstProperties> for PyPropsComp {
-    fn from(value: DynConstProperties) -> Self {
+impl From<DynMetadata> for PyPropsComp {
+    fn from(value: DynMetadata) -> Self {
         Self(value.as_map())
     }
 }
@@ -138,12 +138,6 @@ impl PyProperties {
         self.props.temporal()
     }
 
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> DynConstProperties {
-        self.props.constant()
-    }
-
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
@@ -165,7 +159,7 @@ impl<P: Into<DynProperties>> From<P> for PyProperties {
     }
 }
 
-impl<'py, P: PropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
+impl<'py, P: InternalPropertiesOps + Clone + Send + Sync + 'static + Static> IntoPyObject<'py>
     for Properties<P>
 {
     type Target = PyProperties;
@@ -197,7 +191,7 @@ impl<'py> IntoPyObject<'py> for DynProperties {
     }
 }
 
-impl<P: PropertiesOps + Clone> Repr for Properties<P> {
+impl<P: InternalPropertiesOps + Clone> Repr for Properties<P> {
     fn repr(&self) -> String {
         format!("Properties({{{}}})", iterator_dict_repr(self.iter()))
     }
@@ -214,7 +208,7 @@ pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
 impl<'source> FromPyObject<'source> for PyPropsListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<MetadataView>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
             Ok(p.deref().into())
@@ -226,8 +220,8 @@ impl<'source> FromPyObject<'source> for PyPropsListCmp {
     }
 }
 
-impl From<&PyConstPropsList> for PyPropsListCmp {
-    fn from(value: &PyConstPropsList) -> Self {
+impl From<&MetadataView> for PyPropsListCmp {
+    fn from(value: &MetadataView) -> Self {
         Self(
             value
                 .items()
@@ -277,7 +271,7 @@ impl PropertiesView {
 
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     fn __getitem__(&self, key: &str) -> PyResult<PyPropValueList> {
@@ -287,11 +281,9 @@ impl PropertiesView {
     /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .map(|p| p.keys().sorted().collect_vec())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     /// Get the values of the properties
@@ -331,13 +323,6 @@ impl PropertiesView {
         (move || builder().map(|p| p.temporal())).into()
     }
 
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> PyConstPropsList {
-        let builder = self.builder.clone();
-        (move || builder().map(|p| p.constant())).into()
-    }
-
     /// Convert properties view to a dict
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
@@ -355,14 +340,14 @@ impl PropertiesView {
 }
 
 py_nested_iterable_base!(PyNestedPropsIterable, DynProperties, PyProperties);
-py_eq!(PyNestedPropsIterable, PyConstPropsListListCmp);
+py_eq!(PyNestedPropsIterable, PyMetadataListListCmp);
 
 #[derive(PartialEq, Clone)]
-pub struct PyConstPropsListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
+pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
+impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyConstPropsListList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<PyMetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
@@ -374,8 +359,8 @@ impl<'source> FromPyObject<'source> for PyConstPropsListListCmp {
     }
 }
 
-impl From<&PyConstPropsListList> for PyConstPropsListListCmp {
-    fn from(value: &PyConstPropsListList) -> Self {
+impl From<&PyMetadataListList> for PyMetadataListListCmp {
+    fn from(value: &PyMetadataListList) -> Self {
         Self(
             value
                 .items()
@@ -386,7 +371,7 @@ impl From<&PyConstPropsListList> for PyConstPropsListListCmp {
     }
 }
 
-impl From<&PyNestedPropsIterable> for PyConstPropsListListCmp {
+impl From<&PyNestedPropsIterable> for PyMetadataListListCmp {
     fn from(value: &PyNestedPropsIterable) -> Self {
         Self(
             value
@@ -421,7 +406,10 @@ impl PyNestedPropsIterable {
 
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     fn __getitem__(&self, key: &str) -> Result<PyPropValueListList, PyErr> {
@@ -431,11 +419,10 @@ impl PyNestedPropsIterable {
     /// Get the names for all properties (includes temporal and constant properties)
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            // FIXME: Still have to clone all those strings which sucks
-            .flat_map(|it| it.map(|p| p.keys().collect_vec()))
-            .kmerge()
-            .dedup()
-            .collect()
+            .filter_map(|mut it| it.next())
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     pub fn __iter__(&self) -> PyGenericIterator {
@@ -463,13 +450,6 @@ impl PyNestedPropsIterable {
     pub fn temporal(&self) -> PyTemporalPropsListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
-    }
-
-    /// Get a view of the constant properties (meta-data) only.
-    #[getter]
-    pub fn constant(&self) -> PyConstPropsListList {
-        let builder = self.builder.clone();
-        (move || builder().map(|it| it.map(|p| p.constant()))).into()
     }
 
     /// Convert properties view to a dict

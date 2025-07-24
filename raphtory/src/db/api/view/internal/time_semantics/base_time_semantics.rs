@@ -666,23 +666,23 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop> {
-        for_all!(self, semantics => semantics.constant_edge_prop(e, view, prop_id))
+        for_all!(self, semantics => semantics.edge_metadata(e, view, prop_id))
     }
 
     #[inline]
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<i64>,
     ) -> Option<Prop> {
-        for_all!(self, semantics => semantics.constant_edge_prop_window(e, view, prop_id, w))
+        for_all!(self, semantics => semantics.edge_metadata_window(e, view, prop_id, w))
     }
 }

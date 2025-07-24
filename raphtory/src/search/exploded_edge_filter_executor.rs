@@ -135,7 +135,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         }
     }
 
-    fn apply_const_property_filter<G: StaticGraphViewOps>(
+    fn apply_metadata_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         prop_name: &str,
@@ -147,7 +147,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             .index
             .edge_index
             .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?
+            .get_metadata_index(graph.edge_meta(), prop_name)?
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
@@ -187,66 +187,6 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         }
     }
 
-    fn apply_combined_property_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        prop_name: &str,
-        filter: &PropertyFilter<ExplodedEdgeFilter>,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let cpi = self
-            .index
-            .edge_index
-            .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?;
-        let tpi = self
-            .index
-            .edge_index
-            .entity_index
-            .get_temporal_property_index(graph.edge_meta(), prop_name)?;
-
-        match (cpi, tpi) {
-            (Some((cpi, _)), Some((tpi, prop_id))) => {
-                let cpi_results = self.execute_or_fallback(graph, &cpi, filter, limit, offset)?;
-                let tpi_results = self.execute_or_fallback_temporal(
-                    graph,
-                    prop_id,
-                    &tpi,
-                    filter,
-                    limit,
-                    offset,
-                    ExplodedEdgePropertyFilterCollector::new,
-                )?;
-
-                let filtered = cpi_results
-                    .into_iter()
-                    .filter(|n| {
-                        n.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|t| t.is_empty())
-                            .unwrap_or(true)
-                    })
-                    .collect::<HashSet<_>>();
-
-                let combined: Vec<EdgeView<G>> = filtered.into_iter().chain(tpi_results).collect();
-                Ok(combined)
-            }
-            (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
-            (None, Some((tpi, prop_id))) => self.execute_or_fallback_temporal(
-                graph,
-                prop_id,
-                &tpi,
-                filter,
-                limit,
-                offset,
-                ExplodedEdgePropertyFilterCollector::new,
-            ),
-            _ => fallback_filter_edges(graph, filter, limit, offset),
-        }
-    }
-
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
@@ -255,8 +195,8 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match &filter.prop_ref {
-            PropertyRef::ConstantProperty(prop_name) => {
-                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
+            PropertyRef::Metadata(prop_name) => {
+                self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
                 .apply_temporal_property_filter(
@@ -267,18 +207,15 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                     offset,
                     ExplodedEdgePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    ExplodedEdgePropertyFilterCollector::new,
-                ),
-            PropertyRef::Property(prop_name) => {
-                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
-            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
+            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
+                graph,
+                prop_name,
+                filter,
+                limit,
+                offset,
+                ExplodedEdgePropertyFilterCollector::new,
+            ),
         }
     }
 

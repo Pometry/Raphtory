@@ -72,7 +72,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        prop_id < self.graph_meta().temporal_prop_meta().len()
+        prop_id < self.graph_meta().temporal_mapper().len()
     }
 
     fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
@@ -348,7 +348,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
 
-            let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
 
             let node_id = g.node("N1").unwrap().node;
             let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
@@ -394,7 +394,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
 
-            let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
             let w = 6..9;
 
             let node_id = g.node("N1").unwrap().node;
@@ -504,7 +504,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
 
-            let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest(
@@ -615,7 +615,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
 
-            let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+            let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
             let w = 6..9;
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();

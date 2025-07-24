@@ -98,7 +98,7 @@ g.add_properties(
 )
 
 # Weight list on an edge
-g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1,2,3]})
+g.add_edge(timestamp=4, src="User 1", dst="User 2", properties={"weights": [1, 2, 3]})
 
 # Printing everything out
 v = g.node(id="User 1")
@@ -116,11 +116,11 @@ g = Graph()
 v = g.add_node(timestamp=1, id="User 1")
 e = g.add_edge(timestamp=2, src="User 1", dst="User 2")
 
-g.add_constant_properties(properties={"name": "Example Graph"})
-v.add_constant_properties(
-    properties={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
+g.add_metadata(metadat={"name": "Example Graph"})
+v.add_metadata(
+    metadata={"date of birth": datetime.strptime("1990-02-03", "%Y-%m-%d")},
 )
-e.add_constant_properties(properties={"data source": "https://link-to-repo.com"})
+e.add_metadata(metadata={"data source": "https://link-to-repo.com"})
 
 print(g)
 print(v)
@@ -183,7 +183,7 @@ edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 nodes_df = pd.read_csv("docs/data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-pd.set_option('display.max_columns', None)  # so all columns are printed
+pd.set_option("display.max_columns", None)  # so all columns are printed
 print("--- Edge Dataframe ---")
 print(f"{edges_df.head(2)}\n")
 print()
@@ -212,7 +212,6 @@ g.load_nodes_from_pandas(
     properties=["OS_version", "primary_function", "uptime_days"],
     constant_properties=["server_name", "hardware_type"],
     shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
-
 )
 
 print("The resulting graphs and example node/edge:")
@@ -304,7 +303,7 @@ g.load_edges_from_pandas(
     properties=["data_size_MB"],
     layer_col="transaction_type",
 )
-g.save_to_file("docs/tmp/saved_graph") 
+g.save_to_file("docs/tmp/saved_graph")
 loaded_graph = Graph.load_from_file("docs/tmp/saved_graph")
 print(g)
 print(loaded_graph)

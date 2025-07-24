@@ -204,9 +204,9 @@ def test_namespaces():
 
 def test_graph_windows_and_layers_query():
     g1 = graph_loader.lotr_graph()
-    g1.add_constant_properties({"name": "lotr"})
+    g1.add_metadata({"name": "lotr"})
     g2 = Graph()
-    g2.add_constant_properties({"name": "layers"})
+    g2.add_metadata({"name": "layers"})
     g2.add_edge(1, 1, 2, layer="layer1")
     g2.add_edge(1, 2, 3, layer="layer2")
 
@@ -302,11 +302,11 @@ def test_graph_windows_and_layers_query():
 
 def test_graph_properties_query():
     g = Graph()
-    g.add_constant_properties({"name": "g"})
+    g.add_metadata({"name": "g"})
     g.add_node(1, 1, {"prop1": "val1", "prop2": "val1"})
     g.add_node(2, 1, {"prop1": "val2", "prop2": "val2"})
     n = g.add_node(3, 1, {"prop1": "val3", "prop2": "val3"})
-    n.add_constant_properties({"prop5": "val4"})
+    n.add_metadata({"prop5": "val4"})
 
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir).start() as server:
@@ -328,61 +328,57 @@ def test_graph_properties_query():
                         history
                       }
                     }
-                    constant {
-                      values(keys:["prop5"]) {
-                        key
-                        value
-                      }
-                    }
+                  }
+                metadata {
+                  values(keys:["prop5"]) {
+                    key
+                    value
                   }
                 }
+              }
             }
           }
         }
         """
-        r = """
-        {
+        r = {
             "graph": {
-              "nodes": {
-                "list": [
-                  {
-                    "properties": {
-                      "values": [{ "key": "prop1", "asString": "val3" }],
-                      "temporal": {
-                        "values": [{"key": "prop2", "history": [1, 2, 3]}]
-                      },
-                      "constant": {
-                        "values": [{"key": "prop5", "value": "val4"}]
-                      }
-                    }
-                  }
-                ]
-              }
+                "nodes": {
+                    "list": [
+                        {
+                            "properties": {
+                                "values": [{"key": "prop1", "asString": "val3"}],
+                                "temporal": {
+                                    "values": [{"key": "prop2", "history": [1, 2, 3]}]
+                                },
+                            },
+                            "metadata": {"values": [{"key": "prop5", "value": "val4"}]},
+                        }
+                    ]
+                }
             }
         }
-        """
+
         s = client.query(q)
-        json_a = json.loads(json.dumps(s))
-        json_ra = json.loads(r)
+
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+            s["graph"]["nodes"]["list"][0]["metadata"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["constant"]["values"],
+            r["graph"]["nodes"]["list"][0]["metadata"]["values"],
             key=lambda x: x["key"],
         )
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["values"],
+            s["graph"]["nodes"]["list"][0]["properties"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["values"],
+            r["graph"]["nodes"]["list"][0]["properties"]["values"],
             key=lambda x: x["key"],
         )
         assert sorted(
-            json_a["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+            s["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         ) == sorted(
-            json_ra["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
+            r["graph"]["nodes"]["list"][0]["properties"]["temporal"]["values"],
             key=lambda x: x["key"],
         )
 

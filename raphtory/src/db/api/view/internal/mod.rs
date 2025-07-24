@@ -1,18 +1,9 @@
-mod base_filter;
-mod core_deletion_ops;
-mod edge_filter_ops;
-mod filter_ops;
-mod into_dynamic;
-mod list_ops;
-mod materialize;
-mod node_filter_ops;
-pub(crate) mod time_semantics;
-mod wrapped_graph;
-
 use crate::{
     db::{
         api::{
-            properties::internal::{ConstantPropertiesOps, InheritPropertiesOps, PropertiesOps},
+            properties::internal::{
+                InheritPropertiesOps, InternalMetadataOps, InternalPropertiesOps,
+            },
             storage::storage::Storage,
         },
         graph::views::deletion_graph::PersistentGraph,
@@ -24,8 +15,17 @@ use std::{
     sync::Arc,
 };
 
+mod edge_filter_ops;
+mod filter_ops;
+mod into_dynamic;
+mod list_ops;
+mod materialize;
+mod node_filter_ops;
+pub(crate) mod time_semantics;
+mod wrapped_graph;
+mod base_filter;
+
 pub use base_filter::*;
-pub use core_deletion_ops::*;
 pub use edge_filter_ops::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
@@ -52,8 +52,8 @@ pub trait BoxableGraphView:
     + InternalLayerOps
     + GraphTimeSemanticsOps
     + InternalMaterialize
-    + PropertiesOps
-    + ConstantPropertiesOps
+    + InternalPropertiesOps
+    + InternalMetadataOps
     + InternalStorageOps
     + NodeHistoryFilter
     + EdgeHistoryFilter
@@ -72,8 +72,8 @@ impl<
             + InternalLayerOps
             + GraphTimeSemanticsOps
             + InternalMaterialize
-            + PropertiesOps
-            + ConstantPropertiesOps
+            + InternalPropertiesOps
+            + InternalMetadataOps
             + InternalStorageOps
             + NodeHistoryFilter
             + EdgeHistoryFilter
@@ -90,8 +90,6 @@ impl<T: BoxableGraphView + Sized + Clone> GraphView for T {}
 impl<G: InheritViewOps> InheritNodeFilterOps for G {}
 
 impl<G: InheritViewOps> InheritListOps for G {}
-
-impl<G: InheritViewOps + HasDeletionOps> HasDeletionOps for G {}
 
 impl<G: InheritViewOps> InheritAllEdgeFilterOps for G {}
 

@@ -22,22 +22,15 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::No
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
     graph: G,
-    t_prop_id: Option<usize>,
-    c_prop_id: Option<usize>,
+    prop_id: Option<usize>,
     filter: PropertyFilter<NodeFilter>,
 }
 
 impl<G> NodePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
-        filter: PropertyFilter<NodeFilter>,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter<NodeFilter>) -> Self {
         Self {
             graph,
-            t_prop_id,
-            c_prop_id,
+            prop_id,
             filter,
         }
     }
@@ -50,11 +43,8 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta(), false)?;
-        Ok(NodePropertyFilteredGraph::new(
-            graph, t_prop_id, c_prop_id, self,
-        ))
+        let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
+        Ok(NodePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }
 
@@ -88,8 +78,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.internal_filter_node(node, layer_ids) {
-            self.filter
-                .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
+            self.filter.matches_node(&self.graph, self.prop_id, node)
         } else {
             false
         }

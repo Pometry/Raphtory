@@ -22,11 +22,11 @@ run-graphql:
 	cargo run --release -p raphtory-graphql
 
 rust-test-all: activate-storage
-	cargo nextest run --all --features=storage
+	cargo nextest run --all --features=storage --no-fail-fast
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
 
 rust-test-all-public:
-	cargo nextest run --all
+	cargo nextest run --all --no-fail-fast
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
 
 
@@ -62,7 +62,7 @@ tidy: rust-fmt build-python stubs python-fmt
 
 tidy-public: rust-fmt build-python-public stubs python-fmt
 
-check-pr: tidy-public test-all
+check-pr: test-all tidy-public
 
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
@@ -79,7 +79,7 @@ build-python: activate-storage
 	cd python && maturin develop -r --features=storage,extension-module --extras=dev
 
 debug-python: activate-storage
-	cd python && maturin develop --features=storage --extras=dev
+	cd python && maturin develop --features=storage,extension-module --extras=dev
 
 install-mkdocs:
 	pip install mkdocs

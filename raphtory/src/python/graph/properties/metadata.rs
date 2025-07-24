@@ -1,17 +1,15 @@
 use crate::{
-    db::api::properties::{
-        dyn_props::DynConstProperties, internal::PropertiesOps, ConstantProperties,
-    },
+    db::api::properties::{dyn_props::DynMetadata, internal::InternalPropertiesOps, Metadata},
+    prelude::PropertiesOps,
     python::{
         graph::properties::{
-            props::PyPropsComp, PyConstPropsListListCmp, PyPropValueList, PyPropValueListList,
+            props::PyPropsComp, PyMetadataListListCmp, PyPropValueList, PyPropValueListList,
             PyPropsListCmp,
         },
         types::repr::{iterator_dict_repr, Repr},
         utils::PyGenericIterator,
     },
 };
-use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
@@ -19,34 +17,34 @@ use pyo3::{
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::{collections::HashMap, sync::Arc};
 
-impl<'py, P: PropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
-    for ConstantProperties<'static, P>
+impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
+    for Metadata<'static, P>
 {
-    type Target = PyConstantProperties;
+    type Target = PyMetadata;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyConstantProperties::from(self).into_pyobject(py)
+        PyMetadata::from(self).into_pyobject(py)
     }
 }
 
-impl<'a, P: PropertiesOps> Repr for ConstantProperties<'a, P> {
+impl<'a, P: InternalPropertiesOps> Repr for Metadata<'a, P> {
     fn repr(&self) -> String {
-        format!("StaticProperties({{{}}})", iterator_dict_repr(self.iter()))
+        format!("Metadata({{{}}})", iterator_dict_repr(self.iter()))
     }
 }
 
 /// A view of constant properties of an entity
-#[pyclass(name = "ConstantProperties", module = "raphtory", frozen)]
-pub struct PyConstantProperties {
-    props: DynConstProperties,
+#[pyclass(name = "Metadata", module = "raphtory", frozen)]
+pub struct PyMetadata {
+    props: DynMetadata,
 }
 
-py_eq!(PyConstantProperties, PyPropsComp);
+py_eq!(PyMetadata, PyPropsComp);
 
 #[pymethods]
-impl PyConstantProperties {
+impl PyMetadata {
     /// lists the available property keys
     ///
     /// Returns:
@@ -68,7 +66,7 @@ impl PyConstantProperties {
     /// Returns:
     ///     list[Tuple[str, PropValue]]: the property keys with corresponding values
     pub fn items(&self) -> Vec<(ArcStr, Prop)> {
-        self.props.iter().collect()
+        self.props.as_vec()
     }
 
     /// get property value by key
@@ -130,33 +128,30 @@ impl PyConstantProperties {
     }
 }
 
-impl<P: PropertiesOps + Send + Sync + 'static> From<ConstantProperties<'static, P>>
-    for PyConstantProperties
-{
-    fn from(value: ConstantProperties<P>) -> Self {
-        PyConstantProperties {
-            props: ConstantProperties::new(Arc::new(value.props)),
+impl<P: InternalPropertiesOps + Send + Sync + 'static> From<Metadata<'static, P>> for PyMetadata {
+    fn from(value: Metadata<P>) -> Self {
+        PyMetadata {
+            props: Metadata::new(Arc::new(value.props)),
         }
     }
 }
 
-impl Repr for PyConstantProperties {
+impl Repr for PyMetadata {
     fn repr(&self) -> String {
         self.props.repr()
     }
 }
 
-py_iterable_base!(PyConstPropsList, DynConstProperties, PyConstantProperties);
-py_eq!(PyConstPropsList, PyPropsListCmp);
+py_iterable_base!(MetadataView, DynMetadata, PyMetadata);
+py_eq!(MetadataView, PyPropsListCmp);
 
 #[pymethods]
-impl PyConstPropsList {
+impl MetadataView {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .map(|p| p.keys().collect::<Vec<_>>())
-            .kmerge()
-            .dedup()
-            .collect()
+            .next()
+            .map(|p| p.keys().collect())
+            .unwrap_or_default()
     }
 
     pub fn values(&self) -> Vec<PyPropValueList> {
@@ -186,7 +181,7 @@ impl PyConstPropsList {
     }
 
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|p| p.contains(key))
+        self.iter().next().is_some_and(|p| p.contains(key))
     }
 
     pub fn __iter__(&self) -> PyGenericIterator {
@@ -201,21 +196,16 @@ impl PyConstPropsList {
     }
 }
 
-py_nested_iterable_base!(
-    PyConstPropsListList,
-    DynConstProperties,
-    PyConstantProperties
-);
-py_eq!(PyConstPropsListList, PyConstPropsListListCmp);
+py_nested_iterable_base!(PyMetadataListList, DynMetadata, PyMetadata);
+py_eq!(PyMetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
-impl PyConstPropsListList {
+impl PyMetadataListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
-            .flat_map(|it| it.map(|p| p.keys().collect::<Vec<_>>()))
-            .kmerge()
-            .dedup()
-            .collect()
+            .flat_map(|mut it| it.next().map(|p| p.keys().collect()))
+            .next()
+            .unwrap_or_default()
     }
 
     pub fn values(&self) -> Vec<PyPropValueListList> {
@@ -252,7 +242,10 @@ impl PyConstPropsListList {
     }
 
     pub fn __contains__(&self, key: &str) -> bool {
-        self.iter().any(|mut it| it.any(|p| p.contains(key)))
+        self.iter()
+            .filter_map(|mut it| it.next())
+            .next()
+            .is_some_and(|p| p.contains(key))
     }
 
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {

@@ -5,7 +5,7 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
@@ -22,11 +22,12 @@ use crate::{
         },
     },
     errors::GraphError,
+    prelude::PropertiesOps,
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::BaseFilter,
-            properties::{PropertiesView, PyNestedPropsIterable},
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
@@ -196,6 +197,15 @@ impl PyNode {
     #[getter]
     pub fn properties(&self) -> Properties<NodeView<'static, DynamicGraph>> {
         self.node.properties()
+    }
+
+    /// The metadata (constant properties) of the node
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, NodeView<'static, DynamicGraph>> {
+        self.node.metadata()
     }
 
     /// Returns the type of node
@@ -399,30 +409,24 @@ impl PyMutableNode {
         }
     }
 
-    /// Add constant properties to a node in the graph.
+    /// Add metadata to a node in the graph.
     /// This function is used to add properties to a node that remain constant and do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn add_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.add_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.add_metadata(metadata)
     }
 
-    /// Update constant properties of a node in the graph overwriting existing values.
+    /// Update metadata of a node in the graph overwriting existing values.
     /// This function is used to add properties to a node that remain constant and do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn update_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.update_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.update_metadata(metadata)
     }
 
     /// Return a string representation of the node.
@@ -658,6 +662,16 @@ impl PyNodes {
         (move || nodes.properties().into_iter_values()).into()
     }
 
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     MetadataView: A view of the node properties
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let nodes = self.nodes.clone();
+        (move || nodes.metadata().into_iter_values()).into()
+    }
+
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
@@ -725,6 +739,7 @@ impl PyNodes {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().unwrap_or(0),
@@ -873,6 +888,13 @@ impl PyPathFromGraph {
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> PyMetadataListList {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node degrees
@@ -1041,6 +1063,13 @@ impl PyPathFromNode {
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node in-degrees

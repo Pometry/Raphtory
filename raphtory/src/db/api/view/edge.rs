@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::PropertiesOps, Properties},
+            properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
                 internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView},
                 IntoDynBoxed,
@@ -103,7 +103,7 @@ pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     where
         T: 'graph;
 
-    type PropType: PropertiesOps + Clone + 'graph;
+    type PropType: InternalPropertiesOps + Clone + 'graph;
     type Nodes: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
     type Exploded: EdgeViewOps<'graph, Graph = Self::Graph> + 'graph;
 
@@ -113,6 +113,8 @@ pub trait BaseEdgeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ) -> Self::ValueType<O>;
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>>;
+
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
@@ -132,7 +134,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     type ValueType<T>: 'graph
     where
         T: 'graph;
-    type PropType: PropertiesOps + Clone + 'graph;
+    type PropType: InternalPropertiesOps + Clone + 'graph;
     type Graph: GraphViewOps<'graph>;
     type Nodes: NodeViewOps<'graph, Graph = Self::Graph>;
 
@@ -163,6 +165,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
 
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
+
+    /// Return a vview of the metadata of the edge
+    fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
     fn src(&self) -> Self::Nodes;
@@ -367,6 +372,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
+    }
+
+    fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
+        self.as_metadata()
     }
 
     /// Returns the source node of the edge.
@@ -602,7 +611,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 #[cfg(test)]
 mod test_edge_view {
     use crate::{prelude::*, test_storage, test_utils::test_graph};
-
+    use std::string::ToString;
+    
     #[test]
     fn test_exploded_edge_properties() {
         let graph = Graph::new();

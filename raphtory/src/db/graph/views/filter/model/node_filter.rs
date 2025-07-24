@@ -15,6 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::model::property_filter::MetadataFilterBuilder;
 
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
@@ -208,6 +209,10 @@ impl NodeFilter {
 impl PropertyFilterFactory<NodeFilter> for NodeFilter {
     fn property(name: impl Into<String>) -> PropertyFilterBuilder<NodeFilter> {
         PropertyFilterBuilder::new(name)
+    }
+
+    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<NodeFilter> {
+        MetadataFilterBuilder::new(name)
     }
 }
 

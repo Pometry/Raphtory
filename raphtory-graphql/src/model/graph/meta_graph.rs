@@ -47,7 +47,7 @@ impl MetaGraph {
 pub(crate) struct GqlGraphMetadata {
     pub(crate) node_count: usize,
     pub(crate) edge_count: usize,
-    pub(crate) properties: Vec<GqlProperty>,
+    pub(crate) metadata: Vec<GqlProperty>,
 }
 
 impl From<GraphMetadata> for GqlGraphMetadata {
@@ -55,8 +55,8 @@ impl From<GraphMetadata> for GqlGraphMetadata {
         GqlGraphMetadata {
             node_count: metadata.node_count,
             edge_count: metadata.edge_count,
-            properties: metadata
-                .properties
+            metadata: metadata
+                .metadata
                 .into_iter()
                 .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
                 .collect(),

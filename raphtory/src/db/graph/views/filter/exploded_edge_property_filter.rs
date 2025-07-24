@@ -4,7 +4,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritEdgeLayerFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
                 InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalExplodedEdgeFilterOps, Static,
@@ -13,7 +13,7 @@ use crate::{
         graph::views::filter::{internal::CreateFilter, model::edge_filter::ExplodedEdgeFilter},
     },
     errors::GraphError,
-    prelude::{GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, LayerOps, PropertyFilter},
 };
 use raphtory_api::{
     core::{
@@ -48,21 +48,8 @@ impl<'graph, G: GraphViewOps<'graph>> ExplodedEdgePropertyFilteredGraph<G> {
     }
 
     fn filter(&self, e: EID, t: TimeIndexEntry, layer: usize) -> bool {
-        self.filter.matches(
-            self.prop_id
-                .and_then(|prop_id| {
-                    let time_semantics = self.graph.edge_time_semantics();
-                    let edge = self.graph.core_edge(e);
-                    time_semantics.temporal_edge_prop_exploded(
-                        edge.as_ref(),
-                        &self.graph,
-                        prop_id,
-                        t,
-                        layer,
-                    )
-                })
-                .as_ref(),
-        )
+        self.filter
+            .matches_exploded_edge(&self.graph, self.prop_id, e, t, layer)
     }
 }
 
@@ -73,10 +60,10 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_id(graph.edge_meta())?;
+        let prop_id = self.resolve_prop_id(graph.edge_meta(), graph.num_layers() > 1)?;
         Ok(ExplodedEdgePropertyFilteredGraph::new(
             graph.clone(),
-            t_prop_id,
+            prop_id,
             self,
         ))
     }

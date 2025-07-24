@@ -1,16 +1,16 @@
 use crate::db::api::{
     properties::{
-        internal::PropertiesOps, ConstantProperties, Properties, TemporalProperties,
+        internal::InternalPropertiesOps, Metadata, Properties, TemporalProperties,
         TemporalPropertyView,
     },
     view::{internal::Static, DynamicGraph},
 };
 use std::sync::Arc;
 
-pub type DynProps = Arc<dyn PropertiesOps + Send + Sync>;
-pub type DynProperties = Properties<Arc<dyn PropertiesOps + Send + Sync>>;
+pub type DynProps = Arc<dyn InternalPropertiesOps + Send + Sync>;
+pub type DynProperties = Properties<Arc<dyn InternalPropertiesOps + Send + Sync>>;
 
-impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>
+impl<P: InternalPropertiesOps + Clone + Send + Sync + Static + 'static> From<Properties<P>>
     for DynProperties
 {
     fn from(value: Properties<P>) -> Self {
@@ -25,20 +25,26 @@ impl From<Properties<DynamicGraph>> for DynProperties {
     }
 }
 
-pub type DynConstProperties = ConstantProperties<'static, DynProps>;
+pub type DynMetadata = Metadata<'static, DynProps>;
 
-impl<P: PropertiesOps + Send + Sync + Static + 'static> From<ConstantProperties<'static, P>>
-    for DynConstProperties
+impl<P: InternalPropertiesOps + Send + Sync + Static + 'static> From<Metadata<'static, P>>
+    for DynMetadata
 {
-    fn from(value: ConstantProperties<P>) -> Self {
-        ConstantProperties::new(Arc::new(value.props))
+    fn from(value: Metadata<P>) -> Self {
+        Metadata::new(Arc::new(value.props))
+    }
+}
+
+impl From<Metadata<'static, DynamicGraph>> for DynMetadata {
+    fn from(value: Metadata<'static, DynamicGraph>) -> Self {
+        Metadata::new(Arc::new(value.props))
     }
 }
 
 pub type DynTemporalProperties = TemporalProperties<DynProps>;
 pub type DynTemporalProperty = TemporalPropertyView<DynProps>;
 
-impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalProperties<P>>
+impl<P: InternalPropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalProperties<P>>
     for DynTemporalProperties
 {
     fn from(value: TemporalProperties<P>) -> Self {
@@ -47,7 +53,7 @@ impl<P: PropertiesOps + Clone + Send + Sync + Static + 'static> From<TemporalPro
 }
 impl From<TemporalProperties<DynamicGraph>> for DynTemporalProperties {
     fn from(value: TemporalProperties<DynamicGraph>) -> Self {
-        let props: Arc<dyn PropertiesOps + Send + Sync> = Arc::new(value.props);
+        let props: Arc<dyn InternalPropertiesOps + Send + Sync> = Arc::new(value.props);
         TemporalProperties::new(props)
     }
 }

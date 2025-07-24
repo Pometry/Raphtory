@@ -7,7 +7,7 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, Prop},
+    prelude::*,
 };
 use indexmap::IndexSet;
 use raphtory_api::core::{
@@ -78,15 +78,15 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     };
     let mut weight_type = PropType::U8;
     if let Some(weight) = weight {
-        let maybe_weight_type = match g.edge_meta().temporal_prop_meta().get_id(weight) {
-            Some(weight_id) => g.edge_meta().temporal_prop_meta().get_dtype(weight_id),
+        let maybe_weight_type = match g.edge_meta().temporal_prop_mapper().get_id(weight) {
+            Some(weight_id) => g.edge_meta().temporal_prop_mapper().get_dtype(weight_id),
             None => g
                 .edge_meta()
-                .const_prop_meta()
+                .metadata_mapper()
                 .get_id(weight)
                 .map(|weight_id| {
                     g.edge_meta()
-                        .const_prop_meta()
+                        .metadata_mapper()
                         .get_dtype(weight_id)
                         .unwrap()
                 }),
@@ -222,7 +222,6 @@ mod dijkstra_tests {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::*,
         test_storage,
     };
 

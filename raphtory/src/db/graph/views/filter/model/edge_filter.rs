@@ -15,6 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+use crate::db::graph::views::filter::model::property_filter::MetadataFilterBuilder;
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilter(pub Filter);
@@ -284,6 +285,10 @@ impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {
     fn property(name: impl Into<String>) -> PropertyFilterBuilder<EdgeFilter> {
         PropertyFilterBuilder::new(name)
     }
+
+    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<EdgeFilter> {
+        MetadataFilterBuilder::new(name)
+    }
 }
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
@@ -292,6 +297,10 @@ pub struct ExplodedEdgeFilter;
 impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {
     fn property(name: impl Into<String>) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
         PropertyFilterBuilder::new(name)
+    }
+    
+    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
+        MetadataFilterBuilder::new(name)
     }
 }
 

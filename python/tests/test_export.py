@@ -29,16 +29,16 @@ def build_graph():
         dst="destination",
         properties=["data_size_MB"],
         layer_col="transaction_type",
-        constant_properties=["is_encrypted"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["is_encrypted"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     g.load_nodes_from_pandas(
         df=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
-        constant_properties=["server_name", "hardware_type"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["server_name", "hardware_type"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     return g
 
@@ -58,16 +58,16 @@ def build_graph_without_datetime_type():
         dst="destination",
         properties=["data_size_MB"],
         layer_col="transaction_type",
-        constant_properties=["is_encrypted"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["is_encrypted"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     g.load_nodes_from_pandas(
         df=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
-        constant_properties=["server_name", "hardware_type"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["server_name", "hardware_type"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     return g
 

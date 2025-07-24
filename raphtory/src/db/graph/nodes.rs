@@ -268,7 +268,7 @@ where
         self.iter_owned().collect()
     }
 
-    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+    pub fn get_metadata_id(&self, prop_name: &str) -> Option<usize> {
         self.one_hop_graph.node_meta().get_prop_id(prop_name, true)
     }
 
