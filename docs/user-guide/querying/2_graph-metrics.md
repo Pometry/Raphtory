@@ -137,7 +137,7 @@ print(g.edges)
 ///
 
 ```{.python continuation hide}
-assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000, properties=Properties({}))"
+assert str(g.node("LOME")) == "Node(name=LOME, earliest_time=1560419520000, latest_time=1562756100000)"
 ```
 
 !!! Output

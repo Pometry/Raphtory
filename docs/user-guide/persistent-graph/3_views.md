@@ -84,7 +84,7 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=2, latest_time=5, properties=Properties({})), Node(name=Bob, earliest_time=2, latest_time=5, properties=Properties({}))) Edges(Edge(source=Alice, target=Bob, earliest_time=2, latest_time=5, layer(s)=[_default]))"
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=2, latest_time=5), Node(name=Bob, earliest_time=2, latest_time=5)) Edges(Edge(source=Alice, target=Bob, earliest_time=2, latest_time=5, layer(s)=[_default]))"
 ```
 
 !!! Output
@@ -153,22 +153,22 @@ G.add_edge(2, "Alice", "Bob")
 G.delete_edge(5, "Alice", "Bob")
 
 # Touching the start time of the edge
-print(f"Window 0,2: {G.window(0,2).nodes} {G.window(0,2).edges.explode()}")
+print(f"Window 0,2: {G.window(0, 2).nodes} {G.window(0, 2).edges.explode()}")
 
 # Overlapping the start of the edge
-print(f"Window 0,4: {G.window(0,4).nodes} {G.window(0,4).edges.explode()}")
+print(f"Window 0,4: {G.window(0, 4).nodes} {G.window(0, 4).edges.explode()}")
 
 # Fully inside the edge time
-print(f"Window 3,4: {G.window(3,4).nodes} {G.window(3,4).edges.explode()}")
+print(f"Window 3,4: {G.window(3, 4).nodes} {G.window(3, 4).edges.explode()}")
 
 # Touching the end of the edge
-print(f"Window 5,8: {G.window(5,8).nodes} {G.window(5,8).edges.explode()}")
+print(f"Window 5,8: {G.window(5, 8).nodes} {G.window(5, 8).edges.explode()}")
 
 # Fully containing the edge
-print(f"Window 1,8: {G.window(1,8).nodes} {G.window(1,8).edges.explode()}")
+print(f"Window 1,8: {G.window(1, 8).nodes} {G.window(1, 8).edges.explode()}")
 
 # after the edge is deleted
-print(f"Window 6,10: {G.window(6,10).nodes} {G.window(6,10).edges.explode()}")
+print(f"Window 6,10: {G.window(6, 10).nodes} {G.window(6, 10).edges.explode()}")
 ```
 ///
 

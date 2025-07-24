@@ -76,7 +76,7 @@ pub trait PropertiesOps: Send + Sync {
 
     /// Check if there are no properties
     fn is_empty(&self) -> bool {
-        self.ids().next().is_some()
+        self.ids().next().is_none()
     }
 }
 
