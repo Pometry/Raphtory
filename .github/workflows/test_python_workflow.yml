@@ -83,8 +83,7 @@ jobs:
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add .
             git commit -m "chore: apply tidy-public auto-fixes"
-            branch_name=$(git branch --show-current)
-            git push origin HEAD:$branch_name
+            git push origin HEAD:${{ github.ref }}
           else
             echo "No changes to commit."
           fi
