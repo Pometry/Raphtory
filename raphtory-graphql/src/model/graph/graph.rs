@@ -47,7 +47,6 @@ use std::{
     convert::{Into, TryInto},
     sync::Arc,
 };
-use tokio::spawn;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]
@@ -537,14 +536,13 @@ impl GqlGraph {
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();
-            spawn(async move {
+            blocking_compute(move || {
                 let f: CompositeEdgeFilter = filter.try_into()?;
                 let edges = self_clone.graph.search_edges(f, limit, offset)?;
                 let result = edges.into_iter().map(|vv| vv.into()).collect();
                 Ok(result)
             })
             .await
-            .unwrap()
         }
         #[cfg(not(feature = "search"))]
         {
