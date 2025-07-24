@@ -74,14 +74,17 @@ jobs:
       - name: Update docs from graphQL schema
         run: |
           python docs/scripts/gen_docs_graphql_pages.py
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Check for uncommitted changes
+      
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes detected. Committing and pushing..."
-            git branch --show-current
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git checkout ${{ github.head_ref }}
