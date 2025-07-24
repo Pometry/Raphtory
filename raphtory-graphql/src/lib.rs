@@ -1654,7 +1654,7 @@ mod graphql_test {
                             "metadata": {
                                 "nodeCount": 2,
                                 "edgeCount": 1,
-                                "properties": [
+                                "metadata": [
                                     {
                                         "key": "name",
                                         "value": "graph"
