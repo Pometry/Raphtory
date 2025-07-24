@@ -83,12 +83,16 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let t_cell = MemAdditions::Props(self.es.as_ref()[layer_id].times_from_props(self.pos));
-        std::iter::once(
-            range
-                .map(|(start, end)| t_cell.range(start..end))
-                .unwrap_or_else(|| t_cell),
-        )
+        self.es
+            .as_ref()
+            .get(layer_id)
+            .map(|layer| MemAdditions::Props(layer.times_from_props(self.pos)))
+            .into_iter()
+            .map(move |t_props| {
+                range
+                    .map(|(start, end)| t_props.range(start..end))
+                    .unwrap_or_else(|| t_props)
+            })
     }
 
     fn additions_tc(
@@ -173,24 +177,12 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         EdgeTProps::new_with_layer(self, layer_id, prop_id)
     }
 
-    fn src(&self) -> VID {
-        self.es.as_ref()[0]
-            .get(&self.pos)
-            .map(|entry| entry.src)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Edge must have a source vertex at position {:?} on segment_id: {}",
-                    self.pos,
-                    self.es.as_ref()[0].segment_id()
-                )
-            })
+    fn src(&self) -> Option<VID> {
+        self.es.as_ref()[0].get(&self.pos).map(|entry| entry.src)
     }
 
-    fn dst(&self) -> VID {
-        self.es.as_ref()[0]
-            .get(&self.pos)
-            .map(|entry| entry.dst)
-            .expect("Edge must have a destination vertex")
+    fn dst(&self) -> Option<VID> {
+        self.es.as_ref()[0].get(&self.pos).map(|entry| entry.dst)
     }
 
     fn edge_id(&self) -> EID {

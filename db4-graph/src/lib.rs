@@ -92,8 +92,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         let storage = Layer::load(graph_dir.as_ref())
             .unwrap_or_else(|_| panic!("Failed to load graph from path: {graph_dir:?}"));
         let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
-        let resolver = GIDResolver::new(&gid_resolver_dir).unwrap_or_else(|_| {
-            panic!("Failed to load GID resolver from path: {gid_resolver_dir:?}")
+        let resolver = GIDResolver::new(&gid_resolver_dir).unwrap_or_else(|err| {
+            panic!("Failed to load GID resolver from path: {gid_resolver_dir:?} {err}")
         });
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         Self {

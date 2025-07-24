@@ -75,12 +75,16 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let t_cell = MemAdditions::Props(self.ns.as_ref()[layer_id].times_from_props(self.pos));
-        std::iter::once(
-            range
-                .map(|(start, end)| t_cell.range(start..end))
-                .unwrap_or_else(|| t_cell),
-        )
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .map(|seg| MemAdditions::Props(seg.times_from_props(self.pos)))
+            .into_iter()
+            .map(move |t_cell| {
+                range
+                    .map(|(start, end)| t_cell.range(start..end))
+                    .unwrap_or_else(|| t_cell)
+            })
     }
 
     fn additions_tc(
@@ -88,12 +92,16 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let additions = MemAdditions::Edges(self.ns.as_ref()[layer_id].additions(self.pos));
-        std::iter::once(
-            range
-                .map(|(start, end)| additions.range(start..end))
-                .unwrap_or_else(|| additions),
-        )
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .map(|seg| MemAdditions::Edges(seg.additions(self.pos)))
+            .into_iter()
+            .map(move |t_cell| {
+                range
+                    .map(|(start, end)| t_cell.range(start..end))
+                    .unwrap_or_else(|| t_cell)
+            })
     }
 
     fn deletions_tc(
@@ -101,12 +109,16 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
-        let deletions = MemAdditions::Edges(self.ns.as_ref()[layer_id].deletions(self.pos));
-        std::iter::once(
-            range
-                .map(|(start, end)| deletions.range(start..end))
-                .unwrap_or_else(|| deletions),
-        )
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .map(|seg| MemAdditions::Edges(seg.deletions(self.pos)))
+            .into_iter()
+            .map(move |t_cell| {
+                range
+                    .map(|(start, end)| t_cell.range(start..end))
+                    .unwrap_or_else(|| t_cell)
+            })
     }
 
     fn num_layers(&self) -> usize {
