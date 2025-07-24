@@ -26,8 +26,8 @@ print(v)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1, properties=Properties({}))"
-assert str(v) == "Node(name=10, earliest_time=1, latest_time=1, properties=Properties({}))"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)"
+assert str(v) == "Node(name=10, earliest_time=1, latest_time=1)"
 ```
 
 Printing out the graph and the returned node we can see the update was successful and the earliest/latest time has been
@@ -36,8 +36,8 @@ updated.
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1, properties=Properties({}))
-    Node(name=10, earliest_time=1, latest_time=1, properties=Properties({}))
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1, latest_time=1)
+    Node(name=10, earliest_time=1, latest_time=1)
     ```
 
 ## Adding edges
@@ -63,14 +63,14 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1, properties=Properties({}))"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)"
 assert str(e) == "Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1, properties=Properties({}))
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=1)
     Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])
     ```
 
@@ -105,16 +105,16 @@ print(g.edge("User 1", "User 2"))
 ///
 
 ```{.python continuation hide}
-assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=123, latest_time=789, properties=Properties({}))"
-assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=456, latest_time=789, properties=Properties({}))"
+assert str(g.node("User 1")) == "Node(name=User 1, earliest_time=123, latest_time=789)"
+assert str(g.node("User 2")) == "Node(name=User 2, earliest_time=456, latest_time=789)"
 assert str(g.edge("User 1", "User 2")) == "Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])"
 ```
 
 !!! Output
 
     ```output
-    Node(name=User 1, earliest_time=123, latest_time=789, properties=Properties({}))
-    Node(name=User 2, earliest_time=456, latest_time=789, properties=Properties({}))
+    Node(name=User 1, earliest_time=123, latest_time=789)
+    Node(name=User 2, earliest_time=456, latest_time=789)
     Edge(source=User 1, target=User 2, earliest_time=789, latest_time=789, layer(s)=[_default])
     ```
 
@@ -156,7 +156,7 @@ print(g.node(id=10).history_date_time())
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000, properties=Properties({}))"
+assert str(g) == "Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)"
 assert str(g.node(id=10).history()) == "[1609504320000 1612360860000]"
 assert str(g.node(id=10).history_date_time()) == "[datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]"
 ```
@@ -164,7 +164,7 @@ assert str(g.node(id=10).history_date_time()) == "[datetime.datetime(2021, 1, 1,
 !!! Output
 
     ```output
-    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000, properties=Properties({}))
+    Graph(number_of_nodes=1, number_of_edges=0, number_of_temporal_edges=0, earliest_time=1609504320000, latest_time=1612360860000)
     [1609504320000 1612360860000]
     [datetime.datetime(2021, 1, 1, 12, 32, tzinfo=datetime.timezone.utc), datetime.datetime(2021, 2, 3, 14, 1, tzinfo=datetime.timezone.utc)]
     ```
@@ -302,16 +302,16 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({}))"
-assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({}))"
+assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2)"
+assert str(v) == "Node(name=User 1, earliest_time=1, latest_time=2)"
 assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, layer(s)=[_default])"
 ```
 
 !!! output
 
     ```output
-    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2, properties=Properties({}))
-    Node(name=User 1, earliest_time=1, latest_time=2, properties=Properties({}))
+    Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=1, latest_time=2)
+    Node(name=User 1, earliest_time=1, latest_time=2)
     Edge(source=User 1, target=User 2, earliest_time=2, latest_time=2, layer(s)=[_default])
     ```    
 

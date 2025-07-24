@@ -76,7 +76,7 @@ df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = Graph()
 lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+    df=df, time="time", src="src", dst="dst"
 )
 
 results = rp.weakly_connected_components(lotr_graph)
