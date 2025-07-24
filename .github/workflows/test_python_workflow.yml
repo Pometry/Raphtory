@@ -1,5 +1,6 @@
 name: Run Python test
-permissions: { }
+permissions:
+  contents: write
 on:
   workflow_call:
     inputs:
