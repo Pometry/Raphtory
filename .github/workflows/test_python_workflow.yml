@@ -81,7 +81,7 @@ jobs:
             echo "Changes detected. Committing and pushing..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git pull
+            git checkout ${{ github.head_ref }}
             git add .
             git commit -m "chore: apply tidy-public auto-fixes"
             git push origin HEAD:${{ github.head_ref }}
