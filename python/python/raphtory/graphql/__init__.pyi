@@ -700,9 +700,7 @@ class SomePropertySpec(object):
         temporal (list[str]): Temporal property names. Defaults to [].
     """
 
-    def __new__(
-        cls, metadata: list[str] = [], temporal: list[str] = []
-    ) -> SomePropertySpec:
+    def __new__(cls, metadata: list[str] = [], properties=...) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class AllPropertySpec(object):

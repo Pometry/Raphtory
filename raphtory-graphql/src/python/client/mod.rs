@@ -336,8 +336,8 @@ pub enum PyAllPropertySpec {
     #[serde(rename = "ALL_METADATA")]
     AllMetadata,
     /// Include only temporal properties.
-    #[serde(rename = "ALL_TEMPORAL")]
-    AllTemporal,
+    #[serde(rename = "ALL_PROPERTIES")]
+    AllProperties,
 }
 
 /// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
@@ -351,15 +351,18 @@ pub struct PySomePropertySpec {
     /// Metadata property names to include in the index.
     pub metadata: Vec<String>,
     /// Temporal property names to include in the index.
-    pub temporal: Vec<String>,
+    pub properties: Vec<String>,
 }
 
 #[pymethods]
 impl PySomePropertySpec {
     #[new]
-    #[pyo3(signature = (metadata = vec![], temporal = vec![]))]
-    fn new(metadata: Vec<String>, temporal: Vec<String>) -> Self {
-        Self { metadata, temporal }
+    #[pyo3(signature = (metadata = vec![], properties = vec![]))]
+    fn new(metadata: Vec<String>, properties: Vec<String>) -> Self {
+        Self {
+            metadata,
+            properties,
+        }
     }
 }
 
