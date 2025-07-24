@@ -325,10 +325,20 @@ mod graphql_test {
                     propertyType
                     variants
                   }
+                  metadata {
+                    key
+                    propertyType
+                    variants
+                  }
                 }
               }
               nodes {
                 properties {
+                    key
+                    propertyType
+                    variants
+                }
+                metadata {
                     key
                     propertyType
                     variants
@@ -342,9 +352,8 @@ mod graphql_test {
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
-        println!("{data:?}");
-
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
+        
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
                 let a_type = a["propertyType"].as_str().unwrap_or("");
@@ -360,7 +369,14 @@ mod graphql_test {
 
             assert_eq!(node_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(node_properties[1]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(node_properties[2]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut node_metadata) =
+            data["graph"]["schema"]["nodes"][1]["metadata"].clone()
+        {
+            sort_properties(&mut node_metadata);
+
+            assert_eq!(node_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
 
         if let Value::Array(mut edge_properties) =
@@ -371,7 +387,14 @@ mod graphql_test {
             assert_eq!(edge_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(edge_properties[1]["propertyType"].as_str().unwrap(), "I32");
             assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut edge_metadata) =
+            data["graph"]["schema"]["layers"][0]["edges"][0]["metadata"].clone()
+        {
+            sort_properties(&mut edge_metadata);
+
+            assert_eq!(edge_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
     }
 
