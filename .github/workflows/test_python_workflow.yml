@@ -76,6 +76,8 @@ jobs:
           python docs/scripts/gen_docs_graphql_pages.py
       - name: Check for uncommitted changes
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             echo "Changes detected. Committing and pushing..."
