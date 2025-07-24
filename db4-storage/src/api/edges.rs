@@ -14,7 +14,7 @@ use rayon::iter::ParallelIterator;
 
 use crate::{LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
 
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
+pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>

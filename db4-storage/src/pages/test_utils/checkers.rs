@@ -18,6 +18,7 @@ use crate::{
     },
     error::DBV4Error,
     pages::GraphStore,
+    persist::strategy::PersistentStrategy,
 };
 
 use super::fixtures::{AddEdge, Fixture, NodeFixture};
@@ -25,7 +26,7 @@ use super::fixtures::{AddEdge, Fixture, NodeFixture};
 pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT: Clone + Default + Send + Sync + std::fmt::Debug,
+    EXT: PersistentStrategy,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
@@ -102,7 +103,7 @@ pub fn check_edges_support<
     fn check<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
-        EXT: Clone + Send + Sync + Default + std::fmt::Debug,
+        EXT: PersistentStrategy,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
@@ -112,7 +113,7 @@ pub fn check_edges_support<
         let edges = graph.edges();
 
         if !expected_edges.is_empty() {
-            assert!(nodes.pages().count() > 0, "{stage}");
+            assert!(nodes.segments().count() > 0, "{stage}");
         }
 
         // Group edges by layer_id first
@@ -205,7 +206,7 @@ pub fn check_edges_support<
 }
 
 pub fn check_graph_with_nodes_support<
-    EXT: Clone + Default + Send + Sync,
+    EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
 >(
@@ -338,7 +339,7 @@ pub fn check_graph_with_nodes_support<
 }
 
 pub fn check_graph_with_props_support<
-    EXT: Clone + Default + Send + Sync,
+    EXT: PersistentStrategy,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
 >(

@@ -201,6 +201,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
+        self.page.increment_event_id(1);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

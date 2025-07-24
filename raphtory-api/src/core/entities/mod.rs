@@ -311,8 +311,8 @@ impl Display for GidType {
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GidRef::U64(v) => write!(f, "{}", v),
-            GidRef::Str(v) => write!(f, "{}", v),
+            GidRef::U64(v) => write!(f, "{v}"),
+            GidRef::Str(v) => write!(f, "{v}"),
         }
     }
 }
@@ -329,6 +329,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 impl<'a> From<&'a str> for GidRef<'a> {
     fn from(value: &'a str) -> Self {
         GidRef::Str(value)
+    }
+}
+
+impl From<u64> for GidRef<'_> {
+    fn from(value: u64) -> Self {
+        GidRef::U64(value)
     }
 }
 

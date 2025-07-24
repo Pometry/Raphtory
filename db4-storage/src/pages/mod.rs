@@ -10,7 +10,11 @@ use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::DBV4Error,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
+    pages::{
+        edge_store::ReadLockedEdgeStorage, flush_thread::FlushThread,
+        node_store::ReadLockedNodeStorage,
+    },
+    persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
@@ -36,6 +40,7 @@ use session::WriteSession;
 
 pub mod edge_page;
 pub mod edge_store;
+pub mod flush_thread;
 pub mod layer_counter;
 pub mod locked;
 pub mod node_page;
@@ -53,6 +58,7 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
+    node_flush_thread: FlushThread,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -72,7 +78,7 @@ pub struct ReadLockedGraphStore<
 impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT: Clone + Send + Sync + Default,
+    EXT: PersistentStrategy,
 > GraphStore<NS, ES, EXT>
 {
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, EXT> {
@@ -145,6 +151,7 @@ impl<
         let t_len = edges.t_len();
 
         Ok(Self {
+            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(t_len),
@@ -194,6 +201,7 @@ impl<
             .expect("Unrecoverable! Failed to write graph meta");
 
         Self {
+            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(0),

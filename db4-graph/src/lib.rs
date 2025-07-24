@@ -28,13 +28,13 @@ use tempfile::TempDir;
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: usize = 50_000;
+const DEFAULT_MAX_PAGE_LEN_NODES: usize = 25_000;
 const DEFAULT_MAX_PAGE_LEN_EDGES: usize = 50_000;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
     // mapping between logical and physical ids
-    pub logical_to_physical: GIDResolver,
+    pub logical_to_physical: Arc<GIDResolver>,
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
@@ -98,7 +98,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         Self {
             graph_dir,
-            logical_to_physical: resolver,
+            logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
@@ -120,7 +120,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         );
         Self {
             graph_dir,
-            logical_to_physical: GIDResolver::new(gid_resolver_dir).unwrap(),
+            logical_to_physical: GIDResolver::new(gid_resolver_dir).unwrap().into(),
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),

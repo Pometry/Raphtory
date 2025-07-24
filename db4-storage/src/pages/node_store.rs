@@ -166,7 +166,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         &self.stats
     }
 
-    pub fn pages(&self) -> &boxcar::Vec<Arc<NS>> {
+    pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
         &self.pages
     }
 

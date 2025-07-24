@@ -1,5 +1,8 @@
 use crate::{
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::storage::Storage, view::MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::GraphError,
     io::parquet_loaders::{
         load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
@@ -87,6 +90,17 @@ impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().clone();
         encode_graph_storage(&gs, path, GraphType::PersistentGraph)
+    }
+}
+
+impl ParquetEncoder for MaterializedGraph {
+    fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(graph) => graph.encode_parquet(path),
+            MaterializedGraph::PersistentGraph(persistent_graph) => {
+                persistent_graph.encode_parquet(path)
+            }
+        }
     }
 }
 
@@ -431,6 +445,17 @@ impl ParquetDecoder for PersistentGraph {
     {
         let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
         Ok(PersistentGraph(gs))
+    }
+}
+
+impl ParquetDecoder for MaterializedGraph {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
+    where
+        Self: Sized,
+    {
+        let gs = decode_graph_storage(path.as_ref(), GraphType::EventGraph)
+            .or_else(|_| decode_graph_storage(path.as_ref(), GraphType::PersistentGraph))?;
+        Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs)))
     }
 }
 

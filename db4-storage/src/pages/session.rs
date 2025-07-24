@@ -5,6 +5,7 @@ use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::NODE_ID_PROP_KEY,
+    persist::strategy::PersistentStrategy,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
 use parking_lot::RwLockWriteGuard;
@@ -24,7 +25,7 @@ impl<
     'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
-    EXT: Clone + Default + Send + Sync,
+    EXT: PersistentStrategy,
 > WriteSession<'a, NS, ES, EXT>
 {
     pub fn new(
