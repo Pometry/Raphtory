@@ -39,7 +39,7 @@
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp
-<a href="https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="20" align="center"/> Join Slack</a> 
+<a href="https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg"><img src="https://user-images.githubusercontent.com/6665739/154071628-a55fb5f9-6994-4dcf-be03-401afc7d9ee0.png" height="20" align="center"/> Join Slack</a> 
 </p>
 
 <br>
@@ -49,7 +49,7 @@ on your laptop, and can be dropped into your existing pipelines with a simple `p
 
 It can be ran embedded or as a server instance using GraphQL, supports time traveling, full-text search, multilayer modelling, and advanced analytics beyond simple querying like automatic risk detection, dynamic scoring, and temporal motifs. With the subscription model, Raphtory also supports out-of-memory (on-disk) scaling with no performance loss!
 
-If you wish to contribute, check out the open [list of issues](https://github.com/Pometry/Raphtory/issues), [bounty board](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) or hit us up directly on [slack](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA). Successful contributions will be reward with swizzling swag!
+If you wish to contribute, check out the open [list of issues](https://github.com/Pometry/Raphtory/issues), [bounty board](https://github.com/Raphtory/Raphtory/discussions/categories/bounty-board) or hit us up directly on [slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg). Successful contributions will be reward with swizzling swag!
 
 ## Installing Raphtory
 
@@ -230,7 +230,7 @@ Join the growing community of open-source enthusiasts using Raphtory to power th
 
 - Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
 
-- Join our [![Slack](https://img.shields.io/badge/community-Slack-red)](https://join.slack.com/t/raphtory/shared_invite/zt-xbebws9j-VgPIFRleJFJBwmpf81tvxA) to chat with us and get answers to your questions!
+- Join our [![Slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg) to chat with us and get answers to your questions!
 
 ### Contributors
 
