@@ -1,7 +1,7 @@
 use crate::{
     db::api::{
         properties::{
-            dyn_props::{DynProps, DynTemporalProperties, DynTemporalProperty},
+            dyn_props::{DynTemporalProperties, DynTemporalProperty},
             internal::InternalPropertiesOps,
             TemporalProperties, TemporalPropertyView,
         },

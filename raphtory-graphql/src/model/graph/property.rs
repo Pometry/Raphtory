@@ -369,12 +369,19 @@ impl GqlProperties {
     }
 
     async fn contains(&self, key: String) -> bool {
-        self.props.contains(key.as_str())
+        self.props.get(&key).is_some()
     }
 
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.props.keys().map(|k| k.into()).collect()).await
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
@@ -382,11 +389,11 @@ impl GqlProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| {
+                .iter_filtered()
+                .filter_map(|(k, prop)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
-                        p.map(|prop| (key, prop).into())
+                        Some((key, prop).into())
                     } else {
                         None
                     }
@@ -394,8 +401,8 @@ impl GqlProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
+                .iter_filtered()
+                .map(|(k, prop)| (k.to_string(), prop).into())
                 .collect(),
         })
         .await
@@ -455,12 +462,19 @@ impl GqlTemporalProperties {
     }
 
     async fn contains(&self, key: String) -> bool {
-        self.props.contains(key.as_str())
+        self.props.get(&key).is_some()
     }
 
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.props.keys().map(|k| k.into()).collect()).await
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
@@ -468,7 +482,7 @@ impl GqlTemporalProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -480,7 +494,7 @@ impl GqlTemporalProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
