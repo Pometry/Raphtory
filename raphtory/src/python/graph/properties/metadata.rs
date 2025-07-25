@@ -31,7 +31,7 @@ impl<'py, P: InternalPropertiesOps + Send + Sync + 'static> IntoPyObject<'py>
 
 impl<'a, P: InternalPropertiesOps> Repr for Metadata<'a, P> {
     fn repr(&self) -> String {
-        format!("Metadata({{{}}})", iterator_dict_repr(self.iter()))
+        format!("Metadata({{{}}})", iterator_dict_repr(self.iter_filtered()))
     }
 }
 
@@ -50,15 +50,15 @@ impl PyMetadata {
     /// Returns:
     ///     list[str]: the property keys
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys().collect()
+        self.props.iter_filtered().map(|(key, _)| key).collect()
     }
 
     /// lists the property values
     ///
     /// Returns:
     ///     list | Array: the property values
-    pub fn values(&self) -> Vec<Option<Prop>> {
-        self.props.values().collect()
+    pub fn values(&self) -> Vec<Prop> {
+        self.props.iter_filtered().map(|(_, value)| value).collect()
     }
 
     /// lists the property keys together with the corresponding value
@@ -113,7 +113,7 @@ impl PyMetadata {
     ///
     /// check if property `key` exists
     pub fn __contains__(&self, key: &str) -> bool {
-        self.props.contains(key)
+        self.props.get(key).is_some()
     }
 
     /// __len__() -> int
