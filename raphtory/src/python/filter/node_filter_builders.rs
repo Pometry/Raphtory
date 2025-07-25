@@ -4,12 +4,7 @@ use crate::{
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
-    python::{
-        filter::{
-            filter_expr::PyFilterExpr,
-        },
-        types::iterable::FromIterable,
-    },
+    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods};
 use std::sync::Arc;
