@@ -15,7 +15,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::{
         Arc,
-        atomic::{AtomicI64, Ordering},
+        atomic::{AtomicI64, AtomicUsize, Ordering},
     },
 };
 
@@ -33,7 +33,6 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: usize,
     layers: Vec<SegmentContainer<AdjEntry>>,
-    est_size: usize,
 }
 
 impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
@@ -45,12 +44,10 @@ impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegm
         );
         let segment_id = layers[0].segment_id();
         let max_page_len = layers[0].max_page_len();
-        let est_size = layers.iter().map(|l| l.est_size()).sum::<usize>();
         Self {
             segment_id,
             max_page_len,
             layers,
-            est_size,
         }
     }
 }
@@ -116,7 +113,6 @@ impl MemNodeSegment {
                 old_head
             })
             .collect::<Vec<_>>();
-        self.est_size = 0; // Reset estimated size after swapping out layers
         layers
     }
 
@@ -146,10 +142,6 @@ impl MemNodeSegment {
 
     pub fn lsn(&self) -> u64 {
         self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
-    }
-
-    pub fn est_size(&self) -> usize {
-        self.est_size
     }
 
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
@@ -197,7 +189,6 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
-            est_size: 0,
         }
     }
 
@@ -208,7 +199,7 @@ impl MemNodeSegment {
         dst: impl Into<VID>,
         e_id: impl Into<ELID>,
         lsn: u64,
-    ) -> bool {
+    ) -> (bool, usize) {
         let dst = dst.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
@@ -239,8 +230,7 @@ impl MemNodeSegment {
         let layer_est_size = self.layers[layer_id].est_size();
         let added_size =
             (layer_est_size - est_size) + (is_new_edge * std::mem::size_of::<(VID, VID)>());
-        self.est_size += added_size;
-        new_entry
+        (new_entry, added_size)
     }
 
     pub fn add_inbound_edge(
@@ -250,7 +240,7 @@ impl MemNodeSegment {
         src: impl Into<VID>,
         e_id: impl Into<ELID>,
         lsn: u64,
-    ) -> bool {
+    ) -> (bool, usize) {
         let src = src.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
@@ -281,8 +271,7 @@ impl MemNodeSegment {
         let layer_est_size = self.layers[layer_id].est_size();
         let added_size =
             (layer_est_size - est_size) + (is_new_edge * std::mem::size_of::<(VID, VID)>());
-        self.est_size += added_size;
-        new_entry
+        (new_entry, added_size)
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
@@ -294,7 +283,7 @@ impl MemNodeSegment {
         prop_mut_entry.addition_timestamp(ts, e_id);
     }
 
-    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) {
+    pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
         let (row, est_size) = {
             let segment_container = &mut self.layers[e_id.layer()];
             let est_size = segment_container.est_size();
@@ -306,7 +295,7 @@ impl MemNodeSegment {
         self.update_timestamp_inner(t, row, e_id);
         let layer_est_size = self.layers[e_id.layer()].est_size();
         let added_size = layer_est_size - est_size;
-        self.est_size += added_size;
+        added_size
     }
 
     pub fn add_props<T: AsTime>(
@@ -315,7 +304,7 @@ impl MemNodeSegment {
         node_pos: LocalPOS,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> bool {
+    ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
         let row = layer.reserve_local_row(node_pos);
@@ -325,8 +314,7 @@ impl MemNodeSegment {
         let ts = TimeIndexEntry::new(t.t(), t.i());
         prop_mut_entry.append_t_props(ts, props);
         let layer_est_size = layer.est_size();
-        self.est_size += layer_est_size - est_size;
-        is_new
+        (is_new, layer_est_size - est_size)
     }
 
     pub fn update_c_props(
@@ -334,7 +322,7 @@ impl MemNodeSegment {
         node_pos: LocalPOS,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> bool {
+    ) -> (bool, usize) {
         let segment_container = &mut self.layers[layer_id];
         let est_size = segment_container.est_size();
 
@@ -348,8 +336,7 @@ impl MemNodeSegment {
 
         let layer_est_size = segment_container.est_size();
         let added_size = (layer_est_size - est_size) + 8; // random estimate for constant properties
-        self.est_size += added_size;
-        is_new
+        (is_new, added_size)
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
@@ -374,6 +361,7 @@ pub struct NodeSegmentView<EXT> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
     event_id: AtomicI64,
+    est_size: AtomicUsize,
     _ext: EXT,
 }
 
@@ -454,6 +442,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
             segment_id: page_id,
             _ext,
             event_id: Default::default(),
+            est_size: AtomicUsize::new(0),
         }
     }
 
@@ -526,6 +515,14 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     }
 
     fn flush(&self) {}
+
+    fn est_size(&self) -> usize {
+        self.est_size.load(Ordering::Relaxed)
+    }
+
+    fn increment_est_size(&self, size: usize) -> usize {
+        self.est_size.fetch_add(size, Ordering::Relaxed)
+    }
 }
 
 #[cfg(test)]
@@ -557,12 +554,12 @@ mod test {
 
         let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
 
-        let est_size1 = writer.mut_segment.est_size();
+        let est_size1 = segment.est_size();
         assert_eq!(est_size1, 0);
 
         writer.add_outbound_edge(Some(1), LocalPOS(1), VID(3), EID(7).with_layer(0), 0);
 
-        let est_size2 = writer.mut_segment.est_size();
+        let est_size2 = segment.est_size();
         assert!(
             est_size2 > est_size1,
             "Estimated size should be greater than 0 after adding an edge"
@@ -570,7 +567,7 @@ mod test {
 
         writer.add_inbound_edge(Some(1), LocalPOS(2), VID(4), EID(8).with_layer(0), 0);
 
-        let est_size3 = writer.mut_segment.est_size();
+        let est_size3 = segment.est_size();
         assert!(
             est_size3 > est_size2,
             "Estimated size should increase after adding an inbound edge"
@@ -579,7 +576,7 @@ mod test {
         // no change when adding the same edge again
 
         writer.add_outbound_edge::<i64>(None, LocalPOS(1), VID(3), EID(7).with_layer(0), 0);
-        let est_size4 = writer.mut_segment.est_size();
+        let est_size4 = segment.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Estimated size should not change when adding the same edge again"
@@ -595,7 +592,7 @@ mod test {
 
         writer.update_c_props(LocalPOS(1), 0, [(prop_id, Prop::U64(73))], 0);
 
-        let est_size5 = writer.mut_segment.est_size();
+        let est_size5 = segment.est_size();
         assert!(
             est_size5 > est_size4,
             "Estimated size should increase after adding constant properties"
@@ -603,7 +600,7 @@ mod test {
 
         writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), 0), 0);
 
-        let est_size6 = writer.mut_segment.est_size();
+        let est_size6 = segment.est_size();
         assert!(
             est_size6 > est_size5,
             "Estimated size should increase after updating timestamp"
@@ -618,14 +615,14 @@ mod test {
 
         writer.add_props(42, LocalPOS(1), 0, [(prop_id, Prop::F64(4.13))], 0);
 
-        let est_size7 = writer.mut_segment.est_size();
+        let est_size7 = segment.est_size();
         assert!(
             est_size7 > est_size6,
             "Estimated size should increase after adding temporal properties"
         );
 
         writer.add_props(72, LocalPOS(1), 0, [(prop_id, Prop::F64(5.41))], 0);
-        let est_size8 = writer.mut_segment.est_size();
+        let est_size8 = segment.est_size();
         assert!(
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"

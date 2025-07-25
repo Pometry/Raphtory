@@ -1,4 +1,5 @@
 use std::{
+    collections::BinaryHeap,
     sync::{Arc, atomic::AtomicBool},
     thread::JoinHandle,
 };
@@ -43,19 +44,39 @@ impl FlushThread {
                     // let's do some stats, run over all the segments and decrement the event id then get the max and the min
                     // the event_id functions are atomic so no need to lock the segments
 
+                    let mut total_est_size = 0;
+                    let mut smallest_event_id_segments = BinaryHeap::new();
+                    // top 10 segments with the smallest event id
                     for (segment_id, event_id) in nodes
                         .segments()
                         .iter()
                         .map(|(i, ns)| (i, ns.decrement_event_id()))
                     {
+                        let segment = nodes.segments().get(segment_id).unwrap();
                         if event_id <= 0 {
                             // If the event id is 0, we can flush this segment
-                            let segment = nodes.segments().get(segment_id).unwrap();
                             // println!("Flushing from the flusher thread {segment_id}");
                             segment.flush();
                             segment.increment_event_id(500); // ignore this segment for the next 1000 events
                             // eprintln!("Triggered flush for {segment_id}")
                         }
+                        if smallest_event_id_segments.len() < 10 {
+                            smallest_event_id_segments.push((event_id, segment_id));
+                        } else if let Some((top_event_id, _)) =
+                            smallest_event_id_segments.peek().cloned()
+                        {
+                            if event_id < top_event_id {
+                                smallest_event_id_segments.pop();
+                                smallest_event_id_segments.push((event_id, segment_id));
+                            }
+                        }
+
+                        total_est_size += segment.est_size();
+
+                        println!(
+                            "TOTAL EST SIZE {}GB",
+                            total_est_size as f64 / (1024f64 * 1024f64)
+                        )
                     }
                 }
             }

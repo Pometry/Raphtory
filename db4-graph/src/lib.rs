@@ -96,7 +96,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             panic!("Failed to load GID resolver from path: {gid_resolver_dir:?} {err}")
         });
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
-        println!("LOADED NODE COUNT {node_count:?}");
         Self {
             graph_dir,
             logical_to_physical: resolver.into(),
