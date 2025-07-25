@@ -33,10 +33,10 @@ impl<'a> QueryBuilder<'a> {
         Self { index }
     }
 
-    pub(crate) fn build_property_query(
+    pub(crate) fn build_property_query<M>(
         &self,
         property_index: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<M>,
     ) -> Result<Option<Box<dyn Query>>, GraphError> {
         let prop_name = filter.prop_ref.name();
         let prop_value = &filter.prop_value;

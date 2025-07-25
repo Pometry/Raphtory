@@ -15,7 +15,10 @@ use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
     db::{
-        api::{state::Index, view::DynamicGraph},
+        api::{
+            state::Index,
+            view::{DynamicGraph, IterFilterOps},
+        },
         graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
     },
     errors::GraphError,
@@ -162,7 +165,7 @@ impl GqlNodes {
         let self_clone = self.clone();
         blocking_compute(move || {
             let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_nodes = self_clone.nn.filter_nodes(filter)?;
+            let filtered_nodes = self_clone.nn.filter_iter(filter)?;
             Ok(self_clone.update(filtered_nodes.into_dyn()))
         })
         .await

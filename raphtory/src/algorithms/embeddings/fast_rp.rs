@@ -76,7 +76,7 @@ where
     };
 
     // sum each vector from neighbours and scale
-    let step2 = ATask::new(move |vv: &mut EvalNodeView<G, FastRPState>| {
+    let step2 = ATask::new(move |vv: &mut EvalNodeView<_, FastRPState>| {
         // for neighbor, for i, add neighbors.prev[i] to current state
         // scale state by iteration weight
         let weights = Arc::clone(&weights);

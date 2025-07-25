@@ -737,8 +737,14 @@ mod test_graph_storage {
     mod search_nodes {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
+            db::{
+                api::view::SearchableGraphOps,
+                graph::views::filter::model::{
+                    node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
+                },
+            },
+            prelude::{Graph, IndexMutationOps, NodeViewOps},
         };
 
         #[test]
@@ -746,7 +752,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
             g.create_index().unwrap();
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
@@ -763,8 +769,14 @@ mod test_graph_storage {
     mod search_edges {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
+            db::{
+                api::view::SearchableGraphOps,
+                graph::views::filter::model::{
+                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
+                },
+            },
+            prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
         };
 
         #[test]
@@ -772,7 +784,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
             g.create_index().unwrap();
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")

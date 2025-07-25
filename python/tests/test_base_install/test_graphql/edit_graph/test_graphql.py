@@ -226,7 +226,7 @@ def test_graph_windows_and_layers_query():
                   neighbours {
                     list {
                         name
-                        before(time: 300) { history }
+                        before(time: 700) { history }
                     }
                   }
                 }
@@ -244,8 +244,8 @@ def test_graph_windows_and_layers_query():
                     "history": [555, 562],
                     "neighbours": {
                       "list": [
-                        {"name": "Gandalf", "before": {"history": [270]}},
-                        {"name": "Bilbo", "before": {"history": [205, 270, 286]}}
+                        {"name": "Gandalf", "before": {"history": [543, 555]}},
+                        {"name": "Bilbo", "before": {"history": [543, 555, 562]}}
                       ]
                     }
                   }
@@ -268,7 +268,7 @@ def test_graph_windows_and_layers_query():
                     neighbours {
                       list {
                         name
-                        layer(name: "layer2") { neighbours { list { name } } }
+                        layer(name: "layer1") { neighbours { list { name } } }
                       }
                     }
                   }
@@ -285,7 +285,7 @@ def test_graph_windows_and_layers_query():
                   "neighbours": {
                     "list": [{
                         "name": "2",
-                        "layer": {"neighbours": {"list": [{ "name": "3" }]}}
+                        "layer": {"neighbours": {"list": [{ "name": "1" }]}}
                       }]
                   }
                 }
