@@ -171,8 +171,7 @@ impl PyRaphtoryClient {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
         }
-
-        let data = self.query_with_json_variables(query, json_variables)?;
+        let data = py.allow_threads(|| self.query_with_json_variables(query, json_variables)?);
         translate_map_to_python(py, data)
     }
 
