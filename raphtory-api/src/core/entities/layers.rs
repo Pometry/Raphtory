@@ -1,5 +1,4 @@
 use crate::core::storage::arc_str::ArcStr;
-use indexmap::IndexSet;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelExtend, ParallelIterator,
