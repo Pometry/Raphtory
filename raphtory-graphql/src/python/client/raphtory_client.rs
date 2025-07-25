@@ -12,11 +12,11 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::db::api::view::MaterializedGraph;
+use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, fs::File, future::Future, io::Read, path::Path, sync::Arc};
+use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
@@ -99,7 +99,7 @@ impl PyRaphtoryClient {
         F: Future<Output = O> + 'static,
         O: Send + 'static,
     {
-        self.runtime.block_on(task())
+        Python::with_gil(|py| py.allow_threads(|| self.runtime.block_on(task())))
     }
 }
 
@@ -228,12 +228,10 @@ impl PyRaphtoryClient {
         let remote_client = self.clone();
         let client = self.client.clone();
         self.execute_async_task(move || async move {
-            let mut file =
-                File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
-
+            let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map_err(|err| adapt_err_value(&err))?;
+            folder.create_zip(Cursor::new(&mut buffer))?;
+
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
