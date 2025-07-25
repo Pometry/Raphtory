@@ -281,6 +281,7 @@ pub(crate) fn load_edges_from_df<
     //     return Ok(());
     // }
 
+    let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
     for chunk in chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
@@ -315,8 +316,6 @@ pub(crate) fn load_edges_from_df<
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
         // let gid_type = src_col.dtype();
-
-        let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
 
         // let fallback_resolver = write_locked_graph.graph().logical_to_physical.clone();
 

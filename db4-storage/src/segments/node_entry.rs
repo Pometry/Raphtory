@@ -142,7 +142,6 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
         self.ns.as_ref()[layer_id]
             .t_prop(node_pos, prop_id)
             .into_iter()
-            .map(|t_prop| t_prop.into())
     }
 }
 
@@ -227,6 +226,6 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             .as_ref()
             .get(layer_id)
             .and_then(|seg| seg.items().get(self.pos.0))
-            .map_or(false, |x| *x)
+            .is_some_and(|x| *x)
     }
 }

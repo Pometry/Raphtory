@@ -7,17 +7,15 @@ pub struct GraphStats {
     layers: boxcar::Vec<AtomicUsize>,
     earliest: MinCounter,
     latest: MaxCounter,
-    global_event_counter: AtomicUsize,
 }
 
 impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
-        let layers = iter.into_iter().map(|_| Default::default()).collect();
+        let layers = iter.into_iter().map(AtomicUsize::new).collect();
         Self {
             layers,
             earliest: MinCounter::new(),
             latest: MaxCounter::new(),
-            global_event_counter: AtomicUsize::new(0),
         }
     }
 }
@@ -36,7 +34,6 @@ impl GraphStats {
             layers,
             earliest: MinCounter::new(),
             latest: MaxCounter::new(),
-            global_event_counter: AtomicUsize::new(0),
         }
     }
 
@@ -60,11 +57,6 @@ impl GraphStats {
 
     pub fn latest(&self) -> i64 {
         self.latest.get()
-    }
-
-    pub fn increment_global_event_counter(&self) -> usize {
-        self.global_event_counter
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn increment(&self, layer_id: usize) -> usize {

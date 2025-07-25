@@ -58,7 +58,7 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 #[derive(Debug)]
 pub struct GraphStore<NS, ES, EXT> {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
-    node_flush_thread: FlushThread,
+    // node_flush_thread: FlushThread,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     event_id: AtomicUsize,
     _ext: EXT,
@@ -151,7 +151,7 @@ impl<
         let t_len = edges.t_len();
 
         Ok(Self {
-            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
+            // node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(t_len),
@@ -201,7 +201,7 @@ impl<
             .expect("Unrecoverable! Failed to write graph meta");
 
         Self {
-            node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
+            // node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
             nodes,
             edges,
             event_id: AtomicUsize::new(0),
@@ -345,7 +345,7 @@ impl<
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
         let acquire_node_writers = || {
-            let writer_pair = if src_chunk < dst_chunk {
+            if src_chunk < dst_chunk {
                 let src_writer = self.node_writer(src_chunk);
                 let dst_writer = self.node_writer(dst_chunk);
                 WriterPair::Different {
@@ -362,8 +362,7 @@ impl<
             } else {
                 let writer = self.node_writer(src_chunk);
                 WriterPair::Same { writer }
-            };
-            writer_pair
+            }
         };
 
         let node_writers = acquire_node_writers();

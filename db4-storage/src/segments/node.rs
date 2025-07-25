@@ -167,7 +167,7 @@ impl MemNodeSegment {
     pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
         self.layers
             .get(layer_id)
-            .is_some_and(|layer| layer.items().first().is_some_and(|v| *v))
+            .is_some_and(|layer| layer.items().get(n.0).is_some_and(|x| *x))
     }
 
     pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
