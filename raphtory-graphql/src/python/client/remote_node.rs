@@ -101,7 +101,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///     None:
-    pub fn add_constant_properties(
+    pub fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -110,7 +110,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  addConstantProperties(properties: {{ properties | safe }} )
+                  addMetadata(properties: {{ properties | safe }} )
                 }
               }
             }
@@ -136,7 +136,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///     None:
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -145,7 +145,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  updateConstantProperties(properties: {{ properties | safe }} )
+                  updateMetadata(properties: {{ properties | safe }} )
                 }
               }
             }

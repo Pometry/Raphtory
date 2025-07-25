@@ -17,7 +17,7 @@ use crate::{
 };
 use itertools::Itertools;
 use pometry_storage::{
-    graph::{load_node_const_properties, TemporalGraph},
+    graph::{load_node_metadata, TemporalGraph},
     RAError,
 };
 use pyo3::{exceptions::PyRuntimeError, prelude::*, pybacked::PyBackedStr, types::PyDict};
@@ -250,7 +250,7 @@ impl PyDiskGraph {
     }
 
     #[pyo3(signature = (location, col_names=None, chunk_size=None))]
-    pub fn load_node_const_properties(
+    pub fn load_node_metadata(
         &self,
         location: PathBuf,
         col_names: Option<Vec<PyBackedStr>>,
@@ -258,8 +258,7 @@ impl PyDiskGraph {
     ) -> Result<PyDiskGraph, GraphError> {
         let col_names = convert_py_prop_args(col_names.as_deref());
         let chunks = read_struct_arrays(&location, col_names.as_deref())?;
-        let _ =
-            load_node_const_properties(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
+        let _ = load_node_metadata(chunk_size.unwrap_or(200_000), self.graph_dir(), chunks)?;
         Self::load_from_dir(self.graph_dir().to_path_buf())
     }
 

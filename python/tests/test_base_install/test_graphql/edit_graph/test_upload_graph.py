@@ -31,6 +31,30 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
         }
 
 
+def test_upload_graph_succeeds_if_no_graph_found_with_same_name_non_zip():
+    g = Graph()
+    g.add_edge(1, "ben", "hamza")
+    g.add_edge(2, "haaroon", "hamza")
+    g.add_edge(3, "ben", "haaroon")
+    tmp_dir = tempfile.mkdtemp()
+    g_file_path = tmp_dir + "/g"
+    g.save_to_file(g_file_path)
+
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+        client.upload_graph(path="g", file_path=g_file_path, overwrite=False)
+
+        query = """{graph(path: "g") {nodes {list {name}}}}"""
+        assert client.query(query) == {
+            "graph": {
+                "nodes": {
+                    "list": [{"name": "ben"}, {"name": "hamza"}, {"name": "haaroon"}]
+                }
+            }
+        }
+
+
 def test_upload_graph_fails_if_graph_already_exists():
     g = Graph()
     g.add_edge(1, "ben", "hamza")

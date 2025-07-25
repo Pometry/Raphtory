@@ -122,7 +122,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
         state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
-        for (name, prop) in edge.properties().constant().iter() {
+        for (name, prop) in edge.metadata().iter_filtered() {
             state.serialize_entry(&name, &ParquetProp(&prop))?;
         }
 
@@ -193,7 +193,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         state.serialize_entry(NODE_ID, &ParquetGID(self.node.id()))?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
-        for (name, prop) in self.node.properties().constant().iter() {
+        for (name, prop) in self.node.metadata().iter_filtered() {
             state.serialize_entry(&name, &ParquetProp(&prop))?;
         }
 

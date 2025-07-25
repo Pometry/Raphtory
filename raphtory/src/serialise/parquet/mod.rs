@@ -31,7 +31,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use rayon::prelude::*;
 use std::{
     fs::File,
     ops::Range,
@@ -126,29 +126,26 @@ pub(crate) fn run_encode(
 
     if size > 0 {
         let chunk_size = (size / rayon::current_num_threads()).max(128);
-        let iter = (0..size).step_by(chunk_size);
+        let iter = (0..size).into_par_iter().step_by(chunk_size);
 
         let num_digits = iter.len().to_string().len();
 
-        iter.enumerate()
-            .par_bridge()
-            .try_for_each(|(chunk, first)| {
-                let props = WriterProperties::builder()
-                    .set_compression(Compression::SNAPPY)
-                    .build();
-                let items = first..(first + chunk_size).min(size);
+        iter.enumerate().try_for_each(|(chunk, first)| {
+            let props = WriterProperties::builder()
+                .set_compression(Compression::SNAPPY)
+                .build();
+            let items = first..(first + chunk_size).min(size);
 
-                let node_file =
-                    File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
-                let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+            let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+            let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
 
-                let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+            let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
 
-                encode_fn(items, g, &mut decoder, &mut writer)?;
+            encode_fn(items, g, &mut decoder, &mut writer)?;
 
-                writer.close()?;
-                Ok::<_, GraphError>(())
-            })?;
+            writer.close()?;
+            Ok::<_, GraphError>(())
+        })?;
     }
     Ok(())
 }
@@ -361,7 +358,7 @@ fn decode_graph_storage(
     let c_edge_path = path.as_ref().join(EDGES_C_PATH);
     if std::fs::exists(&c_edge_path)? {
         let (c_prop_columns, _) = collect_prop_columns(&c_edge_path, &exclude)?;
-        let constant_properties = c_prop_columns
+        let metadata = c_prop_columns
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
@@ -371,7 +368,7 @@ fn decode_graph_storage(
             &c_edge_path,
             SRC_COL,
             DST_COL,
-            &constant_properties,
+            &metadata,
             None,
             None,
             Some(LAYER_COL),
@@ -555,7 +552,7 @@ mod test {
     }
 
     #[test]
-    fn edge_const_props_maps() {
+    fn edge_metadata_maps() {
         let edges = EdgeFixture(
             [
                 (
@@ -818,7 +815,7 @@ mod test {
             g.add_properties(t, props).unwrap()
         }
 
-        g.add_constant_properties(nf.c_props).unwrap();
+        g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);
@@ -834,7 +831,7 @@ mod test {
     }
 
     #[test]
-    fn node_const_props() {
+    fn node_metadata() {
         let nf = NodeFixture(
             [(
                 1,

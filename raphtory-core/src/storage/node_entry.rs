@@ -72,11 +72,11 @@ impl<'a> Debug for NodePtr<'a> {
             .field("node_type", &self.node.node_type)
             .field("layers", &self.node.layers)
             .field(
-                "constant_properties",
+                "metadata",
                 &self
                     .node
-                    .const_prop_ids()
-                    .filter_map(|i| Some((i, self.node.constant_property(i)?)))
+                    .metadata_ids()
+                    .filter_map(|i| Some((i, self.node.metadata(i)?)))
                     .collect_vec(),
             )
             .field("temporal_properties", &self.into_rows().collect_vec())

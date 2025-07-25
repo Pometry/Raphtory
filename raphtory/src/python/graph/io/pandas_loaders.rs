@@ -32,12 +32,12 @@ pub(crate) fn load_nodes_from_pandas<
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -49,8 +49,8 @@ pub(crate) fn load_nodes_from_pandas<
         time,
         id,
         properties,
-        constant_properties,
-        shared_constant_properties,
+        metadata,
+        shared_metadata,
         node_type,
         node_type_col,
         graph,
@@ -67,14 +67,14 @@ pub(crate) fn load_edges_from_pandas<
     src: &str,
     dst: &str,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
@@ -87,8 +87,8 @@ pub(crate) fn load_edges_from_pandas<
         src,
         dst,
         properties,
-        constant_properties,
-        shared_constant_properties,
+        metadata,
+        shared_metadata,
         layer,
         layer_col,
         graph,
@@ -104,11 +104,11 @@ pub(crate) fn load_node_props_from_pandas<
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -119,8 +119,8 @@ pub(crate) fn load_node_props_from_pandas<
         id,
         node_type,
         node_type_col,
-        constant_properties,
-        shared_constant_properties,
+        metadata,
+        shared_metadata,
         graph,
     )
 }
@@ -133,8 +133,8 @@ pub(crate) fn load_edge_props_from_pandas<
     df: &Bound<'py, PyAny>,
     src: &str,
     dst: &str,
-    constant_properties: &[&str],
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
@@ -142,15 +142,15 @@ pub(crate) fn load_edge_props_from_pandas<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
         src,
         dst,
-        constant_properties,
-        shared_const_properties,
+        metadata,
+        shared_metadata,
         layer,
         layer_col,
         graph,

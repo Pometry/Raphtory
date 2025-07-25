@@ -79,7 +79,7 @@ mod graphql_test {
             graph.add_node(id, name, props, None).unwrap();
         }
 
-        let constant_props = vec![
+        let metadata = vec![
             ("N1", vec![("p1", Prop::U64(1u64))]),
             ("N4", vec![("p1", Prop::U64(2u64))]),
             ("N9", vec![("p1", Prop::U64(1u64))]),
@@ -91,12 +91,8 @@ mod graphql_test {
             ("N15", vec![("p1", Prop::U64(1u64))]),
         ];
 
-        for (name, props) in constant_props {
-            graph
-                .node(name)
-                .unwrap()
-                .add_constant_properties(props)
-                .unwrap();
+        for (name, props) in metadata {
+            graph.node(name).unwrap().add_metadata(props).unwrap();
         }
 
         let graph: MaterializedGraph = graph.into();
@@ -198,7 +194,7 @@ mod graphql_test {
         graph
             .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
-        graph.add_constant_properties([("name", "lotr")]).unwrap();
+        graph.add_metadata([("name", "lotr")]).unwrap();
 
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
@@ -279,7 +275,7 @@ mod graphql_test {
         graph
             .node(1)
             .unwrap()
-            .add_constant_properties([("lol", "smile")])
+            .add_metadata([("lol", "smile")])
             .unwrap();
 
         let edges = vec![
@@ -308,7 +304,7 @@ mod graphql_test {
         graph
             .edge(edges[0].1, edges[0].2)
             .unwrap()
-            .add_constant_properties([("static", "test")], None)
+            .add_metadata([("static", "test")], None)
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
@@ -329,10 +325,20 @@ mod graphql_test {
                     propertyType
                     variants
                   }
+                  metadata {
+                    key
+                    propertyType
+                    variants
+                  }
                 }
               }
               nodes {
                 properties {
+                    key
+                    propertyType
+                    variants
+                }
+                metadata {
                     key
                     propertyType
                     variants
@@ -346,8 +352,7 @@ mod graphql_test {
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
-        println!("{data:?}");
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
 
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
@@ -364,7 +369,14 @@ mod graphql_test {
 
             assert_eq!(node_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(node_properties[1]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(node_properties[2]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut node_metadata) =
+            data["graph"]["schema"]["nodes"][1]["metadata"].clone()
+        {
+            sort_properties(&mut node_metadata);
+
+            assert_eq!(node_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
 
         if let Value::Array(mut edge_properties) =
@@ -375,7 +387,14 @@ mod graphql_test {
             assert_eq!(edge_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(edge_properties[1]["propertyType"].as_str().unwrap(), "I32");
             assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut edge_metadata) =
+            data["graph"]["schema"]["layers"][0]["edges"][0]["metadata"].clone()
+        {
+            sort_properties(&mut edge_metadata);
+
+            assert_eq!(edge_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
     }
 
@@ -436,7 +455,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_unique_temporal_properties() {
         let g = Graph::new();
-        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
         g.add_properties(2, [("state", "abc")]).unwrap();
         g.add_properties(3, [("state", "xyz")]).unwrap();
@@ -587,7 +606,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_ordered_dedupe_temporal_properties() {
         let g = Graph::new();
-        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
         g.add_properties(2, [("state", "abc")]).unwrap();
         g.add_properties(3, [("state", "xyz")]).unwrap();
@@ -1016,7 +1035,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_type_filter() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1136,9 +1155,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_paging() {
         let graph1 = Graph::new();
-        graph1
-            .add_constant_properties([("name", "graph1")])
-            .unwrap();
+        graph1.add_metadata([("name", "graph1")]).unwrap();
         graph1.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph1.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph1.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1153,29 +1170,19 @@ mod graphql_test {
         graph1.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
         graph1.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
         let graph2 = Graph::new();
-        graph2
-            .add_constant_properties([("name", "graph2")])
-            .unwrap();
+        graph2.add_metadata([("name", "graph2")]).unwrap();
         graph2.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         let graph3 = Graph::new();
-        graph3
-            .add_constant_properties([("name", "graph3")])
-            .unwrap();
+        graph3.add_metadata([("name", "graph3")]).unwrap();
         graph3.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         let graph4 = Graph::new();
-        graph4
-            .add_constant_properties([("name", "graph4")])
-            .unwrap();
+        graph4.add_metadata([("name", "graph4")]).unwrap();
         graph4.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         let graph5 = Graph::new();
-        graph5
-            .add_constant_properties([("name", "graph5")])
-            .unwrap();
+        graph5.add_metadata([("name", "graph5")]).unwrap();
         graph5.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         let graph6 = Graph::new();
-        graph6
-            .add_constant_properties([("name", "graph6")])
-            .unwrap();
+        graph6.add_metadata([("name", "graph6")]).unwrap();
         graph6.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
 
         let graphs = HashMap::from([
@@ -1391,7 +1398,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_disk_graph() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1466,7 +1473,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_query_namespace() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1497,13 +1504,11 @@ mod graphql_test {
       list {
         path
         name
+        nodeCount
+        edgeCount
         metadata {
-          nodeCount
-          edgeCount
-          properties {
-            key
-            value
-          }
+          key
+          value
         }
       }
     }
@@ -1517,7 +1522,7 @@ mod graphql_test {
     }
   }
 }
-        "#;
+"#;
 
         let req = Request::new(req);
         let res = schema.execute(req).await;
@@ -1532,16 +1537,14 @@ mod graphql_test {
                         {
                             "path": "graph",
                             "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                     ]},
                     "children":{"list":[]},
@@ -1575,14 +1578,12 @@ mod graphql_test {
       list {
         path
         name
-        metadata {
           nodeCount
           edgeCount
-          properties {
+          metadata {
             key
             value
           }
-        }
       }
     }
     children {
@@ -1630,30 +1631,26 @@ mod graphql_test {
                         {
                             "path": "graph",
                             "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                         {
                             "path": "graph2",
                             "name": "graph2",
-                            "metadata": {
-                                "nodeCount": 2,
-                                "edgeCount": 1,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 2,
+                            "edgeCount": 1,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                     ]},
                     "children": {

@@ -21,12 +21,12 @@ fn load_movies(row: Row, graph: &rap::Graph) {
     graph
         .add_node(actor_born, actor_name.clone(), NO_PROPS, None)
         .unwrap()
-        .add_constant_properties([("type", "actor")])
+        .add_metadata([("type", "actor")])
         .unwrap();
     graph
         .add_node(film_release, film_title.clone(), NO_PROPS, None)
         .unwrap()
-        .add_constant_properties([
+        .add_metadata([
             ("type", "film".into_prop()),
             ("tagline", film_tagline.into_prop()),
         ])

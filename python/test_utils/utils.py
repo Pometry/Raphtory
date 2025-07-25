@@ -2,10 +2,14 @@ import json
 import re
 import tempfile
 import time
+from datetime import datetime
 from typing import TypeVar, Callable
 import os
 import pytest
 from functools import wraps
+
+from dateutil import parser
+
 from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
 
@@ -182,3 +186,21 @@ def assert_set_eq(left, right):
     """Check if two lists are the same set and same length"""
     assert len(left) == len(right)
     assert set(left) == set(right)
+
+
+def assert_has_properties(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.properties.get(k))
+            assert v == actual
+        else:
+            assert entity.properties.get(k) == v
+
+
+def assert_has_metadata(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.metadata.get(k))
+            assert v == actual
+        else:
+            assert entity.metadata.get(k) == v

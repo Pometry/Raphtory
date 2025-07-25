@@ -217,38 +217,32 @@ impl PyPersistentGraph {
         }
     }
 
-    /// Adds static properties to the graph.
+    /// Adds metadata to the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     metadata (dict): The static properties of the graph.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn add_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.graph.add_constant_properties(properties)
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.graph.add_metadata(metadata)
     }
 
-    /// Updates static properties to the graph.
+    /// Updates metadata of the graph.
     ///
     /// Arguments:
-    ///     properties (dict): The static properties of the graph.
+    ///     metadata (dict): The static properties of the graph.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    pub fn update_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.graph.update_constant_properties(properties)
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.graph.update_metadata(metadata)
     }
 
     /// Adds a new edge with the given source and destination nodes and properties to the graph.
@@ -577,15 +571,15 @@ impl PyPersistentGraph {
     ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
-    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df,time,id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(signature = (df,time,id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
     fn load_nodes_from_pandas(
         &self,
         df: &Bound<PyAny>,
@@ -594,12 +588,11 @@ impl PyPersistentGraph {
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_nodes_from_pandas(
             &self.graph,
             df,
@@ -608,8 +601,8 @@ impl PyPersistentGraph {
             node_type,
             node_type_col,
             &properties,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
         )
     }
 
@@ -622,15 +615,15 @@ impl PyPersistentGraph {
     ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
-    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time,id, node_type = None, node_type_col = None, properties = None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(signature = (parquet_path, time,id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None))]
     fn load_nodes_from_parquet(
         &self,
         parquet_path: PathBuf,
@@ -639,12 +632,11 @@ impl PyPersistentGraph {
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_nodes_from_parquet(
             &self.graph,
             parquet_path.as_path(),
@@ -653,8 +645,8 @@ impl PyPersistentGraph {
             node_type,
             node_type_col,
             &properties,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
         )
     }
 
@@ -666,8 +658,8 @@ impl PyPersistentGraph {
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
-    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
     ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -676,7 +668,7 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edges_from_pandas(
         &self,
         df: &Bound<PyAny>,
@@ -684,14 +676,13 @@ impl PyPersistentGraph {
         src: &str,
         dst: &str,
         properties: Option<Vec<PyBackedStr>>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_edges_from_pandas(
             &self.graph,
             df,
@@ -699,8 +690,8 @@ impl PyPersistentGraph {
             src,
             dst,
             &properties,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
             layer,
             layer_col,
         )
@@ -714,8 +705,8 @@ impl PyPersistentGraph {
     ///     src (str): The column name for the source node ids.
     ///     dst (str): The column name for the destination node ids.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
-    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
     ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
@@ -724,7 +715,7 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, time, src, dst, properties = None, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (parquet_path, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edges_from_parquet(
         &self,
         parquet_path: PathBuf,
@@ -732,14 +723,13 @@ impl PyPersistentGraph {
         src: &str,
         dst: &str,
         properties: Option<Vec<PyBackedStr>>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_edges_from_parquet(
             &self.graph,
             parquet_path.as_path(),
@@ -747,8 +737,8 @@ impl PyPersistentGraph {
             src,
             dst,
             &properties,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
             layer,
             layer_col,
         )
@@ -825,34 +815,33 @@ impl PyPersistentGraph {
     ///     id(str): The column name for the node IDs.
     ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, id, node_type=None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(signature = (df, id, node_type=None, node_type_col=None, metadata = None, shared_metadata = None))]
     fn load_node_props_from_pandas(
         &self,
         df: &Bound<PyAny>,
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_node_props_from_pandas(
             &self.graph,
             df,
             id,
             node_type,
             node_type_col,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
         )
     }
 
@@ -863,34 +852,33 @@ impl PyPersistentGraph {
     ///     id(str): The column name for the node IDs.
     ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
-    ///     constant_properties (List[str], optional): List of constant node property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every node. Defaults to None.
+    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, id, node_type = None, node_type_col=None, constant_properties = None, shared_constant_properties = None))]
+    #[pyo3(signature = (parquet_path, id, node_type = None, node_type_col=None, metadata = None, shared_metadata = None))]
     fn load_node_props_from_parquet(
         &self,
         parquet_path: PathBuf,
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_node_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             id,
             node_type,
             node_type_col,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
         )
     }
 
@@ -900,8 +888,8 @@ impl PyPersistentGraph {
     ///     df (DataFrame): The Pandas DataFrame containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
     ///     layer (str, optional): The edge layer name. Defaults to None.
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
@@ -910,26 +898,25 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (df, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (df, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edge_props_from_pandas(
         &self,
         df: &Bound<PyAny>,
         src: &str,
         dst: &str,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_edge_props_from_pandas(
             &self.graph,
             df,
             src,
             dst,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
             layer,
             layer_col,
         )
@@ -941,8 +928,8 @@ impl PyPersistentGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
-    ///     constant_properties (List[str], optional): List of constant edge property column names. Defaults to None.
-    ///     shared_constant_properties (PropInput, optional): A dictionary of constant properties that will be added to every edge. Defaults to None.
+    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
+    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
     ///     layer (str, optional): The edge layer name. Defaults to None.
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
     ///
@@ -951,26 +938,25 @@ impl PyPersistentGraph {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (parquet_path, src, dst, constant_properties = None, shared_constant_properties = None, layer = None, layer_col = None))]
+    #[pyo3(signature = (parquet_path, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None))]
     fn load_edge_props_from_parquet(
         &self,
         parquet_path: PathBuf,
         src: &str,
         dst: &str,
-        constant_properties: Option<Vec<PyBackedStr>>,
-        shared_constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
-        let constant_properties =
-            convert_py_prop_args(constant_properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
         load_edge_props_from_parquet(
             &self.graph,
             parquet_path.as_path(),
             src,
             dst,
-            &constant_properties,
-            shared_constant_properties.as_ref(),
+            &metadata,
+            shared_metadata.as_ref(),
             layer,
             layer_col,
         )

@@ -345,7 +345,7 @@ pub(crate) mod data_tests {
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "test_g")]).unwrap();
+        graph.add_metadata([("name", "test_g")]).unwrap();
         graph
             .add_edge(0, 1, 2, [("name", "test_e1")], None)
             .unwrap();

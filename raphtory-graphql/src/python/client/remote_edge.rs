@@ -123,7 +123,7 @@ impl PyRemoteEdge {
     /// Returns:
     ///     None:
     #[pyo3(signature = (properties, layer=None))]
-    fn add_constant_properties(
+    fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -133,7 +133,7 @@ impl PyRemoteEdge {
             {
               updateGraph(path: "{{path}}") {
                 edge(src: "{{src}}",dst: "{{dst}}") {
-                  addConstantProperties(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                  addMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
                 }
               }
             }
@@ -164,7 +164,7 @@ impl PyRemoteEdge {
     /// Returns:
     ///     None:
     #[pyo3(signature = (properties, layer=None))]
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -174,7 +174,7 @@ impl PyRemoteEdge {
             {
               updateGraph(path: "{{path}}") {
                 edge(src: "{{src}}",dst: "{{dst}}") {
-                  updateConstantProperties(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                  updateMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
                 }
               }
             }

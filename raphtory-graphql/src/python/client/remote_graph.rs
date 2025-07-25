@@ -85,9 +85,9 @@ impl PyRemoteGraph {
                             {% endfor %}
                         ]
                         {% endif %}
-                        {% if node.constant_properties%},
-                        constantProperties: [
-                            {% for cprop in node.constant_properties %}
+                        {% if node.metadata%},
+                        metadata: [
+                            {% for cprop in node.metadata %}
                             {
                                 key: "{{ cprop.key }}",
                                 value:{{ cprop.value }}
@@ -156,9 +156,9 @@ impl PyRemoteGraph {
                                     {% endfor %}
                                 ]
                                 {% endif %}
-                                {% if edge.constant_properties%},
-                                constantProperties: [
-                                    {% for cprop in edge.constant_properties %}
+                                {% if edge.metadata%},
+                                metadata: [
+                                    {% for cprop in edge.metadata %}
                                     {
                                         key: "{{ cprop.key }}",
                                         value:{{ cprop.value }}
@@ -319,7 +319,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn add_constant_properties(
+    pub fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -327,7 +327,7 @@ impl PyRemoteGraph {
         let template = r#"
         {
           updateGraph(path: "{{ path }}") {
-            addConstantProperties(properties: {{ properties | safe }})
+            addMetadata(properties: {{ properties | safe }})
           }
         }
         "#;
@@ -350,7 +350,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -358,7 +358,7 @@ impl PyRemoteGraph {
         let template = r#"
         {
           updateGraph(path: "{{ path }}") {
-            updateConstantProperties(properties: {{ properties | safe }})
+            updateMetadata(properties: {{ properties | safe }})
           }
         }
         "#;

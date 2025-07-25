@@ -12,10 +12,10 @@ def build_graph():
     graph.add_node(2, 3, {"node_str": "third", "node_int": 3})
     graph.add_node(3, 4, {"node_str": "fourth", "node_int": 4, "node_bool": True})
 
-    graph.node(1).add_constant_properties({"c_prop1": "fire_nation"})
-    graph.node(2).add_constant_properties({"c_prop1": "water_tribe"})
-    graph.node(3).add_constant_properties({"c_prop1": "fire_nation"})
-    graph.node(4).add_constant_properties({"c_prop1": "fire_nation"})
+    graph.node(1).add_metadata({"c_prop1": "fire_nation"})
+    graph.node(2).add_metadata({"c_prop1": "water_tribe"})
+    graph.node(3).add_metadata({"c_prop1": "fire_nation"})
+    graph.node(4).add_metadata({"c_prop1": "fire_nation"})
 
     graph.add_edge(0, 1, 2, {"test_str": "first", "test_int": 0})
     graph.add_edge(1, 2, 3, {"test_str": "second", "test_int": 1})
@@ -24,8 +24,8 @@ def build_graph():
     graph.add_edge(4, 2, 3, {"test_bool": True})
     graph.add_edge(5, 2, 3, {"test_str": "third"})
 
-    graph.edge(1, 2).add_constant_properties({"c_prop1": "water_tribe"})
-    graph.edge(2, 3).add_constant_properties({"c_prop1": "water_tribe"})
+    graph.edge(1, 2).add_metadata({"c_prop1": "water_tribe"})
+    graph.edge(2, 3).add_metadata({"c_prop1": "water_tribe"})
 
     return graph
 

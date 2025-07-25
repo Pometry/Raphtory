@@ -3,7 +3,7 @@ use crate::{
         edges::edge_ref::EdgeRef,
         nodes::structure::adj::Adj,
         properties::{
-            props::{ConstPropError, Props},
+            props::{MetadataError, Props},
             tcell::TCell,
         },
         LayerIds, EID, GID, VID,
@@ -220,18 +220,14 @@ impl NodeStore {
         node_type
     }
 
-    pub fn add_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), ConstPropError> {
+    pub fn add_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.add_constant_prop(prop_id, prop)
+        props.add_metadata(prop_id, prop)
     }
 
-    pub fn update_constant_prop(
-        &mut self,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), ConstPropError> {
+    pub fn update_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.update_constant_prop(prop_id, prop)
+        props.update_metadata(prop_id, prop)
     }
 
     pub fn update_t_prop_time(&mut self, t: TimeIndexEntry, prop_i: Option<usize>) {
@@ -419,15 +415,15 @@ impl NodeStore {
         iter
     }
 
-    pub fn const_prop_ids(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn metadata_ids(&self) -> impl Iterator<Item = usize> + '_ {
         self.props
             .as_ref()
             .into_iter()
-            .flat_map(|ps| ps.const_prop_ids())
+            .flat_map(|ps| ps.metadata_ids())
     }
 
-    pub fn constant_property(&self, prop_id: usize) -> Option<&Prop> {
-        self.props.as_ref().and_then(|ps| ps.const_prop(prop_id))
+    pub fn metadata(&self, prop_id: usize) -> Option<&Prop> {
+        self.props.as_ref().and_then(|ps| ps.metadata(prop_id))
     }
 }
 

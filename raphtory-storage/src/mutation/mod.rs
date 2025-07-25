@@ -13,7 +13,7 @@ use raphtory_api::{
 use raphtory_core::entities::{
     graph::{logical_to_physical::InvalidNodeId, tgraph::TooManyLayers},
     properties::{
-        props::{ConstPropError, TPropError},
+        props::{MetadataError, TPropError},
         tprop::IllegalPropType,
     },
 };
@@ -43,7 +43,7 @@ pub enum MutationError {
     #[error(transparent)]
     IllegalPropType(#[from] IllegalPropType),
     #[error(transparent)]
-    ConstPropError(#[from] ConstPropError),
+    MetadataError(#[from] MetadataError),
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
         layer: String,

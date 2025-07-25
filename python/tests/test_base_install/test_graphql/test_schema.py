@@ -43,7 +43,7 @@ def test_node_edge_properties_schema():
     g.add_node(6, 3, {"list_prop": [1.1, 2.2, 3.3], "cost_b": 76.0}, "b")
     g.add_node(7, 4, {"str_prop": "hello", "bool_prop": True}, "b")
 
-    g.node(1).add_constant_properties({"lol": "smile"})
+    g.node(1).add_metadata({"lol": "smile"})
 
     g.add_edge(1, 1, 2, {"prop1": 1, "prop3": "test"}, layer="0")
     g.add_edge(1, 2, 3, {"prop1": 1, "prop2": 9.8}, layer="0")
@@ -52,7 +52,7 @@ def test_node_edge_properties_schema():
     g.add_edge(1, 6, 7, {"prop1": 1, "prop2": 9.8, "prop3": "test"}, layer="2")
     g.add_edge(1, 6, 7, layer="3")
 
-    g.edge(1, 2).add_constant_properties({"static": "test"}, layer="0")
+    g.edge(1, 2).add_metadata({"static": "test"}, layer="0")
 
     work_dir = tempfile.mkdtemp()
     graph_file_path = os.path.join(work_dir, "graph")
@@ -74,6 +74,11 @@ def test_node_edge_properties_schema():
                     propertyType
                     variants
                   }
+                  metadata {
+                    key
+                    propertyType
+                    variants
+                  }
                 }
               }
               nodes {
@@ -83,6 +88,11 @@ def test_node_edge_properties_schema():
                   propertyType
                   variants
                 }
+                metadata {
+                  key
+                  propertyType
+                  variants
+                }                
               }
             }
           }
@@ -106,12 +116,14 @@ def test_node_edge_properties_schema():
                                             "variants": ["1"],
                                         },
                                         {
-                                            "key": "static",
+                                            "key": "prop3",
                                             "propertyType": "Str",
                                             "variants": ["test"],
                                         },
+                                    ],
+                                    "metadata": [
                                         {
-                                            "key": "prop3",
+                                            "key": "static",
                                             "propertyType": "Str",
                                             "variants": ["test"],
                                         },
@@ -132,6 +144,7 @@ def test_node_edge_properties_schema():
                                             "variants": ["9.8"],
                                         },
                                     ],
+                                    "metadata": [],
                                 },
                             ],
                         },
@@ -158,6 +171,7 @@ def test_node_edge_properties_schema():
                                             "variants": ['{"data": "map"}'],
                                         },
                                     ],
+                                    "metadata": [],
                                 },
                                 {
                                     "srcType": "b",
@@ -179,6 +193,7 @@ def test_node_edge_properties_schema():
                                             "variants": ["9.8"],
                                         },
                                     ],
+                                    "metadata": [],
                                 },
                             ],
                         },
@@ -205,13 +220,19 @@ def test_node_edge_properties_schema():
                                             "variants": ["test"],
                                         },
                                     ],
+                                    "metadata": [],
                                 }
                             ],
                         },
                         {
                             "name": "3",
                             "edges": [
-                                {"srcType": "None", "dstType": "None", "properties": []}
+                                {
+                                    "srcType": "None",
+                                    "dstType": "None",
+                                    "properties": [],
+                                    "metadata": [],
+                                }
                             ],
                         },
                     ],
@@ -229,11 +250,13 @@ def test_node_edge_properties_schema():
                                     "propertyType": "F64",
                                     "variants": ["99.5"],
                                 },
+                            ],
+                            "metadata": [
                                 {
                                     "key": "lol",
                                     "propertyType": "Str",
                                     "variants": ["smile"],
-                                },
+                                }
                             ],
                         },
                         {
@@ -245,6 +268,7 @@ def test_node_edge_properties_schema():
                                     "variants": ["person"],
                                 }
                             ],
+                            "metadata": [],
                         },
                         {
                             "typeName": "b",
@@ -270,6 +294,7 @@ def test_node_edge_properties_schema():
                                     "variants": ["hello"],
                                 },
                             ],
+                            "metadata": [],
                         },
                     ],
                 }

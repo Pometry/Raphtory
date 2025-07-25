@@ -2,7 +2,11 @@
 import pandas as pd
 
 edges_df = pd.read_csv(
-    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt",
+    sep="\t",
+    header=0,
+    usecols=[0, 1, 2, 3, 4],
+    parse_dates=[0],
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -168,7 +172,7 @@ property_g.add_node(
     properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
 )
 # Add some constant properties
-v.add_constant_properties(
+v.add_metadata(
     properties={
         "inner data": {"name": "bob", "value list": [1, 2, 3]},
         "favourite greetings": ["hi", "hello", "howdy"],
@@ -351,7 +355,11 @@ import pandas as pd
 from raphtory import Graph
 
 edges_df = pd.read_csv(
-    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt",
+    sep="\t",
+    header=0,
+    usecols=[0, 1, 2, 3, 4],
+    parse_dates=[0],
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -459,7 +467,9 @@ print(
     f"Before the update the materialized graph had {materialized_graph.count_temporal_edges()} edge updates"
 )
 print("Adding new update to materialized_graph")
-materialized_graph.add_edge(1, "FELIPE", "LOME", properties={"Weight": 1}, layer="Grooming")
+materialized_graph.add_edge(
+    1, "FELIPE", "LOME", properties={"Weight": 1}, layer="Grooming"
+)
 print(
     f"After the update the view had {windowed_view.count_temporal_edges()} edge updates"
 )

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
-from raphtory import filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
@@ -25,14 +24,15 @@ import pyvis  # type: ignore
 
 __all__ = [
     "FilterExpr",
+    "PropertyFilterOps",
     "NodeFilterBuilder",
     "Node",
     "EdgeFilterOp",
     "EdgeEndpoint",
     "Edge",
     "Property",
+    "Metadata",
     "TemporalPropertyFilterBuilder",
-    "Property",
 ]
 
 class FilterExpr(object):
@@ -50,6 +50,33 @@ class FilterExpr(object):
 
     def __ror__(self, value):
         """Return value|self."""
+
+class PropertyFilterOps(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value): ...
+    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_none(self): ...
+    def is_not_in(self, values): ...
+    def is_some(self): ...
+    def not_contains(self, value): ...
 
 class NodeFilterBuilder(object):
     """
@@ -136,19 +163,29 @@ class Edge(object):
     def src(): ...
 
 class Property(PropertyFilterOps):
-    def __new__(cls, name) -> Property:
+    """
+    Construct a property filter
+
+    Arguments:
+        name (str): the name of the property to filter
+    """
+
+    def __new__(cls, name: str) -> Property:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def constant(self): ...
     def temporal(self): ...
+
+class Metadata(PropertyFilterOps):
+    """
+    Construct a metadata filter
+
+    Arguments:
+        name (str): the name of the property to filter
+    """
+
+    def __new__(cls, name: str) -> Metadata:
+        """Create and return a new object.  See help(type) for accurate signature."""
 
 class TemporalPropertyFilterBuilder(object):
     def any(self): ...
     def latest(self): ...
-
-class Property(PropertyFilterOps):
-    def __new__(cls, name) -> Property:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-    def constant(self): ...
-    def temporal(self): ...

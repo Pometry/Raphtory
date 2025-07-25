@@ -7,7 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::ConstantPropertiesOps, Properties},
+            properties::{internal::InternalMetadataOps, Metadata, Properties},
             view::{internal::*, *},
         },
         graph::{
@@ -137,6 +137,9 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+
+    /// Get a view of the metadat for this graph
+    fn metadata(&self) -> Metadata<'graph, Self>;
 }
 
 #[cfg(feature = "search")]
@@ -216,13 +219,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
         // preserve all property mappings
         g.node_meta
-            .set_const_prop_meta(self.node_meta().const_prop_meta().deep_clone());
+            .set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         g.node_meta
-            .set_temporal_prop_meta(self.node_meta().temporal_prop_meta().deep_clone());
+            .set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());
         g.edge_meta
-            .set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
+            .set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         g.edge_meta
-            .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
+            .set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
@@ -311,11 +314,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                             new_node.node_store_mut().update_t_prop_time(t, prop_offset);
                         }
 
-                        for c_prop_id in node.const_prop_ids() {
-                            if let Some(prop_value) = node.get_const_prop(c_prop_id) {
+                        for metadata_id in node.metadata_ids() {
+                            if let Some(prop_value) = node.get_metadata(metadata_id) {
                                 new_node
                                     .node_store_mut()
-                                    .add_constant_prop(c_prop_id, prop_value)?;
+                                    .add_metadata(metadata_id, prop_value)?;
                             }
                         }
                     }
@@ -343,11 +346,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                     new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
                                 }
                             }
-                            for c_prop in edge.const_prop_ids() {
-                                if let Some(prop_value) = edge.get_const_prop(c_prop) {
-                                    new_edge
-                                        .layer_mut(layer)
-                                        .add_constant_prop(c_prop, prop_value)?;
+                            for c_prop in edge.metadata_ids() {
+                                if let Some(prop_value) = edge.get_metadata(c_prop) {
+                                    new_edge.layer_mut(layer).add_metadata(c_prop, prop_value)?;
                                 }
                             }
                         }
@@ -603,14 +604,18 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
     }
+
+    fn metadata(&self) -> Metadata<'graph, Self> {
+        Metadata::new(self.clone())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct IndexSpec {
-    pub(crate) node_const_props: HashSet<usize>,
-    pub(crate) node_temp_props: HashSet<usize>,
-    pub(crate) edge_const_props: HashSet<usize>,
-    pub(crate) edge_temp_props: HashSet<usize>,
+    pub(crate) node_metadata: HashSet<usize>,
+    pub(crate) node_properties: HashSet<usize>,
+    pub(crate) edge_metadata: HashSet<usize>,
+    pub(crate) edge_properties: HashSet<usize>,
 }
 
 impl IndexSpec {
@@ -619,23 +624,23 @@ impl IndexSpec {
             requested.difference(existing).copied().collect()
         }
 
-        let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
-        let node_temp_props = diff_props(&existing.node_temp_props, &requested.node_temp_props);
-        let edge_const_props = diff_props(&existing.edge_const_props, &requested.edge_const_props);
-        let edge_temp_props = diff_props(&existing.edge_temp_props, &requested.edge_temp_props);
+        let node_metadata = diff_props(&existing.node_metadata, &requested.node_metadata);
+        let node_properties = diff_props(&existing.node_properties, &requested.node_properties);
+        let edge_metadata = diff_props(&existing.edge_metadata, &requested.edge_metadata);
+        let edge_properties = diff_props(&existing.edge_properties, &requested.edge_properties);
 
-        if node_const_props.is_empty()
-            && node_temp_props.is_empty()
-            && edge_const_props.is_empty()
-            && edge_temp_props.is_empty()
+        if node_metadata.is_empty()
+            && node_properties.is_empty()
+            && edge_metadata.is_empty()
+            && edge_properties.is_empty()
         {
             None
         } else {
             Some(IndexSpec {
-                node_const_props,
-                node_temp_props,
-                edge_const_props,
-                edge_temp_props,
+                node_metadata,
+                node_properties,
+                edge_metadata,
+                edge_properties,
             })
         }
     }
@@ -646,10 +651,10 @@ impl IndexSpec {
         }
 
         IndexSpec {
-            node_const_props: union_props(&existing.node_const_props, &other.node_const_props),
-            node_temp_props: union_props(&existing.node_temp_props, &other.node_temp_props),
-            edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
-            edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
+            node_metadata: union_props(&existing.node_metadata, &other.node_metadata),
+            node_properties: union_props(&existing.node_properties, &other.node_properties),
+            edge_metadata: union_props(&existing.edge_metadata, &other.edge_metadata),
+            edge_properties: union_props(&existing.edge_properties, &other.edge_properties),
         }
     }
 
@@ -667,21 +672,15 @@ impl IndexSpec {
         };
 
         ResolvedIndexSpec {
-            node_const_props: extract_names(
-                &self.node_const_props,
-                graph.node_meta().const_prop_meta(),
+            node_metadata: extract_names(&self.node_metadata, graph.node_meta().metadata_mapper()),
+            node_properties: extract_names(
+                &self.node_properties,
+                graph.node_meta().temporal_prop_mapper(),
             ),
-            node_temp_props: extract_names(
-                &self.node_temp_props,
-                graph.node_meta().temporal_prop_meta(),
-            ),
-            edge_const_props: extract_names(
-                &self.edge_const_props,
-                graph.edge_meta().const_prop_meta(),
-            ),
-            edge_temp_props: extract_names(
-                &self.edge_temp_props,
-                graph.edge_meta().temporal_prop_meta(),
+            edge_metadata: extract_names(&self.edge_metadata, graph.edge_meta().metadata_mapper()),
+            edge_properties: extract_names(
+                &self.edge_properties,
+                graph.edge_meta().temporal_prop_mapper(),
             ),
         }
     }
@@ -689,19 +688,19 @@ impl IndexSpec {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ResolvedIndexSpec {
-    pub node_const_props: Vec<String>,
-    pub node_temp_props: Vec<String>,
-    pub edge_const_props: Vec<String>,
-    pub edge_temp_props: Vec<String>,
+    pub node_metadata: Vec<String>,
+    pub node_properties: Vec<String>,
+    pub edge_metadata: Vec<String>,
+    pub edge_properties: Vec<String>,
 }
 
 impl ResolvedIndexSpec {
     pub fn to_vec(&self) -> Vec<Vec<String>> {
         vec![
-            self.node_const_props.clone(),
-            self.node_temp_props.clone(),
-            self.edge_const_props.clone(),
-            self.edge_temp_props.clone(),
+            self.node_metadata.clone(),
+            self.node_properties.clone(),
+            self.edge_metadata.clone(),
+            self.edge_properties.clone(),
         ]
     }
 }
@@ -709,110 +708,110 @@ impl ResolvedIndexSpec {
 #[derive(Clone)]
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     pub graph: G,
-    node_const_props: Option<HashSet<usize>>,
-    node_temp_props: Option<HashSet<usize>>,
-    edge_const_props: Option<HashSet<usize>>,
-    edge_temp_props: Option<HashSet<usize>>,
+    node_metadata: Option<HashSet<usize>>,
+    node_properties: Option<HashSet<usize>>,
+    edge_metadata: Option<HashSet<usize>>,
+    edge_properties: Option<HashSet<usize>>,
 }
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     pub fn new(graph: G) -> Self {
         Self {
             graph,
-            node_const_props: None,
-            node_temp_props: None,
-            edge_const_props: None,
-            edge_temp_props: None,
+            node_metadata: None,
+            node_properties: None,
+            edge_metadata: None,
+            edge_properties: None,
         }
     }
 
-    pub fn with_all_node_props(mut self) -> Self {
-        self.node_const_props = Some(Self::extract_props(
-            self.graph.node_meta().const_prop_meta(),
+    pub fn with_all_node_properties_and_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
         ));
-        self.node_temp_props = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_meta(),
-        ));
-        self
-    }
-
-    pub fn with_all_const_node_props(mut self) -> Self {
-        self.node_const_props = Some(Self::extract_props(
-            self.graph.node_meta().const_prop_meta(),
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
         ));
         self
     }
 
-    pub fn with_all_temp_node_props(mut self) -> Self {
-        self.node_temp_props = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_meta(),
+    pub fn with_all_node_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
         ));
         self
     }
 
-    pub fn with_const_node_props<S: AsRef<str>>(
+    pub fn with_all_node_properties(mut self) -> Self {
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_node_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.node_const_props = Some(Self::extract_named_props(
-            self.graph.node_meta().const_prop_meta(),
+        self.node_metadata = Some(Self::extract_named_props(
+            self.graph.node_meta().metadata_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_temp_node_props<S: AsRef<str>>(
+    pub fn with_node_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.node_temp_props = Some(Self::extract_named_props(
-            self.graph.node_meta().temporal_prop_meta(),
+        self.node_properties = Some(Self::extract_named_props(
+            self.graph.node_meta().temporal_prop_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_all_edge_props(mut self) -> Self {
-        self.edge_const_props = Some(Self::extract_props(
-            self.graph.edge_meta().const_prop_meta(),
+    pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
         ));
-        self.edge_temp_props = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_meta(),
-        ));
-        self
-    }
-
-    pub fn with_all_edge_const_props(mut self) -> Self {
-        self.edge_const_props = Some(Self::extract_props(
-            self.graph.edge_meta().const_prop_meta(),
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
         ));
         self
     }
 
-    pub fn with_all_temp_edge_props(mut self) -> Self {
-        self.edge_temp_props = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_meta(),
+    pub fn with_all_edge_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
         ));
         self
     }
 
-    pub fn with_const_edge_props<S: AsRef<str>>(
+    pub fn with_all_edge_properties(mut self) -> Self {
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_edge_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.edge_const_props = Some(Self::extract_named_props(
-            self.graph.edge_meta().const_prop_meta(),
+        self.edge_metadata = Some(Self::extract_named_props(
+            self.graph.edge_meta().metadata_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_temp_edge_props<S: AsRef<str>>(
+    pub fn with_edge_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.edge_temp_props = Some(Self::extract_named_props(
-            self.graph.edge_meta().temporal_prop_meta(),
+        self.edge_properties = Some(Self::extract_named_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
             props,
         )?);
         Ok(self)
@@ -839,10 +838,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
 
     pub fn build(self) -> IndexSpec {
         IndexSpec {
-            node_const_props: self.node_const_props.unwrap_or_default(),
-            node_temp_props: self.node_temp_props.unwrap_or_default(),
-            edge_const_props: self.edge_const_props.unwrap_or_default(),
-            edge_temp_props: self.edge_temp_props.unwrap_or_default(),
+            node_metadata: self.node_metadata.unwrap_or_default(),
+            node_properties: self.node_properties.unwrap_or_default(),
+            edge_metadata: self.edge_metadata.unwrap_or_default(),
+            edge_properties: self.edge_properties.unwrap_or_default(),
         }
     }
 }
@@ -1491,8 +1490,7 @@ mod test_materialize {
     fn test_graph_properties() {
         let g = Graph::new();
         g.add_properties(1, [("test", "test")]).unwrap();
-        g.add_constant_properties([("test_constant", "test2")])
-            .unwrap();
+        g.add_metadata([("test_constant", "test2")]).unwrap();
 
         test_storage!(&g, |g| {
             let gm = g.materialize().unwrap();

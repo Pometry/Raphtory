@@ -122,7 +122,7 @@ def assert_expected_node_types(g):
 
 
 def assert_expected_node_property_tag(g):
-    assert g.nodes.properties.constant.get("tag").collect() == [
+    assert g.nodes.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -133,7 +133,7 @@ def assert_expected_node_property_tag(g):
 
 
 def assert_expected_node_property_type(g):
-    assert dict(zip(g.nodes.id, g.nodes.properties.constant.get("type"))) == {
+    assert dict(zip(g.nodes.id, g.nodes.metadata.get("type"))) == {
         1: "Person 1",
         2: "Person 2",
         3: "Person 3",
@@ -144,7 +144,7 @@ def assert_expected_node_property_type(g):
 
 
 def assert_expected_node_property_dept(g):
-    assert g.nodes.properties.constant.get("dept").collect() == [
+    assert g.nodes.metadata.get("dept").collect() == [
         "Sales",
         "Sales",
         "Sales",
@@ -158,7 +158,7 @@ def assert_expected_edge_properties(g):
     assert dict(
         zip(
             g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
-            g.layers(["layer 1", "layer 2", "layer 3"]).edges.properties.constant.get(
+            g.layers(["layer 1", "layer 2", "layer 3"]).edges.metadata.get(
                 "marbles_const"
             ),
         )
@@ -167,7 +167,7 @@ def assert_expected_edge_properties(g):
         (2, 3): {"layer 2": "blue"},
         (3, 4): {"layer 3": "green"},
     }
-    assert dict(zip(g.edges.id, g.edges.properties.constant.get("tag"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("tag"))) == {
         (1, 2): {"layer 1": "test_tag"},
         (2, 3): {"layer 2": "test_tag"},
         (3, 4): {"layer 3": "test_tag"},
@@ -177,21 +177,21 @@ def assert_expected_edge_properties(g):
 
 
 def assert_expected_edge_properties_test_layer(g):
-    assert g.edges.properties.constant.get("type").collect() == [
+    assert g.edges.metadata.get("type").collect() == [
         "Edge",
         "Edge",
         "Edge",
         "Edge",
         "Edge",
     ]
-    assert g.edges.properties.constant.get("tag").collect() == [
+    assert g.edges.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
         "test_tag",
         "test_tag",
     ]
-    assert g.edges.properties.constant.get("tag").collect() == [
+    assert g.edges.metadata.get("tag").collect() == [
         "test_tag",
         "test_tag",
         "test_tag",
@@ -280,8 +280,8 @@ def test_load_from_parquet_graphs(parquet_files):
     g.load_node_props_from_parquet(
         parquet_path=nodes_parquet_file_path,
         id="id",
-        constant_properties=["type"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["type"],
+        shared_metadata={"tag": "test_tag"},
     )
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
@@ -290,8 +290,8 @@ def test_load_from_parquet_graphs(parquet_files):
         parquet_path=edges_parquet_file_path,
         src="src",
         dst="dst",
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"tag": "test_tag"},
         layer_col="layers",
     )
     assert_expected_edge_properties(g)
@@ -304,7 +304,7 @@ def test_load_from_parquet_graphs(parquet_files):
         time="time",
         node_type_col="node_type",
         properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        shared_metadata={"tag": "test_tag"},
     )
     assert_expected_node_types(g)
     assert_expected_node_property_tag(g)
@@ -316,8 +316,8 @@ def test_load_from_parquet_graphs(parquet_files):
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
     )
     assert_expected_edge_properties_test_layer(g)
@@ -336,7 +336,7 @@ def test_load_from_parquet_graphs(parquet_files):
         time="time",
         id="id",
         properties=["name"],
-        shared_constant_properties={"dept": "Sales"},
+        shared_metadata={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
@@ -354,7 +354,7 @@ def test_load_from_parquet_graphs(parquet_files):
         time="time",
         id="id",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)
@@ -408,8 +408,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     g.load_node_props_from_parquet(
         parquet_path=nodes_parquet_file_path,
         id="id",
-        constant_properties=["type"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["type"],
+        shared_metadata={"tag": "test_tag"},
     )
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
@@ -418,8 +418,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         parquet_path=edges_parquet_file_path,
         src="src",
         dst="dst",
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"tag": "test_tag"},
         layer_col="layers",
     )
     assert_expected_edge_properties(g)
@@ -432,7 +432,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         id="id",
         node_type_col="node_type",
         properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        shared_metadata={"tag": "test_tag"},
     )
     assert_expected_node_types(g)
     assert_expected_node_property_tag(g)
@@ -444,8 +444,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         src="src",
         dst="dst",
         properties=["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
     )
     assert_expected_edge_properties_test_layer(g)
@@ -464,7 +464,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         time="time",
         id="id",
         properties=["name"],
-        shared_constant_properties={"dept": "Sales"},
+        shared_metadata={"dept": "Sales"},
     )
     assert_expected_test_layer(g)
     assert_expected_node_property_dept(g)
@@ -482,7 +482,7 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
         time="time",
         id="id",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assert_expected_node_property_type(g)
     assert_expected_layers(g)
@@ -556,7 +556,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "src",
         "dst",
         layer="blah",
-        constant_properties=["marbles"],
+        metadata=["marbles"],
     )
     assert g.edges.layer_names.collect() == [
         ["blah"],
@@ -567,7 +567,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     ]
     assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -605,7 +605,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "src",
         "dst",
         layer_col="marbles",
-        constant_properties=["marbles"],
+        metadata=["marbles"],
     )
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
@@ -621,7 +621,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},
@@ -687,7 +687,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "src",
         "dst",
         layer="blah",
-        constant_properties=["marbles"],
+        metadata=["marbles"],
     )
     assert g.edges.layer_names.collect() == [
         ["blah"],
@@ -698,7 +698,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     ]
     assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -749,7 +749,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "src",
         "dst",
         layer_col="marbles",
-        constant_properties=["marbles"],
+        metadata=["marbles"],
     )
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
@@ -765,7 +765,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},

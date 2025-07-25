@@ -129,7 +129,7 @@ impl<'a> EdgeStorageOps<'a> for EdgeStorageRef<'a> {
         for_all_iter!(self, edge => edge.temporal_prop_layer(layer_id, prop_id))
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        for_all!(self, edge => edge.constant_prop_layer(layer_id, prop_id))
+    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        for_all!(self, edge => edge.metadata_layer(layer_id, prop_id))
     }
 }

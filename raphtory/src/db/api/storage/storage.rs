@@ -450,8 +450,8 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(())
     }
 
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_add_constant_properties(props)?;
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
+        self.graph.internal_add_metadata(props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
@@ -459,11 +459,8 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(())
     }
 
-    fn internal_update_constant_properties(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_update_constant_properties(props)?;
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
+        self.graph.internal_update_metadata(props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_graph_cprops(props));
@@ -471,43 +468,56 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(())
     }
 
-    fn internal_add_constant_node_properties(
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let lock = self
-            .graph
-            .internal_add_constant_node_properties(vid, props)?;
+        let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_node_constant_properties(vid, props))?;
+        self.if_index_mut(|index| index.add_node_metadata(vid, props))?;
 
         Ok(lock)
     }
 
-    fn internal_update_constant_node_properties(
+    fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let lock = self
-            .graph
-            .internal_update_constant_node_properties(vid, props)?;
+        let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_node_cprops(vid, props));
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_node_constant_properties(vid, props))?;
+        self.if_index_mut(|index| index.update_node_metadata(vid, props))?;
 
         Ok(lock)
     }
 
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
+        &self,
+        eid: EID,
+        layer: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<EdgeWGuard, Self::Error> {
+        let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
+
+        #[cfg(feature = "proto")]
+        self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
+
+        #[cfg(feature = "search")]
+        self.if_index_mut(|index| index.add_edge_metadata(eid, layer, props))?;
+
+        Ok(lock)
+    }
+
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
@@ -515,32 +525,13 @@ impl InternalPropertyAdditionOps for Storage {
     ) -> Result<EdgeWGuard, Self::Error> {
         let lock = self
             .graph
-            .internal_add_constant_edge_properties(eid, layer, props)?;
+            .internal_update_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "proto")]
         self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_edge_constant_properties(eid, layer, props))?;
-
-        Ok(lock)
-    }
-
-    fn internal_update_constant_edge_properties(
-        &self,
-        eid: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
-        let lock = self
-            .graph
-            .internal_update_constant_edge_properties(eid, layer, props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
-
-        #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_edge_constant_properties(eid, layer, props))?;
+        self.if_index_mut(|index| index.update_edge_metadata(eid, layer, props))?;
 
         Ok(lock)
     }

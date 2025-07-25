@@ -86,7 +86,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     None,
                 )
                 .expect("Failed to add node")
-                .add_constant_properties([("type", "owner")])
+                .add_metadata([("type", "owner")])
                 .expect("Failed to add node static property");
 
                 g.add_node(
@@ -96,7 +96,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     None,
                 )
                 .expect("Failed to add node")
-                .add_constant_properties([
+                .add_metadata([
                     ("type", "company".into_prop()),
                     (
                         "flag",
@@ -116,7 +116,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     None,
                 )
                 .expect("Failed to add node")
-                .add_constant_properties([
+                .add_metadata([
                     ("type", "address".into_prop()),
                     (
                         "flag",
@@ -137,7 +137,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     Some(pincode),
                 )
                 .expect("Failed to add edge")
-                .add_constant_properties([("rel", "owns")], Some(pincode))
+                .add_metadata([("rel", "owns")], Some(pincode))
                 .expect("Failed to add edge static property");
 
                 g.add_edge(
@@ -148,7 +148,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     None,
                 )
                 .expect("Failed to add edge")
-                .add_constant_properties([("rel", "owns")], None)
+                .add_metadata([("rel", "owns")], None)
                 .expect("Failed to add edge static property");
             })
             .expect("Failed to load graph from CSV data files");

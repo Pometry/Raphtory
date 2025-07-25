@@ -204,7 +204,7 @@ impl<G, L: InternalExplodedEdgeFilterOps, R: InternalExplodedEdgeFilterOps>
         layer_ids: &LayerIds,
     ) -> bool {
         self.left.internal_filter_exploded_edge(eid, t, layer_ids)
-            && self.right.internal_filter_exploded_edge(eid, t, layer_ids)
+            || self.right.internal_filter_exploded_edge(eid, t, layer_ids)
     }
 }
 

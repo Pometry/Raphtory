@@ -136,7 +136,7 @@ pub struct Multiple(pub Arc<[usize]>);
 
 impl<'a> IntoIterator for &'a Multiple {
     type Item = usize;
-    type IntoIter = Copied<std::slice::Iter<'a, usize>>;
+    type IntoIter = Copied<core::slice::Iter<'a, usize>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter().copied()
@@ -145,8 +145,8 @@ impl<'a> IntoIterator for &'a Multiple {
 
 impl Multiple {
     #[inline]
-    pub fn binary_search(&self, pos: &usize) -> Option<usize> {
-        self.0.binary_search(pos).ok()
+    pub fn contains(&self, id: usize) -> bool {
+        self.0.binary_search(&id).is_ok()
     }
 
     #[inline]
@@ -161,8 +161,13 @@ impl Multiple {
     }
 
     #[inline]
-    pub fn find(&self, id: usize) -> Option<usize> {
-        self.0.get(id).copied()
+    pub fn get_id_by_index(&self, index: usize) -> Option<usize> {
+        self.0.get(index).copied()
+    }
+
+    #[inline]
+    pub fn get_index_by_id(&self, id: usize) -> Option<usize> {
+        self.0.binary_search(&id).ok()
     }
 
     #[inline]
@@ -184,12 +189,17 @@ impl Multiple {
 
 impl FromIterator<usize> for Multiple {
     fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-        Multiple(iter.into_iter().collect())
+        let mut inner: Vec<_> = iter.into_iter().collect();
+        inner.sort();
+        inner.dedup();
+        Multiple(inner.into())
     }
 }
 
 impl From<Vec<usize>> for Multiple {
-    fn from(v: Vec<usize>) -> Self {
-        v.into_iter().collect()
+    fn from(mut v: Vec<usize>) -> Self {
+        v.sort();
+        v.dedup();
+        Multiple(v.into())
     }
 }

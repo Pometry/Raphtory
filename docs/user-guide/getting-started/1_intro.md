@@ -106,7 +106,7 @@ To start the Raphtory UI you need to:
 ```{.python continuation}
 server = graphql.GraphServer("my-test/graphs")
 client = server.start().get_client()
-client.send_graph("OBS-graph",g,overwrite=True)
+client.send_graph("OBS-graph", g, overwrite=True)
 ```
 ///
 

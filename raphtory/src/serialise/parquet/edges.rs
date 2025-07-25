@@ -21,7 +21,7 @@ pub(crate) fn encode_edge_tprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.edge_meta().temporal_prop_meta(),
+        g.edge_meta().temporal_prop_mapper(),
         g.unfiltered_num_edges(),
         path,
         EDGES_T_PATH,
@@ -65,7 +65,7 @@ pub(crate) fn encode_edge_deletions(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.edge_meta().temporal_prop_meta(),
+        g.edge_meta().temporal_prop_mapper(),
         g.unfiltered_num_edges(),
         path,
         EDGES_D_PATH,
@@ -126,7 +126,7 @@ pub(crate) fn encode_edge_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.edge_meta().const_prop_meta(),
+        g.edge_meta().metadata_mapper(),
         g.unfiltered_num_edges(),
         path,
         EDGES_C_PATH,

@@ -3,14 +3,15 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            properties::internal::TemporalPropertiesOps,
+            properties::internal::InternalTemporalPropertiesOps,
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
     prelude::{
-        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertyAdditionOps,
+        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertiesOps,
+        PropertyAdditionOps,
     },
 };
 use raphtory_api::core::{
@@ -363,7 +364,7 @@ fn import_node_internal<
     graph
         .node(node_internal)
         .expect("node added")
-        .add_constant_properties(node.properties().constant())?;
+        .add_metadata(node.metadata().iter_filtered())?;
 
     Ok(graph.node(node_internal).unwrap())
 }
@@ -422,7 +423,7 @@ fn import_edge_internal<
         graph
             .edge(&src_id, &dst_id)
             .expect("edge added")
-            .add_constant_properties(ee.properties().constant(), Some(&layer_name))?;
+            .add_metadata(ee.metadata().iter_filtered(), Some(&layer_name))?;
     }
 
     Ok(graph.edge(&src_id, &dst_id).unwrap())

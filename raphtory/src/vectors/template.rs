@@ -4,7 +4,7 @@ use crate::{
         api::properties::TemporalPropertyView,
         graph::{edge::EdgeView, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps},
+    prelude::*,
 };
 use minijinja::{
     value::{Enumerator, Object},
@@ -81,7 +81,7 @@ struct NodeTemplateContext {
     name: String,
     node_type: Option<ArcStr>,
     properties: Value,
-    constant_properties: Value,
+    metadata: Value,
     temporal_properties: Value,
 }
 
@@ -95,9 +95,8 @@ impl<'graph, G: GraphViewOps<'graph>> From<NodeView<'graph, G>> for NodeTemplate
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            constant_properties: value
-                .properties()
-                .constant()
+            metadata: value
+                .metadata()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
@@ -187,7 +186,7 @@ struct EdgeTemplateContext {
     history: Vec<i64>,
     layers: Vec<String>,
     properties: Value,
-    constant_properties: Value,
+    metadata: Value,
     temporal_properties: Value,
 }
 
@@ -207,9 +206,8 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
-            constant_properties: value
-                .properties()
-                .constant()
+            metadata: value
+                .metadata()
                 .iter()
                 .map(|(key, value)| (key.to_string(), value.clone()))
                 .collect(),
@@ -225,7 +223,7 @@ impl<'graph, G: GraphViewOps<'graph>> From<EdgeView<G>> for EdgeTemplateContext 
 
 pub const DEFAULT_NODE_TEMPLATE: &str = "Node {{ name }}{% if node_type is none %} has the following properties:{% else %} is a {{ node_type }} with the following properties:{% endif %}
 
-{% for (key, value) in constant_properties|items %}
+{% for (key, value) in metadata|items %}
 {{ key }}: {{ value }}
 {% endfor %}
 {% for (key, values) in temporal_properties|items %}
@@ -252,9 +250,7 @@ mod template_tests {
     #[test]
     fn test_default_templates() {
         let graph = Graph::new();
-        graph
-            .add_constant_properties([("name", "test-name")])
-            .unwrap();
+        graph.add_metadata([("name", "test-name")]).unwrap();
 
         let node1 = graph
             .add_node(0, "node1", [("temp_test", "value_at_0")], None)
@@ -263,7 +259,7 @@ mod template_tests {
             .add_node(1, "node1", [("temp_test", "value_at_1")], None)
             .unwrap();
         node1
-            .add_constant_properties([("key1", "value1"), ("key2", "value2")])
+            .add_metadata([("key1", "value1"), ("key2", "value2")])
             .unwrap();
 
         for time in [0, 60_000] {
@@ -310,19 +306,19 @@ mod template_tests {
             .add_node(1, "node1", [("temp_test", "value_at_1")], None)
             .unwrap();
         node1
-            .add_constant_properties([("key1", "value1"), ("key2", "value2")])
+            .add_metadata([("key1", "value1"), ("key2", "value2")])
             .unwrap();
         let node2 = graph
             .add_node(0, "node2", NO_PROPS, Some("person"))
             .unwrap();
         node2
-            .add_constant_properties([("const_test", "const_test_value")])
+            .add_metadata([("const_test", "const_test_value")])
             .unwrap();
 
         // I should be able to iterate over properties without doing properties|items, which would be solved by implementing Object for Properties
         let node_template = indoc! {"
             node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following properties:
-            {% if properties.const_test is defined %}const_test: {{ properties.const_test }} {% endif %}
+            {% if metadata.const_test is defined %}const_test: {{ metadata.const_test }} {% endif %}
             {% if temporal_properties.temp_test is defined and temporal_properties.temp_test|length > 0 %}
             temp_test:
             {% for (time, value) in temporal_properties.temp_test %}
@@ -332,7 +328,7 @@ mod template_tests {
             {% for (key, value) in properties|items if key != \"temp_test\" and key != \"const_test\" %}
             {{ key }}: {{ value }}
             {% endfor %}
-            {% for (key, value) in constant_properties|items if key != \"const_test\" %}
+            {% for (key, value) in metadata|items if key != \"const_test\" %}
             {{ key }}: {{ value }}
             {% endfor %}
         "};
@@ -347,8 +343,6 @@ mod template_tests {
             temp_test:
              - changed to value_at_0 at 0
              - changed to value_at_1 at 1
-            key1: value1
-            key2: value2
             key1: value1
             key2: value2
         "};

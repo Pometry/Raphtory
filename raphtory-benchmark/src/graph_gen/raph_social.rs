@@ -280,7 +280,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             Some("person"),
         )
         .expect("Failed to add node")
-        .add_constant_properties([
+        .add_metadata([
             ("first_name", Prop::Str(ArcStr::from(person.first_name))),
             ("last_name", Prop::Str(ArcStr::from(person.last_name))),
             ("gender", Prop::Str(ArcStr::from(person.gender))),
@@ -297,7 +297,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             Some("forum"),
         )
         .expect("Failed to add node")
-        .add_constant_properties([("title", Prop::Str(ArcStr::from(forum.title)))])
+        .add_metadata([("title", Prop::Str(ArcStr::from(forum.title)))])
         .expect("Failed to add node static property");
     });
 
@@ -314,7 +314,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             Some("post"),
         )
         .expect("Failed to add node")
-        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
+        .add_metadata([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
         .expect("Failed to add node static property");
     });
 
@@ -334,7 +334,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             Some("comment"),
         )
         .expect("Failed to add node")
-        .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])
+        .add_metadata([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])
         .expect("Failed to add node static property");
     });
 
@@ -410,7 +410,7 @@ pub fn generate_graph(
                 Some("person"),
             )
             .expect("Failed to add person node")
-            .add_constant_properties([
+            .add_metadata([
                 (
                     "first_name",
                     Prop::Str(ArcStr::from(FirstName().fake::<String>())),
@@ -445,7 +445,7 @@ pub fn generate_graph(
                 Some("forum"),
             )
             .expect("Failed to add forum node")
-            .add_constant_properties([(
+            .add_metadata([(
                 "title",
                 Prop::Str(ArcStr::from(Sentence(1..3).fake::<String>())),
             )])
@@ -506,7 +506,7 @@ pub fn generate_graph(
                 Some("post"),
             )
             .expect("Failed to add post node")
-            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
+            .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
             .expect("Failed to add post properties");
 
         let forum_id = format!("forum_{}", rng.gen_range(1..=num_forums));
@@ -558,7 +558,7 @@ pub fn generate_graph(
                 Some("comment"),
             )
             .expect("Failed to add comment node")
-            .add_constant_properties([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
+            .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
             .expect("Failed to add comment properties");
 
         let post_id = format!("post_{}", rng.gen_range(1..=num_posts));

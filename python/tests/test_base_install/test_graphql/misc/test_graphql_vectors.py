@@ -1,5 +1,4 @@
 import tempfile
-from time import sleep
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 
@@ -72,8 +71,8 @@ def setup_server(work_dir):
 
 def test_new_graph():
     print("test_new_graph")
-    work_dir = tempfile.mkdtemp()
-    server = setup_server(work_dir)
+    work_dir = tempfile.TemporaryDirectory()
+    server = setup_server(work_dir.name)
     with server.start():
         client = RaphtoryClient("http://localhost:1736")
         client.new_graph("abb", "EVENT")

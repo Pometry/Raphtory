@@ -214,7 +214,7 @@ def test_filter_edges_for_property_contains():
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Property("p10").constant().contains("Paper")
+        filter_expr = filter.Metadata("p10").contains("Paper")
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -240,7 +240,7 @@ def test_filter_edges_for_property_not_contains():
         expected_ids = [("1", "2"), ("2", "1")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Property("p10").constant().not_contains("ship")
+        filter_expr = filter.Metadata("p10").not_contains("ship")
         result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
         expected_ids = []
         assert result_ids == expected_ids

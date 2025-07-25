@@ -28,8 +28,8 @@ pub trait IndexMutationOps: Sized + AdditionOps {
 impl<G: AdditionOps> IndexMutationOps for G {
     fn create_index(&self) -> Result<(), GraphError> {
         let index_spec = IndexSpecBuilder::new(self.clone())
-            .with_all_node_props()
-            .with_all_edge_props()
+            .with_all_node_properties_and_metadata()
+            .with_all_edge_properties_and_metadata()
             .build();
         self.create_index_with_spec(index_spec)
     }
@@ -44,8 +44,8 @@ impl<G: AdditionOps> IndexMutationOps for G {
 
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         let index_spec = IndexSpecBuilder::new(self.clone())
-            .with_all_node_props()
-            .with_all_edge_props()
+            .with_all_node_properties_and_metadata()
+            .with_all_edge_properties_and_metadata()
             .build();
         self.create_index_in_ram_with_spec(index_spec)
     }

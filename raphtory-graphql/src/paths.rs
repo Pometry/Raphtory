@@ -1,6 +1,7 @@
+use crate::rayon::blocking_compute;
 use raphtory::{
     errors::{GraphError, InvalidPathReason},
-    serialise::GraphFolder,
+    serialise::{metadata::GraphMetadata, GraphFolder},
 };
 use std::{
     fs,
@@ -173,6 +174,11 @@ impl ValidGraphFolder {
     pub async fn last_updated_async(&self) -> Result<i64, GraphError> {
         let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
         metadata.modified()?.to_millis()
+    }
+
+    pub async fn read_metadata_async(&self) -> Result<GraphMetadata, GraphError> {
+        let folder = self.folder.clone();
+        blocking_compute(move || folder.read_metadata()).await
     }
 
     pub fn get_original_path_str(&self) -> &str {

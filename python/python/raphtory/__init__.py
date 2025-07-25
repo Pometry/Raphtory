@@ -7,6 +7,7 @@ _sys.modules["raphtory.graph_gen"] = graph_gen
 _sys.modules["raphtory.graph_loader"] = graph_loader
 _sys.modules["raphtory.vectors"] = vectors
 _sys.modules["raphtory.graphql"] = graphql
+_sys.modules["raphtory.filter"] = filter
 
 __doc__ = _raphtory.__doc__
 if hasattr(_raphtory, "__all__"):

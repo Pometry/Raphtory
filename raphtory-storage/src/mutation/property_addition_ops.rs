@@ -25,28 +25,25 @@ pub trait InternalPropertyAdditionOps {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
-    fn internal_update_constant_properties(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
-    fn internal_add_constant_node_properties(
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
-    fn internal_update_constant_node_properties(
+    fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<EdgeWGuard, Self::Error>;
-    fn internal_update_constant_edge_properties(
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
@@ -74,30 +71,27 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         Ok(())
     }
 
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
             self.graph_meta
-                .add_constant_prop(*id, prop)
+                .add_metadata(*id, prop)
                 .map_err(MutationError::from)?;
         }
         Ok(())
     }
 
-    fn internal_update_constant_properties(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         for (id, prop) in props {
             let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta.update_constant_prop(*id, prop);
+            self.graph_meta.update_metadata(*id, prop);
         }
         Ok(())
     }
 
-    fn internal_add_constant_node_properties(
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
@@ -107,13 +101,13 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
             node.as_mut()
-                .add_constant_prop(*prop_id, prop)
+                .add_metadata(*prop_id, prop)
                 .map_err(MutationError::from)?;
         }
         Ok(node)
     }
 
-    fn internal_update_constant_node_properties(
+    fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
@@ -123,13 +117,13 @@ impl InternalPropertyAdditionOps for TemporalGraph {
             let prop = self.process_prop_value(prop);
             let prop = validate_prop(prop).map_err(MutationError::from)?;
             node.as_mut()
-                .update_constant_prop(*prop_id, prop)
+                .update_metadata(*prop_id, prop)
                 .map_err(MutationError::from)?;
         }
         Ok(node)
     }
 
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
@@ -142,7 +136,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                 let prop = self.process_prop_value(prop);
                 let prop = validate_prop(prop).map_err(MutationError::from)?;
                 edge_layer
-                    .add_constant_prop(*prop_id, prop)
+                    .add_metadata(*prop_id, prop)
                     .map_err(MutationError::from)?;
             }
             Ok(edge)
@@ -154,7 +148,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         }
     }
 
-    fn internal_update_constant_edge_properties(
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
@@ -167,7 +161,7 @@ impl InternalPropertyAdditionOps for TemporalGraph {
                 let prop = self.process_prop_value(prop);
                 let prop = validate_prop(prop).map_err(MutationError::from)?;
                 edge_layer
-                    .update_constant_prop(*prop_id, prop)
+                    .update_metadata(*prop_id, prop)
                     .map_err(MutationError::from)?;
             }
             Ok(edge)
@@ -191,53 +185,48 @@ impl InternalPropertyAdditionOps for GraphStorage {
         self.mutable()?.internal_add_properties(t, props)
     }
 
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        self.mutable()?.internal_add_constant_properties(props)
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        self.mutable()?.internal_add_metadata(props)
     }
 
-    fn internal_update_constant_properties(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        self.mutable()?.internal_update_constant_properties(props)
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        self.mutable()?.internal_update_metadata(props)
     }
 
-    fn internal_add_constant_node_properties(
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        self.mutable()?
-            .internal_add_constant_node_properties(vid, props)
+        self.mutable()?.internal_add_node_metadata(vid, props)
     }
 
-    fn internal_update_constant_node_properties(
+    fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        self.mutable()?
-            .internal_update_constant_node_properties(vid, props)
+        self.mutable()?.internal_update_node_metadata(vid, props)
     }
 
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<EdgeWGuard, Self::Error> {
         self.mutable()?
-            .internal_add_constant_edge_properties(eid, layer, props)
+            .internal_add_edge_metadata(eid, layer, props)
     }
 
-    fn internal_update_constant_edge_properties(
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<EdgeWGuard, Self::Error> {
         self.mutable()?
-            .internal_update_constant_edge_properties(eid, layer, props)
+            .internal_update_edge_metadata(eid, layer, props)
     }
 }
 
@@ -259,57 +248,50 @@ where
     }
 
     #[inline]
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        self.base().internal_add_constant_properties(props)
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        self.base().internal_add_metadata(props)
     }
 
     #[inline]
-    fn internal_update_constant_properties(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        self.base().internal_update_constant_properties(props)
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        self.base().internal_update_metadata(props)
     }
 
     #[inline]
-    fn internal_add_constant_node_properties(
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        self.base()
-            .internal_add_constant_node_properties(vid, props)
+        self.base().internal_add_node_metadata(vid, props)
     }
 
     #[inline]
-    fn internal_update_constant_node_properties(
+    fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
     ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        self.base()
-            .internal_update_constant_node_properties(vid, props)
+        self.base().internal_update_node_metadata(vid, props)
     }
 
     #[inline]
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<EdgeWGuard, Self::Error> {
-        self.base()
-            .internal_add_constant_edge_properties(eid, layer, props)
+        self.base().internal_add_edge_metadata(eid, layer, props)
     }
 
     #[inline]
-    fn internal_update_constant_edge_properties(
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<EdgeWGuard, Self::Error> {
-        self.base()
-            .internal_update_constant_edge_properties(eid, layer, props)
+        self.base().internal_update_edge_metadata(eid, layer, props)
     }
 }
