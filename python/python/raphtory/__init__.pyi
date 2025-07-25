@@ -5811,12 +5811,7 @@ class Properties(object):
         """Get a view of the temporal properties only."""
 
     def values(self):
-        """
-        Get the values of the properties
-
-        If a property exists as both temporal and static, temporal properties take priority with
-        fallback to the static property if the temporal value does not exist.
-        """
+        """Get the values of the properties"""
 
 class Metadata(object):
     """A view of constant properties of an entity"""
