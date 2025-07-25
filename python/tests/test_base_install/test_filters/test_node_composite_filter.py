@@ -1,4 +1,4 @@
-from raphtory import Prop, filter
+from raphtory import filter
 import pytest
 from filters_setup import init_graph, create_test_graph
 from utils import with_disk_variants

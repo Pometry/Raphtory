@@ -23,10 +23,7 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::{
-            document::PyDocument,
-            prop::{PyPropertyFilter, PyPropertyRef},
-        },
+        types::wrappers::document::PyDocument,
         utils::PyWindowSet,
     },
 };
@@ -54,8 +51,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
-        PyPropertyRef,
-        PyPropertyFilter,
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec
@@ -105,6 +100,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         hits,
         balance,
         label_propagation,
+        k_core,
         temporal_SEIR,
         louvain,
         fruchterman_reingold,

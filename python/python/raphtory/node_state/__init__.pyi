@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import *
 from raphtory import *
+import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.graphql import *
@@ -37,6 +38,7 @@ __all__ = [
     "LatestDateTimeView",
     "NodeStateOptionDateTime",
     "HistoryView",
+    "EdgeHistoryCountView",
     "NodeStateListI64",
     "HistoryDateTimeView",
     "NodeStateOptionListDateTime",
@@ -4403,6 +4405,489 @@ class HistoryView(object):
     def window_size(self) -> Optional[int]:
         """
          Get the window size (difference between start and end) for this HistoryView
+
+        Returns:
+            Optional[int]:
+        """
+
+class EdgeHistoryCountView(object):
+    """A lazy view over node values"""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def after(self, start: TimeInput) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events after `start` (exclusive).
+
+        Arguments:
+            start (TimeInput): The start time of the window.
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def at(self, time: TimeInput) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events at `time`.
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def before(self, end: TimeInput) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events before `end` (exclusive).
+
+        Arguments:
+            end (TimeInput): The end time of the window.
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def bottom_k(self, k: int) -> EdgeHistoryCountView:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             EdgeHistoryCountView: The k smallest values as a node state
+        """
+
+    def collect(self) -> list[int]:
+        """
+        Compute all values and return the result as a list
+
+        Returns:
+             list[int]: all values as a list
+        """
+
+    def compute(self) -> EdgeHistoryCountView:
+        """
+        Compute all values and return the result as a node view
+
+        Returns:
+             EdgeHistoryCountView: the computed `NodeState`
+        """
+
+    def default_layer(self) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing only the default edge layer
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    @property
+    def end(self) -> Optional[int]:
+        """
+         Gets the latest time that this EdgeHistoryCountView is valid.
+
+        Returns:
+           Optional[int]: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+        """
+
+    @property
+    def end_date_time(self) -> Optional[datetime]:
+        """
+         Gets the latest datetime that this EdgeHistoryCountView is valid
+
+        Returns:
+             Optional[datetime]: The latest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+        """
+
+    def exclude_layer(self, name: str) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers except the excluded `name`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            name (str): layer name that is excluded for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def exclude_layers(self, names: list[str]) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers except the excluded `names`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            names (list[str]): list of layer names that are excluded for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def exclude_valid_layer(self, name: str) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers except the excluded `name`
+        Arguments:
+            name (str): layer name that is excluded for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def exclude_valid_layers(self, names: list[str]) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers except the excluded `names`
+        Arguments:
+            names (list[str]): list of layer names that are excluded for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def expanding(self, step: int | str) -> WindowSet:
+        """
+        Creates a `WindowSet` with the given `step` size using an expanding window.
+
+        An expanding window is a window that grows by `step` size at each iteration.
+
+        Arguments:
+            step (int | str): The step size of the window.
+
+        Returns:
+            WindowSet: A `WindowSet` object.
+        """
+
+    def get(self, node: NodeInput, default: Optional[int] = None) -> Optional[int]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[int]): the default value. Defaults to None.
+
+        Returns:
+            Optional[int]: the value for the node or the default value
+        """
+
+    def has_layer(self, name: str) -> bool:
+        """
+         Check if EdgeHistoryCountView has the layer `"name"`
+
+        Arguments:
+            name (str): the name of the layer to check
+
+        Returns:
+            bool:
+        """
+
+    def items(self) -> Iterator[Tuple[Node, int]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, int]]: Iterator over items
+        """
+
+    def latest(self) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events at the latest time.
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def layer(self, name: str) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing the layer `"name"`
+        Errors if the layer does not exist
+
+        Arguments:
+            name (str): then name of the layer.
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def layers(self, names: list[str]) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers `names`
+        Errors if any of the layers do not exist.
+
+        Arguments:
+            names (list[str]): list of layer names for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def max(self) -> Optional[int]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[int]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, int]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, int]]: The Node and maximum value or `None` if empty
+        """
+
+    def mean(self) -> float:
+        """
+        mean of values over all nodes
+
+        Returns:
+            float: mean value
+        """
+
+    def median(self) -> Optional[int]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[int]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, int]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, int]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[int]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[int]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, int]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, int]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+        """
+        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
+
+        A rolling window is a window that moves forward by `step` size at each iteration.
+
+        Arguments:
+            window (int | str): The size of the window.
+            step (int | str | None): The step size of the window.
+                `step` defaults to `window`.
+
+        Returns:
+            WindowSet: A `WindowSet` object.
+        """
+
+    def shrink_end(self, end: TimeInput) -> EdgeHistoryCountView:
+        """
+        Set the end of the window to the smaller of `end` and `self.end()`
+
+        Arguments:
+            end (TimeInput): the new end time of the window
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def shrink_start(self, start: TimeInput) -> EdgeHistoryCountView:
+        """
+        Set the start of the window to the larger of `start` and `self.start()`
+
+        Arguments:
+           start (TimeInput): the new start time of the window
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def shrink_window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
+        """
+        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
+
+        Arguments:
+            start (TimeInput): the new start time for the window
+            end (TimeInput): the new end time for the window
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def snapshot_at(self, time: TimeInput) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events that have not been explicitly deleted at `time`.
+
+        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
+
+        Arguments:
+            time (TimeInput): The time of the window.
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def snapshot_latest(self) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events that have not been explicitly deleted at the latest time.
+
+        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
+
+        Returns:
+             EdgeHistoryCountView:
+        """
+
+    def sorted(self, reverse: bool = False) -> EdgeHistoryCountView:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             EdgeHistoryCountView: Sorted node state
+        """
+
+    def sorted_by_id(self) -> EdgeHistoryCountView:
+        """
+        Sort results by node id
+
+        Returns:
+             EdgeHistoryCountView: The sorted node state
+        """
+
+    @property
+    def start(self) -> Optional[int]:
+        """
+         Gets the start time for rolling and expanding windows for this EdgeHistoryCountView
+
+        Returns:
+            Optional[int]: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+        """
+
+    @property
+    def start_date_time(self) -> Optional[datetime]:
+        """
+         Gets the earliest datetime that this EdgeHistoryCountView is valid
+
+        Returns:
+             Optional[datetime]: The earliest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+        """
+
+    def sum(self) -> int:
+        """
+        sum of values over all nodes
+
+        Returns:
+                int: the sum
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> EdgeHistoryCountView:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             EdgeHistoryCountView: The k largest values as a node state
+        """
+
+    def valid_layers(self, names: list[str]) -> EdgeHistoryCountView:
+        """
+         Return a view of EdgeHistoryCountView containing all layers `names`
+        Any layers that do not exist are ignored
+
+        Arguments:
+            names (list[str]): list of layer names for the new view
+
+        Returns:
+             EdgeHistoryCountView: The layered view
+        """
+
+    def values(self) -> Iterator[int]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[int]: Iterator over values
+        """
+
+    def window(
+        self, start: TimeInput | None, end: TimeInput | None
+    ) -> EdgeHistoryCountView:
+        """
+         Create a view of the EdgeHistoryCountView including all events between `start` (inclusive) and `end` (exclusive)
+
+        Arguments:
+            start (TimeInput | None): The start time of the window (unbounded if `None`).
+            end (TimeInput | None): The end time of the window (unbounded if `None`).
+
+        Returns:
+            EdgeHistoryCountView:
+        """
+
+    @property
+    def window_size(self) -> Optional[int]:
+        """
+         Get the window size (difference between start and end) for this EdgeHistoryCountView
 
         Returns:
             Optional[int]:

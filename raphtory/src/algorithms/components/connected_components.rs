@@ -217,10 +217,8 @@ mod cc_test {
     use super::*;
     use crate::{db::api::mutation::AdditionOps, prelude::*, test_storage};
     use ahash::HashSet;
-    use itertools::*;
     use proptest::{prelude::Strategy, proptest, sample::Index};
-    use quickcheck_macros::quickcheck;
-    use std::{collections::BTreeSet, iter::once};
+    use std::collections::BTreeSet;
 
     fn assert_same_partition<G: GraphView, ID: Into<GID>>(
         left: NodeState<usize, G>,

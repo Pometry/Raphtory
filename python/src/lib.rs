@@ -1,12 +1,12 @@
 extern crate core;
 use pyo3::prelude::*;
 use raphtory_core::python::{
+    filter::base_filter_module,
     graph::node_state::base_node_state_module,
     packages::base_modules::{
         add_raphtory_classes, base_algorithm_module, base_graph_gen_module,
         base_graph_loader_module, base_vectors_module,
     },
-    types::wrappers::filter_expr::base_filter_module,
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
 

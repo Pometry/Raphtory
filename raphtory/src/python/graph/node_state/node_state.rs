@@ -564,12 +564,12 @@ impl_one_hop!(HistoryView<ops::History>, "HistoryView");
 impl_node_state_ord!(NodeStateListI64<Vec<i64>>, "NodeStateListI64", "list[int]");
 
 impl_lazy_node_state_num!(
-    EdgeHistoryCount<ops::EdgeHistoryCount<DynamicGraph>>,
+    EdgeHistoryCountView<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
     "int"
 );
 impl_one_hop!(
-    EdgeHistoryCount<ops::EdgeHistoryCount>,
+    EdgeHistoryCountView<ops::EdgeHistoryCount>,
     "EdgeHistoryCountView"
 );
 

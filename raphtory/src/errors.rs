@@ -400,6 +400,12 @@ pub enum GraphError {
     #[error("Filter must contain at least one filter condition.")]
     ParsingError,
 
+    #[error("Node filter is not supported for edge filtering")]
+    NodeFilterIsNotEdgeFilter,
+
+    #[error("Only property filters are supported for exploded edge filtering")]
+    NotExplodedEdgeFilter,
+
     #[error("Indexing not supported")]
     IndexingNotSupported,
 

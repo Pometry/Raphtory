@@ -1,4 +1,4 @@
-from raphtory import PersistentGraph, Graph
+from raphtory import PersistentGraph, Graph, filter
 
 
 def test_basics():
@@ -197,11 +197,6 @@ def test_graph_type_swap():
     assert eg.event_graph().at(2).count_edges() == 1
 
 
-from raphtory import PersistentGraph
-from raphtory import filter
-from raphtory import Prop
-
-
 def test_basic_valid():
     g = PersistentGraph()
     g.add_edge(1, 1, 2)
@@ -263,14 +258,12 @@ def test_filtering_valid():
 
     f = filter.Property("weight").temporal().latest() < 3
     e = g.filter_edges(f).edge(1, 2)
-    assert e == None
+    assert e is None
     # assert list(e.properties.temporal.get("weight").values) == [1,2] -- this would be the case for filter_edge_layer?
 
     # f = filter.Property("weight") < 3
-    f = Prop("weight") < 3  # this needs to be converted to the above
-    e = (
-        g.valid().filter_exploded_edges(f).edge(1, 2)
-    )
+    f = filter.Property("weight") < 3
+    e = g.valid().filter_exploded_edges(f).edge(1, 2)
     assert e.is_valid() == False  # latest update is now a deletion
     assert list(e.properties.temporal.get("weight").values()) == [
         1,
@@ -284,7 +277,7 @@ def test_filtering_valid():
         2,
     ]  # property values the same
 
-    f = Prop("weight") > 5  # this needs to be converted to the above
+    f = filter.Property("weight") > 5
     e = g.filter_exploded_edges(f).edge(
         1, 2
     )  # this should be probably be filtered out (along with edges that only have deletions) as we discussed

@@ -23,15 +23,12 @@ use crate::{
     },
     errors::GraphError,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,
