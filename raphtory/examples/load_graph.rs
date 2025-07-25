@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use raphtory::{
-    io::parquet_loaders::load_edges_from_parquet,
-    prelude::{Graph, GraphViewOps},
-};
+use raphtory::{io::parquet_loaders::load_edges_from_parquet, prelude::*};
 use raphtory_storage::core_ops::CoreGraphOps;
 
 fn main() {
@@ -12,6 +9,8 @@ fn main() {
         "dai_ava_edge_list",
         "usp_ava_edge_list",
         "usdc_e_ava_edge_list",
+        "usdc_ava_edge_list",
+        "usdt_ava_edge_list",
     ];
     let parquet_root = "/Volumes/Work/tether/avalance_table";
 
@@ -54,5 +53,16 @@ fn main() {
             g.unfiltered_num_nodes(),
             g.unique_layers().collect::<Vec<_>>()
         );
+
+        let mut all_edges_count = 0;
+        let mut all_nodes_count = 0;
+
+        for n in g.nodes() {
+            all_nodes_count += 1usize;
+            for _ in n.out_edges() {
+                all_edges_count += 1usize;
+            }
+        }
+        println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
     }
 }

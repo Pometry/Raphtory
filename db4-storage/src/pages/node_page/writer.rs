@@ -63,9 +63,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let is_new_node = self
+        let (is_new_node, add) = self
             .mut_segment
             .add_outbound_edge(t, src_pos, dst, e_id, lsn);
+        self.page.increment_est_size(add);
 
         if is_new_node && !self.page.check_node(src_pos, layer_id) {
             self.l_counter.increment(layer_id);
@@ -109,9 +110,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
         let layer = e_id.layer();
         let dst_pos = dst_pos.into();
-        let is_new_node = self
+        let (is_new_node, add) = self
             .mut_segment
             .add_inbound_edge(t, dst_pos, src, e_id, lsn);
+
+        self.page.increment_est_size(add);
 
         if is_new_node && !self.page.check_node(dst_pos, layer) {
             self.l_counter.increment(layer);
@@ -128,7 +131,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
         self.l_counter.update_time(t.t());
-        let is_new_node = self.mut_segment.add_props(t, pos, layer_id, props);
+        let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
+        self.page.increment_est_size(add);
         if is_new_node && !self.page.check_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -142,7 +146,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
-        let is_new_node = self.mut_segment.update_c_props(pos, layer_id, props);
+        let (is_new_node, add) = self.mut_segment.update_c_props(pos, layer_id, props);
+        self.page.increment_est_size(add);
         if is_new_node && !self.page.check_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -152,7 +157,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let layer_id = e_id.layer();
         self.l_counter.update_time(t.t());
         self.mut_segment.as_mut()[layer_id].set_lsn(lsn);
-        self.mut_segment.update_timestamp(t, pos, e_id);
+        let add = self.mut_segment.update_timestamp(t, pos, e_id);
+        self.page.increment_est_size(add);
     }
 
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {

@@ -112,6 +112,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
 
     fn flush(&self);
+
+    fn est_size(&self) -> usize;
+    fn increment_est_size(&self, size: usize) -> usize;
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {

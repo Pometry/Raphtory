@@ -975,6 +975,7 @@ mod tests {
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
+    use raphtory_storage::core_ops::CoreGraphOps;
     use tempfile::TempDir;
 
     #[cfg(feature = "storage")]

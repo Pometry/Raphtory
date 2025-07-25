@@ -127,7 +127,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         let wal_dir = graph_dir.as_ref().join("wal");
         let wal = Wal::new(&wal_dir).unwrap();
 
-        println!("LOADED NODE COUNT {node_count:?}");
         Self {
             graph_dir,
             logical_to_physical: resolver.into(),
