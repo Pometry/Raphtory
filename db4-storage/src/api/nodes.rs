@@ -32,7 +32,7 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
 };
 
-pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
+pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;
 
     type Entry<'a>: NodeEntryOps<'a>
@@ -45,6 +45,10 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     fn earliest(&self) -> Option<TimeIndexEntry>;
 
     fn t_len(&self) -> usize;
+
+    fn event_id(&self) -> i64;
+    fn increment_event_id(&self, i: i64);
+    fn decrement_event_id(&self) -> i64;
 
     fn load(
         page_id: usize,
@@ -106,6 +110,8 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug {
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a>;
 
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
+
+    fn flush(&self);
 }
 
 pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {

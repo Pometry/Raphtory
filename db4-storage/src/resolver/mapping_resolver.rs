@@ -11,6 +11,12 @@ pub struct MappingResolver {
     mapping: Mapping,
 }
 
+impl MappingResolver {
+    pub fn mapping(&self) -> &Mapping {
+        &self.mapping
+    }
+}
+
 impl GIDResolverOps for MappingResolver {
     fn new(_path: impl AsRef<Path>) -> Result<Self, GIDResolverError> {
         Ok(Self {
@@ -53,5 +59,33 @@ impl GIDResolverOps for MappingResolver {
 
     fn get_u64(&self, gid: u64) -> Option<VID> {
         self.mapping.get_u64(gid)
+    }
+
+    fn bulk_set_str<S: AsRef<str>>(
+        &self,
+        gids: impl IntoIterator<Item = (S, VID)>,
+    ) -> Result<(), GIDResolverError> {
+        for (gid, vid) in gids {
+            self.set(gid.as_ref().into(), vid)?;
+        }
+        Ok(())
+    }
+
+    fn bulk_set_u64(
+        &self,
+        gids: impl IntoIterator<Item = (u64, VID)>,
+    ) -> Result<(), GIDResolverError> {
+        for (gid, vid) in gids {
+            self.set(gid.into(), vid)?;
+        }
+        Ok(())
+    }
+
+    fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_ {
+        self.mapping().iter_str()
+    }
+
+    fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_ {
+        self.mapping().iter_u64()
     }
 }

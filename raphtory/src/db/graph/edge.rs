@@ -36,7 +36,7 @@ use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+        addition_ops::{EdgeWriteLock, InternalAdditionOps},
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },

@@ -56,6 +56,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let src_pos = src_pos.into();
+        let dst = dst.into();
         if let Some(t) = t {
             self.l_counter.update_time(t.t());
         }
@@ -102,6 +103,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let e_id = e_id.into();
+        let src = src.into();
         if let Some(t) = t {
             self.l_counter.update_time(t.t());
         }
@@ -201,6 +203,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
+        self.page.increment_event_id(1);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

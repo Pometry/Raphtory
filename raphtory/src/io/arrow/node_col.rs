@@ -438,6 +438,10 @@ impl NodeCol {
         }
         Ok(())
     }
+
+    pub fn dtype(&self) -> GidType {
+        self.0.dtype()
+    }
 }
 
 pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {

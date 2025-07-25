@@ -14,7 +14,7 @@ use rayon::iter::ParallelIterator;
 
 use crate::{LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
 
-pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug {
+pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;
 
     type Entry<'a>: EdgeEntryOps<'a>
@@ -144,9 +144,9 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
 
-    fn src(&self) -> VID;
+    fn src(&self) -> Option<VID>;
 
-    fn dst(&self) -> VID;
+    fn dst(&self) -> Option<VID>;
 
     fn edge_id(&self) -> EID;
 }

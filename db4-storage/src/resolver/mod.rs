@@ -22,6 +22,9 @@ pub trait GIDResolverOps {
     where
         Self: Sized;
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn dtype(&self) -> Option<GidType>;
     fn set(&self, gid: GidRef, vid: VID) -> Result<(), GIDResolverError>;
     fn get_or_init<NFN: FnMut() -> VID>(
@@ -35,4 +38,18 @@ pub trait GIDResolverOps {
     ) -> Result<(), GIDResolverError>;
     fn get_str(&self, gid: &str) -> Option<VID>;
     fn get_u64(&self, gid: u64) -> Option<VID>;
+
+    fn bulk_set_str<S: AsRef<str>>(
+        &self,
+        gids: impl IntoIterator<Item = (S, VID)>,
+    ) -> Result<(), GIDResolverError>;
+
+    fn bulk_set_u64(
+        &self,
+        gids: impl IntoIterator<Item = (u64, VID)>,
+    ) -> Result<(), GIDResolverError>;
+
+    fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_;
+
+    fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_;
 }

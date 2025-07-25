@@ -13,7 +13,10 @@ use raphtory_core::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicI64, Ordering},
+    },
 };
 
 use super::{HasRow, SegmentContainer};
@@ -164,7 +167,7 @@ impl MemNodeSegment {
     pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
         self.layers
             .get(layer_id)
-            .is_some_and(|layer| layer.items().first().is_some_and(|v| *v))
+            .is_some_and(|layer| layer.items().get(n.0).is_some_and(|x| *x))
     }
 
     pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
@@ -370,6 +373,7 @@ impl MemNodeSegment {
 pub struct NodeSegmentView<EXT> {
     inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
     segment_id: usize,
+    event_id: AtomicI64,
     _ext: EXT,
 }
 
@@ -406,6 +410,22 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.head().t_len()
     }
 
+    fn event_id(&self) -> i64 {
+        self.event_id.load(Ordering::Relaxed)
+    }
+
+    fn increment_event_id(&self, i: i64) {
+        self.event_id.fetch_add(i, Ordering::Relaxed);
+    }
+
+    fn decrement_event_id(&self) -> i64 {
+        self.event_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {
+                if x > 0 { Some(x - 1) } else { None }
+            })
+            .unwrap_or_default()
+    }
+
     fn load(
         _page_id: usize,
         _max_page_len: usize,
@@ -433,6 +453,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
                 .into(),
             segment_id: page_id,
             _ext,
+            event_id: Default::default(),
         }
     }
 
@@ -503,6 +524,8 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
     }
+
+    fn flush(&self) {}
 }
 
 #[cfg(test)]

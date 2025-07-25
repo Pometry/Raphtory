@@ -11,7 +11,7 @@ pub struct GraphStats {
 
 impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
-        let layers = iter.into_iter().map(|_| Default::default()).collect();
+        let layers = iter.into_iter().map(AtomicUsize::new).collect();
         Self {
             layers,
             earliest: MinCounter::new(),

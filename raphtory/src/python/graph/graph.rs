@@ -160,6 +160,11 @@ impl PyGraph {
         )
     }
 
+    #[staticmethod]
+    pub fn load(path: PathBuf) -> Graph {
+        Graph::load_from_path(path)
+    }
+
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
         let state = self.graph.encode_to_vec();
         (PyGraphEncoder, (state,))

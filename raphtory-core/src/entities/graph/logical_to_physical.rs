@@ -13,8 +13,8 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::{
+    borrow::Borrow,
     hash::{BuildHasher, Hash},
-    panic,
 };
 use thiserror::Error;
 
@@ -106,7 +106,7 @@ impl<'a> ResolverShard<'a> {
         }
     }
 
-    pub fn as_u64(&self) -> Option<&ResolverShardT<'a, u64>> {
+    pub fn as_u64(&mut self) -> Option<&mut ResolverShardT<'a, u64>> {
         if let ResolverShard::U64(shard) = self {
             Some(shard)
         } else {
@@ -114,7 +114,7 @@ impl<'a> ResolverShard<'a> {
         }
     }
 
-    pub fn as_str(&self) -> Option<&ResolverShardT<'a, String>> {
+    pub fn as_str(&mut self) -> Option<&mut ResolverShardT<'a, String>> {
         if let ResolverShard::Str(shard) = self {
             Some(shard)
         } else {
@@ -141,30 +141,41 @@ impl<'a, T: Eq + Hash + Clone> ResolverShardT<'a, T> {
             shard_id,
         }
     }
-    pub fn resolve_node(&mut self, id: &T, next_id: impl FnOnce() -> VID) -> Option<VID> {
-        let shard_ind = self.map.determine_map(id);
+    pub fn resolve_node<Q>(
+        &mut self,
+        id: &Q,
+        next_id: impl FnOnce(&Q) -> Either<VID, VID>,
+    ) -> Option<VID>
+    where
+        T: Borrow<Q>,
+        Q: Eq + Hash + ToOwned<Owned = T> + ?Sized,
+    {
+        let shard_ind = self.map.determine_map(id.borrow());
         if shard_ind != self.shard_id {
             // This shard does not contain the id, return None
             return None;
         }
         let factory = self.map.hasher().clone();
         let hash = factory.hash_one(id);
-        // let data = (id, SharedValue::new(value))
 
-        match self.guard.get(hash, |(k, _)| k == id) {
+        match self.guard.get(hash, |(k, _)| k.borrow() == id) {
             Some((_, vid)) => {
                 // Node already exists, do nothing
                 Some(*(vid.get()))
             }
             None => {
                 // Node does not exist, create it
-                let vid = next_id();
+                let vid = next_id(id);
 
-                self.guard
-                    .insert(hash, (id.clone(), SharedValue::new(vid)), |t| {
-                        factory.hash_one(&t.0)
-                    });
-                Some(vid)
+                if let Either::Left(vid) = vid {
+                    self.guard
+                        .insert(hash, (id.borrow().to_owned(), SharedValue::new(vid)), |t| {
+                            factory.hash_one(&t.0)
+                        });
+                    Some(vid)
+                } else {
+                    vid.right()
+                }
             }
         }
     }
@@ -321,6 +332,25 @@ impl Mapping {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
     }
+
+    pub fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_ {
+        self.map
+            .get()
+            .and_then(|map| map.as_str())
+            .into_iter()
+            .flat_map(|m| {
+                m.iter()
+                    .map(|entry| (entry.key().to_owned(), *(entry.value())))
+            })
+    }
+
+    pub fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_ {
+        self.map
+            .get()
+            .and_then(|map| map.as_u64())
+            .into_iter()
+            .flat_map(|m| m.iter().map(|entry| (*entry.key(), *(entry.value()))))
+    }
 }
 
 #[inline]
@@ -386,5 +416,38 @@ impl Serialize for Mapping {
         } else {
             serializer.serialize_none()
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
+    use itertools::Itertools;
+    use proptest::prelude::*;
+
+    #[test]
+    fn test_parallel_sharded_mapping() {
+        let at_least_one_vec = proptest::collection::vec(any::<String>(), 1..100);
+        proptest!(|(gids in at_least_one_vec)| {
+            let mapping = Mapping::new();
+            let vid_count = AtomicUsize::new(0);
+            mapping.set(gids.first().map(|x|GidRef::Str(x)).unwrap(), VID(0)).unwrap();
+
+            let resolved_col = gids.iter().map(|_| AtomicUsize::new(0)).collect::<Vec<_>>();
+            mapping.run_with_locked(|mut shard| {
+                for (id, gid) in gids.iter().enumerate() {
+                    if let Some(vid) = shard.as_str().unwrap().resolve_node(gid, |_| Either::Left(VID(vid_count.fetch_add(1, Ordering::Relaxed)))) {
+                       resolved_col[id].store(vid.index(), Ordering::Relaxed);
+                    }
+                }
+                Ok::<_, String>(())
+            }).unwrap();
+
+            for (gid, expected_vid) in gids.iter().zip_eq(resolved_col.iter().map(|v| VID(v.load(Ordering::Relaxed)))) {
+                assert_eq!(mapping.get_str(gid).unwrap(), expected_vid);
+            }
+        })
     }
 }

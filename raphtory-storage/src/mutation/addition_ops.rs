@@ -231,7 +231,7 @@ impl InternalAdditionOps for GraphStorage {
     }
 
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
-        Ok(self.mutable()?.resolve_node(id)?)
+        self.mutable()?.resolve_node(id)
     }
 
     fn resolve_node_and_type(

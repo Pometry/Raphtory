@@ -12,14 +12,15 @@ members = [
     "raphtory-core",
     "raphtory-storage",
     # "db4-common",
-    "db4-storage", 
+    "db4-storage",
     "db4-graph",
 ]
 default-members = [
-    "raphtory", 
-    # "db4-common", 
-    "db4-storage", 
-    "db4-graph"]
+    "raphtory",
+    # "db4-common",
+    "db4-storage",
+    "db4-graph",
+]
 resolver = "2"
 
 [workspace.package]
@@ -182,10 +183,10 @@ fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
 
-raphtory ={  version = "0.15.1", path = "./raphtory", default-features = false}
-raphtory-api ={  version = "0.15.1", path = "./raphtory-api", default-features = false}
-#raphtory-core ={  version = "0.15.1", path = "./raphtory-core", default-features = false}
-raphtory-graphql ={  version = "0.15.1", path = "./raphtory-graphql", default-features = false}
+raphtory = { version = "0.15.1", path = "./raphtory", default-features = false }
+raphtory-api = { version = "0.15.1", path = "./raphtory-api", default-features = false }
+raphtory-core = { version = "0.15.1", path = "./raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.15.1", path = "./raphtory-graphql", default-features = false }
 
 # Make sure that transitive dependencies stick to disk_graph 50
 [patch.crates-io]

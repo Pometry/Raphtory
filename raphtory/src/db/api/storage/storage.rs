@@ -397,7 +397,7 @@ impl InternalAdditionOps for Storage {
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-            NodeRef::External(gid) => {
+            NodeRef::External(_) => {
                 let id = self.graph.resolve_node(id)?;
 
                 Ok(id)
