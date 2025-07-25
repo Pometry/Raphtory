@@ -7,7 +7,7 @@ use crate::{
         Base, InheritViewOps,
     },
 };
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::{properties::meta::Meta, EID, VID},
@@ -27,7 +27,7 @@ use std::{
 };
 use storage::{
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension,
+    Extension, WalImpl,
 };
 use tracing::info;
 
@@ -457,11 +457,30 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.validate_props(is_static, meta, prop)?)
     }
 
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+        Ok(self
+            .graph
+            .validate_props_with_status(is_static, meta, props)?)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(self.graph.validate_gids(gids)?)
+    }
+
+    fn transaction_manager(&self) -> &TransactionManager {
+        self.graph.mutable().unwrap().transaction_manager.as_ref()
+    }
+
+    fn wal(&self) -> &WalImpl {
+        self.graph.mutable().unwrap().wal.as_ref()
     }
 }
 

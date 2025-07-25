@@ -17,6 +17,7 @@ use crate::{
         node::NodeSegmentView,
         node_entry::{MemNodeEntry, MemNodeRef},
     },
+    wal::no_wal::NoWal,
 };
 use raphtory_api::core::entities::{EID, VID};
 use segments::{edge::MemEdgeSegment, node::MemNodeSegment};
@@ -37,6 +38,7 @@ pub type NS<P> = NodeSegmentView<P>;
 pub type ES<P> = EdgeSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, P>;
 
+pub type WalImpl = NoWal;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, P>;

@@ -1,6 +1,9 @@
 use std::{
     path::{Path, PathBuf},
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{
+        atomic::{self, AtomicU64, AtomicUsize},
+        Arc,
+    },
 };
 
 use raphtory_api::core::{
@@ -21,7 +24,8 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
-    Extension, GIDResolver, Layer, ReadLockedLayer, ES, NS,
+    wal::{TransactionID, Wal},
+    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
 
@@ -39,6 +43,8 @@ pub struct TemporalGraph<EXT = Extension> {
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
     graph_dir: GraphDir,
+    pub transaction_manager: Arc<TransactionManager>,
+    pub wal: Arc<WalImpl>,
 }
 
 #[derive(Debug)]
@@ -68,6 +74,26 @@ impl AsRef<Path> for GraphDir {
     }
 }
 
+#[derive(Debug)]
+pub struct TransactionManager {
+    last_transaction_id: AtomicU64,
+}
+
+impl TransactionManager {
+    const STARTING_TRANSACTION_ID: TransactionID = 0;
+
+    pub fn new() -> Self {
+        Self {
+            last_transaction_id: AtomicU64::new(Self::STARTING_TRANSACTION_ID),
+        }
+    }
+
+    pub fn begin(&self) -> TransactionID {
+        self.last_transaction_id
+            .fetch_add(1, atomic::Ordering::SeqCst)
+    }
+}
+
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         Self::new()
@@ -78,7 +104,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new() -> Self {
         let node_meta = Meta::new();
         let edge_meta = Meta::new();
-        Self::new_with_meta(Default::default(), node_meta, edge_meta)
+        Self::new_with_meta(GraphDir::default(), node_meta, edge_meta)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {
@@ -91,17 +117,24 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         let graph_dir: GraphDir = path.as_ref().into();
         let storage = Layer::load(graph_dir.as_ref())
             .unwrap_or_else(|_| panic!("Failed to load graph from path: {graph_dir:?}"));
+
         let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
         let resolver = GIDResolver::new(&gid_resolver_dir).unwrap_or_else(|err| {
             panic!("Failed to load GID resolver from path: {gid_resolver_dir:?} {err}")
         });
+
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
+        let wal_dir = graph_dir.as_ref().join("wal");
+        let wal = Wal::new(&wal_dir).unwrap();
+
         Self {
             graph_dir,
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
+            transaction_manager: Arc::new(TransactionManager::new()),
+            wal: Arc::new(wal),
         }
     }
 
@@ -110,6 +143,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         node_meta.get_or_create_layer_id(Some("staticgraph"));
         std::fs::create_dir_all(&graph_dir)
             .unwrap_or_else(|_| panic!("Failed to create graph directory at {graph_dir:?}"));
+
         let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
         let storage: Layer<EXT> = Layer::new_with_meta(
             graph_dir.as_ref(),
@@ -118,12 +152,18 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             node_meta,
             edge_meta,
         );
+
+        let wal_dir = graph_dir.as_ref().join("wal");
+        let wal = Wal::new(&wal_dir).unwrap();
+
         Self {
             graph_dir,
             logical_to_physical: GIDResolver::new(gid_resolver_dir).unwrap().into(),
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
+            transaction_manager: Arc::new(TransactionManager::new()),
+            wal: Arc::new(wal),
         }
     }
 

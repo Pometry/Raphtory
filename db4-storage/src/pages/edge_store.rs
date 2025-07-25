@@ -355,22 +355,28 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         )
     }
 
+    /// Retrieve the segment for an edge given its EID
+    pub fn get_edge_segment(&self, eid: EID) -> Option<&Arc<ES>> {
+        let (segment_id, _) = resolve_pos(eid, self.max_page_len);
+        self.segments.get(segment_id)
+    }
+
     pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
         let layer = e_id.layer();
         let e_id = e_id.edge;
-        let (chunk, local_edge) = resolve_pos(e_id, self.max_page_len);
-        let page = self.segments.get(chunk)?;
-        page.get_edge(local_edge, layer, page.head())
+        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len);
+        let segment = self.segments.get(segment_id)?;
+        segment.get_edge(local_edge, layer, segment.head())
     }
 
     pub fn edge(&self, e_id: impl Into<EID>) -> ES::Entry<'_> {
         let e_id = e_id.into();
-        let (page_id, local_edge) = resolve_pos(e_id, self.max_page_len);
-        let page = self
+        let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len);
+        let segment = self
             .segments
-            .get(page_id)
+            .get(segment_id)
             .expect("Internal error: page not found");
-        page.entry(local_edge)
+        segment.entry(local_edge)
     }
 
     pub fn num_edges(&self) -> usize {

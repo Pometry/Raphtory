@@ -1,4 +1,5 @@
-use db4_graph::{TemporalGraph, WriteLockedGraph};
+
+use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
@@ -8,16 +9,22 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers,
+        nodes::node_ref::NodeRef,
+        GidRef, EID, ELID, MAX_LAYER, VID,
     },
     storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
 };
 use storage::{
-    pages::{node_page::writer::node_info_as_props, session::WriteSession, NODE_ID_PROP_KEY},
+    pages::{
+        node_page::writer::{node_info_as_props},
+        session::WriteSession,
+        NODE_ID_PROP_KEY,
+    },
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, ES, NS,
+    Extension, ES, NS, WalImpl
 };
 
 use crate::mutation::{
@@ -310,6 +317,33 @@ impl InternalAdditionOps for TemporalGraph {
                 .map_err(MutationError::DBV4Error)?;
             Ok(prop_ids)
         }
+    }
+
+    fn validate_props_with_status<PN: AsRef<str>>(
+        &self,
+        is_static: bool,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+        if is_static {
+            let prop_ids = PropsMetaWriter::constant(meta, props)
+                .and_then(|pmw| pmw.into_props_const_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        } else {
+            let prop_ids = PropsMetaWriter::temporal(meta, props)
+                .and_then(|pmw| pmw.into_props_temporal_with_status())
+                .map_err(MutationError::DBV4Error)?;
+            Ok(prop_ids)
+        }
+    }
+
+    fn transaction_manager(&self) -> &TransactionManager {
+        &self.transaction_manager
+    }
+
+    fn wal(&self) -> &WalImpl {
+        &self.wal
     }
 }
 
