@@ -1,14 +1,17 @@
 use crate::{
     db::graph::views::filter::model::{
         node_filter::{InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps},
+        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
     python::{
-        filter::{filter_expr::PyFilterExpr, property_filter_builders::PyPropertyFilterBuilder},
+        filter::{
+            filter_expr::PyFilterExpr,
+        },
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use pyo3::{pyclass, pymethods};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
@@ -83,8 +86,13 @@ impl PyNodeFilter {
     }
 
     #[staticmethod]
-    fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
-        NodeFilter::property(name).into_pyobject(py)
+    fn property(name: String) -> PropertyFilterBuilder<NodeFilter> {
+        NodeFilter::property(name)
+    }
+
+    #[staticmethod]
+    fn metadata(name: String) -> MetadataFilterBuilder<NodeFilter> {
+        NodeFilter::metadata(name)
     }
 }
 

@@ -2,8 +2,6 @@ use crate::{
     db::graph::views::filter::{
         internal::CreateFilter,
         model::{
-            edge_filter::{EdgeFilter, ExplodedEdgeFilter},
-            node_filter::NodeFilter,
             property_filter::{
                 MetadataFilterBuilder, PropertyFilterBuilder, PropertyFilterOps,
                 TemporalPropertyFilterBuilder,
@@ -306,26 +304,5 @@ where
             py,
             (PyMetadataFilterBuilder, PyPropertyFilterOps(Arc::new(self))),
         )
-    }
-}
-
-#[pymethods]
-impl PyMetadataFilterBuilder {
-    #[staticmethod]
-    fn node(name: String) -> PyPropertyFilterOps {
-        let builder = MetadataFilterBuilder::<NodeFilter>::new(name);
-        PyPropertyFilterOps(Arc::new(builder))
-    }
-
-    #[staticmethod]
-    fn edge(name: String) -> PyPropertyFilterOps {
-        let builder = MetadataFilterBuilder::<EdgeFilter>::new(name);
-        PyPropertyFilterOps(Arc::new(builder))
-    }
-
-    #[staticmethod]
-    fn exploded_edge(name: String) -> PyPropertyFilterOps {
-        let builder = MetadataFilterBuilder::<ExplodedEdgeFilter>::new(name);
-        PyPropertyFilterOps(Arc::new(builder))
     }
 }

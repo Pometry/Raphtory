@@ -4,14 +4,12 @@ use crate::{
             EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, ExplodedEdgeFilter,
             InternalEdgeFilterBuilderOps,
         },
+        property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
-    python::{
-        filter::{filter_expr::PyFilterExpr, property_filter_builders::PyPropertyFilterBuilder},
-        types::iterable::FromIterable,
-    },
+    python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use pyo3::{pyclass, pymethods};
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
@@ -97,8 +95,13 @@ impl PyEdgeFilter {
     }
 
     #[staticmethod]
-    fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
-        EdgeFilter::property(name).into_pyobject(py)
+    fn property(name: String) -> PropertyFilterBuilder<EdgeFilter> {
+        EdgeFilter::property(name)
+    }
+
+    #[staticmethod]
+    fn metadata(name: String) -> MetadataFilterBuilder<EdgeFilter> {
+        EdgeFilter::metadata(name)
     }
 }
 
@@ -109,7 +112,12 @@ pub struct PyExplodedEdgeFilter;
 #[pymethods]
 impl PyExplodedEdgeFilter {
     #[staticmethod]
-    fn property(py: Python<'_>, name: String) -> PyResult<Bound<PyPropertyFilterBuilder>> {
-        ExplodedEdgeFilter::property(name).into_pyobject(py)
+    fn property(name: String) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
+        ExplodedEdgeFilter::property(name)
+    }
+
+    #[staticmethod]
+    fn metadata(name: String) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
+        ExplodedEdgeFilter::metadata(name)
     }
 }

@@ -148,35 +148,25 @@ def test_with_edge_node_filter(GraphClass):
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
     name_filter = filter.Node.name() == "1"
 
-    with pytest.raises(Exception) as e:
-        g.filter(weight_e3 | name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 | name_filter).edges]
+    expected = [('1', '2'), ('1', '3')]
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter(name_filter | weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter | weight_e3).edges]
+    expected = [('1', '2'), ('1', '3')]
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter(weight_e3 & name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 & name_filter).edges]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter(name_filter & weight_e3)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter & weight_e3).edges]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
-    with pytest.raises(Exception) as e:
-        g.filter(name_filter)
-    assert "Only property filters are supported for exploded edge filtering" in str(
-        e.value
-    )
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges]
+    expected = []
+    assert sorted(actual) == sorted(expected)
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
@@ -844,16 +834,16 @@ def test_temporal_constant(GraphClass):
     e.add_metadata(metadata={"weight": 2, "name": "dave"})
 
     test_cases = [
-        (filter.Metadata("weight") == 2, 3),
-        (filter.Metadata("weight") != 3, 6),
-        (filter.Metadata("weight") < 3, 6),
-        (filter.Metadata("weight") > 1, 3),
-        (filter.Metadata("weight") <= 2, 6),
-        (filter.Metadata("weight") >= 3, 0),
-        (filter.Metadata("weight").is_in([1, 2]), 6),
-        (filter.Metadata("weight").is_not_in([3]), 6),
-        (filter.Metadata("weight").is_some(), 6),
-        (filter.Metadata("weight").is_none(), 0),
+        (filter.Edge.metadata("weight") == 2, 3),
+        (filter.Edge.metadata("weight") != 3, 6),
+        (filter.Edge.metadata("weight") < 3, 6),
+        (filter.Edge.metadata("weight") > 1, 3),
+        (filter.Edge.metadata("weight") <= 2, 6),
+        (filter.Edge.metadata("weight") >= 3, 0),
+        (filter.Edge.metadata("weight").is_in([1, 2]), 6),
+        (filter.Edge.metadata("weight").is_not_in([3]), 6),
+        (filter.Edge.metadata("weight").is_some(), 6),
+        (filter.Edge.metadata("weight").is_none(), 0),
     ]
 
     for i, (expr, expected) in enumerate(test_cases):

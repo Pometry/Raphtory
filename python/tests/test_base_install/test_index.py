@@ -302,7 +302,7 @@ def test_search_nodes_for_metdata_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") == 1
+    filter_expr = filter.Node.metadata("p1") == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -311,7 +311,7 @@ def test_search_nodes_for_metadata_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") != 2
+    filter_expr = filter.Node.metadata("p1") != 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -320,7 +320,7 @@ def test_search_nodes_for_metadata_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") < 2
+    filter_expr = filter.Node.metadata("p1") < 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -329,7 +329,7 @@ def test_search_nodes_for_metadata_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") <= 3
+    filter_expr = filter.Node.metadata("p1") <= 3
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
@@ -338,7 +338,7 @@ def test_search_nodes_for_metadata_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") > 1
+    filter_expr = filter.Node.metadata("p1") > 1
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -347,7 +347,7 @@ def test_search_nodes_for_metadata_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") >= 2
+    filter_expr = filter.Node.metadata("p1") >= 2
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -356,7 +356,7 @@ def test_search_nodes_for_metadata_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_in([2])
+    filter_expr = filter.Node.metadata("p1").is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -365,7 +365,7 @@ def test_search_nodes_for_metadata_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_not_in([2])
+    filter_expr = filter.Node.metadata("p1").is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -374,7 +374,7 @@ def test_search_nodes_for_metadata_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_some()
+    filter_expr = filter.Node.metadata("p1").is_some()
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
@@ -384,7 +384,7 @@ def test_search_nodes_for_metadata_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_none()
+    filter_expr = filter.Node.metadata("p1").is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -648,7 +648,7 @@ def test_search_nodes_for_composite_filter():
     g = init_graph(g)
 
     filter1 = filter.Node.node_type() == "fire_nation"
-    filter2 = filter.Metadata("p1") > 1
+    filter2 = filter.Node.metadata("p1") > 1
     results = search_nodes(g, filter1 | filter2)
     assert ["N1", "N10", "N11", "N4", "N6"] == results
 
@@ -1031,7 +1031,7 @@ def test_search_edges_for_metadata_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") == 1
+    filter_expr = filter.Edge.metadata("p1") == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1049,7 +1049,7 @@ def test_search_edges_for_metadata_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") != 2
+    filter_expr = filter.Edge.metadata("p1") != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1067,7 +1067,7 @@ def test_search_edges_for_metadata_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") < 2
+    filter_expr = filter.Edge.metadata("p1") < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1085,7 +1085,7 @@ def test_search_edges_for_metadata_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") <= 3
+    filter_expr = filter.Edge.metadata("p1") <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1104,7 +1104,7 @@ def test_search_edges_for_metadata_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") > 1
+    filter_expr = filter.Edge.metadata("p1") > 1
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1113,7 +1113,7 @@ def test_search_edges_for_metadata_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") >= 2
+    filter_expr = filter.Edge.metadata("p1") >= 2
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1122,7 +1122,7 @@ def test_search_edges_for_metadata_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_in([2])
+    filter_expr = filter.Edge.metadata("p1").is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1131,7 +1131,7 @@ def test_search_edges_for_metadata_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_not_in([2])
+    filter_expr = filter.Edge.metadata("p1").is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1149,7 +1149,7 @@ def test_search_edges_for_metadata_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_some()
+    filter_expr = filter.Edge.metadata("p1").is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1169,7 +1169,7 @@ def test_search_edges_for_metadata_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_none()
+    filter_expr = filter.Edge.metadata("p1").is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 
