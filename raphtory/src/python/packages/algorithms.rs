@@ -62,14 +62,10 @@ use crate::{
             state::{Index, NodeState},
             view::internal::DynamicGraph,
         },
-        graph::{
-            node::NodeView,
-            nodes::Nodes,
-            views::{filter::internal::CreateNodeFilter, node_subgraph::NodeSubgraph},
-        },
+        graph::{node::NodeView, nodes::Nodes},
     },
     errors::GraphError,
-    prelude::{Graph, GraphViewOps, NodePropertyFilterOps},
+    prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::{PyNodeRef, PyTime},

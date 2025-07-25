@@ -1504,13 +1504,11 @@ mod graphql_test {
       list {
         path
         name
+        nodeCount
+        edgeCount
         metadata {
-          nodeCount
-          edgeCount
-          metadata {
-            key
-            value
-          }
+          key
+          value
         }
       }
     }
@@ -1524,7 +1522,7 @@ mod graphql_test {
     }
   }
 }
-        "#;
+"#;
 
         let req = Request::new(req);
         let res = schema.execute(req).await;
@@ -1539,16 +1537,14 @@ mod graphql_test {
                         {
                             "path": "graph",
                             "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "metadata": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                     ]},
                     "children":{"list":[]},
@@ -1582,14 +1578,12 @@ mod graphql_test {
       list {
         path
         name
-        metadata {
           nodeCount
           edgeCount
           metadata {
             key
             value
           }
-        }
       }
     }
     children {
@@ -1637,30 +1631,26 @@ mod graphql_test {
                         {
                             "path": "graph",
                             "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "metadata": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                         {
                             "path": "graph2",
                             "name": "graph2",
-                            "metadata": {
-                                "nodeCount": 2,
-                                "edgeCount": 1,
-                                "metadata": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 2,
+                            "edgeCount": 1,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
                     ]},
                     "children": {
