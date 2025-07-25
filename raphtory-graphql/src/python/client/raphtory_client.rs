@@ -16,7 +16,7 @@ use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc, thread};
+use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
@@ -99,10 +99,7 @@ impl PyRaphtoryClient {
         F: Future<Output = O> + 'static,
         O: Send + 'static,
     {
-        let runtime = self.runtime.clone();
-        thread::spawn(move || runtime.block_on(task()))
-            .join()
-            .unwrap()
+        Python::with_gil(|py| py.allow_threads(|| self.runtime.block_on(task())))
     }
 }
 
