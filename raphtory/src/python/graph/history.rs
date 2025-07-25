@@ -139,7 +139,7 @@ impl PyHistory {
 
     // implement contains function. might need to downcast general python object, can use enum to downcast to handle all AsTime objects.
 
-    // TODO: Can we use &PyHistory here or does it have to be generic PyAny/PyObject
+    // Might need to downcast to handle all AsTime objects.
     fn __eq__(&self, other: &PyHistory) -> bool {
         self.history.eq(&other.history)
     }

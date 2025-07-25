@@ -70,12 +70,34 @@ where
 {
     fn into_py_iter_result(self) -> BoxedLIter<'a, PyResult<PyObject>> {
         self.map(|item| {
-            Python::with_gil(|py| match item.into() {
+            Python::with_gil(|py| match item {
                 Ok(value) => Ok(value
                     .into_pyobject(py)
                     .map_err(|e| e.into())?
                     .into_any()
                     .unbind()),
+                Err(err) => Err(err.into()),
+            })
+        })
+        .into_dyn_boxed()
+    }
+}
+
+pub trait IntoPyIterTupleResult<'a> {
+    fn into_py_iter_tuple_result(self) -> BoxedLIter<'a, PyResult<PyObject>>;
+}
+
+impl<'a, X, T, E, I: Iterator<Item = (X, Result<T, E>)> + Send + Sync + 'a>
+    IntoPyIterTupleResult<'a> for I
+where
+    X: for<'py> IntoPyObject<'py>,
+    T: for<'py> IntoPyObject<'py>,
+    E: Into<PyErr>,
+{
+    fn into_py_iter_tuple_result(self) -> BoxedLIter<'a, PyResult<PyObject>> {
+        self.map(|(tuple_left, result)| {
+            Python::with_gil(|py| match result {
+                Ok(value) => Ok((tuple_left, value).into_pyobject(py)?.into_any().unbind()),
                 Err(err) => Err(err.into()),
             })
         })
