@@ -78,26 +78,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     };
     let mut weight_type = PropType::U8;
     if let Some(weight) = weight {
-        let maybe_weight_type = match g.edge_meta().temporal_prop_mapper().get_id(weight) {
-            Some(weight_id) => g.edge_meta().temporal_prop_mapper().get_dtype(weight_id),
-            None => g
-                .edge_meta()
-                .metadata_mapper()
-                .get_id(weight)
-                .map(|weight_id| {
-                    g.edge_meta()
-                        .metadata_mapper()
-                        .get_dtype(weight_id)
-                        .unwrap()
-                }),
-        };
-        match maybe_weight_type {
-            None => {
-                return Err(GraphError::PropertyMissingError(weight.to_string()));
-            }
-            Some(dtype) => {
-                weight_type = dtype;
-            }
+        if let Some((_, dtype)) = g.edge_meta().get_prop_id_and_type(weight, false) {
+            weight_type = dtype;
+        } else {
+            return Err(GraphError::PropertyMissingError(weight.to_string()));
         }
     }
 

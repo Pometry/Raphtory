@@ -94,7 +94,7 @@ impl PyProperties {
 
     /// Check if property `key` exists.
     pub fn __contains__(&self, key: &str) -> bool {
-        self.props.contains(key)
+        self.props.get(key).is_some()
     }
 
     /// gets property value if it exists, otherwise raises `KeyError`
@@ -116,15 +116,12 @@ impl PyProperties {
 
     /// Get the names for all properties (includes temporal and static properties)
     pub fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys().collect()
+        self.props.iter_filtered().map(|(key, _)| key).collect()
     }
 
     /// Get the values of the properties
-    ///
-    /// If a property exists as both temporal and static, temporal properties take priority with
-    /// fallback to the static property if the temporal value does not exist.
-    pub fn values(&self) -> Vec<Option<Prop>> {
-        self.props.values().collect()
+    pub fn values(&self) -> Vec<Prop> {
+        self.props.iter_filtered().map(|(_, value)| value).collect()
     }
 
     /// Get a list of key-value pairs
