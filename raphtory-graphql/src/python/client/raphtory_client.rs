@@ -101,7 +101,10 @@ impl PyRaphtoryClient {
         F: Future<Output = O> + 'static,
         O: Send + 'static,
     {
-        thread::spawn(self.runtime.block_on(task())).join().unwrap()
+        let runtime = self.runtime.clone();
+        thread::spawn(move || runtime.block_on(task()))
+            .join()
+            .unwrap()
     }
 }
 
