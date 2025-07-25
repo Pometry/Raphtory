@@ -1,5 +1,4 @@
 import tempfile
-from time import sleep
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 
@@ -81,29 +80,29 @@ def test_new_graph():
         setup_graph(rg)
         assert_correct_documents(client)
 
-#
-# def test_upload_graph():
-#     print("test_upload_graph")
-#     work_dir = tempfile.mkdtemp()
-#     temp_dir = tempfile.mkdtemp()
-#     server = setup_server(work_dir)
-#     with server.start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         g = Graph()
-#         setup_graph(g)
-#         g_path = temp_dir + "/abb"
-#         g.save_to_zip(g_path)
-#         client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-#         assert_correct_documents(client)
-#
-#
-# def test_include_graph():
-#     work_dir = tempfile.mkdtemp()
-#     g_path = work_dir + "/abb"
-#     g = Graph()
-#     setup_graph(g)
-#     g.save_to_file(g_path)
-#     server = setup_server(work_dir)
-#     with server.start():
-#         client = RaphtoryClient("http://localhost:1736")
-#         assert_correct_documents(client)
+
+def test_upload_graph():
+    print("test_upload_graph")
+    work_dir = tempfile.mkdtemp()
+    temp_dir = tempfile.mkdtemp()
+    server = setup_server(work_dir)
+    with server.start():
+        client = RaphtoryClient("http://localhost:1736")
+        g = Graph()
+        setup_graph(g)
+        g_path = temp_dir + "/abb"
+        g.save_to_zip(g_path)
+        client.upload_graph(path="abb", file_path=g_path, overwrite=True)
+        assert_correct_documents(client)
+
+
+def test_include_graph():
+    work_dir = tempfile.mkdtemp()
+    g_path = work_dir + "/abb"
+    g = Graph()
+    setup_graph(g)
+    g.save_to_file(g_path)
+    server = setup_server(work_dir)
+    with server.start():
+        client = RaphtoryClient("http://localhost:1736")
+        assert_correct_documents(client)
