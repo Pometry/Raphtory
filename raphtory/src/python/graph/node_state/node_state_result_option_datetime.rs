@@ -1,3 +1,4 @@
+use rayon::iter::ParallelIterator;
 use crate::{
     db::{
         api::{state::NodeState, view::DynamicGraph},
@@ -18,7 +19,10 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeError;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
+use rayon::prelude::ParallelSliceMut;
 use std::{cmp::Ordering, collections::HashMap};
+use crate::db::api::state::NodeGroups;
+use crate::prelude::NodeStateGroupBy;
 // $name = NodeStateResultOptionDateTime
 // $value = Result<Option<DateTime<Utc>>, TimeError>
 // $to_owned = |v| v.clone()
@@ -338,7 +342,7 @@ impl NodeStateResultOptionDateTime {
         match max {
             Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o.clone()))),
             Some((_, Ok(None))) => Ok(None),
-            Some((_, Err(e))) => Err(PyErr::from(e)),
+            Some((_, Err(e))) => Err(PyErr::from(e.clone())),
             None => Ok(None),
         }
     }
@@ -354,29 +358,43 @@ impl NodeStateResultOptionDateTime {
     /// Return the median value
     ///
     /// Returns:
-    #[doc = concat!("     Optional[", $py_value, "]:")]
-    fn median(&self) -> PyResult<Option<DateTime<Utc>>> {
-        self.inner
-            .median()
-            .map(|v| v.clone())
-            .transpose()
-            .map(|v| v.flatten())
-            .map_err(PyErr::from)
+    #[doc = "     Optional[datetime]: The median value or `None` if empty"]
+    fn median(&self) -> Option<DateTime<Utc>> {
+        self.median_item().map(|(_, v)| v)
     }
 
     /// Return median value and corresponding node
     ///
     /// Returns:
-    #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The median value or `None` if empty")]
-    fn median_item(
-        &self,
-    ) -> Option<(
-        NodeView<'static, DynamicGraph>,
-        Result<Option<DateTime<Utc>>, TimeError>,
-    )> {
-        self.inner
-            .median_item()
-            .map(|(n, v)| (n.cloned(), v.clone()))
+    #[doc = "     Optional[Tuple[Node, datetime]]: The median value or `None` if empty"]
+    fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)> {
+        // median_item_by but we have to exclude error and none values
+        let mut values: Vec<_> = self
+            .inner
+            .par_iter()
+            .filter_map(|(n, result)| match result {
+                Ok(Some(o)) => Some((n.cloned(), o.clone())),
+                _ => None,
+            })
+            .collect();
+        let len = values.len();
+        if len == 0 {
+            return None;
+        }
+        values.par_sort_by(|(_, v1), (_, v2)| v1.cmp(v2));
+        let median_index = len / 2;
+        values
+            .into_iter()
+            .nth(median_index)
+            .map(|(n, o)| (n, o))  // nodeview and datetime have already been cloned
+    }
+
+    // impl_node_state_group_by_ops
+    fn groups(&self) -> NodeGroups<Option<DateTime<Utc>>, DynamicGraph> {
+        self.inner.group_by(|result| match result {
+            Ok(Some(dt)) => Some(dt.clone()),
+            _ => None
+        })
     }
 }
 
