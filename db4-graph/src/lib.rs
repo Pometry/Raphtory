@@ -74,6 +74,7 @@ impl AsRef<Path> for GraphDir {
     }
 }
 
+/// A simple transaction manager that currently just keeps track of transaction IDs.
 #[derive(Debug)]
 pub struct TransactionManager {
     last_transaction_id: AtomicU64,

@@ -120,6 +120,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         self.into_props_inner(|mapper| mapper.temporal_prop_meta())
     }
 
+    /// Returns temporal prop names, prop ids and prop values, along with their MaybeNew status.
     pub fn into_props_temporal_with_status(
         self,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
@@ -130,6 +131,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         self.into_props_inner(|mapper| mapper.const_prop_meta())
     }
 
+    /// Returns constant prop names, prop ids and prop values, along with their MaybeNew status.
     pub fn into_props_const_with_status(
         self,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
