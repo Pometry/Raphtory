@@ -89,7 +89,7 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 impl PyTemporalProperties {
     /// List the available property keys
     fn keys(&self) -> Vec<ArcStr> {
-        self.props.keys().collect()
+        self.props.iter_filtered().map(|(key, _)| key).collect()
     }
 
     /// List the values of the properties
@@ -97,12 +97,12 @@ impl PyTemporalProperties {
     /// Returns:
     ///     list[TemporalProp]: the list of property views
     fn values(&self) -> Vec<DynTemporalProperty> {
-        self.props.values().collect()
+        self.props.iter_filtered().map(|(_, value)| value).collect()
     }
 
     /// List the property keys together with the corresponding values
     fn items(&self) -> Vec<(ArcStr, DynTemporalProperty)> {
-        self.props.iter().map(|(k, v)| (k.clone(), v)).collect()
+        self.props.iter_filtered().collect()
     }
 
     /// Get the latest value of all properties
@@ -110,10 +110,7 @@ impl PyTemporalProperties {
     /// Returns:
     ///     dict[str, PropValue]: the mapping of property keys to latest values
     fn latest(&self) -> HashMap<ArcStr, Prop> {
-        self.props
-            .iter_latest()
-            .map(|(k, v)| (k.clone(), v))
-            .collect()
+        self.props.iter_latest().collect()
     }
 
     /// Get the histories of all properties
@@ -122,8 +119,8 @@ impl PyTemporalProperties {
     ///     dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
     fn histories(&self) -> HashMap<ArcStr, Vec<(i64, Prop)>> {
         self.props
-            .iter()
-            .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .iter_filtered()
+            .map(|(k, v)| (k, v.iter().collect()))
             .collect()
     }
 
@@ -133,7 +130,7 @@ impl PyTemporalProperties {
     ///     dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
     fn histories_date_time(&self) -> HashMap<ArcStr, Option<Vec<(DateTime<Utc>, Prop)>>> {
         self.props
-            .iter()
+            .iter_filtered()
             .map(|(k, v)| (k, v.histories_date_time().map(|h| h.collect())))
             .collect()
     }
@@ -165,7 +162,7 @@ impl PyTemporalProperties {
 
     /// Check if property `key` exists
     fn __contains__(&self, key: &str) -> bool {
-        self.props.contains(key)
+        self.props.get(key).filter(|v| !v.is_empty()).is_some()
     }
 
     /// The number of properties
@@ -410,7 +407,7 @@ impl<P: InternalPropertiesOps + Clone> Repr for TemporalProperties<P> {
     fn repr(&self) -> String {
         format!(
             "TemporalProperties({{{}}})",
-            iterator_dict_repr(self.iter())
+            iterator_dict_repr(self.iter_filtered())
         )
     }
 }

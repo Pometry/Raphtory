@@ -208,7 +208,7 @@ impl TemporalGraph {
                     LayerIds::None
                 } else if num_new_layers == 1 {
                     LayerIds::One(new_layers.get_id_by_index(0).unwrap())
-                } else if num_new_layers == num_layers && new_layers.is_sorted() {
+                } else if num_new_layers == num_layers {
                     LayerIds::All
                 } else {
                     LayerIds::Multiple(new_layers)

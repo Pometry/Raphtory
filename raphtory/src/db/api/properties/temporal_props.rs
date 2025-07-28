@@ -203,6 +203,10 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
         self.keys().zip(self.values())
     }
 
+    pub fn iter_filtered(&self) -> impl Iterator<Item = (ArcStr, TemporalPropertyView<P>)> + '_ {
+        self.iter().filter(|(_, v)| !v.is_empty())
+    }
+
     pub fn get(&self, key: &str) -> Option<TemporalPropertyView<P>> {
         self.props
             .get_temporal_prop_id(key)
