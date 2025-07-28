@@ -24,6 +24,7 @@ pub trait Wal {
     where
         Self: Sized;
 
+    /// Returns the directory the WAL is stored in.
     fn dir(&self) -> &Path;
 
     /// Appends data to the WAL and returns the assigned LSN.
@@ -39,6 +40,7 @@ pub trait Wal {
     /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), DBV4Error>;
 
+    /// Returns an iterator over the wal entries in the given directory.
     fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
 }
 
@@ -72,7 +74,7 @@ pub trait GraphWal {
         layer_id: usize,
     ) -> Result<LSN, DBV4Error>;
 
-    /// Log new constant prop name -> prop id mappings.
+    /// Log constant prop name -> prop id mappings.
     ///
     /// # Arguments
     ///
@@ -84,7 +86,7 @@ pub trait GraphWal {
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<LSN, DBV4Error>;
 
-    /// Log new temporal prop name -> prop id mappings.
+    /// Log temporal prop name -> prop id mappings.
     ///
     /// # Arguments
     ///
@@ -114,7 +116,7 @@ pub trait GraphWal {
     ) -> Result<(), DBV4Error>;
 }
 
-/// Define callbacks for replaying from wal
+/// Trait for defining callbacks for replaying from wal
 pub trait GraphReplayer {
     fn replay_begin_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error>;
 

@@ -76,6 +76,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
             in_props.push(outcome);
         }
 
+        // If no type changes are required, we can just return the existing prop ids
         if no_type_changes {
             let props = in_props
                 .into_iter()
