@@ -236,7 +236,7 @@ mod test_index {
             let filter = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter, vec!["Alice"]);
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -256,7 +256,7 @@ mod test_index {
             assert_search_results(&graph, &filter, vec!["Alice"]);
 
             // Persisted both graph and index
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -272,7 +272,7 @@ mod test_index {
         fn test_encoding_graph_twice_to_same_graph_path_fails() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
             let result = graph.encode(path);
@@ -292,7 +292,7 @@ mod test_index {
         fn test_write_updates_to_already_encoded_graph_succeeds() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
 
             graph.cache(path).unwrap();
@@ -319,7 +319,7 @@ mod test_index {
             assert_search_results(&graph, &filter1, vec!["Alice"]);
 
             // Persisted both graph and index
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -356,7 +356,7 @@ mod test_index {
             assert_search_results(&graph, &filter2, vec!["Tommy"]);
 
             // Should persist the updated graph and index
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -372,7 +372,7 @@ mod test_index {
         fn test_zip_encode_decode_index() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let tmp_dir = TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
             let folder = GraphFolder::new_as_zip(zip_path);
             graph.encode(&folder).unwrap();
@@ -390,7 +390,7 @@ mod test_index {
         fn test_encoding_graph_twice_to_same_graph_path_fails_zip() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let tmp_dir = TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
             let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
@@ -416,7 +416,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -424,7 +424,7 @@ mod test_index {
             let graph = Graph::decode(path).unwrap();
 
             // This tests that we are able to persist the immutable index
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -438,7 +438,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -451,7 +451,7 @@ mod test_index {
                 .unwrap();
 
             // This tests that we are able to persist the mutable index
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -464,7 +464,7 @@ mod test_index {
         fn test_loading_zip_index_creates_mutable_index() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let tmp_dir = tempfile::TempDir::new().unwrap();
+            let tmp_dir = TempDir::new().unwrap();
             let zip_path = tmp_dir.path().join("graph.zip");
             let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
@@ -478,7 +478,7 @@ mod test_index {
         fn test_loading_index_creates_immutable_index() {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -497,7 +497,7 @@ mod test_index {
             let filter = NodeFilter::name().eq("Alice");
             assert_search_results(&graph, &filter, vec!["Alice"]);
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.encode(path).unwrap();
 
@@ -514,7 +514,7 @@ mod test_index {
             let graph = init_graph(Graph::new());
             graph.create_index().unwrap();
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.cache(path).unwrap();
 
@@ -538,7 +538,7 @@ mod test_index {
             global_info_logger();
             let graph = init_graph(Graph::new());
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             graph.cache(path).unwrap();
             // Creates index in a temp dir within graph dir
@@ -562,7 +562,7 @@ mod test_index {
         #[test]
         #[ignore]
         fn test_too_many_open_files_graph_index() {
-            use tempfile::TempDir;
+            use TempDir;
 
             let tmp_dir = TempDir::new().unwrap();
             let path = tmp_dir.path().to_path_buf();
@@ -654,6 +654,7 @@ mod test_index {
             prelude::{AdditionOps, Graph, IndexMutationOps, StableDecode},
             serialise::{GraphFolder, StableEncode},
         };
+        use tempfile::{tempdir, TempDir};
 
         fn init_graph(graph: Graph) -> Graph {
             let nodes = vec![
@@ -901,7 +902,7 @@ mod test_index {
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
-            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let tmp_graph_dir = tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
             let graph = Graph::decode(path.clone()).unwrap();
@@ -921,7 +922,7 @@ mod test_index {
                 .unwrap()
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
-            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let tmp_graph_dir = tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
             let graph = Graph::decode(path).unwrap();
@@ -949,7 +950,7 @@ mod test_index {
                 .build();
 
             graph.create_index_with_spec(index_spec.clone()).unwrap();
-            let tmp_graph_dir = tempfile::tempdir().unwrap();
+            let tmp_graph_dir = tempdir().unwrap();
             let path = tmp_graph_dir.path().to_path_buf();
             graph.encode(path.clone()).unwrap();
 
@@ -973,7 +974,7 @@ mod test_index {
                 .build();
             graph.create_index_with_spec(index_spec.clone()).unwrap();
 
-            let binding = tempfile::TempDir::new().unwrap();
+            let binding = TempDir::new().unwrap();
             let path = binding.path();
             let folder = GraphFolder::new_as_zip(path);
             graph.encode(folder.root_folder).unwrap();

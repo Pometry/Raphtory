@@ -144,17 +144,22 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
 mod test_exploded_edge_property_filtered_graph {
     use crate::{
         db::{
-            api::view::filter_ops::BaseFilterOps,
+            api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
             graph::{
+                edge::EdgeView,
                 graph::{
                     assert_graph_equal, assert_node_equal, assert_nodes_equal,
                     assert_persistent_materialize_graph_equal,
                 },
                 views::{
                     deletion_graph::PersistentGraph,
-                    filter::model::{
-                        edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
-                        PropertyFilterFactory,
+                    filter::{
+                        exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
+                        internal::CreateFilter,
+                        model::{
+                            edge_filter::ExplodedEdgeFilter, property_filter::PropertyFilterOps,
+                            PropertyFilterFactory, TryAsCompositeFilter,
+                        },
                     },
                 },
             },
@@ -167,10 +172,10 @@ mod test_exploded_edge_property_filtered_graph {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::{entities::properties::prop::PropType, storage::arc_str::ArcStr};
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     fn build_filtered_graph(
         edges: &[(u64, u64, i64, String, i64)],
@@ -284,17 +289,32 @@ mod test_exploded_edge_property_filtered_graph {
         (g, g_filtered)
     }
 
+    fn edge_attr<G: StaticGraphViewOps>(
+        e: &EdgeView<G>,
+    ) -> (String, String, Option<i64>, Option<ArcStr>) {
+        let src = e.src().name();
+        let dst = e.dst().name();
+        let int_prop = e.properties().get("int_prop");
+        let str_prop = e.properties().get("str_prop");
+        (src, dst, int_prop.into_i64(), str_prop.into_str())
+    }
+
     #[test]
     fn test_filter_gt() {
         proptest!(|(
             edges in build_edge_list(100, 100), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
-            let filtered = g.filter(
-                ExplodedEdgeFilter::property("int_prop").gt(v)
-            ).unwrap();
+            let filter = ExplodedEdgeFilter::property("int_prop").gt(v);
+            let filtered = g.filter(filter.clone()).unwrap();
             let expected_filtered_g = build_filtered_graph(&edges, |vv| vv > v);
             assert_graph_equal(&filtered, &expected_filtered_g);
+
+            let search_ee = g.search_exploded_edges(filter, 100, 0).unwrap();
+            let filter_ee = filtered.edges().explode().collect();
+            let from_search = search_ee.iter().map(edge_attr).collect_vec();
+            let from_filter = filter_ee.iter().map(edge_attr).collect_vec();
+            assert_eq!(from_search, from_filter);
         })
     }
 

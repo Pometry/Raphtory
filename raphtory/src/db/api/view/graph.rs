@@ -28,6 +28,7 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
+    search::fallback_filter_exploded_edges,
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
@@ -153,6 +154,13 @@ pub trait SearchableGraphOps: Sized {
     ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
     fn search_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -884,6 +892,27 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         }
 
         fallback_filter_edges(self, &filter.try_as_composite_edge_filter()?, limit, offset)
+    }
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_exploded_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_exploded_edges(
+            self,
+            &filter.try_as_composite_exploded_edge_filter()?,
+            limit,
+            offset,
+        )
     }
 
     fn is_indexed(&self) -> bool {
