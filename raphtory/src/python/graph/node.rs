@@ -79,7 +79,7 @@ impl_nodeviewops!(
 impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for PyNode {
     fn from(value: NodeView<'static, G>) -> Self {
         let graph = value.graph.into_dynamic();
-        let node = NodeView::new_one_hop_filtered(graph, value.node);
+        let node = NodeView::new_internal(graph, value.node);
         Self { node }
     }
 }
@@ -349,10 +349,10 @@ impl<'py, G: StaticGraphViewOps + IntoDynamicOrMutable> IntoPyObject<'py> for No
         let graph = self.graph.into_dynamic_or_mutable();
         match graph {
             DynOrMutableGraph::Dyn(graph) => {
-                PyNode::from(NodeView::new_one_hop_filtered(graph, self.node)).into_bound_py_any(py)
+                PyNode::from(NodeView::new_internal(graph, self.node)).into_bound_py_any(py)
             }
             DynOrMutableGraph::Mutable(graph) => {
-                PyMutableNode::new_bound(NodeView::new_one_hop_filtered(graph, self.node), py)?
+                PyMutableNode::new_bound(NodeView::new_internal(graph, self.node), py)?
                     .into_bound_py_any(py)
             }
         }

@@ -11,16 +11,16 @@ use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeFilterOp(Arc<dyn DynNodeFilterBuilderOps>);
+pub struct PyNodeFilterBuilder(Arc<dyn DynNodeFilterBuilderOps>);
 
-impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterOp {
+impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder {
     fn from(value: T) -> Self {
-        PyNodeFilterOp(Arc::new(value))
+        PyNodeFilterBuilder(Arc::new(value))
     }
 }
 
 #[pymethods]
-impl PyNodeFilterOp {
+impl PyNodeFilterBuilder {
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.0.eq(value)
     }
@@ -67,8 +67,8 @@ impl PyNodeFilter {
     /// Returns:
     ///     NodeFilterBuilder: A filter builder for filtering by node name
     #[staticmethod]
-    fn name() -> PyNodeFilterOp {
-        PyNodeFilterOp(Arc::new(NodeFilter::name()))
+    fn name() -> PyNodeFilterBuilder {
+        PyNodeFilterBuilder(Arc::new(NodeFilter::name()))
     }
 
     /// Filter node by type
@@ -76,8 +76,8 @@ impl PyNodeFilter {
     /// Returns:
     ///     NodeFilterBuilder: A filter builder for filtering by node type
     #[staticmethod]
-    fn node_type() -> PyNodeFilterOp {
-        PyNodeFilterOp(Arc::new(NodeFilter::node_type()))
+    fn node_type() -> PyNodeFilterBuilder {
+        PyNodeFilterBuilder(Arc::new(NodeFilter::node_type()))
     }
 
     #[staticmethod]

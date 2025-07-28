@@ -75,8 +75,8 @@ pub trait NodeStateOps<'graph>:
         let base_graph = self.base_graph();
         state.par_sort_by(|(n1, v1), (n2, v2)| {
             cmp(
-                (NodeView::new_one_hop_filtered(base_graph, *n1), v1),
-                (NodeView::new_one_hop_filtered(base_graph, *n2), v2),
+                (NodeView::new_internal(base_graph, *n1), v1),
+                (NodeView::new_internal(base_graph, *n2), v2),
             )
         });
 

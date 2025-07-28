@@ -261,7 +261,6 @@ def test_filtering_valid():
     assert e is None
     # assert list(e.properties.temporal.get("weight").values) == [1,2] -- this would be the case for filter_edge_layer?
 
-    # TODO: Enable these test once exploded edge property filter is enabled
     f = filter.ExplodedEdge.property("weight") < 3
     e = g.valid().filter(f).edge(1, 2)
     assert e.is_valid() == False  # latest update is now a deletion

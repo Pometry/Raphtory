@@ -146,25 +146,25 @@ def test_with_edge_node_filter(GraphClass):
     g.add_edge(1, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
-    name_filter = filter.Node.name() == "1"
+    name_filter = filter.Node.name() == "2"
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 | name_filter).edges]
-    expected = [('1', '2'), ('1', '3')]
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 | name_filter).edges.explode()]
+    expected = [('1', '2'), ('1', '2'), ('1', '2'), ('1', '3'), ('1', '3'), ('1', '3')]
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter | weight_e3).edges]
-    expected = [('1', '2'), ('1', '3')]
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter | weight_e3).edges.explode()]
+    expected = [('1', '2'), ('1', '2'), ('1', '2'), ('1', '3'), ('1', '3'), ('1', '3')]
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 & name_filter).edges]
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 & name_filter).edges.explode()]
     expected = []
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter & weight_e3).edges]
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter & weight_e3).edges.explode()]
     expected = []
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges]
+    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges.explode()]
     expected = []
     assert sorted(actual) == sorted(expected)
 

@@ -4,7 +4,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::filter::internal::CreateFilter},
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{EdgeViewOps, GraphViewOps},
     search::property_index::PropertyIndex,
 };
 use ahash::HashSet;
@@ -151,6 +151,24 @@ pub(crate) fn fallback_filter_edges<G: StaticGraphViewOps>(
     let filtered_edges = graph
         .filter(filter.clone())?
         .edges()
+        .iter()
+        .map(|e| EdgeView::new(graph.clone(), e.edge))
+        .skip(offset)
+        .take(limit)
+        .collect();
+    Ok(filtered_edges)
+}
+
+pub(crate) fn fallback_filter_exploded_edges<G: StaticGraphViewOps>(
+    graph: &G,
+    filter: &(impl CreateFilter + Clone),
+    limit: usize,
+    offset: usize,
+) -> Result<Vec<EdgeView<G>>, GraphError> {
+    let filtered_edges = graph
+        .filter(filter.clone())?
+        .edges()
+        .explode()
         .iter()
         .map(|e| EdgeView::new(graph.clone(), e.edge))
         .skip(offset)

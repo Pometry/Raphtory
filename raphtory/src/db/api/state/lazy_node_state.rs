@@ -244,7 +244,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             };
             let cg = self.graph().core_graph();
             Some((
-                NodeView::new_one_hop_filtered(self.base_graph(), vid),
+                NodeView::new_internal(self.base_graph(), vid),
                 self.op.apply(cg, vid),
             ))
         }

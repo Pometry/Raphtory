@@ -9,6 +9,7 @@ def test_degree_window():
 
     assert g.nodes.out_degree() == [3, 0, 0, 0]
     assert g.nodes.before(1).out_degree() == [1, 0, 0, 0]
+    assert g.nodes.out_degree()[1] == 3
     assert g.nodes.before(1).out_degree()[1] == 1
 
 

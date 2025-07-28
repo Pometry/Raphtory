@@ -373,13 +373,13 @@ impl<
             Some(index) => index
                 .iter()
                 .zip(self.values.iter())
-                .map(|(n, v)| (NodeView::new_one_hop_filtered(&self.base_graph, n), v))
+                .map(|(n, v)| (NodeView::new_internal(&self.base_graph, n), v))
                 .into_dyn_boxed(),
             None => self
                 .values
                 .iter()
                 .enumerate()
-                .map(|(i, v)| (NodeView::new_one_hop_filtered(&self.base_graph, VID(i)), v))
+                .map(|(i, v)| (NodeView::new_internal(&self.base_graph, VID(i)), v))
                 .into_dyn_boxed(),
         }
     }
@@ -409,13 +409,13 @@ impl<
                 index
                     .par_iter()
                     .zip(self.values.par_iter())
-                    .map(|(n, v)| (NodeView::new_one_hop_filtered(&self.base_graph, n), v)),
+                    .map(|(n, v)| (NodeView::new_internal(&self.base_graph, n), v)),
             ),
             None => Either::Right(
                 self.values
                     .par_iter()
                     .enumerate()
-                    .map(|(i, v)| (NodeView::new_one_hop_filtered(&self.base_graph, VID(i)), v)),
+                    .map(|(i, v)| (NodeView::new_internal(&self.base_graph, VID(i)), v)),
             ),
         }
     }
@@ -424,16 +424,14 @@ impl<
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (
-                    NodeView::new_one_hop_filtered(&self.base_graph, n),
+                    NodeView::new_internal(&self.base_graph, n),
                     &self.values[index],
                 )
             }),
-            None => self.values.get(index).map(|v| {
-                (
-                    NodeView::new_one_hop_filtered(&self.base_graph, VID(index)),
-                    v,
-                )
-            }),
+            None => self
+                .values
+                .get(index)
+                .map(|v| (NodeView::new_internal(&self.base_graph, VID(index)), v)),
         }
     }
 

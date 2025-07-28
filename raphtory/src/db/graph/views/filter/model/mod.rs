@@ -199,6 +199,11 @@ impl<L, R> ComposableFilter for OrFilter<L, R> {}
 impl<T> ComposableFilter for NotFilter<T> {}
 
 pub trait PropertyFilterFactory<M> {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<M>;
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<M>;
+    fn property(name: impl Into<String>) -> PropertyFilterBuilder<M> {
+        PropertyFilterBuilder::new(name)
+    }
+
+    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<M> {
+        MetadataFilterBuilder::new(name)
+    }
 }

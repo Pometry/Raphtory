@@ -9,7 +9,7 @@ macro_rules! impl_filter_ops {
     ($obj:ident<$base_type:ty>, $field:ident, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-            /// Return a filtered view that only includes edges that satisfy the filter
+            /// Return a filtered view that only includes nodes and edges that satisfy the filter
             ///
             /// Arguments:
             ///     filter (FilterExpr): The filter to apply to the nodes and edges.

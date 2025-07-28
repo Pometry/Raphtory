@@ -184,24 +184,24 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = NodeView<&G>> + use<'_, 'graph, G, GH> {
         self.iter_refs()
-            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, v))
+            .map(|v| NodeView::new_internal(&self.base_graph, v))
     }
 
     pub fn iter_owned(&self) -> BoxedLIter<'graph, NodeView<'graph, G>> {
         let base_graph = self.base_graph.clone();
         self.iter_refs()
-            .map(move |v| NodeView::new_one_hop_filtered(base_graph.clone(), v))
+            .map(move |v| NodeView::new_internal(base_graph.clone(), v))
             .into_dyn_boxed()
     }
 
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeView<&G>> + use<'_, 'graph, G, GH> {
         self.par_iter_refs()
-            .map(|v| NodeView::new_one_hop_filtered(&self.base_graph, v))
+            .map(|v| NodeView::new_internal(&self.base_graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, G>> + 'graph {
         self.par_iter_refs()
-            .map(move |n| NodeView::new_one_hop_filtered(self.base_graph.clone(), n))
+            .map(move |n| NodeView::new_internal(self.base_graph.clone(), n))
     }
 
     /// Returns the number of nodes in the graph.
@@ -233,7 +233,7 @@ where
     pub fn get<V: AsNodeRef>(&self, node: V) -> Option<NodeView<'graph, G>> {
         let vid = self.base_graph.internalise_node(node.as_node_ref())?;
         self.contains(vid)
-            .then(|| NodeView::new_one_hop_filtered(self.base_graph.clone(), vid))
+            .then(|| NodeView::new_internal(self.base_graph.clone(), vid))
     }
 
     pub fn type_filter<I: IntoIterator<Item = V>, V: AsRef<str>>(

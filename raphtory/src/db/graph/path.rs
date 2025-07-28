@@ -324,7 +324,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> PathFromNode<'gr
         let base_graph = self.base_graph.clone();
         let iter = self
             .iter_refs()
-            .map(move |node| NodeView::new_one_hop_filtered(base_graph.clone(), node));
+            .map(move |node| NodeView::new_internal(base_graph.clone(), node));
         Box::new(iter)
     }
 

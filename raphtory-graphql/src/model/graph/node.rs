@@ -31,7 +31,7 @@ pub struct GqlNode {
 impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for GqlNode {
     fn from(value: NodeView<'static, G>) -> Self {
         Self {
-            vv: NodeView::new_one_hop_filtered(value.graph.into_dynamic(), value.node),
+            vv: NodeView::new_internal(value.graph.into_dynamic(), value.node),
         }
     }
 }

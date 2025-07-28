@@ -143,16 +143,6 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
-    pub fn new_one_hop_filtered(graph: G, node: VID) -> Self {
-        NodeView {
-            graph,
-            node,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<'graph, Current> BaseFilter<'graph> for NodeView<'graph, Current>
 where
     Current: GraphViewOps<'graph>,

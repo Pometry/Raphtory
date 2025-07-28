@@ -5,7 +5,7 @@ use crate::{
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
+                property_filter::PropertyFilter,
                 AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
                 TryAsCompositeFilter,
             },
@@ -205,15 +205,7 @@ impl NodeFilter {
     }
 }
 
-impl PropertyFilterFactory<NodeFilter> for NodeFilter {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<NodeFilter> {
-        PropertyFilterBuilder::new(name)
-    }
-
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<NodeFilter> {
-        MetadataFilterBuilder::new(name)
-    }
-}
+impl PropertyFilterFactory<NodeFilter> for NodeFilter {}
 
 impl TryAsCompositeFilter for NodeNameFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

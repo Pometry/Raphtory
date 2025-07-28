@@ -16,7 +16,7 @@ use crate::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_edges, fields, get_reader,
+        fallback_filter_exploded_edges, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -101,7 +101,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         match query {
             Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
-            None => fallback_filter_edges(graph, filter, limit, offset),
+            None => fallback_filter_exploded_edges(graph, filter, limit, offset),
         }
     }
 
@@ -131,7 +131,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            None => fallback_filter_edges(graph, filter, limit, offset),
+            None => fallback_filter_exploded_edges(graph, filter, limit, offset),
         }
     }
 
@@ -151,7 +151,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            fallback_filter_edges(graph, filter, limit, offset)
+            fallback_filter_exploded_edges(graph, filter, limit, offset)
         }
     }
 
@@ -183,7 +183,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            fallback_filter_edges(graph, filter, limit, offset)
+            fallback_filter_exploded_edges(graph, filter, limit, offset)
         }
     }
 
@@ -255,7 +255,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                 Ok(combined.into_iter().collect())
             }
             CompositeExplodedEdgeFilter::Not(_) => {
-                fallback_filter_edges(graph, filter, limit, offset)
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
         }
     }

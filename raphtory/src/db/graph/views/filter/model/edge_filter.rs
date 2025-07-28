@@ -4,10 +4,8 @@ use crate::{
         graph::views::filter::{
             internal::CreateFilter,
             model::{
-                node_filter::CompositeNodeFilter,
-                property_filter::{MetadataFilterBuilder, PropertyFilter, PropertyFilterBuilder},
-                AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
-                TryAsCompositeFilter,
+                node_filter::CompositeNodeFilter, property_filter::PropertyFilter, AndFilter,
+                Filter, NotFilter, OrFilter, PropertyFilterFactory, TryAsCompositeFilter,
             },
         },
     },
@@ -280,28 +278,12 @@ impl EdgeFilter {
     }
 }
 
-impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<EdgeFilter> {
-        PropertyFilterBuilder::new(name)
-    }
-
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<EdgeFilter> {
-        MetadataFilterBuilder::new(name)
-    }
-}
+impl PropertyFilterFactory<EdgeFilter> for EdgeFilter {}
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq)]
 pub struct ExplodedEdgeFilter;
 
-impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {
-    fn property(name: impl Into<String>) -> PropertyFilterBuilder<ExplodedEdgeFilter> {
-        PropertyFilterBuilder::new(name)
-    }
-
-    fn metadata(name: impl Into<String>) -> MetadataFilterBuilder<ExplodedEdgeFilter> {
-        MetadataFilterBuilder::new(name)
-    }
-}
+impl PropertyFilterFactory<ExplodedEdgeFilter> for ExplodedEdgeFilter {}
 
 impl TryAsCompositeFilter for EdgeFieldFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

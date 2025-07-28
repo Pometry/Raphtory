@@ -7,8 +7,6 @@ from filters_setup import (
 )
 from utils import with_disk_variants
 
-# TODO: PropertyFilteringNotImplemented for variants persistent_graph for filter.
-
 
 def init_graph_for_secondary_indexes(graph):
     edges = [
