@@ -1,10 +1,12 @@
-use rayon::iter::ParallelIterator;
 use crate::{
     db::{
-        api::{state::NodeState, view::DynamicGraph},
+        api::{
+            state::{NodeGroups, NodeState},
+            view::DynamicGraph,
+        },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::{GraphViewOps, NodeStateOps, NodeViewOps, OrderedNodeStateOps},
+    prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -19,10 +21,8 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeError;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::prelude::ParallelSliceMut;
+use rayon::{iter::ParallelIterator, prelude::ParallelSliceMut};
 use std::{cmp::Ordering, collections::HashMap};
-use crate::db::api::state::NodeGroups;
-use crate::prelude::NodeStateGroupBy;
 // $name = NodeStateResultOptionDateTime
 // $value = Result<Option<DateTime<Utc>>, TimeError>
 // $to_owned = |v| v.clone()
@@ -383,17 +383,14 @@ impl NodeStateResultOptionDateTime {
         }
         values.par_sort_by(|(_, v1), (_, v2)| v1.cmp(v2));
         let median_index = len / 2;
-        values
-            .into_iter()
-            .nth(median_index)
-            .map(|(n, o)| (n, o))  // nodeview and datetime have already been cloned
+        values.into_iter().nth(median_index).map(|(n, o)| (n, o)) // nodeview and datetime have already been cloned
     }
 
     // impl_node_state_group_by_ops
     fn groups(&self) -> NodeGroups<Option<DateTime<Utc>>, DynamicGraph> {
         self.inner.group_by(|result| match result {
             Ok(Some(dt)) => Some(dt.clone()),
-            _ => None
+            _ => None,
         })
     }
 }

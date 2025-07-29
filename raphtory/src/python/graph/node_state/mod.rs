@@ -1,5 +1,6 @@
 mod group_by;
 mod lazy_node_state_earliest_date_time;
+mod lazy_node_state_latest_date_time;
 mod node_state;
 mod node_state_result_option_datetime;
 
