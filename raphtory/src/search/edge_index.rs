@@ -304,10 +304,10 @@ impl EdgeIndex {
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let mut writer = index.index.writer(50_000_000)?;
-                // Delete existing constant property document
+                // Delete existing metadata document
                 let term = Term::from_field_u64(index.entity_id_field, edge_id.as_u64());
                 writer.delete_term(term);
-                // Reindex constant properties
+                // Reindex metadata
                 let prop_doc =
                     index.create_edge_metadata_document(edge_id.as_u64(), layer_id, &prop_value)?;
                 writer.add_document(prop_doc)?;

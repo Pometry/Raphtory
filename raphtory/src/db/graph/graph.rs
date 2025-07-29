@@ -145,7 +145,7 @@ pub fn assert_node_equal_layer<
     assert_eq!(
         n1.metadata().as_map(),
         n2.metadata().as_map(),
-        "mismatched constant properties for node {:?}{layer_tag}: left {:?}, right {:?}",
+        "mismatched metadata for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.metadata().as_map(),
         n2.metadata().as_map()
@@ -327,7 +327,7 @@ pub fn assert_edges_equal_layer<
         assert_eq!(
             e1.metadata().as_map(),
             e2.metadata().as_map(),
-            "mismatched constant properties for edge {:?}{layer_tag}",
+            "mismatched metadata for edge {:?}{layer_tag}",
             e1.id(),
         );
         assert_eq!(
@@ -438,7 +438,7 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
     assert_eq!(
         g1.metadata().as_map(),
         g2.metadata().as_map(),
-        "mismatched graph constant properties{layer_tag}",
+        "mismatched graph metadata{layer_tag}",
     );
     assert_eq!(
         g1.properties().temporal().as_map(),

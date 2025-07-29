@@ -27,7 +27,7 @@ pub enum TPropError {
 
 #[derive(Error, Debug)]
 pub enum MetadataError {
-    #[error("Attempted to change value of constant property, old: {old}, new: {new}")]
+    #[error("Attempted to change value of metadata, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
 }
 

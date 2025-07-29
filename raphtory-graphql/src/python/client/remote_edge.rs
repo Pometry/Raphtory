@@ -112,9 +112,9 @@ impl PyRemoteEdge {
         Ok(())
     }
 
-    /// Add constant properties to the edge within the remote graph.
-    /// This function is used to add properties to an edge that remain constant and do not
-    /// change over time. These properties are fundamental attributes of the edge.
+    /// Add metadata to the edge within the remote graph.
+    /// This function is used to add metadata to an edge that does not
+    /// change over time. This metadata is fundamental information of the edge.
     ///
     /// Parameters:
     ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
@@ -153,8 +153,8 @@ impl PyRemoteEdge {
         Ok(())
     }
 
-    /// Update constant properties of an edge in the remote graph overwriting existing values.
-    /// This function is used to add properties to an edge that remains constant and does not
+    /// Update metadata of an edge in the remote graph overwriting existing values.
+    /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:

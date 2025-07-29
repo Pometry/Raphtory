@@ -297,7 +297,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add constant properties to graph (errors if the property already exists)
+    /// Add metadata to graph (errors if the property already exists)
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -308,7 +308,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Update constant properties of the graph (overwrites existing values)
+    /// Update metadata of the graph (overwrites existing values)
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -367,7 +367,7 @@ impl GqlMutableNode {
         self.node.clone().into()
     }
 
-    /// Add constant properties to the node (errors if the property already exists)
+    /// Add metadata to the node (errors if the property already exists)
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -393,7 +393,7 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Update constant properties of the node (overwrites existing property values)
+    /// Update metadata of the node (overwrites existing property values)
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -475,7 +475,7 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Add constant properties to the edge (errors if the value already exists)
+    /// Add metadata to the edge (errors if the value already exists)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
@@ -497,7 +497,7 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Update constant properties of the edge (existing values are overwritten)
+    /// Update metadata of the edge (existing values are overwritten)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
