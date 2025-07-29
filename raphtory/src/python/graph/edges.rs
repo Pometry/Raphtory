@@ -501,7 +501,7 @@ impl PyNestedEdges {
         (move || edges.properties()).into()
     }
 
-    /// Get a view of the constant properties (meta-data) only.
+    /// Get a view of the metadata only.
     #[getter]
     pub fn metadata(&self) -> PyMetadataListList {
         let edges = self.edges.clone();

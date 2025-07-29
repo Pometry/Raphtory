@@ -1442,7 +1442,7 @@ mod views_test {
                     ("N15", vec![("p1", Prop::U64(1u64))]),
                 ];
 
-                // Apply constant properties
+                // Apply metadata
                 for (node, props) in metadata {
                     graph.node(node).unwrap().add_metadata(props).unwrap();
                 }

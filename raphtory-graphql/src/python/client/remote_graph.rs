@@ -312,10 +312,10 @@ impl PyRemoteGraph {
         Ok(())
     }
 
-    /// Adds constant properties to the remote graph.
+    /// Adds metadata to the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The constant properties of the graph.
+    ///     properties (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:
@@ -343,10 +343,10 @@ impl PyRemoteGraph {
         Ok(())
     }
 
-    /// Updates constant properties on the remote graph.
+    /// Updates metadata on the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The constant properties of the graph.
+    ///     properties (dict): The metadata of the graph.
     ///
     /// Returns:
     ///     None:

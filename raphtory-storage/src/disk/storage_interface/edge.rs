@@ -115,7 +115,7 @@ impl<'a> EdgeStorageOps<'a> for Edge<'a> {
     }
 
     fn metadata_layer(self, _layer_id: usize, _prop_id: usize) -> Option<Prop> {
-        // TODO: constant edge properties not implemented in diskgraph yet
+        // TODO: metadata edge properties not implemented in diskgraph yet
         None
     }
 }

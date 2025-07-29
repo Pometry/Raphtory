@@ -68,7 +68,7 @@ impl PyUpdate {
 /// Arguments:
 ///     name (GID): the id of the node
 ///     node_type (str, optional): the node type
-///     metadata (PropInput, optional): the constant properties
+///     metadata (PropInput, optional): the metadata
 ///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
@@ -146,7 +146,7 @@ impl PyNodeAddition {
 ///     src (GID): the id of the source node
 ///     dst (GID): the id of the destination node
 ///     layer (str, optional): the layer for the update
-///     metadata (PropInput, optional): the constant properties for the edge
+///     metadata (PropInput, optional): the metadata for the edge
 ///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
@@ -325,14 +325,14 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+/// Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_TEMPORAL`.
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
 pub enum PyAllPropertySpec {
-    /// Include all properties (both constant and temporal).
+    /// Include all properties (both metadata and temporal).
     #[serde(rename = "ALL")]
     All,
-    /// Include only constant properties.
+    /// Include only metadata.
     #[serde(rename = "ALL_METADATA")]
     AllMetadata,
     /// Include only temporal properties.
@@ -340,7 +340,7 @@ pub enum PyAllPropertySpec {
     AllProperties,
 }
 
-/// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+/// Create a `SomePropertySpec` by explicitly listing metadata and/or temporal property names.
 ///
 /// Arguments:
 ///     metadata (list[str]): Metadata property names. Defaults to [].

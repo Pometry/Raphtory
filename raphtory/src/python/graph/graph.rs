@@ -625,7 +625,7 @@ impl PyGraph {
     ///     df (DataFrame): The Pandas DataFrame containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -671,7 +671,7 @@ impl PyGraph {
     ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -721,7 +721,7 @@ impl PyGraph {
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
@@ -770,7 +770,7 @@ impl PyGraph {
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-    ///     layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
     ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
     ///
     /// Returns:
@@ -814,7 +814,7 @@ impl PyGraph {
     /// Arguments:
     ///     df (DataFrame): The Pandas DataFrame containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
@@ -853,7 +853,7 @@ impl PyGraph {
     /// Arguments:
     ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
     ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
