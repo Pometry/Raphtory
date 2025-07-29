@@ -62,8 +62,8 @@ For the parameters of the edges we specify:
 - `destination` - destination column within the dataframe
 - `timestamp` - timestamp column within the dataframe
 - `data_size_MB` - temporal property
-- `is_encrypted` - constant property
-- `datasource` - an additional shared constant property which labels the origin of the information
+- `is_encrypted` - metadata
+- `datasource` - an additional shared metadata entry which labels the origin of the information
 - `transaction_type` - layer column
 
 For the parameters for the nodes, we specify:
@@ -75,10 +75,10 @@ For the parameters for the nodes, we specify:
     - `OS_version`
     - `primary_function`
     - `uptime_days`
-- Constant properties
+- Metadata
     - `server_name`
     - `hardware_type`
-- `datasource` - an additional shared constant property which labels the origin of the information
+- `datasource` - an additional shared metadata entry which labels the origin of the information
 
 The resulting graph and an example node/edge are then printed to show the data fully converted.
 
@@ -136,18 +136,17 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
     Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
     ```
 
-## Adding constant properties via dataframes
+## Adding metadata via dataframes
 
 There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
 dataframes the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions.
 
-Below we break the ingestion into a four stage process, adding the constant properties at the end. This example uses the
+Below we break the ingestion into a four stage process, adding the metadata at the end. This example uses the
 same two dataframes for brevity but in real instances these would probably be four different dataframes, one for each
 function call.
 
 !!! warning
-    Constant properties can only be added to nodes and edges which are part of the graph. If you attempt to add a constant
-    property without first adding the node/edge then Raphtory will throw an error.
+    Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.
 
 /// tab | :fontawesome-brands-python: Python
 

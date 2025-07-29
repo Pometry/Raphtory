@@ -174,7 +174,7 @@ maintained in ascending order), returned in both unix epoch (integer) and dateti
 
 ## Properties
 
-Alongside the structural update history, Raphtory can maintain the changing value of properties associated with nodes
+Alongside the structural update history, Raphtory can maintain the changing value of [`Properties`][raphtory.Properties] associated with nodes
 and edges. Both the `add_node()` and `add_edge()` functions have an optional parameter `properties` which takes a
 dictionary of key value pairs to be stored at the given timestamp.
 
@@ -269,14 +269,11 @@ assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=4, latest_tim
     history of all of these different property types can be queried, explored and aggregated, as you will see
     in [Property Queries](../querying/5_properties.md).
 
-### Constant Properties
+## Metadata
 
-Alongside the `temporal` properties which have a value history, Raphtory also provides `constant` properties which have
-an immutable value. These are useful when you know a value won't change or are adding metadata to your graph which does
-not need to be asossiated with a specific time. To add these into your model the `graph`, `node` and `edge` have the
-`add_constant_properties()` function, which takes a single `dictionary` argument for properties.
+Raphtory also provides [`metadata`][raphtory.Metadata] associated with nodes and edges which have immutable values. These are useful when you know a value won't change or is not  associated with a specific time. 
 
-In the example below, three different constant properties are added to the `graph`, `node` and `edge`.
+You can use the `add_metadata()` function, which takes a single `dictionary` argument, to add metadata to a `graph`, `node` and `edge` as demonstrated below.
 
 /// tab | :fontawesome-brands-python: Python
 
