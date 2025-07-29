@@ -166,7 +166,7 @@ def init_nodes_graph1(graph):
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_nodes_graph2(graph):
     nodes = [
         (1, "N1", {"p1": 1}),
@@ -241,7 +241,7 @@ def init_edges_graph(graph):
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_edges_graph1(graph):
     edges = [
         (2, "N1", "N2", {"q1": 0}),
@@ -262,7 +262,7 @@ def init_edges_graph1(graph):
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_edges_graph2(graph):
     edges = [
         (2, "N1", "N2", {"p1": 1}),

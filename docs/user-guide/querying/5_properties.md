@@ -55,7 +55,7 @@ print("Property tuples:", properties.items())
 print("Latest value of balance:", properties.get("balance"))
 print("Property keys:", properties.as_dict(), "\n")
 
-# Access the keys of the constant and temporal properties individually
+# Access the keys of the metadata and temporal properties individually
 metadata = v.metadata
 temporal_properties = properties.temporal
 print("Metadata keys:", metadata.keys())
