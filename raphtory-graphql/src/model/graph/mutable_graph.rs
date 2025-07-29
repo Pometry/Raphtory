@@ -141,7 +141,6 @@ impl GqlMutableGraph {
     /// Add a batch of nodes
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
 
         let nodes: Vec<Result<NodeView<GraphWithVectors>, GraphError>> =
             blocking_compute(move || {
@@ -171,12 +170,13 @@ impl GqlMutableGraph {
             })
             .await;
 
-        for node in nodes {
-            let _ = node?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
-        }
+        // Generate embeddings
+        let nodes: Vec<_> = nodes.into_iter().collect::<Result<Vec<_>, _>>()?;
+        self.graph.update_nodes_embeddings(nodes).await?;
 
+        let self_clone = self.clone();
         blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await

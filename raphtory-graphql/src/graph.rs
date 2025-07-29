@@ -44,10 +44,21 @@ impl GraphWithVectors {
         }
     }
 
+    /// Generates and stores embeddings for a batch of nodes.
+    pub(crate) async fn update_nodes_embeddings<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+        if let Some(vectors) = &self.vectors {
+            vectors.update_nodes(nodes).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Generate and store an embedding for a single node.
     pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
             vectors.update_node(node).await?;
         }
+
         Ok(())
     }
 

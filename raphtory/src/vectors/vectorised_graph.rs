@@ -34,6 +34,28 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
+    /// Generates and stores embeddings for a batch of nodes
+    pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+        let (ids, docs): (Vec<_>, Vec<_>) = nodes.iter()
+            .filter_map(|node| {
+                self.source_graph.node(node)
+                    .and_then(|node| {
+                        let id = node.node.index();
+
+                        self.template.node(node).map(|doc| (id, doc))
+                    })
+            })
+            .unzip();
+
+        let vectors = self.cache.get_embeddings(docs).await?;
+
+        for (id, vector) in ids.iter().zip(vectors) {
+            self.node_db.insert_vector(*id, &vector)?;
+        }
+
+        Ok(())
+    }
+
     pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(node) = self.source_graph.node(node) {
             let id = node.node.index();
