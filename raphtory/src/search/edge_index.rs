@@ -112,12 +112,12 @@ impl EdgeIndex {
         })
     }
 
-    pub(crate) fn resolve_const_props(&self) -> HashSet<usize> {
-        let props = self.entity_index.const_property_indexes.read();
+    pub(crate) fn resolve_metadata(&self) -> HashSet<usize> {
+        let props = self.entity_index.metadata_indexes.read();
         resolve_props(&props)
     }
 
-    pub(crate) fn resolve_temp_props(&self) -> HashSet<usize> {
+    pub(crate) fn resolve_properties(&self) -> HashSet<usize> {
         let props = self.entity_index.temporal_property_indexes.read();
         resolve_props(&props)
     }
@@ -133,8 +133,8 @@ impl EdgeIndex {
             println!("Edge doc: {:?}", doc.to_json(searcher.schema()));
         }
 
-        let constant_property_indexes = self.entity_index.const_property_indexes.read();
-        for property_index in constant_property_indexes.iter().flatten() {
+        let metadata_indexes = self.entity_index.metadata_indexes.read();
+        for property_index in metadata_indexes.iter().flatten() {
             property_index.print()?;
         }
 
@@ -227,7 +227,7 @@ impl EdgeIndex {
         index_spec: &IndexSpec,
     ) -> Result<(), GraphError> {
         self.entity_index
-            .index_edge_const_props(graph, index_spec, &path)?;
+            .index_edge_metadata(graph, index_spec, &path)?;
         self.entity_index
             .index_edge_temporal_props(graph, index_spec, &path)?;
         Ok(())
@@ -275,20 +275,17 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn add_edge_constant_properties(
+    pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.const_property_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
-                let prop_doc = index.create_edge_const_property_document(
-                    edge_id.as_u64(),
-                    layer_id,
-                    &prop_value,
-                )?;
+                let prop_doc =
+                    index.create_edge_metadata_document(edge_id.as_u64(), layer_id, &prop_value)?;
                 let mut writer = index.index.writer(50_000_000)?;
                 writer.add_document(prop_doc)?;
                 writer.commit()?;
@@ -297,13 +294,13 @@ impl EdgeIndex {
         Ok(())
     }
 
-    pub(crate) fn update_edge_constant_properties(
+    pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let indexes = self.entity_index.const_property_indexes.read();
+        let indexes = self.entity_index.metadata_indexes.read();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {
                 let mut writer = index.index.writer(50_000_000)?;
@@ -311,11 +308,8 @@ impl EdgeIndex {
                 let term = Term::from_field_u64(index.entity_id_field, edge_id.as_u64());
                 writer.delete_term(term);
                 // Reindex constant properties
-                let prop_doc = index.create_edge_const_property_document(
-                    edge_id.as_u64(),
-                    layer_id,
-                    &prop_value,
-                )?;
+                let prop_doc =
+                    index.create_edge_metadata_document(edge_id.as_u64(), layer_id, &prop_value)?;
                 writer.add_document(prop_doc)?;
                 writer.commit()?;
             }

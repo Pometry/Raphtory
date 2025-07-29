@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::{
     entities::{
         graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{ConstPropError, TPropError},
+        properties::props::{MetadataError, TPropError},
     },
     utils::time::ParseTimeError,
 };
@@ -122,6 +122,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     MutationError(#[from] MutationError),
+
+    #[error(transparent)]
+    PropError(#[from] PropError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -368,7 +371,25 @@ pub enum GraphError {
     NotSupported,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
-    InvalidFilter(FilterOperator),
+    InvalidFilterExpectSingleGotNone(FilterOperator),
+
+    #[error("Operator {0} requires a single value, but a set was provided.")]
+    InvalidFilterExpectSingleGotSet(FilterOperator),
+
+    #[error("Comparison not implemented for {0}")]
+    InvalidFilterCmp(PropType),
+
+    #[error("Expected a homogeneous map with inner type {0}, got {1}")]
+    InvalidHomogeneousMap(PropType, PropType),
+
+    #[error("Operator {0} requires a set of values, but a single value was provided.")]
+    InvalidFilterExpectSetGotSingle(FilterOperator),
+
+    #[error("Operator {0} requires a set of values, but none was provided.")]
+    InvalidFilterExpectSetGotNone(FilterOperator),
+
+    #[error("Operator {0} is only supported for strings.")]
+    InvalidContains(FilterOperator),
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
@@ -419,20 +440,14 @@ pub enum GraphError {
     ZippedGraphCannotBeCached,
 }
 
-impl From<ConstPropError> for GraphError {
-    fn from(value: ConstPropError) -> Self {
+impl From<MetadataError> for GraphError {
+    fn from(value: MetadataError) -> Self {
         Self::MutationError(value.into())
     }
 }
 
 impl From<TPropError> for GraphError {
     fn from(value: TPropError) -> Self {
-        Self::MutationError(value.into())
-    }
-}
-
-impl From<PropError> for GraphError {
-    fn from(value: PropError) -> Self {
         Self::MutationError(value.into())
     }
 }

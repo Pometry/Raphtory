@@ -12,11 +12,12 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
+use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, fs::File, io::Read, path::Path};
+use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
+use tokio::runtime::Runtime;
 use tracing::debug;
 
 /// A client for handling GraphQL operations in the context of Raphtory.
@@ -29,6 +30,7 @@ pub struct PyRaphtoryClient {
     pub(crate) url: String,
     pub(crate) token: String,
     client: Client,
+    runtime: Arc<Runtime>,
 }
 
 impl PyRaphtoryClient {
@@ -38,7 +40,7 @@ impl PyRaphtoryClient {
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
         let client = self.clone();
-        let (graphql_query, graphql_result) = execute_async_task(move || async move {
+        let (graphql_query, graphql_result) = self.execute_async_task(move || async move {
             client.send_graphql_query(query, variables).await
         })?;
         let mut graphql_result = graphql_result;
@@ -91,6 +93,14 @@ impl PyRaphtoryClient {
             .map_err(|err| adapt_err_value(&err))
             .map(|json| (request_body, json))
     }
+    pub fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        Python::with_gil(|py| py.allow_threads(|| self.runtime.block_on(task())))
+    }
 }
 
 #[pymethods]
@@ -107,7 +117,17 @@ impl PyRaphtoryClient {
             Ok(response) => {
                 if response.status() == 200 {
                     let client = Client::new();
-                    Ok(Self { url, token, client })
+                    let runtime = Arc::new(
+                        tokio::runtime::Builder::new_multi_thread()
+                            .enable_all()
+                            .build()?,
+                    );
+                    Ok(Self {
+                        url,
+                        token,
+                        client,
+                        runtime,
+                    })
                 } else {
                     Err(PyValueError::new_err(format!(
                         "Could not connect to the given server - response {}",
@@ -151,8 +171,7 @@ impl PyRaphtoryClient {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
         }
-
-        let data = self.query_with_json_variables(query, json_variables)?;
+        let data = py.allow_threads(|| self.query_with_json_variables(query, json_variables))?;
         translate_map_to_python(py, data)
     }
 
@@ -208,13 +227,11 @@ impl PyRaphtoryClient {
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
         let client = self.client.clone();
-        execute_async_task(move || async move {
-            let mut file =
-                File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
-
+        self.execute_async_task(move || async move {
+            let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map_err(|err| adapt_err_value(&err))?;
+            folder.create_zip(Cursor::new(&mut buffer))?;
+
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
