@@ -74,9 +74,7 @@ assert str(e) == "Edge(source=15, target=16, earliest_time=1, latest_time=1, lay
     Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])
     ```
 
-You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically
-creates the source and destination nodes at the same time if they do not currently exist in the graph. This is to keep
-the graph consistent and avoid `hanging edges`.
+You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically creates the source and destination nodes at the same time if they do not currently exist in the graph. This is to keep the graph consistent and avoid `hanging edges`. These nodes are empty other than the history of their edges, therefore if you apply filters to exclude all edges these empty nodes will also be excluded from your graph.
 
 ## Accepted ID types
 
