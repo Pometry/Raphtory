@@ -1,12 +1,10 @@
 # Property queries
 
-In Raphtory graphs, nodes and edges can all have `temporal` properties and `metadata`, consisting of a wide range of
-data types. This is also discussed in the [ingestion tutorial](../ingestion/2_direct-updates.md). Raphtory provides a
-unified API for accessing `constant` and `temporal` data via the `Properties` object available on all classes by calling
-`.properties`.
+In Raphtory graphs, nodes and edges can all have temporal `properties` and  constant `metadata`, consisting of a wide range of
+data types. This is also discussed in the [ingestion tutorial](../ingestion/2_direct-updates.md).
 
-This `Properties` class offers several functions to access values in different formats. To demonstrate this you can
-create a simple graph with one node that has a variety of different properties, both `temporal` and `constant`.
+This [`Properties`][raphtory.Properties] class offers several functions to access values in different formats. To demonstrate this you can
+create a simple graph with one node that has a variety of different properties.
 
 You can fetch a nodes property object and call the following functions to access data:
 
@@ -16,10 +14,9 @@ You can fetch a nodes property object and call the following functions to access
 - `get()`: Returns the latest value for a given key if the property exists or `None` if it does not.
 - `as_dict()`: Converts the `Properties` object into a standard python dictionary.
 
-In addition, the `Properties` class also has the`temporal` attribute which have all of the above functions, but are
-restricted to only the properties which fall within their respective categories. The semantics for `ConstantProperties`
-are exactly the same as described above. However, `TemporalProperties` allow you to do much more, as described in the
-next section.
+!!! info
+
+    Metadata can call the same functions as properties
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -62,7 +59,7 @@ print("Property keys:", properties.as_dict(), "\n")
 metadata = v.metadata
 temporal_properties = properties.temporal
 print("Metadata keys:", metadata.keys())
-print("Constant property keys:", temporal_properties.keys())
+print("Property keys:", temporal_properties.keys())
 ```
 
 ///
@@ -80,10 +77,10 @@ print("Constant property keys:", temporal_properties.keys())
     Constant property keys: ['count', 'greeting', 'encrypted', 'balance']
     ```
 
-## Temporal specific functions
+## Examining histories
 
-Temporal properties have a history, this means that you can do more than just look at the latest value. Calling `get()`,
-`values()` or `items()` on `TemporalProperties` will return a `TemporalProp` object which contains all of the value
+Properties have a history, this means that you can do more than just look at the latest value. Calling `get()`,
+`values()` or `items()` on `Properties` will return a `TemporalProp` object which contains all of the value
 history.
 
 `TemporalProp` has many helper functions to examine histories, this includes:
