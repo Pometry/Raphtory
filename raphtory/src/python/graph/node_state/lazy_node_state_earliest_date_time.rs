@@ -6,6 +6,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    impl_one_hop,
     prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -407,14 +408,6 @@ impl EarliestDateTimeView {
     }
 }
 
-// impl_timeops
-// #[pymethods]
-// impl EarliestDateTimeView {
-//     pub fn start(&self) -> Option<TimeIndexEntry> {
-//         self.inner.start().into()
-//     }
-// }
-
 impl From<LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>>
     for EarliestDateTimeView
 {
@@ -445,15 +438,7 @@ impl<'py> FromPyObject<'py>
     }
 }
 
-// impl_one_hop
-// impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
-// for LazyNodeState<'static, EarliestDateTime<G>, DynamicGraph, DynamicGraph>
-// {
-//     type Target = EarliestDateTimeView;
-//     type Output = Bound<'py, Self::Target>;
-//     type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
-//
-//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-//         self.into_dyn_hop().into_pyobject(py)
-//     }
-// }
+impl_one_hop!(
+    EarliestDateTimeView<EarliestDateTime>,
+    "EarliestDateTimeView"
+);

@@ -6,6 +6,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    impl_one_hop,
     prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -457,3 +458,5 @@ impl<'py> FromPyObject<'py>
 //         self.into_dyn_hop().into_pyobject(py)
 //     }
 // }
+
+impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");

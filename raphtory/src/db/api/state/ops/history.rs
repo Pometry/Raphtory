@@ -94,24 +94,24 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<'graph, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<'graph, G> {
-    type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<'graph, GH>;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
-        HistoryOp {
-            graph: filtered_graph,
-            _phantom: PhantomData,
-        }
-    }
-}
+// impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<'graph, G> {
+//     type Graph = G;
+//     type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<'graph, GH>;
+//
+//     fn graph(&self) -> &Self::Graph {
+//         &self.graph
+//     }
+//
+//     fn filtered<GH: GraphViewOps<'graph> + 'graph>(
+//         &self,
+//         filtered_graph: GH,
+//     ) -> Self::Filtered<GH> {
+//         HistoryOp {
+//             graph: filtered_graph,
+//             _phantom: PhantomData,
+//         }
+//     }
+// }
 
 #[derive(Debug, Copy, Clone)]
 pub struct EdgeHistoryCount<G> {
