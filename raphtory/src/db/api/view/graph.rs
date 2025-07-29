@@ -1490,7 +1490,7 @@ mod test_materialize {
     fn test_graph_properties() {
         let g = Graph::new();
         g.add_properties(1, [("test", "test")]).unwrap();
-        g.add_metadata([("test_constant", "test2")]).unwrap();
+        g.add_metadata([("test_metadata", "test2")]).unwrap();
 
         test_storage!(&g, |g| {
             let gm = g.materialize().unwrap();

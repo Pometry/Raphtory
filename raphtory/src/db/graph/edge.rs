@@ -333,7 +333,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         Ok(layer_id)
     }
 
-    /// Add constant properties for the edge
+    /// Add metadata for the edge
     ///
     /// # Arguments
     ///
@@ -756,7 +756,7 @@ mod test_edge {
             .add_metadata([("test_prop", "test_val"), ("other", "3")], None)
             .unwrap();
 
-        // FIXME: #18 constant prop for edges
+        // FIXME: #18 metadata prop for edges
         test_graph(&graph, |graph| {
             assert_eq!(
                 graph.edge(1, 2).unwrap().metadata().get("test_prop"),

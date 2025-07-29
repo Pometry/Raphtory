@@ -35,7 +35,7 @@ impl<'a, P: InternalPropertiesOps> Repr for Metadata<'a, P> {
     }
 }
 
-/// A view of constant properties of an entity
+/// A view of metadata of an entity
 #[pyclass(name = "Metadata", module = "raphtory", frozen)]
 pub struct PyMetadata {
     props: DynMetadata,

@@ -174,7 +174,7 @@ impl PyGraphView {
                     for (key, value) in metadata {
                         metadata_py.set_item(key, value)?;
                     }
-                    properties.set_item("constant", metadata_py)?;
+                    properties.set_item("metadata", metadata_py)?;
                     properties.set_item("temporal", v.properties().temporal().histories())?;
                 } else {
                     for (key, value) in v.metadata().as_map() {
@@ -225,7 +225,7 @@ impl PyGraphView {
                     for (key, value) in metadata {
                         metadata_py.set_item(key, value)?;
                     }
-                    properties.set_item("constant", metadata_py)?;
+                    properties.set_item("metadata", metadata_py)?;
                     let prop_hist = e.properties().temporal().histories();
                     let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
                     for (key, value) in prop_hist {
