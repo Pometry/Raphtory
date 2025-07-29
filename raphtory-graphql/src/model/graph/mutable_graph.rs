@@ -79,13 +79,11 @@ fn as_properties(
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
     /// Get the non-mutable graph
-
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.graph.clone())
     }
 
     /// Get mutable existing node
-
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
@@ -172,9 +170,11 @@ impl GqlMutableGraph {
                     .collect()
             })
             .await;
+
         for node in nodes {
             let _ = node?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
         }
+
         blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(true)
@@ -183,7 +183,6 @@ impl GqlMutableGraph {
     }
 
     /// Get a mutable existing edge
-
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
@@ -258,7 +257,6 @@ impl GqlMutableGraph {
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
-
     async fn delete_edge(
         &self,
         time: i64,
@@ -542,5 +540,180 @@ impl GqlMutableEdge {
         })
         .await
         .unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::app_config::AppConfig,
+        data::{data_tests::save_graphs_to_work_dir, Data},
+    };
+    use raphtory::{
+        db::api::view::MaterializedGraph,
+    };
+    use std::collections::HashMap;
+    use tempfile::tempdir;
+
+    fn create_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        graph.into()
+    }
+
+    async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir) {
+        let graph = create_test_graph();
+        let graphs = HashMap::from([("test_graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+
+        let config = AppConfig::default();
+        let data = Data::new(tmp_dir.path(), &config);
+
+        let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
+        let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
+
+        (mutable_graph, tmp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_simple() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![
+            NodeAddition {
+                name: "node1".to_string(),
+                node_type: Some("test_node_type".to_string()),
+                metadata: None,
+                updates: None,
+            },
+            NodeAddition {
+                name: "node2".to_string(),
+                node_type: Some("test_node_type".to_string()),
+                metadata: None,
+                updates: None,
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_with_properties() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![
+            NodeAddition {
+                name: "complex_node_1".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: Some(vec![
+                    GqlPropertyInput {
+                        key: "department".to_string(),
+                        value: Value::Str("Sales".to_string()),
+                    },
+                ]),
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 1,
+                        properties: Some(vec![
+                            GqlPropertyInput {
+                                key: "salary".to_string(),
+                                value: Value::F64(50000.0),
+                            },
+                        ]),
+                    },
+                    TemporalPropertyInput {
+                        time: 2,
+                        properties: Some(vec![
+                            GqlPropertyInput {
+                                key: "salary".to_string(),
+                                value: Value::F64(55000.0),
+                            },
+                        ]),
+                    },
+                ]),
+            },
+            NodeAddition {
+                name: "complex_node_2".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: Some(vec![
+                    GqlPropertyInput {
+                        key: "department".to_string(),
+                        value: Value::Str("Sales".to_string()),
+                    },
+                ]),
+                updates: None,
+            },
+            NodeAddition {
+                name: "complex_node_3".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 1,
+                        properties: Some(vec![
+                            GqlPropertyInput {
+                                key: "salary".to_string(),
+                                value: Value::F64(55000.0),
+                            },
+                        ]),
+                    },
+                ]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_empty_list() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![];
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_existing_node() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        // First, create a node
+        let node = mutable_graph.add_node(1, "existing_node".to_string(), None, None).await;
+        assert!(node.is_ok());
+
+        // Then, add updates to the same node
+        let nodes = vec![
+            NodeAddition {
+                name: "existing_node".to_string(),
+                node_type: None,
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 3,
+                        properties: Some(vec![
+                            GqlPropertyInput {
+                                key: "new_prop".to_string(),
+                                value: Value::Str("new_value".to_string()),
+                            },
+                        ]),
+                    },
+                ]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 }
