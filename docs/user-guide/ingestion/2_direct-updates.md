@@ -9,7 +9,7 @@ In the below example we are going to add node `10` at timestamp `1`.
 
 !!! info
 
-    If your data doesn't have any timestamps, you can just set a constant value like `1` for all additions into the graph.  
+    If your data doesn't have any timestamps, you can just set a constant value, such as `1`, for all additions into the graph.  
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -46,7 +46,7 @@ All graphs in raphtory are [directed](https://en.wikipedia.org/wiki/Directed_gra
 a `timestamp` (the same as a `node_add()`), the `source` node the edge starts from and the `destination` node the edge
 ends at.
 
-As an example of this below we are adding an edge to the graph from `15` to `16` at timestamp `1`.
+In the example below we add an edge to the graph from `15` to `16` at timestamp `1`.
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -74,7 +74,7 @@ assert str(e) == "Edge(source=15, target=16, earliest_time=1, latest_time=1, lay
     Edge(source=15, target=16, earliest_time=1, latest_time=1, layer(s)=[_default])
     ```
 
-You will notice in the output that the graph says that it has two nodes as well as the edge. Raphtory automatically
+You will notice in the output that the graph has two nodes as well as the edge. Raphtory automatically
 creates the source and destination nodes at the same time if they do not currently exist in the graph. This is to keep
 the graph consistent and avoid `hanging edges`.
 

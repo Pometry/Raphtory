@@ -138,12 +138,12 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
 
 ## Adding metadata via dataframes
 
-There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
-dataframes the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions.
-
-Below we break the ingestion into a four stage process, adding the metadata at the end. This example uses the
+In this example, we break the ingestion into a four stage process, adding the metadata at the end. We use the
 same two dataframes for brevity but in real instances these would probably be four different dataframes, one for each
 function call.
+
+There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
+dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example. 
 
 !!! warning
     Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.
