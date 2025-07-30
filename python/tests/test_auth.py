@@ -137,7 +137,7 @@ query {
 ADD_CONST_PROP = """
 query {
   updateGraph(path: "test") {
-    addConstantProperties(properties: [{key: "value", value: {str: "value"}}])
+    addMetadata(properties: [{key: "value", value: {str: "value"}}])
   }
 }
 """

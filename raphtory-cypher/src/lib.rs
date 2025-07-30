@@ -511,13 +511,13 @@ mod cypher {
         fn load_nodes(graph: &Graph) {
             for (id, name, age, city) in NODES.iter() {
                 let nv = graph.add_node(0, *id, NO_PROPS, None).unwrap();
-                nv.add_constant_properties(vec![
+                nv.add_metadata(vec![
                     ("name", Prop::str(name.as_ref())),
                     ("age", Prop::I64(*age)),
                 ])
                 .unwrap();
                 if let Some(city) = city {
-                    nv.add_constant_properties(vec![("city", Prop::str(city.as_ref()))])
+                    nv.add_metadata(vec![("city", Prop::str(city.as_ref()))])
                         .unwrap();
                 }
             }

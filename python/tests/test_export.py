@@ -29,16 +29,16 @@ def build_graph():
         dst="destination",
         properties=["data_size_MB"],
         layer_col="transaction_type",
-        constant_properties=["is_encrypted"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["is_encrypted"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     g.load_nodes_from_pandas(
         df=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
-        constant_properties=["server_name", "hardware_type"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["server_name", "hardware_type"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     return g
 
@@ -58,16 +58,16 @@ def build_graph_without_datetime_type():
         dst="destination",
         properties=["data_size_MB"],
         layer_col="transaction_type",
-        constant_properties=["is_encrypted"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["is_encrypted"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     g.load_nodes_from_pandas(
         df=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
-        constant_properties=["server_name", "hardware_type"],
-        shared_constant_properties={"datasource": "data/network_traffic_edges.csv"},
+        metadata=["server_name", "hardware_type"],
+        shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
     return g
 
@@ -238,7 +238,7 @@ def test_networkx_full_history():
         (
             "ServerA",
             {
-                "constant": {
+                "metadata": {
                     "datasource": "data/network_traffic_edges.csv",
                     "hardware_type": "Blade Server",
                     "server_name": "Alpha",
@@ -266,7 +266,7 @@ def test_networkx_full_history():
         (
             "ServerB",
             {
-                "constant": {
+                "metadata": {
                     "hardware_type": "Rack Server",
                     "datasource": "data/network_traffic_edges.csv",
                     "server_name": "Beta",
@@ -287,7 +287,7 @@ def test_networkx_full_history():
         (
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "hardware_type": "Blade Server",
                     "datasource": "data/network_traffic_edges.csv",
                     "server_name": "Charlie",
@@ -310,7 +310,7 @@ def test_networkx_full_history():
         (
             "ServerD",
             {
-                "constant": {
+                "metadata": {
                     "hardware_type": "Tower Server",
                     "datasource": "data/network_traffic_edges.csv",
                     "server_name": "Delta",
@@ -332,7 +332,7 @@ def test_networkx_full_history():
         (
             "ServerE",
             {
-                "constant": {
+                "metadata": {
                     "server_name": "Echo",
                     "hardware_type": "Rack Server",
                     "datasource": "data/network_traffic_edges.csv",
@@ -354,7 +354,7 @@ def test_networkx_full_history():
             "ServerA",
             "ServerB",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -367,7 +367,7 @@ def test_networkx_full_history():
             "ServerA",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": False,
                 },
@@ -380,7 +380,7 @@ def test_networkx_full_history():
             "ServerB",
             "ServerD",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -393,7 +393,7 @@ def test_networkx_full_history():
             "ServerC",
             "ServerA",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -406,7 +406,7 @@ def test_networkx_full_history():
             "ServerD",
             "ServerE",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -419,7 +419,7 @@ def test_networkx_full_history():
             "ServerD",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -441,7 +441,7 @@ def test_networkx_full_history():
             "ServerE",
             "ServerB",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -467,7 +467,7 @@ def test_networkx_exploded():
             "ServerA",
             "ServerB",
             {
-                "constant": {
+                "metadata": {
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": True,
                 },
@@ -480,7 +480,7 @@ def test_networkx_exploded():
             "ServerA",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -493,7 +493,7 @@ def test_networkx_exploded():
             "ServerB",
             "ServerD",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -506,7 +506,7 @@ def test_networkx_exploded():
             "ServerC",
             "ServerA",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -519,7 +519,7 @@ def test_networkx_exploded():
             "ServerD",
             "ServerE",
             {
-                "constant": {
+                "metadata": {
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": False,
                 },
@@ -532,7 +532,7 @@ def test_networkx_exploded():
             "ServerD",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -545,7 +545,7 @@ def test_networkx_exploded():
             "ServerD",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": True,
                 },
@@ -558,7 +558,7 @@ def test_networkx_exploded():
             "ServerD",
             "ServerC",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
@@ -571,7 +571,7 @@ def test_networkx_exploded():
             "ServerE",
             "ServerB",
             {
-                "constant": {
+                "metadata": {
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },

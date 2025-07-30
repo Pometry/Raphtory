@@ -81,7 +81,7 @@ def init_nodes_graph(graph):
     for time, label, props in nodes:
         graph.add_node(time, label, props)
 
-    constant_properties = {
+    metadata = {
         "N1": {"p1": 1},
         "N4": {"p1": 2},
         "N9": {"p1": 1},
@@ -93,8 +93,8 @@ def init_nodes_graph(graph):
         "N15": {"p1": 1},
     }
 
-    for label, props in constant_properties.items():
-        graph.node(label).add_constant_properties(props)
+    for label, props in metadata.items():
+        graph.node(label).add_metadata(props)
 
     edges = [
         (6, "N1", "N2", {"p1": 2}),
@@ -127,7 +127,7 @@ def init_nodes_graph(graph):
     for time, src, dst, props in edges:
         graph.add_edge(time, src, dst, props)
 
-    constant_properties = [
+    metadata = [
         ("N1", "N2", {"p1": 1}),
         ("N4", "N5", {"p1": 2}),
         ("N9", "N10", {"p1": 1}),
@@ -139,8 +139,8 @@ def init_nodes_graph(graph):
         ("N15", "N1", {"p1": 1}),
     ]
 
-    for src, dst, props in constant_properties:
-        graph.edge(src, dst).add_constant_properties(props)
+    for src, dst, props in metadata:
+        graph.edge(src, dst).add_metadata(props)
 
     return graph
 
@@ -155,18 +155,18 @@ def init_nodes_graph1(graph):
     for time, label, props in nodes:
         graph.add_node(time, label, props)
 
-    constant_properties = {
+    metadata = {
         "N1": {"p1": 1},
         "N2": {"p1": 1},
     }
 
-    for label, props in constant_properties.items():
-        graph.node(label).add_constant_properties(props)
+    for label, props in metadata.items():
+        graph.node(label).add_metadata(props)
 
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_nodes_graph2(graph):
     nodes = [
         (1, "N1", {"p1": 1}),
@@ -180,13 +180,13 @@ def init_nodes_graph2(graph):
     for time, label, props in nodes:
         graph.add_node(time, label, props)
 
-    constant_properties = {
+    metadata = {
         "N1": {"p2": 1},
         "N2": {"p1": 1},
     }
 
-    for label, props in constant_properties.items():
-        graph.node(label).add_constant_properties(props)
+    for label, props in metadata.items():
+        graph.node(label).add_metadata(props)
 
     return graph
 
@@ -223,7 +223,7 @@ def init_edges_graph(graph):
     for time, src, dst, props in edges:
         graph.add_edge(time, src, dst, props)
 
-    constant_properties = [
+    metadata = [
         ("N1", "N2", {"p1": 1}),
         ("N4", "N5", {"p1": 2}),
         ("N9", "N10", {"p1": 1}),
@@ -235,13 +235,13 @@ def init_edges_graph(graph):
         ("N15", "N1", {"p1": 1}),
     ]
 
-    for src, dst, props in constant_properties:
-        graph.edge(src, dst).add_constant_properties(props)
+    for src, dst, props in metadata:
+        graph.edge(src, dst).add_metadata(props)
 
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_edges_graph1(graph):
     edges = [
         (2, "N1", "N2", {"q1": 0}),
@@ -251,18 +251,18 @@ def init_edges_graph1(graph):
     for time, src, dst, props in edges:
         graph.add_edge(time, src, dst, props)
 
-    constant_properties = [
+    metadata = [
         ("N1", "N2", {"p1": 1}),
         ("N2", "N3", {"p1": 1}),
     ]
 
-    for src, dst, props in constant_properties:
-        graph.edge(src, dst).add_constant_properties(props)
+    for src, dst, props in metadata:
+        graph.edge(src, dst).add_metadata(props)
 
     return graph
 
 
-# For this graph there won't be any constant property index for property name "p1".
+# For this graph there won't be any metadata index for property name "p1".
 def init_edges_graph2(graph):
     edges = [
         (2, "N1", "N2", {"p1": 1}),
@@ -276,12 +276,12 @@ def init_edges_graph2(graph):
     for time, src, dst, props in edges:
         graph.add_edge(time, src, dst, props)
 
-    constant_properties = [
+    metadata = [
         ("N1", "N2", {"p2": 1}),
     ]
 
-    for src, dst, props in constant_properties:
-        graph.edge(src, dst).add_constant_properties(props)
+    for src, dst, props in metadata:
+        graph.edge(src, dst).add_metadata(props)
 
     return graph
 

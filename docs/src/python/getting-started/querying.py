@@ -2,7 +2,11 @@
 import pandas as pd
 
 edges_df = pd.read_csv(
-    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt",
+    sep="\t",
+    header=0,
+    usecols=[0, 1, 2, 3, 4],
+    parse_dates=[0],
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -110,6 +114,7 @@ e_reversed_history = [
     date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
 ]
 
+
 print(
     f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
 )
@@ -168,7 +173,7 @@ property_g.add_node(
     properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
 )
 # Add some constant properties
-v.add_constant_properties(
+v.add_metadata(
     properties={
         "inner data": {"name": "bob", "value list": [1, 2, 3]},
         "favourite greetings": ["hi", "hello", "howdy"],
@@ -182,11 +187,11 @@ print("Property tuples:", properties.items())
 print("Latest value of balance:", properties.get("balance"))
 print("Property keys:", properties.as_dict(), "\n")
 
-# Access the keys of the constant and temporal properties individually
-constant_properties = properties.constant
+# Access the keys of the metadata and temporal properties individually
+metadata = v.metadata
 temporal_properties = properties.temporal
-print("Constant property keys:", constant_properties.keys())
-print("Constant property keys:", temporal_properties.keys())
+print("metadata keys:", metadata.keys())
+print("Temporal property keys:", temporal_properties.keys())
 # --8<-- [end:properties]
 
 
@@ -351,7 +356,11 @@ import pandas as pd
 from raphtory import Graph
 
 edges_df = pd.read_csv(
-    "docs/data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "docs/data/OBS_data.txt",
+    sep="\t",
+    header=0,
+    usecols=[0, 1, 2, 3, 4],
+    parse_dates=[0],
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -459,7 +468,9 @@ print(
     f"Before the update the materialized graph had {materialized_graph.count_temporal_edges()} edge updates"
 )
 print("Adding new update to materialized_graph")
-materialized_graph.add_edge(1, "FELIPE", "LOME", properties={"Weight": 1}, layer="Grooming")
+materialized_graph.add_edge(
+    1, "FELIPE", "LOME", properties={"Weight": 1}, layer="Grooming"
+)
 print(
     f"After the update the view had {windowed_view.count_temporal_edges()} edge updates"
 )

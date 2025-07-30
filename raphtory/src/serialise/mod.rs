@@ -13,7 +13,9 @@ mod proto {
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::api::view::MaterializedGraph, errors::GraphError, prelude::GraphViewOps,
+    db::api::view::MaterializedGraph,
+    errors::GraphError,
+    prelude::{GraphViewOps, PropertiesOps},
     serialise::metadata::GraphMetadata,
 };
 pub use proto::Graph as ProtoGraph;
@@ -22,7 +24,7 @@ use raphtory_storage::disk::DiskGraphStorage;
 pub use serialise::{CacheOps, InternalStableDecode, StableDecode, StableEncode};
 use std::{
     fs::{self, File, OpenOptions},
-    io::{self, BufReader, ErrorKind, Read, Write},
+    io::{self, BufReader, ErrorKind, Read, Seek, Write},
     path::{Path, PathBuf},
 };
 use tracing::info;
@@ -189,11 +191,11 @@ impl GraphFolder {
     fn write_metadata<'graph>(&self, graph: &impl GraphViewOps<'graph>) -> Result<(), GraphError> {
         let node_count = graph.count_nodes();
         let edge_count = graph.count_edges();
-        let properties = graph.properties();
+        let properties = graph.metadata();
         let metadata = GraphMetadata {
             node_count,
             edge_count,
-            properties: properties.as_vec(),
+            metadata: properties.as_vec(),
         };
         if self.write_as_zip_format {
             let file = File::options()
@@ -231,6 +233,34 @@ impl GraphFolder {
     fn is_disk_graph(&self) -> bool {
         let path = self.get_graph_path();
         path.is_dir()
+    }
+
+    pub fn create_zip<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
+        let mut buffer = Vec::new();
+        if self.is_zip() {
+            let mut reader = File::open(&self.root_folder)?;
+            reader.read_to_end(&mut buffer)?;
+            writer.write_all(&buffer)?;
+        } else {
+            let mut zip = ZipWriter::new(writer);
+            let graph_file = self.get_graph_path();
+            {
+                // scope for file
+                let mut reader = File::open(&graph_file)?;
+                reader.read_to_end(&mut buffer)?;
+                zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
+                zip.write_all(&buffer)?;
+            }
+            {
+                // scope for file
+                buffer.clear();
+                let mut reader = File::open(self.get_meta_path())?;
+                reader.read_to_end(&mut buffer)?;
+                zip.start_file::<_, ()>(META_FILE_NAME, FileOptions::default())?;
+                zip.write_all(&buffer)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -293,7 +323,7 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                properties: vec![]
+                metadata: vec![]
             }
         );
     }
@@ -314,7 +344,7 @@ mod zip_tests {
             GraphMetadata {
                 node_count: 1,
                 edge_count: 0,
-                properties: vec![]
+                metadata: vec![]
             }
         );
     }

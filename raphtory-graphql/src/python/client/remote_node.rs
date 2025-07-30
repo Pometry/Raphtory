@@ -92,8 +92,8 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Add constant properties to a node in the remote graph.
-    /// This function is used to add properties to a node that remain constant and does not
+    /// Add metadata to a node in the remote graph.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
@@ -101,7 +101,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///     None:
-    pub fn add_constant_properties(
+    pub fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -110,7 +110,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  addConstantProperties(properties: {{ properties | safe }} )
+                  addMetadata(properties: {{ properties | safe }} )
                 }
               }
             }
@@ -127,8 +127,8 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Update constant properties of a node in the remote graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Update metadata of a node in the remote graph overwriting existing values.
+    /// This function is used to add properties to a node that does not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
@@ -136,7 +136,7 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///     None:
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -145,7 +145,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  updateConstantProperties(properties: {{ properties | safe }} )
+                  updateMetadata(properties: {{ properties | safe }} )
                 }
               }
             }

@@ -1,7 +1,7 @@
 import tempfile
 from datetime import datetime, timezone
 import pytest
-from dateutil import parser
+from utils import assert_has_metadata, assert_has_properties
 from raphtory.graphql import GraphServer, RaphtoryClient
 from numpy.testing import assert_equal as check_arr
 
@@ -52,15 +52,6 @@ def make_props2():
     }
 
 
-def helper_test_props(entity, props):
-    for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
-
-
 def test_add_updates():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
@@ -76,13 +67,13 @@ def test_add_updates():
         rg.edge("ben", "hamza").add_updates(6)
         g = client.receive_graph("path/to/event_graph")
         e = g.edge("ben", "hamza")
-        helper_test_props(e, props)
+        assert_has_properties(e, props)
         check_arr(e.properties.temporal.get("prop_float").history(), [2, 3])
         check_arr(e.layer("test").properties.temporal.get("prop_float").history(), [2])
         check_arr(e.history(), [1, 2, 3, 4, 5, 6])
 
 
-def test_add_constant_properties():
+def test_add_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -93,18 +84,18 @@ def test_add_constant_properties():
         edge = rg.add_edge(1, "ben", "hamza")
         rg.add_edge(1, "ben", "hamza", layer="test")
 
-        edge.add_constant_properties(props)
-        rg.edge("ben", "hamza").add_constant_properties(props2, layer="test")
+        edge.add_metadata(props)
+        rg.edge("ben", "hamza").add_metadata(props2, layer="test")
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.edge("ben", "hamza").layer("_default"), props)
-        helper_test_props(g.edge("ben", "hamza").layer("test"), props2)
+        assert_has_metadata(g.edge("ben", "hamza").layer("_default"), props)
+        assert_has_metadata(g.edge("ben", "hamza").layer("test"), props2)
 
         with pytest.raises(Exception) as excinfo:
-            rg.edge("ben", "hamza").add_constant_properties({"prop_float": 3.0})
-        assert "Attempted to change value of constant property" in str(excinfo.value)
+            rg.edge("ben", "hamza").add_metadata({"prop_float": 3.0})
+        assert "Attempted to change value of metadata" in str(excinfo.value)
 
 
-def test_update_constant_properties():
+def test_update_metadata():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
@@ -115,15 +106,15 @@ def test_update_constant_properties():
         edge = rg.add_edge(1, "ben", "hamza")
         rg.add_edge(1, "ben", "hamza", layer="test")
 
-        edge.update_constant_properties(props)
-        rg.edge("ben", "hamza").update_constant_properties(props2, layer="test")
+        edge.update_metadata(props)
+        rg.edge("ben", "hamza").update_metadata(props2, layer="test")
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.edge("ben", "hamza").layer("_default"), props)
-        helper_test_props(g.edge("ben", "hamza").layer("test"), props2)
+        assert_has_metadata(g.edge("ben", "hamza").layer("_default"), props)
+        assert_has_metadata(g.edge("ben", "hamza").layer("test"), props2)
 
-        edge.update_constant_properties(props2)
+        edge.update_metadata(props2)
         g = client.receive_graph("path/to/event_graph")
-        helper_test_props(g.edge("ben", "hamza").layer("_default"), props2)
+        assert_has_metadata(g.edge("ben", "hamza").layer("_default"), props2)
 
 
 def test_delete():

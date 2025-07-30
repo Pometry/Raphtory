@@ -7,13 +7,17 @@ use std::{
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-pub enum PropError {
-    #[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
-    PropertyTypeError {
-        name: String,
-        expected: PropType,
-        actual: PropType,
-    },
+#[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
+pub struct PropError {
+    pub(crate) name: String,
+    pub(crate) expected: PropType,
+    pub(crate) actual: PropType,
+}
+
+impl PropError {
+    pub fn with_name(self, name: String) -> PropError {
+        Self { name, ..self }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
@@ -248,7 +252,7 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
         {
             Ok(PropType::Decimal { scale: *l_scale })
         }
-        (_, _) => Err(PropError::PropertyTypeError {
+        (_, _) => Err(PropError {
             name: "unknown".to_string(),
             expected: l.clone(),
             actual: r.clone(),
