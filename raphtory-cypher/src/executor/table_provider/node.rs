@@ -41,7 +41,7 @@ impl NodeTableProvider {
         let graph = g.as_ref();
         let (num_partitions, chunk_size) = graph
             .node_properties()
-            .const_props
+            .metadata
             .as_ref()
             .map(|properties| {
                 let num_partitions = properties.props().num_chunks();
@@ -54,10 +54,7 @@ impl NodeTableProvider {
             });
 
         let name_dt = graph.global_ordering().data_type();
-        let schema = lift_arrow_schema(
-            name_dt.clone(),
-            graph.node_properties().const_props.as_ref(),
-        )?;
+        let schema = lift_arrow_schema(name_dt.clone(), graph.node_properties().metadata.as_ref())?;
 
         Ok(Self {
             graph: g,
@@ -141,15 +138,14 @@ async fn produce_record_batch(
     projection: Option<Arc<[usize]>>,
 ) -> Result<RecordBatch, DataFusionError> {
     let graph = g.as_ref();
-    let properties = graph
-        .node_properties()
-        .const_props
-        .as_ref()
-        .ok_or_else(|| DataFusionError::Execution("Failed to find node properties".to_string()))?;
+    let properties =
+        graph.node_properties().metadata.as_ref().ok_or_else(|| {
+            DataFusionError::Execution("Failed to find node properties".to_string())
+        })?;
 
-    let const_props = properties.props();
+    let metadata = properties.props();
 
-    let chunk = const_props.chunk(chunk_id);
+    let chunk = metadata.chunk(chunk_id);
 
     let start = chunk_id * chunk_size;
     let end = (chunk_id + 1) * chunk_size;

@@ -1,28 +1,25 @@
-mod base_time_semantics;
-mod event_semantics;
-pub mod filtered_edge;
-pub mod filtered_node;
-mod persistent_semantics;
-mod time_semantics;
-mod time_semantics_ops;
-mod window_time_semantics;
-
-mod history_filter;
-
-pub use history_filter::*;
-pub use time_semantics::TimeSemantics;
-pub use time_semantics_ops::*;
-
-use crate::db::api::view::{BoxedLDIter, MaterializedGraph};
-use enum_dispatch::enum_dispatch;
+use crate::db::api::view::BoxedLDIter;
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry},
     inherit::Base,
 };
 use std::ops::Range;
 
+mod base_time_semantics;
+mod event_semantics;
+pub mod filtered_edge;
+pub mod filtered_node;
+mod history_filter;
+mod persistent_semantics;
+mod time_semantics;
+mod time_semantics_ops;
+mod window_time_semantics;
+
+pub use history_filter::*;
+pub use time_semantics::TimeSemantics;
+pub use time_semantics_ops::*;
+
 /// Methods for defining time windowing semantics for a graph
-#[enum_dispatch]
 pub trait GraphTimeSemanticsOps {
     fn node_time_semantics(&self) -> TimeSemantics;
 

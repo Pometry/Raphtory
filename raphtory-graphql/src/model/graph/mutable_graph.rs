@@ -33,7 +33,7 @@ pub struct TemporalPropertyInput {
 pub struct NodeAddition {
     name: String,
     node_type: Option<String>,
-    constant_properties: Option<Vec<GqlPropertyInput>>,
+    metadata: Option<Vec<GqlPropertyInput>>,
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -42,7 +42,7 @@ pub struct EdgeAddition {
     src: String,
     dst: String,
     layer: Option<String>,
-    constant_properties: Option<Vec<GqlPropertyInput>>,
+    metadata: Option<Vec<GqlPropertyInput>>,
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -162,12 +162,10 @@ impl GqlMutableGraph {
                         if let Some(node_type) = node.node_type.as_str() {
                             self_clone.get_node_view(name)?.set_node_type(node_type)?;
                         }
-                        let constant_props = node.constant_properties.unwrap_or(vec![]);
-                        if !constant_props.is_empty() {
-                            let prop_iter = as_properties(constant_props)?;
-                            self_clone
-                                .get_node_view(name)?
-                                .add_constant_properties(prop_iter)?;
+                        let metadata = node.metadata.unwrap_or(vec![]);
+                        if !metadata.is_empty() {
+                            let prop_iter = as_properties(metadata)?;
+                            self_clone.get_node_view(name)?.add_metadata(prop_iter)?;
                         }
                         self_clone.get_node_view(name)
                     })
@@ -237,12 +235,12 @@ impl GqlMutableGraph {
                                 .graph
                                 .add_edge(prop.time, src, dst, prop_iter, layer)?;
                         }
-                        let constant_props = edge.constant_properties.unwrap_or(vec![]);
-                        if !constant_props.is_empty() {
-                            let prop_iter = as_properties(constant_props)?;
+                        let metadata = edge.metadata.unwrap_or(vec![]);
+                        if !metadata.is_empty() {
+                            let prop_iter = as_properties(metadata)?;
                             self_clone
                                 .get_edge_view(src.to_string(), dst.to_string())?
-                                .add_constant_properties(prop_iter, layer)?;
+                                .add_metadata(prop_iter, layer)?;
                         }
                         self_clone.get_edge_view(src.to_string(), dst.to_string())
                     })
@@ -299,32 +297,24 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add constant properties to graph (errors if the property already exists)
-    async fn add_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Add metadata to graph (errors if the property already exists)
+    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            self_clone
-                .graph
-                .add_constant_properties(as_properties(properties)?)?;
+            self_clone.graph.add_metadata(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
     }
 
-    /// Update constant properties of the graph (overwrites existing values)
-    async fn update_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Update metadata of the graph (overwrites existing values)
+    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
                 .graph
-                .update_constant_properties(as_properties(properties)?)?;
+                .update_metadata(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
@@ -377,16 +367,11 @@ impl GqlMutableNode {
         self.node.clone().into()
     }
 
-    /// Add constant properties to the node (errors if the property already exists)
-    async fn add_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Add metadata to the node (errors if the property already exists)
+    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
-            self_clone
-                .node
-                .add_constant_properties(as_properties(properties)?)?;
+            self_clone.node.add_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
             self_clone.node.graph.write_updates()?;
             Ok(true)
@@ -408,16 +393,13 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Update constant properties of the node (overwrites existing property values)
-    async fn update_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Update metadata of the node (overwrites existing property values)
+    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
             self_clone
                 .node
-                .update_constant_properties(as_properties(properties)?)?;
+                .update_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
             self_clone.node.graph.write_updates()?;
             Ok(true)
@@ -493,11 +475,11 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Add constant properties to the edge (errors if the value already exists)
+    /// Add metadata to the edge (errors if the value already exists)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
-    async fn add_constant_properties(
+    async fn add_metadata(
         &self,
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
@@ -506,7 +488,7 @@ impl GqlMutableEdge {
         spawn(async move {
             self_clone
                 .edge
-                .add_constant_properties(as_properties(properties)?, layer.as_str())?;
+                .add_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
             self_clone.edge.graph.write_updates()?;
             Ok(true)
@@ -515,11 +497,11 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Update constant properties of the edge (existing values are overwritten)
+    /// Update metadata of the edge (existing values are overwritten)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
-    async fn update_constant_properties(
+    async fn update_metadata(
         &self,
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
@@ -528,7 +510,7 @@ impl GqlMutableEdge {
         spawn(async move {
             self_clone
                 .edge
-                .update_constant_properties(as_properties(properties)?, layer.as_str())?;
+                .update_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
             self_clone.edge.graph.write_updates()?;
             Ok(true)

@@ -57,7 +57,7 @@ impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
     }
 
     fn prop(self, prop_id: usize) -> Option<Prop> {
-        self.node.constant_property(prop_id).cloned()
+        self.node.metadata(prop_id).cloned()
     }
 
     fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {

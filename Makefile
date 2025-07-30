@@ -104,7 +104,7 @@ build-python-rtd:
 	cd python && maturin build --profile=build-fast && pip install ../target/wheels/*.whl
 
 debug-python: activate-storage
-	cd python && maturin develop --features=storage --extras=dev
+	cd python && maturin develop --features=storage,extension-module --extras=dev
 
 ########
 # Docs #

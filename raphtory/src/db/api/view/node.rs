@@ -4,7 +4,7 @@ use crate::{
         storage::timeindex::AsTime,
     },
     db::api::{
-        properties::internal::PropertiesOps,
+        properties::internal::InternalPropertiesOps,
         state::{ops, NodeOp},
         view::{internal::OneHopFilter, node_edges, reset_filter::ResetFilter, TimeOps},
     },
@@ -23,7 +23,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         Op: NodeOp + 'graph,
         Op::Output: 'graph;
 
-    type PropType: PropertiesOps + Clone + 'graph;
+    type PropType: InternalPropertiesOps + Clone + 'graph;
     type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
@@ -106,6 +106,9 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ///
     /// A view with the names of the properties as keys and the property values as values.
     fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>>;
+
+    /// Get a view of the metadata of this node.
+    fn metadata(&self) -> Self::ValueType<ops::GetMetadata<'graph, Self::Graph>>;
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
@@ -274,6 +277,13 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         let op = ops::GetProperties::new(self.graph().clone());
         self.map(op)
     }
+
+    #[inline]
+    fn metadata(&self) -> Self::ValueType<ops::GetMetadata<'graph, Self::Graph>> {
+        let op = ops::GetMetadata::new(self.graph().clone());
+        self.map(op)
+    }
+
     #[inline]
     fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {

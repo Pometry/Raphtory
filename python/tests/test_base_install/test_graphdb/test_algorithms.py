@@ -525,6 +525,46 @@ def test_label_propagation_algorithm():
         assert group in result
 
 
+def test_k_core():
+    graph = Graph()
+
+    edges = [
+        (1, 2, 1),
+        (1, 3, 2),
+        (1, 4, 3),
+        (3, 1, 4),
+        (3, 4, 5),
+        (3, 5, 6),
+        (4, 5, 7),
+        (5, 6, 8),
+        (5, 8, 9),
+        (7, 5, 10),
+        (8, 5, 11),
+        (1, 9, 12),
+        (9, 1, 13),
+        (6, 3, 14),
+        (4, 8, 15),
+        (8, 3, 16),
+        (5, 10, 17),
+        (10, 5, 18),
+        (10, 8, 19),
+        (1, 11, 20),
+        (11, 1, 21),
+        (9, 11, 22),
+        (11, 9, 23),
+    ]
+
+    for src, dst, ts in edges:
+        graph.add_edge(ts, src, dst)
+
+    result = algorithms.k_core(graph, 2, 100)
+    result = sorted([node.id for node in result])
+    result = [str(n_id) for n_id in result]
+    actual = ["1", "3", "4", "5", "6", "8", "9", "10", "11"]
+
+    assert result == actual
+
+
 def test_temporal_SEIR():
     g = Graph()
     g.add_edge(1, 1, 2)

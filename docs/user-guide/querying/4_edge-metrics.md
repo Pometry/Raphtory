@@ -8,7 +8,8 @@ In the code below we create the two edge objects by requesting them from the gra
 
 Following this we access the history to get the earliest and latest update times. This update history consists all interactions across all layers.
 
-!!!info 
+!!!info
+
     Note that we call `e.src.name` because `src` and `dst` return a node object, instead of just an id or name.
 
 /// tab | :fontawesome-brands-python: Python
@@ -82,6 +83,7 @@ Raphtory offers you three different ways to split an edge by layer, depending on
 In the code below you can see an example of each of these functions. We first call `explode_layers()`, to see which layer each edge object represents and output its update history. Next we fully `explode()` the edge and see each update as an individual object. Thirdly we use the `layer()` function to look at only the `Touching` and `Carrying` layers and chain this with a call to `explode()` to see the separate updates. 
 
 !!! info
+
     Within the examples and in the API documentation you will see singular and plural versions what appear to be the same function. For example `.layer_names` and `.layer_name`.
     
     Singular functions such as `.layer_name` or `.time` can be called on exploded edges and plural functions such as `.layer_names` and `.history()` can be called on standard edges.

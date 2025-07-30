@@ -23,7 +23,7 @@ use crate::{
         api::view::IntoDynBoxed,
         graph::{edge::EdgeView, edges::Edges, node::NodeView},
     },
-    prelude::{EdgeViewOps, GraphViewOps, Prop, PropUnwrap},
+    prelude::*,
 };
 
 #[cfg(feature = "python")]

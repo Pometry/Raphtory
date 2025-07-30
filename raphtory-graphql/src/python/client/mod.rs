@@ -68,14 +68,14 @@ impl PyUpdate {
 /// Arguments:
 ///     name (GID): the id of the node
 ///     node_type (str, optional): the node type
-///     constant_properties (PropInput, optional): the constant properties
+///     metadata (PropInput, optional): the metadata
 ///     updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
     name: GID,
     node_type: Option<String>,
-    constant_properties: Option<HashMap<String, Prop>>,
+    metadata: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
 }
 
@@ -88,7 +88,7 @@ impl Serialize for PyNodeAddition {
         if self.node_type.is_some() {
             count += 1;
         }
-        if self.constant_properties.is_some() {
+        if self.metadata.is_some() {
             count += 1;
         }
         if self.updates.is_some() {
@@ -102,8 +102,8 @@ impl Serialize for PyNodeAddition {
             state.serialize_field("node_type", node_type)?;
         }
 
-        if let Some(ref constant_properties) = self.constant_properties {
-            let properties_list: Vec<serde_json::Value> = constant_properties
+        if let Some(ref metadata) = self.metadata {
+            let properties_list: Vec<serde_json::Value> = metadata
                 .iter()
                 .map(|(key, value)| {
                     json!({
@@ -112,7 +112,7 @@ impl Serialize for PyNodeAddition {
                     })
                 })
                 .collect();
-            state.serialize_field("constant_properties", &properties_list)?;
+            state.serialize_field("metadata", &properties_list)?;
         }
         if let Some(updates) = &self.updates {
             state.serialize_field("updates", updates)?;
@@ -124,17 +124,17 @@ impl Serialize for PyNodeAddition {
 #[pymethods]
 impl PyNodeAddition {
     #[new]
-    #[pyo3(signature = (name, node_type=None, constant_properties=None, updates=None))]
+    #[pyo3(signature = (name, node_type=None, metadata=None, updates=None))]
     pub(crate) fn new(
         name: GID,
         node_type: Option<String>,
-        constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<HashMap<String, Prop>>,
         updates: Option<Vec<PyUpdate>>,
     ) -> Self {
         Self {
             name,
             node_type,
-            constant_properties,
+            metadata,
             updates,
         }
     }
@@ -146,7 +146,7 @@ impl PyNodeAddition {
 ///     src (GID): the id of the source node
 ///     dst (GID): the id of the destination node
 ///     layer (str, optional): the layer for the update
-///     constant_properties (PropInput, optional): the constant properties for the edge
+///     metadata (PropInput, optional): the metadata for the edge
 ///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
@@ -154,7 +154,7 @@ pub struct PyEdgeAddition {
     src: GID,
     dst: GID,
     layer: Option<String>,
-    constant_properties: Option<HashMap<String, Prop>>,
+    metadata: Option<HashMap<String, Prop>>,
     updates: Option<Vec<PyUpdate>>,
 }
 
@@ -167,7 +167,7 @@ impl Serialize for PyEdgeAddition {
         if self.layer.is_some() {
             count += 1;
         }
-        if self.constant_properties.is_some() {
+        if self.metadata.is_some() {
             count += 1;
         }
         if self.updates.is_some() {
@@ -182,8 +182,8 @@ impl Serialize for PyEdgeAddition {
             state.serialize_field("layer", layer)?;
         }
 
-        if let Some(ref constant_properties) = self.constant_properties {
-            let properties_list: Vec<serde_json::Value> = constant_properties
+        if let Some(ref metadata) = self.metadata {
+            let properties_list: Vec<serde_json::Value> = metadata
                 .iter()
                 .map(|(key, value)| {
                     json!({
@@ -192,7 +192,7 @@ impl Serialize for PyEdgeAddition {
                     })
                 })
                 .collect();
-            state.serialize_field("constant_properties", &properties_list)?;
+            state.serialize_field("metadata", &properties_list)?;
         }
         if let Some(updates) = &self.updates {
             state.serialize_field("updates", updates)?;
@@ -204,19 +204,19 @@ impl Serialize for PyEdgeAddition {
 #[pymethods]
 impl PyEdgeAddition {
     #[new]
-    #[pyo3(signature = (src, dst, layer=None, constant_properties=None, updates=None))]
+    #[pyo3(signature = (src, dst, layer=None, metadata=None, updates=None))]
     pub(crate) fn new(
         src: GID,
         dst: GID,
         layer: Option<String>,
-        constant_properties: Option<HashMap<String, Prop>>,
+        metadata: Option<HashMap<String, Prop>>,
         updates: Option<Vec<PyUpdate>>,
     ) -> Self {
         Self {
             src,
             dst,
             layer,
-            constant_properties,
+            metadata,
             updates,
         }
     }
@@ -325,41 +325,44 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+/// Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_TEMPORAL`.
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
 pub enum PyAllPropertySpec {
-    /// Include all properties (both constant and temporal).
+    /// Include all properties (both metadata and temporal).
     #[serde(rename = "ALL")]
     All,
-    /// Include only constant properties.
-    #[serde(rename = "ALL_CONSTANT")]
-    AllConstant,
+    /// Include only metadata.
+    #[serde(rename = "ALL_METADATA")]
+    AllMetadata,
     /// Include only temporal properties.
-    #[serde(rename = "ALL_TEMPORAL")]
-    AllTemporal,
+    #[serde(rename = "ALL_PROPERTIES")]
+    AllProperties,
 }
 
-/// Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+/// Create a `SomePropertySpec` by explicitly listing metadata and/or temporal property names.
 ///
 /// Arguments:
-///     constant (list[str]): Constant property names. Defaults to [].
+///     metadata (list[str]): Metadata property names. Defaults to [].
 ///     temporal (list[str]): Temporal property names. Defaults to [].
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
-    /// Constant property names to include in the index.
-    pub constant: Vec<String>,
+    /// Metadata property names to include in the index.
+    pub metadata: Vec<String>,
     /// Temporal property names to include in the index.
-    pub temporal: Vec<String>,
+    pub properties: Vec<String>,
 }
 
 #[pymethods]
 impl PySomePropertySpec {
     #[new]
-    #[pyo3(signature = (constant = vec![], temporal = vec![]))]
-    fn new(constant: Vec<String>, temporal: Vec<String>) -> Self {
-        Self { constant, temporal }
+    #[pyo3(signature = (metadata = vec![], properties = vec![]))]
+    fn new(metadata: Vec<String>, properties: Vec<String>) -> Self {
+        Self {
+            metadata,
+            properties,
+        }
     }
 }
 

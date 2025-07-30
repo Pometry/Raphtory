@@ -143,8 +143,6 @@ impl InheritListOps for PersistentGraph {}
 
 impl InheritCoreGraphOps for PersistentGraph {}
 
-impl HasDeletionOps for PersistentGraph {}
-
 impl InheritPropertiesOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}
@@ -686,7 +684,7 @@ mod test_deletions {
         .unwrap();
         g.edge(0, 0)
             .unwrap()
-            .add_constant_properties([("other", "b")], None)
+            .add_metadata([("other", "b")], None)
             .unwrap();
         let gw = g.window(-7549523977641994620, -995047120251067629);
         assert_persistent_materialize_graph_equal(&gw, &gw.materialize().unwrap())
@@ -704,11 +702,11 @@ mod test_deletions {
     }
 
     #[test]
-    fn test_materialize_constant_edge_props() {
+    fn test_materialize_edge_metadata() {
         let g = PersistentGraph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        e.add_constant_properties([("test", "test")], None).unwrap();
+        e.add_metadata([("test", "test")], None).unwrap();
         g.delete_edge(1, 1, 2, None).unwrap();
 
         let gw = g.after(1);
@@ -717,39 +715,27 @@ mod test_deletions {
     }
 
     #[test]
-    fn test_constant_properties_multiple_layers() {
+    fn test_metadata_multiple_layers() {
         let g = PersistentGraph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        e.add_constant_properties([("test", "test")], None).unwrap();
+        e.add_metadata([("test", "test")], None).unwrap();
         g.delete_edge(1, 1, 2, None).unwrap();
         assert_eq!(
-            g.edge(1, 2)
-                .unwrap()
-                .properties()
-                .constant()
-                .iter()
-                .collect_vec(),
+            g.edge(1, 2).unwrap().metadata().as_vec(),
             [("test".into(), Prop::map([("_default", "test")]))]
         );
         let gw = g.after(1);
         assert!(gw
             .edge(1, 2)
             .unwrap()
-            .properties()
-            .constant()
-            .iter()
+            .metadata()
+            .iter_filtered()
             .next()
             .is_none());
         let g_before = g.before(1);
         assert_eq!(
-            g_before
-                .edge(1, 2)
-                .unwrap()
-                .properties()
-                .constant()
-                .iter()
-                .collect_vec(),
+            g_before.edge(1, 2).unwrap().metadata().as_vec(),
             [("test".into(), Prop::map([("_default", "test")]))]
         );
     }
@@ -1623,7 +1609,7 @@ mod test_node_history_filter_persistent_graph {
         let g = PersistentGraph::new();
         let g = init_graph(g);
 
-        let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
 
         let node_id = g.node("N1").unwrap().node;
         let bool = g.is_node_prop_update_latest(prop_id, node_id, TimeIndexEntry::end(7));
@@ -1669,7 +1655,7 @@ mod test_node_history_filter_persistent_graph {
         let g = PersistentGraph::new();
         let g = init_graph(g);
 
-        let prop_id = g.node_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
         let w = 6..9;
 
         let node_id = g.node("N1").unwrap().node;
@@ -1813,7 +1799,7 @@ mod test_edge_history_filter_persistent_graph {
         let g = PersistentGraph::new();
         let g = init_graph(g);
 
-        let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
 
         let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
         let bool = g.is_edge_prop_update_latest(
@@ -1924,7 +1910,7 @@ mod test_edge_history_filter_persistent_graph {
         let g = PersistentGraph::new();
         let g = init_graph(g);
 
-        let prop_id = g.edge_meta().temporal_prop_meta().get_id("p1").unwrap();
+        let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
         let w = 6..9;
 
         let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
