@@ -799,6 +799,20 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def add_metadata(self, metadata: PropInput) -> None:
+        """
+        Adds static properties to the graph.
+
+        Arguments:
+            metadata (PropInput): The static properties of the graph.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def add_node(
         self,
         timestamp: TimeInput,
@@ -5811,12 +5825,7 @@ class Properties(object):
         """Get a view of the temporal properties only."""
 
     def values(self):
-        """
-        Get the values of the properties
-
-        If a property exists as both temporal and static, temporal properties take priority with
-        fallback to the static property if the temporal value does not exist.
-        """
+        """Get the values of the properties"""
 
 class Metadata(object):
     """A view of constant properties of an entity"""

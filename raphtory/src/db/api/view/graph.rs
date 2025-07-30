@@ -1,5 +1,5 @@
 #[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_nodes};
+use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes};
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -28,7 +28,6 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    search::fallback_filter_exploded_edges,
 };
 use ahash::HashSet;
 use chrono::{DateTime, Utc};
