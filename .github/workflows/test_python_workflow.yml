@@ -73,7 +73,7 @@ jobs:
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
-          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
+          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql
       - name: Update docs from graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
