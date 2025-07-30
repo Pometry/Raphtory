@@ -4,7 +4,7 @@
 
 Before reading this topic, please ensure you are familiar with:
 
-- [Ingesting data](../ingestion/1_creating-a-graph.md)
+- [Ingesting data](../ingestion/1_intro.md)
 
 ## Saving your Raphtory graph into a directory
 

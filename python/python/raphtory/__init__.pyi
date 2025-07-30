@@ -1213,7 +1213,7 @@ class Graph(GraphView):
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -1246,7 +1246,7 @@ class Graph(GraphView):
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -1283,7 +1283,7 @@ class Graph(GraphView):
         Arguments:
             df (DataFrame): The Pandas DataFrame containing node information.
             id(str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
@@ -1310,7 +1310,7 @@ class Graph(GraphView):
         Arguments:
             parquet_path (str): Parquet file or directory of Parquet files path containing node information.
             id(str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
@@ -1340,7 +1340,7 @@ class Graph(GraphView):
             df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -1371,7 +1371,7 @@ class Graph(GraphView):
             parquet_path (str): Parquet file or directory of Parquet files containing the nodes
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -1869,7 +1869,7 @@ class PersistentGraph(GraphView):
             time (str): The column name for the update timestamps.
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -1896,7 +1896,7 @@ class PersistentGraph(GraphView):
             src (str): The column name for the source node ids.
             dst (str): The column name for the destination node ids.
             time (str): The column name for the update timestamps.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -1987,7 +1987,7 @@ class PersistentGraph(GraphView):
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -2020,7 +2020,7 @@ class PersistentGraph(GraphView):
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A constant value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
+            layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
             layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
 
         Returns:
@@ -2057,7 +2057,7 @@ class PersistentGraph(GraphView):
         Arguments:
             df (DataFrame): The Pandas DataFrame containing node information.
             id(str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
@@ -2084,7 +2084,7 @@ class PersistentGraph(GraphView):
         Arguments:
             parquet_path (str): Parquet file or directory of Parquet files path containing node information.
             id(str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
@@ -2114,7 +2114,7 @@ class PersistentGraph(GraphView):
             df (DataFrame): The Pandas DataFrame containing the nodes.
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -2145,7 +2145,7 @@ class PersistentGraph(GraphView):
             parquet_path (str): Parquet file or directory of Parquet files containing the nodes
             time (str): The column name for the timestamps.
             id (str): The column name for the node IDs.
-            node_type (str, optional): A constant value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
+            node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
             node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
@@ -2577,7 +2577,7 @@ class Node(object):
     @property
     def metadata(self) -> Metadata:
         """
-        The metadata (constant properties) of the node
+        The metadata of the node
 
         Returns:
             Metadata:
@@ -4264,7 +4264,7 @@ class MutableNode(Node):
     def add_metadata(self, metadata: PropInput):
         """
         Add metadata to a node in the graph.
-        This function is used to add properties to a node that remain constant and do not
+        This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
@@ -4308,7 +4308,7 @@ class MutableNode(Node):
     def update_metadata(self, metadata: PropInput):
         """
         Update metadata of a node in the graph overwriting existing values.
-        This function is used to add properties to a node that remain constant and do not
+        This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
@@ -4657,7 +4657,7 @@ class Edge(object):
     @property
     def metadata(self) -> Metadata:
         """
-        Gets the metadata (constant properties) of an edge
+        Gets the metadata of an edge
 
         Returns:
             Metadata:
@@ -5554,7 +5554,7 @@ class NestedEdges(object):
 
     @property
     def metadata(self):
-        """Get a view of the constant properties (meta-data) only."""
+        """Get a view of the metadata only."""
 
     @property
     def nbr(self):
@@ -5701,7 +5701,7 @@ class MutableEdge(Edge):
     def add_metadata(self, metadata: PropInput, layer: Optional[str] = None):
         """
         Add metadata to an edge in the graph.
-        This function is used to add properties to an edge that remain constant and do not
+        This function is used to add properties to an edge that do not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
@@ -5745,7 +5745,7 @@ class MutableEdge(Edge):
     def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
         """
         Update metadata of an edge in the graph overwriting existing values.
-        This function is used to add properties to an edge that remains constant and does not
+        This function is used to add properties to an edge that does not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
@@ -5814,7 +5814,7 @@ class Properties(object):
         """Get the values of the properties"""
 
 class Metadata(object):
-    """A view of constant properties of an entity"""
+    """A view of metadata of an entity"""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
@@ -6011,30 +6011,20 @@ class PropertiesView(object):
         """Convert properties view to a dict"""
 
     def get(self, key):
-        """
-        Get property value.
-
-        First searches temporal properties and returns latest value if it exists.
-        If not, it falls back to constant properties.
-        """
+        """Get property value."""
 
     def items(self):
         """Get a list of key-value pairs"""
 
     def keys(self):
-        """Get the names for all properties (includes temporal and constant properties)"""
+        """Get the names for all properties"""
 
     @property
     def temporal(self):
         """Get a view of the temporal properties only."""
 
     def values(self):
-        """
-        Get the values of the properties
-
-        If a property exists as both temporal and constant, temporal properties take priority with
-        fallback to the constant property if the temporal value does not exist.
-        """
+        """Get the values of the properties"""
 
 class TemporalProp(object):
     """A view of a temporal property"""

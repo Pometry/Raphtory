@@ -96,7 +96,7 @@ def test_add_nodes():
         )
         # Start with just updates
         node_updates.append(RemoteNodeAddition("lucas", updates=[RemoteUpdate(1)]))
-        # add constant properties
+        # add metadata
         lucas_props = make_props()
         node_updates.append(RemoteNodeAddition("lucas", metadata=lucas_props))
         # add node_type
@@ -159,7 +159,7 @@ def test_add_edges():
         edge_updates.append(
             RemoteEdgeAddition("lucas", "hamza", updates=[RemoteUpdate(1)])
         )
-        # add constant properties
+        # add metadata
         lucas_props = make_props()
         edge_updates.append(RemoteEdgeAddition("lucas", "hamza", metadata=lucas_props))
         rg.add_edges(edge_updates)

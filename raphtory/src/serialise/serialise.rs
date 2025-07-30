@@ -1006,7 +1006,7 @@ mod proto_test {
             .unwrap();
 
         n1.update_metadata([("name", Prop::Str("Bob".into()))])
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
 
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1072,7 +1072,7 @@ mod proto_test {
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         e1.update_metadata([("friends", true)], None)
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1156,7 +1156,7 @@ mod proto_test {
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1183,7 +1183,7 @@ mod proto_test {
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1205,7 +1205,7 @@ mod proto_test {
 
         let g1 = Graph::new();
         g1.add_metadata(props.clone())
-            .expect("Failed to add constant properties");
+            .expect("Failed to add metadata");
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
@@ -1227,7 +1227,7 @@ mod proto_test {
         let g1 = Graph::new();
         for t in 0..props.len() {
             g1.add_properties(t as i64, props[t..t + 1].to_vec())
-                .expect("Failed to add constant properties");
+                .expect("Failed to add metadata");
         }
 
         let tempdir = TempDir::new().unwrap();
@@ -1342,22 +1342,22 @@ mod proto_test {
 
         for t in 0..props.len() {
             g.add_properties(t as i64, props[t..t + 1].to_vec())
-                .expect("Failed to add constant properties");
+                .expect("Failed to add metadata");
         }
         g.write_updates().unwrap();
 
         g.add_metadata(props.clone())
-            .expect("Failed to add constant properties");
+            .expect("Failed to add metadata");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);
@@ -1389,22 +1389,22 @@ mod proto_test {
 
         for t in 0..props.len() {
             g.add_properties(t as i64, props[t..t + 1].to_vec())
-                .expect("Failed to add constant properties");
+                .expect("Failed to add metadata");
         }
         g.write_updates().unwrap();
 
         g.add_metadata(props.clone())
-            .expect("Failed to add constant properties");
+            .expect("Failed to add metadata");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);

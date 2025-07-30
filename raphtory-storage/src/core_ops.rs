@@ -229,14 +229,14 @@ pub trait CoreGraphOps: Send + Sync {
         core_node_entry.prop(id)
     }
 
-    /// Gets the keys of constant properties of a given node
+    /// Gets the keys of metadata of a given node
     ///
     /// # Arguments
     ///
     /// * `v` - A reference to the node for which the property is being queried.
     ///
     /// # Returns
-    /// The keys of the constant properties.
+    /// The keys of the metadata.
     fn node_metadata_ids(&self, v: VID) -> BoxedLIter<usize> {
         let core_node_entry = self.core_node(v);
         core_node_entry.metadata_ids()

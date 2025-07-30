@@ -247,9 +247,6 @@ py_eq!(PropertiesView, PyPropsListCmp);
 #[pymethods]
 impl PropertiesView {
     /// Get property value.
-    ///
-    /// First searches temporal properties and returns latest value if it exists.
-    /// If not, it falls back to constant properties.
     pub fn get(&self, key: &str) -> Option<PyPropValueList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -275,7 +272,7 @@ impl PropertiesView {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties (includes temporal and constant properties)
+    /// Get the names for all properties
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .next()
@@ -284,9 +281,6 @@ impl PropertiesView {
     }
 
     /// Get the values of the properties
-    ///
-    /// If a property exists as both temporal and constant, temporal properties take priority with
-    /// fallback to the constant property if the temporal value does not exist.
     pub fn values(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         let keys = Arc::new(self.keys());
@@ -383,9 +377,6 @@ impl From<&PyNestedPropsIterable> for PyMetadataListListCmp {
 #[pymethods]
 impl PyNestedPropsIterable {
     /// Get property value.
-    ///
-    /// First searches temporal properties and returns latest value if it exists.
-    /// If not, it falls back to constant properties.
     pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -413,7 +404,7 @@ impl PyNestedPropsIterable {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties (includes temporal and constant properties)
+    /// Get the names for all properties
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .filter_map(|mut it| it.next())
@@ -427,9 +418,6 @@ impl PyNestedPropsIterable {
     }
 
     /// Get the values of the properties
-    ///
-    /// If a property exists as both temporal and constant, temporal properties take priority with
-    /// fallback to the constant property if the temporal value does not exist.
     pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()

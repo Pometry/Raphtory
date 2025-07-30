@@ -92,8 +92,8 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Add constant properties to a node in the remote graph.
-    /// This function is used to add properties to a node that remain constant and does not
+    /// Add metadata to a node in the remote graph.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
@@ -127,8 +127,8 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Update constant properties of a node in the remote graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Update metadata of a node in the remote graph overwriting existing values.
+    /// This function is used to add properties to a node that does not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
