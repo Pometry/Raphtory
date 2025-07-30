@@ -1509,9 +1509,6 @@ mod db_tests {
     }
 
     #[test]
-    #[ignore]
-    // TODO: Revisit this test after metadata handling is finalised.
-    //       Refer to the `test_metadata_props` test for context.
     fn metadata() {
         let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
@@ -1558,14 +1555,17 @@ mod db_tests {
         // cannot change property type
         assert!(v22.add_metadata(vec![("b", Prop::U64(22))]).is_err());
 
-        assert_eq!(
-            v11.metadata().keys().collect::<Vec<_>>(),
-            vec!["a", "b", "c"]
-        );
-        assert!(v22.metadata().keys().next().is_none());
-        assert!(v33.metadata().keys().next().is_none());
-        assert_eq!(v44.metadata().keys().collect::<Vec<_>>(), vec!["e"]);
-        assert_eq!(v55.metadata().keys().collect::<Vec<_>>(), vec!["f"]);
+        // TODO: Revisit this test after metadata handling is finalised.
+        //       Refer to the `test_metadata_props` test for context.
+        // assert_eq!(
+        //     v11.metadata().keys().collect::<Vec<_>>(),
+        //     vec!["a", "b", "c"]
+        // );
+        // assert!(v22.metadata().keys().next().is_none());
+        // assert!(v33.metadata().keys().next().is_none());
+        // assert_eq!(v44.metadata().keys().collect::<Vec<_>>(), vec!["e"]);
+        // assert_eq!(v55.metadata().keys().collect::<Vec<_>>(), vec!["f"]);
+
         assert_eq!(
             edge1111.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"] // all edges get all ids anyhow

@@ -700,9 +700,6 @@ mod proto_test {
     use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
-    #[ignore]
-    // TODO: Revisit this test after metadata handling is finalised.
-    //       Refer to the `test_metadata_props` test for context.
     fn prev_proto_str() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -722,13 +719,15 @@ mod proto_test {
             vec![("a".into(), Some("a".into())), ("a".into(), None)]
         );
 
-        let nodes_metadata = graph
-            .nodes()
-            .metadata()
-            .into_iter()
-            .flat_map(|(_, props)| props.into_iter())
-            .collect::<Vec<_>>();
-        assert_eq!(nodes_metadata, vec![("z".into(), Some("a".into())),]);
+        // TODO: Revisit this test after metadata handling is finalised.
+        //       Refer to the `test_metadata_props` test for context.
+        // let nodes_metadata = graph
+        //     .nodes()
+        //     .metadata()
+        //     .into_iter()
+        //     .flat_map(|(_, props)| props.into_iter())
+        //     .collect::<Vec<_>>();
+        // assert_eq!(nodes_metadata, vec![("z".into(), Some("a".into())),]);
     }
     #[test]
     fn can_read_previous_proto() {
