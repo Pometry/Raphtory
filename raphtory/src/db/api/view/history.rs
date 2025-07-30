@@ -155,6 +155,28 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
 
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialOrd<L> for History<'b, T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    TimeIndexEntry: PartialOrd<I>,
+{
+    fn partial_cmp(&self, other: &L) -> Option<std::cmp::Ordering> {
+        self.iter().partial_cmp(other.into_iter().copied())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> PartialOrd for History<'a, T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.iter().partial_cmp(other.iter())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> Ord for History<'a, T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.iter().cmp(other.iter())
+    }
+}
+
 impl<'a, T: InternalHistoryOps + 'a> std::hash::Hash for History<'a, T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         for item in self.iter() {

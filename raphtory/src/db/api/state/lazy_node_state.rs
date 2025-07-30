@@ -24,6 +24,7 @@ use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     fmt::{Debug, Formatter},
+    marker::PhantomData,
 };
 
 #[derive(Clone)]
@@ -122,6 +123,36 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
         LazyNodeState {
             nodes: self.nodes.clone(),
             op: self.op.filtered(filtered_graph),
+        }
+    }
+}
+
+impl<'graph, OpG: GraphViewOps<'graph>, BaseG: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    OneHopFilter<'graph> for LazyNodeState<'graph, HistoryOp<'graph, OpG>, BaseG, GH>
+{
+    type BaseGraph = BaseG;
+    type FilteredGraph = OpG;
+    type Filtered<GHH: GraphViewOps<'graph> + 'graph> =
+        LazyNodeState<'graph, HistoryOp<'graph, GHH>, BaseG, GH>;
+
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self.op.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        self.nodes.base_graph()
+    }
+
+    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        LazyNodeState {
+            nodes: self.nodes.clone(),
+            op: HistoryOp {
+                graph: filtered_graph,
+                _phantom: PhantomData,
+            },
         }
     }
 }

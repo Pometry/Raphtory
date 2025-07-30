@@ -356,6 +356,13 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> 
     }
 }
 
+impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let py_history = ob.downcast::<PyHistory>()?;
+        Ok(py_history.get().history.clone())
+    }
+}
+
 impl Repr for TimeIndexEntry {
     fn repr(&self) -> String {
         self.to_string()
