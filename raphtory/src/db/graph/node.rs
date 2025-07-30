@@ -258,6 +258,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
             .get_dtype(id)
             .unwrap()
     }
+
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
@@ -331,7 +332,8 @@ impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataOps for NodeView<
     }
 
     fn metadata_ids(&self) -> BoxedLIter<usize> {
-        self.graph.node_metadata_ids(self.node)
+        Box::new(0..self.graph.node_meta().metadata_mapper().len())
+        // self.graph.node_metadata_ids(self.node)
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
