@@ -199,7 +199,7 @@ impl PyNode {
         self.node.properties()
     }
 
-    /// The metadata (constant properties) of the node
+    /// The metadata of the node
     ///
     /// Returns:
     ///     Metadata:
@@ -410,7 +410,7 @@ impl PyMutableNode {
     }
 
     /// Add metadata to a node in the graph.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
@@ -420,7 +420,7 @@ impl PyMutableNode {
     }
 
     /// Update metadata of a node in the graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:

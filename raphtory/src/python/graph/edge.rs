@@ -262,7 +262,7 @@ impl PyEdge {
         self.edge.properties()
     }
 
-    /// Gets the metadata (constant properties) of an edge
+    /// Gets the metadata of an edge
     ///
     /// Returns:
     ///     Metadata:
@@ -443,7 +443,7 @@ impl PyMutableEdge {
     }
 
     /// Add metadata to an edge in the graph.
-    /// This function is used to add properties to an edge that remain constant and do not
+    /// This function is used to add properties to an edge that do not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
@@ -459,7 +459,7 @@ impl PyMutableEdge {
     }
 
     /// Update metadata of an edge in the graph overwriting existing values.
-    /// This function is used to add properties to an edge that remains constant and does not
+    /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:

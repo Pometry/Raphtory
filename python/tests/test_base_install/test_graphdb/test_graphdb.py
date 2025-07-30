@@ -2209,7 +2209,7 @@ def test_materialize_graph():
     g.add_metadata(sprop)
     assert g.metadata == sprop
 
-    # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for constant properties on edges
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for metadata on edges
     def check(g):
         def check_g_inner(mg):
             assert mg.node(1).properties.get("type") == "wallet"
@@ -2300,7 +2300,7 @@ def test_edge_layer():
     g.add_edge(1, 1, 2, layer="layer 1").add_metadata({"test_prop": "test_val"})
     g.add_edge(1, 2, 3, layer="layer 2").add_metadata({"test_prop": "test_val 2"})
 
-    # @with_disk_graph #FIXME: add support for edge constant properties
+    # @with_disk_graph #FIXME: add support for edge metadata
     def check(g):
         assert g.edges.metadata.get("test_prop") == [
             {"layer 1": "test_val"},

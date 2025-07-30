@@ -79,7 +79,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.node("ben").add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of constant property" in str(excinfo.value)
+        assert "Attempted to change value of metadata" in str(excinfo.value)
 
 
 def test_update_metadata():

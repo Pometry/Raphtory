@@ -114,6 +114,7 @@ e_reversed_history = [
     date.strftime("%Y-%m-%d %H:%M:%S") for date in e_reversed.history_date_time()
 ]
 
+
 print(
     f"The edge from {e.src.name} to {e.dst.name} covers the following layers: {e.layer_names}"
 )
@@ -186,11 +187,11 @@ print("Property tuples:", properties.items())
 print("Latest value of balance:", properties.get("balance"))
 print("Property keys:", properties.as_dict(), "\n")
 
-# Access the keys of the constant and temporal properties individually
-constant_properties = properties.constant
+# Access the keys of the metadata and temporal properties individually
+metadata = v.metadata
 temporal_properties = properties.temporal
-print("Constant property keys:", constant_properties.keys())
-print("Constant property keys:", temporal_properties.keys())
+print("metadata keys:", metadata.keys())
+print("Temporal property keys:", temporal_properties.keys())
 # --8<-- [end:properties]
 
 

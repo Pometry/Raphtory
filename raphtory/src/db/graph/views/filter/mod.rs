@@ -728,7 +728,7 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            fn test_property_semantics_only_constant() {
+            fn test_property_semantics_only_metadata() {
                 // For this graph there won't be any temporal property index for property name "p1".
                 fn init_graph<
                     G: StaticGraphViewOps
@@ -781,7 +781,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_property_semantics_only_temporal() {
-                // For this graph there won't be any constant property index for property name "p1".
+                // For this graph there won't be any metadata index for property name "p1".
                 fn init_graph<
                     G: StaticGraphViewOps
                         + AdditionOps
@@ -1151,7 +1151,7 @@ pub(crate) mod test_filters {
             }
 
             #[test]
-            fn test_property_semantics_only_constant() {
+            fn test_property_semantics_only_metadata() {
                 // For this graph there won't be any temporal property index for property name "p1".
                 fn init_graph<
                     G: StaticGraphViewOps
@@ -1208,7 +1208,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_property_semantics_only_temporal() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                // For this graph there won't be any constant property index for property name "p1".
+                // For this graph there won't be any metadata index for property name "p1".
                 fn init_graph<
                     G: StaticGraphViewOps
                         + AdditionOps

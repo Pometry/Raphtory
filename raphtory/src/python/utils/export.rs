@@ -29,7 +29,7 @@ pub(crate) fn extract_properties<P>(
 {
     properties_map.extend(metadata.iter_filtered().map(|(name, prop)| {
         let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
-            format!("{}_constant", name)
+            format!("{}_metadata", name)
         } else {
             name.to_string()
         };
@@ -128,7 +128,7 @@ pub(crate) fn get_column_names_from_props(
     metadata
         .intersection(&temporal_properties)
         .for_each(|name| {
-            column_names.push(format!("{}_constant", name));
+            column_names.push(format!("{}_metadata", name));
             column_names.push(format!("{}_temporal", name));
             is_prop_both_temp_and_const.insert(name.to_string());
         });

@@ -73,7 +73,7 @@ assert str(nx_g) == "MultiDiGraph with 5 nodes and 7 edges"
     MultiDiGraph with 5 nodes and 7 edges
 
     Full property history of ServerA:
-    {'constant': {'datasource': 'docs/data/network_traffic_edges.csv', 'hardware_type': 'Blade Server', 'server_name': 'Alpha'}, 'temporal': [('OS_version', (1693555200000, 'Ubuntu 20.04')), ('primary_function', (1693555200000, 'Database')), ('uptime_days', (1693555200000, 120))], 'update_history': [1693555200000, 1693555500000, 1693556400000]}
+    {'metadata': {'datasource': 'docs/data/network_traffic_edges.csv', 'hardware_type': 'Blade Server', 'server_name': 'Alpha'}, 'temporal': [('OS_version', (1693555200000, 'Ubuntu 20.04')), ('primary_function', (1693555200000, 'Database')), ('uptime_days', (1693555200000, 120))], 'update_history': [1693555200000, 1693555500000, 1693556400000]}
 
     Only the latest properties of ServerA:
     {'OS_version': 'Ubuntu 20.04', 'uptime_days': 120, 'primary_function': 'Database', 'server_name': 'Alpha', 'datasource': 'docs/data/network_traffic_edges.csv', 'hardware_type': 'Blade Server', 'update_history': [1693555200000, 1693555500000, 1693556400000]}
