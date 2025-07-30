@@ -33,7 +33,7 @@ networkx = ["networkx >= 2.6.3"]
 export = ["raphtory[pyvis,networkx]"]
 all = ["raphtory[export,plot]"]
 dev = ["docstring_parser >= 0.16", "pandas-stubs", "maturin>=1.8.3", "tox>=4.25"]
-test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytest >= 8", "pytest-benchmark >= 5.0.0"]
+test = ["raphtory[all]", "requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytest >= 8", "pytest-benchmark >= 5.1.0"]
 tox = ["nbmake"]
 
 [tool.maturin]
