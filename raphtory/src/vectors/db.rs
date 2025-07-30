@@ -246,7 +246,7 @@ impl VectorDb {
             let mut rng = StdRng::seed_from_u64(42);
             writer
                 .builder(&mut rng)
-                .available_memory(System::new().total_memory() as usize / 2)
+                // .available_memory(System::new().total_memory() as usize / 2)
                 .build(&mut wtxn)?;
             dimensions.into()
         } else {
