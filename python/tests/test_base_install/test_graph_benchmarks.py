@@ -3,50 +3,51 @@ import random
 from raphtory import Graph
 import pytest
 
+
 def test_metadata_props():
     g = Graph()
-    n = g.add_node(1,1,properties={"prop1":"p1"})
-    n.add_metadata({"meta1":"m1"})
-    n = g.add_node(1,2,properties={"prop2":"p2"})
-    n.add_metadata({"meta2":"m2"})
-    n = g.add_node(1,3,properties={"prop1":"p1"})
-    n.add_metadata({"meta1":"m1"})
-    g.add_node(5,3,properties={"prop2":"p2"})
-    e = g.add_edge(2, 1, 2, properties={"prop3":"p3"})
-    e.add_metadata({"meta3":"m3"})
-    e = g.add_edge(2, 2, 1, properties={"prop4":"p4"})
-    e.add_metadata({"meta4":"m4"})
-    e = g.add_edge(2, 2, 3, properties={"prop3":"p3"})
-    e.add_metadata({"meta4":"m4"})
-    g.add_edge(6, 2, 3, properties={"prop4":"p4"})
+    n = g.add_node(1, 1, properties={"prop1": "p1"})
+    n.add_metadata({"meta1": "m1"})
+    n = g.add_node(1, 2, properties={"prop2": "p2"})
+    n.add_metadata({"meta2": "m2"})
+    n = g.add_node(1, 3, properties={"prop1": "p1"})
+    n.add_metadata({"meta1": "m1"})
+    g.add_node(5, 3, properties={"prop2": "p2"})
+    e = g.add_edge(2, 1, 2, properties={"prop3": "p3"})
+    e.add_metadata({"meta3": "m3"})
+    e = g.add_edge(2, 2, 1, properties={"prop4": "p4"})
+    e.add_metadata({"meta4": "m4"})
+    e = g.add_edge(2, 2, 3, properties={"prop3": "p3"})
+    e.add_metadata({"meta4": "m4"})
+    g.add_edge(6, 2, 3, properties={"prop4": "p4"})
 
-    assert g.node(3).window(1, 3).properties.keys() == ['prop1']
-    assert g.node(3).window(1, 3).metadata.keys() == ['meta1']
+    assert g.node(3).window(1, 3).properties.keys() == ["prop1"]
+    assert g.node(3).window(1, 3).metadata.keys() == ["meta1"]
 
-    assert g.edge(2, 3).window(1, 3).properties.keys() == ['prop3']
-    assert g.edge(2, 3).window(1, 3).metadata.keys() == ['meta4']
+    assert g.edge(2, 3).window(1, 3).properties.keys() == ["prop3"]
+    assert g.edge(2, 3).window(1, 3).metadata.keys() == ["meta4"]
 
-    assert g.nodes.properties.keys() == ['prop1', 'prop2']
-    assert g.node(1).properties.keys() == ['prop1']
-    assert g.node(2).properties.keys() == ['prop2']
+    assert g.nodes.properties.keys() == ["prop1", "prop2"]
+    assert g.node(1).properties.keys() == ["prop1"]
+    assert g.node(2).properties.keys() == ["prop2"]
 
-    assert g.nodes.metadata.keys() == ['meta1', 'meta2']
-    assert g.node(1).metadata.keys() == ['meta1']
-    assert g.node(2).metadata.keys() == ['meta2']
+    assert g.nodes.metadata.keys() == ["meta1", "meta2"]
+    assert g.node(1).metadata.keys() == ["meta1"]
+    assert g.node(2).metadata.keys() == ["meta2"]
 
-    assert g.window(1,2).nodes.properties.keys() == ['prop1', 'prop2']
-    assert g.window(1,2).nodes.metadata.keys() == ['meta1', 'meta2']
+    assert g.window(1, 2).nodes.properties.keys() == ["prop1", "prop2"]
+    assert g.window(1, 2).nodes.metadata.keys() == ["meta1", "meta2"]
 
-    assert g.edges.properties.keys() == ['prop3', 'prop4']
-    assert g.edge(1, 2).properties.keys() == ['prop3']
-    assert g.edge(2, 1).properties.keys() == ['prop4']
+    assert g.edges.properties.keys() == ["prop3", "prop4"]
+    assert g.edge(1, 2).properties.keys() == ["prop3"]
+    assert g.edge(2, 1).properties.keys() == ["prop4"]
 
-    assert g.edges.metadata.keys() == ['meta3', 'meta4']
-    assert g.edge(1, 2).metadata.keys() == ['meta3']
-    assert g.edge(2, 1).metadata.keys() == ['meta4']
+    assert g.edges.metadata.keys() == ["meta3", "meta4"]
+    assert g.edge(1, 2).metadata.keys() == ["meta3"]
+    assert g.edge(2, 1).metadata.keys() == ["meta4"]
 
-    assert g.window(2,3).edges.properties.keys() == ['prop3', 'prop4']
-    assert g.window(2,3).edges.metadata.keys() == ['meta3', 'meta4']
+    assert g.window(2, 3).edges.properties.keys() == ["prop3", "prop4"]
+    assert g.window(2, 3).edges.metadata.keys() == ["meta3", "meta4"]
 
 
 ## Benchmark
@@ -63,7 +64,7 @@ def create_graph(n):
         {"title": "Inception", "director": "Christopher Nolan", "year": 2010},
         {"city": "Paris", "country": "France", "population_millions": 2.1},
         {"product": "Chair", "material": "Wood"},
-        {"animal": "Tiger", "habitat": "Forest", "endangered": True}
+        {"animal": "Tiger", "habitat": "Forest", "endangered": True},
     ]
 
     for i in range(n):
@@ -149,7 +150,9 @@ def test_edges_metadata_keys_windowed(benchmark, graph, request):
 
 
 # Regression Check
-@pytest.mark.skip(reason="Ignoring this test temporarily. Edge window props/metadata results are diverging for more than 4x times")
+@pytest.mark.skip(
+    reason="Ignoring this test temporarily. Edge window props/metadata results are diverging for more than 4x times"
+)
 def test_benchmark_regression_limit():
     max_pct_diff = 100.0
     grouped = {}
@@ -169,7 +172,7 @@ def test_benchmark_regression_limit():
 
             # Avoid division by zero
             if mean_small == 0 or mean_large == 0:
-                pct_diff = float('inf')
+                pct_diff = float("inf")
             else:
                 pct_diff = abs(mean_large - mean_small) / mean_small * 100
 
