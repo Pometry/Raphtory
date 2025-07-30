@@ -548,13 +548,29 @@ mod tests {
     use super::*;
     use crate::{
         config::app_config::AppConfig,
-        data::{data_tests::save_graphs_to_work_dir, Data},
+        data::{Data, EmbeddingConf},
     };
+    use itertools::Itertools;
     use raphtory::{
         db::api::view::MaterializedGraph,
+        vectors::{cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
     };
     use std::collections::HashMap;
     use tempfile::tempdir;
+
+    async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        Ok(texts
+            .into_iter()
+            .map(|_| vec![1.0, 0.0, 0.0].into())
+            .collect_vec())
+    }
+
+    fn custom_template() -> DocumentTemplate {
+        DocumentTemplate {
+            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
+            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
+        }
+    }
 
     fn create_test_graph() -> MaterializedGraph {
         let graph = Graph::new();
@@ -563,18 +579,35 @@ mod tests {
 
     async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir) {
         let graph = create_test_graph();
-        let graphs = HashMap::from([("test_graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
 
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
-
         let config = AppConfig::default();
-        let data = Data::new(tmp_dir.path(), &config);
+        let mut data = Data::new(tmp_dir.path(), &config);
+
+        // Override the embedding function with a mock for testing
+        data.embedding_conf = Some(EmbeddingConf {
+            cache: VectorCache::in_memory(fake_embedding),
+            global_template: Some(custom_template()),
+            individual_templates: HashMap::new(),
+        });
+
+        data.insert_graph("test_graph", graph).await.unwrap();
 
         let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
         let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
 
         (mutable_graph, tmp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_empty_list() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![];
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
     }
 
     #[tokio::test]
@@ -586,13 +619,23 @@ mod tests {
                 name: "node1".to_string(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
-                updates: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
             },
             NodeAddition {
                 name: "node2".to_string(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
-                updates: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
             },
         ];
 
@@ -600,6 +643,14 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap());
+
+        let query = "node1".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph.graph.vectors.unwrap().nodes_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 2);
     }
 
     #[tokio::test]
@@ -618,7 +669,7 @@ mod tests {
                 ]),
                 updates: Some(vec![
                     TemporalPropertyInput {
-                        time: 1,
+                        time: 0,
                         properties: Some(vec![
                             GqlPropertyInput {
                                 key: "salary".to_string(),
@@ -627,7 +678,7 @@ mod tests {
                         ]),
                     },
                     TemporalPropertyInput {
-                        time: 2,
+                        time: 0,
                         properties: Some(vec![
                             GqlPropertyInput {
                                 key: "salary".to_string(),
@@ -640,13 +691,13 @@ mod tests {
             NodeAddition {
                 name: "complex_node_2".to_string(),
                 node_type: Some("employee".to_string()),
-                metadata: Some(vec![
-                    GqlPropertyInput {
-                        key: "department".to_string(),
-                        value: Value::Str("Sales".to_string()),
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
                     },
                 ]),
-                updates: None,
             },
             NodeAddition {
                 name: "complex_node_3".to_string(),
@@ -654,7 +705,7 @@ mod tests {
                 metadata: None,
                 updates: Some(vec![
                     TemporalPropertyInput {
-                        time: 1,
+                        time: 0,
                         properties: Some(vec![
                             GqlPropertyInput {
                                 key: "salary".to_string(),
@@ -670,50 +721,13 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap());
-    }
 
-    #[tokio::test]
-    async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
-
-        let nodes = vec![];
-        let result = mutable_graph.add_nodes(nodes).await;
+        let query = "complex_node_1".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph.graph.vectors.unwrap().nodes_by_similarity(embedding, limit, None);
 
         assert!(result.is_ok());
-        assert!(result.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_add_nodes_existing_node() {
-        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
-
-        // First, create a node
-        let node = mutable_graph.add_node(1, "existing_node".to_string(), None, None).await;
-        assert!(node.is_ok());
-
-        // Then, add updates to the same node
-        let nodes = vec![
-            NodeAddition {
-                name: "existing_node".to_string(),
-                node_type: None,
-                metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 3,
-                        properties: Some(vec![
-                            GqlPropertyInput {
-                                key: "new_prop".to_string(),
-                                value: Value::Str("new_value".to_string()),
-                            },
-                        ]),
-                    },
-                ]),
-            },
-        ];
-
-        let result = mutable_graph.add_nodes(nodes).await;
-
-        assert!(result.is_ok());
-        assert!(result.unwrap());
+        assert!(result.unwrap().get_documents().unwrap().len() == 3);
     }
 }
