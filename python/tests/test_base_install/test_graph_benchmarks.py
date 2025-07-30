@@ -32,7 +32,7 @@ def create_graph(n=100_000):
 
 @pytest.fixture(scope="module")
 def large_graph():
-    return create_graph(n=2)
+    return create_graph(n=100_000)
 
 
 @pytest.mark.benchmark(group="global_properties_keys")
