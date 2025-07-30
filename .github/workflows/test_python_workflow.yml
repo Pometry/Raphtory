@@ -62,6 +62,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Run Python tests
         run: |
           cd python && tox run
@@ -76,9 +79,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           python docs/scripts/gen_docs_graphql_pages.py
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
       - name: Check for uncommitted changes
       
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
