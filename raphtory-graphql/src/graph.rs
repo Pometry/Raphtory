@@ -44,15 +44,6 @@ impl GraphWithVectors {
         }
     }
 
-    /// Generates and stores embeddings for a batch of nodes.
-    pub(crate) async fn update_nodes_embeddings<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
-            vectors.update_nodes(nodes).await?;
-        }
-
-        Ok(())
-    }
-
     /// Generate and store an embedding for a single node.
     pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
@@ -62,6 +53,16 @@ impl GraphWithVectors {
         Ok(())
     }
 
+    /// Generates and stores embeddings for a batch of nodes.
+    pub(crate) async fn update_nodes_embeddings<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+        if let Some(vectors) = &self.vectors {
+            vectors.update_nodes(nodes).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Generate and store an embedding for a single edge.
     pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(
         &self,
         src: T,
@@ -70,6 +71,15 @@ impl GraphWithVectors {
         if let Some(vectors) = &self.vectors {
             vectors.update_edge(src, dst).await?;
         }
+        Ok(())
+    }
+
+    /// Generates and stores embeddings for a batch of edges.
+    pub(crate) async fn update_edges_embeddings<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
+        if let Some(vectors) = &self.vectors {
+            vectors.update_edges(edges).await?;
+        }
+
         Ok(())
     }
 

@@ -217,7 +217,6 @@ impl GqlMutableGraph {
     /// Add a batch of edges
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
 
         let edges: Vec<Result<EdgeView<GraphWithVectors>, GraphError>> =
             blocking_compute(move || {
@@ -246,11 +245,15 @@ impl GqlMutableGraph {
                     .collect()
             })
             .await;
-        for edge in edges {
-            let _ = edge?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
-        }
+
+        // Generate embeddings
+        let edges: Vec<_> = edges.into_iter().collect::<Result<Vec<_>, _>>()?;
+        let edge_pairs: Vec<_> = edges.iter().map(|edge| (edge.src().name(), edge.dst().name())).collect();
+        self.graph.update_edges_embeddings(edge_pairs).await?;
+
+        let self_clone = self.clone();
         blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -729,5 +732,86 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().unwrap().len() == 3);
+    }
+
+    #[tokio::test]
+    async fn test_add_edges_simple() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        // First add some nodes
+        let nodes = vec![
+            NodeAddition {
+                name: "node1".to_string(),
+                node_type: Some("person".to_string()),
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
+            },
+            NodeAddition {
+                name: "node2".to_string(),
+                node_type: Some("person".to_string()),
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+        assert!(result.is_ok());
+
+        // Now add edges between them
+        let edges = vec![
+            EdgeAddition {
+                src: "node1".to_string(),
+                dst: "node2".to_string(),
+                layer: Some("friendship".to_string()),
+                metadata: Some(vec![
+                    GqlPropertyInput {
+                        key: "strength".to_string(),
+                        value: Value::F64(0.8),
+                    },
+                ]),
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
+            },
+            EdgeAddition {
+                src: "node2".to_string(),
+                dst: "node1".to_string(),
+                layer: Some("friendship".to_string()),
+                metadata: None,
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: None,
+                    },
+                ]),
+            },
+        ];
+
+        let result = mutable_graph.add_edges(edges).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // Test that edge embeddings were generated
+        let query = "node1 appeared with node2".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph.graph.vectors.unwrap().edges_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 2);
     }
 }
