@@ -318,7 +318,7 @@ mod template_tests {
         // I should be able to iterate over properties without doing properties|items, which would be solved by implementing Object for Properties
         let node_template = indoc! {"
             node {{ name }} is {% if node_type is none %}an unknown entity{% else %}a {{ node_type }}{% endif %} with the following properties:
-            {% if metadata.const_test is not None %}const_test: {{ metadata.const_test }} {% endif %}
+            {% if metadata.const_test is not none %}const_test: {{ metadata.const_test }} {% endif %}
             {% if temporal_properties.temp_test is defined and temporal_properties.temp_test|length > 0 %}
             temp_test:
             {% for (time, value) in temporal_properties.temp_test %}
@@ -329,7 +329,9 @@ mod template_tests {
             {{ key }}: {{ value }}
             {% endfor %}
             {% for (key, value) in metadata|items if key != \"const_test\" %}
+            {% if value is not none %}
             {{ key }}: {{ value }}
+            {% endif %}
             {% endfor %}
         "};
         let template = DocumentTemplate {
