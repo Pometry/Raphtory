@@ -136,4 +136,5 @@ nav:
           - user-guide/persistent-graph/3_views.md
   - Python API: reference/python/
   - GraphQL API: reference/graphql/graphql_API.md
+  - Rust API: https://docs.rs/raphtory/latest/raphtory/
   - Pometry: https://www.pometry.com/
