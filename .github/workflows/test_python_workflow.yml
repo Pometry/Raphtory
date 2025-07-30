@@ -70,6 +70,9 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
+      - name: create graphql schema
+        run: |
+          raphtory schema > raphtory-graphql/schema.graphql 
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
