@@ -39,7 +39,7 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             let id = node.node.index();
             if let Some(doc) = self.template.node(node) {
                 let vector = self.cache.get_single(doc).await?;
-                self.node_db.insert_vector(id, &vector)?;
+                self.node_db.insert_vectors(vec![(id, vector)])?;
             }
         }
         Ok(())
@@ -60,9 +60,8 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        for (id, vector) in ids.iter().zip(vectors) {
-            self.node_db.insert_vector(*id, &vector)?;
-        }
+        self.node_db
+            .insert_vectors(ids.iter().zip(vectors).map(|(id, vector)| (*id, vector)).collect())?;
 
         Ok(())
     }
@@ -70,9 +69,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
         if let Some(edge) = self.source_graph.edge(src, dst) {
             let id = edge.edge.pid().0;
+
             if let Some(doc) = self.template.edge(edge) {
                 let vector = self.cache.get_single(doc).await?;
-                self.edge_db.insert_vector(id, &vector)?;
+                self.edge_db.insert_vectors(vec![(id, vector)])?;
             }
         }
         Ok(())
@@ -93,9 +93,8 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        for (id, vector) in ids.iter().zip(vectors) {
-            self.edge_db.insert_vector(*id, &vector)?;
-        }
+        self.edge_db
+            .insert_vectors(ids.iter().zip(vectors).map(|(id, vector)| (*id, vector)).collect())?;
 
         Ok(())
     }
