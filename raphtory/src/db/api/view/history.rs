@@ -109,6 +109,10 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         self.iter().next().is_none()
     }
 
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
     pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.0.earliest_time()
     }
@@ -154,28 +158,6 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
 }
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
-
-impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialOrd<L> for History<'b, T>
-where
-    for<'a> &'a L: IntoIterator<Item = &'a I>,
-    TimeIndexEntry: PartialOrd<I>,
-{
-    fn partial_cmp(&self, other: &L) -> Option<std::cmp::Ordering> {
-        self.iter().partial_cmp(other.into_iter().copied())
-    }
-}
-
-impl<'a, T: InternalHistoryOps + 'a> PartialOrd for History<'a, T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.iter().partial_cmp(other.iter())
-    }
-}
-
-impl<'a, T: InternalHistoryOps + 'a> Ord for History<'a, T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.iter().cmp(other.iter())
-    }
-}
 
 impl<'a, T: InternalHistoryOps + 'a> std::hash::Hash for History<'a, T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -228,38 +210,6 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
         T::len(self)
     }
 }
-
-// impl<T: InternalHistoryOps> InternalHistoryOps for Vec<History<'_, T>> {
-//     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
-//         self.as_slice() // had to use slice notation to get Vec::iter() instead of InternalHistoryOps::iter()
-//             .iter()
-//             .map(|history| history.iter())
-//             .kmerge()
-//             .into_dyn_boxed()
-//     }
-//
-//     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
-//         self.as_slice()
-//             .iter()
-//             .map(|history| history.iter_rev())
-//             .kmerge_by(|a, b| a >= b)
-//             .into_dyn_boxed()
-//     }
-//
-//     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-//         self.as_slice()
-//             .iter()
-//             .filter_map(|history| history.earliest_time())
-//             .min()
-//     }
-//
-//     fn latest_time(&self) -> Option<TimeIndexEntry> {
-//         self.as_slice()
-//             .iter()
-//             .filter_map(|history| history.latest_time())
-//             .max()
-//     }
-// }
 
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much

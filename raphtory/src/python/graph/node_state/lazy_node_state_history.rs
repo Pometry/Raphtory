@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{ops, ops::HistoryOp, LazyNodeState, NodeGroups, NodeOp, NodeState},
+            state::{ops::HistoryOp, LazyNodeState, NodeState},
             view::{
                 history::{History, InternalHistoryOps},
                 internal::Static,
@@ -18,24 +18,15 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
+use raphtory_api::core::storage::timeindex::{TimeIndexEntry};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::prelude::*;
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
-// $name = HistoryView
-// $value = HistoryOp<'static, DynamicGraph>
-// $op = HistoryOp<'static, DynamicGraph>
-// $to_owned = |v| v.clone()
-// $inner_t = LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>
-// $py_value = History
-// $computed = NodeStateHistory
+use std::{collections::HashMap, sync::Arc};
 
 // impl_lazy_node_state
 /// A lazy view over History values for node

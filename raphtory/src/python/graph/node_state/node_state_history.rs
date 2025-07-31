@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{NodeGroups, NodeState},
+            state::{NodeState},
             view::{
                 history::{History, InternalHistoryOps},
                 DynamicGraph,
@@ -16,23 +16,14 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::{DateTime, Utc};
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     prelude::*,
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::TimeError;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::{iter::ParallelIterator, prelude::ParallelSliceMut};
-use std::{cmp::Ordering, collections::HashMap, sync::Arc};
-// $name = NodeStateHistory
-// $value = History<'static, NodeView<'static, DynamicGraph>>
-// $to_owned = |v| v.clone()    // we need to clone because DynamicGraph doesn't implement copy
-// $inner_t = NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph, DynamicGraph>
-// $py_value = Optional[datetime]
-// $computed = NodeStateHistory
+use std::{collections::HashMap, sync::Arc};
 
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct NodeStateHistory {

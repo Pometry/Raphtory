@@ -1,7 +1,7 @@
 use crate::{
     db::api::view::history::*,
     python::{
-        graph::{edge::PyEdge, node::PyNode, properties::PyTemporalProp},
+        graph::{edge::PyEdge, node::PyNode},
         types::{iterable::FromIterable, repr::Repr, wrappers::iterators::PyBorrowingIterator},
     },
 };
@@ -27,7 +27,6 @@ impl PyHistory {
     }
 }
 
-// TODO: Implement __lt__, __gt__, ...?
 #[pymethods]
 impl PyHistory {
     #[staticmethod]
@@ -53,6 +52,14 @@ impl PyHistory {
             .collect();
         Self {
             history: History::new(Arc::new(CompositeHistory::new(underlying_objects))),
+        }
+    }
+
+    // Clones the Arcs, we end up with Arc<Arc<dyn InternalHistoryOps>>, 1 level of indirection. Cloning the underlying InternalHistoryOps objects introduces lifetime issues.
+    // TODO: Ideally we want one of compose_histories/merge. We want to see where the performance benefits shift from one to the other and automatically use that.
+    pub fn merge(&self, other: &Self) -> Self {
+        Self {
+            history: History::new(Arc::new(MergedHistory::new(self.history.0.clone(), other.history.0.clone()))),
         }
     }
 
@@ -147,6 +154,14 @@ impl PyHistory {
     fn __ne__(&self, other: &PyHistory) -> bool {
         self.history.ne(&other.history)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.history.is_empty()
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.history.len()
+    }
 }
 
 #[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
@@ -179,7 +194,7 @@ impl PyHistoryTimestamp {
     }
 
     /// Iterate over all time events in reverse
-    pub fn iter_rev(&self) -> PyBorrowingIterator {
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_t.clone(),
             HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
@@ -222,7 +237,7 @@ impl PyHistoryDateTime {
     }
 
     /// Iterate over all time events in reverse
-    pub fn iter_rev(&self) -> PyBorrowingIterator {
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter_result!(
             self.history_dt.clone(),
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
@@ -279,7 +294,7 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Iterate over all time events in reverse
-    pub fn iter_rev(&self) -> PyBorrowingIterator {
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.history_s.clone(),
             HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
@@ -308,6 +323,24 @@ impl PyIntervals {
         i.into_pyarray(py)
     }
 
+    /// Iterate over all interval values
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.intervals.clone(),
+            Intervals<Arc<dyn InternalHistoryOps>>,
+            |intervals| intervals.iter()
+        )
+    }
+
+    /// Iterate over all interval values in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.intervals.clone(),
+            Intervals<Arc<dyn InternalHistoryOps>>,
+            |intervals| intervals.iter_rev()
+        )
+    }
+
     /// Calculate the mean interval between values
     pub fn mean(&self) -> Option<f64> {
         self.intervals.mean()
@@ -326,15 +359,6 @@ impl PyIntervals {
     /// Calculate the minimum interval between values
     pub fn min(&self) -> Option<i64> {
         self.intervals.min()
-    }
-}
-
-#[pymethods]
-impl PyTemporalProp {
-    pub fn get_history(&self) -> PyHistory {
-        PyHistory {
-            history: History::new(Arc::new(self.prop.clone())),
-        }
     }
 }
 

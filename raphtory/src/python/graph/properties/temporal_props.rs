@@ -212,7 +212,7 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 impl PyTemporalProp {
     /// Get a history object which contains time entries for when the property was updated
     pub fn history(&self) -> PyHistory {
-        self.prop.history().to_owned().into()
+        self.prop.history().into()
     }
 
     /// Get the property values for each update
