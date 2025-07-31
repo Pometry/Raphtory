@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::EdgeViewCollection,
+        history::GqlHistory,
         node::GqlNode,
         property::GqlProperties,
         windowset::GqlEdgeWindowSet,
@@ -19,6 +20,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
@@ -208,21 +210,21 @@ impl GqlEdge {
     }
 
     async fn earliest_time(&self) -> Option<i64> {
-        self.ee.earliest_time()
+        self.ee.earliest_time().map(|t| t.t())
     }
 
     async fn first_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().first().cloned()).await
+        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.t())).await
     }
 
     async fn latest_time(&self) -> Option<i64> {
-        self.ee.latest_time()
+        self.ee.latest_time().map(|t| t.t())
     }
 
     async fn last_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().last().cloned()).await
+        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.t())).await
     }
 
     async fn time(&self) -> Result<i64, GraphError> {
@@ -230,11 +232,11 @@ impl GqlEdge {
     }
 
     async fn start(&self) -> Option<i64> {
-        self.ee.start()
+        self.ee.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.ee.end()
+        self.ee.end().map(|t| t.t())
     }
 
     async fn src(&self) -> GqlNode {
@@ -277,9 +279,9 @@ impl GqlEdge {
         GqlEdges::new(self.ee.explode_layers())
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history()).await
+        blocking_compute(move || self_clone.ee.history().into()).await
     }
 
     async fn deletions(&self) -> Vec<i64> {

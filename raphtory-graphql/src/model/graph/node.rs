@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::{NodeFilter, NodeViewCollection},
+        history::GqlHistory,
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::GqlProperties,
@@ -21,6 +22,7 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
@@ -211,35 +213,35 @@ impl GqlNode {
 
     async fn earliest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time()).await
+        blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.t())).await
     }
 
     async fn first_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().first().cloned()).await
+        blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.t())).await
     }
 
     async fn latest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time()).await
+        blocking_compute(move || self_clone.vv.latest_time().map(|t| t.t())).await
     }
 
     async fn last_update(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().last().cloned()).await
+        blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.t())).await
     }
 
     async fn start(&self) -> Option<i64> {
-        self.vv.start()
+        self.vv.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.vv.end()
+        self.vv.end().map(|t| t.t())
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history()).await
+        blocking_compute(move || self_clone.vv.history().into()).await
     }
 
     async fn edge_history_count(&self) -> usize {

@@ -13,6 +13,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
@@ -154,11 +155,11 @@ impl GqlPathFromNode {
     ////////////////////////
 
     async fn start(&self) -> Option<i64> {
-        self.nn.start()
+        self.nn.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.nn.end()
+        self.nn.end().map(|t| t.t())
     }
 
     /////////////////

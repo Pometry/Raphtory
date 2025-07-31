@@ -21,7 +21,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use std::cmp::Ordering;
 
 #[derive(ResolvedObject, Clone)]
@@ -282,11 +282,11 @@ impl GqlNodes {
     ////////////////////////
 
     async fn start(&self) -> Option<i64> {
-        self.nn.start()
+        self.nn.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.nn.end()
+        self.nn.end().map(|t| t.t())
     }
 
     /////////////////

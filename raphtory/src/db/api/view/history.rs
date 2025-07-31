@@ -699,7 +699,7 @@ impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
 
 // Holds a reference to the inner item in history object
 #[derive(Debug, Clone, Copy)]
-pub struct Intervals<T>(T);
+pub struct Intervals<T>(pub T);
 
 impl<T: InternalHistoryOps> Intervals<T> {
     pub fn new(item: T) -> Self {

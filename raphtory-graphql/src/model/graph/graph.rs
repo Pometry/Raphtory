@@ -42,6 +42,7 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
@@ -241,20 +242,20 @@ impl GqlGraph {
 
     async fn earliest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.earliest_time()).await
+        blocking_compute(move || self_clone.graph.earliest_time().map(|t| t.t())).await
     }
 
     async fn latest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.latest_time()).await
+        blocking_compute(move || self_clone.graph.latest_time().map(|t| t.t())).await
     }
 
     async fn start(&self) -> Option<i64> {
-        self.graph.start()
+        self.graph.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.graph.end()
+        self.graph.end().map(|t| t.t())
     }
 
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
@@ -266,7 +267,11 @@ impl GqlGraph {
                 .edges()
                 .earliest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+                .filter_map(|edge_time| {
+                    edge_time
+                        .map(|t| t.t())
+                        .filter(|&time| include_negative || time >= 0)
+                })
                 .min();
             all_edges
         })
@@ -282,7 +287,11 @@ impl GqlGraph {
                 .edges()
                 .latest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
+                .filter_map(|edge_time| {
+                    edge_time
+                        .map(|t| t.t())
+                        .filter(|&time| include_negative || time >= 0)
+                })
                 .max();
 
             all_edges

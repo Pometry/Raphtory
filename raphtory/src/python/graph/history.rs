@@ -59,10 +59,14 @@ impl PyHistory {
     // TODO: Ideally we want one of compose_histories/merge. We want to see where the performance benefits shift from one to the other and automatically use that.
     pub fn merge(&self, other: &Self) -> Self {
         Self {
-            history: History::new(Arc::new(MergedHistory::new(self.history.0.clone(), other.history.0.clone()))),
+            history: History::new(Arc::new(MergedHistory::new(
+                self.history.0.clone(),
+                other.history.0.clone(),
+            ))),
         }
     }
 
+    // Clones the Arcs, we end up with Arc<Arc<dyn InternalHistoryOps>>, 1 level of indirection. Cloning the underlying InternalHistoryOps objects introduces lifetime issues.
     pub fn reverse(&self) -> Self {
         PyHistory {
             history: History::new(Arc::new(ReversedHistoryOps::new(self.history.0.clone()))),
@@ -72,27 +76,27 @@ impl PyHistory {
     /// Access history events as i64 timestamps
     pub fn t(&self) -> PyHistoryTimestamp {
         PyHistoryTimestamp {
-            history_t: HistoryTimestamp::new(Arc::new(self.history.0.clone())),
+            history_t: HistoryTimestamp::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 
     /// Access history events as DateTime items
     pub fn dt(&self) -> PyHistoryDateTime {
         PyHistoryDateTime {
-            history_dt: HistoryDateTime::new(Arc::new(self.history.0.clone())),
+            history_dt: HistoryDateTime::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 
     /// Access secondary index (unique index) of history events
     pub fn secondary_index(&self) -> PyHistorySecondaryIndex {
         PyHistorySecondaryIndex {
-            history_s: HistorySecondaryIndex::new(Arc::new(self.history.0.clone())),
+            history_s: HistorySecondaryIndex::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 
     pub fn intervals(&self) -> PyIntervals {
         PyIntervals {
-            intervals: Intervals::new(Arc::new(self.history.0.clone())),
+            intervals: Intervals::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 

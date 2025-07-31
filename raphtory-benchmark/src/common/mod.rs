@@ -7,7 +7,7 @@ use criterion::{
 };
 use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
-use raphtory_api::core::utils::logging::global_info_logger;
+use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
 use std::collections::HashSet;
 use tempfile::TempDir;
 use tracing::info;
@@ -482,8 +482,8 @@ pub fn run_graph_ops_benches(
     // graph windowed
     let group_name = format!("{graph_name}_window_10");
     let mut graph_window_group_10 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph");
-    let earliest = graph.earliest_time().expect("non-empty graph");
+    let latest = graph.latest_time().expect("non-empty graph").t();
+    let earliest = graph.earliest_time().expect("non-empty graph").t();
     let start = latest - (latest - earliest) / 10;
     // graph_window_group_10.sample_size(10);
     let make_graph = || graph.window(start, latest + 1);
@@ -535,8 +535,8 @@ pub fn run_graph_ops_benches(
     let graph = layered_graph;
     let group_name = format!("{graph_name}_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph");
-    let earliest = graph.earliest_time().expect("non-empty graph");
+    let latest = graph.latest_time().expect("non-empty graph").t();
+    let earliest = graph.earliest_time().expect("non-empty graph").t();
     let start = latest - (latest - earliest) / 2;
     let make_graph = || {
         graph
@@ -556,8 +556,8 @@ pub fn run_graph_ops_benches(
 
     let group_name = format!("{graph_name}_persistent_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph");
-    let earliest = graph.earliest_time().expect("non-empty graph");
+    let latest = graph.latest_time().expect("non-empty graph").t();
+    let earliest = graph.earliest_time().expect("non-empty graph").t();
     let start = latest - (latest - earliest) / 2;
     let make_graph = || {
         graph

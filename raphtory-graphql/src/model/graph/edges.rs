@@ -21,7 +21,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{EdgeViewOps, LayerOps, NodeViewOps, TimeOps},
 };
-use raphtory_api::iter::IntoDynBoxed;
+use raphtory_api::{core::storage::timeindex::AsTime, iter::IntoDynBoxed};
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(ResolvedObject, Clone)]
@@ -273,11 +273,11 @@ impl GqlEdges {
     ////////////////////////
 
     async fn start(&self) -> Option<i64> {
-        self.ee.start()
+        self.ee.start().map(|t| t.t())
     }
 
     async fn end(&self) -> Option<i64> {
-        self.ee.end()
+        self.ee.end().map(|t| t.t())
     }
 
     /////////////////

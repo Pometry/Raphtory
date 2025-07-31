@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{NodeState},
+            state::NodeState,
             view::{
                 history::{History, InternalHistoryOps},
                 DynamicGraph,

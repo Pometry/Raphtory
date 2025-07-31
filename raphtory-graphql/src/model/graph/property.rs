@@ -1,4 +1,4 @@
-use crate::rayon::blocking_compute;
+use crate::{model::graph::history::GqlHistory, rayon::blocking_compute};
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
@@ -13,7 +13,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -260,9 +260,9 @@ impl GqlTemporalProperty {
         self.key.clone()
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.history().collect()).await
+        blocking_compute(move || self_clone.prop.history().into()).await
     }
 
     async fn values(&self) -> Vec<String> {
@@ -300,7 +300,7 @@ impl GqlTemporalProperty {
                 .prop
                 .ordered_dedupe(latest_time)
                 .into_iter()
-                .map(|(k, p)| (k, p).into())
+                .map(|(k, p)| (k.t(), p).into())
                 .collect()
         })
         .await
