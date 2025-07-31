@@ -247,11 +247,13 @@ impl GqlMutableGraph {
             .await;
 
         // Generate embeddings
-        let edges: Vec<_> = edges.into_iter().collect::<Result<Vec<_>, _>>()?;
         let edge_pairs: Vec<_> = edges
-            .iter()
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()? // Return 1st encountered error
+            .into_iter()
             .map(|edge| (edge.src().name(), edge.dst().name()))
             .collect();
+
         self.graph.update_edge_embeddings(edge_pairs).await?;
 
         let self_clone = self.clone();
