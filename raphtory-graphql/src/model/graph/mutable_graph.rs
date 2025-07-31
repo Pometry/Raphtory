@@ -248,7 +248,10 @@ impl GqlMutableGraph {
 
         // Generate embeddings
         let edges: Vec<_> = edges.into_iter().collect::<Result<Vec<_>, _>>()?;
-        let edge_pairs: Vec<_> = edges.iter().map(|edge| (edge.src().name(), edge.dst().name())).collect();
+        let edge_pairs: Vec<_> = edges
+            .iter()
+            .map(|edge| (edge.src().name(), edge.dst().name()))
+            .collect();
         self.graph.update_edge_embeddings(edge_pairs).await?;
 
         let self_clone = self.clone();
@@ -556,7 +559,9 @@ mod tests {
     use itertools::Itertools;
     use raphtory::{
         db::api::view::MaterializedGraph,
-        vectors::{cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
+        vectors::{
+            cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding,
+        },
     };
     use std::collections::HashMap;
     use tempfile::tempdir;
@@ -622,23 +627,19 @@ mod tests {
                 name: "node1".to_string(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
             NodeAddition {
                 name: "node2".to_string(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
         ];
 
@@ -650,7 +651,11 @@ mod tests {
         let query = "node1".to_string();
         let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
         let limit = 5;
-        let result = mutable_graph.graph.vectors.unwrap().nodes_by_similarity(embedding, limit, None);
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(embedding, limit, None);
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().unwrap().len() == 2);
@@ -664,30 +669,24 @@ mod tests {
             NodeAddition {
                 name: "complex_node_1".to_string(),
                 node_type: Some("employee".to_string()),
-                metadata: Some(vec![
-                    GqlPropertyInput {
-                        key: "department".to_string(),
-                        value: Value::Str("Sales".to_string()),
-                    },
-                ]),
+                metadata: Some(vec![GqlPropertyInput {
+                    key: "department".to_string(),
+                    value: Value::Str("Sales".to_string()),
+                }]),
                 updates: Some(vec![
                     TemporalPropertyInput {
                         time: 0,
-                        properties: Some(vec![
-                            GqlPropertyInput {
-                                key: "salary".to_string(),
-                                value: Value::F64(50000.0),
-                            },
-                        ]),
+                        properties: Some(vec![GqlPropertyInput {
+                            key: "salary".to_string(),
+                            value: Value::F64(50000.0),
+                        }]),
                     },
                     TemporalPropertyInput {
                         time: 0,
-                        properties: Some(vec![
-                            GqlPropertyInput {
-                                key: "salary".to_string(),
-                                value: Value::F64(55000.0),
-                            },
-                        ]),
+                        properties: Some(vec![GqlPropertyInput {
+                            key: "salary".to_string(),
+                            value: Value::F64(55000.0),
+                        }]),
                     },
                 ]),
             },
@@ -695,28 +694,22 @@ mod tests {
                 name: "complex_node_2".to_string(),
                 node_type: Some("employee".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
             NodeAddition {
                 name: "complex_node_3".to_string(),
                 node_type: Some("employee".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: Some(vec![
-                            GqlPropertyInput {
-                                key: "salary".to_string(),
-                                value: Value::F64(55000.0),
-                            },
-                        ]),
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: Some(vec![GqlPropertyInput {
+                        key: "salary".to_string(),
+                        value: Value::F64(55000.0),
+                    }]),
+                }]),
             },
         ];
 
@@ -728,7 +721,11 @@ mod tests {
         let query = "complex_node_1".to_string();
         let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
         let limit = 5;
-        let result = mutable_graph.graph.vectors.unwrap().nodes_by_similarity(embedding, limit, None);
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(embedding, limit, None);
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().unwrap().len() == 3);
@@ -744,23 +741,19 @@ mod tests {
                 name: "node1".to_string(),
                 node_type: Some("person".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
             NodeAddition {
                 name: "node2".to_string(),
                 node_type: Some("person".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
         ];
 
@@ -773,30 +766,24 @@ mod tests {
                 src: "node1".to_string(),
                 dst: "node2".to_string(),
                 layer: Some("friendship".to_string()),
-                metadata: Some(vec![
-                    GqlPropertyInput {
-                        key: "strength".to_string(),
-                        value: Value::F64(0.8),
-                    },
-                ]),
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                metadata: Some(vec![GqlPropertyInput {
+                    key: "strength".to_string(),
+                    value: Value::F64(0.8),
+                }]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
             EdgeAddition {
                 src: "node2".to_string(),
                 dst: "node1".to_string(),
                 layer: Some("friendship".to_string()),
                 metadata: None,
-                updates: Some(vec![
-                    TemporalPropertyInput {
-                        time: 0,
-                        properties: None,
-                    },
-                ]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
             },
         ];
 
@@ -809,7 +796,11 @@ mod tests {
         let query = "node1 appeared with node2".to_string();
         let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
         let limit = 5;
-        let result = mutable_graph.graph.vectors.unwrap().edges_by_similarity(embedding, limit, None);
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .edges_by_similarity(embedding, limit, None);
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().unwrap().len() == 2);
