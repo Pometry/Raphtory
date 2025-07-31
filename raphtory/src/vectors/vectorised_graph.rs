@@ -36,42 +36,50 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     /// Generates and stores embeddings for a batch of nodes
     pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
-        let (ids, docs): (Vec<_>, Vec<_>) = nodes.iter()
+        let (ids, docs): (Vec<_>, Vec<_>) = nodes
+            .iter()
             .filter_map(|node| {
-                self.source_graph.node(node)
-                    .and_then(|node| {
-                        let id = node.node.index();
+                self.source_graph.node(node).and_then(|node| {
+                    let id = node.node.index();
 
-                        self.template.node(node).map(|doc| (id, doc))
-                    })
+                    self.template.node(node).map(|doc| (id, doc))
+                })
             })
             .unzip();
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        self.node_db
-            .insert_vectors(ids.iter().zip(vectors).map(|(id, vector)| (*id, vector)).collect())?;
+        self.node_db.insert_vectors(
+            ids.iter()
+                .zip(vectors)
+                .map(|(id, vector)| (*id, vector))
+                .collect(),
+        )?;
 
         Ok(())
     }
 
     /// Generates and stores embeddings for a batch of edges
     pub async fn update_edges<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
-        let (ids, docs): (Vec<_>, Vec<_>) = edges.iter()
+        let (ids, docs): (Vec<_>, Vec<_>) = edges
+            .iter()
             .filter_map(|(src, dst)| {
-                self.source_graph.edge(src, dst)
-                    .and_then(|edge| {
-                        let id = edge.edge.pid().0;
+                self.source_graph.edge(src, dst).and_then(|edge| {
+                    let id = edge.edge.pid().0;
 
-                        self.template.edge(edge).map(|doc| (id, doc))
-                    })
+                    self.template.edge(edge).map(|doc| (id, doc))
+                })
             })
             .unzip();
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        self.edge_db
-            .insert_vectors(ids.iter().zip(vectors).map(|(id, vector)| (*id, vector)).collect())?;
+        self.edge_db.insert_vectors(
+            ids.iter()
+                .zip(vectors)
+                .map(|(id, vector)| (*id, vector))
+                .collect(),
+        )?;
 
         Ok(())
     }
