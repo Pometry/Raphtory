@@ -278,7 +278,8 @@ impl<'graph, G: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G> {
     }
 
     fn metadata_ids(&self) -> BoxedLIter<usize> {
-        self.graph.node_metadata_ids(self.node)
+        Box::new(0..self.graph.node_meta().metadata_mapper().len())
+        // self.graph.node_metadata_ids(self.node)
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
