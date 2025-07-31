@@ -59,6 +59,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install pytest tox
+          python -m pip install -e stub_gen
           python -m pip install -e examples/netflow
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -81,7 +82,7 @@ jobs:
       - name: Update stubs
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
-          make stubs
+          cd python && python ./scripts/gen-stubs.py
       - name: Run python linter
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
