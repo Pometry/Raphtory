@@ -236,10 +236,10 @@ impl VectorDb {
             let dimensions = first_vector.len();
             let writer = Writer::<Cosine>::new(db, 0, dimensions);
 
-            writer.add_item(&mut wtxn, first_id, &first_vector)?;
+            writer.append_item(&mut wtxn, first_id, &first_vector)?;
             while let Some(result) = vectors.next().await {
                 let (id, vector) = result?;
-                writer.add_item(&mut wtxn, id, &vector)?;
+                writer.append_item(&mut wtxn, id, &vector)?;
             }
 
             // TODO: review this -> You can specify the number of trees to use or specify None.
