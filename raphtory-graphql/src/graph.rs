@@ -44,17 +44,8 @@ impl GraphWithVectors {
         }
     }
 
-    /// Generate and store an embedding for a single node.
-    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
-            vectors.update_node(node).await?;
-        }
-
-        Ok(())
-    }
-
     /// Generates and stores embeddings for a batch of nodes.
-    pub(crate) async fn update_nodes_embeddings<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
             vectors.update_nodes(nodes).await?;
         }
@@ -62,20 +53,8 @@ impl GraphWithVectors {
         Ok(())
     }
 
-    /// Generate and store an embedding for a single edge.
-    pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(
-        &self,
-        src: T,
-        dst: T,
-    ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
-            vectors.update_edge(src, dst).await?;
-        }
-        Ok(())
-    }
-
     /// Generates and stores embeddings for a batch of edges.
-    pub(crate) async fn update_edges_embeddings<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
+    pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
             vectors.update_edges(edges).await?;
         }
@@ -162,14 +141,14 @@ pub(crate) trait UpdateEmbeddings {
 
 impl UpdateEmbeddings for NodeView<'static, GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
-        self.graph.update_node_embeddings(self.name()).await
+        self.graph.update_node_embeddings(vec![self.name()]).await
     }
 }
 
 impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph
-            .update_edge_embeddings(self.src().name(), self.dst().name())
+            .update_edge_embeddings(vec![(self.src().name(), self.dst().name())])
             .await
     }
 }

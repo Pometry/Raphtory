@@ -172,7 +172,7 @@ impl GqlMutableGraph {
 
         // Generate embeddings
         let nodes: Vec<_> = nodes.into_iter().collect::<Result<Vec<_>, _>>()?;
-        self.graph.update_nodes_embeddings(nodes).await?;
+        self.graph.update_node_embeddings(nodes).await?;
 
         let self_clone = self.clone();
         blocking_io(move || {
@@ -249,7 +249,7 @@ impl GqlMutableGraph {
         // Generate embeddings
         let edges: Vec<_> = edges.into_iter().collect::<Result<Vec<_>, _>>()?;
         let edge_pairs: Vec<_> = edges.iter().map(|edge| (edge.src().name(), edge.dst().name())).collect();
-        self.graph.update_edges_embeddings(edge_pairs).await?;
+        self.graph.update_edge_embeddings(edge_pairs).await?;
 
         let self_clone = self.clone();
         blocking_io(move || {

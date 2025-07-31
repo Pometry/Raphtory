@@ -34,17 +34,6 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
-        if let Some(node) = self.source_graph.node(node) {
-            let id = node.node.index();
-            if let Some(doc) = self.template.node(node) {
-                let vector = self.cache.get_single(doc).await?;
-                self.node_db.insert_vectors(vec![(id, vector)])?;
-            }
-        }
-        Ok(())
-    }
-
     /// Generates and stores embeddings for a batch of nodes
     pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
         let (ids, docs): (Vec<_>, Vec<_>) = nodes.iter()
@@ -63,18 +52,6 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         self.node_db
             .insert_vectors(ids.iter().zip(vectors).map(|(id, vector)| (*id, vector)).collect())?;
 
-        Ok(())
-    }
-
-    pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
-        if let Some(edge) = self.source_graph.edge(src, dst) {
-            let id = edge.edge.pid().0;
-
-            if let Some(doc) = self.template.edge(edge) {
-                let vector = self.cache.get_single(doc).await?;
-                self.edge_db.insert_vectors(vec![(id, vector)])?;
-            }
-        }
         Ok(())
     }
 
