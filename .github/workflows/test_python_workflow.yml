@@ -78,6 +78,14 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           python docs/scripts/gen_docs_graphql_pages.py
+      - name: Update stubs
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          make stubs
+      - name: Run python linter
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          cd python && black .
       - name: Check for uncommitted changes
       
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
