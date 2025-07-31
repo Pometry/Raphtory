@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         filtering::PathFromNodeViewCollection,
         node::GqlNode,
+        timeindex::GqlTimeIndexEntry,
         windowset::GqlPathFromNodeWindowSet,
         WindowDuration::{self, Duration, Epoch},
     },
@@ -13,7 +14,6 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
@@ -154,12 +154,12 @@ impl GqlPathFromNode {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn start(&self) -> Option<i64> {
-        self.nn.start().map(|t| t.t())
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.nn.end().map(|t| t.t())
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.end().map(|t| t.into())
     }
 
     /////////////////

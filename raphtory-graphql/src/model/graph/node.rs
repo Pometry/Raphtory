@@ -6,6 +6,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::GqlProperties,
+        timeindex::GqlTimeIndexEntry,
         windowset::GqlNodeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -22,7 +23,6 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
-use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
@@ -211,32 +211,32 @@ impl GqlNode {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn earliest_time(&self) -> Option<i64> {
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.vv.earliest_time().map(|t| t.into())).await
     }
 
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.vv.history().earliest_time().map(|t| t.into())).await
     }
 
-    async fn latest_time(&self) -> Option<i64> {
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.latest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.vv.latest_time().map(|t| t.into())).await
     }
 
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.vv.history().latest_time().map(|t| t.into())).await
     }
 
-    async fn start(&self) -> Option<i64> {
-        self.vv.start().map(|t| t.t())
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.vv.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.vv.end().map(|t| t.t())
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.vv.end().map(|t| t.into())
     }
 
     async fn history(&self) -> GqlHistory {

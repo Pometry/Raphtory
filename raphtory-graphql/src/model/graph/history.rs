@@ -1,9 +1,7 @@
+use crate::model::graph::timeindex::GqlTimeIndexEntry;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{
-    core::storage::timeindex::AsTime,
-    db::api::view::history::{History, InternalHistoryOps, Intervals},
-};
-use std::sync::Arc;
+use raphtory::db::api::view::history::{History, InternalHistoryOps, Intervals};
+use std::{any::Any, sync::Arc};
 
 /// Represents the history of updates for an object in Raphtory.
 /// It provides access to the temporal properties of the object.
@@ -13,18 +11,20 @@ pub struct GqlHistory {
     pub(crate) history: History<'static, Arc<dyn InternalHistoryOps>>,
 }
 
-// /// Converts a Raphtory `History<Arc<dyn InternalHistoryOps>>` into a `GqlHistory` object.
-// impl From<History<Arc<dyn InternalHistoryOps>>> for GqlHistory {
-//     fn from(history: History<Arc<dyn InternalHistoryOps>>) -> Self {
-//         Self { history }
-//     }
-// }
-
 /// Creates GqlHistory from History<T> object, note that this consumes the History<T> object
 impl<'a, T: InternalHistoryOps + 'static> From<History<'a, T>> for GqlHistory {
     fn from(history: History<T>) -> Self {
+        let arc_ops: Arc<dyn InternalHistoryOps> = {
+            // Check if T is already Arc<dyn InternalHistoryOps>
+            let any_ref: &dyn Any = &history.0;
+            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
+                Arc::clone(arc_obj)
+            } else {
+                Arc::new(history.0)
+            }
+        };
         Self {
-            history: History::new(Arc::new(history.0)),
+            history: History::new(arc_ops),
         }
     }
 }
@@ -33,32 +33,24 @@ impl<'a, T: InternalHistoryOps + 'static> From<History<'a, T>> for GqlHistory {
 impl GqlHistory {
     /// The earliest timestamp (as a Unix epoch in milliseconds) associated with this history.
     /// Returns `null` if the history is empty.
-    async fn earliest_time(&self) -> Option<i64> {
-        self.history
-            .earliest_time()
-            .map(|time_entry| time_entry.t())
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.history.earliest_time().map(|t| t.into())
     }
 
     /// The latest timestamp (as a Unix epoch in milliseconds) associated with this history.
     /// Returns `null` if the history is empty.
-    async fn latest_time(&self) -> Option<i64> {
-        self.history.latest_time().map(|time_entry| time_entry.t())
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.history.latest_time().map(|t| t.into())
     }
 
     /// A list of all timestamps (as Unix epochs in milliseconds) present in this history,
-    async fn timestamps(&self) -> Vec<i64> {
-        self.history
-            .iter()
-            .map(|time_entry| time_entry.t())
-            .collect()
+    async fn collect(&self) -> Vec<GqlTimeIndexEntry> {
+        self.history.iter().map(|t| t.into()).collect()
     }
 
-    /// A list of all timestamps (as Unix epochs in milliseconds) present in this history, in reverse chronological order.
-    async fn timestamps_reversed(&self) -> Vec<i64> {
-        self.history
-            .iter_rev()
-            .map(|time_entry| time_entry.t())
-            .collect()
+    /// A list of all timestamps (as Unix epochs in milliseconds) present in this history, in reverse order.
+    async fn collect_reversed(&self) -> Vec<GqlTimeIndexEntry> {
+        self.history.iter_rev().map(|t| t.into()).collect()
     }
 
     /// Returns true if the History object is empty

@@ -3,6 +3,7 @@ use crate::{
         graph::{
             filtering::{NodeFilter, NodesViewCollection},
             node::GqlNode,
+            timeindex::GqlTimeIndexEntry,
             windowset::GqlNodesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -21,7 +22,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
+use raphtory_api::core::entities::VID;
 use std::cmp::Ordering;
 
 #[derive(ResolvedObject, Clone)]
@@ -281,12 +282,12 @@ impl GqlNodes {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn start(&self) -> Option<i64> {
-        self.nn.start().map(|t| t.t())
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.nn.end().map(|t| t.t())
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.end().map(|t| t.into())
     }
 
     /////////////////

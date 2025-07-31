@@ -3,6 +3,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             filtering::EdgesViewCollection,
+            timeindex::GqlTimeIndexEntry,
             windowset::GqlEdgesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -21,7 +22,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{EdgeViewOps, LayerOps, NodeViewOps, TimeOps},
 };
-use raphtory_api::{core::storage::timeindex::AsTime, iter::IntoDynBoxed};
+use raphtory_api::iter::IntoDynBoxed;
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(ResolvedObject, Clone)]
@@ -272,12 +273,12 @@ impl GqlEdges {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn start(&self) -> Option<i64> {
-        self.ee.start().map(|t| t.t())
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.ee.end().map(|t| t.t())
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.end().map(|t| t.into())
     }
 
     /////////////////

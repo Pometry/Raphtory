@@ -5,6 +5,7 @@ use crate::{
         history::GqlHistory,
         node::GqlNode,
         property::GqlProperties,
+        timeindex::GqlTimeIndexEntry,
         windowset::GqlEdgeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -20,7 +21,6 @@ use raphtory::{
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
-use raphtory_api::core::storage::timeindex::AsTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
@@ -209,34 +209,34 @@ impl GqlEdge {
         Ok(return_view)
     }
 
-    async fn earliest_time(&self) -> Option<i64> {
-        self.ee.earliest_time().map(|t| t.t())
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.earliest_time().map(|t| t.into())
     }
 
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.into())).await
     }
 
-    async fn latest_time(&self) -> Option<i64> {
-        self.ee.latest_time().map(|t| t.t())
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.latest_time().map(|t| t.into())
     }
 
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.t())).await
+        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
     }
 
     async fn time(&self) -> Result<i64, GraphError> {
         self.ee.time()
     }
 
-    async fn start(&self) -> Option<i64> {
-        self.ee.start().map(|t| t.t())
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.ee.end().map(|t| t.t())
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.end().map(|t| t.into())
     }
 
     async fn src(&self) -> GqlNode {

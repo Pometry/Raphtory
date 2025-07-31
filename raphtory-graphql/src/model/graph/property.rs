@@ -1,4 +1,7 @@
-use crate::{model::graph::history::GqlHistory, rayon::blocking_compute};
+use crate::{
+    model::graph::{history::GqlHistory, timeindex::GqlTimeIndexEntry},
+    rayon::blocking_compute,
+};
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
@@ -13,7 +16,7 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::{arc_str::ArcStr, timeindex::AsTime},
+    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -205,26 +208,26 @@ impl GqlProperty {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
 pub(crate) struct GqlPropertyTuple {
-    time: i64,
+    time: TimeIndexEntry,
     prop: Prop,
 }
 
 impl GqlPropertyTuple {
-    pub(crate) fn new(time: i64, prop: Prop) -> Self {
+    pub(crate) fn new(time: TimeIndexEntry, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(i64, Prop)> for GqlPropertyTuple {
-    fn from(value: (i64, Prop)) -> Self {
+impl From<(TimeIndexEntry, Prop)> for GqlPropertyTuple {
+    fn from(value: (TimeIndexEntry, Prop)) -> Self {
         GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
-    async fn time(&self) -> i64 {
-        self.time
+    async fn time(&self) -> GqlTimeIndexEntry {
+        self.time.into()
     }
 
     async fn as_string(&self) -> String {
@@ -300,7 +303,7 @@ impl GqlTemporalProperty {
                 .prop
                 .ordered_dedupe(latest_time)
                 .into_iter()
-                .map(|(k, p)| (k.t(), p).into())
+                .map(|(k, p)| (k, p).into())
                 .collect()
         })
         .await
