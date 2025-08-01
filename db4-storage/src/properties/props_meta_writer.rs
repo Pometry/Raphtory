@@ -7,6 +7,7 @@ use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 use crate::error::DBV4Error;
 
+// TODO: Rename constant props to metadata
 #[derive(Debug, Clone, Copy)]
 pub enum PropType {
     Temporal,

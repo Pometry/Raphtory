@@ -89,6 +89,12 @@ impl TransactionManager {
         }
     }
 
+    pub fn load(last_transaction_id: TransactionID) -> Self {
+        Self {
+            last_transaction_id: AtomicU64::new(last_transaction_id),
+        }
+    }
+
     pub fn begin(&self) -> TransactionID {
         self.last_transaction_id
             .fetch_add(1, atomic::Ordering::SeqCst)
