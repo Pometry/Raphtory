@@ -52,15 +52,42 @@ pub trait GraphWal {
 
     fn log_end_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
 
+    /// Log a static edge addition.
+    ///
+    /// # Arguments
+    ///
+    /// * `txn_id` - The transaction ID
+    /// * `t` - The timestamp of the edge addition
+    /// * `src` - The source vertex ID
+    /// * `dst` - The destination vertex ID
+    fn log_add_static_edge(
+        &self,
+        txn_id: TransactionID,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+    ) -> Result<LSN, DBV4Error>;
+
+    /// Log an edge addition to a layer with temporal props.
+    ///
+    /// # Arguments
+    ///
+    /// * `txn_id` - The transaction ID
+    /// * `t` - The timestamp of the edge addition
+    /// * `src` - The source vertex ID
+    /// * `dst` - The destination vertex ID
+    /// * `eid` - The edge ID
+    /// * `layer_id` - The layer ID
+    /// * `props` - The temporal properties of the edge
     fn log_add_edge(
         &self,
         txn_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
+        eid: EID,
         layer_id: usize,
-        t_props: &[(usize, Prop)],
-        c_props: &[(usize, Prop)],
+        props: &[(usize, Prop)],
     ) -> Result<LSN, DBV4Error>;
 
     fn log_node_id(&self, txn_id: TransactionID, gid: GID, vid: VID) -> Result<LSN, DBV4Error>;

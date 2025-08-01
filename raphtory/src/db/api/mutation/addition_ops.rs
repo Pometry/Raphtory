@@ -13,10 +13,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::dict_mapper::MaybeNew::New,
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew::New};
 use raphtory_storage::mutation::addition_ops::{
     EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
 };
@@ -306,7 +303,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
 
         // Log prop name -> prop id mappings
-        self.wal().log_temporal_prop_ids(txn_id, &props_with_status).unwrap();
+        self.wal()
+            .log_temporal_prop_ids(txn_id, &props_with_status)
+            .unwrap();
 
         let props = props_with_status
             .into_iter()
@@ -329,11 +328,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
         if let Some(gid) = src.as_node_ref().as_gid_ref().left() {
-            self.wal().log_node_id(txn_id, gid.into(), src_id.inner()).unwrap();
+            self.wal()
+                .log_node_id(txn_id, gid.into(), src_id.inner())
+                .unwrap();
         }
 
         if let Some(gid) = dst.as_node_ref().as_gid_ref().left() {
-            self.wal().log_node_id(txn_id, gid.into(), dst_id.inner()).unwrap();
+            self.wal()
+                .log_node_id(txn_id, gid.into(), dst_id.inner())
+                .unwrap();
         }
 
         let src_id = src_id.inner();
@@ -341,7 +344,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Log layer -> layer id mappings
         if let Some(layer) = layer {
-            self.wal().log_layer_id(txn_id, layer, layer_id.inner()).unwrap();
+            self.wal()
+                .log_layer_id(txn_id, layer, layer_id.inner())
+                .unwrap();
         }
 
         let layer_id = layer_id.inner();
@@ -352,20 +357,33 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
 
         // Log edge addition
-        let c_props = &[];
-        let add_edge_lsn = self.wal().log_add_edge(txn_id, ti, src_id, dst_id, layer_id, &props, c_props).unwrap();
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_edge_lsn);
+        let add_static_edge_lsn = self
+            .wal()
+            .log_add_static_edge(txn_id, ti, src_id, dst_id)
+            .unwrap();
+        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_static_edge_lsn);
 
         // Log edge -> edge id mappings
         // NOTE: We log edge id mappings after they are inserted into edge segments.
         // This is fine as long as we hold onto segment locks for the entire operation.
-        let edge_id_lsn = self.wal().log_edge_id(txn_id, src_id, dst_id, edge_id.inner(), layer_id).unwrap();
+        let add_edge_lsn = self
+            .wal()
+            .log_add_edge(
+                txn_id,
+                ti,
+                src_id,
+                dst_id,
+                edge_id.inner(),
+                layer_id,
+                &props,
+            )
+            .unwrap();
         let edge_id = add_edge_op.internal_add_edge(
             ti,
             src_id,
             dst_id,
             edge_id.map(|eid| eid.with_layer(layer_id)),
-            edge_id_lsn,
+            add_edge_lsn,
             props,
         );
 

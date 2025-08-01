@@ -23,15 +23,25 @@ impl GraphWal for NoWal {
         Ok(0)
     }
 
+    fn log_add_static_edge(
+        &self,
+        _txn_id: TransactionID,
+        _t: TimeIndexEntry,
+        _src: VID,
+        _dst: VID,
+    ) -> Result<LSN, DBV4Error> {
+        Ok(0)
+    }
+
     fn log_add_edge(
         &self,
         _txn_id: TransactionID,
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
+        _eid: EID,
         _layer_id: usize,
-        _t_props: &[(usize, Prop)],
-        _c_props: &[(usize, Prop)],
+        _props: &[(usize, Prop)],
     ) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
