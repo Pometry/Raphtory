@@ -2,14 +2,17 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::DBV4Error,
-    wal::{LSN, WalOps, WalRecord},
+    wal::{LSN, Wal, WalRecord},
 };
 
+/// NoWAL is a no-op WAL implementation that discards all writes.
+/// Used for in-memory only graphs.
+#[derive(Debug)]
 pub struct NoWal {
     dir: PathBuf,
 }
 
-impl WalOps for NoWal {
+impl Wal for NoWal {
     fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error> {
         Ok(Self {
             dir: dir.as_ref().to_path_buf(),
@@ -20,11 +23,11 @@ impl WalOps for NoWal {
         &self.dir
     }
 
-    fn reserve(&self) -> LSN {
-        0
+    fn append(&self, _data: &[u8]) -> Result<LSN, DBV4Error> {
+        Ok(0)
     }
 
-    fn append_with_lsn(&self, _lsn: LSN, _data: &[u8]) -> Result<(), DBV4Error> {
+    fn sync(&self) -> Result<(), DBV4Error> {
         Ok(())
     }
 

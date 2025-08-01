@@ -3,8 +3,16 @@ use raphtory_api::core::entities::properties::{
     meta::{LockedPropMapper, Meta, PropMapper},
     prop::{Prop, unify_types},
 };
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 use crate::error::DBV4Error;
+
+// TODO: Rename constant props to metadata
+#[derive(Debug, Clone, Copy)]
+pub enum PropType {
+    Temporal,
+    Constant,
+}
 
 pub enum PropsMetaWriter<'a, PN: AsRef<str>> {
     Change {
@@ -13,7 +21,7 @@ pub enum PropsMetaWriter<'a, PN: AsRef<str>> {
         meta: &'a Meta,
     },
     NoChange {
-        props: Vec<(usize, Prop)>,
+        props: Vec<(PN, usize, Prop)>,
     },
 }
 
@@ -56,31 +64,39 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
             .unwrap_or_default();
 
         let mut no_type_changes = true;
+
+        // See if any type unification is required while merging props
         for (prop_name, prop) in props {
             let dtype = prop.dtype();
             let outcome @ (_, _, type_check) = locked_meta
                 .fast_proptype_check(prop_name.as_ref(), dtype)
                 .map(|outcome| (prop_name, prop, outcome))?;
             let nothing_to_do = type_check.map(|x| x.is_right()).unwrap_or_default();
+
             no_type_changes &= nothing_to_do;
             in_props.push(outcome);
         }
 
+        // If no type changes are required, we can just return the existing prop ids
         if no_type_changes {
-            return Ok(Self::NoChange {
-                props: in_props
-                    .into_iter()
-                    .filter_map(|(prop_name, prop, _)| {
-                        Some((locked_meta.get_id(prop_name.as_ref())?, prop))
-                    })
-                    .collect(),
-            });
+            let props = in_props
+                .into_iter()
+                .filter_map(|(prop_name, prop, _)| {
+                    locked_meta
+                        .get_id(prop_name.as_ref())
+                        .map(|id| (prop_name, id, prop))
+                })
+                .collect();
+
+            return Ok(Self::NoChange { props });
         }
 
         let mut props = vec![];
+
         for (prop_name, prop, outcome) in in_props {
             props.push(Self::as_prop_entry(prop_name, prop, outcome));
         }
+
         Ok(Self::Change {
             props,
             mapper: locked_meta,
@@ -114,29 +130,63 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     }
 
     pub fn into_props_temporal(self) -> Result<Vec<(usize, Prop)>, DBV4Error> {
-        self.into_props_inner(|mapper| mapper.temporal_prop_meta())
+        self.into_props_inner(PropType::Temporal)
+    }
+
+    /// Returns temporal prop names, prop ids and prop values, along with their MaybeNew status.
+    pub fn into_props_temporal_with_status(
+        self,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
+        self.into_props_inner_with_status(PropType::Temporal)
     }
 
     pub fn into_props_const(self) -> Result<Vec<(usize, Prop)>, DBV4Error> {
-        self.into_props_inner(|mapper| mapper.const_prop_meta())
+        self.into_props_inner(PropType::Constant)
     }
 
-    pub fn into_props_inner(
+    /// Returns constant prop names, prop ids and prop values, along with their MaybeNew status.
+    pub fn into_props_const_with_status(
         self,
-        mapper_fn: impl Fn(&Meta) -> &PropMapper,
-    ) -> Result<Vec<(usize, Prop)>, DBV4Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
+        self.into_props_inner_with_status(PropType::Constant)
+    }
+
+    pub fn into_props_inner(self, prop_type: PropType) -> Result<Vec<(usize, Prop)>, DBV4Error> {
+        self.into_props_inner_with_status(prop_type).map(|props| {
+            props
+                .into_iter()
+                .map(|maybe_new| {
+                    let (_, prop_id, prop) = maybe_new.inner();
+                    (prop_id, prop)
+                })
+                .collect()
+        })
+    }
+
+    pub fn into_props_inner_with_status(
+        self,
+        prop_type: PropType,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
         match self {
-            Self::NoChange { props } => Ok(props),
+            Self::NoChange { props } => Ok(props
+                .into_iter()
+                .map(|(prop_name, prop_id, prop)| MaybeNew::Existing((prop_name, prop_id, prop)))
+                .collect()),
             Self::Change {
                 props,
                 mapper,
                 meta,
             } => {
                 let mut prop_with_ids = vec![];
-                drop(mapper);
-                let mut mapper = mapper_fn(meta).write_locked();
 
-                // revalidate
+                drop(mapper);
+
+                let mut mapper = match prop_type {
+                    PropType::Temporal => meta.temporal_prop_meta().write_locked(),
+                    PropType::Constant => meta.const_prop_meta().write_locked(),
+                };
+
+                // Revalidate prop types
                 let props = props
                     .into_iter()
                     .map(|entry| match entry {
@@ -144,12 +194,14 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                             let new_entry = mapper
                                 .fast_proptype_check(name.as_ref(), prop.dtype())
                                 .map(|outcome| Self::as_prop_entry(name, prop, outcome))?;
+
                             Ok(new_entry)
                         }
                         PropEntry::Change { name, prop, .. } => {
                             let new_entry = mapper
                                 .fast_proptype_check(name.as_ref(), prop.dtype())
                                 .map(|outcome| Self::as_prop_entry(name, prop, outcome))?;
+
                             Ok(new_entry)
                         }
                     })
@@ -157,8 +209,8 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
 
                 for entry in props {
                     match entry {
-                        PropEntry::NoChange(_, prop_id, prop) => {
-                            prop_with_ids.push((prop_id, prop));
+                        PropEntry::NoChange(name, prop_id, prop) => {
+                            prop_with_ids.push(MaybeNew::Existing((name, prop_id, prop)));
                         }
                         PropEntry::Change {
                             name,
@@ -166,20 +218,25 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                             prop,
                             ..
                         } => {
+                            // prop_id already exists, so we need to unify the types
                             let new_prop_type = prop.dtype();
                             let existing_type = mapper.get_dtype(prop_id).unwrap();
                             let new_prop_type =
                                 unify_types(&new_prop_type, existing_type, &mut false)?;
+
                             mapper.set_id_and_dtype(name.as_ref(), prop_id, new_prop_type);
-                            prop_with_ids.push((prop_id, prop));
+                            prop_with_ids.push(MaybeNew::Existing((name, prop_id, prop)));
                         }
                         PropEntry::Change { name, prop, .. } => {
+                            // prop_id doesn't exist, so we need to create a new one
                             let new_prop_type = prop.dtype();
                             let prop_id = mapper.new_id_and_dtype(name.as_ref(), new_prop_type);
-                            prop_with_ids.push((prop_id, prop));
+
+                            prop_with_ids.push(MaybeNew::New((name, prop_id, prop)));
                         }
                     }
                 }
+
                 Ok(prop_with_ids)
             }
         }
