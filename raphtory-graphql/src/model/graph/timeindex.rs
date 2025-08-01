@@ -23,14 +23,18 @@ impl GqlTimeIndexEntry {
 
     /// The secondary index of the TimeIndexEntry
     async fn secondary_index(&self) -> u64 {
-        self.entry.i() as u64 // GraphQL doesn't have usize, use u64
+        self.entry.i() as u64
     }
 
-    /// ISO 8601 datetime string representation if timestamp is valid, or else returns an error message
-    async fn datetime(&self) -> String {
+    /// Returns a datetime string representation if timestamp is valid, or else returns an error message string.
+    /// Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
+    /// Optionally takes a format string as argument to format the output of datetimes.
+    /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+    async fn datetime(&self, format_string: Option<String>) -> String {
+        let fmt_string = format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
         match self.entry.dt() {
-            Ok(dt) => dt.to_rfc3339(),
-            Err(e) => e.to_string(),
+            Ok(dt) => dt.format(fmt_string).to_string(),
+            Err(e) => format!("Time conversion error: {}", e.to_string()),
         }
     }
 

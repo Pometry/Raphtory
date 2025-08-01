@@ -10,6 +10,7 @@ use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use std::{
+    any::Any,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
@@ -213,12 +214,6 @@ pub struct PyHistoryDateTime {
     history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
 }
 
-impl PyHistoryDateTime {
-    pub fn new(history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>) -> Self {
-        Self { history_dt }
-    }
-}
-
 #[pymethods]
 impl PyHistoryDateTime {
     /// Collect all time events
@@ -368,8 +363,17 @@ impl PyIntervals {
 
 impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
     fn from(history: History<T>) -> Self {
+        let arc_ops: Arc<dyn InternalHistoryOps> = {
+            // Check if T is already Arc<dyn InternalHistoryOps>
+            let any_ref: &dyn Any = &history.0;
+            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
+                Arc::clone(arc_obj)
+            } else {
+                Arc::new(history.0)
+            }
+        };
         Self {
-            history: History::new(Arc::new(history.0)),
+            history: History::new(arc_ops),
         }
     }
 }
