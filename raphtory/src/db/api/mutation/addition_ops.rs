@@ -281,10 +281,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
-        // Start & log the transaction
-        let txn_id = self.transaction_manager().begin();
-        self.wal().log_begin_txn(txn_id).unwrap();
-
+        // Log transaction start
+        let txn_id = self.transaction_manager().begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
 
         self.validate_gids(
@@ -391,7 +389,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
         // Log transaction end
-        self.wal().log_end_txn(txn_id).unwrap();
+        self.transaction_manager().end_transaction(txn_id);
 
         // Flush all wal entries to disk.
         self.wal().sync().unwrap();

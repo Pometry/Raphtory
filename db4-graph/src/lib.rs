@@ -24,7 +24,7 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
-    wal::{TransactionID, Wal},
+    wal::{TransactionID, Wal, GraphWal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
@@ -74,30 +74,34 @@ impl AsRef<Path> for GraphDir {
     }
 }
 
-/// A simple transaction manager that currently just keeps track of transaction IDs.
 #[derive(Debug)]
 pub struct TransactionManager {
     last_transaction_id: AtomicU64,
+    wal: Arc<WalImpl>,
 }
 
 impl TransactionManager {
-    const STARTING_TRANSACTION_ID: TransactionID = 0;
+    const STARTING_TRANSACTION_ID: TransactionID = 1;
 
-    pub fn new() -> Self {
+    pub fn new(wal: Arc<WalImpl>) -> Self {
         Self {
             last_transaction_id: AtomicU64::new(Self::STARTING_TRANSACTION_ID),
+            wal,
         }
     }
 
-    pub fn load(last_transaction_id: TransactionID) -> Self {
-        Self {
-            last_transaction_id: AtomicU64::new(last_transaction_id),
-        }
+    pub fn load(self, last_transaction_id: TransactionID) {
+        self.last_transaction_id.store(last_transaction_id, atomic::Ordering::SeqCst)
     }
 
-    pub fn begin(&self) -> TransactionID {
-        self.last_transaction_id
-            .fetch_add(1, atomic::Ordering::SeqCst)
+    pub fn begin_transaction(&self) -> TransactionID {
+        let txn_id = self.last_transaction_id.fetch_add(1, atomic::Ordering::SeqCst);
+        self.wal.log_begin_txn(txn_id).unwrap();
+        txn_id
+    }
+
+    pub fn end_transaction(&self, txn_id: TransactionID) {
+        self.wal.log_end_txn(txn_id).unwrap();
     }
 }
 
@@ -132,7 +136,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
 
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
         let wal_dir = graph_dir.as_ref().join("wal");
-        let wal = Wal::new(&wal_dir).unwrap();
+        let wal = Arc::new(WalImpl::new(&wal_dir).unwrap());
 
         Self {
             graph_dir,
@@ -140,8 +144,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             node_count,
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
-            transaction_manager: Arc::new(TransactionManager::new()),
-            wal: Arc::new(wal),
+            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            wal,
         }
     }
 
@@ -161,7 +165,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         );
 
         let wal_dir = graph_dir.as_ref().join("wal");
-        let wal = Wal::new(&wal_dir).unwrap();
+        let wal = Arc::new(WalImpl::new(&wal_dir).unwrap());
 
         Self {
             graph_dir,
@@ -169,8 +173,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
-            transaction_manager: Arc::new(TransactionManager::new()),
-            wal: Arc::new(wal),
+            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            wal,
         }
     }
 
