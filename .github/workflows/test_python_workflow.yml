@@ -61,7 +61,6 @@ jobs:
           python -m pip install pytest tox
           python -m pip install black mypy
           python -m pip install -e examples/netflow
-          python -m pip install -e stub_gen
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -74,7 +73,7 @@ jobs:
           cd examples/netflow/test && pytest .
       - name: Run stubgen
         run: |
-          python python/scripts/gen-stubs.py && mypy -m raphtory
+          mypy -m raphtory
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
