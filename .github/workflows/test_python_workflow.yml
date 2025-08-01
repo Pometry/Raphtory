@@ -59,6 +59,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install pytest tox
+          python -m pip install black mypy
           python -m pip install -e examples/netflow
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -70,6 +71,9 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
+      - name: Run stubgen
+        run: |
+          mypy -m raphtory
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
@@ -78,6 +82,10 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           python docs/scripts/gen_docs_graphql_pages.py
+      - name: Run python linter
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          cd python && black .
       - name: Check for uncommitted changes
       
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
