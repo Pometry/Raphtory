@@ -95,13 +95,13 @@ impl TransactionManager {
     }
 
     pub fn begin_transaction(&self) -> TransactionID {
-        let txn_id = self.last_transaction_id.fetch_add(1, atomic::Ordering::SeqCst);
-        self.wal.log_begin_txn(txn_id).unwrap();
-        txn_id
+        let transaction_id = self.last_transaction_id.fetch_add(1, atomic::Ordering::SeqCst);
+        self.wal.log_begin_transaction(transaction_id).unwrap();
+        transaction_id
     }
 
-    pub fn end_transaction(&self, txn_id: TransactionID) {
-        self.wal.log_end_txn(txn_id).unwrap();
+    pub fn end_transaction(&self, transaction_id: TransactionID) {
+        self.wal.log_end_transaction(transaction_id).unwrap();
     }
 }
 

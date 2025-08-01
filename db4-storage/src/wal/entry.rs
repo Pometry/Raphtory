@@ -15,17 +15,17 @@ use crate::{
 impl GraphWal for NoWal {
     type ReplayEntry = ();
 
-    fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
+    fn log_begin_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
-    fn log_end_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
+    fn log_end_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
     fn log_add_static_edge(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
@@ -35,7 +35,7 @@ impl GraphWal for NoWal {
 
     fn log_add_edge(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
@@ -46,13 +46,13 @@ impl GraphWal for NoWal {
         Ok(0)
     }
 
-    fn log_node_id(&self, _txn_id: TransactionID, _gid: GID, _vid: VID) -> Result<LSN, DBV4Error> {
+    fn log_node_id(&self, _transaction_id: TransactionID, _gid: GID, _vid: VID) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
     fn log_edge_id(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _src: VID,
         _dst: VID,
         _eid: EID,
@@ -63,7 +63,7 @@ impl GraphWal for NoWal {
 
     fn log_const_prop_ids<PN: AsRef<str>>(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<LSN, DBV4Error> {
         Ok(0)
@@ -71,7 +71,7 @@ impl GraphWal for NoWal {
 
     fn log_temporal_prop_ids<PN: AsRef<str>>(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<LSN, DBV4Error> {
         Ok(0)
@@ -79,7 +79,7 @@ impl GraphWal for NoWal {
 
     fn log_layer_id(
         &self,
-        _txn_id: TransactionID,
+        _transaction_id: TransactionID,
         _name: &str,
         _id: usize,
     ) -> Result<LSN, DBV4Error> {

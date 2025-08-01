@@ -282,7 +282,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         layer: Option<&str>,
     ) -> Result<EdgeView<G, G>, GraphError> {
         // Log transaction start
-        let txn_id = self.transaction_manager().begin_transaction();
+        let transaction_id = self.transaction_manager().begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
 
         self.validate_gids(
@@ -302,7 +302,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Log prop name -> prop id mappings
         self.wal()
-            .log_temporal_prop_ids(txn_id, &props_with_status)
+            .log_temporal_prop_ids(transaction_id, &props_with_status)
             .unwrap();
 
         let props = props_with_status
@@ -327,13 +327,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
         if let Some(gid) = src.as_node_ref().as_gid_ref().left() {
             self.wal()
-                .log_node_id(txn_id, gid.into(), src_id.inner())
+                .log_node_id(transaction_id, gid.into(), src_id.inner())
                 .unwrap();
         }
 
         if let Some(gid) = dst.as_node_ref().as_gid_ref().left() {
             self.wal()
-                .log_node_id(txn_id, gid.into(), dst_id.inner())
+                .log_node_id(transaction_id, gid.into(), dst_id.inner())
                 .unwrap();
         }
 
@@ -343,7 +343,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Log layer -> layer id mappings
         if let Some(layer) = layer {
             self.wal()
-                .log_layer_id(txn_id, layer, layer_id.inner())
+                .log_layer_id(transaction_id, layer, layer_id.inner())
                 .unwrap();
         }
 
@@ -357,7 +357,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Log edge addition
         let add_static_edge_lsn = self
             .wal()
-            .log_add_static_edge(txn_id, ti, src_id, dst_id)
+            .log_add_static_edge(transaction_id, ti, src_id, dst_id)
             .unwrap();
         let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_static_edge_lsn);
 
@@ -367,7 +367,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let add_edge_lsn = self
             .wal()
             .log_add_edge(
-                txn_id,
+                transaction_id,
                 ti,
                 src_id,
                 dst_id,
@@ -389,7 +389,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
         // Log transaction end
-        self.transaction_manager().end_transaction(txn_id);
+        self.transaction_manager().end_transaction(transaction_id);
 
         // Flush all wal entries to disk.
         self.wal().sync().unwrap();

@@ -26,18 +26,18 @@ impl ReplayGraph {
 }
 
 impl GraphReplayer for ReplayGraph {
-    fn replay_begin_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error> {
+    fn replay_begin_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error> {
         Ok(())
     }
 
-    fn replay_end_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error> {
+    fn replay_end_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error> {
         Ok(())
     }
 
     fn replay_add_static_edge(
         &self,
         lsn: LSN,
-        txn_id: TransactionID,
+        transaction_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
@@ -48,7 +48,7 @@ impl GraphReplayer for ReplayGraph {
     fn replay_add_edge(
         &self,
         lsn: LSN,
-        txn_id: TransactionID,
+        transaction_id: TransactionID,
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
@@ -68,14 +68,14 @@ impl GraphReplayer for ReplayGraph {
         Ok(())
     }
 
-    fn replay_node_id(&self, lsn: LSN, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error> {
+    fn replay_node_id(&self, lsn: LSN, transaction_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error> {
         Ok(())
     }
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
         &self,
         lsn: LSN,
-        txn_id: TransactionID,
+        transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), DBV4Error> {
         Ok(())
@@ -84,13 +84,13 @@ impl GraphReplayer for ReplayGraph {
     fn replay_temporal_prop_ids<PN: AsRef<str>>(
         &self,
         lsn: LSN,
-        txn_id: TransactionID,
+        transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), DBV4Error> {
         Ok(())
     }
 
-    fn replay_layer_id(&self, lsn: LSN, txn_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error> {
+    fn replay_layer_id(&self, lsn: LSN, transaction_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error> {
         Ok(())
     }
 }
