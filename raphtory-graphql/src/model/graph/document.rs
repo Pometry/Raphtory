@@ -6,6 +6,7 @@ use raphtory::{
 
 use super::{edge::GqlEdge, node::GqlNode};
 
+/// Entity associated with document
 #[derive(Union)]
 #[graphql(name = "DocumentEntity")]
 pub(crate) enum GqlDocumentEntity {
@@ -22,6 +23,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
     }
 }
 
+/// Document in a vector graph
 #[derive(SimpleObject)]
 pub struct GqlDocument {
     pub(crate) entity: GqlDocumentEntity,

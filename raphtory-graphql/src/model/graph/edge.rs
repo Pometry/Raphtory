@@ -20,6 +20,7 @@ use raphtory::{
     prelude::{LayerOps, TimeOps},
 };
 
+/// Raphtory graph edge
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
 pub struct GqlEdge {
@@ -155,7 +156,7 @@ impl GqlEdge {
     async fn shrink_end(&self, end: i64) -> Self {
         self.ee.shrink_end(end).into()
     }
-
+    /// Takes a specified selection of views and applies them in order given
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
         let mut return_view: GqlEdge = self.ee.clone().into();
         for view in views {

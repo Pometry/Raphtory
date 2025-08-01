@@ -86,6 +86,7 @@ pub(crate) struct QueryRoot;
 
 #[ResolvedObjectFields]
 impl QueryRoot {
+    /// Hello world demo
     async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
     }
@@ -98,7 +99,9 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
-
+    /// Update graph query has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
@@ -110,18 +113,26 @@ impl QueryRoot {
         Ok(graph)
     }
 
+    /// Create vectorised graph in format used for queries
+    /// 
+    /// Returns:: GqlVectorisedGraph
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
-
+    /// Returns root namespaces
+    ///
+    /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
         GqlCollection::new(root.get_all_namespaces().into())
     }
 
+    /// Returns a specific namespace at a given path
+    ///
+    /// Returns:: Namespace or error if no namespace found
     async fn namespace<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -135,16 +146,20 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
-
+    /// Returns root namespace
+    ///
+    /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
-
+    /// Placeholder
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
-
+    /// Encodes graph and returns as string
+    ///
+    /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
@@ -173,6 +188,7 @@ impl Mut {
         Ok(true)
     }
 
+    /// Creates a new graph
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -281,6 +297,7 @@ impl Mut {
         Ok(new_path)
     }
 
+    /// Creates search index
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,

@@ -4,6 +4,7 @@ use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
+///
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct MetaGraph {
     folder: ExistingGraphFolder,
