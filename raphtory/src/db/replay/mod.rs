@@ -11,7 +11,9 @@ use raphtory_api::core::{
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 
-/// Wrapper struct for replaying wal entries.
+/// Wrapper struct for implementing GraphReplayer for a TemporalGraph.
+/// This is needed to workaround Rust's orphan rule since both ReplayGraph and TemporalGraph
+/// are foreign to this crate.
 #[derive(Debug)]
 pub struct ReplayGraph {
     graph: TemporalGraph<Extension>,

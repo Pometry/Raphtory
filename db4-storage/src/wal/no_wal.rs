@@ -5,6 +5,8 @@ use crate::{
     wal::{Wal, WalRecord, LSN},
 };
 
+/// NoWAL is a no-op WAL implementation that discards all writes.
+/// Used for in-memory only graphs.
 #[derive(Debug)]
 pub struct NoWal {
     dir: PathBuf,

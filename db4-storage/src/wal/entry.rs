@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl GraphWal for NoWal {
-    type Entry = ();
+    type ReplayEntry = ();
 
     fn log_begin_txn(&self, _txn_id: TransactionID) -> Result<LSN, DBV4Error> {
         Ok(0)

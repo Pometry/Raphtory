@@ -46,7 +46,8 @@ pub trait Wal {
 
 // Raphtory-specific logging & replay methods.
 pub trait GraphWal {
-    type Entry: 'static;
+    /// ReplayEntry represents the type of the wal entry returned during replay.
+    type ReplayEntry;
 
     fn log_begin_txn(&self, txn_id: TransactionID) -> Result<LSN, DBV4Error>;
 
@@ -134,7 +135,7 @@ pub trait GraphWal {
     /// Returns an iterator over the wal entries in the given directory.
     fn replay_iter(
         dir: impl AsRef<Path>,
-    ) -> impl Iterator<Item = Result<(LSN, Self::Entry), DBV4Error>>;
+    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), DBV4Error>>;
 
     /// Replays and applies all the wal entries in the given directory to the given graph.
     fn replay_to_graph<G: GraphReplayer>(
