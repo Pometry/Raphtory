@@ -1,14 +1,14 @@
 use db4_graph::TemporalGraph;
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, EID, GID, VID},
+    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+};
 use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
 use storage::{
+    api::edges::EdgeSegmentOps,
     error::DBV4Error,
     wal::{GraphReplayer, TransactionID, LSN},
     Extension,
-    api::edges::EdgeSegmentOps,
-};
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID, EID, VID},
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
 
 /// Wrapper struct for implementing GraphReplayer for a TemporalGraph.
@@ -26,11 +26,19 @@ impl ReplayGraph {
 }
 
 impl GraphReplayer for ReplayGraph {
-    fn replay_begin_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error> {
+    fn replay_begin_transaction(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 
-    fn replay_end_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error> {
+    fn replay_end_transaction(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 
@@ -56,7 +64,7 @@ impl GraphReplayer for ReplayGraph {
         layer_id: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error> {
-       let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
+        let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
 
         match edge_segment {
             Some(edge_segment) => {
@@ -68,7 +76,13 @@ impl GraphReplayer for ReplayGraph {
         Ok(())
     }
 
-    fn replay_node_id(&self, lsn: LSN, transaction_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error> {
+    fn replay_node_id(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        gid: GID,
+        vid: VID,
+    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 
@@ -90,7 +104,13 @@ impl GraphReplayer for ReplayGraph {
         Ok(())
     }
 
-    fn replay_layer_id(&self, lsn: LSN, transaction_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error> {
+    fn replay_layer_id(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        name: &str,
+        id: usize,
+    ) -> Result<(), DBV4Error> {
         Ok(())
     }
 }

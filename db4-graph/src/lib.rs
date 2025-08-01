@@ -24,7 +24,7 @@ use storage::{
     },
     persist::strategy::PersistentStrategy,
     resolver::GIDResolverOps,
-    wal::{TransactionID, Wal, GraphWal},
+    wal::{GraphWal, TransactionID, Wal},
     Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, NS,
 };
 use tempfile::TempDir;
@@ -91,11 +91,14 @@ impl TransactionManager {
     }
 
     pub fn load(self, last_transaction_id: TransactionID) {
-        self.last_transaction_id.store(last_transaction_id, atomic::Ordering::SeqCst)
+        self.last_transaction_id
+            .store(last_transaction_id, atomic::Ordering::SeqCst)
     }
 
     pub fn begin_transaction(&self) -> TransactionID {
-        let transaction_id = self.last_transaction_id.fetch_add(1, atomic::Ordering::SeqCst);
+        let transaction_id = self
+            .last_transaction_id
+            .fetch_add(1, atomic::Ordering::SeqCst);
         self.wal.log_begin_transaction(transaction_id).unwrap();
         transaction_id
     }

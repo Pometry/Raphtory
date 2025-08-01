@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::DBV4Error,
-    wal::{Wal, WalRecord, LSN},
+    wal::{LSN, Wal, WalRecord},
 };
 
 /// NoWAL is a no-op WAL implementation that discards all writes.

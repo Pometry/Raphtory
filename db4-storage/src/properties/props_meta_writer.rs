@@ -1,7 +1,7 @@
 use either::Either;
 use raphtory_api::core::entities::properties::{
     meta::{LockedPropMapper, Meta, PropMapper},
-    prop::{unify_types, Prop},
+    prop::{Prop, unify_types},
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 

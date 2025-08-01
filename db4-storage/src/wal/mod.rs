@@ -91,7 +91,12 @@ pub trait GraphWal {
         props: &[(usize, Prop)],
     ) -> Result<LSN, DBV4Error>;
 
-    fn log_node_id(&self, transaction_id: TransactionID, gid: GID, vid: VID) -> Result<LSN, DBV4Error>;
+    fn log_node_id(
+        &self,
+        transaction_id: TransactionID,
+        gid: GID,
+        vid: VID,
+    ) -> Result<LSN, DBV4Error>;
 
     fn log_edge_id(
         &self,
@@ -126,7 +131,12 @@ pub trait GraphWal {
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<LSN, DBV4Error>;
 
-    fn log_layer_id(&self, transaction_id: TransactionID, name: &str, id: usize) -> Result<LSN, DBV4Error>;
+    fn log_layer_id(
+        &self,
+        transaction_id: TransactionID,
+        name: &str,
+        id: usize,
+    ) -> Result<LSN, DBV4Error>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.
@@ -146,9 +156,17 @@ pub trait GraphWal {
 
 /// Trait for defining callbacks for replaying from wal
 pub trait GraphReplayer {
-    fn replay_begin_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error>;
+    fn replay_begin_transaction(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+    ) -> Result<(), DBV4Error>;
 
-    fn replay_end_transaction(&self, lsn: LSN, transaction_id: TransactionID) -> Result<(), DBV4Error>;
+    fn replay_end_transaction(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+    ) -> Result<(), DBV4Error>;
 
     fn replay_add_static_edge(
         &self,
@@ -171,7 +189,13 @@ pub trait GraphReplayer {
         props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error>;
 
-    fn replay_node_id(&self, lsn: LSN, transaction_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
+    fn replay_node_id(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        gid: GID,
+        vid: VID,
+    ) -> Result<(), DBV4Error>;
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
         &self,
@@ -187,5 +211,11 @@ pub trait GraphReplayer {
         props: &[MaybeNew<(PN, usize, Prop)>],
     ) -> Result<(), DBV4Error>;
 
-    fn replay_layer_id(&self, lsn: LSN, transaction_id: TransactionID, name: &str, id: usize) -> Result<(), DBV4Error>;
+    fn replay_layer_id(
+        &self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        name: &str,
+        id: usize,
+    ) -> Result<(), DBV4Error>;
 }

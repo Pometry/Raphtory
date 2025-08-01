@@ -9,7 +9,7 @@ use raphtory_core::{
 use crate::wal::no_wal::NoWal;
 use crate::{
     error::DBV4Error,
-    wal::{GraphWal, GraphReplayer, TransactionID, LSN},
+    wal::{GraphReplayer, GraphWal, LSN, TransactionID},
 };
 
 impl GraphWal for NoWal {
@@ -46,7 +46,12 @@ impl GraphWal for NoWal {
         Ok(0)
     }
 
-    fn log_node_id(&self, _transaction_id: TransactionID, _gid: GID, _vid: VID) -> Result<LSN, DBV4Error> {
+    fn log_node_id(
+        &self,
+        _transaction_id: TransactionID,
+        _gid: GID,
+        _vid: VID,
+    ) -> Result<LSN, DBV4Error> {
         Ok(0)
     }
 
