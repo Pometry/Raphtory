@@ -177,7 +177,7 @@ def test_search_nodes_for_property_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1") == 1
+    filter_expr = filter.Node.property("p1") == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N3", "N4", "N6", "N7"] == results
 
@@ -186,7 +186,7 @@ def test_search_nodes_for_property_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1") != 2
+    filter_expr = filter.Node.property("p1") != 2
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -205,7 +205,7 @@ def test_search_nodes_for_property_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("q1") < 2
+    filter_expr = filter.Node.property("q1") < 2
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13", "N14"] == results
 
@@ -214,7 +214,7 @@ def test_search_nodes_for_property_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("q1") <= 3
+    filter_expr = filter.Node.property("q1") <= 3
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13", "N14"] == results
 
@@ -223,7 +223,7 @@ def test_search_nodes_for_property_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1") > 2
+    filter_expr = filter.Node.property("p1") > 2
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13"] == results
 
@@ -232,7 +232,7 @@ def test_search_nodes_for_property_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1") >= 2
+    filter_expr = filter.Node.property("p1") >= 2
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
@@ -241,7 +241,7 @@ def test_search_nodes_for_property_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").is_in([2])
+    filter_expr = filter.Node.property("p1").is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N2", "N5", "N8", "N9"] == results
 
@@ -250,7 +250,7 @@ def test_search_nodes_for_property_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").is_not_in([2])
+    filter_expr = filter.Node.property("p1").is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -269,7 +269,7 @@ def test_search_nodes_for_property_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").is_some()
+    filter_expr = filter.Node.property("p1").is_some()
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -293,7 +293,7 @@ def test_search_nodes_for_property_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").is_none()
+    filter_expr = filter.Node.property("p1").is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -302,7 +302,7 @@ def test_search_nodes_for_metdata_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") == 1
+    filter_expr = filter.Node.metadata("p1") == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -311,7 +311,7 @@ def test_search_nodes_for_metadata_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") != 2
+    filter_expr = filter.Node.metadata("p1") != 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -320,7 +320,7 @@ def test_search_nodes_for_metadata_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") < 2
+    filter_expr = filter.Node.metadata("p1") < 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -329,7 +329,7 @@ def test_search_nodes_for_metadata_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") <= 3
+    filter_expr = filter.Node.metadata("p1") <= 3
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
@@ -338,7 +338,7 @@ def test_search_nodes_for_metadata_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") > 1
+    filter_expr = filter.Node.metadata("p1") > 1
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -347,7 +347,7 @@ def test_search_nodes_for_metadata_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1") >= 2
+    filter_expr = filter.Node.metadata("p1") >= 2
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -356,7 +356,7 @@ def test_search_nodes_for_metadata_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_in([2])
+    filter_expr = filter.Node.metadata("p1").is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N4"] == results
 
@@ -365,7 +365,7 @@ def test_search_nodes_for_metadata_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_not_in([2])
+    filter_expr = filter.Node.metadata("p1").is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"] == results
 
@@ -374,7 +374,7 @@ def test_search_nodes_for_metadata_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_some()
+    filter_expr = filter.Node.metadata("p1").is_some()
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N4", "N9"] == results
 
@@ -384,7 +384,7 @@ def test_search_nodes_for_metadata_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_none()
+    filter_expr = filter.Node.metadata("p1").is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -393,7 +393,7 @@ def test_search_nodes_for_property_temporal_any_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() == 1
+    filter_expr = filter.Node.property("p1").temporal().any() == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"] == results
 
@@ -402,7 +402,7 @@ def test_search_nodes_for_property_temporal_any_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() != 2
+    filter_expr = filter.Node.property("p1").temporal().any() != 2
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -424,7 +424,7 @@ def test_search_nodes_for_property_temporal_any_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() < 2
+    filter_expr = filter.Node.property("p1").temporal().any() < 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"] == results
 
@@ -433,7 +433,7 @@ def test_search_nodes_for_property_temporal_any_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() <= 3
+    filter_expr = filter.Node.property("p1").temporal().any() <= 3
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -456,7 +456,7 @@ def test_search_nodes_for_property_temporal_any_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() > 1
+    filter_expr = filter.Node.property("p1").temporal().any() > 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
@@ -465,7 +465,7 @@ def test_search_nodes_for_property_temporal_any_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() >= 2
+    filter_expr = filter.Node.property("p1").temporal().any() >= 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
@@ -474,7 +474,7 @@ def test_search_nodes_for_property_temporal_any_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_in([2])
+    filter_expr = filter.Node.property("p1").temporal().any().is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N2", "N5", "N8", "N9"] == results
 
@@ -483,7 +483,7 @@ def test_search_nodes_for_property_temporal_any_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_not_in([2])
+    filter_expr = filter.Node.property("p1").temporal().any().is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -505,7 +505,7 @@ def test_search_nodes_for_property_temporal_any_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_some()
+    filter_expr = filter.Node.property("p1").temporal().any().is_some()
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -529,7 +529,7 @@ def test_search_nodes_for_property_temporal_any_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_none()
+    filter_expr = filter.Node.property("p1").temporal().any().is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -538,7 +538,7 @@ def test_search_nodes_for_property_temporal_latest_eq():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() == 1
+    filter_expr = filter.Node.property("p1").temporal().latest() == 1
     results = search_nodes(g, filter_expr)
     assert ["N1", "N3", "N4", "N6", "N7"] == results
 
@@ -547,7 +547,7 @@ def test_search_nodes_for_property_temporal_latest_ne():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() != 2
+    filter_expr = filter.Node.property("p1").temporal().latest() != 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N3", "N4", "N6", "N7"] == results
 
@@ -556,7 +556,7 @@ def test_search_nodes_for_property_temporal_latest_lt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() < 2
+    filter_expr = filter.Node.property("p1").temporal().latest() < 2
     results = search_nodes(g, filter_expr)
     assert ["N1", "N3", "N4", "N6", "N7"] == results
 
@@ -565,7 +565,7 @@ def test_search_nodes_for_property_temporal_latest_le():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() <= 3
+    filter_expr = filter.Node.property("p1").temporal().latest() <= 3
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -588,7 +588,7 @@ def test_search_nodes_for_property_temporal_latest_gt():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() > 1
+    filter_expr = filter.Node.property("p1").temporal().latest() > 1
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
@@ -597,7 +597,7 @@ def test_search_nodes_for_property_temporal_latest_ge():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() >= 2
+    filter_expr = filter.Node.property("p1").temporal().latest() >= 2
     results = search_nodes(g, filter_expr)
     assert ["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"] == results
 
@@ -606,7 +606,7 @@ def test_search_nodes_for_property_temporal_latest_is_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_in([2])
+    filter_expr = filter.Node.property("p1").temporal().latest().is_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N2", "N5", "N8", "N9"] == results
 
@@ -615,7 +615,7 @@ def test_search_nodes_for_property_temporal_latest_is_not_in():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_not_in([2])
+    filter_expr = filter.Node.property("p1").temporal().latest().is_not_in([2])
     results = search_nodes(g, filter_expr)
     assert ["N1", "N10", "N11", "N12", "N13", "N3", "N4", "N6", "N7"] == results
 
@@ -624,7 +624,7 @@ def test_search_nodes_for_property_temporal_latest_is_some():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_some()
+    filter_expr = filter.Node.property("p1").temporal().latest().is_some()
     results = search_nodes(g, filter_expr)
     assert [
         "N1",
@@ -648,7 +648,7 @@ def test_search_nodes_for_composite_filter():
     g = init_graph(g)
 
     filter1 = filter.Node.node_type() == "fire_nation"
-    filter2 = filter.Metadata("p1") > 1
+    filter2 = filter.Node.metadata("p1") > 1
     results = search_nodes(g, filter1 | filter2)
     assert ["N1", "N10", "N11", "N4", "N6"] == results
 
@@ -658,7 +658,7 @@ def test_search_nodes_for_property_temporal_latest_is_none():
     g = Graph()
     g = init_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_none()
+    filter_expr = filter.Node.property("p1").temporal().latest().is_none()
     results = search_nodes(g, filter_expr)
     assert [] == results
 
@@ -879,7 +879,7 @@ def test_search_edges_for_property_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1") == 1
+    filter_expr = filter.Edge.property("p1") == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -894,7 +894,7 @@ def test_search_edges_for_property_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1") != 2
+    filter_expr = filter.Edge.property("p1") != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -913,7 +913,7 @@ def test_search_edges_for_property_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("q1") < 2
+    filter_expr = filter.Edge.property("q1") < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -928,7 +928,7 @@ def test_search_edges_for_property_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("q1") <= 3
+    filter_expr = filter.Edge.property("q1") <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -943,7 +943,7 @@ def test_search_edges_for_property_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1") > 2
+    filter_expr = filter.Edge.property("p1") > 2
     results = search_edges(g, filter_expr)
     assert [("N10", "N11"), ("N11", "N12"), ("N12", "N13"), ("N13", "N14")] == results
 
@@ -952,7 +952,7 @@ def test_search_edges_for_property_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1") >= 2
+    filter_expr = filter.Edge.property("p1") >= 2
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -970,7 +970,7 @@ def test_search_edges_for_property_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").is_in([2])
+    filter_expr = filter.Edge.property("p1").is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
@@ -979,7 +979,7 @@ def test_search_edges_for_property_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").is_not_in([2])
+    filter_expr = filter.Edge.property("p1").is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -998,7 +998,7 @@ def test_search_edges_for_property_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").is_some()
+    filter_expr = filter.Edge.property("p1").is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1022,7 +1022,7 @@ def test_search_edges_for_property_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").is_none()
+    filter_expr = filter.Edge.property("p1").is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 
@@ -1031,7 +1031,7 @@ def test_search_edges_for_metadata_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") == 1
+    filter_expr = filter.Edge.metadata("p1") == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1049,7 +1049,7 @@ def test_search_edges_for_metadata_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") != 2
+    filter_expr = filter.Edge.metadata("p1") != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1067,7 +1067,7 @@ def test_search_edges_for_metadata_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") < 2
+    filter_expr = filter.Edge.metadata("p1") < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1085,7 +1085,7 @@ def test_search_edges_for_metadata_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") <= 3
+    filter_expr = filter.Edge.metadata("p1") <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1104,7 +1104,7 @@ def test_search_edges_for_metadata_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") > 1
+    filter_expr = filter.Edge.metadata("p1") > 1
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1113,7 +1113,7 @@ def test_search_edges_for_metadata_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1") >= 2
+    filter_expr = filter.Edge.metadata("p1") >= 2
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1122,7 +1122,7 @@ def test_search_edges_for_metadata_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_in([2])
+    filter_expr = filter.Edge.metadata("p1").is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N4", "N5")] == results
 
@@ -1131,7 +1131,7 @@ def test_search_edges_for_metadata_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_not_in([2])
+    filter_expr = filter.Edge.metadata("p1").is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1149,7 +1149,7 @@ def test_search_edges_for_metadata_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_some()
+    filter_expr = filter.Edge.metadata("p1").is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1169,7 +1169,7 @@ def test_search_edges_for_metadata_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Metadata("p1").is_none()
+    filter_expr = filter.Edge.metadata("p1").is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 
@@ -1178,7 +1178,7 @@ def test_search_edges_for_property_temporal_any_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() == 1
+    filter_expr = filter.Edge.property("p1").temporal().any() == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1196,7 +1196,7 @@ def test_search_edges_for_property_temporal_any_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() != 2
+    filter_expr = filter.Edge.property("p1").temporal().any() != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1218,7 +1218,7 @@ def test_search_edges_for_property_temporal_any_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() < 2
+    filter_expr = filter.Edge.property("p1").temporal().any() < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1236,7 +1236,7 @@ def test_search_edges_for_property_temporal_any_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() <= 3
+    filter_expr = filter.Edge.property("p1").temporal().any() <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1259,7 +1259,7 @@ def test_search_edges_for_property_temporal_any_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() > 1
+    filter_expr = filter.Edge.property("p1").temporal().any() > 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1278,7 +1278,7 @@ def test_search_edges_for_property_temporal_any_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any() >= 2
+    filter_expr = filter.Edge.property("p1").temporal().any() >= 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1297,7 +1297,7 @@ def test_search_edges_for_property_temporal_any_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_in([2])
+    filter_expr = filter.Edge.property("p1").temporal().any().is_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1312,7 +1312,7 @@ def test_search_edges_for_property_temporal_any_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_not_in([2])
+    filter_expr = filter.Edge.property("p1").temporal().any().is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1334,7 +1334,7 @@ def test_search_edges_for_property_temporal_any_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_some()
+    filter_expr = filter.Edge.property("p1").temporal().any().is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1358,7 +1358,7 @@ def test_search_edges_for_property_temporal_any_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().any().is_none()
+    filter_expr = filter.Edge.property("p1").temporal().any().is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 
@@ -1367,7 +1367,7 @@ def test_search_edges_for_property_temporal_latest_eq():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() == 1
+    filter_expr = filter.Edge.property("p1").temporal().latest() == 1
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1382,7 +1382,7 @@ def test_search_edges_for_property_temporal_latest_ne():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() != 2
+    filter_expr = filter.Edge.property("p1").temporal().latest() != 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1401,7 +1401,7 @@ def test_search_edges_for_property_temporal_latest_lt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() < 2
+    filter_expr = filter.Edge.property("p1").temporal().latest() < 2
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1416,7 +1416,7 @@ def test_search_edges_for_property_temporal_latest_le():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() <= 3
+    filter_expr = filter.Edge.property("p1").temporal().latest() <= 3
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1439,7 +1439,7 @@ def test_search_edges_for_property_temporal_latest_gt():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() > 1
+    filter_expr = filter.Edge.property("p1").temporal().latest() > 1
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -1457,7 +1457,7 @@ def test_search_edges_for_property_temporal_latest_ge():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest() >= 2
+    filter_expr = filter.Edge.property("p1").temporal().latest() >= 2
     results = search_edges(g, filter_expr)
     assert [
         ("N10", "N11"),
@@ -1475,7 +1475,7 @@ def test_search_edges_for_property_temporal_latest_is_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_in([2])
+    filter_expr = filter.Edge.property("p1").temporal().latest().is_in([2])
     results = search_edges(g, filter_expr)
     assert [("N2", "N3"), ("N5", "N6"), ("N8", "N9"), ("N9", "N10")] == results
 
@@ -1484,7 +1484,7 @@ def test_search_edges_for_property_temporal_latest_is_not_in():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_not_in([2])
+    filter_expr = filter.Edge.property("p1").temporal().latest().is_not_in([2])
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1503,7 +1503,7 @@ def test_search_edges_for_property_temporal_latest_is_some():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_some()
+    filter_expr = filter.Edge.property("p1").temporal().latest().is_some()
     results = search_edges(g, filter_expr)
     assert [
         ("N1", "N2"),
@@ -1527,7 +1527,7 @@ def test_search_edges_for_property_temporal_latest_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
-    filter_expr = filter.Property("p1").temporal().latest().is_none()
+    filter_expr = filter.Edge.property("p1").temporal().latest().is_none()
     results = search_edges(g, filter_expr)
     assert [] == results
 
@@ -1537,7 +1537,7 @@ def test_search_edges_for_composite_filter():
     g = init_edges_graph(g)
 
     filter1 = filter.Edge.src().name() == "N13"
-    filter2 = filter.Property("p1").temporal().latest() == 3
+    filter2 = filter.Edge.property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
     assert [("N13", "N14")] == results
 
@@ -1547,6 +1547,6 @@ def test_search_edges_for_composite_filter_pg():
     g = init_edges_graph(g)
 
     filter1 = filter.Edge.src().name() == "N13"
-    filter2 = filter.Property("p1").temporal().latest() == 3
+    filter2 = filter.Edge.property("p1").temporal().latest() == 3
     results = search_edges(g, filter1 & filter2)
     assert [("N13", "N14")] == results

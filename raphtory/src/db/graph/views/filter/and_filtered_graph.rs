@@ -3,52 +3,52 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                EdgeHistoryFilter, EdgeList, Immutable, InheritMaterialize, InheritNodeFilterOps,
-                InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-                InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-                InternalLayerOps, ListOps, NodeList, Static,
+                EdgeHistoryFilter, EdgeList, Immutable, InheritMaterialize, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+                InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, ListOps,
+                NodeHistoryFilter, NodeList, Static,
             },
         },
-        graph::views::filter::{
-            internal::{CreateEdgeFilter, CreateExplodedEdgeFilter},
-            model::AndFilter,
-        },
+        graph::views::filter::{internal::CreateFilter, model::AndFilter},
     },
     errors::GraphError,
     prelude::GraphViewOps,
 };
 use raphtory_api::{
     core::{
-        entities::{LayerIds, EID, ELID},
+        entities::{LayerIds, EID, ELID, VID},
         storage::timeindex::TimeIndexEntry,
     },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
+    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+};
 use std::ops::Range;
 
 #[derive(Debug, Clone)]
-pub struct EdgeAndFilteredGraph<G, L, R> {
+pub struct AndFilteredGraph<G, L, R> {
     graph: G,
     left: L,
     right: R,
     layer_ids: LayerIds,
 }
 
-impl<L: CreateEdgeFilter, R: CreateEdgeFilter> CreateEdgeFilter for AndFilter<L, R> {
-    type EdgeFiltered<'graph, G: GraphViewOps<'graph>>
-        = EdgeAndFilteredGraph<G, L::EdgeFiltered<'graph, G>, R::EdgeFiltered<'graph, G>>
+impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>>
+        = AndFilteredGraph<G, L::EntityFiltered<'graph, G>, R::EntityFiltered<'graph, G>>
     where
         Self: 'graph;
 
-    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
-        let left = self.left.create_edge_filter(graph.clone())?;
-        let right = self.right.create_edge_filter(graph.clone())?;
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let left = self.left.create_filter(graph.clone())?;
+        let right = self.right.create_filter(graph.clone())?;
         let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(EdgeAndFilteredGraph {
+        Ok(AndFilteredGraph {
             graph,
             left,
             right,
@@ -57,35 +57,7 @@ impl<L: CreateEdgeFilter, R: CreateEdgeFilter> CreateEdgeFilter for AndFilter<L,
     }
 }
 
-impl<L: CreateExplodedEdgeFilter, R: CreateExplodedEdgeFilter> CreateExplodedEdgeFilter
-    for AndFilter<L, R>
-{
-    type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>
-        = EdgeAndFilteredGraph<
-        G,
-        L::ExplodedEdgeFiltered<'graph, G>,
-        R::ExplodedEdgeFiltered<'graph, G>,
-    >
-    where
-        Self: 'graph;
-
-    fn create_exploded_edge_filter<'graph, G: GraphViewOps<'graph>>(
-        self,
-        graph: G,
-    ) -> Result<Self::ExplodedEdgeFiltered<'graph, G>, GraphError> {
-        let left = self.left.create_exploded_edge_filter(graph.clone())?;
-        let right = self.right.create_exploded_edge_filter(graph.clone())?;
-        let layer_ids = left.layer_ids().intersect(right.layer_ids());
-        Ok(EdgeAndFilteredGraph {
-            graph,
-            left,
-            right,
-            layer_ids,
-        })
-    }
-}
-
-impl<G, L, R> Base for EdgeAndFilteredGraph<G, L, R> {
+impl<G, L, R> Base for AndFilteredGraph<G, L, R> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -93,21 +65,16 @@ impl<G, L, R> Base for EdgeAndFilteredGraph<G, L, R> {
     }
 }
 
-impl<G, L, R> Static for EdgeAndFilteredGraph<G, L, R> {}
-impl<G, L, R> Immutable for EdgeAndFilteredGraph<G, L, R> {}
+impl<G, L, R> Static for AndFilteredGraph<G, L, R> {}
+impl<G, L, R> Immutable for AndFilteredGraph<G, L, R> {}
 
-impl<G, L, R> InheritCoreGraphOps for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeFilterOps for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for EdgeAndFilteredGraph<G, L, R> {}
-impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodeHistoryFilter
-    for EdgeAndFilteredGraph<G, L, R>
-{
-}
+impl<G, L, R> InheritCoreGraphOps for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for AndFilteredGraph<G, L, R> {}
 
-impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for EdgeAndFilteredGraph<G, L, R>
+impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for AndFilteredGraph<G, L, R>
 where
     G: InternalLayerOps,
 {
@@ -116,7 +83,7 @@ where
     }
 }
 
-impl<G, L, R> ListOps for EdgeAndFilteredGraph<G, L, R>
+impl<G, L, R> ListOps for AndFilteredGraph<G, L, R>
 where
     L: ListOps,
     R: ListOps,
@@ -134,7 +101,86 @@ where
     }
 }
 
-impl<G, L, R> EdgeHistoryFilter for EdgeAndFilteredGraph<G, L, R>
+impl<G, L, R> NodeHistoryFilter for AndFilteredGraph<G, L, R>
+where
+    L: NodeHistoryFilter,
+    R: NodeHistoryFilter,
+{
+    fn is_node_prop_update_available(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.left
+            .is_node_prop_update_available(prop_id, node_id, time)
+            && self
+                .right
+                .is_node_prop_update_available(prop_id, node_id, time)
+    }
+
+    fn is_node_prop_update_available_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.left
+            .is_node_prop_update_available_window(prop_id, node_id, time, w.clone())
+            && self
+                .right
+                .is_node_prop_update_available_window(prop_id, node_id, time, w)
+    }
+
+    fn is_node_prop_update_latest(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.left.is_node_prop_update_latest(prop_id, node_id, time)
+            && self
+                .right
+                .is_node_prop_update_latest(prop_id, node_id, time)
+    }
+
+    fn is_node_prop_update_latest_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.left
+            .is_node_prop_update_latest_window(prop_id, node_id, time, w.clone())
+            && self
+                .right
+                .is_node_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+}
+
+impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps
+    for AndFilteredGraph<G, L, R>
+{
+    #[inline]
+    fn internal_nodes_filtered(&self) -> bool {
+        self.left.internal_nodes_filtered() || self.right.internal_nodes_filtered()
+    }
+
+    #[inline]
+    fn internal_node_list_trusted(&self) -> bool {
+        self.left.internal_node_list_trusted() && self.right.internal_node_list_trusted()
+    }
+
+    #[inline]
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.left.internal_filter_node(node, layer_ids)
+            && self.right.internal_filter_node(node, layer_ids)
+    }
+}
+
+impl<G, L, R> EdgeHistoryFilter for AndFilteredGraph<G, L, R>
 where
     L: EdgeHistoryFilter,
     R: EdgeHistoryFilter,
@@ -206,7 +252,7 @@ where
 }
 
 impl<G, L: InternalEdgeLayerFilterOps, R: InternalEdgeLayerFilterOps> InternalEdgeLayerFilterOps
-    for EdgeAndFilteredGraph<G, L, R>
+    for AndFilteredGraph<G, L, R>
 {
     fn internal_edge_layer_filtered(&self) -> bool {
         self.left.internal_edge_layer_filtered() || self.right.internal_edge_layer_filtered()
@@ -224,7 +270,7 @@ impl<G, L: InternalEdgeLayerFilterOps, R: InternalEdgeLayerFilterOps> InternalEd
 }
 
 impl<G, L: InternalExplodedEdgeFilterOps, R: InternalExplodedEdgeFilterOps>
-    InternalExplodedEdgeFilterOps for EdgeAndFilteredGraph<G, L, R>
+    InternalExplodedEdgeFilterOps for AndFilteredGraph<G, L, R>
 {
     fn internal_exploded_edge_filtered(&self) -> bool {
         self.left.internal_exploded_edge_filtered() || self.right.internal_exploded_edge_filtered()
@@ -247,7 +293,7 @@ impl<G, L: InternalExplodedEdgeFilterOps, R: InternalExplodedEdgeFilterOps>
 }
 
 impl<G, L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOps
-    for EdgeAndFilteredGraph<G, L, R>
+    for AndFilteredGraph<G, L, R>
 {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {

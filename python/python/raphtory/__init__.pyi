@@ -799,6 +799,20 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def add_metadata(self, metadata: PropInput) -> None:
+        """
+        Adds static properties to the graph.
+
+        Arguments:
+            metadata (PropInput): The static properties of the graph.
+
+        Returns:
+            None: This function does not return a value, if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def add_node(
         self,
         timestamp: TimeInput,

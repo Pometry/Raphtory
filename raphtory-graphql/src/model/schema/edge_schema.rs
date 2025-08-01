@@ -100,7 +100,7 @@ fn collect_edge_property_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
 ) -> SchemaAggregate {
     let props = edge.properties();
-    let mapper = edge.base_graph.edge_meta().temporal_prop_mapper();
+    let mapper = edge.graph.edge_meta().temporal_prop_mapper();
     collect_schema(props, mapper)
 }
 
@@ -108,6 +108,6 @@ fn collect_edge_metadata_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
 ) -> SchemaAggregate {
     let props = edge.metadata();
-    let mapper = edge.base_graph.edge_meta().metadata_mapper();
+    let mapper = edge.graph.edge_meta().metadata_mapper();
     collect_schema(props, mapper)
 }
