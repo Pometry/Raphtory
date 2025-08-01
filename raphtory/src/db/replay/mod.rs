@@ -32,6 +32,17 @@ impl GraphReplayer for ReplayGraph {
         Ok(())
     }
 
+    fn replay_add_static_edge(
+        &self,
+        lsn: LSN,
+        txn_id: TransactionID,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+    ) -> Result<(), DBV4Error> {
+        Ok(())
+    }
+
     fn replay_add_edge(
         &self,
         lsn: LSN,
@@ -41,8 +52,7 @@ impl GraphReplayer for ReplayGraph {
         dst: VID,
         eid: EID,
         layer_id: usize,
-        t_props: &[(usize, Prop)],
-        c_props: &[(usize, Prop)],
+        props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error> {
        let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
 

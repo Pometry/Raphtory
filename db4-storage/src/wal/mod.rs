@@ -149,6 +149,15 @@ pub trait GraphReplayer {
 
     fn replay_end_txn(&self, lsn: LSN, txn_id: TransactionID) -> Result<(), DBV4Error>;
 
+    fn replay_add_static_edge(
+        &self,
+        lsn: LSN,
+        txn_id: TransactionID,
+        t: TimeIndexEntry,
+        src: VID,
+        dst: VID,
+    ) -> Result<(), DBV4Error>;
+
     fn replay_add_edge(
         &self,
         lsn: LSN,
@@ -158,8 +167,7 @@ pub trait GraphReplayer {
         dst: VID,
         eid: EID,
         layer_id: usize,
-        t_props: &[(usize, Prop)],
-        c_props: &[(usize, Prop)],
+        props: &[(usize, Prop)],
     ) -> Result<(), DBV4Error>;
 
     fn replay_node_id(&self, lsn: LSN, txn_id: TransactionID, gid: GID, vid: VID) -> Result<(), DBV4Error>;
