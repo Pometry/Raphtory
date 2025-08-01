@@ -24,4 +24,5 @@ if __name__ == "__main__":
 
     path = Path(__file__).parent.parent / "python"
     set_imports(imports)
+    print("Creating stubs...")
     gen_module(raphtory, "raphtory", path, "raphtory")
