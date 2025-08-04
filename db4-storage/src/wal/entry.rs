@@ -8,18 +8,18 @@ use raphtory_core::{
 
 use crate::wal::no_wal::NoWal;
 use crate::{
-    error::DBV4Error,
+    error::StorageError,
     wal::{GraphReplayer, GraphWal, LSN, TransactionID},
 };
 
 impl GraphWal for NoWal {
     type ReplayEntry = ();
 
-    fn log_begin_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, DBV4Error> {
+    fn log_begin_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
-    fn log_end_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, DBV4Error> {
+    fn log_end_transaction(&self, _transaction_id: TransactionID) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -29,7 +29,7 @@ impl GraphWal for NoWal {
         _t: TimeIndexEntry,
         _src: VID,
         _dst: VID,
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -42,7 +42,7 @@ impl GraphWal for NoWal {
         _eid: EID,
         _layer_id: usize,
         _props: &[(usize, Prop)],
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -51,7 +51,7 @@ impl GraphWal for NoWal {
         _transaction_id: TransactionID,
         _gid: GID,
         _vid: VID,
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -62,7 +62,7 @@ impl GraphWal for NoWal {
         _dst: VID,
         _eid: EID,
         _layer_id: usize,
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -70,7 +70,7 @@ impl GraphWal for NoWal {
         &self,
         _transaction_id: TransactionID,
         _props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -78,7 +78,7 @@ impl GraphWal for NoWal {
         &self,
         _transaction_id: TransactionID,
         _props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
@@ -87,22 +87,22 @@ impl GraphWal for NoWal {
         _transaction_id: TransactionID,
         _name: &str,
         _id: usize,
-    ) -> Result<LSN, DBV4Error> {
+    ) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
-    fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, DBV4Error> {
+    fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
-    fn replay_iter(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), DBV4Error>> {
+    fn replay_iter(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
         std::iter::once(Ok((0, ())))
     }
 
     fn replay_to_graph<G: GraphReplayer>(
         _dir: impl AsRef<Path>,
         _graph: &mut G,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         todo!()
     }
 }

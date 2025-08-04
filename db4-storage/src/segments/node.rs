@@ -23,7 +23,7 @@ use super::{HasRow, SegmentContainer};
 use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::DBV4Error,
+    error::StorageError,
     persist::strategy::PersistentStrategy,
     segments::node_entry::{MemNodeEntry, MemNodeRef},
 };
@@ -421,7 +421,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
+    ) -> Result<Self, StorageError>
     where
         Self: Sized,
     {
@@ -465,7 +465,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
     fn notify_write(
         &self,
         _head_lock: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 

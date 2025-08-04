@@ -8,7 +8,7 @@ use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
-    error::DBV4Error,
+    error::StorageError,
     pages::{
         layer_counter::GraphStats,
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
@@ -173,7 +173,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         edges_path: impl AsRef<Path>,
         max_page_len: usize,
         ext: EXT,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
 
         let meta = Arc::new(Meta::new());
@@ -201,7 +201,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             .collect::<Result<HashMap<_, _>, _>>()?;
 
         if pages.is_empty() {
-            return Err(DBV4Error::EmptyGraphDir(edges_path.to_path_buf()));
+            return Err(StorageError::EmptyGraphDir(edges_path.to_path_buf()));
         }
 
         let max_page = Iterator::max(pages.keys().copied()).unwrap();
@@ -219,7 +219,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         let first_p_id = first_page.segment_id();
 
         if first_p_id != 0 {
-            return Err(DBV4Error::GenericFailure(format!(
+            return Err(StorageError::GenericFailure(format!(
                 "First page id is not 0 in {edges_path:?}"
             )));
         }
@@ -399,7 +399,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     pub fn try_get_writer<'a>(
         &'a self,
         e_id: EID,
-    ) -> Result<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>, DBV4Error> {
+    ) -> Result<EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES>, StorageError> {
         let (segment_id, _) = resolve_pos(e_id, self.max_page_len);
         let page = self.get_or_create_segment(segment_id);
         let writer = page.head_mut();

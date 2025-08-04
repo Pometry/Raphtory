@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::error::DBV4Error;
+use crate::error::StorageError;
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
     storage::dict_mapper::MaybeNew,
@@ -12,7 +12,7 @@ pub mod mapping_resolver;
 #[derive(thiserror::Error, Debug)]
 pub enum GIDResolverError {
     #[error(transparent)]
-    DBV4Error(#[from] DBV4Error),
+    StorageError(#[from] StorageError),
     #[error(transparent)]
     InvalidNodeId(#[from] InvalidNodeId),
 }

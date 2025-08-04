@@ -65,7 +65,7 @@ pub mod error {
     use raphtory_core::utils::time::ParseTimeError;
 
     #[derive(thiserror::Error, Debug)]
-    pub enum DBV4Error {
+    pub enum StorageError {
         #[error("External Storage Error {0}")]
         External(#[from] Arc<dyn std::error::Error + Send + Sync>),
         #[error("IO error: {0}")]

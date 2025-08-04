@@ -1,4 +1,4 @@
-use crate::error::DBV4Error;
+use crate::error::StorageError;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, GID, VID},
@@ -20,7 +20,7 @@ pub struct WalRecord {
 
 /// Core Wal methods.
 pub trait Wal {
-    fn new(dir: impl AsRef<Path>) -> Result<Self, DBV4Error>
+    fn new(dir: impl AsRef<Path>) -> Result<Self, StorageError>
     where
         Self: Sized;
 
@@ -28,20 +28,20 @@ pub trait Wal {
     fn dir(&self) -> &Path;
 
     /// Appends data to the WAL and returns the assigned LSN.
-    fn append(&self, data: &[u8]) -> Result<LSN, DBV4Error>;
+    fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 
     /// Immediately flushes in-memory WAL entries to disk.
-    fn sync(&self) -> Result<(), DBV4Error>;
+    fn sync(&self) -> Result<(), StorageError>;
 
     /// Blocks until the WAL has fsynced the given LSN to disk.
     fn wait_for_sync(&self, lsn: LSN);
 
     /// Rotates the underlying WAL file.
     /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
-    fn rotate(&self, cutoff_lsn: LSN) -> Result<(), DBV4Error>;
+    fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
 
     /// Returns an iterator over the wal entries in the given directory.
-    fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, DBV4Error>>;
+    fn replay(dir: impl AsRef<Path>) -> impl Iterator<Item = Result<WalRecord, StorageError>>;
 }
 
 // Raphtory-specific logging & replay methods.
@@ -49,9 +49,9 @@ pub trait GraphWal {
     /// ReplayEntry represents the type of the wal entry returned during replay.
     type ReplayEntry;
 
-    fn log_begin_transaction(&self, transaction_id: TransactionID) -> Result<LSN, DBV4Error>;
+    fn log_begin_transaction(&self, transaction_id: TransactionID) -> Result<LSN, StorageError>;
 
-    fn log_end_transaction(&self, transaction_id: TransactionID) -> Result<LSN, DBV4Error>;
+    fn log_end_transaction(&self, transaction_id: TransactionID) -> Result<LSN, StorageError>;
 
     /// Log a static edge addition.
     ///
@@ -67,7 +67,7 @@ pub trait GraphWal {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     /// Log an edge addition to a layer with temporal props.
     ///
@@ -89,14 +89,14 @@ pub trait GraphWal {
         eid: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     fn log_node_id(
         &self,
         transaction_id: TransactionID,
         gid: GID,
         vid: VID,
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     fn log_edge_id(
         &self,
@@ -105,7 +105,7 @@ pub trait GraphWal {
         dst: VID,
         eid: EID,
         layer_id: usize,
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     /// Log constant prop name -> prop id mappings.
     ///
@@ -117,7 +117,7 @@ pub trait GraphWal {
         &self,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     /// Log temporal prop name -> prop id mappings.
     ///
@@ -129,29 +129,29 @@ pub trait GraphWal {
         &self,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     fn log_layer_id(
         &self,
         transaction_id: TransactionID,
         name: &str,
         id: usize,
-    ) -> Result<LSN, DBV4Error>;
+    ) -> Result<LSN, StorageError>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.
-    fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, DBV4Error>;
+    fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
     /// Returns an iterator over the wal entries in the given directory.
     fn replay_iter(
         dir: impl AsRef<Path>,
-    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), DBV4Error>>;
+    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
     /// Replays and applies all the wal entries in the given directory to the given graph.
     fn replay_to_graph<G: GraphReplayer>(
         dir: impl AsRef<Path>,
         graph: &mut G,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal
@@ -160,13 +160,13 @@ pub trait GraphReplayer {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_end_transaction(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_add_static_edge(
         &self,
@@ -175,7 +175,7 @@ pub trait GraphReplayer {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_add_edge(
         &self,
@@ -187,7 +187,7 @@ pub trait GraphReplayer {
         eid: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_node_id(
         &self,
@@ -195,21 +195,21 @@ pub trait GraphReplayer {
         transaction_id: TransactionID,
         gid: GID,
         vid: VID,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_const_prop_ids<PN: AsRef<str>>(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_temporal_prop_ids<PN: AsRef<str>>(
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn replay_layer_id(
         &self,
@@ -217,5 +217,5 @@ pub trait GraphReplayer {
         transaction_id: TransactionID,
         name: &str,
         id: usize,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 }

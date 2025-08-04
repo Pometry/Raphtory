@@ -12,7 +12,7 @@ use raphtory_core::{
 };
 use rayon::iter::ParallelIterator;
 
-use crate::{LocalPOS, error::DBV4Error, segments::edge::MemEdgeSegment};
+use crate::{LocalPOS, error::StorageError, segments::edge::MemEdgeSegment};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;
@@ -36,7 +36,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         meta: Arc<Meta>,
         path: impl AsRef<Path>,
         ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
+    ) -> Result<Self, StorageError>
     where
         Self: Sized;
 
@@ -63,7 +63,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn notify_write(
         &self,
         head_lock: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn increment_num_edges(&self) -> usize;
 

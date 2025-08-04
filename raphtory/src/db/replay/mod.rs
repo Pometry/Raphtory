@@ -6,7 +6,7 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
 use storage::{
     api::edges::EdgeSegmentOps,
-    error::DBV4Error,
+    error::StorageError,
     wal::{GraphReplayer, TransactionID, LSN},
     Extension,
 };
@@ -30,7 +30,7 @@ impl GraphReplayer for ReplayGraph {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -38,7 +38,7 @@ impl GraphReplayer for ReplayGraph {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -49,7 +49,7 @@ impl GraphReplayer for ReplayGraph {
         t: TimeIndexEntry,
         src: VID,
         dst: VID,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -63,7 +63,7 @@ impl GraphReplayer for ReplayGraph {
         eid: EID,
         layer_id: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         let edge_segment = self.graph.storage().edges().get_edge_segment(eid);
 
         match edge_segment {
@@ -82,7 +82,7 @@ impl GraphReplayer for ReplayGraph {
         transaction_id: TransactionID,
         gid: GID,
         vid: VID,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -91,7 +91,7 @@ impl GraphReplayer for ReplayGraph {
         lsn: LSN,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -100,7 +100,7 @@ impl GraphReplayer for ReplayGraph {
         lsn: LSN,
         transaction_id: TransactionID,
         props: &[MaybeNew<(PN, usize, Prop)>],
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 
@@ -110,7 +110,7 @@ impl GraphReplayer for ReplayGraph {
         transaction_id: TransactionID,
         name: &str,
         id: usize,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 }

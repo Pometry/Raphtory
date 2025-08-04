@@ -16,7 +16,7 @@ use crate::{
         edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
         nodes::{NodeEntryOps, NodeRefOps, NodeSegmentOps},
     },
-    error::DBV4Error,
+    error::StorageError,
     pages::GraphStore,
     persist::strategy::PersistentStrategy,
 };
@@ -73,7 +73,7 @@ pub fn check_edges_support<
                 let elid = eid.map(|eid| eid.with_layer(layer_id));
                 session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
 
-                Ok::<_, DBV4Error>(())
+                Ok::<_, StorageError>(())
             })
             .expect("Failed to add edge");
     } else {
@@ -90,7 +90,7 @@ pub fn check_edges_support<
                 let elid = eid.map(|e| e.with_layer(layer_id));
                 session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
 
-                Ok::<_, DBV4Error>(())
+                Ok::<_, StorageError>(())
             })
             .expect("Failed to add edge");
     }
