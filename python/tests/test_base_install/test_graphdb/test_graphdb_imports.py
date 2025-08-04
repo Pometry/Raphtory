@@ -6,7 +6,7 @@ def test_import_into_graph():
     g = Graph()
     g_a = g.add_node(0, "A")
     g_b = g.add_node(1, "B", {"temp": True})
-    g_b.add_constant_properties({"con": 11})
+    g_b.add_metadata({"con": 11})
 
     gg = Graph()
     res = gg.import_node(g_a)
@@ -17,7 +17,7 @@ def test_import_into_graph():
     assert res.name == g_b.name
     assert res.history() == g_b.history()
     assert res.properties.get("temp") == True
-    assert res.properties.constant.get("con") == 11
+    assert res.metadata.get("con") == 11
 
     gg = Graph()
     gg.add_node(1, "B")
@@ -77,7 +77,7 @@ def test_import_node_as():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     gg = Graph()
     res = gg.import_node_as(a, "X")
@@ -96,14 +96,14 @@ def test_import_node_as():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
 
 def test_import_node_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     gg = Graph()
     res = gg.import_node_as(a, "X")
@@ -118,14 +118,14 @@ def test_import_node_as_merge():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") == True
-    assert y.properties.constant.get("con") == 11
+    assert y.metadata.get("con") == 11
 
 
 def test_import_nodes_as():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     gg = Graph()
     gg.add_node(1, "Y")
@@ -142,14 +142,14 @@ def test_import_nodes_as():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
 
 def test_import_nodes_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     gg = Graph()
     gg.add_node(1, "Y")
@@ -164,14 +164,14 @@ def test_import_nodes_as_merge():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") == True
-    assert y.properties.constant.get("con") == 11
+    assert y.metadata.get("con") == 11
 
 
 def test_import_edge_as():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
     e_b_c = g.add_edge(2, "B", "C", {"e_temp": True})
@@ -194,7 +194,7 @@ def test_import_edge_as():
     assert y.name == "Y"
     assert y.history().tolist() == [1, 2]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
     e = gg.edge("X", "Y")
     assert e.properties.get("e_temp") is None
@@ -204,7 +204,7 @@ def test_import_edge_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
 
@@ -222,7 +222,7 @@ def test_import_edge_as_merge():
     assert y.name == "Y"
     assert y.history().tolist() == [2, 3]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
     e = gg.edge("X", "Y")
     assert e.properties.get("e_temp") == True
@@ -232,7 +232,7 @@ def test_import_edges_as():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
     c = g.add_node(1, "C")
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
@@ -251,7 +251,7 @@ def test_import_edges_as():
     assert y.name == "Y"
     assert y.history().tolist() == [1]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
     z = gg.node("Z")
     assert z.name == "Z"
@@ -262,7 +262,7 @@ def test_import_edges_as_merge():
     g = Graph()
     a = g.add_node(1, "A")
     b = g.add_node(1, "B", {"temp": True})
-    b.add_constant_properties({"con": 11})
+    b.add_metadata({"con": 11})
     c = g.add_node(1, "C")
 
     e_a_b = g.add_edge(2, "A", "B", {"e_temp": True})
@@ -282,7 +282,7 @@ def test_import_edges_as_merge():
     assert y.name == "Y"
     assert y.history().tolist() == [2, 3]
     assert y.properties.get("temp") is None
-    assert y.properties.constant.get("con") is None
+    assert y.metadata.get("con") is None
 
     z = gg.node("Z")
     assert z.name == "Z"

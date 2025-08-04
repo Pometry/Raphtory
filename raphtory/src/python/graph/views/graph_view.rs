@@ -2,7 +2,7 @@
 use crate::{
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             view::{
                 internal::{
                     DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
@@ -374,6 +374,16 @@ impl PyGraphView {
     #[getter]
     fn properties(&self) -> Properties<DynamicGraph> {
         self.graph.properties()
+    }
+
+    /// Get all graph metadata
+    ///
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    fn metadata(&self) -> Metadata<'static, DynamicGraph> {
+        self.graph.metadata()
     }
 
     /// Returns a subgraph given a set of nodes

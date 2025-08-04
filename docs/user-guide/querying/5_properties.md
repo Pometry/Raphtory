@@ -1,8 +1,10 @@
-
 # Property queries
-In Raphtory graphs, nodes and edges can all have `constant` and `temporal` properties, consisting of a wide range of data types. This is also discussed in the [ingestion tutorial](../ingestion/2_direct-updates.md). Raphtory provides a unified API for accessing `constant` and `temporal` data via the `Properties` object available on all classes by calling `.properties`.
 
-This `Properties` class offers several functions to access values in different formats. To demonstrate this you can create a simple graph with one node that has a variety of different properties, both `temporal` and `constant`. 
+In Raphtory graphs, nodes and edges can all have temporal `properties` and  constant `metadata`, consisting of a wide range of
+data types. This is also discussed in the [ingestion tutorial](../ingestion/2_direct-updates.md).
+
+This [`Properties`][raphtory.Properties] class offers several functions to access values in different formats. To demonstrate this you can
+create a simple graph with one node that has a variety of different properties.
 
 You can fetch a nodes property object and call the following functions to access data:
 
@@ -12,9 +14,12 @@ You can fetch a nodes property object and call the following functions to access
 - `get()`: Returns the latest value for a given key if the property exists or `None` if it does not.
 - `as_dict()`: Converts the `Properties` object into a standard python dictionary.
 
-In addition, the `Properties` class also has two attributes `constant` and `temporal` which have all of the above functions, but are restricted to only the properties which fall within their respective categories. The semantics for `ConstantProperties` are exactly the same as described above. However, `TemporalProperties` allow you to do much more, as described in the next section.
+!!! info
+
+    Metadata can call the same functions as properties
 
 /// tab | :fontawesome-brands-python: Python
+
 ```python
 from raphtory import Graph
 
@@ -35,9 +40,9 @@ property_g.add_node(
     id="User",
     properties={"balance": 0.9, "greeting": "hello", "encrypted": True},
 )
-# Add some constant properties
-v.add_constant_properties(
-    properties={
+# Add some metadata properties
+v.add_metadata(
+    metadata={
         "inner data": {"name": "bob", "value list": [1, 2, 3]},
         "favourite greetings": ["hi", "hello", "howdy"],
     },
@@ -50,30 +55,33 @@ print("Property tuples:", properties.items())
 print("Latest value of balance:", properties.get("balance"))
 print("Property keys:", properties.as_dict(), "\n")
 
-# Access the keys of the constant and temporal properties individually
-constant_properties = properties.constant
+# Access the keys of the metadata and temporal properties individually
+metadata = v.metadata
 temporal_properties = properties.temporal
-print("Constant property keys:", constant_properties.keys())
-print("Constant property keys:", temporal_properties.keys())
+print("Metadata keys:", metadata.keys())
+print("Property keys:", temporal_properties.keys())
 ```
+
 ///
 
 !!! Output
 
     ```output
-    Property keys: ['count', 'greeting', 'encrypted', 'balance', 'inner data', 'favourite greetings']
-    Property values: [2, 'hello', True, 0.9, {'value list': [1, 2, 3], 'name': 'bob'}, ['hi', 'hello', 'howdy']]
-    Property tuples: [('count', 2), ('greeting', 'hello'), ('encrypted', True), ('balance', 0.9), ('inner data', {'value list': [1, 2, 3], 'name': 'bob'}), ('favourite greetings', ['hi', 'hello', 'howdy'])]
+    Property keys: ['count', 'greeting', 'encrypted', 'balance']
+    Property values: [2, 'hello', True, 0.9]
+    Property tuples: [('count', 2), ('greeting', 'hello'), ('encrypted', True), ('balance', 0.9)]
     Latest value of balance: 0.9
-    Property keys: {'inner data': {'value list': [1, 2, 3], 'name': 'bob'}, 'balance': 0.9, 'favourite greetings': ['hi', 'hello', 'howdy'], 'greeting': 'hello', 'count': 2, 'encrypted': True} 
+    Property keys: {'count': 2, 'balance': 0.9, 'greeting': 'hello', 'encrypted': True}  
 
-    Constant property keys: ['inner data', 'favourite greetings']
+    Metadata keys: ['inner data', 'favourite greetings']
     Constant property keys: ['count', 'greeting', 'encrypted', 'balance']
     ```
-    
 
-## Temporal specific functions
-Temporal properties have a history, this means that you can do more than just look at the latest value. Calling `get()`, `values()` or `items()` on `TemporalProperties` will return a `TemporalProp` object which contains all of the value history.
+## Examining histories
+
+Properties have a history, this means that you can do more than just look at the latest value. Calling `get()`,
+`values()` or `items()` on `Properties` will return a `TemporalProp` object which contains all of the value
+history.
 
 `TemporalProp` has many helper functions to examine histories, this includes:
 
@@ -86,9 +94,11 @@ Temporal properties have a history, this means that you can do more than just lo
 * `count()`: Get the number of updates which have occurred
 * `sum()`: If the property is additive, sum the values and return the result.
 
-In the code below, we call a subset of these functions on the `Weight` property of the edge between `FELIPE` and `MAKO` in our previous monkey graph example.
+In the code below, we call a subset of these functions on the `Weight` property of the edge between `FELIPE` and `MAKO`
+in our previous monkey graph example.
 
 /// tab | :fontawesome-brands-python: Python
+
 ```python
 import pandas as pd
 from raphtory import Graph
@@ -121,6 +131,7 @@ print("Average interaction weight:", weight_prop.mean())
 print("Total interactions:", weight_prop.count())
 print("Total interaction weight:", weight_prop.sum())
 ```
+
 ///
 
 ```{.python continuation hide}

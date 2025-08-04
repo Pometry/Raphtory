@@ -1,4 +1,7 @@
-use crate::db::api::properties::{internal::PropertiesOps, Properties};
+use crate::{
+    db::api::properties::{internal::InternalPropertiesOps, Metadata, Properties},
+    prelude::PropertiesOps,
+};
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
@@ -16,26 +19,22 @@ pub(crate) fn extract_properties<P>(
     explode: bool,
     column_names: &Vec<String>,
     is_prop_both_temp_and_const: &HashSet<String>,
-    item: &Properties<P>,
+    properties: &Properties<P>,
+    metadata: &Metadata<P>,
     properties_map: &mut HashMap<String, Prop>,
     prop_time_dict: &mut HashMap<i64, HashMap<String, Prop>>,
     start_time: i64,
 ) where
-    P: PropertiesOps + Clone,
+    P: InternalPropertiesOps + Clone,
 {
-    let properties = item.constant().as_map();
-    let properties_collected: HashMap<String, Prop> = properties
-        .par_iter()
-        .map(|(name, prop)| {
-            let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
-                format!("{}_constant", name)
-            } else {
-                name.to_string()
-            };
-            (column_name, prop.clone())
-        })
-        .collect();
-    properties_collected.clone_into(properties_map);
+    properties_map.extend(metadata.iter_filtered().map(|(name, prop)| {
+        let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
+            format!("{}_metadata", name)
+        } else {
+            name.to_string()
+        };
+        (column_name, prop.clone())
+    }));
 
     if explode {
         let mut empty_dict = HashMap::new();
@@ -43,12 +42,12 @@ pub(crate) fn extract_properties<P>(
             let _ = empty_dict.insert(name.clone(), Prop::from(""));
         });
 
-        if item.temporal().iter().count() == 0 {
-            if item.constant().iter().count() == 0 {
+        if properties.temporal().iter().count() == 0 {
+            if properties_map.is_empty() {
                 // node is empty so add as empty time
                 let _ = prop_time_dict.insert(start_time, empty_dict.clone());
             } else {
-                item.constant().iter().for_each(|(name, prop_val)| {
+                metadata.iter_filtered().for_each(|(name, prop_val)| {
                     if !prop_time_dict.contains_key(&start_time) {
                         let _ = prop_time_dict.insert(start_time, empty_dict.clone());
                     }
@@ -57,7 +56,8 @@ pub(crate) fn extract_properties<P>(
                 })
             }
         }
-        item.temporal()
+        properties
+            .temporal()
             .histories_timestamps()
             .iter()
             .for_each(|(prop_name, (time, prop_val))| {
@@ -73,7 +73,7 @@ pub(crate) fn extract_properties<P>(
                 let _ = data_dict.insert(column_name.clone(), prop_val.clone());
             });
     } else if include_property_history {
-        item.temporal().iter().for_each(|(name, prop_view)| {
+        properties.temporal().iter().for_each(|(name, prop_view)| {
             let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                 format!("{}_temporal", name)
             } else {
@@ -97,7 +97,7 @@ pub(crate) fn extract_properties<P>(
             }
         });
     } else {
-        item.temporal().iter().for_each(|(name, t_prop)| {
+        properties.temporal().iter().for_each(|(name, t_prop)| {
             let column_name = if is_prop_both_temp_and_const.contains(name.as_ref()) {
                 format!("{}_temporal", name)
             } else {
@@ -114,25 +114,25 @@ pub(crate) fn get_column_names_from_props(
 ) -> HashSet<String> {
     let mut is_prop_both_temp_and_const: HashSet<String> = HashSet::new();
     let temporal_properties: HashSet<ArcStr> = edge_meta
-        .temporal_prop_meta()
+        .temporal_prop_mapper()
         .get_keys()
         .iter()
         .cloned()
         .collect();
-    let constant_properties: HashSet<ArcStr> = edge_meta
-        .const_prop_meta()
+    let metadata: HashSet<ArcStr> = edge_meta
+        .metadata_mapper()
         .get_keys()
         .iter()
         .cloned()
         .collect();
-    constant_properties
+    metadata
         .intersection(&temporal_properties)
         .for_each(|name| {
-            column_names.push(format!("{}_constant", name));
+            column_names.push(format!("{}_metadata", name));
             column_names.push(format!("{}_temporal", name));
             is_prop_both_temp_and_const.insert(name.to_string());
         });
-    constant_properties
+    metadata
         .symmetric_difference(&temporal_properties)
         .for_each(|name| {
             column_names.push(name.to_string());

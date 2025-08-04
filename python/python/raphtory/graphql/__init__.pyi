@@ -38,6 +38,7 @@ __all__ = [
     "AllPropertySpec",
     "encode_graph",
     "decode_graph",
+    "schema",
 ]
 
 class GraphServer(object):
@@ -316,17 +317,6 @@ class RaphtoryClient(object):
         """
 
 class RemoteGraph(object):
-    def add_constant_properties(self, properties: dict) -> None:
-        """
-        Adds constant properties to the remote graph.
-
-        Arguments:
-            properties (dict): The constant properties of the graph.
-
-        Returns:
-            None:
-        """
-
     def add_edge(
         self,
         timestamp: int | str | datetime,
@@ -355,6 +345,17 @@ class RemoteGraph(object):
 
         Arguments:
           updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+
+        Returns:
+            None:
+        """
+
+    def add_metadata(self, properties: dict) -> None:
+        """
+        Adds metadata to the remote graph.
+
+        Arguments:
+            properties (dict): The metadata of the graph.
 
         Returns:
             None:
@@ -464,12 +465,12 @@ class RemoteGraph(object):
           RemoteNode: the remote node reference
         """
 
-    def update_constant_properties(self, properties: dict) -> None:
+    def update_metadata(self, properties: dict) -> None:
         """
-        Updates constant properties on the remote graph.
+        Updates metadata on the remote graph.
 
         Arguments:
-            properties (dict): The constant properties of the graph.
+            properties (dict): The metadata of the graph.
 
         Returns:
             None:
@@ -484,13 +485,13 @@ class RemoteEdge(object):
     and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
     """
 
-    def add_constant_properties(
+    def add_metadata(
         self, properties: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
-        Add constant properties to the edge within the remote graph.
-        This function is used to add properties to an edge that remain constant and do not
-        change over time. These properties are fundamental attributes of the edge.
+        Add metadata to the edge within the remote graph.
+        This function is used to add metadata to an edge that does not
+        change over time. This metadata is fundamental information of the edge.
 
         Parameters:
             properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
@@ -533,12 +534,12 @@ class RemoteEdge(object):
             None:
         """
 
-    def update_constant_properties(
+    def update_metadata(
         self, properties: dict[str, PropValue], layer: Optional[str] = None
     ) -> None:
         """
-        Update constant properties of an edge in the remote graph overwriting existing values.
-        This function is used to add properties to an edge that remains constant and does not
+        Update metadata of an edge in the remote graph overwriting existing values.
+        This function is used to add properties to an edge that does not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
@@ -550,10 +551,10 @@ class RemoteEdge(object):
         """
 
 class RemoteNode(object):
-    def add_constant_properties(self, properties: dict[str, PropValue]) -> None:
+    def add_metadata(self, properties: dict[str, PropValue]) -> None:
         """
-        Add constant properties to a node in the remote graph.
-        This function is used to add properties to a node that remain constant and does not
+        Add metadata to a node in the remote graph.
+        This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
@@ -590,10 +591,10 @@ class RemoteNode(object):
             None:
         """
 
-    def update_constant_properties(self, properties: dict[str, PropValue]) -> None:
+    def update_metadata(self, properties: dict[str, PropValue]) -> None:
         """
-        Update constant properties of a node in the remote graph overwriting existing values.
-        This function is used to add properties to a node that remain constant and do not
+        Update metadata of a node in the remote graph overwriting existing values.
+        This function is used to add properties to a node that does not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
@@ -610,7 +611,7 @@ class RemoteNodeAddition(object):
     Arguments:
         name (GID): the id of the node
         node_type (str, optional): the node type
-        constant_properties (PropInput, optional): the constant properties
+        metadata (PropInput, optional): the metadata
         updates (list[RemoteUpdate], optional): the temporal updates
     """
 
@@ -618,7 +619,7 @@ class RemoteNodeAddition(object):
         cls,
         name: GID,
         node_type: Optional[str] = None,
-        constant_properties: Optional[PropInput] = None,
+        metadata: Optional[PropInput] = None,
         updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
@@ -645,7 +646,7 @@ class RemoteEdgeAddition(object):
         src (GID): the id of the source node
         dst (GID): the id of the destination node
         layer (str, optional): the layer for the update
-        constant_properties (PropInput, optional): the constant properties for the edge
+        metadata (PropInput, optional): the metadata for the edge
         updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
@@ -654,7 +655,7 @@ class RemoteEdgeAddition(object):
         src: GID,
         dst: GID,
         layer: Optional[str] = None,
-        constant_properties: Optional[PropInput] = None,
+        metadata: Optional[PropInput] = None,
         updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
@@ -692,22 +693,20 @@ class PropsInput(object):
 
 class SomePropertySpec(object):
     """
-    Create a `SomePropertySpec` by explicitly listing constant and/or temporal property names.
+    Create a `SomePropertySpec` by explicitly listing metadata and/or temporal property names.
 
     Arguments:
-        constant (list[str]): Constant property names. Defaults to [].
+        metadata (list[str]): Metadata property names. Defaults to [].
         temporal (list[str]): Temporal property names. Defaults to [].
     """
 
-    def __new__(
-        cls, constant: list[str] = [], temporal: list[str] = []
-    ) -> SomePropertySpec:
+    def __new__(cls, metadata: list[str] = [], properties=...) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: `ALL`, `ALL_CONSTANT`, or `ALL_TEMPORAL`.
+    Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_TEMPORAL`.
     """
 
     def __eq__(self, value):
@@ -754,4 +753,12 @@ def decode_graph(graph: str) -> Union[Graph, PersistentGraph]:
 
     Returns:
         Union[Graph, PersistentGraph]: the decoded graph
+    """
+
+def schema():
+    """
+    Returns the raphtory graphql server schema
+
+    Returns
+        str: Graphql schema
     """

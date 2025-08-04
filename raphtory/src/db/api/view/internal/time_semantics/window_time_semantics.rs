@@ -743,25 +743,24 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop> {
         self.semantics
-            .constant_edge_prop_window(e, view, prop_id, self.window.clone())
+            .edge_metadata_window(e, view, prop_id, self.window.clone())
     }
 
     #[inline]
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<i64>,
     ) -> Option<Prop> {
-        self.semantics
-            .constant_edge_prop_window(e, view, prop_id, w)
+        self.semantics.edge_metadata_window(e, view, prop_id, w)
     }
 }

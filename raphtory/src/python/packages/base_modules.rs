@@ -12,9 +12,7 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{
-                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
-            },
+            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -47,7 +45,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyNestedEdges,
         PyMutableEdge,
         PyProperties,
-        PyConstantProperties,
+        PyMetadata,
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
@@ -100,6 +98,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         hits,
         balance,
         label_propagation,
+        k_core,
         temporal_SEIR,
         louvain,
         fruchterman_reingold,

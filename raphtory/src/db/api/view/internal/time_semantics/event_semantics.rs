@@ -788,7 +788,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef,
         view: G,
@@ -798,43 +798,10 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             view.internal_filter_edge_layer(e, layer)
                 && !e.filtered_additions(layer, &view).is_empty()
         };
-
-        let layer_ids = view.layer_ids();
-        match layer_ids {
-            LayerIds::None => return None,
-            LayerIds::All => match view.unfiltered_num_layers() {
-                0 => return None,
-                1 => {
-                    return if layer_filter(0) {
-                        e.constant_prop_layer(0, prop_id)
-                    } else {
-                        None
-                    }
-                }
-                _ => {}
-            },
-            LayerIds::One(layer_id) => {
-                return if layer_filter(*layer_id) {
-                    e.constant_prop_layer(*layer_id, prop_id)
-                } else {
-                    None
-                }
-            }
-            _ => {}
-        };
-        let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer))
-            .map(|(layer, v)| (view.get_layer_name(layer), v))
-            .peekable();
-        if values.peek().is_some() {
-            Some(Prop::map(values))
-        } else {
-            None
-        }
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
@@ -846,38 +813,6 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 .range_t(w.clone())
                 .is_empty()
         };
-
-        let layer_ids = view.layer_ids();
-        match layer_ids {
-            LayerIds::None => return None,
-            LayerIds::All => match view.unfiltered_num_layers() {
-                0 => return None,
-                1 => {
-                    return if layer_filter(0) {
-                        e.constant_prop_layer(0, prop_id)
-                    } else {
-                        None
-                    }
-                }
-                _ => {}
-            },
-            LayerIds::One(layer_id) => {
-                return if layer_filter(*layer_id) {
-                    e.constant_prop_layer(*layer_id, prop_id)
-                } else {
-                    None
-                }
-            }
-            _ => {}
-        };
-        let mut values = e
-            .constant_prop_iter(layer_ids, prop_id)
-            .filter_map(|(layer, v)| layer_filter(layer).then(|| (view.get_layer_name(layer), v)))
-            .peekable();
-        if values.peek().is_some() {
-            Some(Prop::map(values))
-        } else {
-            None
-        }
+        e.filtered_edge_metadata(&view, prop_id, layer_filter)
     }
 }

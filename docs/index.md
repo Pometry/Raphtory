@@ -13,7 +13,7 @@ hide:
     Install `raphtory` from PyPI and get up
     and running in minutes
 
-    [Get started](user-guide/ingestion/1_intro.md)
+    [Get started](user-guide/getting-started/1_intro.md)
 
 -   __Analyse effects over time__
 

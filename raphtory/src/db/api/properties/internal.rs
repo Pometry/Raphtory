@@ -1,5 +1,4 @@
 use crate::db::api::view::BoxedLIter;
-use enum_dispatch::enum_dispatch;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
@@ -9,8 +8,7 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
-#[enum_dispatch]
-pub trait TemporalPropertyViewOps {
+pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
     fn temporal_value(&self, id: usize) -> Option<Prop>;
 
@@ -40,28 +38,26 @@ pub trait TemporalPropertiesRowView {
     fn rows(&self) -> BoxedLIter<(TimeIndexEntry, Vec<(usize, Prop)>)>;
 }
 
-#[enum_dispatch]
-pub trait ConstantPropertiesOps: Send + Sync {
+pub trait InternalMetadataOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
-    fn get_const_prop_id(&self, name: &str) -> Option<usize>;
-    fn get_const_prop_name(&self, id: usize) -> ArcStr;
-    fn const_prop_ids(&self) -> BoxedLIter<usize>;
-    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
-        Box::new(self.const_prop_ids().map(|id| self.get_const_prop_name(id)))
+    fn get_metadata_id(&self, name: &str) -> Option<usize>;
+    fn get_metadata_name(&self, id: usize) -> ArcStr;
+    fn metadata_ids(&self) -> BoxedLIter<usize>;
+    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+        Box::new(self.metadata_ids().map(|id| self.get_metadata_name(id)))
     }
-    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
-        Box::new(self.const_prop_ids().map(|k| self.get_const_prop(k)))
+    fn metadata_values(&self) -> BoxedLIter<Option<Prop>> {
+        Box::new(self.metadata_ids().map(|k| self.get_metadata(k)))
     }
-    fn get_const_prop(&self, id: usize) -> Option<Prop>;
+    fn get_metadata(&self, id: usize) -> Option<Prop>;
 }
 
-#[enum_dispatch]
-pub trait TemporalPropertiesOps {
+pub trait InternalTemporalPropertiesOps: Send + Sync {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize>;
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr;
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_>;
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize>;
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(
             self.temporal_prop_ids()
                 .map(|id| self.get_temporal_prop_name(id)),
@@ -69,27 +65,27 @@ pub trait TemporalPropertiesOps {
     }
 }
 
-pub trait PropertiesOps:
-    TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps
+pub trait InternalPropertiesOps:
+    InternalTemporalPropertiesOps + InternalTemporalPropertyViewOps + InternalMetadataOps
 {
 }
 
-impl<P: TemporalPropertiesOps + TemporalPropertyViewOps + ConstantPropertiesOps> PropertiesOps
-    for P
+impl<P: InternalTemporalPropertiesOps + InternalTemporalPropertyViewOps + InternalMetadataOps>
+    InternalPropertiesOps for P
 {
 }
 
 pub trait InheritTemporalPropertyViewOps: Base {}
 pub trait InheritTemporalPropertiesOps: Base {}
-pub trait InheritConstantPropertiesOps: Base {}
+pub trait InheritMetadataPropertiesOps: Base {}
 pub trait InheritPropertiesOps: Base {}
 
-impl<P: InheritPropertiesOps> InheritConstantPropertiesOps for P {}
+impl<P: InheritPropertiesOps> InheritMetadataPropertiesOps for P {}
 impl<P: InheritPropertiesOps> InheritTemporalPropertiesOps for P {}
 
-impl<P: InheritTemporalPropertyViewOps + Send + Sync> TemporalPropertyViewOps for P
+impl<P: InheritTemporalPropertyViewOps + Send + Sync> InternalTemporalPropertyViewOps for P
 where
-    P::Base: TemporalPropertyViewOps,
+    P::Base: InternalTemporalPropertyViewOps,
 {
     #[inline]
     fn dtype(&self, id: usize) -> PropType {
@@ -138,9 +134,9 @@ where
 
 impl<P: InheritTemporalPropertiesOps> InheritTemporalPropertyViewOps for P {}
 
-impl<P: InheritTemporalPropertiesOps + Send + Sync> TemporalPropertiesOps for P
+impl<P: InheritTemporalPropertiesOps + Send + Sync> InternalTemporalPropertiesOps for P
 where
-    P::Base: TemporalPropertiesOps,
+    P::Base: InternalTemporalPropertiesOps,
 {
     #[inline]
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
@@ -153,47 +149,47 @@ where
     }
 
     #[inline]
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         self.base().temporal_prop_ids()
     }
 
     #[inline]
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         self.base().temporal_prop_keys()
     }
 }
 
-impl<P: InheritConstantPropertiesOps + Send + Sync> ConstantPropertiesOps for P
+impl<P: InheritMetadataPropertiesOps + Send + Sync> InternalMetadataOps for P
 where
-    P::Base: ConstantPropertiesOps,
+    P::Base: InternalMetadataOps,
 {
     #[inline]
-    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
-        self.base().get_const_prop_id(name)
+    fn get_metadata_id(&self, name: &str) -> Option<usize> {
+        self.base().get_metadata_id(name)
     }
 
     #[inline]
-    fn get_const_prop_name(&self, id: usize) -> ArcStr {
-        self.base().get_const_prop_name(id)
+    fn get_metadata_name(&self, id: usize) -> ArcStr {
+        self.base().get_metadata_name(id)
     }
 
     #[inline]
-    fn const_prop_ids(&self) -> BoxedLIter<usize> {
-        self.base().const_prop_ids()
+    fn metadata_ids(&self) -> BoxedLIter<usize> {
+        self.base().metadata_ids()
     }
 
     #[inline]
-    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
-        self.base().const_prop_keys()
+    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+        self.base().metadata_keys()
     }
 
     #[inline]
-    fn const_prop_values(&self) -> BoxedLIter<Option<Prop>> {
-        self.base().const_prop_values()
+    fn metadata_values(&self) -> BoxedLIter<Option<Prop>> {
+        self.base().metadata_values()
     }
 
     #[inline]
-    fn get_const_prop(&self, id: usize) -> Option<Prop> {
-        self.base().get_const_prop(id)
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
+        self.base().get_metadata(id)
     }
 }

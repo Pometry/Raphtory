@@ -20,30 +20,30 @@ df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = Graph()
 lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+    df=df, time="time", src="src", dst="dst"
 )
 
 results = rp.pagerank(lotr_graph)
 
 # Getting the results for an individual character (Gandalf)
 gandalf_rank = results.get("Gandalf")
-print(f"Gandalf's ranking is {gandalf_rank}\n")
+print(f"Gandalf's ranking is {round(gandalf_rank, 5)}\n")
 
 # Getting the top 5 most important characters and printing out their scores
 top_5 = results.top_k(5)
-for rank, (node, score) in enumerate(top_5.items(),1):
+for rank, (node, score) in enumerate(top_5.items(), 1):
     print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"Gandalf's ranking is {gandalf_rank}") == "Gandalf's ranking is 0.015810830531114206"
+assert str(f"Gandalf's ranking is {round(gandalf_rank, 5)}") == "Gandalf's ranking is 0.01581"
 ```
 
 !!! Output
 
     ```output
-    Gandalf's ranking is 0.015810830531114206
+    Gandalf's ranking is 0.01581
 
     Rank 1: Aragorn with a score of 0.09526
     Rank 2: Faramir with a score of 0.06148
@@ -76,7 +76,7 @@ df = pd.read_csv("../data/lotr.csv")
 
 lotr_graph = Graph()
 lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+    df=df, time="time", src="src", dst="dst"
 )
 
 results = rp.weakly_connected_components(lotr_graph)

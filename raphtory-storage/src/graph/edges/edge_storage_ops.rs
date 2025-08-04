@@ -201,15 +201,15 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
-    fn constant_prop_iter(
+    fn metadata_iter(
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
+            .filter_map(move |id| Some((id, self.metadata_layer(id, prop_id)?)))
     }
 }
 
@@ -298,8 +298,8 @@ impl<'a> EdgeStorageOps<'a> for MemEdge<'a> {
             .unwrap_or(&TProp::Empty)
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
         self.props(layer_id)
-            .and_then(|props| props.const_prop(prop_id).cloned())
+            .and_then(|props| props.metadata(prop_id).cloned())
     }
 }

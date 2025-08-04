@@ -10,7 +10,9 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        graph::properties::{PropertiesView, PyNestedPropsIterable},
+        graph::properties::{
+            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        },
         types::{
             repr::{iterator_repr, Repr},
             result_option_iterable::{
@@ -136,10 +138,23 @@ impl PyEdges {
     }
 
     /// Returns all properties of the edges
+    ///
+    /// Returns:
+    ///     PropertiesView:
     #[getter]
     fn properties(&self) -> PropertiesView {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
+    }
+
+    /// Returns all the metadata of the edges
+    ///
+    /// Returns:
+    ///     MetadataView:
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let edges = self.edges.clone();
+        (move || edges.metadata()).into()
     }
 
     /// Returns all ids of the edges.
@@ -283,6 +298,7 @@ impl PyEdges {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().map(|t| t.t()).unwrap_or(0),
@@ -441,6 +457,13 @@ impl PyNestedEdges {
     fn properties(&self) -> PyNestedPropsIterable {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
+    }
+
+    /// Get a view of the metadata only.
+    #[getter]
+    pub fn metadata(&self) -> PyMetadataListList {
+        let edges = self.edges.clone();
+        (move || edges.metadata()).into()
     }
 
     /// Returns all ids of the edges.

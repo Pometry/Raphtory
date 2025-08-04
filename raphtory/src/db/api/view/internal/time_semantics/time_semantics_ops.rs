@@ -561,18 +561,18 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph;
 
-    /// Get constant edge property
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    /// Get metadata edge property
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop>;
 
-    /// Get constant edge property for a window
+    /// Get metadata edge property for a window
     ///
     /// Should only return the property for a layer if the edge exists in the window in that layer
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,

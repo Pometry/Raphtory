@@ -8,7 +8,7 @@ use crate::{
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
-            property::GqlProperties,
+            property::{GqlMetadata, GqlProperties},
             timeindex::GqlTimeIndexEntry,
             windowset::GqlGraphWindowSet,
             WindowDuration,
@@ -49,7 +49,6 @@ use std::{
     convert::{Into, TryInto},
     sync::Arc,
 };
-use tokio::spawn;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]
@@ -368,6 +367,10 @@ impl GqlGraph {
         Into::<DynProperties>::into(self.graph.properties()).into()
     }
 
+    async fn metadata(&self) -> GqlMetadata {
+        self.graph.metadata().into()
+    }
+
     ////////////////////////
     // GRAPHQL SPECIFIC ////
     ////////////////////////
@@ -496,10 +499,10 @@ impl GqlGraph {
             let props = index_spec.props(&self.graph);
 
             Ok(GqlIndexSpec {
-                node_const_props: props.node_const_props,
-                node_temp_props: props.node_temp_props,
-                edge_const_props: props.edge_const_props,
-                edge_temp_props: props.edge_temp_props,
+                node_metadata: props.node_metadata,
+                node_properties: props.node_properties,
+                edge_metadata: props.edge_metadata,
+                edge_properties: props.edge_properties,
             })
         }
         #[cfg(not(feature = "search"))]
@@ -540,14 +543,13 @@ impl GqlGraph {
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();
-            spawn(async move {
+            blocking_compute(move || {
                 let f: CompositeEdgeFilter = filter.try_into()?;
                 let edges = self_clone.graph.search_edges(f, limit, offset)?;
                 let result = edges.into_iter().map(|vv| vv.into()).collect();
                 Ok(result)
             })
             .await
-            .unwrap()
         }
         #[cfg(not(feature = "search"))]
         {

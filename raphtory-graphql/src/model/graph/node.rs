@@ -5,7 +5,7 @@ use crate::{
         history::GqlHistory,
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
-        property::GqlProperties,
+        property::{GqlMetadata, GqlProperties},
         timeindex::GqlTimeIndexEntry,
         windowset::GqlNodeWindowSet,
         WindowDuration,
@@ -266,6 +266,10 @@ impl GqlNode {
 
     async fn properties(&self) -> GqlProperties {
         Into::<DynProperties>::into(self.vv.properties()).into()
+    }
+
+    async fn metadata(&self) -> GqlMetadata {
+        self.vv.metadata().into()
     }
 
     ////////////////////////

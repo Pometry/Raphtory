@@ -9,10 +9,11 @@ use dynamic_graphql::{
 use itertools::Itertools;
 use raphtory::{
     db::api::properties::{
-        dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
+        dyn_props::{DynMetadata, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
     errors::GraphError,
+    prelude::*,
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
@@ -347,18 +348,18 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 }
 
 #[derive(ResolvedObject, Clone)]
-#[graphql(name = "ConstantProperties")]
-pub(crate) struct GqlConstantProperties {
-    props: DynConstProperties,
+#[graphql(name = "Metadata")]
+pub(crate) struct GqlMetadata {
+    props: DynMetadata,
 }
-impl GqlConstantProperties {
-    pub(crate) fn new(props: DynConstProperties) -> Self {
+impl GqlMetadata {
+    pub(crate) fn new(props: DynMetadata) -> Self {
         Self { props }
     }
 }
-impl From<DynConstProperties> for GqlConstantProperties {
-    fn from(value: DynConstProperties) -> Self {
-        GqlConstantProperties::new(value)
+impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
+    fn from(value: P) -> Self {
+        GqlMetadata::new(value.into())
     }
 }
 
@@ -371,12 +372,19 @@ impl GqlProperties {
     }
 
     async fn contains(&self, key: String) -> bool {
-        self.props.contains(key.as_str())
+        self.props.get(&key).is_some()
     }
 
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.props.keys().map(|k| k.into()).collect()).await
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
@@ -384,11 +392,11 @@ impl GqlProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| {
+                .iter_filtered()
+                .filter_map(|(k, prop)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
-                        p.map(|prop| (key, prop).into())
+                        Some((key, prop).into())
                     } else {
                         None
                     }
@@ -396,8 +404,8 @@ impl GqlProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
+                .iter_filtered()
+                .map(|(k, prop)| (k.to_string(), prop).into())
                 .collect(),
         })
         .await
@@ -406,14 +414,10 @@ impl GqlProperties {
     async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
-
-    async fn constant(&self) -> GqlConstantProperties {
-        self.props.constant().into()
-    }
 }
 
 #[ResolvedObjectFields]
-impl GqlConstantProperties {
+impl GqlMetadata {
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())
@@ -434,7 +438,7 @@ impl GqlConstantProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -446,7 +450,7 @@ impl GqlConstantProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
@@ -461,12 +465,19 @@ impl GqlTemporalProperties {
     }
 
     async fn contains(&self, key: String) -> bool {
-        self.props.contains(key.as_str())
+        self.props.get(&key).is_some()
     }
 
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.props.keys().map(|k| k.into()).collect()).await
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
@@ -474,7 +485,7 @@ impl GqlTemporalProperties {
         blocking_compute(move || match keys {
             Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -486,7 +497,7 @@ impl GqlTemporalProperties {
                 .collect(),
             None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })

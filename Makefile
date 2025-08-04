@@ -1,44 +1,33 @@
 RUST_READTHEDOCS_DOCS_TARGET=docs/source/_rustdoc
 
-rust-fmt:
-	cargo +nightly fmt
-
-rust-build:
-	cargo build -q
-
-rust-build-docs: 
-	cargo doc --no-deps -p raphtory -q
+###########
+# General #
+###########
 
 build-all: rust-build
 	cd python && maturin develop
 
-rust-test:
-	cargo test -q
-
-install-python:
-	cd python && maturin build && pip install ../target/wheels/*.whl
-
-run-graphql:
-	cargo run --release -p raphtory-graphql
-
-rust-test-all: activate-storage
-	cargo nextest run --all --features=storage
-	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
-
-rust-test-all-public:
-	cargo nextest run --all
-	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
-
-
-python-test: activate-storage
-	cd python && tox run && tox run -e storage
-
-python-test-public:
-	cd python && tox run
-
 test-all: rust-test-all python-test
 
 test-all-public: rust-test-all-public python-test-public
+
+# Tidying
+
+tidy: rust-fmt build-python stubs python-fmt
+
+tidy-public: rust-fmt build-python-public stubs python-fmt
+
+python-tidy: stubs python-fmt test-graphql-schema
+
+check-pr: tidy-public test-all
+
+gen-graphql-schema:
+	raphtory schema > raphtory-graphql/schema.graphql
+
+test-graphql-schema: install-node-tools
+	npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql
+
+# Utilities
 
 activate-storage:
 	./scripts/activate_private_storage.py
@@ -49,23 +38,64 @@ deactivate-storage:
 pull-storage: activate-storage
 	git submodule update --init --recursive
 
-install-stub-gen:
-	python -mpip install -e stub_gen
+install-node-tools:
+	@if command -v npx >/dev/null 2>&1; then \
+		echo "npx is already installed."; \
+	else \
+		curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && nvm install node; \
+	fi
 
-stubs: install-stub-gen
-	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
+########
+# Rust #
+########
+rust-fmt:
+	cargo +nightly fmt
 
-python-fmt:
-	cd python && black .
+rust-build:
+	cargo build -q
 
-tidy: rust-fmt build-python stubs python-fmt
+rust-build-docs: 
+	cargo doc --no-deps -p raphtory -q
 
-tidy-public: rust-fmt build-python-public stubs python-fmt
+run-graphql:
+	cargo run --release -p raphtory-graphql
 
-check-pr: tidy-public test-all
+# Testing
+
+rust-test:
+	cargo test -q
+
+rust-test-all: activate-storage
+	cargo nextest run --all --features=storage
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
+
+rust-test-all-public:
+	cargo nextest run --all
+	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default,storage
+
+##########
+# Python #
+##########
+
+install-python:
+	cd python && maturin build && pip install ../target/wheels/*.whl
 
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
+
+build-python: activate-storage
+	cd python && maturin develop -r --features=storage --extras=dev
+
+# Testing
+
+python-test: activate-storage
+	cd python && tox run && tox run -e storage
+
+python-test-public:
+	cd python && tox run
+
+python-fmt:
+	cd python && black .
 
 debug-python-public: deactivate-storage
 	cd python && maturin develop --profile=debug
@@ -73,22 +103,32 @@ debug-python-public: deactivate-storage
 build-python-rtd:
 	cd python && maturin build --profile=build-fast && pip install ../target/wheels/*.whl
 
-debug-stubs: debug-python stubs
-
-build-python: activate-storage
-	cd python && maturin develop -r --features=storage --extras=dev
-
 debug-python: activate-storage
-	cd python && maturin develop --features=storage --extras=dev
+	cd python && maturin develop --features=storage,extension-module --extras=dev
+
+########
+# Docs #
+########
 
 install-mkdocs:
 	pip install mkdocs
 
 install-doc-deps:
-	pip install -r docs/requirements.txt 
+	pip install -r docs/requirements.txt
 
-gen-doc-pages: install-doc-deps
+install-stub-gen:
+	python -mpip install -e stub_gen
+
+stubs: install-stub-gen
+	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
+
+debug-stubs: debug-python stubs
+
+gen-py-doc-pages: install-doc-deps
 	python docs/scripts/gen_docs_pages.py
+
+gen-graphql-doc-pages: install-node-tools gen-graphql-schema
+	python docs/scripts/gen_docs_graphql_pages.py
 
 clean-doc-pages:
 	rm -rf docs/reference && rm -rf docs/tmp/saved_graph
@@ -99,9 +139,15 @@ python-docs-serve: install-doc-deps
 python-docs-build: install-doc-deps
 	mkdocs build
 
+# Testing
+
 run-docs-tests: install-doc-deps clean-doc-pages
 	cd docs/user-guide && \
 	pytest --markdown-docs -m markdown-docs --markdown-docs-syntax=superfences
+
+##########
+# Docker #
+##########
 
 WORKING_DIR ?= /tmp/graphs
 PORT ?= 1736

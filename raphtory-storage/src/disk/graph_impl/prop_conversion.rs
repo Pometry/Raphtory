@@ -27,18 +27,18 @@ pub fn make_node_properties_from_graph<G: CoreGraphOps>(
     let graph_dir = graph_dir.as_ref();
     let n = graph.unfiltered_num_nodes();
 
-    let temporal_meta = graph.node_meta().temporal_prop_meta();
-    let constant_meta = graph.node_meta().const_prop_meta();
+    let temporal_mapper = graph.node_meta().temporal_prop_mapper();
+    let metadata_mapper = graph.node_meta().metadata_mapper();
 
     let gs = graph.core_graph();
 
-    let temporal_prop_keys = temporal_meta
+    let temporal_prop_keys = temporal_mapper
         .get_keys()
         .iter()
         .map(|s| s.to_string())
         .collect();
 
-    let const_prop_keys = constant_meta
+    let metadata_keys = metadata_mapper
         .get_keys()
         .iter()
         .map(|s| s.to_string())
@@ -49,8 +49,8 @@ pub fn make_node_properties_from_graph<G: CoreGraphOps>(
             let node = gs.core_node(vid);
             node.as_ref().temp_prop_rows().map(|(ts, _)| ts).collect()
         })
-        .with_const_props(const_prop_keys, |prop_id, prop_key| {
-            let prop_type = constant_meta.get_dtype(prop_id).unwrap();
+        .with_metadata(metadata_keys, |prop_id, prop_key| {
+            let prop_type = metadata_mapper.get_dtype(prop_id).unwrap();
             let col = arrow_array_from_props(
                 (0..n).map(|vid| {
                     let node = gs.core_node(VID(vid));
@@ -63,8 +63,8 @@ pub fn make_node_properties_from_graph<G: CoreGraphOps>(
                 (Field::new(prop_key, dtype, true), col)
             })
         })
-        .with_temporal_props(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
-            let prop_type = temporal_meta.get_dtype(prop_id).unwrap();
+        .with_properties(temporal_prop_keys, |prop_id, prop_key, ts, offsets| {
+            let prop_type = temporal_mapper.get_dtype(prop_id).unwrap();
             let col = arrow_array_from_props(
                 (0..n).flat_map(|vid| {
                     let ts = node_ts(VID(vid), offsets, ts);

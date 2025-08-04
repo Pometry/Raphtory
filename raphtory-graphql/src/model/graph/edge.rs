@@ -4,7 +4,7 @@ use crate::{
         filtering::EdgeViewCollection,
         history::GqlHistory,
         node::GqlNode,
-        property::GqlProperties,
+        property::{GqlMetadata, GqlProperties},
         timeindex::GqlTimeIndexEntry,
         windowset::GqlEdgeWindowSet,
         WindowDuration,
@@ -259,6 +259,9 @@ impl GqlEdge {
         self.ee.properties().into()
     }
 
+    async fn metadata(&self) -> GqlMetadata {
+        self.ee.metadata().into()
+    }
     async fn layer_names(&self) -> Vec<String> {
         self.ee
             .layer_names()

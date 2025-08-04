@@ -19,7 +19,7 @@ pub(crate) fn encode_nodes_tprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.node_meta().temporal_prop_meta(),
+        g.node_meta().temporal_prop_mapper(),
         g.unfiltered_num_nodes(),
         path,
         NODES_T_PATH,
@@ -35,7 +35,7 @@ pub(crate) fn encode_nodes_tprop(
 
             let cols = g
                 .node_meta()
-                .temporal_prop_meta()
+                .temporal_prop_mapper()
                 .get_keys()
                 .into_iter()
                 .collect_vec();
@@ -77,7 +77,7 @@ pub(crate) fn encode_nodes_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.node_meta().const_prop_meta(),
+        g.node_meta().metadata_mapper(),
         g.unfiltered_num_nodes(),
         path,
         NODES_C_PATH,
