@@ -99,7 +99,7 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
-    /// Update graph query has side effects to update graph state
+    /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
@@ -113,7 +113,7 @@ impl QueryRoot {
         Ok(graph)
     }
 
-    /// Create vectorised graph in format used for queries
+    /// Create vectorised graph in the format used for queries
     /// 
     /// Returns:: GqlVectorisedGraph
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
@@ -180,7 +180,7 @@ impl Mut {
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
-
+    /// Delete graph from a path on the server
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -203,8 +203,9 @@ impl Mut {
         Ok(true)
     }
 
-    // If namespace is not provided, it will be set to the current working directory.
-    // This applies to both the graph namespace and new graph namespace.
+    /// Move graph from a path path on the server to a new_path on the server
+    /// If namespace is not provided, it will be set to the current working directory.
+    /// This applies to both the graph namespace and new graph namespace.
     async fn move_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         Self::copy_graph(ctx, path, new_path).await?;
         let data = ctx.data_unchecked::<Data>();
@@ -212,8 +213,9 @@ impl Mut {
         Ok(true)
     }
 
-    // If namespace is not provided, it will be set to the current working directory.
-    // This applies to both the graph namespace and new graph namespace.
+    /// Copy graph from a path path on the server to a new_path on the server
+    /// If namespace is not provided, it will be set to the current working directory.
+    /// This applies to both the graph namespace and new graph namespace.
     async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
@@ -230,7 +232,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Use GQL multipart upload to send new graphs to server
+    /// Upload graph file from a path on the client
     ///
     /// Returns::
     ///    name of the new graph
@@ -275,7 +277,7 @@ impl Mut {
         Ok(path.to_owned())
     }
 
-    /// Create a subgraph out of some existing graph in the server
+    /// Returns a subgraph given a set of nodes from an existing graph in the server
     ///
     /// Returns::
     ///    name of the new graph
