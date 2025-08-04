@@ -6,15 +6,15 @@ Our powerful visual interface allows analysts to explore data and trace the evol
 
 Raphtory is written in Rust for speed and safety. However, you can interact with your graphs using:
 
-- [Python](../../../reference/raphtory/) - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
-- [GraphQL](../../graphql/1_intro/) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
+- [Python][raphtory] - Our Python APIs are the primary way to create workflows and are described in detail in this documentation.
+- [GraphQL](../graphql/1_intro.md) - Start a GraphQL server that you can interact with programmatically or using the playground integrated in the Raphtory UI.
 - [Rust](https://docs.rs/raphtory/latest/raphtory/) - Interact directly with the Rust library to add new algorithms or build into fully featured products. 
 
 ## Ingest a simple dataset
 
 You can build graphs directly in Raphtory or import data in standard formats. In the following example we use the `OBS.txt` baboon interaction dataset from [SocioPatterns](http://www.sociopatterns.org/datasets/baboons-interactions/) which is provided in a tab separated text file. 
 
-To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`](../../../reference/raphtory/Classes/Graph/#raphtory.Graph.load_edges_from_pandas) method and assigning each of the parameters appropriately. 
+To ingest this data you must first format it using `pandas` to create a dataframe and convert the timestamps to the `datetime` format. Then you can create a new graph `g` in Raphtory using the [`.load_edges_from_pandas()`][raphtory.Graph.load_edges_from_pandas] method and assigning each of the parameters appropriately.
 
 /// tab | :fontawesome-brands-python: Python
 ```python
@@ -60,7 +60,7 @@ You can print the state of the graph object to verify it exists.
     ```
 
 
-For more details, see [Creating a graph](../../ingestion/1_intro/).
+For more details, see [Creating a graph](../ingestion/1_intro.md).
 
 ## Query your data
 
@@ -91,22 +91,23 @@ assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == 
     Rank 5: VIOLETTE with a score of 0.05759
     ```
 
-Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../../views/2_time/). 
+
+Once you have identified some interesting features, you can performed more detailed analysis by filtering your results or examining them across a [window of history](../views/2_time.md).
 
 ## Start the UI server
 
 To start the Raphtory UI you need to:
 
-1. Create a [GraphServer](../../../reference/raphtory/Modules/graphql/Classes/GraphServer/#raphtory.graphql.GraphServer) and client.
+1. Create a [GraphServer][raphtory.graphql.GraphServer] and client.
     - Every `GraphServer` needs a working directory, you can name this anything.
-2. Start the server and get a [RaphtoryClient](../../../reference/raphtory/Modules/graphql/Classes/GraphServer/#raphtory.graphql.RaphtoryClient).
+2. Start the server and get a [RaphtoryClient][raphtory.graphql.RaphtoryClient].
 3. Send the relevant graphs to this client (in this case you only have one graph available).
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-server = graphql.GraphServer("my-test/graphs")
+server = graphql.GraphServer(".idea/my-test/graphs")
 client = server.start().get_client()
-client.send_graph("OBS-graph",g,overwrite=True)
+client.send_graph("OBS-graph", g, overwrite=True)
 ```
 ///
 
@@ -118,4 +119,4 @@ You can use the **Query Builder** to select the graph you created and identify w
 
 ![UI Search page](../../assets/images/raphtory_ui_search_baboon_attacks.png)
 
-For more information see the full [User Interface overview](../2_UI_overview/)
+For more information see the full [User Interface overview](2_UI_overview.md)

@@ -34,25 +34,53 @@ impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub async fn update_node<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
-        if let Some(node) = self.source_graph.node(node) {
-            let id = node.node.index();
-            if let Some(doc) = self.template.node(node) {
-                let vector = self.cache.get_single(doc).await?;
-                self.node_db.insert_vector(id, &vector)?;
-            }
-        }
+    /// Generates and stores embeddings for a batch of nodes
+    pub async fn update_nodes<T: AsNodeRef>(&self, nodes: Vec<T>) -> GraphResult<()> {
+        let (ids, docs): (Vec<_>, Vec<_>) = nodes
+            .iter()
+            .filter_map(|node| {
+                self.source_graph.node(node).and_then(|node| {
+                    let id = node.node.index();
+
+                    self.template.node(node).map(|doc| (id, doc))
+                })
+            })
+            .unzip();
+
+        let vectors = self.cache.get_embeddings(docs).await?;
+
+        self.node_db.insert_vectors(
+            ids.iter()
+                .zip(vectors)
+                .map(|(id, vector)| (*id, vector))
+                .collect(),
+        )?;
+
         Ok(())
     }
 
-    pub async fn update_edge<T: AsNodeRef>(&self, src: T, dst: T) -> GraphResult<()> {
-        if let Some(edge) = self.source_graph.edge(src, dst) {
-            let id = edge.edge.pid().0;
-            if let Some(doc) = self.template.edge(edge) {
-                let vector = self.cache.get_single(doc).await?;
-                self.edge_db.insert_vector(id, &vector)?;
-            }
-        }
+    /// Generates and stores embeddings for a batch of edges
+    pub async fn update_edges<T: AsNodeRef>(&self, edges: Vec<(T, T)>) -> GraphResult<()> {
+        let (ids, docs): (Vec<_>, Vec<_>) = edges
+            .iter()
+            .filter_map(|(src, dst)| {
+                self.source_graph.edge(src, dst).and_then(|edge| {
+                    let id = edge.edge.pid().0;
+
+                    self.template.edge(edge).map(|doc| (id, doc))
+                })
+            })
+            .unzip();
+
+        let vectors = self.cache.get_embeddings(docs).await?;
+
+        self.edge_db.insert_vectors(
+            ids.iter()
+                .zip(vectors)
+                .map(|(id, vector)| (*id, vector))
+                .collect(),
+        )?;
+
         Ok(())
     }
 

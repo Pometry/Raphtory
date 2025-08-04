@@ -20,9 +20,9 @@ def init_graph_for_secondary_indexes(graph):
 
 
 @with_disk_variants(init_nodes_graph)
-def test_constant_semantics():
+def test_metadata_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").constant() == 1
+        filter_expr = filter.Metadata("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"])
         assert result_ids == expected_ids
@@ -85,7 +85,8 @@ def test_property_semantics():
     def check(graph):
         filter_expr = filter.Property("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = sorted(["N1", "N14", "N15", "N3", "N4", "N6", "N7"])
+        expected_ids = sorted(["N1", "N3", "N4", "N6", "N7"])
+        print(list(zip(graph.nodes.id, graph.nodes.properties.get("p1"))))
         assert result_ids == expected_ids
 
     return check
@@ -98,16 +99,16 @@ def test_property_semantics_for_secondary_indexes():
     def check(graph):
         filter_expr = filter.Property("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
-        expected_ids = sorted(["N1", "N14", "N15", "N16", "N3", "N4", "N6", "N7"])
+        expected_ids = sorted(["N1", "N16", "N3", "N4", "N6", "N7"])
         assert result_ids == expected_ids
 
     return check
 
 
 @with_disk_variants(init_nodes_graph1)
-def test_property_semantics_only_constant():
+def test_property_semantics_only_metadata():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
+        filter_expr = filter.Metadata("p1") == 1
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
         expected_ids = sorted(["N1", "N2"])
         assert result_ids == expected_ids

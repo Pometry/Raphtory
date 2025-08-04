@@ -2119,18 +2119,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "enum_dispatch"
-version = "0.3.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa18ce2bc66555b3218614519ac839ddb759a7d6720732f979ef8d13be147ecd"
-dependencies = [
- "once_cell",
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "env_logger"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4518,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.15.1"
+version = "0.16.0"
 
 [[package]]
 name = "portable-atomic"
@@ -4969,7 +4957,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4988,7 +4976,6 @@ dependencies = [
  "display-error-chain",
  "dotenv",
  "either",
- "enum_dispatch",
  "flate2",
  "futures-util",
  "glam",
@@ -5056,7 +5043,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
@@ -5066,6 +5053,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "display-error-chain",
+ "indexmap 2.9.0",
  "iter-enum",
  "itertools 0.13.0",
  "lock_api",
@@ -5076,7 +5064,6 @@ dependencies = [
  "proptest",
  "pyo3",
  "pyo3-arrow",
- "quickcheck",
  "quickcheck_macros",
  "rand 0.8.5",
  "rayon",
@@ -5092,7 +5079,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -5113,7 +5100,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5137,7 +5124,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -5168,7 +5155,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -5216,7 +5203,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "numpy",
  "pyo3",
@@ -5227,7 +5214,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "bigdecimal",
  "either",
@@ -5269,7 +5256,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5482,7 +5469,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "chrono",
  "itertools 0.13.0",

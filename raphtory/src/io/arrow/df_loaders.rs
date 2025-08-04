@@ -55,8 +55,8 @@ pub(crate) fn load_nodes_from_df<
     time: &str,
     node_id: &str,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     graph: &G,
@@ -65,7 +65,7 @@ pub(crate) fn load_nodes_from_df<
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let constant_properties_indices = constant_properties
+    let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -77,12 +77,11 @@ pub(crate) fn load_nodes_from_df<
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
 
-    let shared_constant_properties =
-        process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        graph
+            .resolve_node_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
@@ -108,16 +107,11 @@ pub(crate) fn load_nodes_from_df<
                 .resolve_node_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| {
-                graph
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
 
         let time_col = df.time_col(time_index)?;
@@ -174,8 +168,8 @@ pub(crate) fn load_nodes_from_df<
                         t_props.extend(prop_cols.iter_row(idx));
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_constant_properties);
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
                             let cache = &caches[shard_id];
@@ -188,7 +182,7 @@ pub(crate) fn load_nodes_from_df<
                         }
 
                         for (id, prop) in c_props.drain(..) {
-                            mut_node.add_constant_prop(id, prop)?;
+                            mut_node.add_metadata(id, prop)?;
                         }
 
                         true
@@ -223,8 +217,8 @@ pub(crate) fn load_edges_from_df<
     src: &str,
     dst: &str,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
@@ -233,7 +227,7 @@ pub(crate) fn load_edges_from_df<
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let constant_properties_indices = constant_properties
+    let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -246,12 +240,11 @@ pub(crate) fn load_edges_from_df<
     } else {
         None
     };
-    let shared_constant_properties =
-        process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        graph
+            .resolve_edge_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
@@ -280,16 +273,11 @@ pub(crate) fn load_edges_from_df<
                 .resolve_edge_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| {
-                graph
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -436,8 +424,8 @@ pub(crate) fn load_edges_from_df<
                         t_props.extend(prop_cols.iter_row(idx));
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_constant_properties);
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
                             let cache = &caches[shard_id];
@@ -453,7 +441,7 @@ pub(crate) fn load_edges_from_df<
                             }
 
                             for (id, prop) in c_props.drain(..) {
-                                edge_layer.update_constant_prop(id, prop)?;
+                                edge_layer.update_metadata(id, prop)?;
                             }
                         }
                     }
@@ -533,11 +521,11 @@ pub(crate) fn load_node_props_from_df<
     node_id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties_indices = constant_properties
+    let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -548,12 +536,11 @@ pub(crate) fn load_node_props_from_df<
 
     let node_id_index = df_view.get_index(node_id)?;
 
-    let shared_constant_properties =
-        process_shared_properties(shared_constant_properties, |key, dtype| {
-            graph
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        graph
+            .resolve_node_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
@@ -571,16 +558,11 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| {
-                graph
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_id_index)?;
 
@@ -628,8 +610,8 @@ pub(crate) fn load_node_props_from_df<
                         mut_node.node_type = *node_type;
 
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_constant_properties);
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
                             let cache = &caches[shard_id];
@@ -637,7 +619,7 @@ pub(crate) fn load_node_props_from_df<
                         }
 
                         for (id, prop) in c_props.drain(..) {
-                            mut_node.add_constant_prop(id, prop)?;
+                            mut_node.add_metadata(id, prop)?;
                         }
                     };
                 }
@@ -656,13 +638,13 @@ pub(crate) fn load_edges_props_from_df<
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,
     dst: &str,
-    constant_properties: &[&str],
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    let constant_properties_indices = constant_properties
+    let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -674,12 +656,11 @@ pub(crate) fn load_edges_props_from_df<
     } else {
         None
     };
-    let shared_constant_properties =
-        process_shared_properties(shared_const_properties, |key, dtype| {
-            graph
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        graph
+            .resolve_edge_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
@@ -702,16 +683,11 @@ pub(crate) fn load_edges_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| {
-                graph
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -784,8 +760,8 @@ pub(crate) fn load_edges_props_from_df<
                     let shard_id = shard.shard_id();
                     if let Some(mut edge) = shard.get_mut(*eid) {
                         c_props.clear();
-                        c_props.extend(const_prop_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_constant_properties);
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_metadata);
 
                         if let Some(caches) = cache_shards.as_ref() {
                             let cache = &caches[shard_id];
@@ -796,7 +772,7 @@ pub(crate) fn load_edges_props_from_df<
                             let edge_layer = edge.layer_mut(*layer);
 
                             for (id, prop) in c_props.drain(..) {
-                                edge_layer.update_constant_prop(id, prop)?;
+                                edge_layer.update_metadata(id, prop)?;
                             }
                         }
                     }
@@ -825,17 +801,17 @@ pub(crate) fn load_graph_props_from_df<
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
     properties: Option<&[&str]>,
-    constant_properties: Option<&[&str]>,
+    metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
     let properties = properties.unwrap_or(&[]);
-    let constant_properties = constant_properties.unwrap_or(&[]);
+    let metadata = metadata.unwrap_or(&[]);
 
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
-    let constant_properties_indices = constant_properties
+    let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
         .collect::<Result<Vec<_>, GraphError>>()?;
@@ -856,22 +832,17 @@ pub(crate) fn load_graph_props_from_df<
                 .resolve_graph_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let const_prop_cols = combine_properties(
-            constant_properties,
-            &constant_properties_indices,
-            &df,
-            |key, dtype| {
-                graph
-                    .resolve_graph_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            graph
+                .resolve_graph_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let time_col = df.time_col(time_index)?;
 
         time_col
             .par_iter()
             .zip(prop_cols.par_rows())
-            .zip(const_prop_cols.par_rows())
+            .zip(metadata_cols.par_rows())
             .enumerate()
             .try_for_each(|(id, ((time, t_props), c_props))| {
                 let time = time.ok_or(LoadError::MissingTimeError)?;
@@ -887,7 +858,7 @@ pub(crate) fn load_graph_props_from_df<
 
                 if !c_props.is_empty() {
                     graph
-                        .internal_add_constant_properties(&c_props)
+                        .internal_add_metadata(&c_props)
                         .map_err(into_graph_err)?;
                 }
                 Ok::<(), GraphError>(())
