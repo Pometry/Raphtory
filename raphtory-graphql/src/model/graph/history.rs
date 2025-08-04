@@ -1,9 +1,10 @@
-use crate::model::graph::timeindex::GqlTimeIndexEntry;
+use crate::{model::graph::timeindex::GqlTimeIndexEntry, rayon::blocking_compute};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, InternalHistoryOps,
     Intervals,
 };
+use raphtory_api::core::storage::timeindex::TimeError;
 use std::{any::Any, sync::Arc};
 
 /// Represents the history of updates for an object in Raphtory.
@@ -37,40 +38,104 @@ impl GqlHistory {
     /// The earliest time entry (as a `TimeIndexEntry`) associated with this history.
     /// Returns `null` if the history is empty.
     async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
-        self.history.earliest_time().map(|t| t.into())
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.earliest_time().map(|t| t.into())).await
     }
 
     /// The latest time entry (as a `TimeIndexEntry`) associated with this history.
     /// Returns `null` if the history is empty.
     async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
-        self.history.latest_time().map(|t| t.into())
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.latest_time().map(|t| t.into())).await
     }
 
-    /// A list of all time entries (as `TimeIndexEntry` items) present in this history,
-    async fn collect(&self) -> Vec<GqlTimeIndexEntry> {
-        self.history.iter().map(|t| t.into()).collect()
+    /// A list of all time entries (as `TimeIndexEntry` items) present in this history.
+    async fn list(&self) -> Vec<GqlTimeIndexEntry> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await
     }
 
     /// A list of all time entries (as `TimeIndexEntry` items) present in this history, in reverse order.
-    async fn collect_reversed(&self) -> Vec<GqlTimeIndexEntry> {
-        self.history.iter_rev().map(|t| t.into()).collect()
+    async fn list_rev(&self) -> Vec<GqlTimeIndexEntry> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect()).await
+    }
+
+    /// Fetch one "page" of `TimeIndexEntry` entries, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlTimeIndexEntry> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history
+                .iter()
+                .skip(start)
+                .take(limit)
+                .map(|t| t.into())
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of `TimeIndexEntry` items in reverse chronological order, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<GqlTimeIndexEntry> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history
+                .iter_rev()
+                .skip(start)
+                .take(limit)
+                .map(|t| t.into())
+                .collect()
+        })
+        .await
     }
 
     /// Returns true if the History object is empty
     async fn is_empty(&self) -> bool {
-        self.history.is_empty()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.is_empty()).await
     }
 
     /// Returns the number of entries contained in the History object
-    async fn len(&self) -> u64 {
-        self.history.len() as u64
+    async fn count(&self) -> u64 {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history.len() as u64).await
     }
 
     /// A HistoryTimestamp object which provides access to timestamps (as Unix epochs in milliseconds) instead of `TimeIndexEntry` entries
     async fn timestamps(&self) -> GqlHistoryTimestamp {
-        GqlHistoryTimestamp {
-            history_t: HistoryTimestamp::new(self.history.0.clone()), // clone the Arc, not the underlying object
-        }
+        let self_clone = self.clone();
+        blocking_compute(move || GqlHistoryTimestamp {
+            history_t: HistoryTimestamp::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
+        })
+        .await
     }
 
     /// A HistoryDateTime object which provides access to datetimes instead of `TimeIndexEntry` entries.
@@ -78,24 +143,30 @@ impl GqlHistory {
     /// Optionally takes a format string as argument to format the output of datetimes.
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
     async fn datetimes(&self, format_string: Option<String>) -> GqlHistoryDateTime {
-        GqlHistoryDateTime {
-            history_dt: HistoryDateTime::new(self.history.0.clone()), // clone the Arc, not the underlying object
+        let self_clone = self.clone();
+        blocking_compute(move || GqlHistoryDateTime {
+            history_dt: HistoryDateTime::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
             format_string,
-        }
+        })
+        .await
     }
 
     /// A HistorySecondaryIndex object which provides access to the secondary indices of `TimeIndexEntry` entries
     async fn secondary_index(&self) -> GqlHistorySecondaryIndex {
-        GqlHistorySecondaryIndex {
-            history_s: HistorySecondaryIndex::new(self.history.0.clone()), // clone the Arc, not the underlying object
-        }
+        let self_clone = self.clone();
+        blocking_compute(move || GqlHistorySecondaryIndex {
+            history_s: HistorySecondaryIndex::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
+        })
+        .await
     }
 
     /// Returns an Intervals object that provides access to the intervals between temporal entries
     async fn intervals(&self) -> GqlIntervals {
-        GqlIntervals {
-            intervals: Intervals::new(self.history.0.clone()), // clone the Arc, not the underlying object
-        }
+        let self_clone = self.clone();
+        blocking_compute(move || GqlIntervals {
+            intervals: Intervals::new(self_clone.history.0.clone()), // clone the Arc, not the underlying object
+        })
+        .await
     }
 }
 
@@ -109,13 +180,69 @@ pub struct GqlHistoryTimestamp {
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
     /// A list of all timestamps (as Unix epochs in milliseconds) present in this history,
-    async fn collect(&self) -> Vec<i64> {
-        self.history_t.collect()
+    async fn list(&self) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.collect()).await
     }
 
     /// A list of all timestamps (as Unix epochs in milliseconds) present in this history, in reverse order.
-    async fn collect_reversed(&self) -> Vec<i64> {
-        self.history_t.collect_rev()
+    async fn list_rev(&self) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.history_t.collect_rev()).await
+    }
+
+    /// Fetch one "page" of history timestamps (as Unix epochs in milliseconds), optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history_t
+                .iter()
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history timestamps (as Unix epochs in milliseconds) in reverse chronological order, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history_t
+                .iter_rev()
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
     }
 }
 
@@ -131,30 +258,136 @@ pub struct GqlHistoryDateTime {
 impl GqlHistoryDateTime {
     /// A list of all datetimes present in this history, formatted as strings.
     /// Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
-    /// If any timestamp cannot be converted to a valid datetime, it will be replaced with an error message string.
-    async fn collect(&self) -> Vec<String> {
-        let fmt_string = self.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
-        self.history_dt
-            .iter()
-            .map(|t| match t {
-                Ok(dt) => dt.format(fmt_string).to_string(),
-                Err(e) => format!("Time conversion error: {}", e.to_string()),
-            })
-            .collect()
+    /// Throws an error if a time conversion fails
+    /// filter_broken continues on time conversion errors, filtering out the errors. Defaults to `false`
+    async fn list(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            self_clone
+                .history_dt
+                .iter()
+                .filter_map(|t| match t {
+                    Ok(dt) => Some(Ok(dt.format(fmt_string).to_string())),
+                    Err(e) => {
+                        if filter_broken.unwrap_or(false) {
+                            None
+                        } else {
+                            Some(Err(e))
+                        }
+                    }
+                })
+                .collect()
+        })
+        .await
     }
 
     /// A list of all datetimes present in this history in reverse order, formatted as strings.
     /// Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
-    /// If any timestamp cannot be converted to a valid datetime, it will be replaced with an error message string.
-    async fn collect_reversed(&self) -> Vec<String> {
-        let fmt_string = self.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
-        self.history_dt
-            .iter_rev()
-            .map(|t| match t {
-                Ok(dt) => dt.format(fmt_string).to_string(),
-                Err(e) => format!("Time conversion error: {}", e.to_string()),
-            })
-            .collect()
+    /// Throws an error if a time conversion fails
+    /// filter_broken continues on time conversion errors, filtering out the errors. Defaults to `false`
+    async fn list_rev(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            self_clone
+                .history_dt
+                .iter_rev()
+                .filter_map(|t| match t {
+                    Ok(dt) => Some(Ok(dt.format(fmt_string).to_string())),
+                    Err(e) => {
+                        if filter_broken.unwrap_or(false) {
+                            None
+                        } else {
+                            Some(Err(e))
+                        }
+                    }
+                })
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history datetimes formatted as strings, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    /// * `filter_broken` - continues on time conversion errors, filtering out the errors (defaults to `false`).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+        filter_broken: Option<bool>,
+    ) -> Result<Vec<String>, TimeError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            self_clone
+                .history_dt
+                .iter()
+                .filter_map(|t| match t {
+                    // filter_map first to make sure we take the right number of items
+                    Ok(dt) => Some(Ok(dt.format(fmt_string).to_string())),
+                    Err(e) => {
+                        if filter_broken.unwrap_or(false) {
+                            None
+                        } else {
+                            Some(Err(e))
+                        }
+                    }
+                })
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history datetimes formatted as strings in reverse chronological order, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    /// * `filter_broken` - continues on time conversion errors, filtering out the errors (defaults to `false`)
+    ///
+    /// e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+        filter_broken: Option<bool>,
+    ) -> Result<Vec<String>, TimeError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
+            self_clone
+                .history_dt
+                .iter_rev()
+                .filter_map(|t| match t {
+                    // filter_map first to make sure we take the right number of items
+                    Ok(dt) => Some(Ok(dt.format(fmt_string).to_string())),
+                    Err(e) => {
+                        if filter_broken.unwrap_or(false) {
+                            None
+                        } else {
+                            Some(Err(e))
+                        }
+                    }
+                })
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
     }
 }
 
@@ -168,13 +401,85 @@ pub struct GqlHistorySecondaryIndex {
 #[ResolvedObjectFields]
 impl GqlHistorySecondaryIndex {
     /// A list of secondary indices from `TimeIndexEntry` entries
-    async fn collect(&self) -> Vec<u64> {
-        self.history_s.iter().map(|s: usize| s as u64).collect()
+    async fn list(&self) -> Vec<u64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .history_s
+                .iter()
+                .map(|s: usize| s as u64)
+                .collect()
+        })
+        .await
     }
 
     /// A list of secondary indices from `TimeIndexEntry` entries in reverse order
-    async fn collect_reversed(&self) -> Vec<u64> {
-        self.history_s.iter_rev().map(|s: usize| s as u64).collect()
+    async fn list_rev(&self) -> Vec<u64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .history_s
+                .iter_rev()
+                .map(|s: usize| s as u64)
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<u64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history_s
+                .iter()
+                .skip(start)
+                .take(limit)
+                .map(|s: usize| s as u64)
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history items in reverse chronological order, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<u64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .history_s
+                .iter_rev()
+                .skip(start)
+                .take(limit)
+                .map(|s: usize| s as u64)
+                .collect()
+        })
+        .await
     }
 }
 
@@ -188,36 +493,96 @@ pub struct GqlIntervals {
 #[ResolvedObjectFields]
 impl GqlIntervals {
     /// Returns a list of time intervals between consecutive timestamps
-    async fn collect(&self) -> Vec<i64> {
-        self.intervals.collect()
+    async fn list(&self) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.collect()).await
     }
 
     /// Returns a list of time intervals between consecutive timestamps in reverse
-    async fn collect_reversed(&self) -> Vec<i64> {
-        self.intervals.collect_rev()
+    async fn list_rev(&self) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.collect_rev()).await
+    }
+
+    /// Fetch one "page" of history items, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .intervals
+                .iter()
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
+    }
+
+    /// Fetch one "page" of history items in reverse chronological order, optionally offset by a specified amount.
+    ///
+    /// * `limit` - The size of the page (number of items to fetch).
+    /// * `offset` - The number of items to skip (defaults to 0).
+    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///
+    /// e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
+    async fn page_rev(
+        &self,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Vec<i64> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
+            self_clone
+                .intervals
+                .iter_rev()
+                .skip(start)
+                .take(limit)
+                .collect()
+        })
+        .await
     }
 
     /// The mean (average) interval between consecutive timestamps.
     /// Returns `null` if there are fewer than 2 timestamps.
     async fn mean(&self) -> Option<f64> {
-        self.intervals.mean()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.mean()).await
     }
 
     /// The median interval between consecutive timestamps.
     /// Returns `null` if there are fewer than 2 timestamps.
     async fn median(&self) -> Option<f64> {
-        self.intervals.median()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.median()).await
     }
 
     /// The maximum interval between consecutive timestamps.
     /// Returns `null` if there are fewer than 2 timestamps.
     async fn max(&self) -> Option<i64> {
-        self.intervals.max()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.max()).await
     }
 
     /// The minimum interval between consecutive timestamps.
     /// Returns `null` if there are fewer than 2 timestamps.
     async fn min(&self) -> Option<i64> {
-        self.intervals.min()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.intervals.min()).await
     }
 }
