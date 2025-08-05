@@ -47,9 +47,10 @@ jobs:
           set -o pipefail
           cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Delete cargo.lock if it exists
-        run: |
-          rm -f Cargo.lock
-      - name: Store benchmark result if repo is master
+        run: rm -f Cargo.lock
+      - name: Run GraphQL benchmarks
+        run: cd graphql-bench && make bench-local
+      - name: Store rust benchmarks from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -63,7 +64,7 @@ jobs:
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
-      - name: Compare benchmark results if repo is not master
+      - name: Compare rust benchmarks
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -78,7 +79,21 @@ jobs:
           summary-always: true
           fail-on-alert: false
           save-data-file: false
+      - name: Compare GraphQL benchmarks
+        if: github.ref != 'refs/heads/master'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Rust Benchmark
+          tool: 'customBiggerIsBetter'
+          output-file-path: graphql-bench/results/output.json
+          auto-push: false
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '200%'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          save-data-file: false
 # TODO
 # ON PR DO NOT UPLOAD
 # IF MASTER THEN UPLOAD
-

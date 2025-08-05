@@ -1,0 +1,16 @@
+report.html
+summary.json
+src/__generated
+breakpoints.csv
+breakpoints
+key.json
+output.json
+.terraform
+results
+reports
+terraform.tfstate
+terraform.tfstate.backup
+.virtual_documents
+data/apache/master/graph
+node_modules
+dist
