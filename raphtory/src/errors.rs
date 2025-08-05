@@ -11,8 +11,8 @@ use raphtory_api::core::{
     storage::timeindex::TimeError,
 };
 use raphtory_core::entities::{
-        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{MetadataError, TPropError},
+    graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+    properties::props::{MetadataError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
 use std::{

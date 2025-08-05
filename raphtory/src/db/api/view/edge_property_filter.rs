@@ -382,7 +382,7 @@ mod test {
             .unwrap();
         assert!(gwf.has_edge(0, 1));
         assert!(!gwf.has_edge(0, 0));
-        assert_eq!(gwf.node(0).unwrap().earliest_time(), Some(1));
+        assert_eq!(gwf.node(0).unwrap().earliest_time().unwrap().0, 1);
         assert_persistent_materialize_graph_equal(&gwf, &gwf.materialize().unwrap());
 
         let gfw = g

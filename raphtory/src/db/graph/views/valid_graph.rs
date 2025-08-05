@@ -347,10 +347,10 @@ mod tests {
 
         let gv = g.valid().window(0, 20);
         assert!(!gv.default_layer().has_edge(5, 4));
-        assert_eq!(gv.edge(5, 4).unwrap().latest_time(), Some(2));
-        assert_eq!(gv.earliest_time(), Some(0));
-        assert_eq!(gv.latest_time(), Some(2));
-        assert_eq!(gv.node(6).unwrap().latest_time(), Some(0));
+        assert_eq!(gv.edge(5, 4).unwrap().latest_time().unwrap().0, 2);
+        assert_eq!(gv.earliest_time().unwrap().0, 0);
+        assert_eq!(gv.latest_time().unwrap().0, 2);
+        assert_eq!(gv.node(6).unwrap().latest_time().unwrap().0, 0);
         let expected = PersistentGraph::new();
         expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
         expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();

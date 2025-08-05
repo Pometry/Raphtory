@@ -798,7 +798,7 @@ mod tests {
     }
 
     // History vs HistoryRef, both have the same lifetime on History object even though History owns a clone of temporal property
-    #[test]
+    // #[test]
     // fn test_history_vs_historyref() -> Result<(), Box<dyn std::error::Error>> {
     //     let graph = Graph::new();
     //     let node = graph.add_node(0, 1, [("cool", Prop::Bool(true))], None).unwrap();

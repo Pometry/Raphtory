@@ -391,7 +391,7 @@ mod test_graph_storage {
             let g = init_graph_for_nodes_tests(g);
 
             let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
             let node_id = g.node("N1").unwrap().node;
             let bool = g.is_node_prop_update_latest_window(
@@ -612,7 +612,7 @@ mod test_graph_storage {
             let g = init_graph_for_edges_tests(g);
 
             let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
-            let w = 6..9;
+            let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
             let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
             let bool = g.is_edge_prop_update_latest_window(

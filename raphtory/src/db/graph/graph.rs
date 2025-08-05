@@ -619,7 +619,7 @@ mod db_tests {
         },
         utils::{
             logging::global_info_logger,
-            time::{ParseTimeError, TryIntoTime},
+            time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
         },
     };
     use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
@@ -2510,13 +2510,14 @@ mod db_tests {
 
     #[derive(Debug)]
     struct CustomTime<'a>(&'a str, &'a str);
+    impl TryIntoTimeNeedsSecondaryIndex for CustomTime<'_> {}
 
     impl<'a> TryIntoTime for CustomTime<'a> {
-        fn try_into_time(self) -> Result<i64, ParseTimeError> {
+        fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
             let CustomTime(time, fmt) = self;
             let time = NaiveDateTime::parse_from_str(time, fmt)?;
             let time = time.and_utc().timestamp_millis();
-            Ok(time)
+            Ok(TimeIndexEntry::from(time))
         }
     }
 
@@ -2530,8 +2531,8 @@ mod db_tests {
             .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
-        assert_eq!(g.latest_time().unwrap().0, latest_time);
+        assert_eq!(g.earliest_time().unwrap(), earliest_time);
+        assert_eq!(g.latest_time().unwrap(), latest_time);
 
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
@@ -2540,8 +2541,8 @@ mod db_tests {
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap().0, earliest_time);
-        assert_eq!(g.latest_time().unwrap().0, latest_time);
+        assert_eq!(g.earliest_time().unwrap(), earliest_time);
+        assert_eq!(g.latest_time().unwrap(), latest_time);
     }
 
     #[test]
