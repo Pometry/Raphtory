@@ -114,7 +114,7 @@ impl QueryRoot {
     }
 
     /// Create vectorised graph in the format used for queries
-    /// 
+    ///
     /// Returns:: GqlVectorisedGraph
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
@@ -204,7 +204,7 @@ impl Mut {
     }
 
     /// Move graph from a path path on the server to a new_path on the server.
-    /// 
+    ///
     /// If namespace is not provided, it will be set to the current working directory.
     /// This applies to both the graph namespace and new graph namespace.
     async fn move_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
@@ -215,7 +215,7 @@ impl Mut {
     }
 
     /// Copy graph from a path path on the server to a new_path on the server.
-    /// 
+    ///
     /// If namespace is not provided, it will be set to the current working directory.
     /// This applies to both the graph namespace and new graph namespace.
     async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {

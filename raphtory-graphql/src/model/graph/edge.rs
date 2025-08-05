@@ -64,15 +64,15 @@ impl GqlEdge {
     }
 
     /// Returns a view of Edge containing all layers in the list of `names`.
-    /// 
+    ///
     /// Errors if any of the layers do not exist.
     async fn layers(&self, names: Vec<String>) -> GqlEdge {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.valid_layers(names).into()).await
     }
 
-    /// Returns a view of Edge containing all layers except the excluded list of `names`. 
-    /// 
+    /// Returns a view of Edge containing all layers except the excluded list of `names`.
+    ///
     /// Errors if any of the layers do not exist.
     async fn exclude_layers(&self, names: Vec<String>) -> GqlEdge {
         let self_clone = self.clone();
@@ -80,21 +80,21 @@ impl GqlEdge {
     }
 
     /// Returns a view of Edge containing the specified layer.
-    /// 
+    ///
     /// Errors if any of the layers do not exist.
     async fn layer(&self, name: String) -> GqlEdge {
         self.ee.valid_layers(name).into()
     }
 
-    /// Returns a view of Edge containing all layers except the excluded layer specified. 
-    /// 
+    /// Returns a view of Edge containing all layers except the excluded layer specified.
+    ///
     /// Errors if any of the layers do not exist.
     async fn exclude_layer(&self, name: String) -> GqlEdge {
         self.ee.exclude_valid_layers(name).into()
     }
 
     /// Creates a WindowSet with the given window duration and optional step using a rolling window.
-    /// 
+    ///
     /// A rolling window is a window that moves forward by step size at each iteration.
     async fn rolling(
         &self,
@@ -128,7 +128,7 @@ impl GqlEdge {
     }
 
     /// Creates a WindowSet with the given step size using an expanding window.
-    /// 
+    ///
     /// An expanding window is a window that grows by step size at each iteration.
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgeWindowSet, GraphError> {
         match step {
@@ -152,14 +152,14 @@ impl GqlEdge {
     }
 
     /// Creates a view of the Edge including all events that have not been explicitly deleted at time.
-    /// 
+    ///
     /// This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
     async fn snapshot_at(&self, time: i64) -> GqlEdge {
         self.ee.snapshot_at(time).into()
     }
 
     /// Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
-    /// 
+    ///
     /// This is equivalent to a no-op for Graph and latest() for PersistentGraph.
     async fn snapshot_latest(&self) -> GqlEdge {
         self.ee.snapshot_latest().into()
@@ -286,7 +286,7 @@ impl GqlEdge {
     async fn dst(&self) -> GqlNode {
         self.ee.dst().into()
     }
-    
+
     /// Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
     async fn nbr(&self) -> GqlNode {
         self.ee.nbr().into()
@@ -327,8 +327,8 @@ impl GqlEdge {
         GqlEdges::new(self.ee.explode())
     }
 
-    /// Returns an edge object for each layer within the original edge. 
-    /// 
+    /// Returns an edge object for each layer within the original edge.
+    ///
     /// Each new edge object contains only updates from the respective layers.
     async fn explode_layers(&self) -> GqlEdges {
         GqlEdges::new(self.ee.explode_layers())
@@ -346,29 +346,29 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.deletions()).await
     }
 
-    /// Checks if the edge is currently valid and exists at the current time. 
-    /// 
+    /// Checks if the edge is currently valid and exists at the current time.
+    ///
     /// Returns: boolean
     async fn is_valid(&self) -> bool {
         self.ee.is_valid()
     }
 
     /// Checks if the edge is currently active and has at least one update within the current period.
-    /// 
+    ///
     /// Returns: boolean
     async fn is_active(&self) -> bool {
         self.ee.is_active()
     }
 
     /// Checks if the edge is deleted at the current time.
-    /// 
+    ///
     /// Returns: boolean
     async fn is_deleted(&self) -> bool {
         self.ee.is_deleted()
     }
 
     /// Checks if the edge is on the same node.
-    /// 
+    ///
     /// Returns: boolean
     async fn is_self_loop(&self) -> bool {
         self.ee.is_self_loop()
