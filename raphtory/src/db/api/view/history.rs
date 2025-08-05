@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::PropertiesOps, TemporalPropertyView},
+            properties::{internal::InternalPropertiesOps, TemporalPropertyView},
             state::{
                 ops,
                 ops::{node::NodeOp, HistoryOp},
@@ -481,7 +481,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
-impl<P: PropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
+impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.props
             .temporal_iter(self.id)

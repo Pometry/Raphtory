@@ -9,7 +9,7 @@ use crate::{
     db::{
         api::{
             properties::{
-                internal::{PropertiesOps, TemporalPropertiesOps},
+                internal::{InternalPropertiesOps, InternalTemporalPropertiesOps},
                 TemporalPropertyView,
             },
             state::{

@@ -111,11 +111,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.edge_time_semantics())
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         for_all!(self, g => g.view_start())
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         for_all!(self, g => g.view_end())
     }
 
@@ -143,15 +143,15 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         for_all!(self, g => g.has_temporal_prop_window(prop_id, w))
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
     }
