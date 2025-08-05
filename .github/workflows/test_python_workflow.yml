@@ -71,9 +71,6 @@ jobs:
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Run stubgen
-        run: |
-          mypy -m raphtory
       - name: Validate graphQL schema
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
@@ -89,9 +86,12 @@ jobs:
       - name: Run stubsgen
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
-          make build-python-public
+          make install-python
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
+      - name: Run mypy
+        run: |
+          mypy -m raphtory
 
       - name: Check for uncommitted changes
       
