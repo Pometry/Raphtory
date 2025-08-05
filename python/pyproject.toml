@@ -40,7 +40,7 @@ tox = ["nbmake"]
 features = ["extension-module"] # make sure to always specify this when building with private storage enabled
 python-source = "python"
 module-name = "raphtory._raphtory"
-include = ["motif-images/*"]
+include = ["motif-images/*", "cli.py"]
 
 [tool.pytest.ini_options]
 pythonpath = ["test_utils"] # adds directories to the python path for tests
