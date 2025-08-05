@@ -36,6 +36,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          cache: 'pip'
+      - name: Install maturin
+        run: pip install maturin==1.8.3
       - name: Build raphtory
         run: make install-python
       - name: Set up pnpm
