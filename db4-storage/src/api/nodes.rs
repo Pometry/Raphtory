@@ -26,7 +26,7 @@ use raphtory_core::{
 
 use crate::{
     LocalPOS,
-    error::DBV4Error,
+    error::StorageError,
     gen_ts::LayerIter,
     segments::node::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
@@ -57,7 +57,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
         ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
+    ) -> Result<Self, StorageError>
     where
         Self: Sized;
     fn new(
@@ -87,7 +87,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn notify_write(
         &self,
         head_lock: impl DerefMut<Target = MemNodeSegment>,
-    ) -> Result<(), DBV4Error>;
+    ) -> Result<(), StorageError>;
 
     fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 

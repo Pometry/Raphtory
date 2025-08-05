@@ -21,7 +21,7 @@ use rayon::prelude::*;
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
-    error::DBV4Error,
+    error::StorageError,
     persist::strategy::PersistentStrategy,
     properties::PropMutEntry,
     segments::edge_entry::MemEdgeRef,
@@ -424,7 +424,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         _meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
-    ) -> Result<Self, DBV4Error>
+    ) -> Result<Self, StorageError>
     where
         Self: Sized,
     {
@@ -474,7 +474,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
     fn notify_write(
         &self,
         _head_lock: impl DerefMut<Target = MemEdgeSegment>,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 

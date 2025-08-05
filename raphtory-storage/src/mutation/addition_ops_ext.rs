@@ -309,12 +309,12 @@ impl InternalAdditionOps for TemporalGraph {
         if is_static {
             let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const())
-                .map_err(MutationError::DBV4Error)?;
+                .map_err(MutationError::StorageError)?;
             Ok(prop_ids)
         } else {
             let prop_ids = PropsMetaWriter::temporal(meta, props)
                 .and_then(|pmw| pmw.into_props_temporal())
-                .map_err(MutationError::DBV4Error)?;
+                .map_err(MutationError::StorageError)?;
             Ok(prop_ids)
         }
     }
@@ -328,12 +328,12 @@ impl InternalAdditionOps for TemporalGraph {
         if is_static {
             let prop_ids = PropsMetaWriter::constant(meta, props)
                 .and_then(|pmw| pmw.into_props_const_with_status())
-                .map_err(MutationError::DBV4Error)?;
+                .map_err(MutationError::StorageError)?;
             Ok(prop_ids)
         } else {
             let prop_ids = PropsMetaWriter::temporal(meta, props)
                 .and_then(|pmw| pmw.into_props_temporal_with_status())
-                .map_err(MutationError::DBV4Error)?;
+                .map_err(MutationError::StorageError)?;
             Ok(prop_ids)
         }
     }

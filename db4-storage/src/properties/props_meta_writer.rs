@@ -5,7 +5,7 @@ use raphtory_api::core::entities::properties::{
 };
 use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
-use crate::error::DBV4Error;
+use crate::error::StorageError;
 
 // TODO: Rename constant props to metadata
 #[derive(Debug, Clone, Copy)]
@@ -39,14 +39,14 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     pub fn temporal(
         meta: &'a Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         Self::new(meta, meta.temporal_prop_meta(), props)
     }
 
     pub fn constant(
         meta: &'a Meta,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         Self::new(meta, meta.const_prop_meta(), props)
     }
 
@@ -54,7 +54,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         meta: &'a Meta,
         prop_mapper: &'a PropMapper,
         props: impl Iterator<Item = (PN, Prop)>,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         let locked_meta = prop_mapper.locked();
 
         let mut in_props = props
@@ -129,29 +129,29 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         }
     }
 
-    pub fn into_props_temporal(self) -> Result<Vec<(usize, Prop)>, DBV4Error> {
+    pub fn into_props_temporal(self) -> Result<Vec<(usize, Prop)>, StorageError> {
         self.into_props_inner(PropType::Temporal)
     }
 
     /// Returns temporal prop names, prop ids and prop values, along with their MaybeNew status.
     pub fn into_props_temporal_with_status(
         self,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
         self.into_props_inner_with_status(PropType::Temporal)
     }
 
-    pub fn into_props_const(self) -> Result<Vec<(usize, Prop)>, DBV4Error> {
+    pub fn into_props_const(self) -> Result<Vec<(usize, Prop)>, StorageError> {
         self.into_props_inner(PropType::Constant)
     }
 
     /// Returns constant prop names, prop ids and prop values, along with their MaybeNew status.
     pub fn into_props_const_with_status(
         self,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
         self.into_props_inner_with_status(PropType::Constant)
     }
 
-    pub fn into_props_inner(self, prop_type: PropType) -> Result<Vec<(usize, Prop)>, DBV4Error> {
+    pub fn into_props_inner(self, prop_type: PropType) -> Result<Vec<(usize, Prop)>, StorageError> {
         self.into_props_inner_with_status(prop_type).map(|props| {
             props
                 .into_iter()
@@ -166,7 +166,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
     pub fn into_props_inner_with_status(
         self,
         prop_type: PropType,
-    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, DBV4Error> {
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, StorageError> {
         match self {
             Self::NoChange { props } => Ok(props
                 .into_iter()
@@ -205,7 +205,7 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                             Ok(new_entry)
                         }
                     })
-                    .collect::<Result<Vec<_>, DBV4Error>>()?;
+                    .collect::<Result<Vec<_>, StorageError>>()?;
 
                 for entry in props {
                     match entry {

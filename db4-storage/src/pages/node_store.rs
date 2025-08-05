@@ -2,7 +2,7 @@ use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::DBV4Error,
+    error::StorageError,
     pages::{
         layer_counter::GraphStats,
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
@@ -179,7 +179,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         max_page_len: usize,
         edge_meta: Arc<Meta>,
         ext: EXT,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
 
         let node_meta = Arc::new(Meta::new());
@@ -211,7 +211,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
             .collect::<Result<HashMap<_, _>, _>>()?;
 
         if pages.is_empty() {
-            return Err(DBV4Error::EmptyGraphDir(nodes_path.to_path_buf()));
+            return Err(StorageError::EmptyGraphDir(nodes_path.to_path_buf()));
         }
 
         let max_page = Iterator::max(pages.keys().copied()).unwrap();
@@ -236,7 +236,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         let first_p_id = first_page.segment_id();
 
         if first_p_id != 0 {
-            return Err(DBV4Error::GenericFailure(format!(
+            return Err(StorageError::GenericFailure(format!(
                 "First page id is not 0 in {nodes_path:?}"
             )));
         }

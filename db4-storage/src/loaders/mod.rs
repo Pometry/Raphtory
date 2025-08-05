@@ -1,4 +1,4 @@
-use crate::{error::DBV4Error, pages::GraphStore, EdgeSegmentOps, NodeSegmentOps};
+use crate::{error::StorageError, pages::GraphStore, EdgeSegmentOps, NodeSegmentOps};
 use arrow::buffer::ScalarBuffer;
 use arrow_array::{
     Array, PrimitiveArray, RecordBatch, TimestampMicrosecondArray, TimestampMillisecondArray,
@@ -51,14 +51,14 @@ pub struct Rows {
 }
 
 impl Rows {
-    pub fn srcs(&self) -> Result<NodeCol, DBV4Error> {
+    pub fn srcs(&self) -> Result<NodeCol, StorageError> {
         let arr = self.rb.column(self.src);
         let arr = arr.as_ref();
         let srcs = NodeCol::try_from(arr)?;
         Ok(srcs)
     }
 
-    pub fn dsts(&self) -> Result<NodeCol, DBV4Error> {
+    pub fn dsts(&self) -> Result<NodeCol, StorageError> {
         let arr = self.rb.column(self.dst);
         let arr = arr.as_ref();
         let dsts = NodeCol::try_from(arr)?;
@@ -71,8 +71,8 @@ impl Rows {
 
     pub fn properties(
         &self,
-        prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, DBV4Error>,
-    ) -> Result<PropCols, DBV4Error> {
+        prop_id_resolver: impl Fn(&str, PropType) -> Result<MaybeNew<usize>, StorageError>,
+    ) -> Result<PropCols, StorageError> {
         combine_properties_arrow(
             &self.t_properties,
             &self.t_indices,
@@ -81,7 +81,7 @@ impl Rows {
         )
     }
 
-    fn new(rb: RecordBatch, src: usize, dst: usize, time: usize) -> Result<Self, DBV4Error> {
+    fn new(rb: RecordBatch, src: usize, dst: usize, time: usize) -> Result<Self, StorageError> {
         let (t_indices, t_properties): (Vec<_>, Vec<_>) = rb
             .schema()
             .fields()
@@ -127,7 +127,7 @@ impl Rows {
         {
             arr.values().clone()
         } else {
-            return Err(DBV4Error::ArrowRS(ArrowError::CastError(format!(
+            return Err(StorageError::ArrowRS(ArrowError::CastError(format!(
                 "failed to cast time column {} to i64",
                 time_arr.data_type()
             ))));
@@ -155,7 +155,7 @@ impl<'a> Loader<'a> {
         dst_col: Either<&'a str, usize>,
         time_col: Either<&'a str, usize>,
         format: FileFormat,
-    ) -> Result<Self, DBV4Error> {
+    ) -> Result<Self, StorageError> {
         Ok(Self {
             path: path.to_owned(),
             src_col,
@@ -169,7 +169,7 @@ impl<'a> Loader<'a> {
         &self,
         path: &Path,
         rows_per_batch: usize,
-    ) -> Result<Box<dyn Iterator<Item = Result<Rows, DBV4Error>> + Send>, DBV4Error> {
+    ) -> Result<Box<dyn Iterator<Item = Result<Rows, StorageError>> + Send>, StorageError> {
         match &self.format {
             FileFormat::CSV {
                 delimiter,
@@ -193,7 +193,7 @@ impl<'a> Loader<'a> {
                     .with_batch_size(rows_per_batch)
                     .build(file)?;
                 Ok(Box::new(reader.map(move |rb| {
-                    rb.map_err(DBV4Error::from)
+                    rb.map_err(StorageError::from)
                         .and_then(|rb| Rows::new(rb, src, dst, time))
                 })))
             }
@@ -205,7 +205,7 @@ impl<'a> Loader<'a> {
                 let (src, dst, time) = self.src_dst_time_cols(&builder.schema())?;
                 let reader = builder.build()?;
                 Ok(Box::new(reader.map(move |rb| {
-                    rb.map_err(DBV4Error::from)
+                    rb.map_err(StorageError::from)
                         .and_then(|rb| Rows::new(rb, src, dst, time))
                 })))
             }
@@ -215,7 +215,7 @@ impl<'a> Loader<'a> {
     pub fn iter(
         &self,
         rows_per_batch: usize,
-    ) -> Result<Box<dyn Iterator<Item = Result<Rows, DBV4Error>> + Send>, DBV4Error> {
+    ) -> Result<Box<dyn Iterator<Item = Result<Rows, StorageError>> + Send>, StorageError> {
         if self.path.is_dir() {
             let mut files = vec![];
             for entry in std::fs::read_dir(&self.path)? {
@@ -234,7 +234,7 @@ impl<'a> Loader<'a> {
         }
     }
 
-    fn src_dst_time_cols(&self, schema: &Schema) -> Result<(usize, usize, usize), DBV4Error> {
+    fn src_dst_time_cols(&self, schema: &Schema) -> Result<(usize, usize, usize), StorageError> {
         let src_field = match self.src_col {
             Either::Left(name) => schema.index_of(name)?,
             Either::Right(idx) => idx,
@@ -260,7 +260,7 @@ impl<'a> Loader<'a> {
         &self,
         graph: &GraphStore<NS, ES, EXT>,
         rows_per_batch: usize,
-    ) -> Result<Mapping, DBV4Error> {
+    ) -> Result<Mapping, StorageError> {
         let mut src_col_resolved: Vec<VID> = vec![];
         let mut dst_col_resolved: Vec<VID> = vec![];
         let mut eid_col_resolved: Vec<EID> = vec![];
@@ -282,7 +282,7 @@ impl<'a> Loader<'a> {
                 graph
                     .edge_meta()
                     .resolve_prop_id(name, p_type, false)
-                    .map_err(DBV4Error::from)
+                    .map_err(StorageError::from)
             })?;
 
             let srcs = rb.srcs()?;
@@ -298,7 +298,7 @@ impl<'a> Loader<'a> {
                         .unwrap()
                         .inner();
                     *resolved = id;
-                    Ok::<(), DBV4Error>(())
+                    Ok::<(), StorageError>(())
                 })?;
 
             dst_col_resolved.resize_with(rb.num_rows(), Default::default);
@@ -311,7 +311,7 @@ impl<'a> Loader<'a> {
                         .unwrap()
                         .inner();
                     *resolved = id;
-                    Ok::<(), DBV4Error>(())
+                    Ok::<(), StorageError>(())
                 })?;
 
             eid_col_resolved.resize_with(rb.num_rows(), Default::default);
@@ -344,7 +344,7 @@ impl<'a> Loader<'a> {
                     }
                 }
 
-                Ok::<_, DBV4Error>(())
+                Ok::<_, StorageError>(())
             })?;
 
             node_writers.par_iter_mut().try_for_each(|locked_page| {
@@ -361,7 +361,7 @@ impl<'a> Loader<'a> {
                     }
                 }
 
-                Ok::<_, DBV4Error>(())
+                Ok::<_, StorageError>(())
             })?;
 
             // now edges

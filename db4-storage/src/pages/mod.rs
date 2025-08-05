@@ -9,7 +9,7 @@ use std::{
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    error::DBV4Error,
+    error::StorageError,
     pages::{
         edge_store::ReadLockedEdgeStorage, flush_thread::FlushThread,
         node_store::ReadLockedNodeStorage,
@@ -122,7 +122,7 @@ impl<
         self.nodes.stats().latest().max(self.edges.stats().latest())
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, DBV4Error> {
+    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
         let nodes_path = graph_dir.as_ref().join("nodes");
         let edges_path = graph_dir.as_ref().join("edges");
 
@@ -228,7 +228,7 @@ impl<
         t: T,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-    ) -> Result<MaybeNew<ELID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, StorageError> {
         let t = self.as_time_index_entry(t)?;
         self.internal_add_edge(t, src, dst, 0, [])
     }
@@ -240,7 +240,7 @@ impl<
         dst: impl Into<VID>,
         props: Vec<(PN, Prop)>,
         _lsn: u64,
-    ) -> Result<MaybeNew<ELID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, StorageError> {
         let t = self.as_time_index_entry(t)?;
         let prop_writer = PropsMetaWriter::temporal(self.edge_meta(), props.into_iter())?;
         self.internal_add_edge(t, src, dst, 0, prop_writer.into_props_temporal()?)
@@ -253,7 +253,7 @@ impl<
         dst: impl Into<VID>,
         lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> Result<MaybeNew<ELID>, DBV4Error> {
+    ) -> Result<MaybeNew<ELID>, StorageError> {
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
@@ -264,7 +264,7 @@ impl<
         Ok(elid)
     }
 
-    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, DBV4Error> {
+    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, StorageError> {
         let input_time = t.try_into_input_time()?;
         let t = match input_time {
             InputTime::Indexed(t, i) => TimeIndexEntry::new(t, i),
@@ -288,7 +288,7 @@ impl<
         &self,
         eid: impl Into<ELID>,
         props: Vec<(PN, Prop)>,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         let eid = eid.into();
         let layer = eid.layer();
         let (_, edge_pos) = self.edges.resolve_pos(eid.edge);
@@ -308,7 +308,7 @@ impl<
         node: impl Into<VID>,
         layer_id: usize,
         props: Vec<(PN, Prop)>,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         let node = node.into();
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
@@ -323,7 +323,7 @@ impl<
         node: impl Into<VID>,
         layer_id: usize,
         props: Vec<(PN, Prop)>,
-    ) -> Result<(), DBV4Error> {
+    ) -> Result<(), StorageError> {
         let node = node.into();
         let (segment, node_pos) = self.nodes.resolve_pos(node);
 
@@ -388,14 +388,14 @@ impl<
     }
 }
 
-fn write_graph_meta(graph_dir: impl AsRef<Path>, graph_meta: GraphMeta) -> Result<(), DBV4Error> {
+fn write_graph_meta(graph_dir: impl AsRef<Path>, graph_meta: GraphMeta) -> Result<(), StorageError> {
     let meta_file = graph_dir.as_ref().join("graph_meta.json");
     let meta_file = std::fs::File::create(meta_file).unwrap();
     serde_json::to_writer_pretty(meta_file, &graph_meta)?;
     Ok(())
 }
 
-fn read_graph_meta(graph_dir: impl AsRef<Path>) -> Result<GraphMeta, DBV4Error> {
+fn read_graph_meta(graph_dir: impl AsRef<Path>) -> Result<GraphMeta, StorageError> {
     let meta_file = graph_dir.as_ref().join("graph_meta.json");
     let meta_file = std::fs::File::open(meta_file).unwrap();
     let meta = serde_json::from_reader(meta_file)?;
