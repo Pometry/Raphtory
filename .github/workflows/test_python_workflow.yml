@@ -86,6 +86,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
           cd python && black .
+      - name: Run stubsgen
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
+        run: |
+          make build-python-public
+          python -m pip install -e stub_gen
+          cd python/scripts && python gen-stubs.py
+
       - name: Check for uncommitted changes
       
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
