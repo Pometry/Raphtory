@@ -15,11 +15,18 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use crate::python::types::repr::iterator_repr;
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistory {
     history: History<'static, Arc<dyn InternalHistoryOps>>,
+}
+
+impl<'a, T: InternalHistoryOps> Repr for History<'a, T> {
+    fn repr(&self) -> String {
+        format!("History({})", iterator_repr(self.iter()))
+    }
 }
 
 impl PyHistory {
@@ -75,6 +82,7 @@ impl PyHistory {
     }
 
     /// Access history events as i64 timestamps
+    #[getter]
     pub fn t(&self) -> PyHistoryTimestamp {
         PyHistoryTimestamp {
             history_t: HistoryTimestamp::new(self.history.0.clone()), // clone the Arc, not the underlying object
@@ -82,6 +90,7 @@ impl PyHistory {
     }
 
     /// Access history events as DateTime items
+    #[getter]
     pub fn dt(&self) -> PyHistoryDateTime {
         PyHistoryDateTime {
             history_dt: HistoryDateTime::new(self.history.0.clone()), // clone the Arc, not the underlying object
@@ -89,12 +98,14 @@ impl PyHistory {
     }
 
     /// Access secondary index (unique index) of history events
+    #[getter]
     pub fn secondary_index(&self) -> PyHistorySecondaryIndex {
         PyHistorySecondaryIndex {
             history_s: HistorySecondaryIndex::new(self.history.0.clone()), // clone the Arc, not the underlying object
         }
     }
 
+    #[getter]
     pub fn intervals(&self) -> PyIntervals {
         PyIntervals {
             intervals: Intervals::new(self.history.0.clone()), // clone the Arc, not the underlying object
@@ -242,6 +253,12 @@ impl PyHistoryDateTime {
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
             |history_dt| history_dt.iter_rev()
         )
+    }
+}
+
+impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
+    fn repr(&self) -> String {
+        format!("HistoryDateTime({})", iterator_repr(self.iter()))
     }
 }
 

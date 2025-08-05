@@ -169,6 +169,7 @@ impl PyEdges {
     /// Returns:
     ///    An iterable of history objects, one for each edge.
     ///
+    #[getter]
     fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
         (move || edges.history().map(|history| history.into_arc_static())).into()
@@ -474,6 +475,7 @@ impl PyNestedEdges {
     }
 
     /// Returns history objects for edges, containing information about when an edge is added or change to an edge is made.
+    #[getter]
     fn history(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
         (move || {

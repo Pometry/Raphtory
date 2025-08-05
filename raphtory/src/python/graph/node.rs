@@ -239,6 +239,7 @@ impl PyNode {
     ///
     /// Returns:
     ///     History: A History object for the node, providing access to time information
+    #[getter]
     pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.node.clone())))
     }
@@ -584,11 +585,11 @@ impl PyNodes {
         self.nodes.latest_time()
     }
 
-    /// Returns all timestamps of nodes, when a node is added or change to a node is made.
+    /// Returns all history objects of nodes, with information on when a node is added or change to a node is made.
     ///
     /// Returns:
     ///    HistoryView: a view of the node histories
-    ///
+    #[getter]
     fn history(
         &self,
     ) -> LazyNodeState<'static, ops::HistoryOp<'static, DynamicGraph>, DynamicGraph> {
@@ -822,6 +823,7 @@ impl PyPathFromGraph {
     }
 
     /// Returns a history object for each node with time information for when a node is added or change to a node is made.
+    #[getter]
     fn history(&self) -> NestedHistoryIterable {
         let path = self.path.clone();
         (move || {

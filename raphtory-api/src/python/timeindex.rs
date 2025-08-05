@@ -100,15 +100,18 @@ impl PyTime {
 #[pymethods]
 impl PyTime {
     /// Get the datetime representation of the time
+    #[getter]
     pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         self.time.dt()
     }
 
+    #[getter]
     pub fn secondary_index(&self) -> usize {
         self.time.i()
     }
 
     /// Get the epoch timestamp of the time
+    #[getter]
     pub fn t(&self) -> i64 {
         self.time.t()
     }

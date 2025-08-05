@@ -25,8 +25,6 @@ use crate::{
     },
     prelude::*,
 };
-#[cfg(feature = "python")]
-use crate::python::types::repr::{iterator_repr, Repr};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
@@ -46,13 +44,6 @@ pub trait InternalHistoryOps: Send + Sync {
 // TODO: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
-
-#[cfg(feature = "python")]
-impl<'a, T: InternalHistoryOps> Repr for History<'a, T> {
-    fn repr(&self) -> String {
-        format!("History({})", iterator_repr(self.iter()))
-    }
-}
 
 impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     pub fn new(item: T) -> Self {
@@ -664,13 +655,6 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
 impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
     pub fn into_arc_static(self) -> HistoryDateTime<Arc<dyn InternalHistoryOps>> {
         HistoryDateTime::new(Arc::new(self.0))
-    }
-}
-
-#[cfg(feature = "python")]
-impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
-    fn repr(&self) -> String {
-        format!("HistoryDateTime({})", iterator_repr(self.iter()))
     }
 }
 

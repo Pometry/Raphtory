@@ -204,11 +204,11 @@ impl PyEdge {
         self.edge.properties().get(name)
     }
 
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    /// Returns a history object with information on when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    List[int]:  A list of unix timestamps.
-    ///
+    ///    History:  A history object containing temporal information about the edge
+    #[getter]
     pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.edge.clone())))
     }
@@ -219,14 +219,6 @@ impl PyEdge {
     ///     List[int]: A list of unix timestamps
     pub fn deletions(&self) -> Vec<i64> {
         self.edge.deletions()
-    }
-
-    /// Returns a list of timestamps of when an edge is deleted
-    ///
-    /// Returns:
-    ///     List[datetime]
-    pub fn deletions_data_time(&self) -> Result<Vec<DateTime<Utc>>, TimeError> {
-        self.edge.deletions_date_time()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)
