@@ -5,14 +5,17 @@ enum AllPropertySpec {
 }
 
 
+"""
+Collection of items
+"""
 type CollectionOfMetaGraph {
 	list: [MetaGraph!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -21,14 +24,17 @@ type CollectionOfMetaGraph {
 	count: Int!
 }
 
+"""
+Collection of items
+"""
 type CollectionOfNamespace {
 	list: [Namespace!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -37,14 +43,17 @@ type CollectionOfNamespace {
 	count: Int!
 }
 
+"""
+Collection of items
+"""
 type CollectionOfNamespacedItem {
 	list: [NamespacedItem!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -53,49 +62,195 @@ type CollectionOfNamespacedItem {
 	count: Int!
 }
 
+"""
+Entity associated with document
+"""
 union DocumentEntity = Node | Edge
 
+"""
+Raphtory graph edge
+"""
 type Edge {
+	"""
+	Return a view of Edge containing only the default edge layer.
+	"""
 	defaultLayer: Edge!
+	"""
+	Returns a view of Edge containing all layers in the list of `names`.
+	
+	Errors if any of the layers do not exist.
+	"""
 	layers(names: [String!]!): Edge!
+	"""
+	Returns a view of Edge containing all layers except the excluded list of `names`.
+	
+	Errors if any of the layers do not exist.
+	"""
 	excludeLayers(names: [String!]!): Edge!
+	"""
+	Returns a view of Edge containing the specified layer.
+	
+	Errors if any of the layers do not exist.
+	"""
 	layer(name: String!): Edge!
+	"""
+	Returns a view of Edge containing all layers except the excluded layer specified.
+	
+	Errors if any of the layers do not exist.
+	"""
 	excludeLayer(name: String!): Edge!
+	"""
+	Creates a WindowSet with the given window duration and optional step using a rolling window.
+	
+	A rolling window is a window that moves forward by step size at each iteration.
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): EdgeWindowSet!
+	"""
+	Creates a WindowSet with the given step size using an expanding window.
+	
+	An expanding window is a window that grows by step size at each iteration.
+	"""
 	expanding(step: WindowDuration!): EdgeWindowSet!
+	"""
+	Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+	"""
 	window(start: Int!, end: Int!): Edge!
+	"""
+	Creates a view of the Edge including all events at a specified `time`.
+	"""
 	at(time: Int!): Edge!
 	latest: Edge!
+	"""
+	Creates a view of the Edge including all events that have not been explicitly deleted at time.
+	
+	This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+	"""
 	snapshotAt(time: Int!): Edge!
+	"""
+	Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+	
+	This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+	"""
 	snapshotLatest: Edge!
+	"""
+	Creates a view of the Edge including all events before a specified `end` (exclusive).
+	"""
 	before(time: Int!): Edge!
+	"""
+	Creates a view of the Edge including all events after a specified `start` (exclusive).
+	"""
 	after(time: Int!): Edge!
+	"""
+	Shrinks both the `start` and `end` of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): Edge!
+	"""
+	Set the `start` of the window.
+	"""
 	shrinkStart(start: Int!): Edge!
+	"""
+	Set the `end` of the window.
+	"""
 	shrinkEnd(end: Int!): Edge!
+	"""
+	Takes a specified selection of views and applies them in order given
+	"""
 	applyViews(views: [EdgeViewCollection!]!): Edge!
+	"""
+	Returns the earliest time of an edge.
+	"""
 	earliestTime: Int
 	firstUpdate: Int
+	"""
+	Returns the latest time of an edge.
+	"""
 	latestTime: Int
 	lastUpdate: Int
+	"""
+	Returns the time of an exploded edge.
+	"""
 	time: Int!
+	"""
+	Returns the start time for rolling and expanding windows for this edge.
+	"""
 	start: Int
+	"""
+	Returns the latest time that this edge is valid.
+	"""
 	end: Int
+	"""
+	Returns the source node of the edge.
+	"""
 	src: Node!
+	"""
+	Returns the destination node of the edge.
+	"""
 	dst: Node!
+	"""
+	Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+	"""
 	nbr: Node!
+	"""
+	Returns the id of the edge.
+	"""
 	id: [String!]!
+	"""
+	Returns a view of the properties of the edge.
+	"""
 	properties: Properties!
+	"""
+	Returns the metadata of an edge.
+	"""
 	metadata: Metadata!
+	"""
+	Returns the names of the layers that have this edge as a member.
+	"""
 	layerNames: [String!]!
+	"""
+	Returns the names of the layer this edge belongs to, assuming it belongs to only one layer.
+	"""
 	layerName: String!
+	"""
+	Returns an edge object for each update within the original edge.
+	"""
 	explode: Edges!
+	"""
+	Returns an edge object for each layer within the original edge.
+	
+	Each new edge object contains only updates from the respective layers.
+	"""
 	explodeLayers: Edges!
+	"""
+	Returns a list of timestamps of when an edge is added or change to an edge is made.
+	"""
 	history: [Int!]!
+	"""
+	Returns a list of timestamps of when an edge is deleted.
+	"""
 	deletions: [Int!]!
+	"""
+	Checks if the edge is currently valid and exists at the current time.
+	
+	Returns: boolean
+	"""
 	isValid: Boolean!
+	"""
+	Checks if the edge is currently active and has at least one update within the current period.
+	
+	Returns: boolean
+	"""
 	isActive: Boolean!
+	"""
+	Checks if the edge is deleted at the current time.
+	
+	Returns: boolean
+	"""
 	isDeleted: Boolean!
+	"""
+	Checks if the edge is on the same node.
+	
+	Returns: boolean
+	"""
 	isSelfLoop: Boolean!
 }
 
@@ -131,6 +286,9 @@ type EdgeSchema {
 	Returns the list of property schemas for edges connecting these types of nodes
 	"""
 	properties: [PropertySchema!]!
+	"""
+	Returns the list of metadata schemas for edges connecting these types of nodes
+	"""
 	metadata: [PropertySchema!]!
 }
 
@@ -165,9 +323,9 @@ type EdgeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -204,9 +362,9 @@ type Edges {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -238,9 +396,9 @@ type EdgesWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -250,6 +408,9 @@ type EdgesWindowSet {
 }
 
 
+"""
+Document in a vector graph
+"""
 type GqlDocument {
 	entity: DocumentEntity!
 	content: String!
@@ -344,8 +505,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -387,9 +548,9 @@ type GraphWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -447,12 +608,30 @@ input MetadataFilterExpr {
 
 type MutRoot {
 	plugins: MutationPlugin!
+	"""
+	Delete graph from a path on the server
+	"""
 	deleteGraph(path: String!): Boolean!
+	"""
+	Creates a new graph
+	"""
 	newGraph(path: String!, graphType: GraphType!): Boolean!
+	"""
+	Move graph from a path path on the server to a new_path on the server.
+	
+	If namespace is not provided, it will be set to the current working directory.
+	This applies to both the graph namespace and new graph namespace.
+	"""
 	moveGraph(path: String!, newPath: String!): Boolean!
+	"""
+	Copy graph from a path path on the server to a new_path on the server.
+	
+	If namespace is not provided, it will be set to the current working directory.
+	This applies to both the graph namespace and new graph namespace.
+	"""
 	copyGraph(path: String!, newPath: String!): Boolean!
 	"""
-	Use GQL multipart upload to send new graphs to server
+	Upload graph file from a path on the client
 	
 	Returns::
 	name of the new graph
@@ -466,12 +645,15 @@ type MutRoot {
 	"""
 	sendGraph(path: String!, graph: String!, overwrite: Boolean!): String!
 	"""
-	Create a subgraph out of some existing graph in the server
+	Returns a subgraph given a set of nodes from an existing graph in the server
 	
 	Returns::
 	name of the new graph
 	"""
 	createSubgraph(parentPath: String!, nodes: [String!]!, newPath: String!, overwrite: Boolean!): String!
+	"""
+	Creates search index
+	"""
 	createIndex(path: String!, indexSpec: IndexSpecInput, inRam: Boolean!): Boolean!
 }
 
@@ -735,9 +917,9 @@ type NodeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -774,9 +956,9 @@ type Nodes {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -811,9 +993,9 @@ type NodesWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -871,9 +1053,9 @@ type PathFromNode {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -906,9 +1088,9 @@ type PathFromNodeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	* `limit` - The size of the page (number of items to fetch).
-	* `offset` - The number of items to skip (defaults to 0).
-	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	`limit` - The size of the page (number of items to fetch).
+	`offset` - The number of items to skip (defaults to 0).
+	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -966,17 +1148,53 @@ type QueryPlugin {
 }
 
 type QueryRoot {
+	"""
+	Hello world demo
+	"""
 	hello: String!
 	"""
 	Returns a graph
 	"""
 	graph(path: String!): Graph!
+	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
 	updateGraph(path: String!): MutableGraph!
+	"""
+	Create vectorised graph in the format used for queries
+	
+	Returns:: GqlVectorisedGraph
+	"""
 	vectorisedGraph(path: String!): VectorisedGraph
+	"""
+	Returns root namespaces
+	
+	Returns::  List of namespaces on root
+	"""
 	namespaces: CollectionOfNamespace!
+	"""
+	Returns a specific namespace at a given path
+	
+	Returns:: Namespace or error if no namespace found
+	"""
 	namespace(path: String!): Namespace!
+	"""
+	Returns root namespace
+	
+	Returns::  Root namespace
+	"""
 	root: Namespace!
+	"""
+	Placeholder
+	"""
 	plugins: QueryPlugin!
+	"""
+	Encodes graph and returns as string
+	
+	Returns:: Base64 url safe encoded string
+	"""
 	receiveGraph(path: String!): String!
 }
 
@@ -1067,3 +1285,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

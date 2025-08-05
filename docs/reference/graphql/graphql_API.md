@@ -22,7 +22,11 @@ hide:
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.hello">hello</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Hello world demo
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.graph">graph</strong></td>
@@ -41,7 +45,13 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.updategraph">updateGraph</strong></td>
 <td valign="top"><a href="#mutablegraph">MutableGraph</a>!</td>
-<td></td>
+<td>
+
+Update graph query, has side effects to update graph state
+
+Returns:: GqlMutableGraph
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -51,7 +61,13 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
 <td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
-<td></td>
+<td>
+
+Create vectorised graph in the format used for queries
+
+Returns:: GqlVectorisedGraph
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -61,12 +77,24 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.namespaces">namespaces</strong></td>
 <td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
-<td></td>
+<td>
+
+Returns root namespaces
+
+Returns::  List of namespaces on root
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.namespace">namespace</strong></td>
 <td valign="top"><a href="#namespace">Namespace</a>!</td>
-<td></td>
+<td>
+
+Returns a specific namespace at a given path
+
+Returns:: Namespace or error if no namespace found
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -76,17 +104,33 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.root">root</strong></td>
 <td valign="top"><a href="#namespace">Namespace</a>!</td>
-<td></td>
+<td>
+
+Returns root namespace
+
+Returns::  Root namespace
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.plugins">plugins</strong></td>
 <td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
-<td></td>
+<td>
+
+Placeholder
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.receivegraph">receiveGraph</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Encodes graph and returns as string
+
+Returns:: Base64 url safe encoded string
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -115,7 +159,11 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Delete graph from a path on the server
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -125,7 +173,11 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.newgraph">newGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Creates a new graph
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -140,7 +192,14 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.movegraph">moveGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Move graph from a path path on the server to a new_path on the server.
+
+If namespace is not provided, it will be set to the current working directory.
+This applies to both the graph namespace and new graph namespace.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -155,7 +214,14 @@ Returns a graph
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.copygraph">copyGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Copy graph from a path path on the server to a new_path on the server.
+
+If namespace is not provided, it will be set to the current working directory.
+This applies to both the graph namespace and new graph namespace.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -172,7 +238,7 @@ Returns a graph
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Use GQL multipart upload to send new graphs to server
+Upload graph file from a path on the client
 
 Returns::
 name of the new graph
@@ -226,7 +292,7 @@ path of the new graph
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Create a subgraph out of some existing graph in the server
+Returns a subgraph given a set of nodes from an existing graph in the server
 
 Returns::
 name of the new graph
@@ -256,7 +322,11 @@ name of the new graph
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.createindex">createIndex</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Creates search index
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
@@ -280,6 +350,8 @@ name of the new graph
 
 ### CollectionOfMetaGraph
 
+Collection of items
+
 <table>
 <thead>
 <tr>
@@ -302,9 +374,9 @@ name of the new graph
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -336,6 +408,8 @@ will be returned.
 
 ### CollectionOfNamespace
 
+Collection of items
+
 <table>
 <thead>
 <tr>
@@ -358,9 +432,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -392,6 +466,8 @@ will be returned.
 
 ### CollectionOfNamespacedItem
 
+Collection of items
+
 <table>
 <thead>
 <tr>
@@ -414,9 +490,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -448,6 +524,8 @@ will be returned.
 
 ### Edge
 
+Raphtory graph edge
+
 <table>
 <thead>
 <tr>
@@ -461,12 +539,22 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Return a view of Edge containing only the default edge layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.layers">layers</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers in the list of `names`.
+
+Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -476,7 +564,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers except the excluded list of `names`.
+
+Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -486,7 +580,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.layer">layer</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing the specified layer.
+
+Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -496,7 +596,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers except the excluded layer specified.
+
+Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -506,7 +612,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.rolling">rolling</strong></td>
 <td valign="top"><a href="#edgewindowset">EdgeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given window duration and optional step using a rolling window.
+
+A rolling window is a window that moves forward by step size at each iteration.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -521,7 +633,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgewindowset">EdgeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given step size using an expanding window.
+
+An expanding window is a window that grows by step size at each iteration.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -531,7 +649,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.window">window</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -546,7 +668,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.at">at</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events at a specified `time`.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -561,7 +687,13 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events that have not been explicitly deleted at time.
+
+This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -571,12 +703,22 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+
+This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.before">before</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events before a specified `end` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -586,7 +728,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.after">after</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events after a specified `start` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -596,7 +742,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Shrinks both the `start` and `end` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -611,7 +761,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Set the `start` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -621,7 +775,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Set the `end` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -631,7 +789,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Takes a specified selection of views and applies them in order given
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
@@ -641,7 +803,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time of an edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.firstupdate">firstUpdate</strong></td>
@@ -651,7 +817,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.latesttime">latestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time of an edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.lastupdate">lastUpdate</strong></td>
@@ -661,97 +831,183 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.time">time</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the time of an exploded edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the start time for rolling and expanding windows for this edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time that this edge is valid.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.src">src</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Returns the source node of the edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.dst">dst</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Returns the destination node of the edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.nbr">nbr</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.id">id</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns the id of the edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.properties">properties</strong></td>
 <td valign="top"><a href="#properties">Properties</a>!</td>
-<td></td>
+<td>
+
+Returns a view of the properties of the edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.metadata">metadata</strong></td>
 <td valign="top"><a href="#metadata">Metadata</a>!</td>
-<td></td>
+<td>
+
+Returns the metadata of an edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.layernames">layerNames</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns the names of the layers that have this edge as a member.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.layername">layerName</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns the names of the layer this edge belongs to, assuming it belongs to only one layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.explode">explode</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns an edge object for each update within the original edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.explodelayers">explodeLayers</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns an edge object for each layer within the original edge.
+
+Each new edge object contains only updates from the respective layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.history">history</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of timestamps of when an edge is added or change to an edge is made.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.deletions">deletions</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of timestamps of when an edge is deleted.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.isvalid">isValid</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Checks if the edge is currently valid and exists at the current time.
+
+Returns: boolean
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.isactive">isActive</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Checks if the edge is currently active and has at least one update within the current period.
+
+Returns: boolean
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.isdeleted">isDeleted</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Checks if the edge is deleted at the current time.
+
+Returns: boolean
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.isselfloop">isSelfLoop</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Checks if the edge is on the same node.
+
+Returns: boolean
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -798,7 +1054,11 @@ Returns the list of property schemas for edges connecting these types of nodes
 <tr>
 <td colspan="2" valign="top"><strong id="edgeschema.metadata">metadata</strong></td>
 <td valign="top">[<a href="#propertyschema">PropertySchema</a>!]!</td>
-<td></td>
+<td>
+
+Returns the list of metadata schemas for edges connecting these types of nodes
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -827,9 +1087,9 @@ Returns the list of property schemas for edges connecting these types of nodes
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1093,9 +1353,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1149,9 +1409,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1182,6 +1442,8 @@ will be returned.
 </table>
 
 ### GqlDocument
+
+Document in a vector graph
 
 <table>
 <thead>
@@ -1896,26 +2158,6 @@ Export all nodes and edges from this graph view to another existing graph
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -1933,6 +2175,26 @@ Export all nodes and edges from this graph view to another existing graph
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -1987,9 +2249,9 @@ Export all nodes and edges from this graph view to another existing graph
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3105,9 +3367,9 @@ Returns the list of property schemas for this node
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3381,9 +3643,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3442,9 +3704,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3708,9 +3970,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3779,9 +4041,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-* `limit` - The size of the page (number of items to fetch).
-* `offset` - The number of items to skip (defaults to 0).
-* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+`limit` - The size of the page (number of items to fetch).
+`offset` - The number of items to skip (defaults to 0).
+`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -5601,6 +5863,8 @@ The `String` scalar type represents textual data, represented as UTF-8 character
 
 ### DocumentEntity
 
+Entity associated with document
+
 <table>
 <thead>
 <tr>
@@ -5615,7 +5879,11 @@ The `String` scalar type represents textual data, represented as UTF-8 character
 </tr>
 <tr>
 <td valign="top"><strong><a href="#edge">Edge</a></strong></td>
-<td></td>
+<td valign="top">
+
+Raphtory graph edge
+
+</td>
 </tr>
 </tbody>
 </table>
