@@ -14,3 +14,5 @@ terraform.tfstate.backup
 data/apache/master/graph
 node_modules
 dist
+output.csv.gz
+output.json

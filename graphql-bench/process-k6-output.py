@@ -1,6 +1,6 @@
 import pandas as pd
 
-iter_csv = pd.read_csv("results/output.csv.gz", iterator=True, chunksize=10_000, compression='gzip')
+iter_csv = pd.read_csv("output.csv.gz", iterator=True, chunksize=10_000, compression='gzip')
 output = pd.concat([chunk[["timestamp", "metric_name", "metric_value", "scenario"]] for chunk in iter_csv])
 
 output['timestamp'] = pd.to_datetime(output['timestamp'], unit='s')
@@ -39,4 +39,4 @@ max_rates = [find_max_rate(scenario) for scenario in scenarios]
 
 results = [{"name": name, "unit": "req/s", "value": value} for (name, value) in zip(scenarios, max_rates)]
 df = pd.DataFrame(results)
-df.to_json(orient="records", path_or_buf="results/output.json")
+df.to_json(orient="records", path_or_buf="output.json")
