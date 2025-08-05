@@ -24,8 +24,9 @@ use crate::{
         },
     },
     prelude::*,
-    python::types::repr::{iterator_repr, Repr},
 };
+#[cfg(feature = "python")]
+use crate::python::types::repr::{iterator_repr, Repr};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
@@ -46,6 +47,7 @@ pub trait InternalHistoryOps: Send + Sync {
 #[derive(Debug, Clone, Copy)]
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
 
+#[cfg(feature = "python")]
 impl<'a, T: InternalHistoryOps> Repr for History<'a, T> {
     fn repr(&self) -> String {
         format!("History({})", iterator_repr(self.iter()))
@@ -665,6 +667,7 @@ impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
     }
 }
 
+#[cfg(feature = "python")]
 impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
     fn repr(&self) -> String {
         format!("HistoryDateTime({})", iterator_repr(self.iter()))

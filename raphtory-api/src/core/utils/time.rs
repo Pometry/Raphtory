@@ -1,8 +1,10 @@
 use crate::{
     core::storage::timeindex::{AsTime, TimeIndexEntry},
-    python::error::adapt_err_value,
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime, ParseError, TimeZone};
+#[cfg(feature = "python")]
+use crate::python::error::adapt_err_value;
+#[cfg(feature = "python")]
 use pyo3::PyErr;
 use std::{convert::Infallible, num::ParseIntError};
 
@@ -33,6 +35,7 @@ impl From<Infallible> for ParseTimeError {
     }
 }
 
+#[cfg(feature = "python")]
 impl From<ParseTimeError> for PyErr {
     fn from(value: ParseTimeError) -> Self {
         adapt_err_value(&value)
