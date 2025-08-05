@@ -9,7 +9,7 @@ data/apache/master/graph:
 	@cd data/apache/master && tar -Jxf graph.tar.xz -C .
 
 bench-local: data/apache/master/graph
-	pnpm install
+	pnpm install --frozen-lockfile
 	pnpm concurrently --kill-others --success last --names 'raphtory,bench' 'raphtory server --work-dir data/apache' 'pnpm bench'
 	python process-k6-output.py
 

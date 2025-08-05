@@ -14,12 +14,10 @@ on:
         default: false
         required: false
 
-
-# DO NOT CHANGE NAME OF WORKFLOW, USED IN OTHER WORKFLOWS KEEP "Rust Tests"
 jobs:
   benchmark:
     if: ${{ !inputs.skip_tests }}
-    name: Rust Benchmark
+    name: GraphQL Benchmark
     runs-on: '${{ matrix.os }}'
     strategy:
       matrix:
@@ -38,37 +36,21 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - uses: webfactory/ssh-agent@v0.9.0
-        name: Load raphtory-disk_graph key
+      - name: Build raphtory
+        run: make install-python
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
         with:
-          ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
-      - name: Run benchmark (Unix)
-        run: |
-          set -o pipefail
-          cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
-      - name: Delete cargo.lock if it exists
-        run: rm -f Cargo.lock
-      - name: Store rust benchmarks from master branch
-        if: github.ref == 'refs/heads/master'
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          name: Rust Benchmark
-          tool: 'cargo'
-          output-file-path: benchmark-result.txt
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          # Show alert with commit comment on detecting possible performance regression
-          alert-threshold: '200%'
-          comment-on-alert: true
-          summary-always: true
-          fail-on-alert: false
-      - name: Compare rust benchmarks
+          version: 9
+      - name: Run GraphQL benchmarks
+        run: cd graphql-bench && make bench-local
+      - name: Compare GraphQL benchmarks
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
-          tool: 'cargo'
-          output-file-path: benchmark-result.txt
+          tool: 'customBiggerIsBetter'
+          output-file-path: graphql-bench/results/output.json
           auto-push: false
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
@@ -77,6 +59,3 @@ jobs:
           summary-always: true
           fail-on-alert: false
           save-data-file: false
-# TODO
-# ON PR DO NOT UPLOAD
-# IF MASTER THEN UPLOAD
