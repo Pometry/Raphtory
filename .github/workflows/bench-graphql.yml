@@ -49,6 +49,9 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '1.0.0'
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
       - name: Compare GraphQL benchmarks
