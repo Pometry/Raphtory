@@ -59,7 +59,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install pytest tox
-          python -m pip install maturin black mypy networkx
+          python -m pip install maturin black mypy networkx pivis
           python -m pip install -e examples/netflow
       - name: Setup Node.js
         uses: actions/setup-node@v4
