@@ -58,9 +58,12 @@ jobs:
           cache: 'pip'
       - name: Install Python dependencies
         run: |
+          echo "Installing test dependencies..."
           python -m pip install pytest tox
-          python -m pip install maturin black mypy networkx pyvis pandas-stubs
           python -m pip install -e examples/netflow
+          python -m pip install black
+          echo "Installing linting dependencies from cache..."
+          python -m pip install maturin mypy networkx pyvis pandas-stubs
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -86,7 +89,9 @@ jobs:
       - name: Run stubsgen
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
-          pip install target/wheels/raphtory-0.16.0-cp313-cp313-linux_x86_64.whl
+          echo "Installing Raphtory from cache..."
+          pip install raphtory
+          echo "Installing stubsgen"
           python -m pip install -e stub_gen
           cd python/scripts && python gen-stubs.py
       - name: Run mypy
