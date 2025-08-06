@@ -81,48 +81,58 @@ impl GqlGraph {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
+    /// Returns the names of all layers in the graph.
     async fn unique_layers(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await
     }
 
+    /// Returns a view containing only the default edge layer.
     async fn default_layer(&self) -> GqlGraph {
         self.apply(|g| g.default_layer())
     }
 
+    /// Returns a view containing all the specified layers.
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.valid_layers(names.clone()))).await
     }
 
+    /// Returns a view containing all layers except the specified excluded layers.
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.exclude_valid_layers(names.clone()))).await
     }
 
+    /// Returns a view containing the layer specified.
     async fn layer(&self, name: String) -> GqlGraph {
         self.apply(|g| g.valid_layers(name.clone()))
     }
 
+    /// Returns a view containing all layers except the specified excluded layer.
     async fn exclude_layer(&self, name: String) -> GqlGraph {
         self.apply(|g| g.exclude_valid_layers(name.clone()))
     }
 
+    /// Returns a subgraph of a specified set of nodes.
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.subgraph(nodes.clone()))).await
     }
 
+    /// Returns a view of the graph that only includes valid edges.
     async fn valid(&self) -> GqlGraph {
         self.apply(|g| g.valid())
     }
 
+    /// Returns a subgraph filtered by the specified node types.
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.subgraph_node_types(node_types.clone())))
             .await
     }
 
+    /// Returns a subgraph containing all nodes except the specified excluded nodes.
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -132,6 +142,7 @@ impl GqlGraph {
         .await
     }
 
+    /// Creates a rolling window with the specified window size and an optional step..
     async fn rolling(
         &self,
         window: WindowDuration,
@@ -167,6 +178,7 @@ impl GqlGraph {
         }
     }
 
+    /// Creates a expanding window with the specified step size.
     async fn expanding(&self, step: WindowDuration) -> Result<GqlGraphWindowSet, GraphError> {
         match step {
             Duration(step) => Ok(GqlGraphWindowSet::new(
@@ -185,39 +197,48 @@ impl GqlGraph {
         self.apply(|g| g.window(start, end))
     }
 
+    /// Creates a view including all events at a specified time.
     async fn at(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.at(time))
     }
 
+    /// Creates a view including all events at the latest time.
     async fn latest(&self) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.latest())).await
     }
 
+    /// Create a view including all events that have not been explicitly deleted at the specified time.
     async fn snapshot_at(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.snapshot_at(time))
     }
 
+    /// Create a view including all events that have not been explicitly deleted at the latest time.
     async fn snapshot_latest(&self) -> GqlGraph {
         self.apply(|g| g.snapshot_latest())
     }
 
+    /// Create a view including all events before a specified end (exclusive).
     async fn before(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.before(time))
     }
 
+    /// Create a view including all events after a specified start (exclusive).
     async fn after(&self, time: i64) -> GqlGraph {
         self.apply(|g| g.after(time))
     }
 
+    /// Shrink both the start and end of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.apply(|g| g.shrink_window(start, end))
     }
 
+    /// Set the start of the window to the larger of start and self.start().
     async fn shrink_start(&self, start: i64) -> Self {
         self.apply(|g| g.shrink_start(start))
     }
 
+    /// Set the end of the window to the smaller of end and self.end()
     async fn shrink_end(&self, end: i64) -> Self {
         self.apply(|g| g.shrink_end(end))
     }
