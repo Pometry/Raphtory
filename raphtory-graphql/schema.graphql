@@ -1434,4 +1434,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-
