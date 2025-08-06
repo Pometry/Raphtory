@@ -1849,17 +1849,29 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.uniquelayers">uniqueLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns the names of all layers in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view containing only the default edge layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.layers">layers</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view containing all the specified layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -1869,7 +1881,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view containing all layers except the specified excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -1879,7 +1895,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.layer">layer</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view containing the layer specified.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -1889,7 +1909,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view containing all layers except the specified excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -1899,7 +1923,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.subgraph">subgraph</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a subgraph of a specified set of nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodes</td>
@@ -1909,12 +1937,20 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.valid">valid</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a view of the graph that only includes valid edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.subgraphnodetypes">subgraphNodeTypes</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a subgraph filtered by the specified node types.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodeTypes</td>
@@ -1924,7 +1960,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.excludenodes">excludeNodes</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns a subgraph containing all nodes except the specified excluded nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodes</td>
@@ -1934,7 +1974,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.rolling">rolling</strong></td>
 <td valign="top"><a href="#graphwindowset">GraphWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a rolling window with the specified window size and an optional step..
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -1949,7 +1993,11 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <tr>
 <td colspan="2" valign="top"><strong id="graph.expanding">expanding</strong></td>
 <td valign="top"><a href="#graphwindowset">GraphWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a expanding window with the specified step size.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -1978,7 +2026,11 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.at">at</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Creates a view including all events at a specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -1988,12 +2040,20 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latest">latest</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Creates a view including all events at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Create a view including all events that have not been explicitly deleted at the specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -2003,12 +2063,20 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Create a view including all events that have not been explicitly deleted at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.before">before</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Create a view including all events before a specified end (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -2018,7 +2086,11 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.after">after</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Create a view including all events after a specified start (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -2028,7 +2100,11 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Shrink both the start and end of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -2043,7 +2119,11 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Set the start of the window to the larger of start and self.start().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -2053,7 +2133,11 @@ Return a graph containing only the activity between  start  and  end  measured a
 <tr>
 <td colspan="2" valign="top"><strong id="graph.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Set the end of the window to the smaller of end and self.end()
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -2354,26 +2438,6 @@ Export all nodes and edges from this graph view to another existing graph
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2391,6 +2455,26 @@ Export all nodes and edges from this graph view to another existing graph
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>

@@ -584,30 +584,93 @@ type GqlVectorSelection {
 }
 
 type Graph {
+	"""
+	Returns the names of all layers in the graph.
+	"""
 	uniqueLayers: [String!]!
+	"""
+	Returns a view containing only the default edge layer.
+	"""
 	defaultLayer: Graph!
+	"""
+	Returns a view containing all the specified layers.
+	"""
 	layers(names: [String!]!): Graph!
+	"""
+	Returns a view containing all layers except the specified excluded layers.
+	"""
 	excludeLayers(names: [String!]!): Graph!
+	"""
+	Returns a view containing the layer specified.
+	"""
 	layer(name: String!): Graph!
+	"""
+	Returns a view containing all layers except the specified excluded layer.
+	"""
 	excludeLayer(name: String!): Graph!
+	"""
+	Returns a subgraph of a specified set of nodes.
+	"""
 	subgraph(nodes: [String!]!): Graph!
+	"""
+	Returns a view of the graph that only includes valid edges.
+	"""
 	valid: Graph!
+	"""
+	Returns a subgraph filtered by the specified node types.
+	"""
 	subgraphNodeTypes(nodeTypes: [String!]!): Graph!
+	"""
+	Returns a subgraph containing all nodes except the specified excluded nodes.
+	"""
 	excludeNodes(nodes: [String!]!): Graph!
+	"""
+	Creates a rolling window with the specified window size and an optional step..
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): GraphWindowSet!
+	"""
+	Creates a expanding window with the specified step size.
+	"""
 	expanding(step: WindowDuration!): GraphWindowSet!
 	"""
 	Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
 	"""
 	window(start: Int!, end: Int!): Graph!
+	"""
+	Creates a view including all events at a specified time.
+	"""
 	at(time: Int!): Graph!
+	"""
+	Creates a view including all events at the latest time.
+	"""
 	latest: Graph!
+	"""
+	Create a view including all events that have not been explicitly deleted at the specified time.
+	"""
 	snapshotAt(time: Int!): Graph!
+	"""
+	Create a view including all events that have not been explicitly deleted at the latest time.
+	"""
 	snapshotLatest: Graph!
+	"""
+	Create a view including all events before a specified end (exclusive).
+	"""
 	before(time: Int!): Graph!
+	"""
+	Create a view including all events after a specified start (exclusive).
+	"""
 	after(time: Int!): Graph!
+	"""
+	Shrink both the start and end of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): Graph!
+	"""
+	Set the start of the window to the larger of start and self.start().
+	"""
 	shrinkStart(start: Int!): Graph!
+	"""
+	Set the end of the window to the smaller of end and self.end()
+	"""
 	shrinkEnd(end: Int!): Graph!
 	created: Int!
 	lastOpened: Int!
@@ -651,8 +714,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
