@@ -37,6 +37,10 @@ pub trait DynPropertyFilterOps: Send + Sync {
 
     fn is_some(&self) -> PyFilterExpr;
 
+    fn starts_with(&self, value: Prop) -> PyFilterExpr;
+
+    fn ends_with(&self, value: Prop) -> PyFilterExpr;
+
     fn contains(&self, value: Prop) -> PyFilterExpr;
 
     fn not_contains(&self, value: Prop) -> PyFilterExpr;
@@ -92,6 +96,16 @@ where
 
     fn is_some(&self) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.is_some()))
+    }
+
+    fn starts_with(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.starts_with(value)))
+
+    }
+
+    fn ends_with(&self, value: Prop) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.ends_with(value)))
+
     }
 
     fn contains(&self, value: Prop) -> PyFilterExpr {
@@ -175,6 +189,14 @@ impl PyPropertyFilterOps {
         self.0.is_some()
     }
 
+    fn starts_with(&self, value: Prop) -> PyFilterExpr {
+        self.0.starts_with(value)
+    }
+
+    fn ends_with(&self, value: Prop) -> PyFilterExpr {
+        self.0.ends_with(value)
+    }
+    
     fn contains(&self, value: Prop) -> PyFilterExpr {
         self.0.contains(value)
     }

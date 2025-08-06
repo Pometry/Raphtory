@@ -44,6 +44,16 @@ impl PyEdgeFilterOp {
         PyFilterExpr(Arc::new(field))
     }
 
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        let field = self.0.starts_with(value);
+        PyFilterExpr(Arc::new(field))
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        let field = self.0.ends_with(value);
+        PyFilterExpr(Arc::new(field))
+    }
+
     fn contains(&self, value: String) -> PyFilterExpr {
         let field = self.0.contains(value);
         PyFilterExpr(Arc::new(field))

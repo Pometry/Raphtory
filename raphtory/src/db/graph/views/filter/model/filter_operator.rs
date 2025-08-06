@@ -15,6 +15,8 @@ pub enum FilterOperator {
     NotIn,
     IsSome,
     IsNone,
+    StartsWith,
+    EndsWith,
     Contains,
     NotContains,
     FuzzySearch {
@@ -36,6 +38,8 @@ impl Display for FilterOperator {
             FilterOperator::NotIn => "NOT_IN",
             FilterOperator::IsSome => "IS_SOME",
             FilterOperator::IsNone => "IS_NONE",
+            FilterOperator::StartsWith => "STARTS_WITH",
+            FilterOperator::EndsWith => "ENDS_WITH",
             FilterOperator::Contains => "CONTAINS",
             FilterOperator::NotContains => "NOT_CONTAINS",
             FilterOperator::FuzzySearch {
@@ -111,6 +115,14 @@ impl FilterOperator {
                 | FilterOperator::Le
                 | FilterOperator::Gt
                 | FilterOperator::Ge => right.is_some_and(|r| self.operation()(r, l)),
+                FilterOperator::StartsWith => right.is_some_and(|r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => r.deref().starts_with(l.deref()),
+                    _ => unreachable!(),
+                }),
+                FilterOperator::EndsWith => right.is_some_and(|r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => r.deref().ends_with(l.deref()),
+                    _ => unreachable!(),
+                }),
                 FilterOperator::Contains => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
                     _ => unreachable!(),
@@ -147,6 +159,8 @@ impl FilterOperator {
                     Some(r) => self.operation()(r, l),
                     None => matches!(self, FilterOperator::Ne),
                 },
+                FilterOperator::StartsWith => right.is_some_and(|r| r.starts_with(l)),
+                FilterOperator::EndsWith => right.is_some_and(|r| r.ends_with(l)),
                 FilterOperator::Contains => right.is_some_and(|r| r.contains(l)),
                 FilterOperator::NotContains => right.is_some_and(|r| !r.contains(l)),
                 FilterOperator::FuzzySearch {

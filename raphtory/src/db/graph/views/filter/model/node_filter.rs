@@ -152,6 +152,14 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         Filter::is_not_in(self.field_name(), values).into()
     }
 
+    fn starts_with(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::starts_with(self.field_name(), value).into()
+    }
+
+    fn ends_with(&self, value: impl Into<String>) -> Self::NodeFilterType {
+        Filter::ends_with(self.field_name(), value).into()
+    }
+
     fn contains(&self, value: impl Into<String>) -> Self::NodeFilterType {
         Filter::contains(self.field_name(), value).into()
     }

@@ -196,6 +196,68 @@ def test_filter_edges_for_property_is_none():
 
 
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+def test_filter_edges_for_property_starts_with():
+    def check(graph):
+        filter_expr = filter.Edge.property("p10").starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().any().starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().latest().starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().latest().starts_with("Rapper")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+def test_filter_edges_for_property_ends_with():
+    def check(graph):
+        filter_expr = filter.Edge.property("p10").ends_with("ship")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("2", "3")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().any().ends_with("lane")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("2", "1")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().latest().ends_with("ane")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("2", "1")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p10").temporal().latest().ends_with("kane")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.metadata("p10").ends_with("hip")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_filter_edges_for_property_contains():
     def check(graph):
         filter_expr = filter.Edge.property("p10").contains("Paper")

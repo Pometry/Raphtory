@@ -37,6 +37,14 @@ impl PyNodeFilterBuilder {
         self.0.is_not_in(values.into())
     }
 
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        self.0.starts_with(value)
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        self.0.ends_with(value)
+    }
+
     fn contains(&self, value: String) -> PyFilterExpr {
         self.0.contains(value)
     }
@@ -100,6 +108,10 @@ pub trait DynNodeFilterBuilderOps: Send + Sync {
 
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
 
+    fn starts_with(&self, value: String) -> PyFilterExpr;
+
+    fn ends_with(&self, value: String) -> PyFilterExpr;
+
     fn contains(&self, value: String) -> PyFilterExpr;
 
     fn not_contains(&self, value: String) -> PyFilterExpr;
@@ -130,6 +142,14 @@ where
 
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(Arc::new(NodeFilterBuilderOps::is_not_in(self, values)))
+    }
+
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(NodeFilterBuilderOps::starts_with(self, value)))
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(NodeFilterBuilderOps::ends_with(self, value)))
     }
 
     fn contains(&self, value: String) -> PyFilterExpr {

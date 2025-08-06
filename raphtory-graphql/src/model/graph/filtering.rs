@@ -166,6 +166,8 @@ pub enum Operator {
     IsSome,
     IsIn,
     IsNotIn,
+    StartsWith,
+    EndsWith,
     Contains,
     NotContains,
 }
@@ -183,6 +185,8 @@ impl Display for Operator {
             Operator::IsSome => "IS_SOME",
             Operator::IsIn => "IS_IN",
             Operator::IsNotIn => "IS_NOT_IN",
+            Operator::StartsWith => "STARTS_WITH",
+            Operator::EndsWith => "ENDS_WITH",
             Operator::Contains => "CONTAINS",
             Operator::NotContains => "NOT_CONTAINS",
         };
@@ -559,6 +563,8 @@ impl From<Operator> for FilterOperator {
             Operator::IsNotIn => FilterOperator::NotIn,
             Operator::IsSome => FilterOperator::IsSome,
             Operator::IsNone => FilterOperator::IsNone,
+            Operator::StartsWith => FilterOperator::StartsWith,
+            Operator::EndsWith => FilterOperator::EndsWith,
             Operator::Contains => FilterOperator::Contains,
             Operator::NotContains => FilterOperator::NotContains,
         }
@@ -601,7 +607,7 @@ fn validate_operator_value_pair(
             ))),
         },
 
-        Contains | NotContains => match value {
+        StartsWith | EndsWith | Contains | NotContains => match value {
             Some(Value::Str(_)) => Ok(()),
             Some(v) => Err(GraphError::InvalidGqlFilter(format!(
                 "Operator {operator} requires a string value, got {v}"

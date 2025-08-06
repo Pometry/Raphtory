@@ -136,6 +136,68 @@ def test_filter_nodes_by_props_added_at_different_times():
 
 
 @with_disk_variants(init_graph)
+def test_filter_nodes_for_property_starts_with():
+    def check(graph):
+        filter_expr = filter.Node.property("p10").starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "2", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().any().starts_with("Pap")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "2", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().any().starts_with("Cap")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().latest().starts_with("P")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "2", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.metadata("p10").starts_with("Paper")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_filter_nodes_for_property_ends_with():
+    def check(graph):
+        filter_expr = filter.Node.property("p10").ends_with("ship")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["2"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").ends_with("clip")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().any().ends_with("lane")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p10").temporal().latest().ends_with("ship")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["2"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.metadata("p10").ends_with("ane")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
 def test_filter_nodes_for_property_contains():
     def check(graph):
         filter_expr = filter.Node.property("p10").contains("Paper")

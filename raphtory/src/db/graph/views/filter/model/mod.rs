@@ -94,6 +94,22 @@ impl Filter {
         }
     }
 
+    pub fn starts_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::StartsWith,
+        }
+    }
+
+    pub fn ends_with(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::Single(field_value.into()),
+            operator: FilterOperator::EndsWith,
+        }
+    }
+
     pub fn contains(field_name: impl Into<String>, field_value: impl Into<String>) -> Self {
         Self {
             field_name: field_name.into(),

@@ -16,7 +16,7 @@ use tantivy::{
     query::{
         AllQuery, BooleanQuery, EmptyQuery, Occur,
         Occur::{Must, MustNot, Should},
-        Query, RangeQuery, TermQuery,
+        PhrasePrefixQuery, Query, RangeQuery, TermQuery,
     },
     schema::{Field, FieldType, IndexRecordOption, Type},
     tokenizer::TokenizerManager,
@@ -73,6 +73,15 @@ impl<'a> QueryBuilder<'a> {
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
                     create_ge_query(prop_name.to_string(), prop_field_type, term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms = create_property_tokenized_tantivy_terms(
+                        property_index,
+                        prop_name,
+                        prop_value,
+                    )?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms = create_property_tokenized_tantivy_terms(
                         property_index,
@@ -139,6 +148,12 @@ impl<'a> QueryBuilder<'a> {
                     let term = create_node_exact_tantivy_term(node_index, field_name, node_value)?;
                     create_ne_query(term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms =
+                        create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms =
                         create_node_tokenized_tantivy_terms(node_index, field_name, node_value)?;
@@ -192,6 +207,12 @@ impl<'a> QueryBuilder<'a> {
                     let term = create_edge_exact_tantivy_term(edge_index, field_name, node_value)?;
                     create_ne_query(term)
                 }
+                FilterOperator::StartsWith => {
+                    let terms =
+                        create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
+                    create_starts_with_query(terms)
+                }
+                FilterOperator::EndsWith => None,
                 FilterOperator::Contains => {
                     let terms =
                         create_edge_tokenized_tantivy_terms(edge_index, field_name, node_value)?;
@@ -453,6 +474,13 @@ fn create_not_in_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
     } else {
         Some(Box::new(EmptyQuery))
     }
+}
+
+fn create_starts_with_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {
+    if terms.is_empty() {
+        return Some(Box::new(EmptyQuery));
+    }
+    Some(Box::new(PhrasePrefixQuery::new(terms)))
 }
 
 fn create_contains_query(terms: Vec<Term>) -> Option<Box<dyn Query>> {

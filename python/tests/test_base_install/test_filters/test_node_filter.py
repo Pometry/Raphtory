@@ -102,6 +102,38 @@ def test_filter_nodes_for_node_type_not_in():
 
 
 @with_disk_variants(init_graph)
+def test_filter_nodes_for_node_type_starts_with():
+    def check(graph):
+        filter_expr = filter.Node.node_type().starts_with("fire")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.node_type().starts_with("Liar")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_filter_nodes_for_node_type_ends_with():
+    def check(graph):
+        filter_expr = filter.Node.node_type().ends_with("tion")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.node_type().ends_with("station")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = []
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
 def test_filter_nodes_for_node_type_contains():
     def check(graph):
         filter_expr = filter.Node.node_type().contains("fire")

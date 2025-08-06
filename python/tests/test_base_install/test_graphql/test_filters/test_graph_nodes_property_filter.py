@@ -884,3 +884,61 @@ def test_graph_node_type_and_property_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_graph_nodes_property_filter_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+              property: {
+                name: "prop3"
+                operator: STARTS_WITH
+                value: { str: "abc" }
+              }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodeFilter": {
+                "nodes": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_graph_nodes_property_filter_ends_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodeFilter(filter: {
+              property: {
+                name: "prop3"
+                operator: ENDS_WITH
+                value: { str: "123" }
+              }
+            }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodeFilter": {"nodes": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)

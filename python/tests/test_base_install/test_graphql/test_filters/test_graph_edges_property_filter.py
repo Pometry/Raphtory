@@ -931,3 +931,79 @@ def test_graph_edge_not_property_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_property_filter_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            edgeFilter(filter: {
+              property: {
+                name: "eprop3"
+                operator: STARTS_WITH
+                value: { str: "xyz" }
+              }
+            }) {
+              edges {
+                list {
+                  src { name }
+                  dst { name }
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": [
+                        {"src": {"name": "a"}, "dst": {"name": "d"}},
+                        {"src": {"name": "b"}, "dst": {"name": "d"}},
+                        {"src": {"name": "c"}, "dst": {"name": "d"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_property_filter_ends_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            edgeFilter(filter: {
+              property: {
+                name: "eprop3"
+                operator: ENDS_WITH
+                value: { str: "123" }
+              }
+            }) {
+              edges {
+                list {
+                  src { name }
+                  dst { name }
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "edgeFilter": {
+                "edges": {
+                    "list": [
+                        {"src": {"name": "a"}, "dst": {"name": "d"}},
+                        {"src": {"name": "b"}, "dst": {"name": "d"}},
+                        {"src": {"name": "c"}, "dst": {"name": "d"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)

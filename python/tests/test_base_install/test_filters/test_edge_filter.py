@@ -145,6 +145,48 @@ def test_edge_for_src_dst():
 
 
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+def test_filter_edges_for_src_dst_starts_with():
+    def check(graph):
+        filter_expr = filter.Edge.src().name().starts_with("John Mayer")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer", "Jimmy Page")])
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.src().name().starts_with("Jimmy Page")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([])
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.dst().name().starts_with("Jimmy Page")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer", "Jimmy Page")])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+def test_filter_edges_for_src_dst_ends_with():
+    def check(graph):
+        filter_expr = filter.Edge.src().name().ends_with("John Mayer")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer", "Jimmy Page")])
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.src().name().ends_with("Jimmy Page")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([])
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.dst().name().ends_with("Jimmy Page")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer", "Jimmy Page")])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
 def test_filter_edges_for_src_contains():
     def check(graph):
         filter_expr = filter.Edge.src().name().contains("Mayer")

@@ -210,6 +210,24 @@ impl<M> PropertyFilter<M> {
         }
     }
 
+    pub fn starts_with(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
+        Self {
+            prop_ref,
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
+            operator: FilterOperator::StartsWith,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn ends_with(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
+        Self {
+            prop_ref,
+            prop_value: PropertyFilterValue::Single(prop_value.into()),
+            operator: FilterOperator::EndsWith,
+            _phantom: PhantomData,
+        }
+    }
+
     pub fn contains(prop_ref: PropertyRef, prop_value: impl Into<Prop>) -> Self {
         Self {
             prop_ref,
@@ -293,7 +311,9 @@ impl<M> PropertyFilter<M> {
                 PropertyFilterValue::Set(_) => {}
             },
             FilterOperator::IsSome | FilterOperator::IsNone => {}
-            FilterOperator::Contains
+            FilterOperator::StartsWith
+            | FilterOperator::EndsWith
+            | FilterOperator::Contains
             | FilterOperator::NotContains
             | FilterOperator::FuzzySearch { .. } => {
                 match &self.prop_value {
@@ -522,6 +542,10 @@ pub trait PropertyFilterOps: InternalPropertyFilterOps {
 
     fn is_some(&self) -> PropertyFilter<Self::Marker>;
 
+    fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
+    fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
+
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
 
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker>;
@@ -575,6 +599,14 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
         PropertyFilter::is_some(self.property_ref())
     }
 
+    fn starts_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::starts_with(self.property_ref(), value.into())
+    }
+
+    fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
+        PropertyFilter::ends_with(self.property_ref(), value.into())
+    }
+    
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::contains(self.property_ref(), value.into())
     }

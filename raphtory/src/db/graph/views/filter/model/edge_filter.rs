@@ -183,6 +183,10 @@ pub trait EdgeFilterOps {
 
     fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
+    fn starts_with(&self, value: impl Into<String>) -> EdgeFieldFilter;
+    
+    fn ends_with(&self, value: impl Into<String>) -> EdgeFieldFilter;
+    
     fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
     fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
@@ -212,6 +216,14 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
         EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
     }
 
+    fn starts_with(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::starts_with(self.field_name(), value.into()))
+    }
+
+    fn ends_with(&self, value: impl Into<String>) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ends_with(self.field_name(), value.into()))
+    }
+    
     fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
     }
