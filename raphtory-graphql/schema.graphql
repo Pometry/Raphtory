@@ -9,6 +9,9 @@ enum AllPropertySpec {
 Collection of items
 """
 type CollectionOfMetaGraph {
+	"""
+	Returns a list of collection objects.
+	"""
 	list: [MetaGraph!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -21,6 +24,9 @@ type CollectionOfMetaGraph {
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [MetaGraph!]!
+	"""
+	Returns a count of collection objects.
+	"""
 	count: Int!
 }
 
@@ -28,6 +34,9 @@ type CollectionOfMetaGraph {
 Collection of items
 """
 type CollectionOfNamespace {
+	"""
+	Returns a list of collection objects.
+	"""
 	list: [Namespace!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -40,6 +49,9 @@ type CollectionOfNamespace {
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Namespace!]!
+	"""
+	Returns a count of collection objects.
+	"""
 	count: Int!
 }
 
@@ -47,6 +59,9 @@ type CollectionOfNamespace {
 Collection of items
 """
 type CollectionOfNamespacedItem {
+	"""
+	Returns a list of collection objects.
+	"""
 	list: [NamespacedItem!]!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -59,6 +74,9 @@ type CollectionOfNamespacedItem {
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [NamespacedItem!]!
+	"""
+	Returns a count of collection objects.
+	"""
 	count: Int!
 }
 
@@ -335,25 +353,84 @@ type EdgeWindowSet {
 }
 
 type Edges {
+	"""
+	Return a view of Edge containing only the default edge layer.
+	"""
 	defaultLayer: Edges!
+	"""
+	Returns a view of Edge containing all layers in the list of `names`. Errors if any of the layers do not exist.
+	"""
 	layers(names: [String!]!): Edges!
+	"""
+	Returns a view of Edge containing all layers except the excluded list of `names`. Errors if any of the layers do not exist.
+	"""
 	excludeLayers(names: [String!]!): Edges!
+	"""
+	Returns a view of Edge containing the specified layer. Errors if any of the layers do not exist.
+	"""
 	layer(name: String!): Edges!
+	"""
+	Returns a view of Edge containing all layers except the excluded layer specified. Errors if any of the layers do not exist.
+	"""
 	excludeLayer(name: String!): Edges!
+	"""
+	Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): EdgesWindowSet!
+	"""
+	Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
+	"""
 	expanding(step: WindowDuration!): EdgesWindowSet!
+	"""
+	Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+	"""
 	window(start: Int!, end: Int!): Edges!
+	"""
+	Creates a view of the Edge including all events at a specified `time`.
+	"""
 	at(time: Int!): Edges!
 	latest: Edges!
+	"""
+	Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+	"""
 	snapshotAt(time: Int!): Edges!
+	"""
+	Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+	"""
 	snapshotLatest: Edges!
+	"""
+	Creates a view of the Edge including all events before a specified `end` (exclusive).
+	"""
 	before(time: Int!): Edges!
+	"""
+	Creates a view of the Edge including all events after a specified `start` (exclusive).
+	"""
 	after(time: Int!): Edges!
+	"""
+	Shrinks both the `start` and `end` of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): Edges!
+	"""
+	Set the `start` of the window.
+	"""
 	shrinkStart(start: Int!): Edges!
+	"""
+	Set the `end` of the window.
+	"""
 	shrinkEnd(end: Int!): Edges!
+	"""
+	Takes a specified selection of views and applies them in order given.
+	"""
 	applyViews(views: [EdgesViewCollection!]!): Edges!
+	"""
+	Returns an edge object for each update within the original edge.
+	"""
 	explode: Edges!
+	"""
+	Returns an edge object for each layer within the original edge.
+	
+	Each new edge object contains only updates from the respective layers.
+	"""
 	explodeLayers: Edges!
 	sorted(sortBys: [EdgeSortBy!]!): Edges!
 	start: Int
@@ -607,13 +684,16 @@ input MetadataFilterExpr {
 }
 
 type MutRoot {
+	"""
+	Returns a plugin.
+	"""
 	plugins: MutationPlugin!
 	"""
-	Delete graph from a path on the server
+	Delete graph from a path on the server.
 	"""
 	deleteGraph(path: String!): Boolean!
 	"""
-	Creates a new graph
+	Creates a new graph.
 	"""
 	newGraph(path: String!, graphType: GraphType!): Boolean!
 	"""
@@ -631,28 +711,28 @@ type MutRoot {
 	"""
 	copyGraph(path: String!, newPath: String!): Boolean!
 	"""
-	Upload graph file from a path on the client
+	Upload graph file from a path on the client.
 	
 	Returns::
 	name of the new graph
 	"""
 	uploadGraph(path: String!, graph: Upload!, overwrite: Boolean!): String!
 	"""
-	Send graph bincode as base64 encoded string
+	Send graph bincode as base64 encoded string.
 	
 	Returns::
 	path of the new graph
 	"""
 	sendGraph(path: String!, graph: String!, overwrite: Boolean!): String!
 	"""
-	Returns a subgraph given a set of nodes from an existing graph in the server
+	Returns a subgraph given a set of nodes from an existing graph in the server.
 	
 	Returns::
 	name of the new graph
 	"""
 	createSubgraph(parentPath: String!, nodes: [String!]!, newPath: String!, overwrite: Boolean!): String!
 	"""
-	Creates search index
+	Creates search index.
 	"""
 	createIndex(path: String!, indexSpec: IndexSpecInput, inRam: Boolean!): Boolean!
 }
@@ -1187,7 +1267,7 @@ type QueryRoot {
 	"""
 	root: Namespace!
 	"""
-	Placeholder
+	Returns a plugin.
 	"""
 	plugins: QueryPlugin!
 	"""
@@ -1285,3 +1365,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

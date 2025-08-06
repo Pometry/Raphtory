@@ -147,6 +147,7 @@ impl GqlEdge {
         self.ee.at(time).into()
     }
 
+    /// Returns the latest time of an edge.
     async fn latest(&self) -> GqlEdge {
         self.ee.latest().into()
     }

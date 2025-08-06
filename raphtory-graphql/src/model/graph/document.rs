@@ -10,7 +10,9 @@ use super::{edge::GqlEdge, node::GqlNode};
 #[derive(Union)]
 #[graphql(name = "DocumentEntity")]
 pub(crate) enum GqlDocumentEntity {
+    /// Node
     Node(GqlNode),
+    /// Edge
     Edge(GqlEdge),
 }
 

@@ -46,6 +46,7 @@ where
     T: OutputTypeName + 'static,
     T: for<'a> ResolveOwned<'a>,
 {
+    /// Returns a list of collection objects.
     async fn list(&self) -> Vec<T> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.items.to_vec()).await
@@ -74,6 +75,7 @@ where
         .await
     }
 
+    /// Returns a count of collection objects.
     async fn count(&self) -> usize {
         self.items.len()
     }

@@ -117,7 +117,7 @@ Returns::  Root namespace
 <td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
 <td>
 
-Placeholder
+Returns a plugin.
 
 </td>
 </tr>
@@ -154,14 +154,18 @@ Returns:: Base64 url safe encoded string
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.plugins">plugins</strong></td>
 <td valign="top"><a href="#mutationplugin">MutationPlugin</a>!</td>
-<td></td>
+<td>
+
+Returns a plugin.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="mutroot.deletegraph">deleteGraph</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Delete graph from a path on the server
+Delete graph from a path on the server.
 
 </td>
 </tr>
@@ -175,7 +179,7 @@ Delete graph from a path on the server
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Creates a new graph
+Creates a new graph.
 
 </td>
 </tr>
@@ -238,7 +242,7 @@ This applies to both the graph namespace and new graph namespace.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Upload graph file from a path on the client
+Upload graph file from a path on the client.
 
 Returns::
 name of the new graph
@@ -265,7 +269,7 @@ name of the new graph
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Send graph bincode as base64 encoded string
+Send graph bincode as base64 encoded string.
 
 Returns::
 path of the new graph
@@ -292,7 +296,7 @@ path of the new graph
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Returns a subgraph given a set of nodes from an existing graph in the server
+Returns a subgraph given a set of nodes from an existing graph in the server.
 
 Returns::
 name of the new graph
@@ -324,7 +328,7 @@ name of the new graph
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Creates search index
+Creates search index.
 
 </td>
 </tr>
@@ -365,7 +369,11 @@ Collection of items
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofmetagraph.list">list</strong></td>
 <td valign="top">[<a href="#metagraph">MetaGraph</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of collection objects.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofmetagraph.page">page</strong></td>
@@ -401,7 +409,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofmetagraph.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns a count of collection objects.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -423,7 +435,11 @@ Collection of items
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespace.list">list</strong></td>
 <td valign="top">[<a href="#namespace">Namespace</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of collection objects.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespace.page">page</strong></td>
@@ -459,7 +475,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespace.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns a count of collection objects.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -481,7 +501,11 @@ Collection of items
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespaceditem.list">list</strong></td>
 <td valign="top">[<a href="#namespaceditem">NamespacedItem</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of collection objects.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespaceditem.page">page</strong></td>
@@ -517,7 +541,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="collectionofnamespaceditem.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns a count of collection objects.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -1134,12 +1162,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Return a view of Edge containing only the default edge layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.layers">layers</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers in the list of `names`. Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -1149,7 +1185,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers except the excluded list of `names`. Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -1159,7 +1199,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.layer">layer</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing the specified layer. Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -1169,7 +1213,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns a view of Edge containing all layers except the excluded layer specified. Errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -1179,7 +1227,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.rolling">rolling</strong></td>
 <td valign="top"><a href="#edgeswindowset">EdgesWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -1194,7 +1246,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.expanding">expanding</strong></td>
 <td valign="top"><a href="#edgeswindowset">EdgesWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -1204,7 +1260,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.window">window</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -1219,7 +1279,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.at">at</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events at a specified `time`.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -1234,7 +1298,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -1244,12 +1312,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.before">before</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events before a specified `end` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -1259,7 +1335,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.after">after</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Creates a view of the Edge including all events after a specified `start` (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -1269,7 +1349,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Shrinks both the `start` and `end` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -1284,7 +1368,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Set the `start` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -1294,7 +1382,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Set the `end` of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -1304,7 +1396,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Takes a specified selection of views and applies them in order given.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
@@ -1314,12 +1410,22 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.explode">explode</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns an edge object for each update within the original edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.explodelayers">explodeLayers</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns an edge object for each layer within the original edge.
+
+Each new edge object contains only updates from the respective layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.sorted">sorted</strong></td>

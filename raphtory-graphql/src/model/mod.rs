@@ -153,7 +153,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
-    /// Placeholder
+    /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
@@ -177,10 +177,12 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+    /// Returns a plugin.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
-    /// Delete graph from a path on the server
+
+    /// Delete graph from a path on the server.
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -188,7 +190,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Creates a new graph
+    /// Creates a new graph.
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -234,7 +236,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Upload graph file from a path on the client
+    /// Upload graph file from a path on the client.
     ///
     /// Returns::
     ///    name of the new graph
@@ -260,7 +262,7 @@ impl Mut {
         Ok(path)
     }
 
-    /// Send graph bincode as base64 encoded string
+    /// Send graph bincode as base64 encoded string.
     ///
     /// Returns::
     ///    path of the new graph
@@ -279,7 +281,7 @@ impl Mut {
         Ok(path.to_owned())
     }
 
-    /// Returns a subgraph given a set of nodes from an existing graph in the server
+    /// Returns a subgraph given a set of nodes from an existing graph in the server.
     ///
     /// Returns::
     ///    name of the new graph
@@ -301,7 +303,7 @@ impl Mut {
         Ok(new_path)
     }
 
-    /// Creates search index
+    /// Creates search index.
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,
