@@ -606,7 +606,7 @@ impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
     fn ends_with(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::ends_with(self.property_ref(), value.into())
     }
-    
+
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter<Self::Marker> {
         PropertyFilter::contains(self.property_ref(), value.into())
     }

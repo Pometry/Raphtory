@@ -100,12 +100,10 @@ where
 
     fn starts_with(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.starts_with(value)))
-
     }
 
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.ends_with(value)))
-
     }
 
     fn contains(&self, value: Prop) -> PyFilterExpr {
@@ -196,7 +194,7 @@ impl PyPropertyFilterOps {
     fn ends_with(&self, value: Prop) -> PyFilterExpr {
         self.0.ends_with(value)
     }
-    
+
     fn contains(&self, value: Prop) -> PyFilterExpr {
         self.0.contains(value)
     }
