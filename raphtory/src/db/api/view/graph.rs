@@ -1,5 +1,5 @@
 #[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_nodes};
+use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes};
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -19,8 +19,7 @@ use crate::{
             views::{
                 cached_view::CachedView,
                 filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
+                    model::TryAsCompositeFilter, node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 node_subgraph::NodeSubgraph,
                 valid_graph::ValidGraph,
@@ -126,10 +125,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -146,14 +145,21 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -562,7 +568,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.filtered() {
@@ -574,7 +580,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Some(NodeView::new_internal(self.clone(), vid))
     }
 
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
@@ -855,7 +861,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -868,10 +874,10 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
+        fallback_filter_nodes(self, &filter.try_as_composite_node_filter()?, limit, offset)
     }
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -884,7 +890,28 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
+        fallback_filter_edges(self, &filter.try_as_composite_edge_filter()?, limit, offset)
+    }
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_exploded_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_exploded_edges(
+            self,
+            &filter.try_as_composite_exploded_edge_filter()?,
+            limit,
+            offset,
+        )
     }
 
     fn is_indexed(&self) -> bool {
@@ -896,23 +923,21 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
+impl<'graph, G> BaseFilter<'graph> for G
+where
+    G: GraphViewOps<'graph> + 'graph,
+{
     type BaseGraph = G;
-    type FilteredGraph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
-
-    fn current_filter(&self) -> &Self::FilteredGraph {
-        self
-    }
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
     fn base_graph(&self) -> &Self::BaseGraph {
         self
     }
 
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         filtered_graph
     }
 }

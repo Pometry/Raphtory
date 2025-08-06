@@ -104,7 +104,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     let tainted_nodes = hash_set::<VID>(4);
     ctx.global_agg(tainted_nodes);
 
-    let step1 = ATask::new(move |evv: &mut EvalNodeView<G, ()>| {
+    let step1 = ATask::new(move |evv: &mut EvalNodeView<_, ()>| {
         if infected_nodes.contains(&evv.node) {
             evv.global_update(&tainted_nodes, evv.node);
             evv.update(&taint_status, true);

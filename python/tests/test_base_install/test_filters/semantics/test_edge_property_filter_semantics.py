@@ -1,5 +1,4 @@
 from raphtory import filter
-import pytest
 from filters_setup import (
     init_edges_graph,
     init_edges_graph1,
@@ -7,8 +6,6 @@ from filters_setup import (
     combined,
 )
 from utils import with_disk_variants
-
-# TODO: PropertyFilteringNotImplemented for variants persistent_graph for filter_edges.
 
 
 def init_graph_for_secondary_indexes(graph):
@@ -29,8 +26,8 @@ def init_graph_for_secondary_indexes(graph):
 @with_disk_variants(init_edges_graph, variants=["graph"])
 def test_metadata_semantics():
     def check(graph):
-        filter_expr = filter.Metadata("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.metadata("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -51,8 +48,8 @@ def test_metadata_semantics():
 @with_disk_variants(init_edges_graph, variants=["graph", "event_disk_graph"])
 def test_temporal_any_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().any() == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1").temporal().any() == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -76,8 +73,8 @@ def test_temporal_any_semantics():
 )
 def test_temporal_any_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().any() == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1").temporal().any() == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -100,8 +97,8 @@ def test_temporal_any_semantics_for_secondary_indexes():
 @with_disk_variants(init_edges_graph, variants=["graph", "event_disk_graph"])
 def test_temporal_latest_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().latest() == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1").temporal().latest() == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [("N1", "N2"), ("N3", "N4"), ("N4", "N5"), ("N6", "N7"), ("N7", "N8")]
         )
@@ -116,8 +113,8 @@ def test_temporal_latest_semantics():
 )
 def test_temporal_latest_semantics_for_secondary_indexes3():
     def check(graph):
-        filter_expr = filter.Property("p1").temporal().latest() == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1").temporal().latest() == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -136,8 +133,8 @@ def test_temporal_latest_semantics_for_secondary_indexes3():
 @with_disk_variants(init_edges_graph, variants=["graph"])
 def test_property_semantics():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -156,8 +153,8 @@ def test_property_semantics():
 @with_disk_variants(init_edges_graph, variants=["event_disk_graph"])
 def test_property_semantics2():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [("N1", "N2"), ("N3", "N4"), ("N4", "N5"), ("N6", "N7"), ("N7", "N8")]
         )
@@ -172,8 +169,8 @@ def test_property_semantics2():
 )
 def test_property_semantics_for_secondary_indexes():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -196,8 +193,8 @@ def test_property_semantics_for_secondary_indexes():
 )
 def test_property_semantics_for_secondary_indexes_dsg():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted(
             [
                 ("N1", "N2"),
@@ -216,8 +213,8 @@ def test_property_semantics_for_secondary_indexes_dsg():
 @with_disk_variants(init_edges_graph1, variants=["graph"])
 def test_property_semantics_only_metadata():
     def check(graph):
-        filter_expr = filter.Metadata("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.metadata("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted([("N1", "N2"), ("N2", "N3")])
         assert result_ids == expected_ids
 
@@ -228,8 +225,8 @@ def test_property_semantics_only_metadata():
 @with_disk_variants(init_edges_graph1, variants=["event_disk_graph"])
 def test_property_semantics_only_metadata2():
     def check(graph):
-        filter_expr = filter.Metadata("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.metadata("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = []
         assert result_ids == expected_ids
 
@@ -239,8 +236,8 @@ def test_property_semantics_only_metadata2():
 @with_disk_variants(init_edges_graph2, variants=["graph", "event_disk_graph"])
 def test_property_semantics_only_temporal():
     def check(graph):
-        filter_expr = filter.Property("p1") == 1
-        result_ids = sorted(graph.filter_edges(filter_expr).edges.id)
+        filter_expr = filter.Edge.property("p1") == 1
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted([("N1", "N2"), ("N3", "N4")])
         assert result_ids == expected_ids
 

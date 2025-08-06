@@ -4,35 +4,31 @@ use crate::db::graph::views::filter::model::{
     property_filter::PropertyFilter,
 };
 
-pub mod edge_and_filtered_graph;
+pub mod and_filtered_graph;
 pub mod edge_field_filtered_graph;
-pub mod edge_not_filtered_graph;
-pub mod edge_or_filtered_graph;
 pub mod edge_property_filtered_graph;
 pub mod exploded_edge_property_filter;
 pub(crate) mod internal;
 pub mod model;
-pub mod node_and_filtered_graph;
 pub mod node_name_filtered_graph;
-pub mod node_not_filtered_graph;
-pub mod node_or_filtered_graph;
 pub mod node_property_filtered_graph;
 pub mod node_type_filtered_graph;
+pub mod not_filtered_graph;
+pub mod or_filtered_graph;
 
 #[cfg(test)]
 mod test_fluent_builder_apis {
     use crate::db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        node_filter::CompositeNodeFilter,
-        property_filter::{PropertyFilter, PropertyRef, Temporal},
-        AsEdgeFilter, AsNodeFilter, ComposableFilter, EdgeFilter, EdgeFilterOps, Filter,
-        NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+        edge_filter::{CompositeEdgeFilter, EdgeFilter, EdgeFilterOps},
+        node_filter::{CompositeNodeFilter, NodeFilter, NodeFilterBuilderOps},
+        property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef, Temporal},
+        ComposableFilter, Filter, PropertyFilterFactory, TryAsCompositeFilter,
     };
 
     #[test]
     fn test_node_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p").eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let filter_expr = NodeFilter::property("p").eq("raphtory");
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Property("p".to_string()),
             "raphtory",
@@ -42,8 +38,8 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_metadata_filter_build() {
-        let filter_expr = PropertyFilter::metadata("p").eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let filter_expr = NodeFilter::metadata("p").eq("raphtory");
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::Metadata("p".to_string()),
             "raphtory",
@@ -53,11 +49,8 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_any_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p")
-            .temporal()
-            .any()
-            .eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let filter_expr = NodeFilter::property("p").temporal().any().eq("raphtory");
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Any),
             "raphtory",
@@ -67,11 +60,8 @@ mod test_fluent_builder_apis {
 
     #[test]
     fn test_node_latest_temporal_property_filter_build() {
-        let filter_expr = PropertyFilter::property("p")
-            .temporal()
-            .latest()
-            .eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let filter_expr = NodeFilter::property("p").temporal().latest().eq("raphtory");
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Property(PropertyFilter::eq(
             PropertyRef::TemporalProperty("p".to_string(), Temporal::Latest),
             "raphtory",
@@ -82,7 +72,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_name_filter_build() {
         let filter_expr = NodeFilter::name().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_name", "raphtory"));
         assert_eq!(node_property_filter, node_property_filter2);
     }
@@ -90,7 +80,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_node_type_filter_build() {
         let filter_expr = NodeFilter::node_type().eq("raphtory");
-        let node_property_filter = filter_expr.as_node_filter();
+        let node_property_filter = filter_expr.try_as_composite_node_filter().unwrap();
         let node_property_filter2 = CompositeNodeFilter::Node(Filter::eq("node_type", "raphtory"));
         assert_eq!(node_property_filter, node_property_filter2);
     }
@@ -99,18 +89,19 @@ mod test_fluent_builder_apis {
     fn test_node_filter_composition() {
         let node_composite_filter = NodeFilter::name()
             .eq("fire_nation")
-            .and(PropertyFilter::metadata("p2").eq(2u64))
-            .and(PropertyFilter::property("p1").eq(1u64))
+            .and(NodeFilter::metadata("p2").eq(2u64))
+            .and(NodeFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::property("p3")
+                NodeFilter::property("p3")
                     .temporal()
                     .any()
                     .eq(5u64)
-                    .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
+                    .or(NodeFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(NodeFilter::node_type().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64))
-            .as_node_filter();
+            .or(NodeFilter::property("p5").eq(9u64))
+            .try_as_composite_node_filter()
+            .unwrap();
 
         let node_composite_filter2 = CompositeNodeFilter::Or(
             Box::new(CompositeNodeFilter::Or(
@@ -159,7 +150,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_src_filter_build() {
         let filter_expr = EdgeFilter::src().name().eq("raphtory");
-        let edge_property_filter = filter_expr.as_edge_filter();
+        let edge_property_filter = filter_expr.try_as_composite_edge_filter().unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("src", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
     }
@@ -167,7 +158,7 @@ mod test_fluent_builder_apis {
     #[test]
     fn test_edge_dst_filter_build() {
         let filter_expr = EdgeFilter::dst().name().eq("raphtory");
-        let edge_property_filter = filter_expr.as_edge_filter();
+        let edge_property_filter = filter_expr.try_as_composite_edge_filter().unwrap();
         let edge_property_filter2 = CompositeEdgeFilter::Edge(Filter::eq("dst", "raphtory"));
         assert_eq!(edge_property_filter, edge_property_filter2);
     }
@@ -177,18 +168,19 @@ mod test_fluent_builder_apis {
         let edge_composite_filter = EdgeFilter::src()
             .name()
             .eq("fire_nation")
-            .and(PropertyFilter::metadata("p2").eq(2u64))
-            .and(PropertyFilter::property("p1").eq(1u64))
+            .and(EdgeFilter::metadata("p2").eq(2u64))
+            .and(EdgeFilter::property("p1").eq(1u64))
             .and(
-                PropertyFilter::property("p3")
+                EdgeFilter::property("p3")
                     .temporal()
                     .any()
                     .eq(5u64)
-                    .or(PropertyFilter::property("p4").temporal().latest().eq(7u64)),
+                    .or(EdgeFilter::property("p4").temporal().latest().eq(7u64)),
             )
             .or(EdgeFilter::src().name().eq("raphtory"))
-            .or(PropertyFilter::property("p5").eq(9u64))
-            .as_edge_filter();
+            .or(EdgeFilter::property("p5").eq(9u64))
+            .try_as_composite_edge_filter()
+            .unwrap();
 
         let edge_composite_filter2 = CompositeEdgeFilter::Or(
             Box::new(CompositeEdgeFilter::Or(
@@ -233,10 +225,10 @@ mod test_fluent_builder_apis {
 mod test_composite_filters {
     use crate::{
         db::graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter,
-            node_filter::CompositeNodeFilter,
-            property_filter::{PropertyFilter, PropertyRef},
-            Filter,
+            edge_filter::{CompositeEdgeFilter, EdgeFilter},
+            node_filter::{CompositeNodeFilter, NodeFilter},
+            property_filter::{PropertyFilter, PropertyFilterOps, PropertyRef},
+            Filter, PropertyFilterFactory,
         },
         prelude::IntoProp,
     };
@@ -412,86 +404,55 @@ mod test_composite_filters {
 
     #[test]
     fn test_fuzzy_search_property() {
-        let filter = PropertyFilter::fuzzy_search(
-            PropertyRef::Property("prop".to_string()),
-            "pomet",
-            2,
-            false,
-        );
+        let filter = NodeFilter::property("prop").fuzzy_search("pomet", 2, false);
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 
     #[test]
     fn test_fuzzy_search_property_prefix_match() {
-        let filter = PropertyFilter::fuzzy_search(
-            PropertyRef::Property("prop".to_string()),
-            "pome",
-            2,
-            false,
-        );
+        let filter = EdgeFilter::property("prop").fuzzy_search("pome", 2, false);
         assert!(!filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
 
-        let filter = PropertyFilter::fuzzy_search(
-            PropertyRef::Property("prop".to_string()),
-            "pome",
-            2,
-            true,
-        );
+        let filter = EdgeFilter::property("prop").fuzzy_search("pome", 2, true);
         assert!(filter.matches(Some(&Prop::Str(ArcStr::from("pometry")))));
     }
 
     #[test]
     fn test_contains_match() {
-        let filter = PropertyFilter::contains(PropertyRef::Property("prop".to_string()), "shivam");
-
+        let filter = EdgeFilter::property("prop").contains("shivam");
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(res);
-
         let res = filter.matches(None);
         assert!(!res);
 
-        let filter = PropertyFilter::contains(PropertyRef::Property("prop".to_string()), "am_ka");
-
+        let filter = EdgeFilter::property("prop").contains("am_ka");
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(res);
     }
 
     #[test]
     fn test_contains_not_match() {
-        let filter =
-            PropertyFilter::not_contains(PropertyRef::Property("prop".to_string()), "shivam");
-
+        let filter = NodeFilter::property("prop").not_contains("shivam");
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam_kapoor"))));
         assert!(!res);
-
         let res = filter.matches(None);
         assert!(!res);
     }
 
     #[test]
     fn test_is_in_match() {
-        let filter = PropertyFilter::is_in(
-            PropertyRef::Property("prop".to_string()),
-            ["shivam".into_prop()],
-        );
-
+        let filter = NodeFilter::property("prop").is_in(vec!["shivam".into_prop()]);
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
         assert!(res);
-
         let res = filter.matches(None);
         assert!(!res);
     }
 
     #[test]
     fn test_is_not_in_match() {
-        let filter = PropertyFilter::is_not_in(
-            PropertyRef::Property("prop".to_string()),
-            ["shivam".into_prop()],
-        );
-
+        let filter = EdgeFilter::property("prop").is_not_in(vec!["shivam".into_prop()]);
         let res = filter.matches(Some(&Prop::Str(ArcStr::from("shivam"))));
         assert!(!res);
-
         let res = filter.matches(None);
         assert!(!res);
     }
@@ -526,7 +487,11 @@ pub(crate) mod test_filters {
                             assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                         },
                         views::filter::{
-                            model::PropertyFilterOps, test_filters::IdentityGraphTransformer,
+                            model::{
+                                node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
+                            test_filters::IdentityGraphTransformer,
                         },
                     },
                 },
@@ -622,7 +587,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_metadata_semantics() {
-                let filter = PropertyFilter::metadata("p1").eq(1u64);
+                let filter = NodeFilter::metadata("p1").eq(1u64);
                 let expected_results = vec!["N1", "N10", "N11", "N12", "N13", "N14", "N15", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -642,7 +607,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_any_semantics() {
-                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
+                let filter = NodeFilter::property("p1").temporal().any().eq(1u64);
                 let expected_results = vec!["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -662,7 +627,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_any_semantics_for_secondary_indexes() {
-                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
+                let filter = NodeFilter::property("p1").temporal().any().eq(1u64);
                 let expected_results =
                     vec!["N1", "N16", "N17", "N2", "N3", "N4", "N5", "N6", "N7", "N8"];
                 assert_filter_nodes_results(
@@ -683,7 +648,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_latest_semantics() {
-                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter = NodeFilter::property("p1").temporal().latest().eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -703,7 +668,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_temporal_latest_semantics_for_secondary_indexes() {
-                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter = NodeFilter::property("p1").temporal().latest().eq(1u64);
                 let expected_results = vec!["N1", "N16", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph_for_secondary_indexes,
@@ -724,7 +689,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_property_semantics() {
                 // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = NodeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -744,7 +709,7 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_property_semantics_for_secondary_indexes() {
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = NodeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1", "N16", "N3", "N4", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph_for_secondary_indexes,
@@ -796,7 +761,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                let filter = PropertyFilter::property("p1").ge(1u64);
+                let filter = NodeFilter::property("p1").ge(1u64);
                 let expected_results = vec![];
                 assert_filter_nodes_results(
                     init_graph,
@@ -842,7 +807,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                let filter = PropertyFilter::property("p1").le(1u64);
+                let filter = NodeFilter::property("p1").le(1u64);
                 let expected_results = vec!["N1", "N3"];
                 assert_filter_nodes_results(
                     init_graph,
@@ -865,15 +830,18 @@ pub(crate) mod test_filters {
         mod test_edge_property_filter_semantics {
             use crate::{
                 db::{
-                    api::view::{EdgeViewOps, StaticGraphViewOps},
+                    api::view::{filter_ops::BaseFilterOps, EdgeViewOps, StaticGraphViewOps},
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
                             TestGraphVariants, TestVariants,
                         },
                         views::filter::{
-                            internal::CreateEdgeFilter,
-                            model::{property_filter::PropertyFilter, PropertyFilterOps},
+                            internal::CreateFilter,
+                            model::{
+                                edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                                PropertyFilterFactory,
+                            },
                             test_filters::IdentityGraphTransformer,
                         },
                     },
@@ -978,7 +946,7 @@ pub(crate) mod test_filters {
             fn test_metadata_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::metadata("p1").eq(1u64);
+                let filter = EdgeFilter::metadata("p1").eq(1u64);
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
                     "N15->N1", "N9->N10",
@@ -1001,9 +969,9 @@ pub(crate) mod test_filters {
 
             #[test]
             fn test_metadata_semantics2() {
-                fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
+                fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
                     let mut results = graph
-                        .filter_edges(filter)
+                        .filter(filter)
                         .unwrap()
                         .edges()
                         .iter()
@@ -1015,7 +983,7 @@ pub(crate) mod test_filters {
 
                 let graph = init_graph(Graph::new());
 
-                let filter = PropertyFilter::metadata("p1").eq(1u64);
+                let filter = EdgeFilter::metadata("p1").eq(1u64);
                 assert_eq!(
                     filter_edges(&graph, filter.clone()),
                     vec![
@@ -1032,10 +1000,10 @@ pub(crate) mod test_filters {
                 let prop = graph.edge("shivam", "kapoor").unwrap().metadata().get("z");
                 assert_eq!(prop, Some(Prop::map([("fire_nation", true)])));
 
-                let filter2 = PropertyFilter::metadata("z").eq(Prop::map([("fire_nation", true)]));
+                let filter2 = EdgeFilter::metadata("z").eq(Prop::map([("fire_nation", true)]));
                 assert_eq!(filter_edges(&graph, filter2), vec!["shivam->kapoor"]);
 
-                let filter = PropertyFilter::metadata("p1").eq(Prop::map([("_default", 1u64)]));
+                let filter = EdgeFilter::metadata("p1").eq(Prop::map([("_default", 1u64)]));
                 assert_eq!(
                     filter_edges(&graph, filter),
                     vec![
@@ -1048,7 +1016,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_temporal_any_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").temporal().any().eq(1u64);
+                let filter = EdgeFilter::property("p1").temporal().any().eq(1u64);
                 let expected_results = vec![
                     "N1->N2", "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
                 ];
@@ -1071,7 +1039,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_temporal_any_semantics_for_secondary_indexes() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").temporal().any().lt(2u64);
+                let filter = EdgeFilter::property("p1").temporal().any().lt(2u64);
                 let expected_results = vec![
                     "N1->N2", "N16->N15", "N17->N16", "N2->N3", "N3->N4", "N4->N5", "N5->N6",
                     "N6->N7", "N7->N8", "N8->N9",
@@ -1095,7 +1063,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_temporal_latest_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter = EdgeFilter::property("p1").temporal().latest().eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
@@ -1116,7 +1084,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_temporal_latest_semantics_for_secondary_indexes() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").temporal().latest().eq(1u64);
+                let filter = EdgeFilter::property("p1").temporal().latest().eq(1u64);
                 let expected_results =
                     vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
@@ -1138,7 +1106,7 @@ pub(crate) mod test_filters {
             #[test]
             fn test_property_semantics() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = PropertyFilter::property("p1").ge(2u64);
+                let filter = EdgeFilter::property("p1").ge(2u64);
                 let expected_results = vec![
                     "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                     "N9->N10",
@@ -1163,7 +1131,7 @@ pub(crate) mod test_filters {
             fn test_property_semantics_for_secondary_indexes() {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results =
                     vec!["N1->N2", "N16->N15", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
@@ -1219,7 +1187,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results = vec![];
                 assert_filter_edges_results(
                     init_graph,
@@ -1266,7 +1234,7 @@ pub(crate) mod test_filters {
                     graph
                 }
 
-                let filter = PropertyFilter::property("p1").eq(1u64);
+                let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4"];
                 assert_filter_edges_results(
                     init_graph,
@@ -1441,22 +1409,23 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_property_filter {
-        use crate::db::graph::views::filter::{
-            model::PropertyFilterOps, test_filters::init_nodes_graph,
-        };
+        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
         use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
-                model::{property_filter::PropertyFilter, ComposableFilter, NotFilter},
+                model::{
+                    node_filter::NodeFilter, not_filter::NotFilter,
+                    property_filter::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+                },
                 test_filters::IdentityGraphTransformer,
             },
         };
 
         #[test]
         fn test_exact_match() {
-            let filter = PropertyFilter::property("p10").eq("Paper_airplane");
+            let filter = NodeFilter::property("p10").eq("Paper_airplane");
             let expected_results = vec!["1", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1473,7 +1442,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10").eq("");
+            let filter = NodeFilter::property("p10").eq("");
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1493,7 +1462,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_not_exact_match() {
-            let filter = PropertyFilter::property("p10").eq("Paper");
+            let filter = NodeFilter::property("p10").eq("Paper");
             let expected_results: Vec<&str> = vec![];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1513,7 +1482,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_eq() {
-            let filter = PropertyFilter::property("p2").eq(2u64);
+            let filter = NodeFilter::property("p2").eq(2u64);
             let expected_results = vec!["2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1533,7 +1502,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_ne() {
-            let filter = PropertyFilter::property("p2").ne(2u64);
+            let filter = NodeFilter::property("p2").ne(2u64);
             let expected_results = vec!["3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1553,7 +1522,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_lt() {
-            let filter = PropertyFilter::property("p2").lt(10u64);
+            let filter = NodeFilter::property("p2").lt(10u64);
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1573,7 +1542,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_le() {
-            let filter = PropertyFilter::property("p2").le(6u64);
+            let filter = NodeFilter::property("p2").le(6u64);
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1593,7 +1562,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_gt() {
-            let filter = PropertyFilter::property("p2").gt(2u64);
+            let filter = NodeFilter::property("p2").gt(2u64);
             let expected_results = vec!["3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1613,7 +1582,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_ge() {
-            let filter = PropertyFilter::property("p2").ge(2u64);
+            let filter = NodeFilter::property("p2").ge(2u64);
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1633,7 +1602,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_in() {
-            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(6)]);
+            let filter = NodeFilter::property("p2").is_in(vec![Prop::U64(6)]);
             let expected_results = vec!["3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1650,7 +1619,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
+            let filter = NodeFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1670,7 +1639,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_not_in() {
-            let filter = PropertyFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
+            let filter = NodeFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1690,7 +1659,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_is_some() {
-            let filter = PropertyFilter::property("p2").is_some();
+            let filter = NodeFilter::property("p2").is_some();
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1710,7 +1679,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_is_none() {
-            let filter = PropertyFilter::property("p2").is_none();
+            let filter = NodeFilter::property("p2").is_none();
             let expected_results = vec!["1", "4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1729,8 +1698,8 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_filter_nodes_for_property_contains() {
-            let filter = PropertyFilter::property("p10").contains("Paper");
+        fn test_filter_nodes_for_property_starts_with() {
+            let filter = NodeFilter::property("p10").starts_with("Pa");
             let expected_results: Vec<&str> = vec!["1", "2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1747,7 +1716,167 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .any()
+                .starts_with("Pap");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .latest()
+                .starts_with("Pape");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .latest()
+                .starts_with("Yohan");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_ends_with() {
+            let filter = NodeFilter::property("p10").ends_with("lane");
+            let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .any()
+                .ends_with("ship");
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .latest()
+                .ends_with("ane");
+            let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .latest()
+                .ends_with("Jerry");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_contains() {
+            let filter = NodeFilter::property("p10").contains("Paper");
+            let expected_results: Vec<&str> = vec!["1", "2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p10")
                 .temporal()
                 .any()
                 .contains("Paper");
@@ -1767,7 +1896,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = NodeFilter::property("p10")
                 .temporal()
                 .latest()
                 .contains("Paper");
@@ -1790,7 +1919,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_contains_not() {
-            let filter = PropertyFilter::property("p10").not_contains("ship");
+            let filter = NodeFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1807,7 +1936,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = NodeFilter::property("p10")
                 .temporal()
                 .any()
                 .not_contains("ship");
@@ -1827,7 +1956,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = NodeFilter::property("p10")
                 .temporal()
                 .latest()
                 .not_contains("ship");
@@ -1850,7 +1979,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_not_property() {
-            let filter = NotFilter(PropertyFilter::property("p10").contains("Paper"));
+            let filter = NotFilter(NodeFilter::property("p10").contains("Paper"));
             let expected_results: Vec<&str> = vec!["4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1867,7 +1996,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10").contains("Paper").not();
+            let filter = NodeFilter::property("p10").contains("Paper").not();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1893,7 +2022,10 @@ pub(crate) mod test_filters {
                 TestVariants,
             },
             views::filter::{
-                model::{property_filter::PropertyFilter, ComposableFilter, PropertyFilterOps},
+                model::{
+                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps, ComposableFilter,
+                    PropertyFilterFactory,
+                },
                 test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
@@ -1902,7 +2034,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_eq() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").eq(2u64);
+            let filter = EdgeFilter::property("p2").eq(2u64);
             let expected_results = vec!["2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -1923,7 +2055,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_ne() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").ne(2u64);
+            let filter = EdgeFilter::property("p2").ne(2u64);
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -1950,7 +2082,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_lt() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").lt(10u64);
+            let filter = EdgeFilter::property("p2").lt(10u64);
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -1978,7 +2110,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_le() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").le(6u64);
+            let filter = EdgeFilter::property("p2").le(6u64);
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -2006,7 +2138,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_gt() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").gt(2u64);
+            let filter = EdgeFilter::property("p2").gt(2u64);
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -2033,7 +2165,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_ge() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").ge(2u64);
+            let filter = EdgeFilter::property("p2").ge(2u64);
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -2061,7 +2193,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_in() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(6)]);
+            let filter = EdgeFilter::property("p2").is_in(vec![Prop::U64(6)]);
             let expected_results = vec![
                 "2->1",
                 "3->1",
@@ -2083,7 +2215,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
+            let filter = EdgeFilter::property("p2").is_in(vec![Prop::U64(2), Prop::U64(6)]);
             let expected_results = vec![
                 "2->1",
                 "2->3",
@@ -2110,7 +2242,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_not_in() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
+            let filter = EdgeFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2131,7 +2263,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_is_some() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2").is_some();
+            let filter = EdgeFilter::property("p2").is_some();
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -2159,7 +2291,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_is_none() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-            let filter = PropertyFilter::property("p2").is_none();
+            let filter = EdgeFilter::property("p2").is_none();
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2178,9 +2310,9 @@ pub(crate) mod test_filters {
         }
 
         #[test]
-        fn test_filter_edges_for_property_contains() {
+        fn test_filter_edges_for_property_starts_with() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p10").contains("Paper");
+            let filter = EdgeFilter::property("p10").starts_with("Pa");
             let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2197,7 +2329,169 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .any()
+                .starts_with("Pape");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .latest()
+                .starts_with("Paper");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .latest()
+                .starts_with("Traffic");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_ends_with() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::property("p10").ends_with("lane");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .any()
+                .ends_with("ship");
+            let expected_results: Vec<&str> = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .latest()
+                .ends_with("ane");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
+                .temporal()
+                .latest()
+                .ends_with("marcus");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_property_contains() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::property("p10").contains("Paper");
+            let expected_results: Vec<&str> = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p10")
                 .temporal()
                 .any()
                 .contains("Paper");
@@ -2217,7 +2511,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = EdgeFilter::property("p10")
                 .temporal()
                 .latest()
                 .contains("Paper");
@@ -2241,7 +2535,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_property_contains_not() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p10").not_contains("ship");
+            let filter = EdgeFilter::property("p10").not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2258,7 +2552,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = EdgeFilter::property("p10")
                 .temporal()
                 .any()
                 .not_contains("ship");
@@ -2278,7 +2572,7 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p10")
+            let filter = EdgeFilter::property("p10")
                 .temporal()
                 .latest()
                 .not_contains("ship");
@@ -2303,7 +2597,7 @@ pub(crate) mod test_filters {
         fn test_filter_edges_by_fuzzy_search() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges.
             // TODO: Enable these test for event_disk_graph, persistent_disk_graph once string property is fixed.
-            let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, true);
+            let filter = EdgeFilter::property("p1").fuzzy_search("shiv", 2, true);
             let expected_results: Vec<&str> = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2313,7 +2607,7 @@ pub(crate) mod test_filters {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("p1").fuzzy_search("ShiV", 2, true);
+            let filter = EdgeFilter::property("p1").fuzzy_search("ShiV", 2, true);
             let expected_results: Vec<&str> = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2323,7 +2617,7 @@ pub(crate) mod test_filters {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("p1").fuzzy_search("shiv", 2, false);
+            let filter = EdgeFilter::property("p1").fuzzy_search("shiv", 2, false);
             let expected_results: Vec<&str> = vec![];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2337,7 +2631,7 @@ pub(crate) mod test_filters {
         #[test]
         fn test_filter_edges_for_not_property() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-            let filter = PropertyFilter::property("p2").ne(2u64).not();
+            let filter = EdgeFilter::property("p2").ne(2u64).not();
             let expected_results = vec!["2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2358,13 +2652,14 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_node_filter {
-        use crate::db::graph::views::filter::test_filters::init_nodes_graph;
-
         use crate::db::graph::{
             assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
             views::filter::{
-                model::{ComposableFilter, NodeFilter, NodeFilterBuilderOps},
-                test_filters::IdentityGraphTransformer,
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_nodes_graph, IdentityGraphTransformer},
             },
         };
 
@@ -2598,6 +2893,80 @@ pub(crate) mod test_filters {
         }
 
         #[test]
+        fn test_filter_nodes_for_node_type_starts_with() {
+            let filter = NodeFilter::node_type().starts_with("fire");
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().starts_with("rocket");
+            let expected_results = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_ends_with() {
+            let filter = NodeFilter::node_type().ends_with("nomads");
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().ends_with("circle");
+            let expected_results = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
         fn test_filter_nodes_for_node_type_contains() {
             let filter = NodeFilter::node_type().contains("fire");
             let expected_results = vec!["1", "3"];
@@ -2698,24 +3067,26 @@ pub(crate) mod test_filters {
         use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
         use raphtory_api::core::Direction;
 
-        use crate::db::graph::views::filter::model::{
-            property_filter::PropertyFilter, AsNodeFilter, ComposableFilter, NodeFilter,
-            NodeFilterBuilderOps, PropertyFilterOps,
-        };
-
         use crate::db::graph::{
             assertions::{
                 assert_filter_neighbours_results, assert_filter_nodes_results,
                 assert_search_nodes_results, TestVariants,
             },
-            views::filter::test_filters::IdentityGraphTransformer,
+            views::filter::{
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    property_filter::PropertyFilterOps,
+                    ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                },
+                test_filters::IdentityGraphTransformer,
+            },
         };
 
         #[test]
         fn test_filter_nodes_by_props_added_at_different_times() {
-            let filter = PropertyFilter::property("p4")
+            let filter = NodeFilter::property("p4")
                 .eq("pometry")
-                .and(PropertyFilter::property("p5").eq(12u64));
+                .and(NodeFilter::property("p5").eq(12u64));
             let expected_results = vec!["4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2735,9 +3106,9 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_unique_results_from_composite_filters() {
-            let filter = PropertyFilter::property("p2")
+            let filter = NodeFilter::property("p2")
                 .ge(2u64)
-                .and(PropertyFilter::property("p2").ge(1u64));
+                .and(NodeFilter::property("p2").ge(1u64));
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2747,9 +3118,9 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p2")
+            let filter = NodeFilter::property("p2")
                 .ge(2u64)
-                .or(PropertyFilter::property("p2").ge(5u64));
+                .or(NodeFilter::property("p2").ge(5u64));
             let expected_results = vec!["2", "3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2762,9 +3133,9 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_composite_filter_nodes() {
-            let filter = PropertyFilter::property("p2")
+            let filter = NodeFilter::property("p2")
                 .eq(2u64)
-                .and(PropertyFilter::property("p1").eq("kapoor"));
+                .and(NodeFilter::property("p1").eq("kapoor"));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2780,7 +3151,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2796,9 +3167,9 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p2")
+            let filter = NodeFilter::property("p2")
                 .eq(2u64)
-                .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .or(NodeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1", "2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2814,7 +3185,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2830,11 +3201,11 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p1")
+            let filter = NodeFilter::property("p1")
                 .eq("pometry")
-                .or(PropertyFilter::property("p2")
+                .or(NodeFilter::property("p2")
                     .eq(6u64)
-                    .and(PropertyFilter::property("p3").eq(1u64)));
+                    .and(NodeFilter::property("p3").eq(1u64)));
             let expected_results = vec!["3"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2850,7 +3221,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2868,7 +3239,7 @@ pub(crate) mod test_filters {
 
             let filter = NodeFilter::node_type()
                 .eq("fire_nation")
-                .and(PropertyFilter::property("p1").eq("prop1"));
+                .and(NodeFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2884,7 +3255,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2900,9 +3271,9 @@ pub(crate) mod test_filters {
                 TestVariants::All,
             );
 
-            let filter = PropertyFilter::property("p9")
+            let filter = NodeFilter::property("p9")
                 .eq(5u64)
-                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2918,7 +3289,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2936,7 +3307,7 @@ pub(crate) mod test_filters {
 
             let filter = NodeFilter::node_type()
                 .eq("fire_nation")
-                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2952,7 +3323,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2970,7 +3341,7 @@ pub(crate) mod test_filters {
 
             let filter = NodeFilter::name()
                 .eq("2")
-                .and(PropertyFilter::property("p2").eq(2u64));
+                .and(NodeFilter::property("p2").eq(2u64));
             let expected_results = vec!["2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -2986,7 +3357,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -3004,8 +3375,8 @@ pub(crate) mod test_filters {
 
             let filter = NodeFilter::name()
                 .eq("2")
-                .and(PropertyFilter::property("p2").eq(2u64))
-                .or(PropertyFilter::property("p9").eq(5u64));
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64));
             let expected_results = vec!["1", "2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -3021,7 +3392,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_node_filter();
+            let filter = filter.try_as_composite_node_filter().unwrap();
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -3042,8 +3413,8 @@ pub(crate) mod test_filters {
         fn test_not_composite_filter_nodes() {
             let filter = NodeFilter::name()
                 .eq("2")
-                .and(PropertyFilter::property("p2").eq(2u64))
-                .or(PropertyFilter::property("p9").eq(5u64))
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64))
                 .not();
             let expected_results = vec!["3", "4"];
             assert_filter_nodes_results(
@@ -3064,8 +3435,8 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::name()
                 .eq("2")
                 .not()
-                .and(PropertyFilter::property("p2").eq(2u64))
-                .or(PropertyFilter::property("p9").eq(5u64));
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -3087,7 +3458,7 @@ pub(crate) mod test_filters {
         fn test_out_neighbours_filter() {
             let filter = NodeFilter::name()
                 .eq("2")
-                .and(PropertyFilter::property("p2").eq(2u64));
+                .and(NodeFilter::property("p2").eq(2u64));
             let expected_results = vec!["2"];
             assert_filter_neighbours_results(
                 |graph| init_edges_graph(init_nodes_graph(graph)),
@@ -3102,7 +3473,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_in_neighbours_filter() {
-            let filter = PropertyFilter::property("p9").ge(1u64);
+            let filter = NodeFilter::property("p9").ge(1u64);
             let expected_results = vec!["1"];
             assert_filter_neighbours_results(
                 |graph| init_edges_graph(init_nodes_graph(graph)),
@@ -3117,7 +3488,7 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_neighbours_filter() {
-            let filter = PropertyFilter::property("p10").contains("Paper");
+            let filter = NodeFilter::property("p10").contains("Paper");
             let expected_results = vec!["1", "3"];
             assert_filter_neighbours_results(
                 |graph| init_edges_graph(init_nodes_graph(graph)),
@@ -3133,13 +3504,14 @@ pub(crate) mod test_filters {
 
     #[cfg(test)]
     mod test_edge_filter {
-        use crate::db::graph::views::filter::test_filters::init_edges_graph;
-
         use crate::db::graph::{
             assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants},
             views::filter::{
-                model::{ComposableFilter, EdgeFilter, EdgeFilterOps},
-                test_filters::IdentityGraphTransformer,
+                model::{
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
             },
         };
 
@@ -3369,6 +3741,150 @@ pub(crate) mod test_filters {
         }
 
         #[test]
+        fn test_filter_edges_for_src_dst_starts_with() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().starts_with("Joh");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().name().starts_with("Joker");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().starts_with("Jimmy");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().starts_with("Tango");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_dst_ends_with() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().ends_with("Mayer");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().name().ends_with("Cruise");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().ends_with("Page");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().ends_with("Cruise");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
         fn test_filter_edges_for_src_contains() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter::src().name().contains("Mayer");
@@ -3476,15 +3992,14 @@ pub(crate) mod test_filters {
             },
             views::filter::{
                 model::{
-                    property_filter::PropertyFilter, AndFilter, AsEdgeFilter, ComposableFilter,
-                    EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    property_filter::PropertyFilterOps,
+                    AndFilter, ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
                 },
-                test_filters::init_edges_graph,
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
                 EdgeFieldFilter,
             },
         };
-
-        use crate::db::graph::views::filter::test_filters::IdentityGraphTransformer;
 
         #[test]
         fn test_filter_edge_for_src_dst() {
@@ -3513,9 +4028,9 @@ pub(crate) mod test_filters {
         #[test]
         fn test_unique_results_from_composite_filters() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p2")
+            let filter = EdgeFilter::property("p2")
                 .ge(2u64)
-                .and(PropertyFilter::property("p2").ge(1u64));
+                .and(EdgeFilter::property("p2").ge(1u64));
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -3532,9 +4047,9 @@ pub(crate) mod test_filters {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("p2")
+            let filter = EdgeFilter::property("p2")
                 .ge(2u64)
-                .or(PropertyFilter::property("p2").ge(5u64));
+                .or(EdgeFilter::property("p2").ge(5u64));
             let expected_results = vec![
                 "1->2",
                 "2->1",
@@ -3556,9 +4071,9 @@ pub(crate) mod test_filters {
         fn test_composite_filter_edges() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges.
             // TODO: Enable these test for event_disk_graph, persistent_disk_graph once string property is fixed.
-            let filter = PropertyFilter::property("p2")
+            let filter = EdgeFilter::property("p2")
                 .eq(2u64)
-                .and(PropertyFilter::property("p1").eq("kapoor"));
+                .and(EdgeFilter::property("p1").eq("kapoor"));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3574,7 +4089,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3590,9 +4105,9 @@ pub(crate) mod test_filters {
                 TestVariants::NonDiskOnly,
             );
 
-            let filter = PropertyFilter::property("p2")
+            let filter = EdgeFilter::property("p2")
                 .eq(2u64)
-                .or(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .or(EdgeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3608,7 +4123,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3624,11 +4139,11 @@ pub(crate) mod test_filters {
                 TestVariants::NonDiskOnly,
             );
 
-            let filter = PropertyFilter::property("p1")
+            let filter = EdgeFilter::property("p1")
                 .eq("pometry")
-                .or(PropertyFilter::property("p2")
+                .or(EdgeFilter::property("p2")
                     .eq(6u64)
-                    .and(PropertyFilter::property("p3").eq(1u64)));
+                    .and(EdgeFilter::property("p3").eq(1u64)));
             let expected_results = vec![
                 "2->1",
                 "3->1",
@@ -3649,7 +4164,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3668,7 +4183,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src()
                 .name()
                 .eq("13")
-                .and(PropertyFilter::property("p1").eq("prop1"));
+                .and(EdgeFilter::property("p1").eq("prop1"));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3684,7 +4199,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3700,9 +4215,9 @@ pub(crate) mod test_filters {
                 TestVariants::NonDiskOnly,
             );
 
-            let filter = PropertyFilter::property("p2")
+            let filter = EdgeFilter::property("p2")
                 .eq(4u64)
-                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .and(EdgeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3718,7 +4233,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3737,7 +4252,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src()
                 .name()
                 .eq("1")
-                .and(PropertyFilter::property("p1").eq("shivam_kapoor"));
+                .and(EdgeFilter::property("p1").eq("shivam_kapoor"));
             let expected_results = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3753,7 +4268,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::NonDiskOnly,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3772,7 +4287,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst()
                 .name()
                 .eq("1")
-                .and(PropertyFilter::property("p2").eq(6u64));
+                .and(EdgeFilter::property("p2").eq(6u64));
             let expected_results = vec!["2->1", "3->1"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3788,7 +4303,7 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3807,8 +4322,8 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src()
                 .name()
                 .eq("1")
-                .and(PropertyFilter::property("p1").eq("shivam_kapoor"))
-                .or(PropertyFilter::property("p3").eq(5u64));
+                .and(EdgeFilter::property("p1").eq("shivam_kapoor"))
+                .or(EdgeFilter::property("p3").eq(5u64));
             let expected_results = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -3825,7 +4340,7 @@ pub(crate) mod test_filters {
                 TestVariants::NonDiskOnly,
             );
 
-            let filter = filter.as_edge_filter();
+            let filter = filter.try_as_composite_edge_filter().unwrap();
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -3848,7 +4363,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src()
                 .name()
                 .eq("13")
-                .and(PropertyFilter::property("p1").eq("prop1"))
+                .and(EdgeFilter::property("p1").eq("prop1"))
                 .not();
             let expected_results = vec![
                 "1->2",
@@ -3877,7 +4392,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src()
                 .name()
                 .eq("13")
-                .and(PropertyFilter::property("p1").eq("prop1").not())
+                .and(EdgeFilter::property("p1").eq("prop1").not())
                 .not();
             let expected_results = vec![
                 "1->2",

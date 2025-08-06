@@ -4,7 +4,7 @@ use crate::{
         utils::time::{Interval, IntoTime},
     },
     db::api::view::{
-        internal::{GraphTimeSemanticsOps, InternalMaterialize, OneHopFilter},
+        internal::{BaseFilter, GraphTimeSemanticsOps, InternalMaterialize},
         time::internal::InternalTimeOps,
     },
 };
@@ -18,7 +18,7 @@ use std::{
 
 pub(crate) mod internal {
     use crate::{
-        db::{api::view::internal::OneHopFilter, graph::views::window_graph::WindowedGraph},
+        db::{api::view::internal::BaseFilter, graph::views::window_graph::WindowedGraph},
         prelude::{GraphViewOps, TimeOps},
     };
     use std::cmp::{max, min};
@@ -34,24 +34,20 @@ pub(crate) mod internal {
             end: Option<i64>,
         ) -> Self::InternalWindowedView;
     }
-    impl<'graph, E: OneHopFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
-        type InternalWindowedView = E::Filtered<WindowedGraph<E::FilteredGraph>>;
+    impl<'graph, E: BaseFilter<'graph> + 'graph> InternalTimeOps<'graph> for E {
+        type InternalWindowedView = E::Filtered<WindowedGraph<E::BaseGraph>>;
 
         fn timeline_start(&self) -> Option<i64> {
-            self.start()
-                .or_else(|| self.current_filter().earliest_time())
+            self.start().or_else(|| self.base_graph().earliest_time())
         }
 
         fn timeline_end(&self) -> Option<i64> {
-            self.end().or_else(|| {
-                self.current_filter()
-                    .latest_time()
-                    .map(|v| v.saturating_add(1))
-            })
+            self.end()
+                .or_else(|| self.base_graph().latest_time().map(|v| v.saturating_add(1)))
         }
 
         fn latest_t(&self) -> Option<i64> {
-            self.current_filter().latest_time()
+            self.base_graph().latest_time()
         }
 
         fn internal_window(
@@ -75,8 +71,8 @@ pub(crate) mod internal {
                 (Some(end), Some(start)) => Some(max(end, start)),
                 _ => actual_end,
             };
-            self.one_hop_filtered(WindowedGraph::new(
-                self.current_filter().clone(),
+            self.apply_filter(WindowedGraph::new(
+                self.base_graph().clone(),
                 actual_start,
                 actual_end,
             ))
@@ -161,15 +157,15 @@ pub trait TimeOps<'graph>:
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 }
 
-impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
+impl<'graph, V: BaseFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps<'graph> for V {
     type WindowedViewType = V::InternalWindowedView;
 
     fn start(&self) -> Option<i64> {
-        self.current_filter().view_start()
+        self.base_graph().view_start()
     }
 
     fn end(&self) -> Option<i64> {
-        self.current_filter().view_end()
+        self.base_graph().view_end()
     }
 
     fn start_date_time(&self) -> Option<DateTime<Utc>> {
@@ -218,7 +214,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     }
 
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
-        match self.current_filter().graph_type() {
+        match self.base_graph().graph_type() {
             GraphType::EventGraph => self.before(time.into_time() + 1),
             GraphType::PersistentGraph => self.at(time),
         }

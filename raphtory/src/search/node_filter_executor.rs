@@ -4,7 +4,7 @@ use crate::{
         graph::{
             node::NodeView,
             views::filter::model::{
-                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                node_filter::{CompositeNodeFilter, NodeFilter, NodeNameFilter, NodeTypeFilter},
                 property_filter::{PropertyRef, Temporal},
                 Filter,
             },
@@ -53,7 +53,7 @@ impl<'a> NodeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::NODE_ID.to_string());
         let node_ids = searcher.search(&query, &collector)?;
@@ -75,7 +75,7 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError>
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
@@ -96,7 +96,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -114,7 +114,7 @@ impl<'a> NodeFilterExecutor<'a> {
         graph: &G,
         prop_id: usize,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -143,7 +143,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -163,7 +163,7 @@ impl<'a> NodeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -194,7 +194,7 @@ impl<'a> NodeFilterExecutor<'a> {
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<NodeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
@@ -254,7 +254,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         match filter {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -294,7 +294,7 @@ impl<'a> NodeFilterExecutor<'a> {
         filter: &CompositeNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<'static, G, G>>, GraphError> {
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         self.filter_nodes_internal(graph, filter, limit, offset)
     }
 
