@@ -368,7 +368,7 @@ impl GqlMutableNode {
         true
     }
 
-    /// Get the non-mutable  Node 
+    /// Get the non-mutable  Node
     async fn node(&self) -> GqlNode {
         self.node.clone().into()
     }
@@ -468,7 +468,7 @@ impl GqlMutableEdge {
         self.edge.dst().into()
     }
 
-    /// Mark the edge as deleted at time  time 
+    /// Mark the edge as deleted at time  time
     async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {

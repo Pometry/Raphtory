@@ -65,8 +65,12 @@ impl IndexSpecInput {
 
 #[derive(SimpleObject)]
 pub struct GqlIndexSpec {
+    /// Returns node metadata.
     pub node_metadata: Vec<String>,
+    /// Returns node properties.
     pub node_properties: Vec<String>,
+    /// Returns edge metadata.
     pub edge_metadata: Vec<String>,
+    /// Returns edge properties.
     pub edge_properties: Vec<String>,
 }

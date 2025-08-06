@@ -419,7 +419,7 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Create a new empty Graph on the server at  path 
+    /// Create a new empty Graph on the server at  path
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be created

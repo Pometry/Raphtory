@@ -16,9 +16,9 @@ type CollectionOfMetaGraph {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit - The size of the page (number of items to fetch).
+	offset - The number of items to skip (defaults to 0).
+	page_index - The number of pages (of size limit) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -41,9 +41,9 @@ type CollectionOfNamespace {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit - The size of the page (number of items to fetch).
+	offset - The number of items to skip (defaults to 0).
+	page_index - The number of pages (of size limit) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -66,9 +66,9 @@ type CollectionOfNamespacedItem {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit - The size of the page (number of items to fetch).
+	offset - The number of items to skip (defaults to 0).
+	page_index - The number of pages (of size limit) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -81,7 +81,7 @@ type CollectionOfNamespacedItem {
 }
 
 """
-Entity associated with document
+Entity associated with document.
 """
 union DocumentEntity = Node | Edge
 
@@ -94,13 +94,13 @@ type Edge {
 	"""
 	defaultLayer: Edge!
 	"""
-	Returns a view of Edge containing all layers in the list of `names`.
+	Returns a view of Edge containing all layers in the list of  names .
 	
 	Errors if any of the layers do not exist.
 	"""
 	layers(names: [String!]!): Edge!
 	"""
-	Returns a view of Edge containing all layers except the excluded list of `names`.
+	Returns a view of Edge containing all layers except the excluded list of  names .
 	
 	Errors if any of the layers do not exist.
 	"""
@@ -130,13 +130,16 @@ type Edge {
 	"""
 	expanding(step: WindowDuration!): EdgeWindowSet!
 	"""
-	Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+	Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
 	"""
 	window(start: Int!, end: Int!): Edge!
 	"""
-	Creates a view of the Edge including all events at a specified `time`.
+	Creates a view of the Edge including all events at a specified  time .
 	"""
 	at(time: Int!): Edge!
+	"""
+	Returns the latest time of an edge.
+	"""
 	latest: Edge!
 	"""
 	Creates a view of the Edge including all events that have not been explicitly deleted at time.
@@ -151,23 +154,23 @@ type Edge {
 	"""
 	snapshotLatest: Edge!
 	"""
-	Creates a view of the Edge including all events before a specified `end` (exclusive).
+	Creates a view of the Edge including all events before a specified  end  (exclusive).
 	"""
 	before(time: Int!): Edge!
 	"""
-	Creates a view of the Edge including all events after a specified `start` (exclusive).
+	Creates a view of the Edge including all events after a specified  start  (exclusive).
 	"""
 	after(time: Int!): Edge!
 	"""
-	Shrinks both the `start` and `end` of the window.
+	Shrinks both the  start  and  end  of the window.
 	"""
 	shrinkWindow(start: Int!, end: Int!): Edge!
 	"""
-	Set the `start` of the window.
+	Set the  start  of the window.
 	"""
 	shrinkStart(start: Int!): Edge!
 	"""
-	Set the `end` of the window.
+	Set the  end  of the window.
 	"""
 	shrinkEnd(end: Int!): Edge!
 	"""
@@ -341,9 +344,9 @@ type EdgeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -358,11 +361,11 @@ type Edges {
 	"""
 	defaultLayer: Edges!
 	"""
-	Returns a view of Edge containing all layers in the list of `names`. Errors if any of the layers do not exist.
+	Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
 	"""
 	layers(names: [String!]!): Edges!
 	"""
-	Returns a view of Edge containing all layers except the excluded list of `names`. Errors if any of the layers do not exist.
+	Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
 	"""
 	excludeLayers(names: [String!]!): Edges!
 	"""
@@ -382,11 +385,11 @@ type Edges {
 	"""
 	expanding(step: WindowDuration!): EdgesWindowSet!
 	"""
-	Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+	Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
 	"""
 	window(start: Int!, end: Int!): Edges!
 	"""
-	Creates a view of the Edge including all events at a specified `time`.
+	Creates a view of the Edge including all events at a specified  time .
 	"""
 	at(time: Int!): Edges!
 	latest: Edges!
@@ -399,23 +402,23 @@ type Edges {
 	"""
 	snapshotLatest: Edges!
 	"""
-	Creates a view of the Edge including all events before a specified `end` (exclusive).
+	Creates a view of the Edge including all events before a specified  end  (exclusive).
 	"""
 	before(time: Int!): Edges!
 	"""
-	Creates a view of the Edge including all events after a specified `start` (exclusive).
+	Creates a view of the Edge including all events after a specified  start  (exclusive).
 	"""
 	after(time: Int!): Edges!
 	"""
-	Shrinks both the `start` and `end` of the window.
+	Shrinks both the  start  and  end  of the window.
 	"""
 	shrinkWindow(start: Int!, end: Int!): Edges!
 	"""
-	Set the `start` of the window.
+	Set the  start  of the window.
 	"""
 	shrinkStart(start: Int!): Edges!
 	"""
-	Set the `end` of the window.
+	Set the  end  of the window.
 	"""
 	shrinkEnd(end: Int!): Edges!
 	"""
@@ -432,16 +435,28 @@ type Edges {
 	Each new edge object contains only updates from the respective layers.
 	"""
 	explodeLayers: Edges!
+	"""
+	Specify a sort order.
+	"""
 	sorted(sortBys: [EdgeSortBy!]!): Edges!
+	"""
+	Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
+	"""
 	start: Int
+	"""
+	Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
+	"""
 	end: Int
+	"""
+	Returns the number of edges.
+	"""
 	count: Int!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -473,9 +488,9 @@ type EdgesWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -489,28 +504,82 @@ type EdgesWindowSet {
 Document in a vector graph
 """
 type GqlDocument {
+	"""
+	Entity associated with document.
+	"""
 	entity: DocumentEntity!
+	"""
+	Content of the document.
+	"""
 	content: String!
+	"""
+	Embedding vector.
+	"""
 	embedding: [Float!]!
 	score: Float!
 }
 
 type GqlIndexSpec {
+	"""
+	Returns node metadata.
+	"""
 	nodeMetadata: [String!]!
+	"""
+	Returns node properties.
+	"""
 	nodeProperties: [String!]!
+	"""
+	Returns edge metadata.
+	"""
 	edgeMetadata: [String!]!
+	"""
+	Returns edge properties.
+	"""
 	edgeProperties: [String!]!
 }
 
 type GqlVectorSelection {
+	"""
+	Returns a list of nodes in the current selection.
+	"""
 	nodes: [Node!]!
+	"""
+	Returns a list of edges in the current selection.
+	"""
 	edges: [Edge!]!
+	"""
+	Returns a list of documents in the current selection.
+	"""
 	getDocuments: [GqlDocument!]!
+	"""
+	Adds all the documents associated with the specified nodes to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
 	addNodes(nodes: [String!]!): GqlVectorSelection!
+	"""
+	Adds all the documents associated with the specified edges to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
 	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
+	"""
+	Add all the documents a specified number of hops away to the selection.
+	
+	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+	"""
 	expand(hops: Int!, window: Window): GqlVectorSelection!
+	"""
+	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+	"""
 	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+	"""
 	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+	"""
 	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 }
 
@@ -528,7 +597,7 @@ type Graph {
 	rolling(window: WindowDuration!, step: WindowDuration): GraphWindowSet!
 	expanding(step: WindowDuration!): GraphWindowSet!
 	"""
-	Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+	Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
 	"""
 	window(start: Int!, end: Int!): Graph!
 	at(time: Int!): Graph!
@@ -625,9 +694,9 @@ type GraphWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -755,27 +824,27 @@ type MutableEdge {
 	"""
 	dst: MutableNode!
 	"""
-	Mark the edge as deleted at time `time`
+	Mark the edge as deleted at time  time
 	"""
 	delete(time: Int!, layer: String): Boolean!
 	"""
 	Add metadata to the edge (errors if the value already exists)
 	
-	If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 	need to be specified again.
 	"""
 	addMetadata(properties: [PropertyInput!]!, layer: String): Boolean!
 	"""
 	Update metadata of the edge (existing values are overwritten)
 	
-	If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 	need to be specified again.
 	"""
 	updateMetadata(properties: [PropertyInput!]!, layer: String): Boolean!
 	"""
 	Add temporal property updates to the edge
 	
-	If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+	If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 	need to be specified again.
 	"""
 	addUpdates(time: Int!, properties: [PropertyInput!], layer: String): Boolean!
@@ -838,7 +907,7 @@ type MutableNode {
 	"""
 	success: Boolean!
 	"""
-	Get the non-mutable `Node`
+	Get the non-mutable  Node
 	"""
 	node: Node!
 	"""
@@ -997,9 +1066,9 @@ type NodeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -1036,9 +1105,9 @@ type Nodes {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -1073,9 +1142,9 @@ type NodesWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -1133,9 +1202,9 @@ type PathFromNode {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
@@ -1168,9 +1237,9 @@ type PathFromNodeWindowSet {
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
 	
-	`limit` - The size of the page (number of items to fetch).
-	`offset` - The number of items to skip (defaults to 0).
-	`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	limit  - The size of the page (number of items to fetch).
+	offset  - The number of items to skip (defaults to 0).
+	page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 	
 	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.

@@ -382,9 +382,9 @@ Returns a list of collection objects.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit - The size of the page (number of items to fetch).
+offset - The number of items to skip (defaults to 0).
+page_index - The number of pages (of size limit) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -448,9 +448,9 @@ Returns a list of collection objects.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit - The size of the page (number of items to fetch).
+offset - The number of items to skip (defaults to 0).
+page_index - The number of pages (of size limit) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -514,9 +514,9 @@ Returns a list of collection objects.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit - The size of the page (number of items to fetch).
+offset - The number of items to skip (defaults to 0).
+page_index - The number of pages (of size limit) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -578,7 +578,7 @@ Return a view of Edge containing only the default edge layer.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers in the list of `names`.
+Returns a view of Edge containing all layers in the list of  names .
 
 Errors if any of the layers do not exist.
 
@@ -594,7 +594,7 @@ Errors if any of the layers do not exist.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded list of `names`.
+Returns a view of Edge containing all layers except the excluded list of  names .
 
 Errors if any of the layers do not exist.
 
@@ -679,7 +679,7 @@ An expanding window is a window that grows by step size at each iteration.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
 
 </td>
 </tr>
@@ -698,7 +698,7 @@ Creates a view of the Edge including all events between the specified `start` (i
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events at a specified `time`.
+Creates a view of the Edge including all events at a specified  time .
 
 </td>
 </tr>
@@ -710,7 +710,11 @@ Creates a view of the Edge including all events at a specified `time`.
 <tr>
 <td colspan="2" valign="top"><strong id="edge.latest">latest</strong></td>
 <td valign="top"><a href="#edge">Edge</a>!</td>
-<td></td>
+<td>
+
+Returns the latest time of an edge.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edge.snapshotat">snapshotAt</strong></td>
@@ -744,7 +748,7 @@ This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events before a specified `end` (exclusive).
+Creates a view of the Edge including all events before a specified  end  (exclusive).
 
 </td>
 </tr>
@@ -758,7 +762,7 @@ Creates a view of the Edge including all events before a specified `end` (exclus
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events after a specified `start` (exclusive).
+Creates a view of the Edge including all events after a specified  start  (exclusive).
 
 </td>
 </tr>
@@ -772,7 +776,7 @@ Creates a view of the Edge including all events after a specified `start` (exclu
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Shrinks both the `start` and `end` of the window.
+Shrinks both the  start  and  end  of the window.
 
 </td>
 </tr>
@@ -791,7 +795,7 @@ Shrinks both the `start` and `end` of the window.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Set the `start` of the window.
+Set the  start  of the window.
 
 </td>
 </tr>
@@ -805,7 +809,7 @@ Set the `start` of the window.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Set the `end` of the window.
+Set the  end  of the window.
 
 </td>
 </tr>
@@ -1115,9 +1119,9 @@ Returns the list of metadata schemas for edges connecting these types of nodes
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1173,7 +1177,7 @@ Return a view of Edge containing only the default edge layer.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers in the list of `names`. Errors if any of the layers do not exist.
+Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
 
 </td>
 </tr>
@@ -1187,7 +1191,7 @@ Returns a view of Edge containing all layers in the list of `names`. Errors if a
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded list of `names`. Errors if any of the layers do not exist.
+Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
 
 </td>
 </tr>
@@ -1262,7 +1266,7 @@ Creates a WindowSet with the given step size using an expanding window. An expan
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
 
 </td>
 </tr>
@@ -1281,7 +1285,7 @@ Creates a view of the Edge including all events between the specified `start` (i
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events at a specified `time`.
+Creates a view of the Edge including all events at a specified  time .
 
 </td>
 </tr>
@@ -1323,7 +1327,7 @@ Creates a view of the Edge including all events that have not been explicitly de
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events before a specified `end` (exclusive).
+Creates a view of the Edge including all events before a specified  end  (exclusive).
 
 </td>
 </tr>
@@ -1337,7 +1341,7 @@ Creates a view of the Edge including all events before a specified `end` (exclus
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events after a specified `start` (exclusive).
+Creates a view of the Edge including all events after a specified  start  (exclusive).
 
 </td>
 </tr>
@@ -1351,7 +1355,7 @@ Creates a view of the Edge including all events after a specified `start` (exclu
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Shrinks both the `start` and `end` of the window.
+Shrinks both the  start  and  end  of the window.
 
 </td>
 </tr>
@@ -1370,7 +1374,7 @@ Shrinks both the `start` and `end` of the window.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Set the `start` of the window.
+Set the  start  of the window.
 
 </td>
 </tr>
@@ -1384,7 +1388,7 @@ Set the `start` of the window.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Set the `end` of the window.
+Set the  end  of the window.
 
 </td>
 </tr>
@@ -1430,7 +1434,11 @@ Each new edge object contains only updates from the respective layers.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.sorted">sorted</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Specify a sort order.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">sortBys</td>
@@ -1440,17 +1448,29 @@ Each new edge object contains only updates from the respective layers.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edges.page">page</strong></td>
@@ -1459,9 +1479,9 @@ Each new edge object contains only updates from the respective layers.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1515,9 +1535,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1564,17 +1584,29 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqldocument.entity">entity</strong></td>
 <td valign="top"><a href="#documententity">DocumentEntity</a>!</td>
-<td></td>
+<td>
+
+Entity associated with document.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqldocument.content">content</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Content of the document.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqldocument.embedding">embedding</strong></td>
 <td valign="top">[<a href="#float">Float</a>!]!</td>
-<td></td>
+<td>
+
+Embedding vector.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqldocument.score">score</strong></td>
@@ -1599,22 +1631,38 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlindexspec.nodemetadata">nodeMetadata</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns node metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlindexspec.nodeproperties">nodeProperties</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns node properties.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlindexspec.edgemetadata">edgeMetadata</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns edge metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlindexspec.edgeproperties">edgeProperties</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns edge properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -1634,22 +1682,40 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.nodes">nodes</strong></td>
 <td valign="top">[<a href="#node">Node</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of nodes in the current selection.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.edges">edges</strong></td>
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of edges in the current selection.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.getdocuments">getDocuments</strong></td>
 <td valign="top">[<a href="#gqldocument">GqlDocument</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of documents in the current selection.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.addnodes">addNodes</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Adds all the documents associated with the specified nodes to the current selection.
+
+Documents added by this call are assumed to have a score of 0.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodes</td>
@@ -1659,7 +1725,13 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.addedges">addEdges</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Adds all the documents associated with the specified edges to the current selection.
+
+Documents added by this call are assumed to have a score of 0.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">edges</td>
@@ -1669,7 +1741,13 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.expand">expand</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Add all the documents a specified number of hops away to the selection.
+
+Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">hops</td>
@@ -1684,7 +1762,11 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.expandentitiesbysimilarity">expandEntitiesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -1704,7 +1786,11 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.expandnodesbysimilarity">expandNodesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -1724,7 +1810,11 @@ Document in a vector graph
 <tr>
 <td colspan="2" valign="top"><strong id="gqlvectorselection.expandedgesbysimilarity">expandEdgesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -1871,7 +1961,7 @@ Document in a vector graph
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
+Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
 
 </td>
 </tr>
@@ -2355,9 +2445,9 @@ Export all nodes and edges from this graph view to another existing graph
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -2578,7 +2668,7 @@ Get the mutable destination node of the edge
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Mark the edge as deleted at time `time`
+Mark the edge as deleted at time  time
 
 </td>
 </tr>
@@ -2599,7 +2689,7 @@ Mark the edge as deleted at time `time`
 
 Add metadata to the edge (errors if the value already exists)
 
-If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 need to be specified again.
 
 </td>
@@ -2621,7 +2711,7 @@ need to be specified again.
 
 Update metadata of the edge (existing values are overwritten)
 
-If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 need to be specified again.
 
 </td>
@@ -2643,7 +2733,7 @@ need to be specified again.
 
 Add temporal property updates to the edge
 
-If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
 need to be specified again.
 
 </td>
@@ -2945,7 +3035,7 @@ Use to check if adding the node was successful
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Get the non-mutable `Node`
+Get the non-mutable  Node
 
 </td>
 </tr>
@@ -3473,9 +3563,9 @@ Returns the list of property schemas for this node
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3749,9 +3839,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3810,9 +3900,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4076,9 +4166,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4147,9 +4237,9 @@ will be returned.
 
 Fetch one "page" of items, optionally offset by a specified amount.
 
-`limit` - The size of the page (number of items to fetch).
-`offset` - The number of items to skip (defaults to 0).
-`page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+limit  - The size of the page (number of items to fetch).
+offset  - The number of items to skip (defaults to 0).
+page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -5969,7 +6059,7 @@ The `String` scalar type represents textual data, represented as UTF-8 character
 
 ### DocumentEntity
 
-Entity associated with document
+Entity associated with document.
 
 <table>
 <thead>
