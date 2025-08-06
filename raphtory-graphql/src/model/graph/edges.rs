@@ -59,13 +59,13 @@ impl GqlEdges {
         self.update(self.ee.default_layer())
     }
 
-    /// Returns a view of Edge containing all layers in the list of `names`. Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
-    /// Returns a view of Edge containing all layers except the excluded list of `names`. Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
@@ -121,12 +121,12 @@ impl GqlEdges {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified `start` (inclusive) and `end` (exclusive).
+    /// Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.window(start, end))
     }
 
-    /// Creates a view of the Edge including all events at a specified `time`.
+    /// Creates a view of the Edge including all events at a specified  time .
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }
@@ -145,27 +145,27 @@ impl GqlEdges {
         self.update(self.ee.snapshot_latest())
     }
 
-    /// Creates a view of the Edge including all events before a specified `end` (exclusive).
+    /// Creates a view of the Edge including all events before a specified  end  (exclusive).
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
     }
 
-    /// Creates a view of the Edge including all events after a specified `start` (exclusive).
+    /// Creates a view of the Edge including all events after a specified  start  (exclusive).
     async fn after(&self, time: i64) -> Self {
         self.update(self.ee.after(time))
     }
 
-    /// Shrinks both the `start` and `end` of the window.
+    /// Shrinks both the  start  and  end  of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.shrink_window(start, end))
     }
 
-    /// Set the `start` of the window.
+    /// Set the  start  of the window.
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.ee.shrink_start(start))
     }
 
-    /// Set the `end` of the window.
+    /// Set the  end  of the window.
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.ee.shrink_end(end))
     }
@@ -299,12 +299,12 @@ impl GqlEdges {
     //// TIME QUERIES //////
     ////////////////////////
 
-    /// Returns the earliest time that this edges is valid or `None` if the edges is valid for all times.
+    /// Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
     async fn start(&self) -> Option<i64> {
         self.ee.start()
     }
 
-    /// Returns the latest time the specified edges are valid or `None` if the edges is valid for all times.
+    /// Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
     async fn end(&self) -> Option<i64> {
         self.ee.end()
     }
@@ -321,9 +321,9 @@ impl GqlEdges {
 
     /// Fetch one "page" of items, optionally offset by a specified amount.
     ///
-    /// `limit` - The size of the page (number of items to fetch).
-    /// `offset` - The number of items to skip (defaults to 0).
-    /// `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    ///  limit  - The size of the page (number of items to fetch).
+    ///  offset  - The number of items to skip (defaults to 0).
+    ///  page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
     ///
     /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.

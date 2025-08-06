@@ -54,9 +54,9 @@ where
 
     /// Fetch one "page" of items, optionally offset by a specified amount.
     ///
-    /// `limit` - The size of the page (number of items to fetch).
-    /// `offset` - The number of items to skip (defaults to 0).
-    /// `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+    /// limit - The size of the page (number of items to fetch).
+    /// offset - The number of items to skip (defaults to 0).
+    /// page_index - The number of pages (of size limit) to skip (defaults to 0).
     ///
     /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.

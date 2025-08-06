@@ -157,7 +157,7 @@ impl PyRaphtoryClient {
     ///   variables (dict[str, Any], optional): a dict of variables present on the query and their values.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response.
+    ///    dict[str, Any]: The  data  field from the graphQL response.
     #[pyo3(signature = (query, variables = None))]
     pub(crate) fn query<'py>(
         &self,
@@ -183,7 +183,7 @@ impl PyRaphtoryClient {
     ///   overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+    ///    dict[str, Any]: The  data  field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
@@ -214,7 +214,7 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Upload graph file from a path `file_path` on the client
+    /// Upload graph file from a path  file_path  on the client
     ///
     /// Arguments:
     ///   path (str): the name of the graph
@@ -222,7 +222,7 @@ impl PyRaphtoryClient {
     ///   overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+    ///    dict[str, Any]: The  data  field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
@@ -293,7 +293,7 @@ impl PyRaphtoryClient {
         })
     }
 
-    /// Copy graph from a path `path` on the server to a `new_path` on the server
+    /// Copy graph from a path  path  on the server to a  new_path  on the server
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be copied
@@ -327,7 +327,7 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Move graph from a path `path` on the server to a `new_path` on the server
+    /// Move graph from a path  path  on the server to a  new_path  on the server
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be moved
@@ -361,7 +361,7 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Delete graph from a path `path` on the server
+    /// Delete graph from a path  path  on the server
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be deleted
@@ -390,7 +390,7 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Receive graph from a path `path` on the server
+    /// Receive graph from a path  path  on the server
     ///
     /// Note:
     ///     This downloads a copy of the graph. Modifications are not persistet to the server.
@@ -419,7 +419,7 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Create a new empty Graph on the server at `path`
+    /// Create a new empty Graph on the server at  path 
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be created
@@ -451,7 +451,7 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Get a RemoteGraph reference to a graph on the server at `path`
+    /// Get a RemoteGraph reference to a graph on the server at  path
     ///
     /// Arguments:
     ///   path (str): the path of the graph to be created
