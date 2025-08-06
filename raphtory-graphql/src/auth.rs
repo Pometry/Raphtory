@@ -1,7 +1,7 @@
 use crate::config::auth_config::{AuthConfig, PublicKey};
 use async_graphql::{
     async_trait,
-    extensions::{Extension, ExtensionContext, ExtensionFactory, NextExecute, NextParseQuery},
+    extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
     BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
