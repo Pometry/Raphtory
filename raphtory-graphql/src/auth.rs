@@ -1,10 +1,10 @@
 use crate::config::auth_config::{AuthConfig, PublicKey};
 use async_graphql::{
     async_trait,
-    extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
+    extensions::{Extension, ExtensionContext, ExtensionFactory, NextExecute, NextParseQuery},
     http::{create_multipart_mixed_stream, is_accept_multipart_mixed},
     parser::types::{ExecutableDocument, OperationType},
-    Context, Executor, ServerError, ServerResult, Variables,
+    BatchRequest, Context, Executor, ServerError, ServerResult, Variables,
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
@@ -15,6 +15,7 @@ use poem::{
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
+use tokio::sync::RwLock;
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -31,12 +32,18 @@ pub(crate) struct TokenClaims {
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
+    lock: RwLock<()>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
     pub fn new(executor: E, config: AuthConfig) -> Self {
-        Self { executor, config }
+        let lock = RwLock::new(());
+        Self {
+            executor,
+            config,
+            lock,
+        }
     }
 }
 
@@ -106,7 +113,27 @@ where
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
             let req = req.0.data(access);
-            Ok(GraphQLBatchResponse(self.executor.execute_batch(req).await).into_response())
+
+            let contains_update = match &req {
+                BatchRequest::Single(request) => request.query.contains("updateGraph"),
+                BatchRequest::Batch(requests) => requests
+                    .iter()
+                    .any(|request| request.query.contains("updateGraph")),
+            };
+
+            let response = if contains_update {
+                let guard = self.lock.write().await;
+                let response = self.executor.execute_batch(req).await;
+                drop(guard);
+                response
+            } else {
+                let guard = self.lock.read().await;
+                let response = self.executor.execute_batch(req).await;
+                drop(guard);
+                response
+            };
+
+            Ok(GraphQLBatchResponse(response).into_response())
         }
     }
 }
