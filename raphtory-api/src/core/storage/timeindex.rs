@@ -219,6 +219,10 @@ impl TimeIndexEntry {
         Self(t, s)
     }
 
+    pub fn set_index(&mut self, i: usize) {
+        self.1 = i
+    }
+
     pub fn start(t: i64) -> Self {
         Self(t, 0)
     }
@@ -245,10 +249,6 @@ impl TimeIndexEntry {
 
     pub fn end(t: i64) -> Self {
         Self(t, usize::MAX)
-    }
-
-    pub fn saturating_add(&self, i: i64) -> Self {
-        Self(self.0.saturating_add(i), self.1)
     }
 }
 

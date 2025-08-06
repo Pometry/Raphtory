@@ -1,13 +1,14 @@
 use crate::core::{
     storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
-    utils::time::{IntoTime, TryIntoTimeNeedsSecondaryIndex},
+    utils::time::{IntoTime, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
-use pyo3::{exceptions::PyException, prelude::*};
-use pyo3::exceptions::{PyRuntimeError, PyTypeError};
-use pyo3::types::PyDateTime;
+use pyo3::{
+    exceptions::{PyException, PyRuntimeError, PyTypeError},
+    prelude::*,
+    types::PyDateTime,
+};
 use serde::Serialize;
-use crate::core::utils::time::TryIntoTime;
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyTime;
@@ -42,6 +43,17 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
                 ));
             }
             return Ok(TimeIndexEntry::from(float_ms_trunc as i64));
+        }
+        // Handle list/tuple case: [timestamp, secondary_index]
+        if let Ok(seq) = time.extract::<Vec<i64>>() {
+            if seq.len() == 2 {
+                return Ok(TimeIndexEntry::new(seq[0], seq[1] as usize));
+            } else {
+                return Err(PyTypeError::new_err(format!(
+                    "List/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
+                    seq.len()
+                )));
+            }
         }
         if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
             return Ok(TimeIndexEntry::from(parsed_datetime.timestamp_millis()));

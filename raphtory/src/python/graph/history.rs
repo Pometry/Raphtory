@@ -2,7 +2,11 @@ use crate::{
     db::api::view::history::*,
     python::{
         graph::{edge::PyEdge, node::PyNode},
-        types::{iterable::FromIterable, repr::Repr, wrappers::iterators::PyBorrowingIterator},
+        types::{
+            iterable::FromIterable,
+            repr::{iterator_repr, Repr},
+            wrappers::iterators::PyBorrowingIterator,
+        },
     },
 };
 use chrono::{DateTime, Utc};
@@ -15,7 +19,6 @@ use std::{
     hash::{Hash, Hasher},
     sync::Arc,
 };
-use crate::python::types::repr::iterator_repr;
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]

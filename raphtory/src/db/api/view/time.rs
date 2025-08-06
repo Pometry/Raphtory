@@ -210,7 +210,10 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         let start = time.into_time();
-        self.internal_window(Some(start), Some(start.saturating_add(1)))
+        self.internal_window(
+            Some(start),
+            Some(TimeIndexEntry::new(start.t().saturating_add(1), start.i())),
+        )
     }
 
     fn latest(&self) -> Self::WindowedViewType {
@@ -236,7 +239,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     }
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
-        let start = start.into_time().saturating_add(1);
+        let start_time = start.into_time();
+        let start = TimeIndexEntry::new(start_time.t().saturating_add(1), start_time.i());
         self.internal_window(Some(start), None)
     }
 

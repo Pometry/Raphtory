@@ -1,9 +1,7 @@
-use crate::{
-    core::storage::timeindex::{AsTime, TimeIndexEntry},
-};
-use chrono::{DateTime, NaiveDate, NaiveDateTime, ParseError, TimeZone};
+use crate::core::storage::timeindex::{AsTime, TimeIndexEntry};
 #[cfg(feature = "python")]
 use crate::python::error::adapt_err_value;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, ParseError, TimeZone};
 #[cfg(feature = "python")]
 use pyo3::PyErr;
 use std::{convert::Infallible, num::ParseIntError};
@@ -67,6 +65,14 @@ impl IntoTime for NaiveDateTime {
 impl IntoTime for TimeIndexEntry {
     fn into_time(self) -> TimeIndexEntry {
         self
+    }
+}
+
+impl<T: IntoTime> IntoTime for (T, usize) {
+    fn into_time(self) -> TimeIndexEntry {
+        let mut time = self.0.into_time();
+        time.set_index(self.1);
+        time
     }
 }
 
