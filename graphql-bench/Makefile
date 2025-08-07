@@ -10,7 +10,8 @@ data/apache/master/graph:
 
 bench-local: data/apache/master/graph
 	pnpm install --frozen-lockfile
-	pnpm concurrently --kill-others --success last --names 'raphtory,bench' 'raphtory server --work-dir data/apache' 'pnpm bench'
+	pnpm build
+	pnpm concurrently --kill-others --success last --names 'raphtory,bench' 'python server.py' 'k6 run -q --out csv=output.csv.gz dist/test.js'
 	python process-k6-output.py
 
 # call this like: make bench-e2-standard-16

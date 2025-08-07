@@ -22,8 +22,8 @@ const stagesInMinutes: { duration: number; target: number }[] = [
     // { duration, target: 400 },
     // { duration, target: 800 },
     // { duration, target: 1600 },
-    { duration, target: 3200 },
-    // { duration, target: 6400 },
+    // { duration, target: 3200 },
+    { duration, target: 6400 },
     // { duration, target: 12800 },
     // { duration, target: 25600 },
     // { duration, target: 51200 },
@@ -35,6 +35,7 @@ const minutesPerScenario =
     stagesInMinutes.map(({ duration }) => duration).reduce((a, b) => a + b) + 1;
 
 const execs = [
+    // writeRequest70percent,
     // addVectorisedNode,
     randomNodePage,
     // nodePropsByName,
@@ -165,6 +166,29 @@ export function setup(): SetupData {
         countNodes: graphResponse.data.graph.countNodes,
         countEdges: graphResponse.data.graph.countEdges,
     };
+}
+
+export function writeRequest70percent(input: SetupData) {
+    const random = Math.random();
+    if (random > 0.7) {
+      const id = Math.random().toString();
+      fetchAndCheck({
+          updateGraph: {
+              __args: {
+                  path: 'master',
+              },
+              addNode: {
+                  __args: {
+                      name: id,
+                      time: 0,
+                  },
+                  success: true,
+              },
+          },
+      });
+    } else {
+      randomNodePage(input)
+    }
 }
 
 export function addVectorisedNode() {
