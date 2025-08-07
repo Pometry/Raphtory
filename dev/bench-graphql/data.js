@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754583009705,
+  "lastUpdate": 1754583703331,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -49,6 +49,31 @@ window.BENCHMARK_DATA = {
           {
             "name": "randomNodePage",
             "value": 197,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Pometry",
+            "username": "Pometry"
+          },
+          "committer": {
+            "name": "Pometry",
+            "username": "Pometry"
+          },
+          "id": "df525e1ba9fb3c0d5e5699e1e7d0d65054dbe000",
+          "message": "graphql bench on CI and vector bench",
+          "timestamp": "2025-08-07T13:11:29Z",
+          "url": "https://github.com/Pometry/Raphtory/pull/2198/commits/df525e1ba9fb3c0d5e5699e1e7d0d65054dbe000"
+        },
+        "date": 1754583702131,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "randomNodePage",
+            "value": 98,
             "unit": "req/s"
           }
         ]
