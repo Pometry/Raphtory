@@ -247,36 +247,44 @@ impl GqlGraph {
     //// TIME QUERIES //////
     ////////////////////////
 
+    /// Returns the timestamp for the creation of the graph.
     async fn created(&self) -> Result<i64, GraphError> {
         self.path.created_async().await
     }
 
+    /// Returns the graph's last opened timestamp.
     async fn last_opened(&self) -> Result<i64, GraphError> {
         self.path.last_opened_async().await
     }
 
+    /// Returns the graph's last updated timestamp.
     async fn last_updated(&self) -> Result<i64, GraphError> {
         self.path.last_updated_async().await
     }
 
+    /// Returns the timestamp of the earliest activity in the graph.
     async fn earliest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.earliest_time()).await
     }
 
+    /// Returns the timestamp of the latest activity in the graph.
     async fn latest_time(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.latest_time()).await
     }
 
+    /// Returns the earliest time that this graph is valid.
     async fn start(&self) -> Option<i64> {
         self.graph.start()
     }
 
+    /// Returns the latest time that this graph is valid or None if the graph is valid for all times.
     async fn end(&self) -> Option<i64> {
         self.graph.end()
     }
 
+    /// Returns the earliest time that any edge in this graph is valid.
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -293,6 +301,7 @@ impl GqlGraph {
         .await
     }
 
+    /// /// Returns the latest time that any edge in this graph is valid.
     async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -314,16 +323,19 @@ impl GqlGraph {
     //////// COUNTERS //////
     ////////////////////////
 
+    /// Returns the number of edges in the graph.
     async fn count_edges(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_edges()).await
     }
 
+    /// Returns the number of temporal edges in the graph.
     async fn count_temporal_edges(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_temporal_edges()).await
     }
 
+    /// Returns the number of nodes in the graph.
     async fn count_nodes(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.graph.count_nodes()).await
@@ -333,10 +345,12 @@ impl GqlGraph {
     //// EXISTS CHECKERS ///
     ////////////////////////
 
+    /// Returns true if the graph contains the specified node.
     async fn has_node(&self, name: String) -> bool {
         self.graph.has_node(name)
     }
 
+    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. 
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
@@ -352,11 +366,12 @@ impl GqlGraph {
     //////// GETTERS ///////
     ////////////////////////
 
+    /// Gets the node with the specified id.
     async fn node(&self, name: String) -> Option<GqlNode> {
         self.graph.node(name).map(|node| node.into())
     }
 
-    /// query (optionally a subset of) the nodes in the graph
+    /// Gets (optionally a subset of) the nodes in the graph.
     async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
         let nodes = self.graph.nodes();
         match ids {
@@ -365,10 +380,12 @@ impl GqlGraph {
         }
     }
 
+    /// Gets the edge with the specified source and destination nodes.
     async fn edge(&self, src: String, dst: String) -> Option<GqlEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
+    /// Gets the edges in the graph.
     async fn edges<'a>(&self) -> GqlEdges {
         GqlEdges::new(self.graph.edges())
     }
@@ -377,10 +394,12 @@ impl GqlGraph {
     /////// PROPERTIES /////
     ////////////////////////
 
+    /// Returns the properties of the graph.
     async fn properties(&self) -> GqlProperties {
         Into::<DynProperties>::into(self.graph.properties()).into()
     }
 
+    /// Returns the metadata of the graph.
     async fn metadata(&self) -> GqlMetadata {
         self.graph.metadata().into()
     }
@@ -392,10 +411,12 @@ impl GqlGraph {
     //These name/path functions basically can only fail
     //if someone write non-utf characters as a filename
 
+    /// Returns the graph name.
     async fn name(&self) -> Result<String, GraphError> {
         self.path.get_graph_name()
     }
 
+    /// Returns path of graph.
     async fn path(&self) -> Result<String, GraphError> {
         Ok(self
             .path
@@ -407,6 +428,7 @@ impl GqlGraph {
             .to_owned())
     }
 
+    /// Returns namespace of graph.
     async fn namespace(&self) -> Result<String, GraphError> {
         Ok(self
             .path
@@ -419,6 +441,7 @@ impl GqlGraph {
             .to_owned())
     }
 
+    /// Returns the graph schema.
     async fn schema(&self) -> GraphSchema {
         let self_clone = self.clone();
         blocking_compute(move || GraphSchema::new(&self_clone.graph)).await
@@ -506,6 +529,7 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
+    
     async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
         #[cfg(feature = "search")]
         {
