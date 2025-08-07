@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754582993878,
+  "lastUpdate": 1754583684857,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -138,6 +138,62 @@ window.BENCHMARK_DATA = {
             "name": "temporal_motifs/temporal_motifs",
             "value": 22484316,
             "range": "± 131815",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Pometry",
+            "username": "Pometry"
+          },
+          "committer": {
+            "name": "Pometry",
+            "username": "Pometry"
+          },
+          "id": "df525e1ba9fb3c0d5e5699e1e7d0d65054dbe000",
+          "message": "graphql bench on CI and vector bench",
+          "timestamp": "2025-08-07T13:11:29Z",
+          "url": "https://github.com/Pometry/Raphtory/pull/2198/commits/df525e1ba9fb3c0d5e5699e1e7d0d65054dbe000"
+        },
+        "date": 1754583683662,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "local_triangle_count/local_triangle_count",
+            "value": 714622,
+            "range": "± 38406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "local_clustering_coefficient/local_clustering_coefficient",
+            "value": 97318,
+            "range": "± 1422",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_clustering_coeff/graphgen_large_clustering_coeff/Graph(num_nodes=500004, num_edges=20...",
+            "value": 3958462627,
+            "range": "± 147433351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_pagerank/graphgen_large_pagerank/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 205387530,
+            "range": "± 2895215",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "graphgen_large_concomp/graphgen_large_concomp/Graph(num_nodes=500004, num_edges=2000000)",
+            "value": 259575514,
+            "range": "± 2621896",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "temporal_motifs/temporal_motifs",
+            "value": 22390354,
+            "range": "± 996537",
             "unit": "ns/iter"
           }
         ]
