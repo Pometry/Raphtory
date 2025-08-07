@@ -221,6 +221,10 @@ impl<'a> EdgeFilterExecutor<'a> {
                 offset,
                 LatestEdgePropertyFilterCollector::new,
             ),
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
+                // TODO: Do we need to impl FirstNodePropertyFilterCollector
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
         }
     }
 

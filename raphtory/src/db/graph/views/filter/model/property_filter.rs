@@ -42,6 +42,7 @@ use std::{collections::HashSet, fmt, fmt::Display, marker::PhantomData, ops::Der
 pub enum Temporal {
     Any,
     Latest,
+    First,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,6 +97,9 @@ impl<M> Display for PropertyFilter<M> {
             PropertyRef::TemporalProperty(name, Temporal::Any) => format!("temporal_any({})", name),
             PropertyRef::TemporalProperty(name, Temporal::Latest) => {
                 format!("temporal_latest({})", name)
+            }
+            PropertyRef::TemporalProperty(name, Temporal::First) => {
+                format!("temporal_first({})", name)
             }
         };
 
@@ -379,6 +383,15 @@ impl<M> PropertyFilter<M> {
                         .temporal()
                         .get_by_id(prop_id)
                         .and_then(|prop_view| prop_view.latest())
+                });
+                self.matches(prop_value.as_ref())
+            }
+            PropertyRef::TemporalProperty(_, Temporal::First) => {
+                let prop_value = t_prop_id.and_then(|prop_id| {
+                    props
+                        .temporal()
+                        .get_by_id(prop_id)
+                        .and_then(|prop_view| prop_view.first())
                 });
                 self.matches(prop_value.as_ref())
             }
@@ -697,6 +710,18 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
 }
 
 #[derive(Clone)]
+pub struct FirstTemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
+    for FirstTemporalPropertyFilterBuilder<M>
+{
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::First)
+    }
+}
+
+#[derive(Clone)]
 pub struct TemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
 
 impl<M> TemporalPropertyFilterBuilder<M> {
@@ -706,5 +731,9 @@ impl<M> TemporalPropertyFilterBuilder<M> {
 
     pub fn latest(self) -> LatestTemporalPropertyFilterBuilder<M> {
         LatestTemporalPropertyFilterBuilder(self.0, PhantomData)
+    }
+
+    pub fn first(self) -> FirstTemporalPropertyFilterBuilder<M> {
+        FirstTemporalPropertyFilterBuilder(self.0, PhantomData)
     }
 }

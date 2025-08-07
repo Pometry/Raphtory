@@ -22,7 +22,7 @@ use tokio::io::Result as IoResult;
 #[derive(Parser)]
 #[command(about = "Run the GraphServer with specified configurations")]
 struct Args {
-    #[arg(long, default_value = "graphs")]
+    #[arg(long, default_value = "/tmp/graphs")]
     working_dir: PathBuf,
 
     // #[arg(long, env, default_value_t = DEFAULT_PORT)]

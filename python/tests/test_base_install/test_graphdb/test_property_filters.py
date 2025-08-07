@@ -89,9 +89,8 @@ def test_property_filter_edges():
     # edge case: temporal filtering before time 5
     filter_expr = filter.Edge.property("test_str") == "second"
     expected_ids = [(2, 3)]
-    assert sorted(graph.before(5).filter(filter_expr).edges.id) == sorted(
-        expected_ids
-    )
+    assert sorted(graph.before(5).filter(filter_expr).edges.id) == sorted(expected_ids)
+
 
 def test_filter_exploded_edges():
     graph = build_graph()
@@ -120,6 +119,4 @@ def test_filter_exploded_edges():
     ]
 
     for filter_expr, expected_ids in test_cases:
-        assert sorted(graph.filter(filter_expr).edges.id) == sorted(
-            expected_ids
-        )
+        assert sorted(graph.filter(filter_expr).edges.id) == sorted(expected_ids)

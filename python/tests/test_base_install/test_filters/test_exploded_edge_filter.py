@@ -148,23 +148,37 @@ def test_with_edge_node_filter(GraphClass):
     weight_e3 = filter.ExplodedEdge.property("weight") == 3
     name_filter = filter.Node.name() == "2"
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 | name_filter).edges.explode()]
-    expected = [('1', '2'), ('1', '2'), ('1', '2'), ('1', '3'), ('1', '3'), ('1', '3')]
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(weight_e3 | name_filter).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter | weight_e3).edges.explode()]
-    expected = [('1', '2'), ('1', '2'), ('1', '2'), ('1', '3'), ('1', '3'), ('1', '3')]
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(name_filter | weight_e3).edges.explode()
+    ]
+    expected = [("1", "2"), ("1", "2"), ("1", "2"), ("1", "3"), ("1", "3"), ("1", "3")]
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(weight_e3 & name_filter).edges.explode()]
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(weight_e3 & name_filter).edges.explode()
+    ]
     expected = []
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter & weight_e3).edges.explode()]
+    actual = [
+        (edge.src.name, edge.dst.name)
+        for edge in g.filter(name_filter & weight_e3).edges.explode()
+    ]
     expected = []
     assert sorted(actual) == sorted(expected)
 
-    actual = [(edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges.explode()]
+    actual = [
+        (edge.src.name, edge.dst.name) for edge in g.filter(name_filter).edges.explode()
+    ]
     expected = []
     assert sorted(actual) == sorted(expected)
 
@@ -282,8 +296,14 @@ def test_all_property_types(GraphClass):
         (filter.ExplodedEdge.property("weight").is_not_in([3]), 4),
         (filter.ExplodedEdge.property("weight").is_some(), 6),
         (filter.ExplodedEdge.property("weight").is_none(), 0),
-        (filter.ExplodedEdge.property("weight").is_in(["1", 2]), 2),  # actually does the filter
-        (filter.ExplodedEdge.property("weight").is_not_in(["3"]), 6),  # actually does the filter
+        (
+            filter.ExplodedEdge.property("weight").is_in(["1", 2]),
+            2,
+        ),  # actually does the filter
+        (
+            filter.ExplodedEdge.property("weight").is_not_in(["3"]),
+            6,
+        ),  # actually does the filter
         # confidence (float)
         (filter.ExplodedEdge.property("confidence") == 0.95, 1),
         (filter.ExplodedEdge.property("confidence") != 0.80, 5),
@@ -359,8 +379,18 @@ def test_all_property_types(GraphClass):
         # tags (list of str)
         (filter.ExplodedEdge.property("tags") == ["team_b", "remote"], 1),
         (filter.ExplodedEdge.property("tags") != ["team_b", "remote"], 5),
-        (filter.ExplodedEdge.property("tags").is_in([["team_b", "remote"], ["team_a"]]), 2),
-        (filter.ExplodedEdge.property("tags").is_not_in([["team_b", "remote"], ["team_a"]]), 4),
+        (
+            filter.ExplodedEdge.property("tags").is_in(
+                [["team_b", "remote"], ["team_a"]]
+            ),
+            2,
+        ),
+        (
+            filter.ExplodedEdge.property("tags").is_not_in(
+                [["team_b", "remote"], ["team_a"]]
+            ),
+            4,
+        ),
         (filter.ExplodedEdge.property("tags").is_some(), 6),
         (filter.ExplodedEdge.property("tags").is_none(), 0),
         (filter.ExplodedEdge.property("tags").is_in([1, 2]), 0),
@@ -368,7 +398,10 @@ def test_all_property_types(GraphClass):
             filter.ExplodedEdge.property("tags").is_in([1, 2, ["team_a", 0]]),
             0,
         ),  # actually does the filter, maybe should be a type error on the heterogeneous list
-        (filter.ExplodedEdge.property("tags").is_not_in([3]), 6),  # actually does the filter
+        (
+            filter.ExplodedEdge.property("tags").is_not_in([3]),
+            6,
+        ),  # actually does the filter
         # meta (dict)
         (filter.ExplodedEdge.property("meta") == {"location": "SF", "level": 2}, 1),
         (filter.ExplodedEdge.property("meta") != {"location": "SF", "level": 2}, 5),
@@ -487,8 +520,14 @@ def test_all_property_types(GraphClass):
             filter.ExplodedEdge.property("tags").fuzzy_search("blah", 2, False),
             "Operator FUZZY_SEARCH(2,false) is only supported for strings.",
         ),
-        (filter.ExplodedEdge.property("tags") < ["x"], "Comparison not implemented for List<Str>"),
-        (filter.ExplodedEdge.property("tags") > ["a"], "Comparison not implemented for List<Str>"),
+        (
+            filter.ExplodedEdge.property("tags") < ["x"],
+            "Comparison not implemented for List<Str>",
+        ),
+        (
+            filter.ExplodedEdge.property("tags") > ["a"],
+            "Comparison not implemented for List<Str>",
+        ),
         (
             filter.ExplodedEdge.property("tags") <= ["team_b"],
             "Comparison not implemented for List<Str>",
@@ -516,7 +555,8 @@ def test_all_property_types(GraphClass):
             "Comparison not implemented for Map",
         ),
         (
-            filter.ExplodedEdge.property("meta") < {"location": "SF", "level": 2, "role": "blah"},
+            filter.ExplodedEdge.property("meta")
+            < {"location": "SF", "level": 2, "role": "blah"},
             "Comparison not implemented for Map",
         ),  # check subset of keys also raise the same error
         (
@@ -750,8 +790,14 @@ def test_all_property_types(GraphClass):
             filter.ExplodedEdge.property("meta") != 3,
             """Wrong type for property meta: expected Map""",
         ),
-        (filter.ExplodedEdge.property("meta") < 3, """Wrong type for property meta: expected Map"""),
-        (filter.ExplodedEdge.property("meta") > 1, """Wrong type for property meta: expected Map"""),
+        (
+            filter.ExplodedEdge.property("meta") < 3,
+            """Wrong type for property meta: expected Map""",
+        ),
+        (
+            filter.ExplodedEdge.property("meta") > 1,
+            """Wrong type for property meta: expected Map""",
+        ),
         (
             filter.ExplodedEdge.property("meta") <= 2,
             """Wrong type for property meta: expected Map""",
@@ -785,12 +831,36 @@ def test_all_property_types(GraphClass):
 def test_temporal_constant(GraphClass):
 
     g = GraphClass()
-    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
-    g.add_edge(2, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(
+        1,
+        1,
+        2,
+        layer="blue",
+        properties={"weight": 1, "name": "bob", "p20": "Gold_ship"},
+    )
+    g.add_edge(
+        2,
+        1,
+        2,
+        layer="blue",
+        properties={"weight": 2, "name": "dave", "p20": "Gold_ship"},
+    )
     g.add_edge(3, 1, 2, layer="blue", properties={"weight": 3, "name": "greg"})
 
-    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1, "name": "bob"})
-    g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2, "name": "dave"})
+    g.add_edge(
+        1,
+        1,
+        3,
+        layer="blue",
+        properties={"weight": 1, "name": "bob", "p20": "Old_boat"},
+    )
+    g.add_edge(
+        2,
+        1,
+        3,
+        layer="blue",
+        properties={"weight": 2, "name": "dave", "p20": "Gold_ship"},
+    )
     g.add_edge(3, 1, 3, layer="red", properties={"weight": 3, "name": "greg"})
 
     # Temporal shoudl act exactly the same as non-temporal
@@ -815,6 +885,8 @@ def test_temporal_constant(GraphClass):
         (filter.ExplodedEdge.property("weight").temporal().latest().is_not_in([3]), 4),
         (filter.ExplodedEdge.property("weight").temporal().latest().is_some(), 6),
         (filter.ExplodedEdge.property("weight").temporal().latest().is_none(), 0),
+        (filter.ExplodedEdge.property("p20").temporal().first().starts_with("Old"), 1),
+        (filter.ExplodedEdge.property("p20").temporal().first().ends_with("boat"), 1),
     ]
 
     for i, (expr, expected) in enumerate(test_cases):

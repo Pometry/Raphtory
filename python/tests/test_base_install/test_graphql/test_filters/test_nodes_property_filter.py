@@ -887,3 +887,39 @@ def test_nodes_property_filter_ends_with(graph):
     """
     expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "c"}]}}}}
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_temporal_first_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                    temporalProperty: {
+                      name: "prop3",
+                      temporal: FIRST,
+                      operator: STARTS_WITH
+                      value: { str: "abc" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "nodeFilter": {
+                    "list": [{"name": "a"}, {"name": "b"}, {"name": "c"}, {"name": "d"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)

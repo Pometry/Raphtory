@@ -216,6 +216,10 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                 offset,
                 ExplodedEdgePropertyFilterCollector::new,
             ),
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
+                // TODO: Do we need to impl FirstNodePropertyFilterCollector
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
         }
     }
 

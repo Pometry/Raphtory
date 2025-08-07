@@ -1030,6 +1030,7 @@ input TemporalPropertyInput {
 enum TemporalType {
 	ANY
 	LATEST
+	FIRST
 }
 
 scalar Upload

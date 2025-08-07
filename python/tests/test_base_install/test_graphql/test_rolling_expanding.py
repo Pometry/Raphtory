@@ -478,7 +478,7 @@ def test_nodes():
                                         "end": 3,
                                         "id": "1",
                                         "latestTime": 2,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -490,7 +490,7 @@ def test_nodes():
                                         "end": 4,
                                         "id": "1",
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -502,7 +502,7 @@ def test_nodes():
                                         "end": 5,
                                         "id": "1",
                                         "latestTime": 4,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -514,10 +514,10 @@ def test_nodes():
                                         "end": 6,
                                         "id": "1",
                                         "latestTime": 4,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
-                            }
+                            },
                         ],
                         "page": [
                             {
@@ -528,7 +528,7 @@ def test_nodes():
                                         "end": 5,
                                         "id": "1",
                                         "latestTime": 4,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -540,11 +540,11 @@ def test_nodes():
                                         "end": 6,
                                         "id": "1",
                                         "latestTime": 4,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
-                            }
-                        ]
+                            },
+                        ],
                     }
                 },
                 "rolling": {
@@ -557,7 +557,7 @@ def test_nodes():
                                     "earliestTime": 1,
                                     "end": 2,
                                     "id": "1",
-                                    "start": 1
+                                    "start": 1,
                                 }
                             ]
                         },
@@ -568,7 +568,7 @@ def test_nodes():
                                     "earliestTime": 2,
                                     "end": 3,
                                     "id": "1",
-                                    "start": 2
+                                    "start": 2,
                                 }
                             ]
                         },
@@ -579,7 +579,7 @@ def test_nodes():
                                     "earliestTime": 3,
                                     "end": 4,
                                     "id": "1",
-                                    "start": 3
+                                    "start": 3,
                                 }
                             ]
                         },
@@ -590,7 +590,7 @@ def test_nodes():
                                     "earliestTime": 4,
                                     "end": 5,
                                     "id": "1",
-                                    "start": 4
+                                    "start": 4,
                                 }
                             ]
                         },
@@ -601,10 +601,10 @@ def test_nodes():
                                     "earliestTime": None,
                                     "end": 6,
                                     "id": "1",
-                                    "start": 5
+                                    "start": 5,
                                 }
                             ]
-                        }
+                        },
                     ],
                     "page": [
                         {
@@ -614,7 +614,7 @@ def test_nodes():
                                     "earliestTime": 4,
                                     "end": 5,
                                     "id": "1",
-                                    "start": 4
+                                    "start": 4,
                                 }
                             ]
                         },
@@ -625,12 +625,12 @@ def test_nodes():
                                     "earliestTime": None,
                                     "end": 6,
                                     "id": "1",
-                                    "start": 5
+                                    "start": 5,
                                 }
                             ]
-                        }
-                    ]
-                }
+                        },
+                    ],
+                },
             }
         }
     }
@@ -923,89 +923,31 @@ def test_edge():
                     "expanding": {
                         "count": 4,
                         "list": [
-                            {
-                                "earliestTime": 2,
-                                "end": 3,
-                                "latestTime": 2,
-                                "start": 2
-                            },
-                            {
-                                "earliestTime": 2,
-                                "end": 4,
-                                "latestTime": 3,
-                                "start": 2
-                            },
-                            {
-                                "earliestTime": 2,
-                                "end": 5,
-                                "latestTime": 3,
-                                "start": 2
-                            },
-                            {
-                                "earliestTime": 2,
-                                "end": 6,
-                                "latestTime": 3,
-                                "start": 2
-                            }
+                            {"earliestTime": 2, "end": 3, "latestTime": 2, "start": 2},
+                            {"earliestTime": 2, "end": 4, "latestTime": 3, "start": 2},
+                            {"earliestTime": 2, "end": 5, "latestTime": 3, "start": 2},
+                            {"earliestTime": 2, "end": 6, "latestTime": 3, "start": 2},
                         ],
                         "page": [
-                            {
-                                "earliestTime": 2,
-                                "end": 5,
-                                "latestTime": 3,
-                                "start": 2
-                            },
-                            {
-                                "earliestTime": 2,
-                                "end": 6,
-                                "latestTime": 3,
-                                "start": 2
-                            }
-                        ]
+                            {"earliestTime": 2, "end": 5, "latestTime": 3, "start": 2},
+                            {"earliestTime": 2, "end": 6, "latestTime": 3, "start": 2},
+                        ],
                     }
                 },
                 "rolling": {
                     "count": 5,
                     "list": [
-                        {
-                            "earliestTime": 1,
-                            "end": 2,
-                            "start": 1
-                        },
-                        {
-                            "earliestTime": 2,
-                            "end": 3,
-                            "start": 2
-                        },
-                        {
-                            "earliestTime": 3,
-                            "end": 4,
-                            "start": 3
-                        },
-                        {
-                            "earliestTime": None,
-                            "end": 5,
-                            "start": 4
-                        },
-                        {
-                            "earliestTime": None,
-                            "end": 6,
-                            "start": 5
-                        }
+                        {"earliestTime": 1, "end": 2, "start": 1},
+                        {"earliestTime": 2, "end": 3, "start": 2},
+                        {"earliestTime": 3, "end": 4, "start": 3},
+                        {"earliestTime": None, "end": 5, "start": 4},
+                        {"earliestTime": None, "end": 6, "start": 5},
                     ],
                     "page": [
-                        {
-                            "earliestTime": None,
-                            "end": 5,
-                            "start": 4
-                        },
-                        {
-                            "earliestTime": None,
-                            "end": 6,
-                            "start": 5
-                        }
-                    ]
-                }
+                        {"earliestTime": None, "end": 5, "start": 4},
+                        {"earliestTime": None, "end": 6, "start": 5},
+                    ],
+                },
             }
         }
     }
@@ -1080,7 +1022,7 @@ def test_edges():
                                         "end": 3,
                                         "id": ["1", "2"],
                                         "latestTime": 2,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -1091,7 +1033,7 @@ def test_edges():
                                         "end": 4,
                                         "id": ["1", "2"],
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -1102,7 +1044,7 @@ def test_edges():
                                         "end": 5,
                                         "id": ["1", "2"],
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -1113,10 +1055,10 @@ def test_edges():
                                         "end": 6,
                                         "id": ["1", "2"],
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
-                            }
+                            },
                         ],
                         "page": [
                             {
@@ -1126,7 +1068,7 @@ def test_edges():
                                         "end": 5,
                                         "id": ["1", "2"],
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
                             },
@@ -1137,11 +1079,11 @@ def test_edges():
                                         "end": 6,
                                         "id": ["1", "2"],
                                         "latestTime": 3,
-                                        "start": 2
+                                        "start": 2,
                                     }
                                 ]
-                            }
-                        ]
+                            },
+                        ],
                     }
                 },
                 "rolling": {
@@ -1153,7 +1095,7 @@ def test_edges():
                                     "earliestTime": 1,
                                     "end": 2,
                                     "id": ["1", "2"],
-                                    "start": 1
+                                    "start": 1,
                                 }
                             ]
                         },
@@ -1163,7 +1105,7 @@ def test_edges():
                                     "earliestTime": 2,
                                     "end": 3,
                                     "id": ["1", "2"],
-                                    "start": 2
+                                    "start": 2,
                                 }
                             ]
                         },
@@ -1173,7 +1115,7 @@ def test_edges():
                                     "earliestTime": 3,
                                     "end": 4,
                                     "id": ["1", "2"],
-                                    "start": 3
+                                    "start": 3,
                                 }
                             ]
                         },
@@ -1183,7 +1125,7 @@ def test_edges():
                                     "earliestTime": None,
                                     "end": 5,
                                     "id": ["1", "2"],
-                                    "start": 4
+                                    "start": 4,
                                 }
                             ]
                         },
@@ -1193,10 +1135,10 @@ def test_edges():
                                     "earliestTime": None,
                                     "end": 6,
                                     "id": ["1", "2"],
-                                    "start": 5
+                                    "start": 5,
                                 }
                             ]
-                        }
+                        },
                     ],
                     "page": [
                         {
@@ -1205,7 +1147,7 @@ def test_edges():
                                     "earliestTime": None,
                                     "end": 5,
                                     "id": ["1", "2"],
-                                    "start": 4
+                                    "start": 4,
                                 }
                             ]
                         },
@@ -1215,12 +1157,12 @@ def test_edges():
                                     "earliestTime": None,
                                     "end": 6,
                                     "id": ["1", "2"],
-                                    "start": 5
+                                    "start": 5,
                                 }
                             ]
-                        }
-                    ]
-                }
+                        },
+                    ],
+                },
             }
         }
     }

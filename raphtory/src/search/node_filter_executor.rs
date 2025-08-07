@@ -220,6 +220,10 @@ impl<'a> NodeFilterExecutor<'a> {
                 offset,
                 LatestNodePropertyFilterCollector::new,
             ),
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
+                // TODO: Do we need to impl FirstNodePropertyFilterCollector
+                fallback_filter_nodes(graph, filter, limit, offset)
+            }
         }
     }
 

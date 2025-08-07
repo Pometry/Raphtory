@@ -314,6 +314,7 @@ impl TemporalPropertyFilterExpr {
 pub enum TemporalType {
     Any,
     Latest,
+    First,
 }
 
 fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
@@ -576,6 +577,7 @@ impl From<TemporalType> for Temporal {
         match temporal {
             TemporalType::Any => Temporal::Any,
             TemporalType::Latest => Temporal::Latest,
+            TemporalType::First => Temporal::First,
         }
     }
 }

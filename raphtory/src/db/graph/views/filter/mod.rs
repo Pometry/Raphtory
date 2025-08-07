@@ -1273,6 +1273,9 @@ pub(crate) mod test_filters {
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
                     ("p10", "Paper_airplane".into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                    ("p40", 5u64.into_prop()),
                 ],
                 Some("fire_nation"),
             ),
@@ -1283,6 +1286,29 @@ pub(crate) mod test_filters {
                     ("p1", "prop12".into_prop()),
                     ("p2", 2u64.into_prop()),
                     ("p10", "Paper_ship".into_prop()),
+                    ("p20", "Gold_boat".into_prop()),
+                    ("p30", "Old_boat".into_prop()),
+                    ("p40", 10u64.into_prop()),
+                ],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                "2",
+                vec![
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                    ("p40", 15u64.into_prop()),
+                ],
+                Some("air_nomads"),
+            ),
+            (
+                4,
+                "2",
+                vec![
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                    ("p40", 20u64.into_prop()),
                 ],
                 Some("air_nomads"),
             ),
@@ -1292,6 +1318,9 @@ pub(crate) mod test_filters {
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                    ("p40", 10u64.into_prop()),
                 ],
                 Some("fire_nation"),
             ),
@@ -1311,11 +1340,32 @@ pub(crate) mod test_filters {
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p9", 5u64.into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                    ("p40", 15u64.into_prop()),
                 ],
                 Some("fire_nation"),
             ),
-            (3, "4", vec![("p4", "pometry".into_prop())], None),
-            (4, "4", vec![("p5", 12u64.into_prop())], None),
+            (
+                3,
+                "4",
+                vec![
+                    ("p4", "pometry".into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                ],
+                None,
+            ),
+            (
+                4,
+                "4",
+                vec![
+                    ("p5", 12u64.into_prop()),
+                    ("p20", "Gold_boat".into_prop()),
+                    ("p30", "Old_ship".into_prop()),
+                ],
+                None,
+            ),
         ];
 
         for (time, id, props, node_type) in nodes {
@@ -1342,6 +1392,8 @@ pub(crate) mod test_filters {
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p10", "Paper_airplane".into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
                 ],
                 Some("fire_nation"),
             ),
@@ -1352,6 +1404,8 @@ pub(crate) mod test_filters {
                 vec![
                     ("p1", "shivam_kapoor".into_prop()),
                     ("p2", 4u64.into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
                 ],
                 Some("fire_nation"),
             ),
@@ -1363,6 +1417,18 @@ pub(crate) mod test_filters {
                     ("p1", "prop12".into_prop()),
                     ("p2", 2u64.into_prop()),
                     ("p10", "Paper_ship".into_prop()),
+                    ("p20", "Gold_boat".into_prop()),
+                    ("p30", "Old_boat".into_prop()),
+                ],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                "2",
+                "3",
+                vec![
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_boat".into_prop()),
                 ],
                 Some("air_nomads"),
             ),
@@ -1410,17 +1476,23 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_node_property_filter {
         use crate::db::graph::views::filter::test_filters::init_nodes_graph;
-        use raphtory_api::core::entities::properties::prop::Prop;
+        use raphtory_api::core::entities::properties::prop::{IntoProp, Prop};
 
-        use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::{
-                model::{
-                    node_filter::NodeFilter, not_filter::NotFilter,
-                    property_filter::PropertyFilterOps, ComposableFilter, PropertyFilterFactory,
+        use crate::{
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                 },
-                test_filters::IdentityGraphTransformer,
+                views::filter::{
+                    model::{
+                        node_filter::NodeFilter, not_filter::NotFilter,
+                        property_filter::PropertyFilterOps, ComposableFilter,
+                        PropertyFilterFactory,
+                    },
+                    test_filters::IdentityGraphTransformer,
+                },
             },
+            prelude::{AdditionOps, Graph, NodeViewOps},
         };
 
         #[test]
@@ -1498,12 +1570,52 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p30")
+                .temporal()
+                .first()
+                .eq("Old_boat");
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_nodes_for_property_ne() {
             let filter = NodeFilter::property("p2").ne(2u64);
             let expected_results = vec!["3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p30")
+                .temporal()
+                .first()
+                .ne("Old_boat");
+            let expected_results = vec!["1", "4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1538,12 +1650,46 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p40").temporal().first().lt(10u64);
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_nodes_for_property_le() {
             let filter = NodeFilter::property("p2").le(6u64);
             let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p40").temporal().first().le(10u64);
+            let expected_results = vec!["1", "2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1578,12 +1724,46 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p40").temporal().first().gt(5u64);
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_nodes_for_property_ge() {
             let filter = NodeFilter::property("p2").ge(2u64);
             let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p40").temporal().first().ge(5u64);
+            let expected_results = vec!["1", "2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1635,12 +1815,49 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p40")
+                .temporal()
+                .first()
+                .is_in(vec![Prop::U64(5)]);
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_nodes_for_property_not_in() {
             let filter = NodeFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p40").is_not_in(vec![Prop::U64(6)]);
+            let expected_results = vec!["1", "2"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1675,12 +1892,46 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p40").is_some();
+            let expected_results = vec!["1", "2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_nodes_for_property_is_none() {
             let filter = NodeFilter::property("p2").is_none();
             let expected_results = vec!["1", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p40").is_none();
+            let expected_results = vec!["3", "4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -1775,6 +2026,26 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p30")
+                .temporal()
+                .first()
+                .starts_with("Gold");
+            let expected_results: Vec<&str> = vec!["1", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -1855,6 +2126,94 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p20")
+                .temporal()
+                .first()
+                .ends_with("boat");
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        use crate::db::api::view::{filter_ops::BaseFilterOps, graph::GraphViewOps};
+
+        #[test]
+        fn test_temporal_values() {
+            let nodes = [
+                (
+                    1,
+                    "1",
+                    vec![("p10", "Paper_airplane".into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
+                    2,
+                    "2",
+                    vec![("p11", "Paper_boat".into_prop())],
+                    Some("air_nomads"),
+                ),
+                (3, "1", vec![("p9", 5u64.into_prop())], Some("fire_nation")),
+                (
+                    3,
+                    "3",
+                    vec![("p10", "Paper_motorcycle".into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
+                    4,
+                    "1",
+                    vec![("p1", "shivam_kapoor".into_prop())],
+                    Some("fire_nation"),
+                ),
+                (
+                    2,
+                    "2",
+                    vec![("p10", "Paper_ship".into_prop())],
+                    Some("air_nomads"),
+                ),
+                (3, "4", vec![("p4", "pometry".into_prop())], None),
+                (4, "4", vec![("p5", 12u64.into_prop())], None),
+                (
+                    2,
+                    "2",
+                    vec![("p10", "Paper_ship".into_prop())],
+                    Some("air_nomads"),
+                ),
+            ];
+            let graph = Graph::new();
+            for (time, id, props, node_type) in nodes {
+                graph.add_node(time, id, props, node_type).unwrap();
+            }
+
+            let filter = NodeFilter::property("p10")
+                .temporal()
+                .first()
+                .ends_with("ship");
+
+            let mut results = graph
+                .filter(filter)
+                .unwrap()
+                .nodes()
+                .iter()
+                .map(|n| n.name())
+                .collect::<Vec<_>>();
+            results.sort();
+
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_eq!(results, expected_results);
         }
 
         #[test]
@@ -1915,6 +2274,26 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = NodeFilter::property("p30")
+                .temporal()
+                .first()
+                .contains("Old");
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -1961,6 +2340,26 @@ pub(crate) mod test_filters {
                 .latest()
                 .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p30")
+                .temporal()
+                .first()
+                .not_contains("Old");
+            let expected_results: Vec<&str> = vec!["1", "4"];
             assert_filter_nodes_results(
                 init_nodes_graph,
                 IdentityGraphTransformer,
@@ -2050,6 +2449,26 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p30")
+                .temporal()
+                .first()
+                .eq("Old_boat");
+            let expected_results = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2063,6 +2482,26 @@ pub(crate) mod test_filters {
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
             ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p30")
+                .temporal()
+                .first()
+                .ne("Old_boat");
+            let expected_results = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -2105,6 +2544,23 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p2").temporal().first().lt(5u64);
+            let expected_results = vec!["1->2", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2119,6 +2575,23 @@ pub(crate) mod test_filters {
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
             ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p2").temporal().first().le(3u64);
+            let expected_results = vec!["2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -2160,6 +2633,28 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p2").temporal().first().gt(5u64);
+            let expected_results = vec![
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2170,6 +2665,28 @@ pub(crate) mod test_filters {
                 "1->2",
                 "2->1",
                 "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p2").temporal().first().ge(6u64);
+            let expected_results = vec![
+                "2->1",
                 "3->1",
                 "David Gilmour->John Mayer",
                 "John Mayer->Jimmy Page",
@@ -2237,12 +2754,57 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p2")
+                .temporal()
+                .first()
+                .is_in(vec![Prop::U64(6)]);
+            let expected_results = vec![
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
         fn test_filter_edges_for_property_not_in() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             let filter = EdgeFilter::property("p2").is_not_in(vec![Prop::U64(6)]);
+            let expected_results = vec!["1->2", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p2")
+                .temporal()
+                .first()
+                .is_not_in(vec![Prop::U64(6)]);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
@@ -2286,6 +2848,30 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p2").temporal().first().is_some();
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2306,6 +2892,23 @@ pub(crate) mod test_filters {
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
+            );
+
+            let filter = EdgeFilter::property("p2").temporal().first().is_none();
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
             );
         }
 
@@ -2374,6 +2977,26 @@ pub(crate) mod test_filters {
                 .latest()
                 .starts_with("Traffic");
             let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p30")
+                .temporal()
+                .first()
+                .starts_with("Old");
+            let expected_results: Vec<&str> = vec!["2->3"];
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
@@ -2469,6 +3092,26 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p20")
+                .temporal()
+                .first()
+                .ends_with("boat");
+            let expected_results: Vec<&str> = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2530,6 +3173,26 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
+
+            let filter = EdgeFilter::property("p20")
+                .temporal()
+                .first()
+                .contains("boat");
+            let expected_results: Vec<&str> = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
         }
 
         #[test]
@@ -2577,6 +3240,26 @@ pub(crate) mod test_filters {
                 .latest()
                 .not_contains("ship");
             let expected_results: Vec<&str> = vec!["1->2", "2->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::property("p20")
+                .temporal()
+                .first()
+                .not_contains("boat");
+            let expected_results: Vec<&str> = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,

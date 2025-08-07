@@ -208,14 +208,28 @@ def test_filter_edges_for_property_starts_with():
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().latest().starts_with("Paper")
+        filter_expr = (
+            filter.Edge.property("p10").temporal().latest().starts_with("Paper")
+        )
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().latest().starts_with("Rapper")
+        filter_expr = (
+            filter.Edge.property("p10").temporal().latest().starts_with("Rapper")
+        )
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = []
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p20").temporal().first().starts_with("Gold")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [
+            ("1", "2"),
+            ("2", "3"),
+            ("David Gilmour", "John Mayer"),
+            ("John Mayer", "Jimmy Page"),
+        ]
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
@@ -249,6 +263,11 @@ def test_filter_edges_for_property_ends_with():
         expected_ids = []
         assert result_ids == expected_ids
 
+        filter_expr = filter.Edge.property("p20").temporal().first().ends_with("boat")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("2", "3"), ("David Gilmour", "John Mayer")]
+        assert result_ids == expected_ids
+
         filter_expr = filter.Edge.metadata("p10").ends_with("hip")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = []
@@ -275,6 +294,11 @@ def test_filter_edges_for_property_contains():
         expected_ids = [("1", "2"), ("2", "1"), ("2", "3")]
         assert result_ids == expected_ids
 
+        filter_expr = filter.Edge.property("p20").temporal().first().contains("boat")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("2", "3"), ("David Gilmour", "John Mayer")]
+        assert result_ids == expected_ids
+
         filter_expr = filter.Edge.metadata("p10").contains("Paper")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = []
@@ -296,9 +320,18 @@ def test_filter_edges_for_property_not_contains():
         expected_ids = [("1", "2"), ("2", "1")]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Edge.property("p10").temporal().latest().not_contains("ship")
+        filter_expr = (
+            filter.Edge.property("p10").temporal().latest().not_contains("ship")
+        )
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("1", "2"), ("2", "1")]
+        assert result_ids == expected_ids
+
+        filter_expr = (
+            filter.Edge.property("p20").temporal().first().not_contains("boat")
+        )
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("John Mayer", "Jimmy Page")]
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").not_contains("ship")
