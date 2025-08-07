@@ -2628,7 +2628,11 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" valign="top"><strong id="graphwindowset.count">count</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of items.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphwindowset.page">page</strong></td>
@@ -2717,17 +2721,29 @@ Returns the list of edge schemas for this edge layer
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.name">name</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Returns the metagraph name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.path">path</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns path of metagraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.created">created</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the timestamp for the creation of the metagraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.lastopened">lastOpened</strong></td>
@@ -2737,22 +2753,38 @@ Returns the list of edge schemas for this edge layer
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.lastupdated">lastUpdated</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the metagraph's last updated timestamp.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.nodecount">nodeCount</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of nodes in the metagraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.edgecount">edgeCount</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of edges in the metagraph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.metadata">metadata</strong></td>
 <td valign="top">[<a href="#property">Property</a>!]!</td>
-<td></td>
+<td>
+
+Returns the metadata of the metagraph.
+
+</td>
 </tr>
 </tbody>
 </table>

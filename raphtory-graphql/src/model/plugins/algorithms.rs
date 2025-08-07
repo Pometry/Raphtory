@@ -53,6 +53,7 @@ impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
     }
 }
 
+/// Run the PageRank algorithm
 pub(crate) struct Pagerank;
 
 impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
@@ -80,6 +81,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
     }
 }
 
+/// Returns Pagerank centrality value of the nodes in a graph.
 fn apply_pagerank<'b>(
     entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,
@@ -146,6 +148,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugin> for ShortestPath {
     }
 }
 
+// Finds the shortest paths from a single source to multiple targets in a graph using Dijkstra's shortest path.
 fn apply_shortest_path<'b>(
     entry_point: &GraphAlgorithmPlugin,
     ctx: ResolverContext,

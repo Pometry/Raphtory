@@ -835,6 +835,9 @@ input GraphViewCollection @oneOf {
 }
 
 type GraphWindowSet {
+	"""
+	Returns the number of items.
+	"""
 	count: Int!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -874,13 +877,34 @@ type LayerSchema {
 }
 
 type MetaGraph {
+	"""
+	Returns the metagraph name.
+	"""
 	name: String
+	"""
+	Returns path of metagraph.
+	"""
 	path: String!
+	"""
+	Returns the timestamp for the creation of the metagraph.
+	"""
 	created: Int!
 	lastOpened: Int!
+	"""
+	Returns the metagraph's last updated timestamp.
+	"""
 	lastUpdated: Int!
+	"""
+	Returns the number of nodes in the metagraph.
+	"""
 	nodeCount: Int!
+	"""
+	Returns the number of edges in the metagraph.
+	"""
 	edgeCount: Int!
+	"""
+	Returns the metadata of the metagraph.
+	"""
 	metadata: [Property!]!
 }
 

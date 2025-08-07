@@ -26,6 +26,7 @@ impl GqlGraphWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlGraphWindowSet {
+    /// Returns the number of items.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
