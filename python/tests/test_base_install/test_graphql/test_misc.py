@@ -10,4 +10,4 @@ def test_version_query():
 
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-        assert client.query("{version}")['version'] == raphtory.version()
+        assert client.query("{version}")["version"] == raphtory.version()
