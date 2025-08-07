@@ -37,6 +37,7 @@ def find_max_rate(scenario_name):
 scenarios = output["scenario"].unique()[1:] # first element is nan
 max_rates = [find_max_rate(scenario) for scenario in scenarios]
 
-results = [{"name": name, "unit": "req/s", "value": value} for (name, value) in zip(scenarios, max_rates)]
+# FIXME: remove the -100
+results = [{"name": name, "unit": "req/s", "value": value - 100} for (name, value) in zip(scenarios, max_rates)]
 df = pd.DataFrame(results)
 df.to_json(orient="records", path_or_buf="output.json")
