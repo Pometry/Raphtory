@@ -345,3 +345,48 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
 }
 
 impl<'graph, V: BaseNodeViewOps<'graph> + OneHopFilter<'graph>> ResetFilter<'graph> for V {}
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+
+    const EDGES: [(i64, u64, u64); 6] = [
+        (1, 0, 1), (2, 0, 2), (-1, 1, 0), (0, 0, 0), (7, 2, 1), (1, 0, 0)
+    ];
+
+    fn create_graph() -> Graph {
+        let g = Graph::new();
+
+        g.add_node(0, 0, [("type", Prop::from("wallet")), ("cost", Prop::from(99.5))], None).unwrap();
+        g.add_node(-1, 1, [("type", Prop::from("wallet")), ("cost", Prop::from(10.0))], None).unwrap();
+        g.add_node(6, 2, [("type", Prop::from("wallet")), ("cost", Prop::from(76.0))], None).unwrap();
+
+        for edge in EDGES {
+            let (t, src, dst) = edge;
+
+            g.add_edge(t, src, dst, [("prop1", Prop::from(1)), ("prop2", Prop::from(9.8)), ("prop3", Prop::from("test"))], None).unwrap();
+        }
+
+        g
+    }
+
+    #[test]
+    fn test_degree_iterable() {
+        let g = create_graph();
+
+        assert_eq!(g.nodes().degree().min(), Some(2));
+        assert_eq!(g.nodes().degree().max(), Some(3));
+
+        assert_eq!(g.nodes().in_degree().min(), Some(1));
+        assert_eq!(g.nodes().in_degree().max(), Some(2));
+
+        assert_eq!(g.nodes().out_degree().min(), Some(1));
+        assert_eq!(g.nodes().out_degree().max(), Some(3));
+
+        assert_eq!(g.nodes().degree().sum::<usize>(), 7);
+
+        let mut degrees = g.nodes().degree().collect::<Vec<_>>();
+        degrees.sort();
+        assert_eq!(degrees, [2, 2, 3]);
+    }
+}
