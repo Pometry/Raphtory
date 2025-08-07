@@ -889,6 +889,9 @@ type MetaGraph {
 	Returns the timestamp for the creation of the metagraph.
 	"""
 	created: Int!
+	"""
+	Returns the metagraph's last opened timestamp.
+	"""
 	lastOpened: Int!
 	"""
 	Returns the metagraph's last updated timestamp.
@@ -1112,55 +1115,154 @@ type Namespace {
 union NamespacedItem = Namespace | MetaGraph
 
 type Node {
+	"""
+	Returns the unique id of the node.
+	"""
 	id: String!
+	"""
+	Returns the name of the node.
+	"""
 	name: String!
+	"""
+	Return a view of node containing only the default edge layer.
+	"""
 	defaultLayer: Node!
+	"""
+	Return a view of node containing all layers specified and an error if any of the layers do not exist.
+	"""
 	layers(names: [String!]!): Node!
+	"""
+	Return a view of node containing all layers except those specified and an error if any of the layers do not exist.
+	"""
 	excludeLayers(names: [String!]!): Node!
+	"""
+	Return a view of node containing the specified layer and errors if the layer does not exist.
+	"""
 	layer(name: String!): Node!
+	"""
+	Return a view of node containing all layers except those specified, errors if any of the layers do not exist.
+	"""
 	excludeLayer(name: String!): Node!
+	"""
+	Creates a WindowSet with the specified window size and optional step using a rolling window.
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): NodeWindowSet!
+	"""
+	Creates a WindowSet with the specified step size using an expanding window.
+	"""
 	expanding(step: WindowDuration!): NodeWindowSet!
+	"""
+	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+	"""
 	window(start: Int!, end: Int!): Node!
+	"""
+	Create a view of the node including all events at a specified time.
+	"""
 	at(time: Int!): Node!
+	"""
+	Create a view of the node including all events at the latest time.
+	"""
 	latest: Node!
+	"""
+	Create a view of the node including all events that have not been explicitly deleted at the specified time.
+	"""
 	snapshotAt(time: Int!): Node!
+	"""
+	Create a view of the node including all events that have not been explicitly deleted at the latest time.
+	"""
 	snapshotLatest: Node!
+	"""
+	Create a view of the node including all events before specified end time (exclusive).
+	"""
 	before(time: Int!): Node!
+	"""
+	Create a view of the node including all events after the specified start time (exclusive).
+	"""
 	after(time: Int!): Node!
+	"""
+	Shrink both the start and end of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): Node!
+	"""
+	Set the start of the window to the larger of a specified start time  and self.start().
+	"""
 	shrinkStart(start: Int!): Node!
+	"""
+	Set the end of the window to the smaller of a specified end and self.end().
+	"""
 	shrinkEnd(end: Int!): Node!
 	applyViews(views: [NodeViewCollection!]!): Node!
+	"""
+	Returns the earliest time that the node exists.
+	"""
 	earliestTime: Int
 	firstUpdate: Int
+	"""
+	Returns the latest time that the node exists.
+	"""
 	latestTime: Int
 	lastUpdate: Int
+	"""
+	Gets the start time for rolling and expanding windows of this node.
+	"""
 	start: Int
+	"""
+	Gets the latest time that this node is valid.
+	"""
 	end: Int
+	"""
+	Returns the history of a node, including node additions and changes made to node.
+	"""
 	history: [Int!]!
+	"""
+	Get the number of edge events for this node.
+	"""
 	edgeHistoryCount: Int!
+	"""
+	Check if the node is active and it's history is not empty.
+	"""
 	isActive: Boolean!
+	"""
+	Returns the type of node.
+	"""
 	nodeType: String
+	"""
+	Returns the properties of the node.
+	"""
 	properties: Properties!
+	"""
+	Returns the metadata of the node.
+	"""
 	metadata: Metadata!
 	"""
-	Returns the number of edges connected to this node
+	Returns the number of edges connected to this node.
 	"""
 	degree: Int!
 	"""
-	Returns the number edges with this node as the source
+	Returns the number edges with this node as the source.
 	"""
 	outDegree: Int!
 	"""
-	Returns the number edges with this node as the destination
+	Returns the number edges with this node as the destination.
 	"""
 	inDegree: Int!
 	inComponent: Nodes!
 	outComponent: Nodes!
+	"""
+	Returns all connected edges.
+	"""
 	edges: Edges!
+	"""
+	Returns outgoing edges.
+	"""
 	outEdges: Edges!
+	"""
+	Returns incoming edges.
+	"""
 	inEdges: Edges!
+	"""
+	Returns neighbouring nodes.
+	"""
 	neighbours: PathFromNode!
 	inNeighbours: PathFromNode!
 	outNeighbours: PathFromNode!
@@ -1603,3 +1705,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

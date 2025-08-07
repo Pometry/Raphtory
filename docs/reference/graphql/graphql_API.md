@@ -2748,7 +2748,11 @@ Returns the timestamp for the creation of the metagraph.
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.lastopened">lastOpened</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the metagraph's last opened timestamp.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metagraph.lastupdated">lastUpdated</strong></td>
@@ -3402,22 +3406,38 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.id">id</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns the unique id of the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns the name of the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return a view of node containing only the default edge layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.layers">layers</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return a view of node containing all layers specified and an error if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -3427,7 +3447,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return a view of node containing all layers except those specified and an error if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -3437,7 +3461,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.layer">layer</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return a view of node containing the specified layer and errors if the layer does not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -3447,7 +3475,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Return a view of node containing all layers except those specified, errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -3457,7 +3489,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.rolling">rolling</strong></td>
 <td valign="top"><a href="#nodewindowset">NodeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the specified window size and optional step using a rolling window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -3472,7 +3508,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodewindowset">NodeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the specified step size using an expanding window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -3482,7 +3522,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.window">window</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -3497,7 +3541,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.at">at</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events at a specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -3507,12 +3555,20 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.latest">latest</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events that have not been explicitly deleted at the specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -3522,12 +3578,20 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events that have not been explicitly deleted at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.before">before</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events before specified end time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -3537,7 +3601,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.after">after</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events after the specified start time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -3547,7 +3615,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Shrink both the start and end of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -3562,7 +3634,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Set the start of the window to the larger of a specified start time  and self.start().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -3572,7 +3648,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#node">Node</a>!</td>
-<td></td>
+<td>
+
+Set the end of the window to the smaller of a specified end and self.end().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -3592,7 +3672,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that the node exists.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.firstupdate">firstUpdate</strong></td>
@@ -3602,7 +3686,11 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.latesttime">latestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time that the node exists.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.lastupdate">lastUpdate</strong></td>
@@ -3612,49 +3700,81 @@ Add temporal property updates to the node
 <tr>
 <td colspan="2" valign="top"><strong id="node.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Gets the start time for rolling and expanding windows of this node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Gets the latest time that this node is valid.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.history">history</strong></td>
 <td valign="top">[<a href="#int">Int</a>!]!</td>
-<td></td>
+<td>
+
+Returns the history of a node, including node additions and changes made to node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.edgehistorycount">edgeHistoryCount</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Get the number of edge events for this node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.isactive">isActive</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Check if the node is active and it's history is not empty.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.nodetype">nodeType</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Returns the type of node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.properties">properties</strong></td>
 <td valign="top"><a href="#properties">Properties</a>!</td>
-<td></td>
+<td>
+
+Returns the properties of the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.metadata">metadata</strong></td>
 <td valign="top"><a href="#metadata">Metadata</a>!</td>
-<td></td>
+<td>
+
+Returns the metadata of the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.degree">degree</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number of edges connected to this node
+Returns the number of edges connected to this node.
 
 </td>
 </tr>
@@ -3663,7 +3783,7 @@ Returns the number of edges connected to this node
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number edges with this node as the source
+Returns the number edges with this node as the source.
 
 </td>
 </tr>
@@ -3672,7 +3792,7 @@ Returns the number edges with this node as the source
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number edges with this node as the destination
+Returns the number edges with this node as the destination.
 
 </td>
 </tr>
@@ -3689,22 +3809,38 @@ Returns the number edges with this node as the destination
 <tr>
 <td colspan="2" valign="top"><strong id="node.edges">edges</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns all connected edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outedges">outEdges</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns outgoing edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inedges">inEdges</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Returns incoming edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.neighbours">neighbours</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Returns neighbouring nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.inneighbours">inNeighbours</strong></td>

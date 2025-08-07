@@ -63,7 +63,7 @@ impl MetaGraph {
         self.folder.created_async().await
     }
 
-    // Returns the metagraph's last opened timestamp.
+    /// Returns the metagraph's last opened timestamp.
     async fn last_opened(&self) -> Result<i64, GraphError> {
         self.folder.last_opened_async().await
     }
