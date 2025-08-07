@@ -54,15 +54,28 @@ jobs:
           k6-version: '1.0.0'
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
+      - name: Store benchmark results from master branch
+        # if: github.ref != 'refs/heads/master'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: GraphQL Benchmark
+          tool: 'customBiggerIsBetter'
+          output-file-path: graphql-bench/output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '200%'
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          gh-pages-branch: gh-pages-test
+          # benchmark-data-dir-path: dev/bench # maybe try this to have a secondary page for these
       - name: Compare GraphQL benchmarks
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: Rust Benchmark
+          name: GraphQL Benchmark
           tool: 'customBiggerIsBetter'
           output-file-path: graphql-bench/output.json
-          auto-push: false
-          # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           comment-on-alert: true
