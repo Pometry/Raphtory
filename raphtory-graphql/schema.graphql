@@ -978,6 +978,7 @@ type QueryRoot {
 	root: Namespace!
 	plugins: QueryPlugin!
 	receiveGraph(path: String!): String!
+	version: String!
 }
 
 type ShortestPathOutput {
