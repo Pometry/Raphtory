@@ -168,12 +168,24 @@ pub(crate) struct VectorDb {
 }
 
 impl VectorDb {
-    pub(super) fn insert_vector(&self, id: usize, embedding: &Embedding) -> GraphResult<()> {
+    /// Insert a collection of vectors into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `embeddings` - A vector of tuples containing the IDs and embeddings to insert.
+    pub(super) fn insert_vectors(&self, embeddings: Vec<(usize, Embedding)>) -> GraphResult<()> {
+        if embeddings.is_empty() {
+            return Ok(());
+        }
+
         let mut wtxn = self.env.write_txn()?;
 
-        let dimensions = self.dimensions.get_or_init(|| embedding.len());
+        let dimensions = self.dimensions.get_or_init(|| embeddings[0].1.len());
         let writer = Writer::<Cosine>::new(self.vectors, 0, *dimensions);
-        writer.add_item(&mut wtxn, id as u32, embedding.as_ref())?;
+
+        for (id, embedding) in embeddings {
+            writer.add_item(&mut wtxn, id as u32, embedding.as_ref())?;
+        }
 
         let mut rng = StdRng::from_entropy();
         writer.builder(&mut rng).build(&mut wtxn)?;
