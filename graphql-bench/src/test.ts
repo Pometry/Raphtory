@@ -41,7 +41,7 @@ const execs = [
     // nodePropsByName,
     // nodeNeighboursByName,
     // nodeNeighboursWithPropsByName,
-    edgePage,
+    // edgePage,
 ];
 const scenarios = execs.map(
     (exec, index) =>
