@@ -2,6 +2,14 @@
 
 The Raphtory CLI tool is included in the Python package and allows you to interact directly with the Raphtory server. This is useful for experimentation and scripting.
 
+Access the version of raphtory
+
+Usage:
+
+```sh
+raphtory --version
+```
+
 ## Server
 
 The server subcommand starts the GraphQL server with the specified configuration.

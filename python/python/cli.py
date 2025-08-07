@@ -1,5 +1,7 @@
 import argparse
 from pathlib import Path
+
+import raphtory
 from raphtory.graphql import GraphServer, schema
 
 
@@ -27,6 +29,7 @@ def print_schema(_args):
 
 def main():
     parser = argparse.ArgumentParser(prog="raphtory")
+    parser.add_argument("--version", action="version", version=f"{raphtory.version()}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Subcommand: server

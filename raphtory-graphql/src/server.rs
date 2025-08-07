@@ -7,7 +7,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    routes::{health, ui},
+    routes::{health, ui, version},
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
@@ -248,6 +248,7 @@ impl GraphServer {
             .at("/saved-graphs", get(ui))
             .at("/playground", get(ui))
             .at("/health", get(health))
+            .at("/version", get(version))
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)
