@@ -68,7 +68,7 @@ jobs:
           summary-always: true
           fail-on-alert: false
           gh-pages-branch: gh-pages-test
-          # benchmark-data-dir-path: dev/bench # maybe try this to have a secondary page for these
+          benchmark-data-dir-path: dev/bench-graphql
       - name: Compare GraphQL benchmarks
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
@@ -82,3 +82,5 @@ jobs:
           summary-always: true
           fail-on-alert: false
           save-data-file: false
+          gh-pages-branch: gh-pages-test
+          benchmark-data-dir-path: dev/bench-graphql
