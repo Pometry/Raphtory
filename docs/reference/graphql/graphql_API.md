@@ -2147,42 +2147,74 @@ Set the end of the window to the smaller of end and self.end()
 <tr>
 <td colspan="2" valign="top"><strong id="graph.created">created</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the timestamp for the creation of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.lastopened">lastOpened</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the graph's last opened timestamp.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.lastupdated">lastUpdated</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the graph's last updated timestamp.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliesttime">earliestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the timestamp of the earliest activity in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latesttime">latestTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the timestamp of the latest activity in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that this graph is valid.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time that this graph is valid or None if the graph is valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.earliestedgetime">earliestEdgeTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that any edge in this graph is valid.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">includeNegative</td>
@@ -2192,7 +2224,11 @@ Set the end of the window to the smaller of end and self.end()
 <tr>
 <td colspan="2" valign="top"><strong id="graph.latestedgetime">latestEdgeTime</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+/// Returns the latest time that any edge in this graph is valid.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">includeNegative</td>
@@ -2202,22 +2238,38 @@ Set the end of the window to the smaller of end and self.end()
 <tr>
 <td colspan="2" valign="top"><strong id="graph.countedges">countEdges</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of edges in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.counttemporaledges">countTemporalEdges</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of temporal edges in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.countnodes">countNodes</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Returns the number of nodes in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.hasnode">hasNode</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Returns true if the graph contains the specified node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -2227,7 +2279,11 @@ Set the end of the window to the smaller of end and self.end()
 <tr>
 <td colspan="2" valign="top"><strong id="graph.hasedge">hasEdge</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">src</td>
@@ -2247,7 +2303,11 @@ Set the end of the window to the smaller of end and self.end()
 <tr>
 <td colspan="2" valign="top"><strong id="graph.node">node</strong></td>
 <td valign="top"><a href="#node">Node</a></td>
-<td></td>
+<td>
+
+Gets the node with the specified id.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -2259,7 +2319,7 @@ Set the end of the window to the smaller of end and self.end()
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-query (optionally a subset of) the nodes in the graph
+Gets (optionally a subset of) the nodes in the graph.
 
 </td>
 </tr>
@@ -2271,7 +2331,11 @@ query (optionally a subset of) the nodes in the graph
 <tr>
 <td colspan="2" valign="top"><strong id="graph.edge">edge</strong></td>
 <td valign="top"><a href="#edge">Edge</a></td>
-<td></td>
+<td>
+
+Gets the edge with the specified source and destination nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">src</td>
@@ -2286,37 +2350,65 @@ query (optionally a subset of) the nodes in the graph
 <tr>
 <td colspan="2" valign="top"><strong id="graph.edges">edges</strong></td>
 <td valign="top"><a href="#edges">Edges</a>!</td>
-<td></td>
+<td>
+
+Gets the edges in the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.properties">properties</strong></td>
 <td valign="top"><a href="#properties">Properties</a>!</td>
-<td></td>
+<td>
+
+Returns the properties of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.metadata">metadata</strong></td>
 <td valign="top"><a href="#metadata">Metadata</a>!</td>
-<td></td>
+<td>
+
+Returns the metadata of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns the graph name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.path">path</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns path of graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.namespace">namespace</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Returns namespace of graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.schema">schema</strong></td>
 <td valign="top"><a href="#graphschema">GraphSchema</a>!</td>
-<td></td>
+<td>
+
+Returns the graph schema.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.algorithms">algorithms</strong></td>
@@ -2370,12 +2462,22 @@ Export all nodes and edges from this graph view to another existing graph
 <tr>
 <td colspan="2" valign="top"><strong id="graph.getindexspec">getIndexSpec</strong></td>
 <td valign="top"><a href="#gqlindexspec">GqlIndexSpec</a>!</td>
-<td></td>
+<td>
+
+Get index specification.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graph.searchnodes">searchNodes</strong></td>
 <td valign="top">[<a href="#node">Node</a>!]!</td>
-<td></td>
+<td>
+
+Searches for nodes which match the given filter expression.
+
+Uses Tantivy's exact search.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
@@ -2395,7 +2497,13 @@ Export all nodes and edges from this graph view to another existing graph
 <tr>
 <td colspan="2" valign="top"><strong id="graph.searchedges">searchEdges</strong></td>
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td></td>
+<td>
+
+Searches for edges which match the given filter expression.
+
+Uses Tantivy's exact search.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
@@ -2438,26 +2546,6 @@ Export all nodes and edges from this graph view to another existing graph
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2475,6 +2563,26 @@ Export all nodes and edges from this graph view to another existing graph
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>

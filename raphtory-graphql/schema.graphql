@@ -672,32 +672,101 @@ type Graph {
 	Set the end of the window to the smaller of end and self.end()
 	"""
 	shrinkEnd(end: Int!): Graph!
+	"""
+	Returns the timestamp for the creation of the graph.
+	"""
 	created: Int!
+	"""
+	Returns the graph's last opened timestamp.
+	"""
 	lastOpened: Int!
+	"""
+	Returns the graph's last updated timestamp.
+	"""
 	lastUpdated: Int!
+	"""
+	Returns the timestamp of the earliest activity in the graph.
+	"""
 	earliestTime: Int
+	"""
+	Returns the timestamp of the latest activity in the graph.
+	"""
 	latestTime: Int
+	"""
+	Returns the earliest time that this graph is valid.
+	"""
 	start: Int
+	"""
+	Returns the latest time that this graph is valid or None if the graph is valid for all times.
+	"""
 	end: Int
+	"""
+	Returns the earliest time that any edge in this graph is valid.
+	"""
 	earliestEdgeTime(includeNegative: Boolean): Int
+	"""
+	/// Returns the latest time that any edge in this graph is valid.
+	"""
 	latestEdgeTime(includeNegative: Boolean): Int
+	"""
+	Returns the number of edges in the graph.
+	"""
 	countEdges: Int!
+	"""
+	Returns the number of temporal edges in the graph.
+	"""
 	countTemporalEdges: Int!
+	"""
+	Returns the number of nodes in the graph.
+	"""
 	countNodes: Int!
+	"""
+	Returns true if the graph contains the specified node.
+	"""
 	hasNode(name: String!): Boolean!
+	"""
+	Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+	"""
 	hasEdge(src: String!, dst: String!, layer: String): Boolean!
+	"""
+	Gets the node with the specified id.
+	"""
 	node(name: String!): Node
 	"""
-	query (optionally a subset of) the nodes in the graph
+	Gets (optionally a subset of) the nodes in the graph.
 	"""
 	nodes(ids: [String!]): Nodes!
+	"""
+	Gets the edge with the specified source and destination nodes.
+	"""
 	edge(src: String!, dst: String!): Edge
+	"""
+	Gets the edges in the graph.
+	"""
 	edges: Edges!
+	"""
+	Returns the properties of the graph.
+	"""
 	properties: Properties!
+	"""
+	Returns the metadata of the graph.
+	"""
 	metadata: Metadata!
+	"""
+	Returns the graph name.
+	"""
 	name: String!
+	"""
+	Returns path of graph.
+	"""
 	path: String!
+	"""
+	Returns namespace of graph.
+	"""
 	namespace: String!
+	"""
+	Returns the graph schema.
+	"""
 	schema: GraphSchema!
 	algorithms: GraphAlgorithmPlugin!
 	sharedNeighbours(selectedNodes: [String!]!): [Node!]!
@@ -707,15 +776,28 @@ type Graph {
 	exportTo(path: String!): Boolean!
 	nodeFilter(filter: NodeFilter!): Graph!
 	edgeFilter(filter: EdgeFilter!): Graph!
+	"""
+	Get index specification.
+	"""
 	getIndexSpec: GqlIndexSpec!
+	"""
+	Searches for nodes which match the given filter expression.
+	
+	Uses Tantivy's exact search.
+	"""
 	searchNodes(filter: NodeFilter!, limit: Int!, offset: Int!): [Node!]!
+	"""
+	Searches for edges which match the given filter expression.
+	
+	Uses Tantivy's exact search.
+	"""
 	searchEdges(filter: EdgeFilter!, limit: Int!, offset: Int!): [Edge!]!
 	applyViews(views: [GraphViewCollection!]!): Graph!
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1497,3 +1579,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

@@ -350,7 +350,7 @@ impl GqlGraph {
         self.graph.has_node(name)
     }
 
-    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. 
+    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
@@ -529,7 +529,7 @@ impl GqlGraph {
     ////////////////////////
     // INDEX SEARCH     ////
     ////////////////////////
-    
+
     /// Get index specification.
     async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
         #[cfg(feature = "search")]
@@ -550,8 +550,8 @@ impl GqlGraph {
         }
     }
 
-    /// Searches for nodes which match the given filter expression. 
-    /// 
+    /// Searches for nodes which match the given filter expression.
+    ///
     /// Uses Tantivy's exact search.
     async fn search_nodes(
         &self,
@@ -576,8 +576,8 @@ impl GqlGraph {
         }
     }
 
-    /// Searches for edges which match the given filter expression. 
-    /// 
+    /// Searches for edges which match the given filter expression.
+    ///
     /// Uses Tantivy's exact search.
     async fn search_edges(
         &self,
