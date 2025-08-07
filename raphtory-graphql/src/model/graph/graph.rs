@@ -530,6 +530,7 @@ impl GqlGraph {
     // INDEX SEARCH     ////
     ////////////////////////
     
+    /// Get index specification.
     async fn get_index_spec(&self) -> Result<GqlIndexSpec, GraphError> {
         #[cfg(feature = "search")]
         {
@@ -549,6 +550,9 @@ impl GqlGraph {
         }
     }
 
+    /// Searches for nodes which match the given filter expression. 
+    /// 
+    /// Uses Tantivy's exact search.
     async fn search_nodes(
         &self,
         filter: NodeFilter,
@@ -572,6 +576,9 @@ impl GqlGraph {
         }
     }
 
+    /// Searches for edges which match the given filter expression. 
+    /// 
+    /// Uses Tantivy's exact search.
     async fn search_edges(
         &self,
         filter: EdgeFilter,
