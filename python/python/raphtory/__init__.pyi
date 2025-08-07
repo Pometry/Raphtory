@@ -47,6 +47,7 @@ __all__ = [
     "WindowSet",
     "IndexSpecBuilder",
     "IndexSpec",
+    "version",
     "graphql",
     "algorithms",
     "graph_loader",
@@ -5757,7 +5758,7 @@ class Properties(object):
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5817,7 +5818,7 @@ class Metadata(object):
     """A view of metadata of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5898,7 +5899,7 @@ class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5978,7 +5979,7 @@ class TemporalProperties(object):
 
 class PropertiesView(object):
     def __contains__(self, key):
-        """Return bool(key in self)."""
+        """Return key in self."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -6182,3 +6183,5 @@ class IndexSpec(object):
     def node_metadata(self): ...
     @property
     def node_properties(self): ...
+
+def version(): ...
