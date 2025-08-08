@@ -1124,7 +1124,7 @@ type Node {
 	"""
 	name: String!
 	"""
-	Return a view of node containing only the default edge layer.
+	Return a view of the node containing only the default edge layer.
 	"""
 	defaultLayer: Node!
 	"""
@@ -1349,28 +1349,91 @@ type NodeWindowSet {
 }
 
 type Nodes {
+	"""
+	Return a view of the nodes containing only the default edge layer.
+	"""
 	defaultLayer: Nodes!
+	"""
+	Return a view of the nodes containing all layers specified and an error if any of the layers do not exist.
+	"""
 	layers(names: [String!]!): Nodes!
+	"""
+	Return a view of the nodes containing all layers except those specified and an error if any of the layers do not exist.
+	"""
 	excludeLayers(names: [String!]!): Nodes!
+	"""
+	Return a view of the nodes containing the specified layer and errors if the layer does not exist.
+	"""
 	layer(name: String!): Nodes!
+	"""
+	Return a view of the nodes containing all layers except those specified, errors if any of the layers do not exist.
+	"""
 	excludeLayer(name: String!): Nodes!
+	"""
+	Creates a WindowSet with the specified window size and optional step using a rolling window.
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): NodesWindowSet!
+	"""
+	Creates a WindowSet with the specified step size using an expanding window.
+	"""
 	expanding(step: WindowDuration!): NodesWindowSet!
+	"""
+	Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+	"""
 	window(start: Int!, end: Int!): Nodes!
+	"""
+	Create a view of the nodes including all events at a specified time.
+	"""
 	at(time: Int!): Nodes!
+	"""
+	Create a view of the nodes including all events at the latest time.
+	"""
 	latest: Nodes!
+	"""
+	Create a view of the nodes including all events that have not been explicitly deleted at the specified time.
+	"""
 	snapshotAt(time: Int!): Nodes!
+	"""
+	Create a view of the nodes including all events that have not been explicitly deleted at the latest time.
+	"""
 	snapshotLatest: Nodes!
+	"""
+	Create a view of the nodes including all events before specified end time (exclusive).
+	"""
 	before(time: Int!): Nodes!
+	"""
+	Create a view of the nodes including all events after the specified start time (exclusive).
+	"""
 	after(time: Int!): Nodes!
+	"""
+	Shrink both the start and end of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): Nodes!
+	"""
+	Set the start of the window to the larger of a specified start time  and self.start().
+	"""
 	shrinkStart(start: Int!): Nodes!
+	"""
+	Set the end of the window to the smaller of a specified end and self.end().
+	"""
 	shrinkEnd(end: Int!): Nodes!
+	"""
+	Filter nodes by node type.
+	"""
 	typeFilter(nodeTypes: [String!]!): Nodes!
+	"""
+	Returns a view of the node types.
+	"""
 	nodeFilter(filter: NodeFilter!): Nodes!
 	applyViews(views: [NodesViewCollection!]!): Nodes!
 	sorted(sortBys: [NodeSortBy!]!): Nodes!
+	"""
+	Returns the earliest time that this Nodes is valid or None if the Nodes are valid for all times.
+	"""
 	start: Int
+	"""
+	Returns the latest time that this Nodes is valid or None if the Nodes are valid for all times.
+	"""
 	end: Int
 	count: Int!
 	"""
@@ -1385,6 +1448,9 @@ type Nodes {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
 	list: [Node!]!
+	"""
+	Returns a view of the node ids.
+	"""
 	ids: [String!]!
 }
 
@@ -1705,3 +1771,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

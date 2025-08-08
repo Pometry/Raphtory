@@ -3426,7 +3426,7 @@ Returns the name of the node.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing only the default edge layer.
+Return a view of the node containing only the default edge layer.
 
 </td>
 </tr>
@@ -3970,12 +3970,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Return a view of the nodes containing only the default edge layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.layers">layers</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Return a view of the nodes containing all layers specified and an error if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -3985,7 +3993,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Return a view of the nodes containing all layers except those specified and an error if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -3995,7 +4007,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.layer">layer</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Return a view of the nodes containing the specified layer and errors if the layer does not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -4005,7 +4021,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Return a view of the nodes containing all layers except those specified, errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -4015,7 +4035,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.rolling">rolling</strong></td>
 <td valign="top"><a href="#nodeswindowset">NodesWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the specified window size and optional step using a rolling window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -4030,7 +4054,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.expanding">expanding</strong></td>
 <td valign="top"><a href="#nodeswindowset">NodesWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the specified step size using an expanding window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -4040,7 +4068,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.window">window</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4055,7 +4087,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.at">at</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events at a specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4065,12 +4101,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.latest">latest</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events that have not been explicitly deleted at the specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4080,12 +4124,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events that have not been explicitly deleted at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.before">before</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events before specified end time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4095,7 +4147,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.after">after</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Create a view of the nodes including all events after the specified start time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4105,7 +4161,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Shrink both the start and end of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4120,7 +4180,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Set the start of the window to the larger of a specified start time  and self.start().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4130,7 +4194,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Set the end of the window to the smaller of a specified end and self.end().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -4140,7 +4208,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.typefilter">typeFilter</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Filter nodes by node type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodeTypes</td>
@@ -4150,7 +4222,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.nodefilter">nodeFilter</strong></td>
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
-<td></td>
+<td>
+
+Returns a view of the node types.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">filter</td>
@@ -4180,12 +4256,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that this Nodes is valid or None if the Nodes are valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time that this Nodes is valid or None if the Nodes are valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.count">count</strong></td>
@@ -4231,7 +4315,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="nodes.ids">ids</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns a view of the node ids.
+
+</td>
 </tr>
 </tbody>
 </table>

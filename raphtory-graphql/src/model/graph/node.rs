@@ -58,7 +58,7 @@ impl GqlNode {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Return a view of node containing only the default edge layer.
+    /// Return a view of the node containing only the default edge layer.
     async fn default_layer(&self) -> GqlNode {
         self.vv.default_layer().into()
     }
