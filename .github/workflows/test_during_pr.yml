@@ -41,7 +41,7 @@ jobs:
     uses: ./.github/workflows/benchmark.yml
     secrets: inherit
     needs: rust-format-check
-  call-graphq-bench-workflow-in-local-repo:
+  call-graphql-bench-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/bench-graphql.yml
     secrets: inherit
