@@ -36,6 +36,7 @@ deploy:
 	terraform apply -auto-approve -var="ssh_user=$$USER"
 
 # FIXME: RAPHTORY_IP points to the server for graphql benchmarks, not the server for the vector tests
+# TODO: move somewhere else
 bench-vectors:
 	cd vectors && terraform apply -auto-approve -var="ssh_user=$$USER"
 	ssh -o 'StrictHostKeyChecking no' $(RAPHTORY_IP) -t 'sudo apt-get update && sudo apt-get install -y git build-essential protobuf-compiler'
