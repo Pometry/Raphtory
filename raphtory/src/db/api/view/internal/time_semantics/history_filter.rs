@@ -18,7 +18,7 @@ pub trait NodeHistoryFilter {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool;
 
     fn is_node_prop_update_latest(
@@ -33,7 +33,7 @@ pub trait NodeHistoryFilter {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool;
 }
 
@@ -52,7 +52,7 @@ pub trait EdgeHistoryFilter {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool;
 
     fn is_edge_prop_update_latest(
@@ -71,7 +71,7 @@ pub trait EdgeHistoryFilter {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool;
 }
 
@@ -100,7 +100,7 @@ where
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.base()
             .is_node_prop_update_available_window(prop_id, node_id, time, w)
@@ -121,7 +121,7 @@ where
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.base()
             .is_node_prop_update_latest_window(prop_id, node_id, time, w)
@@ -151,7 +151,7 @@ where
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.base()
             .is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
@@ -176,7 +176,7 @@ where
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.base()
             .is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)

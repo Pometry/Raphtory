@@ -45,7 +45,7 @@ mod test {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::AsTime};
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::HashMap;
 
@@ -442,11 +442,19 @@ mod test {
             .filter_exploded_edges(PropertyFilterBuilder::new("test").ne(2i64))
             .unwrap();
         assert_eq!(
-            gf.edges().explode().earliest_time().collect_vec(),
+            gf.edges()
+                .explode()
+                .earliest_time()
+                .map(|t| t.map(|timeindex| timeindex.t()))
+                .collect_vec(),
             [Some(0i64), Some(5i64)]
         );
         assert_eq!(
-            gf.edges().explode().latest_time().collect_vec(),
+            gf.edges()
+                .explode()
+                .latest_time()
+                .map(|t| t.map(|timeindex| timeindex.t()))
+                .collect_vec(),
             [Some(2i64), Some(10i64)]
         );
     }

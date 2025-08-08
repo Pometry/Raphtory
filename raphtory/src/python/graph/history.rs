@@ -1,0 +1,422 @@
+use crate::{
+    db::api::view::history::*,
+    python::{
+        graph::{edge::PyEdge, node::PyNode},
+        types::{
+            iterable::FromIterable,
+            repr::{iterator_repr, Repr},
+            wrappers::iterators::PyBorrowingIterator,
+        },
+    },
+};
+use chrono::{DateTime, Utc};
+use numpy::{IntoPyArray, Ix1, PyArray};
+use pyo3::prelude::*;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use std::{
+    any::Any,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
+
+#[pyclass(name = "History", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyHistory {
+    history: History<'static, Arc<dyn InternalHistoryOps>>,
+}
+
+impl<'a, T: InternalHistoryOps> Repr for History<'a, T> {
+    fn repr(&self) -> String {
+        format!("History({})", iterator_repr(self.iter()))
+    }
+}
+
+impl PyHistory {
+    pub fn new(history: History<'static, Arc<dyn InternalHistoryOps>>) -> PyHistory {
+        PyHistory { history }
+    }
+}
+
+#[pymethods]
+impl PyHistory {
+    #[staticmethod]
+    pub fn from_node(node: &PyNode) -> Self {
+        Self {
+            history: History::new(Arc::new(node.node.clone())),
+        }
+    }
+
+    #[staticmethod]
+    pub fn from_edge(edge: &PyEdge) -> Self {
+        Self {
+            history: History::new(Arc::new(edge.edge.clone())),
+        }
+    }
+
+    #[staticmethod]
+    pub fn compose_histories(objects: FromIterable<PyHistory>) -> Self {
+        // the only way to get History objects from python is if they are already Arc<...>
+        let underlying_objects: Vec<Arc<dyn InternalHistoryOps>> = objects
+            .into_iter()
+            .map(|obj| Arc::clone(&obj.history.0))
+            .collect();
+        Self {
+            history: History::new(Arc::new(CompositeHistory::new(underlying_objects))),
+        }
+    }
+
+    // Clones the Arcs, we end up with Arc<Arc<dyn InternalHistoryOps>>, 1 level of indirection. Cloning the underlying InternalHistoryOps objects introduces lifetime issues.
+    // TODO: Ideally we want one of compose_histories/merge. We want to see where the performance benefits shift from one to the other and automatically use that.
+    pub fn merge(&self, other: &Self) -> Self {
+        Self {
+            history: History::new(Arc::new(MergedHistory::new(
+                self.history.0.clone(),
+                other.history.0.clone(),
+            ))),
+        }
+    }
+
+    // Clones the Arcs, we end up with Arc<Arc<dyn InternalHistoryOps>>, 1 level of indirection. Cloning the underlying InternalHistoryOps objects introduces lifetime issues.
+    pub fn reverse(&self) -> Self {
+        PyHistory {
+            history: History::new(Arc::new(ReversedHistoryOps::new(self.history.0.clone()))),
+        }
+    }
+
+    /// Access history events as i64 timestamps
+    #[getter]
+    pub fn t(&self) -> PyHistoryTimestamp {
+        PyHistoryTimestamp {
+            history_t: HistoryTimestamp::new(self.history.0.clone()), // clone the Arc, not the underlying object
+        }
+    }
+
+    /// Access history events as DateTime items
+    #[getter]
+    pub fn dt(&self) -> PyHistoryDateTime {
+        PyHistoryDateTime {
+            history_dt: HistoryDateTime::new(self.history.0.clone()), // clone the Arc, not the underlying object
+        }
+    }
+
+    /// Access secondary index (unique index) of history events
+    #[getter]
+    pub fn secondary_index(&self) -> PyHistorySecondaryIndex {
+        PyHistorySecondaryIndex {
+            history_s: HistorySecondaryIndex::new(self.history.0.clone()), // clone the Arc, not the underlying object
+        }
+    }
+
+    #[getter]
+    pub fn intervals(&self) -> PyIntervals {
+        PyIntervals {
+            intervals: Intervals::new(self.history.0.clone()), // clone the Arc, not the underlying object
+        }
+    }
+
+    /// Get the earliest time in the history
+    pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.history.earliest_time()
+    }
+
+    /// Get the latest time in the history
+    pub fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.history.latest_time()
+    }
+
+    /// Collect all time events
+    pub fn __list__(&self) -> Vec<TimeIndexEntry> {
+        self.history.collect()
+    }
+
+    /// Collect all time events in reverse
+    pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
+        self.history.collect_rev()
+    }
+
+    /// Iterate over all time events
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history.clone(),
+            History<'static, Arc<dyn InternalHistoryOps>>,
+            |history| history.iter()
+        )
+    }
+
+    /// Iterate over all time events in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history.clone(),
+            History<'static, Arc<dyn InternalHistoryOps>>,
+            |history| history.iter_rev()
+        )
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.history.repr()
+    }
+
+    fn __hash__(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.history.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    // implement contains function. might need to downcast general python object, can use enum to downcast to handle all AsTime objects.
+
+    // Might need to downcast to handle all AsTime objects.
+    fn __eq__(&self, other: &PyHistory) -> bool {
+        self.history.eq(&other.history)
+    }
+
+    fn __ne__(&self, other: &PyHistory) -> bool {
+        self.history.ne(&other.history)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.history.is_empty()
+    }
+
+    pub fn __len__(&self) -> usize {
+        self.history.len()
+    }
+}
+
+#[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyHistoryTimestamp {
+    history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+}
+
+#[pymethods]
+impl PyHistoryTimestamp {
+    /// Collect all time events
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let t = self.history_t.collect();
+        t.into_pyarray(py)
+    }
+
+    /// Collect all time events in reverse
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let t = self.history_t.collect_rev();
+        t.into_pyarray(py)
+    }
+
+    /// Iterate over all time events
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history_t.clone(),
+            HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+            |history_t| history_t.iter()
+        )
+    }
+
+    /// Iterate over all time events in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history_t.clone(),
+            HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+            |history_t| history_t.iter_rev()
+        )
+    }
+}
+
+#[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyHistoryDateTime {
+    history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+}
+
+#[pymethods]
+impl PyHistoryDateTime {
+    /// Collect all time events
+    pub fn __list__(&self) -> PyResult<Vec<DateTime<Utc>>> {
+        self.history_dt.collect().map_err(PyErr::from)
+    }
+
+    /// Collect all time events in reverse
+    pub fn collect_rev(&self) -> PyResult<Vec<DateTime<Utc>>> {
+        self.history_dt.collect_rev().map_err(PyErr::from)
+    }
+
+    /// Iterate over all time events
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter_result!(
+            self.history_dt.clone(),
+            HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+            |history_dt| history_dt.iter()
+        )
+    }
+
+    /// Iterate over all time events in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter_result!(
+            self.history_dt.clone(),
+            HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+            |history_dt| history_dt.iter_rev()
+        )
+    }
+}
+
+impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
+    fn repr(&self) -> String {
+        format!("HistoryDateTime({})", iterator_repr(self.iter()))
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> From<HistoryDateTime<T>> for PyHistoryDateTime {
+    fn from(value: HistoryDateTime<T>) -> Self {
+        PyHistoryDateTime {
+            history_dt: HistoryDateTime::new(Arc::new(value.0)),
+        }
+    }
+}
+
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime<T> {
+    type Target = PyHistoryDateTime;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistoryDateTime::from(self).into_pyobject(py)
+    }
+}
+
+#[pyclass(name = "HistorySecondaryIndex", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyHistorySecondaryIndex {
+    history_s: HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+}
+
+#[pymethods]
+impl PyHistorySecondaryIndex {
+    /// Collect all time events
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let u = self.history_s.collect();
+        u.into_pyarray(py)
+    }
+
+    /// Collect all time events in reverse
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+        let u = self.history_s.collect_rev();
+        u.into_pyarray(py)
+    }
+
+    /// Iterate over all time events
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history_s.clone(),
+            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+            |history_s| history_s.iter()
+        )
+    }
+
+    /// Iterate over all time events in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.history_s.clone(),
+            HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
+            |history_s| history_s.iter_rev()
+        )
+    }
+}
+
+#[pyclass(name = "Intervals", module = "raphtory", frozen)]
+#[derive(Clone)]
+pub struct PyIntervals {
+    intervals: Intervals<Arc<dyn InternalHistoryOps>>,
+}
+
+#[pymethods]
+impl PyIntervals {
+    /// Collect all interval values
+    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let i = self.intervals.collect();
+        i.into_pyarray(py)
+    }
+
+    /// Collect all interval values in reverse
+    pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+        let i = self.intervals.collect_rev();
+        i.into_pyarray(py)
+    }
+
+    /// Iterate over all interval values
+    pub fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.intervals.clone(),
+            Intervals<Arc<dyn InternalHistoryOps>>,
+            |intervals| intervals.iter()
+        )
+    }
+
+    /// Iterate over all interval values in reverse
+    pub fn __reversed__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.intervals.clone(),
+            Intervals<Arc<dyn InternalHistoryOps>>,
+            |intervals| intervals.iter_rev()
+        )
+    }
+
+    /// Calculate the mean interval between values
+    pub fn mean(&self) -> Option<f64> {
+        self.intervals.mean()
+    }
+
+    /// Calculate the median interval between values
+    pub fn median(&self) -> Option<f64> {
+        self.intervals.median()
+    }
+
+    /// Calculate the maximum interval between values
+    pub fn max(&self) -> Option<i64> {
+        self.intervals.max()
+    }
+
+    /// Calculate the minimum interval between values
+    pub fn min(&self) -> Option<i64> {
+        self.intervals.min()
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
+    fn from(history: History<T>) -> Self {
+        let arc_ops: Arc<dyn InternalHistoryOps> = {
+            // Check if T is already Arc<dyn InternalHistoryOps>
+            let any_ref: &dyn Any = &history.0;
+            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
+                Arc::clone(arc_obj)
+            } else {
+                Arc::new(history.0)
+            }
+        };
+        Self {
+            history: History::new(arc_ops),
+        }
+    }
+}
+
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> {
+    type Target = PyHistory;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistory::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let py_history = ob.downcast::<PyHistory>()?;
+        Ok(py_history.get().history.clone())
+    }
+}
+
+impl Repr for TimeIndexEntry {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}

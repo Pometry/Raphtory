@@ -3,15 +3,49 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Range};
 
+/// Error type for timestamp to chrono::DateTime<Utc> conversion operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TimeError {
+    /// The timestamp value is out of range for chrono::DateTime<Utc> conversion
+    OutOfRange(i64),
+}
+
+impl fmt::Display for TimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let min = DateTime::<Utc>::MIN_UTC.timestamp_millis();
+        let max = DateTime::<Utc>::MAX_UTC.timestamp_millis();
+        match self {
+            TimeError::OutOfRange(timestamp) => {
+                write!(f, "Timestamp '{}' is out of range for DateTime conversion. Valid range is from {} to {}", timestamp, min, max)
+            }
+        }
+    }
+}
+
+impl std::error::Error for TimeError {}
+
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq, Ord, PartialOrd, Eq, Hash)]
 pub struct TimeIndexEntry(pub i64, pub usize);
+
+impl PartialEq<i64> for TimeIndexEntry {
+    fn eq(&self, other: &i64) -> bool {
+        self.0 == *other
+    }
+}
+
+impl fmt::Display for TimeIndexEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TimeIndexEntry[{}, {}]", self.0, self.1)
+    }
+}
 
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
 
-    fn dt(&self) -> Option<DateTime<Utc>> {
+    /// Converts the timestamp into a UTC DateTime. Returns TimestampError on out-of-range timestamps.
+    fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         let t = self.t();
-        DateTime::from_timestamp_millis(t)
+        DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))
     }
 
     fn range(w: Range<i64>) -> Range<Self>;
@@ -183,6 +217,10 @@ impl TimeIndexEntry {
     pub const MAX: TimeIndexEntry = TimeIndexEntry(i64::MAX, usize::MAX);
     pub fn new(t: i64, s: usize) -> Self {
         Self(t, s)
+    }
+
+    pub fn set_index(&mut self, i: usize) {
+        self.1 = i
     }
 
     pub fn start(t: i64) -> Self {

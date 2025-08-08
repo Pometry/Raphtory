@@ -73,7 +73,7 @@ where
     ///
     /// Returns:
     ///
-    /// An `a vector of tuples with keys of type `H` and values of type `Y`.
+    /// A vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.

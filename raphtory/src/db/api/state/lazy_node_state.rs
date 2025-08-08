@@ -3,10 +3,13 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{node::NodeOp, NodeOpFilter},
+                ops::{node::NodeOp, EarliestTime, HistoryOp, LatestTime, NodeOpFilter},
                 Index, NodeState, NodeStateOps,
             },
             view::{
+                history::{
+                    History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp, Intervals,
+                },
                 internal::{FilterOps, NodeList, OneHopFilter},
                 BoxedLIter, IntoDynBoxed,
             },
@@ -16,10 +19,12 @@ use crate::{
     prelude::*,
 };
 use indexmap::IndexSet;
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     fmt::{Debug, Formatter},
+    marker::PhantomData,
 };
 
 #[derive(Clone)]
@@ -122,6 +127,36 @@ impl<'graph, Op: NodeOpFilter<'graph>, G: GraphViewOps<'graph>, GH: GraphViewOps
     }
 }
 
+impl<'graph, OpG: GraphViewOps<'graph>, BaseG: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    OneHopFilter<'graph> for LazyNodeState<'graph, HistoryOp<'graph, OpG>, BaseG, GH>
+{
+    type BaseGraph = BaseG;
+    type FilteredGraph = OpG;
+    type Filtered<GHH: GraphViewOps<'graph> + 'graph> =
+        LazyNodeState<'graph, HistoryOp<'graph, GHH>, BaseG, GH>;
+
+    fn current_filter(&self) -> &Self::FilteredGraph {
+        &self.op.graph
+    }
+
+    fn base_graph(&self) -> &Self::BaseGraph {
+        self.nodes.base_graph()
+    }
+
+    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+        &self,
+        filtered_graph: GHH,
+    ) -> Self::Filtered<GHH> {
+        LazyNodeState {
+            nodes: self.nodes.clone(),
+            op: HistoryOp {
+                graph: filtered_graph,
+                _phantom: PhantomData,
+            },
+        }
+    }
+}
+
 impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> IntoIterator
     for LazyNodeState<'graph, Op, G, GH>
 {
@@ -173,6 +208,52 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 None,
             )
         }
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
+{
+    pub fn earliest_time(&self) -> LazyNodeState<EarliestTime<GH>, G, GH> {
+        self.nodes.earliest_time()
+    }
+
+    pub fn latest_time(&self) -> LazyNodeState<LatestTime<GH>, G, GH> {
+        self.nodes.latest_time()
+    }
+
+    pub fn flatten(&self) -> impl Iterator<Item = History<'graph, NodeView<'graph, GH, GH>>> {
+        self.compute().into_iter_values()
+    }
+
+    pub fn intervals(&self) -> impl Iterator<Item = Intervals<NodeView<'graph, GH, GH>>> {
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.intervals())
+    }
+
+    pub fn t(&self) -> impl Iterator<Item = HistoryTimestamp<NodeView<'graph, GH, GH>>> {
+        self.compute().into_iter_values().map(|history| history.t())
+    }
+
+    pub fn dt(&self) -> impl Iterator<Item = HistoryDateTime<NodeView<'graph, GH, GH>>> {
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.dt())
+    }
+
+    pub fn secondary_index(
+        &self,
+    ) -> impl Iterator<Item = HistorySecondaryIndex<NodeView<'graph, GH, GH>>> {
+        self.compute()
+            .into_iter_values()
+            .map(|history| history.secondary_index())
+    }
+
+    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
+        self.flatten()
+            .flat_map(|history| history.collect())
+            .collect()
     }
 }
 
