@@ -63,7 +63,7 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         })
         .await
     }
-
+    /// Returns the list of metadata schemas for edges connecting these types of nodes
     async fn metadata(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {

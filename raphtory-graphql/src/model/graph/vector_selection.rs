@@ -29,14 +29,17 @@ impl From<VectorSelection<MaterializedGraph>> for GqlVectorSelection {
 
 #[ResolvedObjectFields]
 impl GqlVectorSelection {
+    /// Returns a list of nodes in the current selection.
     async fn nodes(&self) -> Vec<GqlNode> {
         self.0.nodes().into_iter().map(|e| e.into()).collect()
     }
 
+    /// Returns a list of edges in the current selection.
     async fn edges(&self) -> Vec<GqlEdge> {
         self.0.edges().into_iter().map(|e| e.into()).collect()
     }
 
+    /// Returns a list of documents in the current selection.
     async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
         blocking_compute(move || {
@@ -53,6 +56,9 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Adds all the documents associated with the specified nodes to the current selection.
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
     async fn add_nodes(&self, nodes: Vec<String>) -> Self {
         let mut selection = self.cloned();
         blocking_compute(move || {
@@ -62,6 +68,9 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Adds all the documents associated with the specified edges to the current selection.
+    ///
+    /// Documents added by this call are assumed to have a score of 0.
     async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
         let mut selection = self.cloned();
         blocking_compute(move || {
@@ -72,6 +81,9 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Add all the documents a specified number of hops away to the selection.
+    ///
+    /// Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
     async fn expand(&self, hops: usize, window: Option<Window>) -> Self {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
@@ -82,6 +94,7 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
     async fn expand_entities_by_similarity(
         &self,
         ctx: &Context<'_>,
@@ -99,6 +112,7 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
     async fn expand_nodes_by_similarity(
         &self,
         ctx: &Context<'_>,
@@ -116,6 +130,7 @@ impl GqlVectorSelection {
         .await
     }
 
+    /// Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
     async fn expand_edges_by_similarity(
         &self,
         ctx: &Context<'_>,

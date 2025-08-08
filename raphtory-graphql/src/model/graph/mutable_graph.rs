@@ -40,9 +40,13 @@ pub struct NodeAddition {
 #[derive(InputObject, Clone)]
 pub struct EdgeAddition {
     src: String,
+    /// Source node.
     dst: String,
+    /// Destination node.
     layer: Option<String>,
+    /// Layer.
     metadata: Option<Vec<GqlPropertyInput>>,
+    /// Metadata
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -368,7 +372,7 @@ impl GqlMutableNode {
         true
     }
 
-    /// Get the non-mutable `Node`
+    /// Get the non-mutable  Node
     async fn node(&self) -> GqlNode {
         self.node.clone().into()
     }
@@ -468,7 +472,7 @@ impl GqlMutableEdge {
         self.edge.dst().into()
     }
 
-    /// Mark the edge as deleted at time `time`
+    /// Mark the edge as deleted at time  time
     async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -483,7 +487,7 @@ impl GqlMutableEdge {
 
     /// Add metadata to the edge (errors if the value already exists)
     ///
-    /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+    /// If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
     /// need to be specified again.
     async fn add_metadata(
         &self,
@@ -505,7 +509,7 @@ impl GqlMutableEdge {
 
     /// Update metadata of the edge (existing values are overwritten)
     ///
-    /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+    /// If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
     /// need to be specified again.
     async fn update_metadata(
         &self,
@@ -527,7 +531,7 @@ impl GqlMutableEdge {
 
     /// Add temporal property updates to the edge
     ///
-    /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
+    /// If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
     /// need to be specified again.
     async fn add_updates(
         &self,
