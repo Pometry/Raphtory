@@ -16,7 +16,7 @@ pub fn gen_embedding_for_bench(text: &str) -> Embedding {
     let hash = hasher.finish();
 
     let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
-    (0..1024).map(|_| rng.gen()).collect()
+    (0..1536).map(|_| rng.gen()).collect()
 }
 
 async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
@@ -34,13 +34,17 @@ pub fn create_graph_for_vector_bench(size: usize) -> Graph {
     graph
 }
 
-pub fn vectorise_graph_for_bench(graph: Graph) -> VectorisedGraph<Graph> {
+pub async fn vectorise_graph_for_bench_async(graph: Graph) -> VectorisedGraph<Graph> {
     let cache = VectorCache::in_memory(embedding_model);
     let template = DocumentTemplate {
         node_template: Some("{{name}}".to_owned()),
         edge_template: None,
     };
+    graph.vectorise(cache, template, None, true).await.unwrap()
+}
+
+// TODO: remove this version
+pub fn vectorise_graph_for_bench(graph: Graph) -> VectorisedGraph<Graph> {
     let rt = Runtime::new().unwrap();
-    rt.block_on(graph.vectorise(cache, template, None, true))
-        .unwrap()
+    rt.block_on(vectorise_graph_for_bench_async(graph))
 }

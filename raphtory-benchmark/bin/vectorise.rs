@@ -1,19 +1,34 @@
 use std::time::SystemTime;
 
+use raphtory::prelude::Graph;
 use raphtory_benchmark::common::vectors::{
-    create_graph_for_vector_bench, vectorise_graph_for_bench,
+    create_graph_for_vector_bench, vectorise_graph_for_bench_async,
 };
 
-fn print_time(start: SystemTime, message: &str) {
-    let duration = SystemTime::now().duration_since(start).unwrap().as_secs();
-    println!("{message} - took {duration}s");
-}
+const MAX_TIME: u64 = 3600;
 
-fn main() {
-    for size in [1_000_000] {
-        let graph = create_graph_for_vector_bench(size);
+// async fn vectorise(graph: Graph) {
+//     tokio::task::spawn_blocking(move || vectorise_graph_for_bench(graph));
+// }
+
+#[tokio::main]
+async fn main() {
+    println!("size,duration");
+    let mut size = 100.0;
+    loop {
+        let rounded_size = size as usize;
+        let graph = create_graph_for_vector_bench(rounded_size);
         let start = SystemTime::now();
-        vectorise_graph_for_bench(graph);
-        print_time(start, &format!(">>> vectorise {}k", size / 1000));
+        tokio::select! {
+            _ = vectorise_graph_for_bench_async(graph) => {
+                let duration = SystemTime::now().duration_since(start).unwrap().as_millis();
+                println!("{rounded_size},{duration}");
+            }
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(MAX_TIME)) => {
+                println!("here!!");
+                break;
+            }
+        };
+        size = size * f32::sqrt(2.0);
     }
 }
