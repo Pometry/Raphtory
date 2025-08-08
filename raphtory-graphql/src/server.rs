@@ -7,7 +7,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    routes::{health, ui},
+    routes::{health, ui, version},
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
@@ -83,6 +83,26 @@ pub struct GraphServer {
     config: AppConfig,
 }
 
+pub fn register_query_plugin<
+    'a,
+    E: EntryPoint<'a> + 'static + Send,
+    A: Operation<'a, E> + 'static + Send,
+>(
+    name: &str,
+) {
+    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+}
+
+pub fn register_mutation_plugin<
+    'a,
+    E: EntryPoint<'a> + 'static + Send,
+    A: Operation<'a, E> + 'static + Send,
+>(
+    name: &str,
+) {
+    E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
+}
+
 impl GraphServer {
     pub fn new(
         work_dir: PathBuf,
@@ -141,30 +161,6 @@ impl GraphServer {
                     .insert(graph_name.into(), template.clone());
             }
         }
-        self
-    }
-
-    pub fn register_query_plugin<
-        'a,
-        E: EntryPoint<'a> + 'static + Send,
-        A: Operation<'a, E> + 'static + Send,
-    >(
-        self,
-        name: &str,
-    ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
-        self
-    }
-
-    pub fn register_mutation_plugin<
-        'a,
-        E: EntryPoint<'a> + 'static + Send,
-        A: Operation<'a, E> + 'static + Send,
-    >(
-        self,
-        name: &str,
-    ) -> Self {
-        E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
         self
     }
 
@@ -252,6 +248,7 @@ impl GraphServer {
             .at("/saved-graphs", get(ui))
             .at("/playground", get(ui))
             .at("/health", get(health))
+            .at("/version", get(version))
             .with(Cors::new())
             .with(Compression::new().with_quality(CompressionLevel::Fastest));
         Ok(app)
