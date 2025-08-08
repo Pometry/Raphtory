@@ -219,8 +219,9 @@ impl TimeIndexEntry {
         Self(t, s)
     }
 
-    pub fn set_index(&mut self, i: usize) {
-        self.1 = i
+    pub fn set_index(mut self, i: usize) -> Self {
+        self.1 = i;
+        self
     }
 
     pub fn start(t: i64) -> Self {

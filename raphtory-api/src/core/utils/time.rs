@@ -70,9 +70,7 @@ impl IntoTime for TimeIndexEntry {
 
 impl<T: IntoTime> IntoTime for (T, usize) {
     fn into_time(self) -> TimeIndexEntry {
-        let mut time = self.0.into_time();
-        time.set_index(self.1);
-        time
+        self.0.into_time().set_index(self.1)
     }
 }
 
