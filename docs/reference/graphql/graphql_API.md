@@ -5170,12 +5170,20 @@ Return the values of the properties.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.emptyselection">emptySelection</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Returns an empty selection of documents.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.entitiesbysimilarity">entitiesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -5195,7 +5203,11 @@ Return the values of the properties.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.nodesbysimilarity">nodesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -5215,7 +5227,11 @@ Return the values of the properties.
 <tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.edgesbysimilarity">edgesBySimilarity</strong></td>
 <td valign="top"><a href="#gqlvectorselection">GqlVectorSelection</a>!</td>
-<td></td>
+<td>
+
+Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">query</td>
@@ -5256,22 +5272,38 @@ Return the values of the properties.
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.dst">dst</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Source node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Destination node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.metadata">metadata</strong></td>
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
-<td></td>
+<td>
+
+Layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.updates">updates</strong></td>
 <td valign="top">[<a href="#temporalpropertyinput">TemporalPropertyInput</a>!]</td>
-<td></td>
+<td>
+
+Metadata
+
+</td>
 </tr>
 </tbody>
 </table>

@@ -277,9 +277,21 @@ type Edge {
 
 input EdgeAddition {
 	src: String!
+	"""
+	Source node.
+	"""
 	dst: String!
+	"""
+	Destination node.
+	"""
 	layer: String
+	"""
+	Layer.
+	"""
 	metadata: [PropertyInput!]
+	"""
+	Metadata
+	"""
 	updates: [TemporalPropertyInput!]
 }
 
@@ -1852,9 +1864,21 @@ input Value @oneOf {
 }
 
 type VectorisedGraph {
+	"""
+	Returns an empty selection of documents.
+	"""
 	emptySelection: GqlVectorSelection!
+	"""
+	Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
+	"""
 	entitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
+	"""
 	nodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
+	"""
 	edgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 }
 
@@ -1876,3 +1900,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

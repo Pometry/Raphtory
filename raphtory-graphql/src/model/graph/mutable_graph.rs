@@ -39,10 +39,14 @@ pub struct NodeAddition {
 
 #[derive(InputObject, Clone)]
 pub struct EdgeAddition {
-    src: String, /// Source node.
-    dst: String, /// Destination node.
-    layer: Option<String>, /// Layer.
-    metadata: Option<Vec<GqlPropertyInput>>, /// Metadata
+    src: String,
+    /// Source node.
+    dst: String,
+    /// Destination node.
+    layer: Option<String>,
+    /// Layer.
+    metadata: Option<Vec<GqlPropertyInput>>,
+    /// Metadata
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
