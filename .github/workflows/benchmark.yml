@@ -48,34 +48,32 @@ jobs:
           cargo bench --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
       - name: Delete cargo.lock if it exists
         run: rm -f Cargo.lock
-      - name: Store rust benchmarks from master branch
-        # if: github.ref == 'refs/heads/master'
+      - name: Store benchmark results from master branch
+        if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
           tool: 'cargo'
           output-file-path: benchmark-result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
           alert-threshold: '200%'
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
-          gh-pages-branch: gh-pages-test # TODO: remove this
-      - name: Compare rust benchmarks
+          auto-push: true
+      - name: Compare benchmark results to master
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
           tool: 'cargo'
           output-file-path: benchmark-result.txt
-          alert-threshold: '200%'
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: '200%'
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
           save-data-file: false
-          gh-pages-branch: gh-pages-test
 # TODO
 # ON PR DO NOT UPLOAD
 # IF MASTER THEN UPLOAD

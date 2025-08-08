@@ -10,7 +10,7 @@
     "scripts": {
         "prebuild": "genql --schema ../raphtory-graphql/schema.graphql --output src/__generated",
         "build": "tsc --noEmit && tsup",
-        "bench": "pnpm build && K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --out csv=output.csv.gz dist/test.js"
+        "bench": "pnpm build && K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --out csv=output.csv.gz dist/bench.js"
     },
     "devDependencies": {
         "@genql/cli": "^6.3.2",

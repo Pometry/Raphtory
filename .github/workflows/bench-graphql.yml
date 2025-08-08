@@ -55,32 +55,30 @@ jobs:
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
       - name: Store benchmark results from master branch
-        # if: github.ref != 'refs/heads/master'
+        if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: GraphQL Benchmark
           tool: 'customBiggerIsBetter'
           output-file-path: graphql-bench/output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
           alert-threshold: '200%'
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
-          gh-pages-branch: gh-pages-test
+          auto-push: true
           benchmark-data-dir-path: dev/bench-graphql
-      - name: Compare GraphQL benchmarks
+      - name: Compare benchmark results to master
         if: github.ref != 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: GraphQL Benchmark
           tool: 'customBiggerIsBetter'
           output-file-path: graphql-bench/output.json
-          alert-threshold: '200%'
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: '200%'
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
           save-data-file: false
-          gh-pages-branch: gh-pages-test
           benchmark-data-dir-path: dev/bench-graphql
