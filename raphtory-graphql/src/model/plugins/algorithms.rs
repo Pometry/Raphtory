@@ -17,6 +17,7 @@ use raphtory::{
 use raphtory_api::core::Direction;
 
 #[derive(SimpleObject)]
+/// PageRank score.
 pub(crate) struct PagerankOutput {
     name: String,
     rank: f64,

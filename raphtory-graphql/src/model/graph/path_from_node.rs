@@ -45,24 +45,29 @@ impl GqlPathFromNode {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
+    /// Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.valid_layers(names))).await
     }
 
+    /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
     }
 
+    /// Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
     async fn layer(&self, name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
+    /// Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.nn.exclude_valid_layers(name))
     }
 
+    /// Creates a WindowSet with the given window size and optional step using a rolling window.
     async fn rolling(
         &self,
         window: WindowDuration,
@@ -94,6 +99,7 @@ impl GqlPathFromNode {
         }
     }
 
+    /// Creates a WindowSet with the given step size using an expanding window.
     async fn expanding(
         &self,
         step: WindowDuration,
@@ -104,46 +110,59 @@ impl GqlPathFromNode {
         }
     }
 
+    /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.nn.window(start, end))
     }
 
+    /// Create a view of the PathFromNode including all events at time.
     async fn at(&self, time: i64) -> Self {
         self.update(self.nn.at(time))
     }
 
+    /// Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
     async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
     }
 
+    /// Create a view of the PathFromNode including all events that have not been explicitly deleted at  the specified time.
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.nn.snapshot_at(time))
     }
+
+    /// Create a view of the PathFromNode including all events at the latest time.
     async fn latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
     }
 
+    /// Create a view of the PathFromNode including all events before the specified end (exclusive).
     async fn before(&self, time: i64) -> Self {
         self.update(self.nn.before(time))
     }
 
+    /// Create a view of the PathFromNode including all events after the specified start (exclusive).
     async fn after(&self, time: i64) -> Self {
         self.update(self.nn.after(time))
     }
+
+    /// Shrink both the start and end of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.nn.shrink_window(start, end))
     }
 
+    /// Set the start of the window to the larger of the specified start and self.start().
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.nn.shrink_start(start))
     }
 
+    /// Set the end of the window to the smaller of the specified end and self.end().
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.nn.shrink_end(end))
     }
 
+    /// Filter nodes by type.
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
@@ -153,10 +172,12 @@ impl GqlPathFromNode {
     //// TIME QUERIES //////
     ////////////////////////
 
+    /// Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
     async fn start(&self) -> Option<i64> {
         self.nn.start()
     }
 
+    /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
     async fn end(&self) -> Option<i64> {
         self.nn.end()
     }
@@ -197,6 +218,7 @@ impl GqlPathFromNode {
         blocking_compute(move || self_clone.iter().collect()).await
     }
 
+    /// Returns the node ids.
     async fn ids(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.name().collect()).await
