@@ -5522,6 +5522,14 @@ will be returned.
 <td></td>
 </tr>
 <tr>
+<td valign="top"><strong>STARTS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ENDS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
 <td valign="top"><strong>CONTAINS</strong></td>
 <td></td>
 </tr>
