@@ -2,29 +2,13 @@
     "compilerOptions": {
         "target": "es2019", // es2019 works!
         "module": "CommonJS",
-        // "moduleResolution": "nodenext",
         "outDir": "./dist",
         "rootDir": ".",
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
-        /// old
-        // "target": "es5",
-        // "useDefineForClassFields": true,
-        // "lib": ["ESNext", "DOM", "DOM.Iterable"],
-        // "module": "ESNext",
-        // "skipLibCheck": true,
-        // /* Bundler mode */
-        // "moduleResolution": "bundler",
-        // "allowImportingTsExtensions": true,
-        // "resolveJsonModule": true,
-        // "isolatedModules": true,
-        // "noEmit": true,
-        // "jsx": "react-jsx",
         /* Linting */
         "strict": true,
-        // "noUnusedLocals": true,
-        // "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true
     },
     "include": ["./src"]

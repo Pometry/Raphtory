@@ -53,7 +53,9 @@ jobs:
         with:
           k6-version: '1.0.0'
       - name: Run GraphQL benchmarks
-        run: cd graphql-bench && make bench-local
+        run: |
+          cd graphql-bench && make bench-local
+          git restore graphql-bench/data/apache/master/.raph # otherwise github-action-benchmark fails to create the commit
       - name: Store benchmark results from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1

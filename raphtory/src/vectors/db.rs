@@ -8,7 +8,6 @@ use std::{
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
 use futures_util::StreamExt;
 use rand::{rngs::StdRng, SeedableRng};
-use sysinfo::System;
 use tempfile::TempDir;
 
 use super::{
@@ -248,18 +247,15 @@ impl VectorDb {
             let dimensions = first_vector.len();
             let writer = Writer::<Cosine>::new(db, 0, dimensions);
 
-            writer.append_item(&mut wtxn, first_id, &first_vector)?;
+            writer.add_item(&mut wtxn, first_id, &first_vector)?;
             while let Some(result) = vectors.next().await {
                 let (id, vector) = result?;
-                writer.append_item(&mut wtxn, id, &vector)?;
+                writer.add_item(&mut wtxn, id, &vector)?;
             }
 
             // TODO: review this -> You can specify the number of trees to use or specify None.
             let mut rng = StdRng::seed_from_u64(42);
-            writer
-                .builder(&mut rng)
-                // .available_memory(System::new().total_memory() as usize / 2)
-                .build(&mut wtxn)?;
+            writer.builder(&mut rng).build(&mut wtxn)?;
             dimensions.into()
         } else {
             OnceLock::new()
