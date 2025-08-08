@@ -257,7 +257,6 @@ impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperty {
-
     /// Key of a property.
     async fn key(&self) -> String {
         self.key.clone()
@@ -365,7 +364,6 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlProperties {
-
     /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
@@ -423,7 +421,6 @@ impl GqlProperties {
 
 #[ResolvedObjectFields]
 impl GqlMetadata {
-
     /// Get metadata value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
@@ -470,7 +467,6 @@ impl GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperties {
-
     /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
         self.props.get(key.as_str()).map(move |p| (key, p).into())

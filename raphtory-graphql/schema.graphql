@@ -796,8 +796,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -912,9 +912,21 @@ type MetaGraph {
 }
 
 type Metadata {
+	"""
+	Get metadata value matching the specified key.
+	"""
 	get(key: String!): Property
+	"""
+	/// Check if the key is in the metadata.
+	"""
 	contains(key: String!): Boolean!
+	"""
+	Return all metadata keys.
+	"""
 	keys: [String!]!
+	"""
+	/// Return all metadata values.
+	"""
 	values(keys: [String!]): [Property!]!
 }
 
@@ -1510,30 +1522,90 @@ enum Operator {
 	NOT_CONTAINS
 }
 
+"""
+PageRank score.
+"""
 type PagerankOutput {
 	name: String!
 	rank: Float!
 }
 
 type PathFromNode {
+	"""
+	Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
+	"""
 	layers(names: [String!]!): PathFromNode!
+	"""
+	Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+	"""
 	excludeLayers(names: [String!]!): PathFromNode!
+	"""
+	Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
+	"""
 	layer(name: String!): PathFromNode!
+	"""
+	Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+	"""
 	excludeLayer(name: String!): PathFromNode!
+	"""
+	Creates a WindowSet with the given window size and optional step using a rolling window.
+	"""
 	rolling(window: WindowDuration!, step: WindowDuration): PathFromNodeWindowSet!
+	"""
+	Creates a WindowSet with the given step size using an expanding window.
+	"""
 	expanding(step: WindowDuration!): PathFromNodeWindowSet!
+	"""
+	Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
+	"""
 	window(start: Int!, end: Int!): PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events at time.
+	"""
 	at(time: Int!): PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
+	"""
 	snapshotLatest: PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events that have not been explicitly deleted at  the specified time.
+	"""
 	snapshotAt(time: Int!): PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events at the latest time.
+	"""
 	latest: PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events before the specified end (exclusive).
+	"""
 	before(time: Int!): PathFromNode!
+	"""
+	Create a view of the PathFromNode including all events after the specified start (exclusive).
+	"""
 	after(time: Int!): PathFromNode!
+	"""
+	Shrink both the start and end of the window.
+	"""
 	shrinkWindow(start: Int!, end: Int!): PathFromNode!
+	"""
+	Set the start of the window to the larger of the specified start and self.start().
+	"""
 	shrinkStart(start: Int!): PathFromNode!
+	"""
+	Set the end of the window to the smaller of the specified end and self.end().
+	"""
 	shrinkEnd(end: Int!): PathFromNode!
+	"""
+	Filter nodes by type.
+	"""
 	typeFilter(nodeTypes: [String!]!): PathFromNode!
+	"""
+	Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+	"""
 	start: Int
+	"""
+	Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+	"""
 	end: Int
 	count: Int!
 	"""
@@ -1548,6 +1620,9 @@ type PathFromNode {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
 	list: [Node!]!
+	"""
+	Returns the node ids.
+	"""
 	ids: [String!]!
 	applyViews(views: [PathFromNodeViewCollection!]!): PathFromNode!
 }
@@ -1586,9 +1661,21 @@ type PathFromNodeWindowSet {
 }
 
 type Properties {
+	"""
+	Get property value matching the specified key.
+	"""
 	get(key: String!): Property
+	"""
+	Check if the key is in the properties.
+	"""
 	contains(key: String!): Boolean!
+	"""
+	Return all property keys.
+	"""
 	keys: [String!]!
+	"""
+	Return all property values.
+	"""
 	values(keys: [String!]): [Property!]!
 	temporal: TemporalProperties!
 }
@@ -1701,15 +1788,33 @@ enum SortByTime {
 
 
 type TemporalProperties {
+	"""
+	Get property value matching the specified key.
+	"""
 	get(key: String!): TemporalProperty
+	"""
+	Check if the key is in the properties.
+	"""
 	contains(key: String!): Boolean!
+	"""
+	Return all property keys.
+	"""
 	keys: [String!]!
+	"""
+	Return all property values.
+	"""
 	values(keys: [String!]): [TemporalProperty!]!
 }
 
 type TemporalProperty {
+	"""
+	Key of a property.
+	"""
 	key: String!
 	history: [Int!]!
+	"""
+	Return the values of the properties.
+	"""
 	values: [String!]!
 	at(t: Int!): String
 	latest: String
@@ -1771,3 +1876,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

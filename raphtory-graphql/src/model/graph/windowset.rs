@@ -192,7 +192,6 @@ impl GqlPathFromNodeWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlPathFromNodeWindowSet {
-    
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await

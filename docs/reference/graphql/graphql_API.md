@@ -2546,26 +2546,6 @@ Uses Tantivy's exact search.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2583,6 +2563,26 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2808,7 +2808,11 @@ Returns the metadata of the metagraph.
 <tr>
 <td colspan="2" valign="top"><strong id="metadata.get">get</strong></td>
 <td valign="top"><a href="#property">Property</a></td>
-<td></td>
+<td>
+
+Get metadata value matching the specified key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -2818,7 +2822,11 @@ Returns the metadata of the metagraph.
 <tr>
 <td colspan="2" valign="top"><strong id="metadata.contains">contains</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+/// Check if the key is in the metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -2828,12 +2836,20 @@ Returns the metadata of the metagraph.
 <tr>
 <td colspan="2" valign="top"><strong id="metadata.keys">keys</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Return all metadata keys.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metadata.values">values</strong></td>
 <td valign="top">[<a href="#property">Property</a>!]!</td>
-<td></td>
+<td>
+
+/// Return all metadata values.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">keys</td>
@@ -4382,6 +4398,8 @@ will be returned.
 
 ### PagerankOutput
 
+PageRank score.
+
 <table>
 <thead>
 <tr>
@@ -4420,7 +4438,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.layers">layers</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Returns a view of PathFromNode containing the specified layer, errors if the layer does not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -4430,7 +4452,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.excludelayers">excludeLayers</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">names</td>
@@ -4440,7 +4466,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.layer">layer</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Return a view of PathFromNode containing the layer specified layer, errors if the layer does not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -4450,7 +4480,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Return a view of PathFromNode containing all layers except the specified excluded layers, errors if any of the layers do not exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">name</td>
@@ -4460,7 +4494,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.rolling">rolling</strong></td>
 <td valign="top"><a href="#pathfromnodewindowset">PathFromNodeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given window size and optional step using a rolling window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">window</td>
@@ -4475,7 +4513,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.expanding">expanding</strong></td>
 <td valign="top"><a href="#pathfromnodewindowset">PathFromNodeWindowSet</a>!</td>
-<td></td>
+<td>
+
+Creates a WindowSet with the given step size using an expanding window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">step</td>
@@ -4485,7 +4527,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.window">window</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4500,7 +4546,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.at">at</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events at time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4510,12 +4560,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events that have not been explicitly deleted at  the specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4525,12 +4583,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.latest">latest</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events at the latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.before">before</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events before the specified end (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4540,7 +4606,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.after">after</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Create a view of the PathFromNode including all events after the specified start (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">time</td>
@@ -4550,7 +4620,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Shrink both the start and end of the window.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4565,7 +4639,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Set the start of the window to the larger of the specified start and self.start().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">start</td>
@@ -4575,7 +4653,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Set the end of the window to the smaller of the specified end and self.end().
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">end</td>
@@ -4585,7 +4667,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.typefilter">typeFilter</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Filter nodes by type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodeTypes</td>
@@ -4595,12 +4681,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.count">count</strong></td>
@@ -4646,7 +4740,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.ids">ids</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Returns the node ids.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.applyviews">applyViews</strong></td>
@@ -4732,7 +4830,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="properties.get">get</strong></td>
 <td valign="top"><a href="#property">Property</a></td>
-<td></td>
+<td>
+
+Get property value matching the specified key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -4742,7 +4844,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="properties.contains">contains</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Check if the key is in the properties.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -4752,12 +4858,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="properties.keys">keys</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Return all property keys.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="properties.values">values</strong></td>
 <td valign="top">[<a href="#property">Property</a>!]!</td>
-<td></td>
+<td>
+
+Return all property values.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">keys</td>
@@ -4922,7 +5036,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperties.get">get</strong></td>
 <td valign="top"><a href="#temporalproperty">TemporalProperty</a></td>
-<td></td>
+<td>
+
+Get property value matching the specified key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -4932,7 +5050,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperties.contains">contains</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td></td>
+<td>
+
+Check if the key is in the properties.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">key</td>
@@ -4942,12 +5064,20 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperties.keys">keys</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Return all property keys.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperties.values">values</strong></td>
 <td valign="top">[<a href="#temporalproperty">TemporalProperty</a>!]!</td>
-<td></td>
+<td>
+
+Return all property values.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">keys</td>
@@ -4972,7 +5102,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.key">key</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Key of a property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.history">history</strong></td>
@@ -4982,7 +5116,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.values">values</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Return the values of the properties.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.at">at</strong></td>
