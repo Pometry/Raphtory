@@ -22,17 +22,58 @@ impl<'py> IntoPyObject<'py> for TimeIndexEntry {
 
 impl<'source> FromPyObject<'source> for TimeIndexEntry {
     fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(string) = time.extract::<String>() {
+        if let Ok(component) = time.extract::<TimeIndexComponent>() {
+            return Ok(TimeIndexEntry::from(component.t()));
+        }
+        // Handle list/tuple case: [timestamp, secondary_index]
+        if let Ok(seq) = time.extract::<Vec<TimeIndexComponent>>() {
+            if seq.len() == 2 {
+                return Ok(TimeIndexEntry::new(seq[0].t(), seq[1].t() as usize));
+            } else {
+                return Err(PyTypeError::new_err(format!(
+                    "List/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
+                    seq.len()
+                )));
+            }
+        }
+        if let Ok(py_time) = time.downcast::<PyTime>() {
+            return Ok(py_time.get().inner());
+        }
+        let message = format!("time '{time}' must be a str, datetime, float, integer, or a tuple/list of two of those types");
+        Err(PyTypeError::new_err(message))
+    }
+}
+
+/// Components that can make a TimeIndexEntry. Extract them from Python here so we can support tuples for TimeIndexEntry
+/// These can be used in the secondary index as well
+#[derive(Debug, Clone, Copy)]
+pub struct TimeIndexComponent {
+    component: i64,
+}
+
+impl TimeIndexComponent {
+    pub fn new(component: i64) -> Self {
+        Self { component }
+    }
+
+    pub fn t(&self) -> i64 {
+        self.component
+    }
+}
+
+impl<'source> FromPyObject<'source> for TimeIndexComponent {
+    fn extract_bound(component: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(string) = component.extract::<String>() {
             let timestamp = string.as_str();
             let parsing_result = timestamp
                 .try_into_time()
                 .or_else(|e| parse_email_timestamp(timestamp).map_err(|_| e))?;
-            return Ok(parsing_result);
+            return Ok(TimeIndexComponent::new(parsing_result.0));
         }
-        if let Ok(number) = time.extract::<i64>() {
-            return Ok(TimeIndexEntry::from(number));
+        if let Ok(number) = component.extract::<i64>() {
+            return Ok(TimeIndexComponent::new(number));
         }
-        if let Ok(float_time) = time.extract::<f64>() {
+        if let Ok(float_time) = component.extract::<f64>() {
             // seconds since Unix epoch as returned by python `timestamp`
             let float_ms = float_time * 1000.0;
             let float_ms_trunc = float_ms.round();
@@ -42,36 +83,23 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
                     "Float timestamps with more than millisecond precision are not supported.",
                 ));
             }
-            return Ok(TimeIndexEntry::from(float_ms_trunc as i64));
+            return Ok(TimeIndexComponent::new(float_ms_trunc as i64));
         }
-        // Handle list/tuple case: [timestamp, secondary_index]
-        if let Ok(seq) = time.extract::<Vec<i64>>() {
-            if seq.len() == 2 {
-                return Ok(TimeIndexEntry::new(seq[0], seq[1] as usize));
-            } else {
-                return Err(PyTypeError::new_err(format!(
-                    "List/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
-                    seq.len()
-                )));
-            }
+        if let Ok(parsed_datetime) = component.extract::<DateTime<FixedOffset>>() {
+            return Ok(TimeIndexComponent::new(parsed_datetime.timestamp_millis()));
         }
-        if let Ok(parsed_datetime) = time.extract::<DateTime<FixedOffset>>() {
-            return Ok(TimeIndexEntry::from(parsed_datetime.timestamp_millis()));
-        }
-        if let Ok(parsed_datetime) = time.extract::<NaiveDateTime>() {
+        if let Ok(parsed_datetime) = component.extract::<NaiveDateTime>() {
             // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
-            return Ok(TimeIndexEntry::from(
+            return Ok(TimeIndexComponent::new(
                 parsed_datetime.and_utc().timestamp_millis(),
             ));
         }
-        if let Ok(py_datetime) = time.downcast::<PyDateTime>() {
+        if let Ok(py_datetime) = component.downcast::<PyDateTime>() {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
-            return Ok(TimeIndexEntry::from(time));
+            return Ok(TimeIndexComponent::new(time));
         }
-        if let Ok(py_time) = time.downcast::<PyTime>() {
-            return Ok(py_time.get().inner());
-        }
-        let message = format!("time '{time}' must be a str, datetime, float, or an integer");
+        let message =
+            format!("time component '{component}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
     }
 }
