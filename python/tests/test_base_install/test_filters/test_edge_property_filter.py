@@ -232,6 +232,16 @@ def test_filter_edges_for_property_starts_with():
         ]
         assert result_ids == expected_ids
 
+        filter_expr = filter.Edge.property("p20").temporal().all().starts_with("Gold")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [
+            ("1", "2"),
+            ("2", "3"),
+            ("David Gilmour", "John Mayer"),
+            ("John Mayer", "Jimmy Page"),
+        ]
+        assert result_ids == expected_ids
+
         filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = []
@@ -266,6 +276,11 @@ def test_filter_edges_for_property_ends_with():
         filter_expr = filter.Edge.property("p20").temporal().first().ends_with("boat")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = [("2", "3"), ("David Gilmour", "John Mayer")]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.property("p20").temporal().all().ends_with("ship")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = [("1", "2"), ("John Mayer", "Jimmy Page")]
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.metadata("p10").ends_with("hip")

@@ -923,3 +923,31 @@ def test_nodes_property_filter_temporal_first_starts_with(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_property_filter_temporal_first_starts_with(graph):
+    query = """
+        query {
+          graph(path: "g") {
+            nodes {
+              nodeFilter(
+                  filter: {
+                    temporalProperty: {
+                      name: "prop3",
+                      temporal: ALL,
+                      operator: STARTS_WITH
+                      value: { str: "abc1" }
+                    }
+                  }
+                ) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    expected_output = {"graph": {"nodes": {"nodeFilter": {"list": [{"name": "a"}]}}}}
+    run_graphql_test(query, expected_output, graph)

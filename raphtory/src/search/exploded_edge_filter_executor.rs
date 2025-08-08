@@ -16,7 +16,7 @@ use crate::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_exploded_edges, fields, get_reader,
+        fallback_filter_edges, fallback_filter_exploded_edges, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -218,6 +218,10 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             ),
             PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
                 // TODO: Do we need to impl FirstNodePropertyFilterCollector
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::All) => {
+                // TODO: Do we need to impl AllNodePropertyFilterCollector
                 fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
         }

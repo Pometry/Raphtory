@@ -168,6 +168,11 @@ def test_filter_nodes_for_property_starts_with():
         expected_ids = ["2"]
         assert result_ids == expected_ids
 
+        filter_expr = filter.Node.property("p20").temporal().all().starts_with("Gold")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3", "4"]
+        assert result_ids == expected_ids
+
     return check
 
 
@@ -197,6 +202,11 @@ def test_filter_nodes_for_property_ends_with():
         filter_expr = filter.Node.property("p20").temporal().first().ends_with("boat")
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["3", "4"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p20").temporal().all().ends_with("ship")
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "2"]
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")

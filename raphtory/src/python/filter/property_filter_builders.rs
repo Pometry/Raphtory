@@ -220,6 +220,8 @@ trait DynTemporalPropertyFilterBuilderOps: Send + Sync {
     fn latest(&self) -> PyPropertyFilterOps;
 
     fn first(&self) -> PyPropertyFilterOps;
+
+    fn all(&self) -> PyPropertyFilterOps;
 }
 
 impl<M: Clone + Send + Sync + 'static> DynTemporalPropertyFilterBuilderOps
@@ -237,6 +239,10 @@ where
 
     fn first(&self) -> PyPropertyFilterOps {
         PyPropertyFilterOps(Arc::new(self.clone().first()))
+    }
+
+    fn all(&self) -> PyPropertyFilterOps {
+        PyPropertyFilterOps(Arc::new(self.clone().all()))
     }
 }
 
@@ -260,6 +266,10 @@ impl PyTemporalPropertyFilterBuilder {
 
     pub fn first(&self) -> PyPropertyFilterOps {
         self.0.first()
+    }
+
+    pub fn all(&self) -> PyPropertyFilterOps {
+        self.0.all()
     }
 }
 

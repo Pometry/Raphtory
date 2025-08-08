@@ -225,6 +225,10 @@ impl<'a> EdgeFilterExecutor<'a> {
                 // TODO: Do we need to impl FirstNodePropertyFilterCollector
                 fallback_filter_edges(graph, filter, limit, offset)
             }
+            PropertyRef::TemporalProperty(prop_name, Temporal::All) => {
+                // TODO: Do we need to impl AllNodePropertyFilterCollector
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
         }
     }
 

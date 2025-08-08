@@ -43,6 +43,7 @@ pub enum Temporal {
     Any,
     Latest,
     First,
+    All,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,6 +101,9 @@ impl<M> Display for PropertyFilter<M> {
             }
             PropertyRef::TemporalProperty(name, Temporal::First) => {
                 format!("temporal_first({})", name)
+            }
+            PropertyRef::TemporalProperty(name, Temporal::All) => {
+                format!("temporal_all({})", name)
             }
         };
 
@@ -395,6 +399,17 @@ impl<M> PropertyFilter<M> {
                 });
                 self.matches(prop_value.as_ref())
             }
+            PropertyRef::TemporalProperty(_, Temporal::All) => t_prop_id.is_some_and(|prop_id| {
+                props
+                    .temporal()
+                    .get_by_id(prop_id)
+                    .filter(|prop_view| {
+                        let has_any = prop_view.values().next().is_some();
+                        let all_ok = prop_view.values().all(|v| self.matches(Some(&v)));
+                        has_any && all_ok
+                    })
+                    .is_some()
+            }),
         }
     }
 
@@ -722,6 +737,18 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
 }
 
 #[derive(Clone)]
+pub struct AllTemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
+
+impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
+    for AllTemporalPropertyFilterBuilder<M>
+{
+    type Marker = M;
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::All)
+    }
+}
+
+#[derive(Clone)]
 pub struct TemporalPropertyFilterBuilder<M>(pub String, PhantomData<M>);
 
 impl<M> TemporalPropertyFilterBuilder<M> {
@@ -735,5 +762,9 @@ impl<M> TemporalPropertyFilterBuilder<M> {
 
     pub fn first(self) -> FirstTemporalPropertyFilterBuilder<M> {
         FirstTemporalPropertyFilterBuilder(self.0, PhantomData)
+    }
+
+    pub fn all(self) -> AllTemporalPropertyFilterBuilder<M> {
+        AllTemporalPropertyFilterBuilder(self.0, PhantomData)
     }
 }
