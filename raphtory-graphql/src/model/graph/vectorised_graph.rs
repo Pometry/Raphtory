@@ -9,7 +9,9 @@ use raphtory::{
 
 #[derive(InputObject)]
 pub(super) struct Window {
+    /// Start time.
     start: i64,
+    /// End time.
     end: i64,
 }
 

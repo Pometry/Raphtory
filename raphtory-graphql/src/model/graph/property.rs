@@ -28,18 +28,27 @@ use std::{
 
 #[derive(InputObject, Clone, Debug)]
 pub struct ObjectEntry {
+    /// Key.
     pub key: String,
+    /// Value.
     pub value: Value,
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Value {
+    /// 64 bit unsigned integer.
     U64(u64),
+    /// 64 bit signed integer.
     I64(i64),
+    /// 64 bit float.
     F64(f64),
+    /// String.
     Str(String),
+    /// Boolean.
     Bool(bool),
+    /// List.
     List(Vec<Value>),
+    /// Object.
     Object(Vec<ObjectEntry>),
 }
 

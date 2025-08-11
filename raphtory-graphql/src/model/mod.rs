@@ -76,7 +76,9 @@ pub enum GqlGraphError {
 #[derive(Enum)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
+    /// Persistent.
     Persistent,
+    /// Event.
     Event,
 }
 

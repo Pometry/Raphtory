@@ -14,7 +14,9 @@ use raphtory::{
 
 #[derive(InputObject)]
 pub(super) struct InputEdge {
+    /// Source node.
     src: String,
+    /// Destination node.
     dst: String,
 }
 

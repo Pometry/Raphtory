@@ -22,6 +22,7 @@ use raphtory::{
     prelude::NodeStateOps,
 };
 
+/// Raphtory graph node.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
 pub struct GqlNode {

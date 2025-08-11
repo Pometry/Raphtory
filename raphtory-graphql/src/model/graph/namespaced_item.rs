@@ -6,6 +6,8 @@ use dynamic_graphql::Union;
 // items, paged.
 #[derive(Union, Clone, PartialOrd, PartialEq, Ord, Eq)]
 pub(crate) enum NamespacedItem {
+    /// Namespace.
     Namespace(Namespace),
+    /// Metagraph.
     MetaGraph(MetaGraph),
 }

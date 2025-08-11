@@ -20,7 +20,7 @@ use raphtory::{
     prelude::{LayerOps, TimeOps},
 };
 
-/// Raphtory graph edge
+/// Raphtory graph edge.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
 pub struct GqlEdge {

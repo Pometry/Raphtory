@@ -19,21 +19,29 @@ use tokio::spawn;
 #[derive(InputObject, Clone)]
 #[graphql(name = "PropertyInput")]
 pub struct GqlPropertyInput {
+    /// Key.
     key: String,
+    /// Value.
     value: Value,
 }
 
 #[derive(InputObject, Clone)]
 pub struct TemporalPropertyInput {
+    /// Time.
     time: i64,
+    /// Properties.
     properties: Option<Vec<GqlPropertyInput>>,
 }
 
 #[derive(InputObject, Clone)]
 pub struct NodeAddition {
+    /// Name.
     name: String,
+    /// Node type.
     node_type: Option<String>,
+    /// Metadata.
     metadata: Option<Vec<GqlPropertyInput>>,
+    /// Updates.
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 

@@ -449,7 +449,9 @@ impl TemporalPropertyFilterExpr {
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum TemporalType {
+    /// Any.
     Any,
+    /// Latest.
     Latest,
 }
 

@@ -6,27 +6,36 @@ use raphtory::{
 
 #[derive(Enum)]
 pub enum AllPropertySpec {
+    /// All properties and metadata.
     All,
+    /// All metadata.
     AllMetadata,
+    /// All properties.
     AllProperties,
 }
 
 #[derive(InputObject)]
 pub struct SomePropertySpec {
+    /// List of metadata.
     pub metadata: Vec<String>,
+    /// List of properties.
     pub properties: Vec<String>,
 }
 
 #[allow(dead_code)]
 #[derive(OneOfInput)]
 pub enum PropsInput {
+    /// All properties and metadata.
     All(AllPropertySpec),
+    /// Some properties and metadata.
     Some(SomePropertySpec),
 }
 
 #[derive(InputObject)]
 pub struct IndexSpecInput {
+    /// Node properties.
     pub node_props: PropsInput,
+    /// Edge properties.
     pub edge_props: PropsInput,
 }
 
