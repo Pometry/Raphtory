@@ -15,6 +15,7 @@ use crate::{
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
+            first_edge_property_filter_collector::FirstEdgePropertyFilterCollector,
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
@@ -221,12 +222,16 @@ impl<'a> EdgeFilterExecutor<'a> {
                 offset,
                 LatestEdgePropertyFilterCollector::new,
             ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
-                // TODO: Do we need to impl FirstNodePropertyFilterCollector
-                fallback_filter_edges(graph, filter, limit, offset)
-            }
-            PropertyRef::TemporalProperty(prop_name, Temporal::All) => {
-                // TODO: Do we need to impl AllNodePropertyFilterCollector
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => self
+                .apply_temporal_property_filter(
+                    graph,
+                    prop_name,
+                    filter,
+                    limit,
+                    offset,
+                    FirstEdgePropertyFilterCollector::new,
+                ),
+            PropertyRef::TemporalProperty(_, Temporal::All) => {
                 fallback_filter_edges(graph, filter, limit, offset)
             }
         }

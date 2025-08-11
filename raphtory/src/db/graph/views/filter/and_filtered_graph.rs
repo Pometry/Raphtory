@@ -145,6 +145,16 @@ where
                 .is_node_prop_update_latest(prop_id, node_id, time)
     }
 
+    fn is_node_prop_update_first(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.left.is_node_prop_update_first(prop_id, node_id, time)
+            && self.right.is_node_prop_update_first(prop_id, node_id, time)
+    }
+
     fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
@@ -157,6 +167,20 @@ where
             && self
                 .right
                 .is_node_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+
+    fn is_node_prop_update_first_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.left
+            .is_node_prop_update_first_window(prop_id, node_id, time, w.clone())
+            && self
+                .right
+                .is_node_prop_update_first_window(prop_id, node_id, time, w)
     }
 }
 
@@ -229,6 +253,21 @@ where
                 .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
     }
 
+    fn is_edge_prop_update_first(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.left
+            .is_edge_prop_update_first(layer_ids, layer_id, prop_id, edge_id, time)
+            && self
+                .right
+                .is_edge_prop_update_first(layer_ids, layer_id, prop_id, edge_id, time)
+    }
+
     fn is_edge_prop_update_latest_window(
         &self,
         layer_ids: &LayerIds,
@@ -248,6 +287,27 @@ where
         ) && self
             .right
             .is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
+    }
+
+    fn is_edge_prop_update_first_window(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.left.is_edge_prop_update_first_window(
+            layer_ids,
+            layer_id,
+            prop_id,
+            edge_id,
+            time,
+            w.clone(),
+        ) && self
+            .right
+            .is_edge_prop_update_first_window(layer_ids, layer_id, prop_id, edge_id, time, w)
     }
 }
 

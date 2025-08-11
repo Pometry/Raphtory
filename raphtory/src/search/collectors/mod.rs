@@ -1,6 +1,10 @@
 pub(crate) mod edge_property_filter_collector;
 pub(crate) mod exploded_edge_property_filter_collector;
+pub(crate) mod first_edge_property_filter_collector;
+pub(crate) mod first_exploded_edge_property_filter_collector;
+pub(crate) mod first_node_property_filter_collector;
 pub(crate) mod latest_edge_property_filter_collector;
+pub(crate) mod latest_exploded_edge_property_filter_collector;
 pub(crate) mod latest_node_property_filter_collector;
 pub(crate) mod node_property_filter_collector;
 pub(crate) mod unique_entity_filter_collector;

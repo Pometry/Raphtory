@@ -294,6 +294,15 @@ impl NodeHistoryFilter for PersistentGraph {
         self.0.is_node_prop_update_latest(prop_id, node_id, time)
     }
 
+    fn is_node_prop_update_first(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.0.is_node_prop_update_first(prop_id, node_id, time)
+    }
+
     fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
@@ -306,6 +315,22 @@ impl NodeHistoryFilter for PersistentGraph {
             let x = nse
                 .tprop(prop_id)
                 .active(time.next()..TimeIndexEntry::start(w.end));
+            !x
+        }
+    }
+
+    fn is_node_prop_update_first_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        time.t() < w.end && {
+            let nse = self.0.core_node(node_id);
+            let x = nse
+                .tprop(prop_id)
+                .active(TimeIndexEntry::start(w.start)..time);
             !x
         }
     }
@@ -359,6 +384,18 @@ impl EdgeHistoryFilter for PersistentGraph {
             .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
     }
 
+    fn is_edge_prop_update_first(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.0
+            .is_edge_prop_update_first(layer_ids, layer_id, prop_id, edge_id, time)
+    }
+
     fn is_edge_prop_update_latest_window(
         &self,
         layer_ids: &LayerIds,
@@ -369,16 +406,37 @@ impl EdgeHistoryFilter for PersistentGraph {
         w: Range<i64>,
     ) -> bool {
         time.t() < w.end && {
-            let time = time.next();
             let ese = self.core_edge(edge_id);
-
             if layer_ids.contains(&layer_id) {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time.next()..TimeIndexEntry::start(w.end))
                 });
+                // If no layer has a future update, return true
+                return !has_future_update;
+            };
+            false
+        }
+    }
 
+    fn is_edge_prop_update_first_window(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        time.t() < w.end && {
+            let ese = self.core_edge(edge_id);
+            if layer_ids.contains(&layer_id) {
+                // Check if any layer has an active update beyond `time`
+                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                    ese.temporal_prop_layer(layer_id, prop_id)
+                        .active(TimeIndexEntry::start(w.start)..time)
+                });
                 // If no layer has a future update, return true
                 return !has_future_update;
             };

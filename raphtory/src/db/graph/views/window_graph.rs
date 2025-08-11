@@ -206,6 +206,16 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
             .is_node_prop_update_latest_window(prop_id, node_id, time, self.window_bound())
     }
 
+    fn is_node_prop_update_first(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.graph
+            .is_node_prop_update_first_window(prop_id, node_id, time, self.window_bound())
+    }
+
     fn is_node_prop_update_latest_window(
         &self,
         prop_id: usize,
@@ -215,6 +225,17 @@ impl<'graph, G: GraphViewOps<'graph>> NodeHistoryFilter for WindowedGraph<G> {
     ) -> bool {
         self.graph
             .is_node_prop_update_latest_window(prop_id, node_id, time, w)
+    }
+
+    fn is_node_prop_update_first_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_node_prop_update_first_window(prop_id, node_id, time, w)
     }
 }
 
@@ -265,6 +286,24 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
         )
     }
 
+    fn is_edge_prop_update_first(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        self.graph.is_edge_prop_update_first_window(
+            layer_ids,
+            layer_id,
+            prop_id,
+            edge_id,
+            time,
+            self.window_bound(),
+        )
+    }
+
     fn is_edge_prop_update_latest_window(
         &self,
         layer_ids: &LayerIds,
@@ -276,6 +315,19 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
     ) -> bool {
         self.graph
             .is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
+    }
+
+    fn is_edge_prop_update_first_window(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        self.graph
+            .is_edge_prop_update_first_window(layer_ids, layer_id, prop_id, edge_id, time, w)
     }
 }
 

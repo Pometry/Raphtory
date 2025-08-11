@@ -14,6 +14,7 @@ use crate::{
     prelude::{GraphViewOps, PropertyFilter},
     search::{
         collectors::{
+            first_node_property_filter_collector::FirstNodePropertyFilterCollector,
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
@@ -220,12 +221,16 @@ impl<'a> NodeFilterExecutor<'a> {
                 offset,
                 LatestNodePropertyFilterCollector::new,
             ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::First) => {
-                // TODO: Do we need to impl FirstNodePropertyFilterCollector
-                fallback_filter_nodes(graph, filter, limit, offset)
-            }
-            PropertyRef::TemporalProperty(prop_name, Temporal::All) => {
-                // TODO: Do we need to impl AllNodePropertyFilterCollector
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => self
+                .apply_temporal_property_filter(
+                    graph,
+                    prop_name,
+                    filter,
+                    limit,
+                    offset,
+                    FirstNodePropertyFilterCollector::new,
+                ),
+            PropertyRef::TemporalProperty(_, Temporal::All) => {
                 fallback_filter_nodes(graph, filter, limit, offset)
             }
         }
