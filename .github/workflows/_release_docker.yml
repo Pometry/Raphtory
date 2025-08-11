@@ -3,9 +3,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-env:
-  REGISTRY_IMAGE: prezel/prezel
-
 permissions:
   contents: read
   packages: write
