@@ -9,10 +9,9 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     cmp::{Ordering, Reverse},
     collections::BinaryHeap,
-    fmt::{Debug, Formatter},
+    fmt::{Binary, Debug, Formatter},
     ops::Deref,
 };
-use std::fmt::Binary;
 
 trait AsOrd {
     type Ordered: ?Sized + Ord;
@@ -284,11 +283,7 @@ where
     }
 }
 
-pub fn top_k<V: Send + Sync, F>(
-    iter: impl IntoIterator<Item = V>,
-    cmp: F,
-    k: usize,
-) -> Vec<V>
+pub fn top_k<V: Send + Sync, F>(iter: impl IntoIterator<Item = V>, cmp: F, k: usize) -> Vec<V>
 where
     F: Fn(&V, &V) -> Ordering + Send + Sync,
 {
@@ -300,10 +295,9 @@ where
             cmp_fn: &cmp,
         });
         if heap.len() < k {
-                // heap is still not full, push the element and return
+            // heap is still not full, push the element and return
             heap.push(elem);
-        }
-        else if heap.peek() > Some(&elem) {
+        } else if heap.peek() > Some(&elem) {
             // May need to push this element, drop the read guard and wait for write access
             if let Some(mut first_mut) = heap.peek_mut() {
                 *first_mut = elem;
@@ -319,7 +313,6 @@ where
 
     values
 }
-
 
 pub fn par_top_k<V: Send + Sync, F>(
     iter: impl IntoParallelIterator<Item = V>,
@@ -389,7 +382,11 @@ mod test {
 
     #[test]
     fn test_top_k() {
-        let values = gen_x_ints(100000000, Uniform::new(0, 10000000), &mut rand::thread_rng()); // [4i32, 2, 3, 100, 4, 2];
+        let values = gen_x_ints(
+            100_000_000,
+            Uniform::new(0, 10000000),
+            &mut rand::thread_rng(),
+        ); // [4i32, 2, 3, 100, 4, 2];
         let timer = Instant::now();
         let res1 = top_k(values.clone(), |a, b| a.cmp(b), 100);
         println!("Top K in: {:?}", timer.elapsed());
