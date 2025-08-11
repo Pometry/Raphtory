@@ -5267,14 +5267,18 @@ Search the top scoring edges according to a specified query returning no more th
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.src">src</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Source node
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.dst">dst</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Source node.
+Destination node
 
 </td>
 </tr>
@@ -5283,7 +5287,7 @@ Source node.
 <td valign="top"><a href="#string">String</a></td>
 <td>
 
-Destination node.
+Layer
 
 </td>
 </tr>
@@ -5292,18 +5296,14 @@ Destination node.
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
 <td>
 
-Layer.
+Metadata
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeaddition.updates">updates</strong></td>
 <td valign="top">[<a href="#temporalpropertyinput">TemporalPropertyInput</a>!]</td>
-<td>
-
-Metadata
-
-</td>
+<td></td>
 </tr>
 </tbody>
 </table>
@@ -5322,42 +5322,74 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.src">src</strong></td>
 <td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
-<td></td>
+<td>
+
+Source node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.dst">dst</strong></td>
 <td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
-<td></td>
+<td>
+
+Destination node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.property">property</strong></td>
 <td valign="top"><a href="#propertyfilterexpr">PropertyFilterExpr</a></td>
-<td></td>
+<td>
+
+Property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.metadata">metadata</strong></td>
 <td valign="top"><a href="#metadatafilterexpr">MetadataFilterExpr</a></td>
-<td></td>
+<td>
+
+Metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.temporalproperty">temporalProperty</strong></td>
 <td valign="top"><a href="#temporalpropertyfilterexpr">TemporalPropertyFilterExpr</a></td>
-<td></td>
+<td>
+
+Temporal property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.and">and</strong></td>
 <td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
-<td></td>
+<td>
+
+AND operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.or">or</strong></td>
 <td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
-<td></td>
+<td>
+
+OR operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.not">not</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td></td>
+<td>
+
+NOT operator.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5376,27 +5408,47 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.reverse">reverse</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Reverse order
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.src">src</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Source node
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.dst">dst</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Destination
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.time">time</strong></td>
 <td valign="top"><a href="#sortbytime">SortByTime</a></td>
-<td></td>
+<td>
+
+Time
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesortby.property">property</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Property
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5415,77 +5467,137 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Contains only the default layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Snapshot at specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of included layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single included layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgeviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5504,77 +5616,137 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Contains only the default layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Snapshot at specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of included layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single included layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgesviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5593,107 +5765,191 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Contains only the default layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of included layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single included layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.subgraph">subgraph</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+Subgraph nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.subgraphnodetypes">subgraphNodeTypes</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+Subgraph node types.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.excludenodes">excludeNodes</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded nodes.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.valid">valid</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Valid state.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Snapshot at specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.nodefilter">nodeFilter</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td></td>
+<td>
+
+Node filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphviewcollection.edgefilter">edgeFilter</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
-<td></td>
+<td>
+
+Edge filter.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5760,17 +6016,29 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="metadatafilterexpr.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metadatafilterexpr.operator">operator</strong></td>
 <td valign="top"><a href="#operator">Operator</a>!</td>
-<td></td>
+<td>
+
+Operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="metadatafilterexpr.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Value.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5823,17 +6091,29 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldfilter.field">field</strong></td>
 <td valign="top"><a href="#nodefield">NodeField</a>!</td>
-<td></td>
+<td>
+
+Node Field filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldfilter.operator">operator</strong></td>
 <td valign="top"><a href="#operator">Operator</a>!</td>
-<td></td>
+<td>
+
+Operator filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldfilter.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a>!</td>
-<td></td>
+<td>
+
+Value filter.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5852,37 +6132,65 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.node">node</strong></td>
 <td valign="top"><a href="#nodefieldfilter">NodeFieldFilter</a></td>
-<td></td>
+<td>
+
+Node filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.property">property</strong></td>
 <td valign="top"><a href="#propertyfilterexpr">PropertyFilterExpr</a></td>
-<td></td>
+<td>
+
+Property filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.metadata">metadata</strong></td>
 <td valign="top"><a href="#metadatafilterexpr">MetadataFilterExpr</a></td>
-<td></td>
+<td>
+
+Property metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.temporalproperty">temporalProperty</strong></td>
 <td valign="top"><a href="#temporalpropertyfilterexpr">TemporalPropertyFilterExpr</a></td>
-<td></td>
+<td>
+
+Temporal property filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.and">and</strong></td>
 <td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
-<td></td>
+<td>
+
+AND operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.or">or</strong></td>
 <td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
-<td></td>
+<td>
+
+OR operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.not">not</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td></td>
+<td>
+
+NOT operator.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5901,22 +6209,38 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="nodesortby.reverse">reverse</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Reverse order
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesortby.id">id</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Unique Id
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesortby.time">time</strong></td>
 <td valign="top"><a href="#sortbytime">SortByTime</a></td>
-<td></td>
+<td>
+
+Time
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesortby.property">property</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Property
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5935,82 +6259,146 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Contains only the default layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Snapshot at specified time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of included layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single included layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeviewcollection.nodefilter">nodeFilter</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td></td>
+<td>
+
+Node filter.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6029,87 +6417,155 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.defaultlayer">defaultLayer</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Contains only the default layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Snapshot at latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of included layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single included layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single excluded layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.nodefilter">nodeFilter</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
-<td></td>
+<td>
+
+Node filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodesviewcollection.typefilter">typeFilter</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of types.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6152,72 +6608,128 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.latest">latest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Latest snapshot.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.layers">layers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayers">excludeLayers</strong></td>
 <td valign="top">[<a href="#string">String</a>!]</td>
-<td></td>
+<td>
+
+List of excluded layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.layer">layer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single layer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.excludelayer">excludeLayer</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Single layer to exclude.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.window">window</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.at">at</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.before">before</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.after">after</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkwindow">shrinkWindow</strong></td>
 <td valign="top"><a href="#window">Window</a></td>
-<td></td>
+<td>
+
+Window between a start and end time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkstart">shrinkStart</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodeviewcollection.shrinkend">shrinkEnd</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6236,17 +6748,29 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilterexpr.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilterexpr.operator">operator</strong></td>
 <td valign="top"><a href="#operator">Operator</a>!</td>
-<td></td>
+<td>
+
+Operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilterexpr.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Value.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6337,22 +6861,38 @@ Metadata
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.temporal">temporal</strong></td>
 <td valign="top"><a href="#temporaltype">TemporalType</a>!</td>
-<td></td>
+<td>
+
+Temporal property type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.operator">operator</strong></td>
 <td valign="top"><a href="#operator">Operator</a>!</td>
-<td></td>
+<td>
+
+Operator.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyfilterexpr.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Value.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6538,11 +7078,19 @@ Metadata
 <tbody>
 <tr>
 <td valign="top"><strong>NODE_NAME</strong></td>
-<td></td>
+<td>
+
+Node name.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>NODE_TYPE</strong></td>
-<td></td>
+<td>
+
+Node type.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6559,51 +7107,99 @@ Metadata
 <tbody>
 <tr>
 <td valign="top"><strong>EQUAL</strong></td>
-<td></td>
+<td>
+
+Equality operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>NOT_EQUAL</strong></td>
-<td></td>
+<td>
+
+Inequality operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>GREATER_THAN_OR_EQUAL</strong></td>
-<td></td>
+<td>
+
+Greater Than Or Equal operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>LESS_THAN_OR_EQUAL</strong></td>
-<td></td>
+<td>
+
+Less Than Or Equal operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>GREATER_THAN</strong></td>
-<td></td>
+<td>
+
+Greater Than operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>LESS_THAN</strong></td>
-<td></td>
+<td>
+
+Less Than operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>IS_NONE</strong></td>
-<td></td>
+<td>
+
+Is None operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>IS_SOME</strong></td>
-<td></td>
+<td>
+
+Is Some operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>IS_IN</strong></td>
-<td></td>
+<td>
+
+Is In operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>IS_NOT_IN</strong></td>
-<td></td>
+<td>
+
+Is Not In operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>CONTAINS</strong></td>
-<td></td>
+<td>
+
+Contains operator.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>NOT_CONTAINS</strong></td>
-<td></td>
+<td>
+
+Not Contains operator.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6620,11 +7216,19 @@ Metadata
 <tbody>
 <tr>
 <td valign="top"><strong>LATEST</strong></td>
-<td></td>
+<td>
+
+Latest time
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>EARLIEST</strong></td>
-<td></td>
+<td>
+
+Earliest time
+
+</td>
 </tr>
 </tbody>
 </table>

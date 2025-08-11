@@ -117,7 +117,7 @@ pub enum NodeViewCollection {
     Latest(bool),
     /// Snapshot at latest time.
     SnapshotLatest(bool),
-    /// Snapshot at specified time. 
+    /// Snapshot at specified time.
     SnapshotAt(i64),
     /// List of included layers.
     Layers(Vec<String>),
