@@ -306,9 +306,7 @@ where
         else if heap.peek() > Some(&elem) {
             // May need to push this element, drop the read guard and wait for write access
             if let Some(mut first_mut) = heap.peek_mut() {
-                if first_mut.deref() >= &elem {
-                    *first_mut = elem;
-                }
+                *first_mut = elem;
             };
         }
     }
