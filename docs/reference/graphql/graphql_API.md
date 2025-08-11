@@ -552,7 +552,7 @@ Returns a count of collection objects.
 
 ### Edge
 
-Raphtory graph edge
+Raphtory graph edge.
 
 <table>
 <thead>
@@ -2546,26 +2546,6 @@ Uses Tantivy's exact search.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2583,6 +2563,26 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -3408,6 +3408,8 @@ Add temporal property updates to the node
 </table>
 
 ### Node
+
+Raphtory graph node.
 
 <table>
 <thead>
@@ -5968,12 +5970,20 @@ Edge filter.
 <tr>
 <td colspan="2" valign="top"><strong id="indexspecinput.nodeprops">nodeProps</strong></td>
 <td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td></td>
+<td>
+
+Node properties.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="indexspecinput.edgeprops">edgeProps</strong></td>
 <td valign="top"><a href="#propsinput">PropsInput</a>!</td>
-<td></td>
+<td>
+
+Edge properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -5992,12 +6002,20 @@ Edge filter.
 <tr>
 <td colspan="2" valign="top"><strong id="inputedge.src">src</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Source node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="inputedge.dst">dst</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Destination node.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6057,22 +6075,38 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="nodeaddition.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Name.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeaddition.nodetype">nodeType</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Node type.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeaddition.metadata">metadata</strong></td>
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
-<td></td>
+<td>
+
+Metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodeaddition.updates">updates</strong></td>
 <td valign="top">[<a href="#temporalpropertyinput">TemporalPropertyInput</a>!]</td>
-<td></td>
+<td>
+
+Updates.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6584,12 +6618,20 @@ List of types.
 <tr>
 <td colspan="2" valign="top"><strong id="objectentry.key">key</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="objectentry.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a>!</td>
-<td></td>
+<td>
+
+Value.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6789,12 +6831,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="propertyinput.key">key</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyinput.value">value</strong></td>
 <td valign="top"><a href="#value">Value</a>!</td>
-<td></td>
+<td>
+
+Value.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6813,12 +6863,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="propsinput.all">all</strong></td>
 <td valign="top"><a href="#allpropertyspec">AllPropertySpec</a></td>
-<td></td>
+<td>
+
+All properties and metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propsinput.some">some</strong></td>
 <td valign="top"><a href="#somepropertyspec">SomePropertySpec</a></td>
-<td></td>
+<td>
+
+Some properties and metadata.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6837,12 +6895,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="somepropertyspec.metadata">metadata</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+List of metadata.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="somepropertyspec.properties">properties</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+List of properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6911,12 +6977,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyinput.time">time</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalpropertyinput.properties">properties</strong></td>
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
-<td></td>
+<td>
+
+Properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6935,37 +7009,65 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="value.u64">u64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+64 bit unsigned integer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.i64">i64</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+64 bit signed integer.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.f64">f64</strong></td>
 <td valign="top"><a href="#float">Float</a></td>
-<td></td>
+<td>
+
+64 bit float.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.str">str</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+String.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.bool">bool</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Boolean.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.list">list</strong></td>
 <td valign="top">[<a href="#value">Value</a>!]</td>
-<td></td>
+<td>
+
+List.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="value.object">object</strong></td>
 <td valign="top">[<a href="#objectentry">ObjectEntry</a>!]</td>
-<td></td>
+<td>
+
+Object.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6984,12 +7086,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="window.start">start</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+Start time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="window.end">end</strong></td>
 <td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
+<td>
+
+End time.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7008,12 +7118,20 @@ Value.
 <tr>
 <td colspan="2" valign="top"><strong id="windowduration.duration">duration</strong></td>
 <td valign="top"><a href="#string">String</a></td>
-<td></td>
+<td>
+
+Duration of window period.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="windowduration.epoch">epoch</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Time.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7032,15 +7150,27 @@ Value.
 <tbody>
 <tr>
 <td valign="top"><strong>ALL</strong></td>
-<td></td>
+<td>
+
+All properties and metadata.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>ALL_METADATA</strong></td>
-<td></td>
+<td>
+
+All metadata.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>ALL_PROPERTIES</strong></td>
-<td></td>
+<td>
+
+All properties.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7057,11 +7187,19 @@ Value.
 <tbody>
 <tr>
 <td valign="top"><strong>PERSISTENT</strong></td>
-<td></td>
+<td>
+
+Persistent.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>EVENT</strong></td>
-<td></td>
+<td>
+
+Event.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7245,11 +7383,19 @@ Earliest time
 <tbody>
 <tr>
 <td valign="top"><strong>ANY</strong></td>
-<td></td>
+<td>
+
+Any.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong>LATEST</strong></td>
-<td></td>
+<td>
+
+Latest.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7293,13 +7439,17 @@ Entity associated with document.
 <tbody>
 <tr>
 <td valign="top"><strong><a href="#node">Node</a></strong></td>
-<td></td>
+<td valign="top">
+
+Raphtory graph node.
+
+</td>
 </tr>
 <tr>
 <td valign="top"><strong><a href="#edge">Edge</a></strong></td>
 <td valign="top">
 
-Raphtory graph edge
+Raphtory graph edge.
 
 </td>
 </tr>

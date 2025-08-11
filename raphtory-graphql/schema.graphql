@@ -1,6 +1,15 @@
 enum AllPropertySpec {
+	"""
+	All properties and metadata.
+	"""
 	ALL
+	"""
+	All metadata.
+	"""
 	ALL_METADATA
+	"""
+	All properties.
+	"""
 	ALL_PROPERTIES
 }
 
@@ -86,7 +95,7 @@ Entity associated with document.
 union DocumentEntity = Node | Edge
 
 """
-Raphtory graph edge
+Raphtory graph edge.
 """
 type Edge {
 	"""
@@ -937,8 +946,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -947,7 +956,13 @@ type GraphSchema {
 }
 
 enum GraphType {
+	"""
+	Persistent.
+	"""
 	PERSISTENT
+	"""
+	Event.
+	"""
 	EVENT
 }
 
@@ -1059,12 +1074,24 @@ type GraphWindowSet {
 
 
 input IndexSpecInput {
+	"""
+	Node properties.
+	"""
 	nodeProps: PropsInput!
+	"""
+	Edge properties.
+	"""
 	edgeProps: PropsInput!
 }
 
 input InputEdge {
+	"""
+	Source node.
+	"""
 	src: String!
+	"""
+	Destination node.
+	"""
 	dst: String!
 }
 
@@ -1339,6 +1366,9 @@ type Namespace {
 
 union NamespacedItem = Namespace | MetaGraph
 
+"""
+Raphtory graph node.
+"""
 type Node {
 	"""
 	Returns the unique id of the node.
@@ -1495,9 +1525,21 @@ type Node {
 }
 
 input NodeAddition {
+	"""
+	Name.
+	"""
 	name: String!
+	"""
+	Node type.
+	"""
 	nodeType: String
+	"""
+	Metadata.
+	"""
 	metadata: [PropertyInput!]
+	"""
+	Updates.
+	"""
 	updates: [TemporalPropertyInput!]
 }
 
@@ -1863,7 +1905,13 @@ type NodesWindowSet {
 }
 
 input ObjectEntry {
+	"""
+	Key.
+	"""
 	key: String!
+	"""
+	Value.
+	"""
 	value: Value!
 }
 
@@ -2140,7 +2188,13 @@ input PropertyFilterExpr {
 }
 
 input PropertyInput {
+	"""
+	Key.
+	"""
 	key: String!
+	"""
+	Value.
+	"""
 	value: Value!
 }
 
@@ -2159,7 +2213,13 @@ type PropertyTuple {
 }
 
 input PropsInput @oneOf {
+	"""
+	All properties and metadata.
+	"""
 	all: AllPropertySpec
+	"""
+	Some properties and metadata.
+	"""
 	some: SomePropertySpec
 }
 
@@ -2224,7 +2284,13 @@ type ShortestPathOutput {
 }
 
 input SomePropertySpec {
+	"""
+	List of metadata.
+	"""
 	metadata: [String!]!
+	"""
+	List of properties.
+	"""
 	properties: [String!]!
 }
 
@@ -2295,24 +2361,57 @@ input TemporalPropertyFilterExpr {
 }
 
 input TemporalPropertyInput {
+	"""
+	Time.
+	"""
 	time: Int!
+	"""
+	Properties.
+	"""
 	properties: [PropertyInput!]
 }
 
 enum TemporalType {
+	"""
+	Any.
+	"""
 	ANY
+	"""
+	Latest.
+	"""
 	LATEST
 }
 
 scalar Upload
 
 input Value @oneOf {
+	"""
+	64 bit unsigned integer.
+	"""
 	u64: Int
+	"""
+	64 bit signed integer.
+	"""
 	i64: Int
+	"""
+	64 bit float.
+	"""
 	f64: Float
+	"""
+	String.
+	"""
 	str: String
+	"""
+	Boolean.
+	"""
 	bool: Boolean
+	"""
+	List.
+	"""
 	list: [Value!]
+	"""
+	Object.
+	"""
 	object: [ObjectEntry!]
 }
 
@@ -2336,12 +2435,24 @@ type VectorisedGraph {
 }
 
 input Window {
+	"""
+	Start time.
+	"""
 	start: Int!
+	"""
+	End time.
+	"""
 	end: Int!
 }
 
 input WindowDuration @oneOf {
+	"""
+	Duration of window period.
+	"""
 	duration: String
+	"""
+	Time.
+	"""
 	epoch: Int
 }
 
@@ -2353,3 +2464,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+
