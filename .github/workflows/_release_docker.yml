@@ -7,6 +7,9 @@ on:
         required: false
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   REGISTRY_IMAGE: pometry/raphtory
 
