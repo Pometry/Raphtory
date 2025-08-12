@@ -115,6 +115,16 @@ mod fast_rp_test {
     use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::mutation::AdditionOps, prelude::*, test_storage};
     use std::{cmp::Ordering, collections::HashMap};
 
+
+    fn euclidean_distance(a: &Vec<f64>, b: &Vec<f64>) -> f64 {
+        assert_eq!(a.len(), b.len(), "Vectors must be of the same length");
+        a.iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| (x - y).powi(2))
+            .sum::<f64>()
+            .sqrt()
+    }
+
     #[test]
     fn simple_fast_rp_test() {
         let graph = Graph::new();
@@ -252,6 +262,7 @@ mod fast_rp_test {
             let results = fast_rp(graph, 16, 1.0, vec![1.0, 1.0], Some(42), None);
             // this is ugly and I know there's a better way of doing this it's just a silly little unit test.
             let results: HashMap<String, Vec<f64>> = results.into_iter().map(|(v, e)| (v.node.0.to_string(), e)).collect();
+            
             assert_eq!(results, baseline);
         });
     }
