@@ -1,4 +1,6 @@
-FROM rust:1.86.0 AS chef
+ARG RUST_VERSION=1.86.0
+
+FROM rust:${RUST_VERSION} AS chef
 RUN cargo install cargo-chef --version 0.1.67
 WORKDIR /app
 

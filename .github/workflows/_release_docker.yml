@@ -1,11 +1,14 @@
 name: _Release 5 - Publish Docker Images to Docker Hub
 on:
   workflow_call:
+    inputs:
+      python:
+        type: boolean
+        required: false
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
+env:
+  REGISTRY_IMAGE: pometry/raphtory
 
 jobs:
   build:
@@ -21,18 +24,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract Package and Rust Versions
-        id: version_extraction
         run: |
-          PACKAGE_VERSION=$(grep -m 1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          RUST_VERSION=$(grep -m 1 '^rust-version' Cargo.toml | sed 's/rust-version = "\(.*\)"/\1/')
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
-          echo "RUST_VERSION=$RUST_VERSION" >> $GITHUB_ENV
-        shell: bash
+          echo "RAPHTORY_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+          echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
 
-      # - name: Deactivate Private Storage
-      #   run: |
-      #     chmod +x ./scripts/deactivate_private_storage.py
-      #     ./scripts/deactivate_private_storage.py
+      - name: Prepare python/rust params
+        run: |
+          if [ "${{ inputs.python }}" = "true" ]; then
+            echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
+            echo "EXTRA_TAG=-python" >> $GITHUB_ENV
+          else
+            echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
+          fi
 
       - name: Prepare
         run: |
@@ -60,9 +63,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: RUST_VERSION=${{ env.RUST_VERSION }}
+          file: ${{ env.DOCKERFILE_PATH }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ secrets.DOCKERHUB_USERNAME }}/raphtory,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -114,4 +119,4 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}${{ env.EXTRA_TAG }}

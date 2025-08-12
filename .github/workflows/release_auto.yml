@@ -32,9 +32,19 @@ jobs:
     with:
       base: ${{ inputs.base }}
     secrets: inherit
-  # call-release-docker-workflow:
-  #   name: _Release 5 - Publish Docker Images to Docker Hub
-  #   uses: ./.github/workflows/_release_docker.yml
-  #   with:
-    #   version: ${{ inputs.base }}
-    # secrets: inherit
+  call-release-docker-workflow-rust:
+    name: Release rust docker image
+    uses: ./.github/workflows/_release_docker.yml
+    with:
+      base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
+      python: false
+    secrets: inherit
+  call-release-docker-workflow-python:
+    name: Release python docker image
+    uses: ./.github/workflows/_release_docker.yml
+    with:
+      base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
+      python: true
+    secrets: inherit
