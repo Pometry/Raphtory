@@ -27,7 +27,7 @@ use super::node_state_ops::ToOwnedValue;
 
 #[derive(Debug, Default)]
 pub struct Index<K> {
-    index: Arc<IndexSet<K, ahash::RandomState>>,
+    pub(crate) index: Arc<IndexSet<K, ahash::RandomState>>,
 }
 
 impl<K> Clone for Index<K> {

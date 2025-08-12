@@ -24,6 +24,7 @@ arrow-array = { workspace = true, features = ["chrono-tz"] }
 arrow-schema = { workspace = true }
 arrow-ipc = {workspace = true}
 arrow-buffer = {workspace = true}
+arrow-select = { workspace = true }
 arrow-data ={ workspace = true }
 serde_arrow = {workspace = true, features = ["arrow-56"] }
 hashbrown = { workspace = true }
