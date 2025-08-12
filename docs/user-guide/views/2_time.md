@@ -1,7 +1,7 @@
 # Querying the graph over time
 Raphtory provides six functions: `before()`, `at()`, `after()`, `window()`, `expand()` and `rolling()` for traveling through time and viewing a graph as it was at a specific point, or between two points (applying a time window).
 
-All of these functions can be called on a `graph`, `node`, or `edge`, returning an equivalent `Graph View`, `Node View` or `Edge View` which have all the same functions as its unfiltered counterpart. This means that if you write a function which takes a Raphtory entity, regardless of which filters have been applied.
+All of these functions can be called on a `graph`, `node`, or `edge`, returning an equivalent `GraphView`, `NodeView` or `EdgeView` which have all the same functions as its unfiltered counterpart. This means that if you write a function which takes a Raphtory entity, regardless of which filters have been applied.
 
 ## Before, At and After
 
@@ -129,15 +129,16 @@ assert str(f"Window start: {w.start_date_time}, First update: {w.earliest_date_t
     ```
 
 ## Traversing the graph with views
+
 There are important differences when applying views depending on which object you call them on because of how filters propagate as you traverse the graph.
- 
-As a general rule, when you call any function which returns another entity, on a `Graph View`, `Node View` or `Edge View`, the view's filters will be passed onto the entities it returns. For example, if you call `before()` on a graph and then call `node()`, this will return a `Node View` filtered to the time passed to the graph.
+
+As a general rule, when you call any function which returns another entity, on a `GraphView`, `NodeView` or `EdgeView`, the view's filters will be passed onto the entities it returns. For example, if you call `before()` on a graph and then call `node()`, this will return a `NodeView` filtered to the time passed to the graph.
 
 However, if this was always the case it would be limiting if you later wanted to explore outside of these bounds.
 
 To allow for both global bounds and moving bounds, if a filter is applied onto the graph, all entities extracted always have this filter applied. However, if a filter is applied to either a `node` or an `edge`, once you have traversed to a new neighbouring `node` this filter is removed. 
 
-As an example of this, below we look at LOME's one hop neighbours before the 20th of June and their neighbours (LOME's two hop neighbours) after the 25th of June. 
+As an example of this, below we look at LOME's one hop neighbours before the 20th of June and their neighbours (LOME's two hop neighbours) after the 25th of June.
 
 First we show calling `before()` on the `graph`. This works for the one hop neighbours, but when `after()` is applied the graph is empty as there is no overlap in dates between the two filters. Next we show calling `before()` on the `node` instead. In this case, once the neighbours have been reached the original filter is removed which allows `after()` to work as desired.
 

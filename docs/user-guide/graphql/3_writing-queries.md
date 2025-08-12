@@ -1,4 +1,12 @@
-# Writing Raphtory queries in GraphQL
+# Making GraphQL requests
+
+The GraphQL API largely follows the same patterns as the Python API but has a few key differences.
+
+In GraphQL, there are two different types of requests: a query to search through your data or a mutation of your data. Only the top-level fields in mutation operations are allowed to cause side effects. To accommodate this, in the Raphtory API you can make queries to graphs or metagraphs but must make changes using a mutable graph, node or edge.
+
+This division means that the distinction between Graphs and GraphViews is less important in GraphQL and all non-mutable Graph endpoints are GraphViews while MutableGraphs are used for mutation operations. This is also true for Nodes and Edges and their respective views.
+
+## Graphical playground
 
 When you start a GraphQL server, you can find your GraphQL UI in the browser at `localhost:1736/playground` or an alternative port if you specified one.
 
@@ -145,11 +153,9 @@ Pass your graph object string into the `client.query()` method to execute the Gr
     ```
 
 
-## Mutation Queries
+## Mutation requests
 
-In GraphQL, you can write two different types of queries - a query to search through your data or a query that mutates your data.
-
-The examples in the previous section are all queries used to search through your data. However in our API, you can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
+You can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
 
 The schema in the GraphQL IDE shows how you can mutate the graph within the IDE:
 
