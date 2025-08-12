@@ -2,9 +2,9 @@
 
 When you start a GraphQL server, you can find your GraphQL UI in the browser at `localhost:1736/playground` or an alternative port if you specified one.
 
-The schema for the queries can be found on the right hand side in a pull out toggle.
+An annotated schema is available from the documentation tab in the left hand menu of the playground.
 
-![alt text](schema.png)
+![alt text](../../assets/images/raphtory_ui_playground_docs.png)
 
 ## Example Queries in GraphQL
 
