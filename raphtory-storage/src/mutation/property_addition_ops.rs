@@ -13,7 +13,6 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::entities::graph::tgraph::TemporalGraph;
 use raphtory_core::storage::{EntryMut, NodeSlot};
 use raphtory_core::storage::raw_edges::EdgeWGuard;
 use storage::Extension;
@@ -51,129 +50,6 @@ pub trait InternalPropertyAdditionOps {
     ) -> Result<EdgeWGuard, Self::Error>;
 }
 
-impl InternalPropertyAdditionOps for TemporalGraph {
-    type Error = MutationError;
-    fn internal_add_properties(
-        &self,
-        t: TimeIndexEntry,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        if !props.is_empty() {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                self.graph_meta
-                    .add_prop(t, *prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            self.update_time(t);
-        }
-        Ok(())
-    }
-
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta
-                .add_metadata(*id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(())
-    }
-
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta.update_metadata(*id, prop);
-        }
-        Ok(())
-    }
-
-    fn internal_add_node_metadata(
-        &self,
-        vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .add_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
-    }
-
-    fn internal_update_node_metadata(
-        &self,
-        vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .update_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
-    }
-
-    fn internal_add_edge_metadata(
-        &self,
-        eid: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .add_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
-    }
-
-    fn internal_update_edge_metadata(
-        &self,
-        eid: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .update_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
-    }
-}
-
 impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
 
@@ -188,6 +64,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         todo!()
     }
+
 
     fn internal_update_metadata(
         &self,

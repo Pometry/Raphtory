@@ -6,7 +6,6 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::entities::graph::tgraph::TemporalGraph;
 use storage::Extension;
 
 pub trait InternalDeletionOps {
@@ -54,37 +53,6 @@ impl InternalDeletionOps for db4_graph::TemporalGraph<Extension> {
             panic!("Internal Error: Edge {eid:?} not found in storage");
         });
         writer.delete_edge(t, edge_pos, src, dst, layer, 0);
-        Ok(())
-    }
-}
-
-impl InternalDeletionOps for TemporalGraph {
-    type Error = MutationError;
-
-    fn internal_delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, Self::Error> {
-        let edge = self.link_nodes(src, dst, t, layer, true);
-        Ok(edge.map(|mut edge| {
-            let mut edge = edge.as_mut();
-            edge.deletions_mut(layer).insert(t);
-            edge.eid()
-        }))
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: TimeIndexEntry,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), Self::Error> {
-        let mut edge = self.link_edge(eid, t, layer, true);
-        let mut edge = edge.as_mut();
-        edge.deletions_mut(layer).insert(t);
         Ok(())
     }
 }
