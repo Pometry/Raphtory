@@ -191,7 +191,7 @@ impl GqlPathFromNode {
         blocking_compute(move || self_clone.nn.len()).await
     }
 
-    /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. 
+    /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
     /// The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),

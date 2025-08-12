@@ -380,11 +380,7 @@ Returns a list of collection objects.
 <td valign="top">[<a href="#metagraph">MetaGraph</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit - The size of the page (number of items to fetch).
-offset - The number of items to skip (defaults to 0).
-page_index - The number of pages (of size limit) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -446,11 +442,7 @@ Returns a list of collection objects.
 <td valign="top">[<a href="#namespace">Namespace</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit - The size of the page (number of items to fetch).
-offset - The number of items to skip (defaults to 0).
-page_index - The number of pages (of size limit) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -512,11 +504,7 @@ Returns a list of collection objects.
 <td valign="top">[<a href="#namespaceditem">NamespacedItem</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit - The size of the page (number of items to fetch).
-offset - The number of items to skip (defaults to 0).
-page_index - The number of pages (of size limit) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1117,11 +1105,8 @@ Returns the list of metadata schemas for edges connecting these types of nodes
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1477,11 +1462,8 @@ Returns the number of edges.
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -1533,11 +1515,8 @@ will be returned.
 <td valign="top">[<a href="#edges">Edges</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -2639,11 +2618,8 @@ Returns the number of items.
 <td valign="top">[<a href="#graph">Graph</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -3939,11 +3915,8 @@ Returns the list of property schemas for this node
 <td valign="top">[<a href="#node">Node</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4299,11 +4272,8 @@ Returns the latest time that this Nodes is valid or None if the Nodes are valid 
 <td valign="top">[<a href="#node">Node</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4364,11 +4334,8 @@ Returns a view of the node ids.
 <td valign="top">[<a href="#nodes">Nodes</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4708,11 +4675,8 @@ Returns the latest time that this PathFromNode is valid or None if the PathFromN
 <td valign="top">[<a href="#node">Node</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
@@ -4783,11 +4747,8 @@ Returns the node ids.
 <td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
 <td>
 
-Fetch one "page" of items, optionally offset by a specified amount.
-
-limit  - The size of the page (number of items to fetch).
-offset  - The number of items to skip (defaults to 0).
-page_index  - The number of pages (of size  limit ) to skip (defaults to 0).
+Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+The page_index sets the number of pages to skip (defaults to 0).
 
 e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
