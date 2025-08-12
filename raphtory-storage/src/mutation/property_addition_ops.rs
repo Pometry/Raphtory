@@ -185,18 +185,18 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         todo!()
     }
 
-    fn internal_add_constant_properties(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         todo!()
     }
 
-    fn internal_update_constant_properties(
+    fn internal_update_metadata(
         &self,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         todo!()
     }
 
-    fn internal_add_constant_node_properties(
+    fn internal_add_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
@@ -207,20 +207,16 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         Ok(())
     }
 
-    fn internal_update_constant_node_properties(
-        &self,
-        vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    fn internal_update_node_metadata(&self, vid: VID, props: &[(usize, Prop)]) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
         todo!()
     }
 
-    fn internal_add_constant_edge_properties(
+    fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<EdgeWGuard, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
@@ -230,7 +226,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         Ok(())
     }
 
-    fn internal_update_constant_edge_properties(
+    fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,

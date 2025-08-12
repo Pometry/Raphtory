@@ -601,7 +601,7 @@ mod test {
         );
 
         let prop_id = meta
-            .const_prop_meta()
+            .metadata_mapper()
             .get_or_create_and_validate("a", PropType::U8)
             .unwrap()
             .inner();

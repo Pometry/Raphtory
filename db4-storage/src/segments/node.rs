@@ -585,7 +585,7 @@ mod test {
         // add constant properties
 
         let prop_id = node_meta
-            .const_prop_meta()
+            .metadata_mapper()
             .get_or_create_and_validate("a", PropType::U64)
             .unwrap()
             .inner();
@@ -608,7 +608,7 @@ mod test {
 
         // add temporal properties
         let prop_id = node_meta
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_or_create_and_validate("b", PropType::F64)
             .unwrap()
             .inner();

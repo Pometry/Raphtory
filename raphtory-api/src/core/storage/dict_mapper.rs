@@ -161,7 +161,7 @@ impl WriteLockedDictMapper<'_> {
 
 impl DictMapper {
     pub fn contains(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+        self.map.read().contains_key(key)
     }
 
     pub fn deep_clone(&self) -> Self {

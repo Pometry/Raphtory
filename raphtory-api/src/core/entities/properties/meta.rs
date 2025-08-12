@@ -66,12 +66,12 @@ impl Meta {
 
     #[inline]
     pub fn temporal_est_row_size(&self) -> usize {
-        self.meta_prop_temporal.row_size()
+        self.temporal_prop_mapper.row_size()
     }
 
     #[inline]
     pub fn const_est_row_size(&self) -> usize {
-        self.meta_prop_constant.row_size()
+        self.metadata_mapper.row_size()
     }
 
     pub fn new() -> Self {
@@ -416,7 +416,7 @@ fn fast_proptype_check(
             if can_unify {
                 Ok(Some(Either::Left(id)))
             } else {
-                Err(PropError::PropertyTypeError {
+                Err(PropError {
                     name: prop.to_string(),
                     expected: existing_dtype.clone(),
                     actual: dtype,

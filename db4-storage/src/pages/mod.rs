@@ -189,7 +189,7 @@ impl<
         // Reserve node_type as a const prop on init
         let _ = nodes
             .prop_meta()
-            .const_prop_meta()
+            .metadata_mapper()
             .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::U64);
 
         let graph_meta = GraphMeta {

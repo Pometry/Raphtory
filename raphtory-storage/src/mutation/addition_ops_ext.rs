@@ -350,12 +350,12 @@ impl InternalAdditionOps for TemporalGraph {
 fn reserve_node_id_as_prop(node_meta: &Meta, id: GidRef) -> usize {
     match id {
         GidRef::U64(_) => node_meta
-            .const_prop_meta()
+            .metadata_mapper()
             .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
             .unwrap()
             .inner(),
         GidRef::Str(_) => node_meta
-            .const_prop_meta()
+            .metadata_mapper()
             .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
             .unwrap()
             .inner(),

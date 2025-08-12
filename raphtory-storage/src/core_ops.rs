@@ -235,7 +235,7 @@ pub trait CoreGraphOps: Send + Sync {
     fn node_metadata_ids(&self, _v: VID) -> BoxedLIter<usize> {
         // property 0 = node type, property 1 = external node id
         // on an empty graph, this will return an empty range
-        let end = self.node_meta().const_prop_meta().len();
+        let end = self.node_meta().metadata_mapper().len();
         let start = 2.min(end);
         Box::new(start..end)
     }
@@ -249,7 +249,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// # Returns
     /// The ids of the temporal properties
     fn temporal_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(0..self.node_meta().temporal_prop_meta().len())
+        Box::new(0..self.node_meta().temporal_prop_mapper().len())
     }
 }
 

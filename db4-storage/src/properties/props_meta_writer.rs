@@ -40,14 +40,14 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
         meta: &'a Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Self, StorageError> {
-        Self::new(meta, meta.temporal_prop_meta(), props)
+        Self::new(meta, meta.temporal_prop_mapper(), props)
     }
 
     pub fn constant(
         meta: &'a Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Self, StorageError> {
-        Self::new(meta, meta.const_prop_meta(), props)
+        Self::new(meta, meta.metadata_mapper(), props)
     }
 
     pub fn new(
@@ -182,8 +182,8 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
                 drop(mapper);
 
                 let mut mapper = match prop_type {
-                    PropType::Temporal => meta.temporal_prop_meta().write_locked(),
-                    PropType::Constant => meta.const_prop_meta().write_locked(),
+                    PropType::Temporal => meta.temporal_prop_mapper().write_locked(),
+                    PropType::Constant => meta.metadata_mapper().write_locked(),
                 };
 
                 // Revalidate prop types
@@ -263,7 +263,7 @@ mod test {
 
         assert_eq!(props, vec![(0, Prop::U32(0)), (1, Prop::U32(1))]);
 
-        assert_eq!(meta.temporal_prop_meta().len(), 2);
+        assert_eq!(meta.temporal_prop_mapper().len(), 2);
     }
 
     #[test]
@@ -278,14 +278,14 @@ mod test {
         let props = writer.into_props_temporal().unwrap();
         assert_eq!(props.len(), 1);
 
-        assert!(meta.temporal_prop_meta().len() == 1);
-        assert!(meta.temporal_prop_meta().get_id("prop1").is_some());
+        assert_eq!(meta.temporal_prop_mapper().len(), 1);
+        assert!(meta.temporal_prop_mapper().get_id("prop1").is_some());
 
         let writer =
             PropsMetaWriter::temporal(&meta, vec![(ArcStr::from("prop1"), prop2)].into_iter());
 
         assert!(writer.is_err());
-        assert!(meta.temporal_prop_meta().len() == 1);
-        assert!(meta.temporal_prop_meta().get_id("prop1").is_some());
+        assert_eq!(meta.temporal_prop_mapper().len(), 1);
+        assert!(meta.temporal_prop_mapper().get_id("prop1").is_some());
     }
 }

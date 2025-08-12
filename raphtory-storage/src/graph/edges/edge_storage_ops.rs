@@ -170,7 +170,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
 
     fn metadata_iter(
         self,

@@ -47,7 +47,7 @@ impl<
     pub fn node_id_prop_id(&self) -> usize {
         self.graph
             .node_meta()
-            .const_prop_meta()
+            .metadata_mapper()
             .get_id(NODE_ID_PROP_KEY)
             .unwrap()
     }

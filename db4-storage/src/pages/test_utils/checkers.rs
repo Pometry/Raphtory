@@ -276,7 +276,7 @@ pub fn check_graph_with_nodes_support<
 
             let prop_id = graph
                 .node_meta()
-                .const_prop_meta()
+                .metadata_mapper()
                 .get_id(name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {name}"));
             let actual_props = node_entry.c_prop(0, prop_id);
@@ -311,7 +311,7 @@ pub fn check_graph_with_nodes_support<
         for ((node, prop_name), props) in nod_t_prop_groups {
             let prop_id = graph
                 .node_meta()
-                .temporal_prop_meta()
+                .temporal_prop_mapper()
                 .get_id(prop_name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {prop_name}"));
 
@@ -424,7 +424,7 @@ pub fn check_graph_with_props_support<
             // Check temporal props
             let prop_id = graph
                 .edge_meta()
-                .temporal_prop_meta()
+                .temporal_prop_mapper()
                 .get_id(prop_name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {prop_name}"));
 
@@ -450,7 +450,7 @@ pub fn check_graph_with_props_support<
                 for (name, prop) in exp_const_props {
                     let prop_id = graph
                         .edge_meta()
-                        .const_prop_meta()
+                        .metadata_mapper()
                         .get_id(name)
                         .unwrap_or_else(|| panic!("Failed to get prop id for {name}"));
                     let actual_props = e.c_prop(layer_id, prop_id);
