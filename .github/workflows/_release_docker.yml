@@ -2,11 +2,15 @@ name: _Release 5 - Publish Docker Images to Docker Hub
 on:
   workflow_call:
     inputs:
-      python:
-        type: boolean
-        required: false
       base:
         type: 'string'
+      image_type:
+        type: choice
+        description: The type of image to build
+        default: 'rust'
+        options:
+          - rust
+          - python
 
 permissions:
   contents: read
@@ -33,11 +37,10 @@ jobs:
           echo "RAPHTORY_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
           echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV
 
-      - name: Prepare python/rust params
+      - name: Write dockerfile path
         run: |
-          if [ "${{ inputs.python }}" = "true" ]; then
+          if [ "${{ inputs.image_type }}" = "python" ]; then
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
-            echo "EXTRA_TAG=-python" >> $GITHUB_ENV
           else
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
           fi
@@ -83,7 +86,7 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ inputs.image_type }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -97,7 +100,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-*
+          pattern: digests-${{ inputs.image_type }}-*
           merge-multiple: true
 
       - name: Login to Docker Hub
@@ -122,6 +125,14 @@ jobs:
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
 
+      - name: Write docker tag
+        run: |
+          if [ "${{ inputs.image_type }}" = "python" ]; then
+            echo "DOCKER_TAG=${{ steps.meta.outputs.version }}-python" >> $GITHUB_ENV
+          else
+            echo "DOCKER_TAG=${{ steps.meta.outputs.version }}" >> $GITHUB_ENV
+          fi
+
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}${{ env.EXTRA_TAG }}
+          docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ env.DOCKER_TAG }}
