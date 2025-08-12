@@ -18,13 +18,21 @@ use raphtory_core::entities::{
     },
 };
 use std::sync::Arc;
-use storage::{error::StorageError, resolver::GIDResolverError};
+use parking_lot::RwLockWriteGuard;
+use storage::{error::StorageError, resolver::GIDResolverError, Extension, ES, NS};
 use thiserror::Error;
+use storage::pages::edge_page::writer::EdgeWriter;
+use storage::pages::node_page::writer::NodeWriter;
+use storage::segments::edge::MemEdgeSegment;
+use storage::segments::node::MemNodeSegment;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
 pub mod deletion_ops;
 pub mod property_addition_ops;
+
+pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
+pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {
