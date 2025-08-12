@@ -20,7 +20,8 @@ arrow-ipc = {workspace = true}
 arrow-array = {workspace = true, features = ["chrono-tz"]}
 arrow-schema = {workspace = true}
 arrow-buffer = {workspace = true}
-arrow-data ={ workspace = true }
+arrow-data = { workspace = true }
+arrow-select = { workspace = true }
 serde_arrow = {workspace = true, features = ["arrow-53"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
@@ -79,8 +80,8 @@ numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 polars-arrow = { workspace = true, optional = true }
-polars-parquet = { workspace = true, optional = true }
-parquet = { workspace = true, optional = true }
+polars-parquet = { workspace = true}
+parquet = { workspace = true}
 arrow-json = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
@@ -122,7 +123,6 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "dep:parquet",
     "dep:arrow-json",
     "proto",
 ]
@@ -167,8 +167,6 @@ storage = [
 ]
 arrow = [
     "dep:polars-arrow",
-    "dep:polars-parquet",
-    "polars-parquet?/compression",
 ]
 
 proto = [

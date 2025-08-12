@@ -2,21 +2,19 @@ use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, VID},
         Prop,
-    },
-    db::{
+    }, db::{
         api::{
             state::{node_state_ops::NodeStateOps, Index},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
-    },
-    prelude::{GraphViewOps, NodeViewOps},
+    }, prelude::{GraphViewOps, NodeViewOps}
 };
-use arrow_array::{ArrayRef, RecordBatch, StringArray};
+use arrow_array::{Array, ArrayRef, Datum, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::IndexSet;
 use parquet::{arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter}, basic::Compression, file::properties::WriterProperties};
-use polars_arrow::io::ipc::write::Record;
+
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -27,6 +25,11 @@ use serde_arrow::{
 use std::{
     collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path, sync::Arc
 };
+use std::cmp::PartialEq;
+use arrow_array::builder::make_builder;
+use arrow_select::{concat::concat, take::take};
+use arrow_array::builder::UInt64Builder;
+use arrow_array::UInt64Array;
 
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
@@ -35,6 +38,13 @@ pub trait NodeStateValue:
 impl<T> NodeStateValue for T where
     T: Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
 {
+}
+
+#[derive(Clone, PartialEq)]
+pub enum MergePriority {
+    Left,
+    Right,
+    Exclude,
 }
 
 #[derive(Clone, Debug)]
@@ -177,11 +187,110 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         writer.close().unwrap();
     }
 
+    // TODO: handle removal of id_column if Some, optional check if id_column is sorted as keys?
     pub fn values_from_parquet<P: AsRef<Path>>(&mut self, file_path: P, id_column: Option<String>) {
         let file = File::open(file_path).unwrap();
         let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
         let mut reader = builder.build().unwrap();
         self.values = reader.next().unwrap().unwrap();
+    }
+
+    fn merge_columns(
+        num_graph_nodes: usize,
+        col_name: &String,
+        idx_merge_priority: MergePriority,
+        tgt_idx_set: &Option<Index<VID>>,
+        tgt_idx_set_len: usize,
+        lh: &Option<Index<VID>>,
+        rh: &Option<Index<VID>>, 
+        lh_batch: &mut RecordBatch, 
+        rh_batch: &mut RecordBatch,
+    )
+    {
+
+        if idx_merge_priority == MergePriority::Left && lh_batch.column_by_name(col_name).is_some() {
+            let c = lh_batch.column_by_name(col_name).unwrap();
+        } else if idx_merge_priority == MergePriority::Right && lh_batch.column_by_name(col_name).is_none() && rh_batch.column_by_name(col_name).is_some() {
+            let c = rh_batch.column_by_name(col_name).unwrap();
+        } else {
+            let lh_col = lh_batch.column_by_name(col_name).unwrap_or(rh_batch.column_by_name(col_name).unwrap());
+            let rh_col = rh_batch.column_by_name(col_name).unwrap();
+            let mut builder = make_builder(&lh_col.data_type(), tgt_idx_set_len);
+
+            let left_col = lh_batch.column_by_name(col_name).unwrap();
+            let a = left_col.slice(0, 1);
+            let b = left_col.slice(1, 1);
+
+            let to_cat = &[a.as_ref(), b.as_ref()];
+            let cat = concat(to_cat).unwrap();
+
+            let mut idx_builder = UInt64Builder::with_capacity(tgt_idx_set_len);
+            let take_idx: UInt64Array = idx_builder.finish();
+            let out = take(cat.as_ref(), &take_idx, None);
+
+
+            let iter = if tgt_idx_set.is_some() { Either::Left(tgt_idx_set.as_ref().unwrap().iter()) } else { Either::Right((0..num_graph_nodes).map(VID)) };
+            for i in iter {
+                
+            }
+        }
+    }
+
+    pub fn merge(
+        &mut self, 
+        other: &mut GenericNodeState<'graph, G>, 
+        index_merge_priority: MergePriority, 
+        default_column_merge_priority: MergePriority, 
+        column_merge_priority_map: Option<HashMap<String, MergePriority>>) 
+    {
+        let new_idx_set =
+            if self.keys.is_none() || other.keys.is_none() {
+                None
+            } else {
+                Some(IndexSet::union(
+                    self.keys
+                        .as_ref()
+                        .unwrap()
+                        .index
+                        .as_ref(),
+                    other.keys.as_ref().unwrap().index.as_ref()).clone().into_iter().map(|v| v.to_owned()).collect())
+            };
+        let tgt_idx_set = match index_merge_priority {
+            MergePriority::Left => &self.keys,
+            MergePriority::Right => &other.keys,
+            MergePriority::Exclude => &new_idx_set,
+        };
+        let tgt_index_set_len = tgt_idx_set.as_ref().map_or(self.graph.unfiltered_num_nodes(), |idx_set| idx_set.len());
+
+        // iterate over priority map first and merge accordingly
+        if column_merge_priority_map.as_ref().is_some() {
+            for (col_name, priority) in column_merge_priority_map.as_ref().unwrap() {
+                let (lh, rh, lh_batch, rh_batch) = match priority {
+                    MergePriority::Left => (&self.keys, &other.keys, &mut self.values, &mut other.values),
+                    MergePriority::Right => (&other.keys, &self.keys, &mut self.values, &mut other.values),
+                    MergePriority::Exclude => continue,
+                };
+                GenericNodeState::<'graph, G>::merge_columns(self.graph.unfiltered_num_nodes(), col_name, index_merge_priority.clone(), tgt_idx_set, tgt_index_set_len, lh, rh, lh_batch, rh_batch);
+            }
+        }
+
+        // if default is not exclude
+        // merge remaining columns accordingly
+        let (lh, rh, lh_batch, rh_batch) = match default_column_merge_priority {
+            MergePriority::Left => (&self.keys, &other.keys, &mut self.values, &mut other.values),
+            MergePriority::Right => (&other.keys, &self.keys, &mut self.values, &mut other.values),
+            MergePriority::Exclude => return,
+        };
+        // iterate over columns in lh, if not in priority_map, merge columns
+        for column in lh_batch.schema().fields().iter() {
+            let col_name = column.name();
+            if column_merge_priority_map
+                .as_ref()
+                .map_or(false,|map| map.contains_key(col_name)) 
+            {
+                GenericNodeState::<'graph, G>::merge_columns(self.graph.unfiltered_num_nodes(), col_name, index_merge_priority.clone(), tgt_idx_set, tgt_index_set_len, lh, rh, lh_batch, rh_batch);
+            }
+        }
     }
 }
 
@@ -336,8 +445,8 @@ impl<
 
     #[allow(refining_impl_trait)]
     fn par_iter_values(&'a self) -> impl IndexedParallelIterator<Item = Self::Value> + 'a {
-        let iter = RecordBatchIterator::new(&self.state.values);
-        (0..self.len()).into_par_iter().map(move |i| iter.get(i))
+        let iter = RecordBatchIterator::<'a, Self::Value>::new(&self.state.values);
+        (0..self.len()).into_par_iter().map(move |i| RecordBatchIterator::get(&iter, i))
     }
 
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync {
