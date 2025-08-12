@@ -15,6 +15,7 @@ use raphtory_storage::graph::edges::{
 };
 use rayon::iter::ParallelIterator;
 use std::{iter, ops::Range};
+use raphtory_storage::graph::edges::edge_storage_ops::TimeIndexRef;
 
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G, TS> {
@@ -109,7 +110,7 @@ impl<
 
     fn len(&self) -> usize {
         if self.view.internal_exploded_edge_filtered() {
-            self.iter().count()
+            self.clone().iter().count()
         } else {
             self.time_index.len()
         }
