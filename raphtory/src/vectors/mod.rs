@@ -81,7 +81,7 @@ mod vector_tests {
 
         // the following creates the embeddings, and store them on the cache
         {
-            let cache = VectorCache::on_disk(&path, fake_embedding).unwrap();
+            let cache = VectorCache::on_disk(&path, fake_embedding).await.unwrap();
             g.vectorise(cache, template.clone(), None, false)
                 .await
                 .unwrap();
@@ -89,7 +89,9 @@ mod vector_tests {
 
         // the following uses the embeddings from the cache, so it doesn't call the panicking
         // embedding, which would make the test fail
-        let cache = VectorCache::on_disk(&path, panicking_embedding).unwrap();
+        let cache = VectorCache::on_disk(&path, panicking_embedding)
+            .await
+            .unwrap();
         g.vectorise(cache, template, None, false).await.unwrap();
     }
 

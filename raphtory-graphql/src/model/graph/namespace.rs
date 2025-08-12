@@ -1,16 +1,18 @@
 use crate::{
     data::get_relative_path,
-    model::graph::{meta_graph::MetaGraph, meta_graphs::MetaGraphs, namespaces::Namespaces},
-    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
+    model::graph::{
+        collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
+    },
+    paths::{valid_path, ExistingGraphFolder},
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::errors::InvalidPathReason;
 use std::path::PathBuf;
-use tokio::task::spawn_blocking;
 use walkdir::WalkDir;
 
-#[derive(ResolvedObject, Clone)]
+#[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub(crate) struct Namespace {
     base_dir: PathBuf,
     current_dir: PathBuf,
@@ -24,19 +26,33 @@ impl Namespace {
         }
     }
 
-    fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
-        let base_path = self.base_dir.clone();
+    fn get_all_children(&self) -> impl Iterator<Item = NamespacedItem> + use<'_> {
         WalkDir::new(&self.current_dir)
             .max_depth(1)
             .into_iter()
-            .filter_map(|e| {
-                let entry = e.ok()?;
+            .flatten()
+            .filter_map(|entry| {
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
-                let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
-                Some(folder)
+                let file_name = entry.file_name().to_str()?;
+                if path.is_dir() {
+                    if path != self.current_dir
+                        && valid_path(self.current_dir.clone(), file_name, true).is_ok()
+                    {
+                        Some(NamespacedItem::Namespace(Namespace::new(
+                            self.base_dir.clone(),
+                            path.to_path_buf(),
+                        )))
+                    } else {
+                        let base_path = self.base_dir.clone();
+                        let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                        let folder =
+                            ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
+                        Some(NamespacedItem::MetaGraph(MetaGraph::new(folder)))
+                    }
+                } else {
+                    None
+                }
             })
-            .collect()
     }
 
     pub(crate) fn get_all_namespaces(&self) -> Vec<Namespace> {
@@ -52,87 +68,67 @@ impl Namespace {
                     None
                 }
             })
+            .sorted()
             .collect()
     }
 }
 
 #[ResolvedObjectFields]
 impl Namespace {
-    async fn graphs(&self) -> MetaGraphs {
+    async fn graphs(&self) -> GqlCollection<MetaGraph> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            MetaGraphs::new(
+        blocking_compute(move || {
+            GqlCollection::new(
                 self_clone
-                    .get_all_graph_folders()
+                    .get_all_children()
                     .into_iter()
-                    .sorted_by(|a, b| {
-                        let a_as_valid_folder: ValidGraphFolder = a.clone().into();
-                        let b_as_valid_folder: ValidGraphFolder = b.clone().into();
-                        a_as_valid_folder
-                            .get_original_path_str()
-                            .cmp(b_as_valid_folder.get_original_path_str())
+                    .filter_map(|g| match g {
+                        NamespacedItem::MetaGraph(g) => Some(g),
+                        NamespacedItem::Namespace(_) => None,
                     })
-                    .map(|g| MetaGraph::new(g.clone()))
+                    .sorted()
                     .collect(),
             )
         })
         .await
-        .unwrap()
     }
     async fn path(&self) -> Result<String, InvalidPathReason> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            get_relative_path(
-                self_clone.base_dir.clone(),
-                self_clone.current_dir.as_path(),
-                true,
-            )
-        })
-        .await
-        .unwrap()
+        get_relative_path(self.base_dir.clone(), self.current_dir.as_path(), true)
     }
 
     async fn parent(&self) -> Option<Namespace> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            let parent = self_clone.current_dir.parent()?.to_path_buf();
-            if parent.starts_with(&self_clone.base_dir) {
-                Some(Namespace::new(self_clone.base_dir.clone(), parent))
-            } else {
-                None
-            }
-        })
-        .await
-        .unwrap()
+        let parent = self.current_dir.parent()?.to_path_buf();
+        if parent.starts_with(&self.base_dir) {
+            Some(Namespace::new(self.base_dir.clone(), parent))
+        } else {
+            None
+        }
     }
 
-    async fn children(&self) -> Namespaces {
+    async fn children(&self) -> GqlCollection<Namespace> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            Namespaces::new(
-                WalkDir::new(&self_clone.current_dir)
-                    .max_depth(1)
-                    .into_iter()
-                    .filter_map(|e| {
-                        let entry = e.ok()?;
-                        let file_name = entry.file_name().to_str()?;
-                        let path = entry.path();
-                        if path.is_dir()
-                            && path != self_clone.current_dir
-                            && valid_path(self_clone.current_dir.clone(), file_name, true).is_ok()
-                        {
-                            Some(Namespace::new(
-                                self_clone.base_dir.clone(),
-                                path.to_path_buf(),
-                            ))
-                        } else {
-                            None
-                        }
+        blocking_compute(move || {
+            GqlCollection::new(
+                self_clone
+                    .get_all_children()
+                    .filter_map(|item| match item {
+                        NamespacedItem::MetaGraph(_) => None,
+                        NamespacedItem::Namespace(n) => Some(n),
                     })
+                    .sorted()
                     .collect(),
             )
         })
         .await
-        .unwrap()
+    }
+
+    // Fetch the collection of namespaces/graphs in this namespace.
+    // Namespaces will be listed before graphs.
+    async fn items(&self) -> GqlCollection<NamespacedItem> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            GqlCollection::new(self_clone.get_all_children().sorted().collect())
+        })
+        .await
     }
 }

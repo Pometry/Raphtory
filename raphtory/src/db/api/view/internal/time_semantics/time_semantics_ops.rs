@@ -1,6 +1,6 @@
 use crate::db::api::view::internal::GraphView;
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -45,6 +45,19 @@ pub trait NodeTimeSemanticsOps {
         view: G,
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph;
+
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize;
+
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize;
 
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
@@ -122,12 +135,33 @@ pub trait NodeTimeSemanticsOps {
 }
 
 pub trait EdgeTimeSemanticsOps {
+    fn handle_edge_update_filter<G: GraphView>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)>;
+
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool;
+
     /// check if edge `e` should be included in window `w`
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
+        w: Range<i64>,
+    ) -> bool;
+
+    /// Check if exploded edge update should be included
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool;
+
+    /// Check if exploded edge update should be included in window
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
         w: Range<i64>,
     ) -> bool;
 
@@ -504,18 +538,18 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph;
 
-    /// Get constant edge property
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    /// Get metadata edge property
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop>;
 
-    /// Get constant edge property for a window
+    /// Get metadata edge property for a window
     ///
     /// Should only return the property for a layer if the edge exists in the window in that layer
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,

@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
 use raphtory_core::{
     entities::{
         graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{ConstPropError, TPropError},
+        properties::props::{MetadataError, TPropError},
     },
     utils::time::ParseTimeError,
 };
@@ -111,7 +111,7 @@ pub enum WriteError {
 
     #[cfg(feature = "proto")]
     #[error("Failed to write delta to cache: {0}")]
-    WriteError(io::Error),
+    WriteError(#[from] io::Error),
 }
 
 pub type GraphResult<T> = Result<T, GraphError>;
@@ -124,6 +124,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 pub enum GraphError {
     #[error(transparent)]
     MutationError(#[from] MutationError),
+
+    #[error(transparent)]
+    PropError(#[from] PropError),
 
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
@@ -151,11 +154,8 @@ pub enum GraphError {
         #[from]
         source: LoadError,
     },
-    #[error("Disk graph not found")]
+    #[error("Storage feature not enabled")]
     DiskGraphNotFound,
-
-    #[error("An operation tried to make use of the graph index but indexing has been turned off for the server")]
-    IndexMissing,
 
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
@@ -166,8 +166,8 @@ pub enum GraphError {
     #[error("Failed to persist index.")]
     FailedToPersistIndex,
 
-    #[error("Graph index is missing")]
-    GraphIndexIsMissing,
+    #[error("Cannot persist RAM index")]
+    CannotPersistRamIndex,
 
     #[error("Failed to remove existing graph index: {0}")]
     FailedToRemoveExistingGraphIndex(PathBuf),
@@ -373,12 +373,30 @@ pub enum GraphError {
     NotSupported,
 
     #[error("Operator {0} requires a property value, but none was provided.")]
-    InvalidFilter(FilterOperator),
+    InvalidFilterExpectSingleGotNone(FilterOperator),
+
+    #[error("Operator {0} requires a single value, but a set was provided.")]
+    InvalidFilterExpectSingleGotSet(FilterOperator),
+
+    #[error("Comparison not implemented for {0}")]
+    InvalidFilterCmp(PropType),
+
+    #[error("Expected a homogeneous map with inner type {0}, got {1}")]
+    InvalidHomogeneousMap(PropType, PropType),
+
+    #[error("Operator {0} requires a set of values, but a single value was provided.")]
+    InvalidFilterExpectSetGotSingle(FilterOperator),
+
+    #[error("Operator {0} requires a set of values, but none was provided.")]
+    InvalidFilterExpectSetGotNone(FilterOperator),
+
+    #[error("Operator {0} is only supported for strings.")]
+    InvalidContains(FilterOperator),
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
 
-    #[error("Property {0} not found in temporal or constant metadata")]
+    #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
     #[error("PropertyIndex not found for property {0}")]
@@ -405,30 +423,33 @@ pub enum GraphError {
     #[error("Filter must contain at least one filter condition.")]
     ParsingError,
 
+    #[error("Node filter is not supported for edge filtering")]
+    NodeFilterIsNotEdgeFilter,
+
+    #[error("Only property filters are supported for exploded edge filtering")]
+    NotExplodedEdgeFilter,
+
     #[error("Indexing not supported")]
     IndexingNotSupported,
 
-    #[error("Failed to create index in ram")]
-    FailedToCreateIndexInRam,
+    #[error("Failed to create index in ram. There already exists an on disk index.")]
+    OnDiskIndexAlreadyExists,
 
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
+
+    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
+    ZippedGraphCannotBeCached,
 }
 
-impl From<ConstPropError> for GraphError {
-    fn from(value: ConstPropError) -> Self {
+impl From<MetadataError> for GraphError {
+    fn from(value: MetadataError) -> Self {
         Self::MutationError(value.into())
     }
 }
 
 impl From<TPropError> for GraphError {
     fn from(value: TPropError) -> Self {
-        Self::MutationError(value.into())
-    }
-}
-
-impl From<PropError> for GraphError {
-    fn from(value: PropError) -> Self {
         Self::MutationError(value.into())
     }
 }

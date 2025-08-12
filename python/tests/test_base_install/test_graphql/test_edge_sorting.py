@@ -64,6 +64,7 @@ def create_test_graph(g):
     )
     return g
 
+
 EVENT_GRAPH = create_test_graph(Graph())
 PERSISTENT_GRAPH = create_test_graph(PersistentGraph())
 
@@ -294,7 +295,7 @@ def test_graph_edge_sort_by_earliest_time_reversed(graph):
     run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_sort_by_latest_time(graph):
     query = """
     query {
@@ -323,45 +324,6 @@ def test_graph_edge_sort_by_latest_time(graph):
                         {"src": {"id": "a"}, "dst": {"id": "b"}},
                         {"src": {"id": "b"}, "dst": {"id": "d"}},
                         {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                    ]
-                }
-            }
-        }
-    }
-    run_graphql_test(query, expected_output, graph)
-
-
-@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
-def test_graph_edge_sort_by_latest_time_persistent_graph(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        edges {
-          sorted(sortBys: [{ time: LATEST }]) {
-            list {
-              src {
-                id
-              }
-              dst {
-                id
-              }
-            }
-          }
-        }
-      }
-    }
-    """
-    # In the persistent graph all edges will have the same latest_time
-    expected_output = {
-        "graph": {
-            "edges": {
-                "sorted": {
-                    "list": [
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
                         {"src": {"id": "b"}, "dst": {"id": "c"}},
                     ]
                 }

@@ -5,7 +5,7 @@ use crate::db::api::view::internal::{
     EdgeTimeSemanticsOps, GraphView,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds},
+    entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
 use raphtory_storage::graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef};
@@ -87,6 +87,26 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = i64> + Send + Sync + 'graph {
         self.semantics.node_history_window(node, view, w)
+    }
+
+    #[inline]
+    fn node_edge_history_count<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> usize {
+        self.semantics
+            .node_edge_history_count_window(node, view, self.window.clone())
+    }
+
+    #[inline]
+    fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> usize {
+        self.semantics.node_edge_history_count_window(node, view, w)
     }
 
     #[inline]
@@ -202,15 +222,45 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
 }
 
 impl EdgeTimeSemanticsOps for WindowTimeSemantics {
+    fn handle_edge_update_filter<G: GraphView>(
+        &self,
+        t: TimeIndexEntry,
+        eid: ELID,
+        view: G,
+    ) -> Option<(TimeIndexEntry, ELID)> {
+        self.semantics.handle_edge_update_filter(t, eid, view)
+    }
+
+    fn include_edge<G: GraphView>(&self, edge: EdgeStorageRef, view: G, layer_id: usize) -> bool {
+        self.semantics
+            .include_edge_window(edge, view, layer_id, self.window.clone())
+    }
+
     #[inline]
-    fn include_edge_window<'graph, G: GraphView + 'graph>(
+    fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeStorageRef,
         view: G,
-        layer_ids: &LayerIds,
+        layer_id: usize,
         w: Range<i64>,
     ) -> bool {
-        self.semantics.include_edge_window(edge, view, layer_ids, w)
+        self.semantics.include_edge_window(edge, view, layer_id, w)
+    }
+
+    fn include_exploded_edge<G: GraphView>(&self, elid: ELID, t: TimeIndexEntry, view: G) -> bool {
+        self.semantics
+            .include_exploded_edge_window(elid, t, view, self.window.clone())
+    }
+
+    fn include_exploded_edge_window<G: GraphView>(
+        &self,
+        elid: ELID,
+        t: TimeIndexEntry,
+        view: G,
+        w: Range<i64>,
+    ) -> bool {
+        self.semantics
+            .include_exploded_edge_window(elid, t, view, w)
     }
 
     #[inline]
@@ -673,25 +723,24 @@ impl EdgeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
-    fn constant_edge_prop<'graph, G: GraphView + 'graph>(
+    fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
     ) -> Option<Prop> {
         self.semantics
-            .constant_edge_prop_window(e, view, prop_id, self.window.clone())
+            .edge_metadata_window(e, view, prop_id, self.window.clone())
     }
 
     #[inline]
-    fn constant_edge_prop_window<'graph, G: GraphView + 'graph>(
+    fn edge_metadata_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,
         view: G,
         prop_id: usize,
         w: Range<i64>,
     ) -> Option<Prop> {
-        self.semantics
-            .constant_edge_prop_window(e, view, prop_id, w)
+        self.semantics.edge_metadata_window(e, view, prop_id, w)
     }
 }

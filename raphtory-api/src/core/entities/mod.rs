@@ -142,6 +142,11 @@ impl ELID {
     pub fn is_deletion(&self) -> bool {
         self.layer_and_deletion & LAYER_FLAG != 0
     }
+
+    pub fn into_deletion(mut self) -> Self {
+        self.layer_and_deletion = self.layer_and_deletion | LAYER_FLAG;
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
@@ -259,6 +264,12 @@ impl GID {
 impl From<u64> for GID {
     fn from(id: u64) -> Self {
         Self::U64(id)
+    }
+}
+
+impl From<&u64> for GID {
+    fn from(value: &u64) -> Self {
+        GID::U64(*value)
     }
 }
 
@@ -427,7 +438,7 @@ impl LayerIds {
                     None
                 }
             }
-            LayerIds::Multiple(ids) => ids.binary_search(&layer_id).map(|_| layer_id),
+            LayerIds::Multiple(ids) => ids.contains(layer_id).then_some(layer_id),
             LayerIds::None => None,
         }
     }
@@ -489,15 +500,11 @@ impl LayerIds {
 }
 
 impl From<Vec<usize>> for LayerIds {
-    fn from(mut v: Vec<usize>) -> Self {
+    fn from(v: Vec<usize>) -> Self {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => {
-                v.sort_unstable();
-                v.dedup();
-                LayerIds::Multiple(v.into())
-            }
+            _ => LayerIds::Multiple(v.into()),
         }
     }
 }
@@ -507,12 +514,7 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
-            _ => {
-                let mut v = v.to_vec();
-                v.sort_unstable();
-                v.dedup();
-                LayerIds::Multiple(v.into())
-            }
+            _ => LayerIds::Multiple(v.into_iter().collect()),
         }
     }
 }
@@ -534,6 +536,11 @@ mod tests {
             let elid = EID(eid).with_layer(layer);
             prop_assert_eq!(elid.layer(), layer);
             prop_assert!(!elid.is_deletion());
+
+            let elid_deleted = elid.into_deletion();
+            prop_assert_eq!(elid_deleted.layer(), layer);
+            prop_assert_eq!(elid_deleted.edge, EID(eid));
+            prop_assert!(elid_deleted.is_deletion())
         })
     }
 
@@ -543,6 +550,8 @@ mod tests {
             let elid = EID(eid).with_layer_deletion(layer);
             prop_assert_eq!(elid.layer(), layer);
             prop_assert!(elid.is_deletion());
+            prop_assert_eq!(elid, elid.into_deletion());
+            prop_assert_eq!(elid.edge.0, eid);
         })
     }
 }

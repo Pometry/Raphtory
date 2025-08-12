@@ -57,7 +57,9 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install nextest
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.99
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
       - name: Activate pometry-storage in Cargo.toml

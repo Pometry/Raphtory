@@ -7,13 +7,17 @@ use std::{
 };
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-pub enum PropError {
-    #[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
-    PropertyTypeError {
-        name: String,
-        expected: PropType,
-        actual: PropType,
-    },
+#[error("Wrong type for property {name}: expected {expected:?} but actual type is {actual:?}")]
+pub struct PropError {
+    pub(crate) name: String,
+    pub(crate) expected: PropType,
+    pub(crate) actual: PropType,
+}
+
+impl PropError {
+    pub fn with_name(self, name: String) -> PropError {
+        Self { name, ..self }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
@@ -116,6 +120,18 @@ impl PropType {
 
     pub fn has_cmp(&self) -> bool {
         self.is_bool() || self.is_numeric() || self.is_str() || self.is_date()
+    }
+
+    pub fn homogeneous_map_value_type(&self) -> Option<PropType> {
+        if let PropType::Map(map) = self {
+            let mut iter = map.values();
+            if let Some(first) = iter.next() {
+                if iter.all(|v| v == first) {
+                    return Some(first.clone());
+                }
+            }
+        }
+        None
     }
 
     // This is the best guess for the size of one row of properties
@@ -256,7 +272,7 @@ pub fn unify_types(l: &PropType, r: &PropType, unified: &mut bool) -> Result<Pro
         {
             Ok(PropType::Decimal { scale: *l_scale })
         }
-        (_, _) => Err(PropError::PropertyTypeError {
+        (_, _) => Err(PropError {
             name: "unknown".to_string(),
             expected: l.clone(),
             actual: r.clone(),

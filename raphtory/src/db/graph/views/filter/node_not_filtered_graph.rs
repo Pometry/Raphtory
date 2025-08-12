@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
@@ -53,7 +53,7 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritStorageOps for NodeNotFilteredGr
 impl<'graph, G: GraphViewOps<'graph>, T> InheritLayerOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritListOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritMaterialize for NodeNotFilteredGraph<G, T> {}
-impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeFilterOps for NodeNotFilteredGraph<G, T> {}
+impl<'graph, G: GraphViewOps<'graph>, T> InheritAllEdgeFilterOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritPropertiesOps for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritTimeSemantics for NodeNotFilteredGraph<G, T> {}
 impl<'graph, G: GraphViewOps<'graph>, T> InheritNodeHistoryFilter for NodeNotFilteredGraph<G, T> {}
@@ -62,21 +62,6 @@ impl<'graph, G: GraphViewOps<'graph>, T> InheritEdgeHistoryFilter for NodeNotFil
 impl<G: InternalNodeFilterOps, T: InternalNodeFilterOps> InternalNodeFilterOps
     for NodeNotFilteredGraph<G, T>
 {
-    #[inline]
-    fn internal_nodes_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn internal_node_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        false
-    }
-
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_node(node, layer_ids)

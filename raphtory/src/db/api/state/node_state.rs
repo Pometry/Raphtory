@@ -10,7 +10,7 @@ use crate::{
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
@@ -45,7 +45,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
 
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Option<Self> {
-        if graph.nodes_filtered() {
+        if graph.filtered() {
             if graph.node_list_trusted() {
                 match graph.node_list() {
                     NodeList::All { .. } => None,
@@ -132,7 +132,9 @@ impl<
     > Debug for NodeState<'graph, V, G, GH>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_map().entries(self.iter()).finish()
+        f.debug_map()
+            .entries(self.iter().map(|(node, value)| (node.id(), value)))
+            .finish()
     }
 }
 

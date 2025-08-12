@@ -44,21 +44,27 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(&self, node: T) -> GraphResult<()> {
+    /// Generates and stores embeddings for a batch of nodes.
+    pub(crate) async fn update_node_embeddings<T: AsNodeRef>(
+        &self,
+        nodes: Vec<T>,
+    ) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
-            vectors.update_node(node).await?;
+            vectors.update_nodes(nodes).await?;
         }
+
         Ok(())
     }
 
+    /// Generates and stores embeddings for a batch of edges.
     pub(crate) async fn update_edge_embeddings<T: AsNodeRef>(
         &self,
-        src: T,
-        dst: T,
+        edges: Vec<(T, T)>,
     ) -> GraphResult<()> {
         if let Some(vectors) = &self.vectors {
-            vectors.update_edge(src, dst).await?;
+            vectors.update_edges(edges).await?;
         }
+
         Ok(())
     }
 
@@ -87,6 +93,7 @@ impl GraphWithVectors {
         println!("Graph loaded = {}", folder.get_original_path_str());
         if create_index {
             graph.create_index()?;
+            graph.write_updates()?;
         }
         Ok(Self {
             graph: graph.clone(),
@@ -140,14 +147,14 @@ pub(crate) trait UpdateEmbeddings {
 
 impl UpdateEmbeddings for NodeView<'static, GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
-        self.graph.update_node_embeddings(self.name()).await
+        self.graph.update_node_embeddings(vec![self.name()]).await
     }
 }
 
 impl UpdateEmbeddings for EdgeView<GraphWithVectors> {
     async fn update_embeddings(&self) -> GraphResult<()> {
         self.graph
-            .update_edge_embeddings(self.src().name(), self.dst().name())
+            .update_edge_embeddings(vec![(self.src().name(), self.dst().name())])
             .await
     }
 }

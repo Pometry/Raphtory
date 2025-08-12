@@ -1,7 +1,10 @@
 use crate::{
-    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    db::api::view::internal::{
+        EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
+    },
     prelude::GraphViewOps,
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
@@ -49,73 +52,27 @@ impl<'a, G: Clone> NodeHistory<'a, G> {
     }
 }
 
+fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
+    iter: impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph,
+    view: G,
+) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph {
+    if view.filtered() {
+        let time_semantics = view.edge_time_semantics();
+        Either::Left(
+            iter.filter_map(move |(t, e)| time_semantics.handle_edge_update_filter(t, e, &view)),
+        )
+    } else {
+        Either::Right(iter)
+    }
+}
+
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
     pub fn history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
-        let view = self.view.clone();
-        let iter = self.additions.edge_events();
-        match view.filter_state() {
-            FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |(t, e)| {
-                    view.filter_edge_history(*e, *t, view.layer_ids()) && {
-                        let edge = edges.edge(e.edge);
-                        view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                            && view.internal_filter_node(
-                                nodes.node_entry(edge.dst()),
-                                view.layer_ids(),
-                            )
-                    }
-                }))
-            }
-            FilterState::Nodes => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Nodes(iter.filter(move |(_, e)| {
-                    let edge = edges.edge(e.edge);
-                    view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                        && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
-                }))
-            }
-            FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids())),
-            ),
-        }
+        handle_update_iter(self.additions.edge_events(), self.view.clone())
     }
 
     pub fn history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
-        let view = self.view.clone();
-        let iter = self.additions.edge_events_rev();
-        match view.filter_state() {
-            FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |(t, e)| {
-                    view.filter_edge_history(*e, *t, view.layer_ids()) && {
-                        let edge = edges.edge(e.edge);
-                        view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                            && view.internal_filter_node(
-                                nodes.node_entry(edge.dst()),
-                                view.layer_ids(),
-                            )
-                    }
-                }))
-            }
-            FilterState::Nodes => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Nodes(iter.filter(move |(_, e)| {
-                    let edge = edges.edge(e.edge);
-                    view.internal_filter_node(nodes.node_entry(edge.src()), view.layer_ids())
-                        && view.internal_filter_node(nodes.node_entry(edge.dst()), view.layer_ids())
-                }))
-            }
-            FilterState::Edges | FilterState::BothIndependent => FilterVariants::Edges(
-                iter.filter(move |(t, e)| view.filter_edge_history(*e, *t, view.layer_ids())),
-            ),
-        }
+        handle_update_iter(self.additions.edge_events_rev(), self.view.clone())
     }
 }
 
@@ -232,6 +189,9 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 }
 
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
+    /// Get a filtered view of the update history of the node
+    ///
+    /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
         // FIXME: new storage supports multiple layers, we can be specific about the layers here once NodeStorageOps is updated
         let additions = self.node_additions(ALL_LAYERS);
@@ -252,25 +212,20 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         let iter = self.edges_iter(layer_ids, dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |e| {
-                    view.filter_edge(edges.edge(e.pid()), view.layer_ids())
-                        && view.filter_node(nodes.node_entry(e.remote()))
-                }))
-            }
-            FilterState::Nodes => {
-                let nodes = view.core_nodes();
-                FilterVariants::Nodes(
-                    iter.filter(move |e| view.filter_node(nodes.node_entry(e.remote()))),
-                )
-            }
+            FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                    && view.filter_node(gs.core_node(e.remote()).as_ref())
+            })),
+            FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_node(gs.core_node(e.remote()).as_ref())
+            })),
             FilterState::Edges | FilterState::BothIndependent => {
-                let edges = view.core_edges();
-                FilterVariants::Edges(
-                    iter.filter(move |e| view.filter_edge(edges.edge(e.pid()), view.layer_ids())),
-                )
+                FilterVariants::Edges(iter.filter(move |e| {
+                    let gs = view.core_graph();
+                    view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                }))
             }
         }
     }

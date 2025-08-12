@@ -1,26 +1,54 @@
 use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, SimpleObject};
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
-use tokio::task::spawn_blocking;
+use std::{cmp::Ordering, sync::Arc};
+use tokio::sync::OnceCell;
 
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct MetaGraph {
     folder: ExistingGraphFolder,
+    meta: Arc<OnceCell<GraphMetadata>>,
+}
+
+impl PartialEq for MetaGraph {
+    fn eq(&self, other: &Self) -> bool {
+        self.folder == other.folder
+    }
+}
+
+impl Eq for MetaGraph {}
+
+impl PartialOrd for MetaGraph {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MetaGraph {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.folder.cmp(&other.folder)
+    }
 }
 
 impl MetaGraph {
     pub fn new(path: ExistingGraphFolder) -> Self {
-        Self { folder: path }
+        Self {
+            folder: path,
+            meta: Default::default(),
+        }
+    }
+
+    async fn meta(&self) -> Result<&GraphMetadata, GraphError> {
+        self.meta
+            .get_or_try_init(|| self.folder.read_metadata_async())
+            .await
     }
 }
 
 #[ResolvedObjectFields]
 impl MetaGraph {
     async fn name(&self) -> Option<String> {
-        let self_clone = self.clone();
-        spawn_blocking(move || self_clone.folder.get_graph_name().ok())
-            .await
-            .unwrap()
+        self.folder.get_graph_name().ok()
     }
     async fn path(&self) -> String {
         self.folder.get_original_path_str().to_owned()
@@ -34,35 +62,22 @@ impl MetaGraph {
     async fn last_updated(&self) -> Result<i64, GraphError> {
         self.folder.last_updated_async().await
     }
-    async fn metadata(&self) -> Result<GqlGraphMetadata, GraphError> {
-        let self_clone = self.clone();
-        spawn_blocking(move || {
-            let metadata = self_clone.folder.read_metadata()?;
-            Ok(GqlGraphMetadata::from(metadata))
-        })
-        .await
-        .unwrap()
+
+    async fn node_count(&self) -> Result<usize, GraphError> {
+        Ok(self.meta().await?.node_count)
     }
-}
 
-#[derive(Clone, SimpleObject)]
-#[graphql(name = "GraphMetadata")]
-pub(crate) struct GqlGraphMetadata {
-    pub(crate) node_count: usize,
-    pub(crate) edge_count: usize,
-    pub(crate) properties: Vec<GqlProperty>,
-}
+    async fn edge_count(&self) -> Result<usize, GraphError> {
+        Ok(self.meta().await?.edge_count)
+    }
 
-impl From<GraphMetadata> for GqlGraphMetadata {
-    fn from(metadata: GraphMetadata) -> Self {
-        GqlGraphMetadata {
-            node_count: metadata.node_count,
-            edge_count: metadata.edge_count,
-            properties: metadata
-                .properties
-                .into_iter()
-                .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
-                .collect(),
-        }
+    async fn metadata(&self) -> Result<Vec<GqlProperty>, GraphError> {
+        Ok(self
+            .meta()
+            .await?
+            .metadata
+            .iter()
+            .map(|(key, prop)| GqlProperty::new(key.to_string(), prop.clone()))
+            .collect())
     }
 }

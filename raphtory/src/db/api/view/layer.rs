@@ -4,6 +4,7 @@ use crate::{
         graph::views::layer_graph::LayeredGraph,
     },
     errors::GraphError,
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::entities::{Layer, LayerIds, SingleLayer};
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -33,6 +34,9 @@ pub trait LayerOps<'graph> {
 
     /// Return a graph containing the layers in `names`. Any layers that do not exist are ignored.
     fn valid_layers<L: Into<Layer>>(&self, names: L) -> Self::LayeredViewType;
+
+    /// Returns the number of layers
+    fn num_layers(&self) -> usize;
 }
 
 impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
@@ -96,6 +100,10 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph> LayerOps<'graph> for V {
         let layers = names.into();
         let ids = self.current_filter().valid_layer_ids_from_names(layers);
         self.one_hop_filtered(LayeredGraph::new(self.current_filter().clone(), ids))
+    }
+
+    fn num_layers(&self) -> usize {
+        self.current_filter().unique_layers().count()
     }
 }
 

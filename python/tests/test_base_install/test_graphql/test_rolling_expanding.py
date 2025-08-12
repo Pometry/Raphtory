@@ -1,6 +1,8 @@
-from raphtory import Graph
-from utils import run_graphql_test, run_graphql_error_test, run_group_graphql_error_test
 from datetime import datetime
+
+from raphtory import Graph
+
+from utils import run_graphql_test, run_group_graphql_error_test
 
 
 def create_graph_epoch(g):
@@ -38,7 +40,7 @@ def test_graph_date():
     {
   graph(path: "g") {
     rolling(window: {duration:"1 day"}, step: {duration: "12 hours"}) {
-      page(limit: 5, offset: 1) {
+      page(limit: 5, offset: 5) {
         nodes{
           list{
             name
@@ -322,7 +324,7 @@ def test_graph_epoch():
     {
   graph(path: "g") {
     rolling(window: {epoch: 1}, step: {epoch: 1}) {
-      page(limit: 2, offset: 2) {
+      page(limit: 2, pageIndex: 1, offset: 2) {
         earliestTime
         latestTime
       }
@@ -349,7 +351,7 @@ def test_node():
           earliestTime
         }
         count
-        page(limit:3,offset:1){
+        page(limit:3,offset:3){
           start
           degree
         }
@@ -422,7 +424,7 @@ def test_nodes():
           }
         }
         count
-        page(limit: 3, offset: 1) {
+        page(limit: 3, offset: 3) {
           page(limit: 1, offset: 0) {
             id
             degree
@@ -445,7 +447,7 @@ def test_nodes():
             }
           }
           count
-          page(limit: 2, offset: 1) {
+          page(limit: 2, pageIndex: 1) {
             page(limit: 1, offset: 0) {
               id
               degree
@@ -655,7 +657,7 @@ def test_path():
             }
           }
           count
-          page(limit: 3, offset: 1) {
+          page(limit: 3, offset: 3) {
             page(limit: 1, offset: 0) {
               id
               degree
@@ -678,7 +680,7 @@ def test_path():
               }
             }
             count
-            page(limit: 2, offset: 1) {
+            page(limit: 2, pageIndex: 1) {
               page(limit: 1, offset: 0) {
                 id
                 degree
@@ -886,7 +888,7 @@ def test_edge():
           earliestTime
         }
         count
-        page(limit:3,offset:1){
+        page(limit:3,offset:3){
           start
           end
           earliestTime
@@ -901,7 +903,7 @@ def test_edge():
           latestTime
         }
         count
-        page(limit:2,offset:1){
+        page(limit:2,offset:2){
           start
           end
           earliestTime
@@ -1000,7 +1002,7 @@ def test_edges():
           }
         }
         count
-        page(limit: 3, offset: 1) {
+        page(limit: 3, pageIndex: 1) {
           page(limit: 1, offset: 0) {
             id
             start
@@ -1021,7 +1023,7 @@ def test_edges():
             }
           }
           count
-          page(limit: 2, offset: 1) {
+          page(limit: 2, pageIndex: 1) {
             page(limit: 1, offset: 0) {
               id
               start

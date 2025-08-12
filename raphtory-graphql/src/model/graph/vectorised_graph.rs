@@ -1,5 +1,5 @@
 use super::vector_selection::GqlVectorSelection;
-use crate::{embeddings::EmbedQuery, model::blocking};
+use crate::{embeddings::EmbedQuery, model::blocking_io};
 use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -49,7 +49,7 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
+        blocking_io(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
     }
 
     async fn nodes_by_similarity(
@@ -62,7 +62,7 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
+        blocking_io(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
     }
 
     async fn edges_by_similarity(
@@ -75,6 +75,6 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
+        blocking_io(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
     }
 }

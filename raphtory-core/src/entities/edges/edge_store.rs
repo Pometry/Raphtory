@@ -1,6 +1,6 @@
 use crate::{
     entities::{
-        properties::props::{ConstPropError, Props, TPropError},
+        properties::props::{MetadataError, Props, TPropError},
         EID, VID,
     },
     storage::{
@@ -9,6 +9,7 @@ use crate::{
     },
     utils::iter::GenLockedIter,
 };
+use itertools::Itertools;
 use raphtory_api::core::entities::{edges::edge_ref::EdgeRef, properties::prop::Prop};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -25,7 +26,7 @@ pub struct EdgeStore {
 
 pub trait EdgeDataLike<'a> {
     fn temporal_prop_ids(self) -> impl Iterator<Item = usize> + 'a;
-    fn const_prop_ids(self) -> impl Iterator<Item = usize> + 'a;
+    fn metadata_ids(self) -> impl Iterator<Item = usize> + 'a;
 }
 
 impl<'a, T: Deref<Target = EdgeLayer> + 'a> EdgeDataLike<'a> for T {
@@ -40,13 +41,13 @@ impl<'a, T: Deref<Target = EdgeLayer> + 'a> EdgeDataLike<'a> for T {
         })
     }
 
-    fn const_prop_ids(self) -> impl Iterator<Item = usize> + 'a {
+    fn metadata_ids(self) -> impl Iterator<Item = usize> + 'a {
         GenLockedIter::from(self, |layer| {
             Box::new(
                 layer
                     .props()
                     .into_iter()
-                    .flat_map(|props| props.const_prop_ids()),
+                    .flat_map(|props| props.metadata_ids()),
             )
         })
     }
@@ -76,18 +77,14 @@ impl EdgeLayer {
         props.add_prop(t, prop_id, prop)
     }
 
-    pub fn add_constant_prop(&mut self, prop_id: usize, prop: Prop) -> Result<(), ConstPropError> {
+    pub fn add_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.add_constant_prop(prop_id, prop)
+        props.add_metadata(prop_id, prop)
     }
 
-    pub fn update_constant_prop(
-        &mut self,
-        prop_id: usize,
-        prop: Prop,
-    ) -> Result<(), ConstPropError> {
+    pub fn update_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
         let props = self.props.get_or_insert_with(Props::new);
-        props.update_constant_prop(prop_id, prop)
+        props.update_metadata(prop_id, prop)
     }
 }
 
@@ -121,6 +118,12 @@ impl<'a> Debug for MemEdge<'a> {
             .field("src", &self.src())
             .field("dst", &self.dst())
             .field("eid", &self.eid())
+            .field(
+                "props",
+                &(0..self.internal_num_layers())
+                    .map(|i| (i, self.props(i)))
+                    .collect_vec(),
+            )
             .finish()
     }
 }

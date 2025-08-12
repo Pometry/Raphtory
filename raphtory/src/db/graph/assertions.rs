@@ -11,14 +11,14 @@ use crate::{
     },
 };
 
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
+use raphtory_api::core::Direction;
 #[cfg(feature = "storage")]
 use {
     crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
     raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
 };
-
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
@@ -73,6 +73,29 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> 
             .iter()
             .map(|n| n.name())
             .collect::<Vec<_>>();
+        results.sort();
+        results
+    }
+}
+
+pub struct FilterNeighbours<F: AsNodeFilter + CreateNodeFilter + Clone>(F, String, Direction);
+
+impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbours<F> {
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+        let filter_applied = graph
+            .node(self.1.clone())
+            .unwrap()
+            .filter_nodes(self.0.clone())
+            .unwrap();
+
+        let mut results = match self.2 {
+            Direction::OUT => filter_applied.out_neighbours(),
+            Direction::IN => filter_applied.in_neighbours(),
+            Direction::BOTH => filter_applied.neighbours(),
+        }
+        .iter()
+        .map(|n| n.name())
+        .collect::<Vec<_>>();
         results.sort();
         results
     }
@@ -148,6 +171,25 @@ pub fn assert_filter_nodes_results(
         expected,
         variants.into(),
         FilterNodes(filter),
+    )
+}
+
+pub fn assert_filter_neighbours_results(
+    init_graph: impl FnOnce(Graph) -> Graph,
+    transform: impl GraphTransformer,
+    node_name: impl AsRef<str>,
+    direction: Direction,
+    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    expected: &[&str],
+    variants: impl Into<Vec<TestGraphVariants>>,
+) {
+    assert_results(
+        init_graph,
+        |_graph: &Graph| (),
+        transform,
+        expected,
+        variants.into(),
+        FilterNeighbours(filter, node_name.as_ref().to_string(), direction),
     )
 }
 

@@ -12,8 +12,7 @@ macro_rules! impl_edge_property_filter_ops {
             /// Return a filtered view that only includes edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (PropertyFilter): The filter to apply to the edge properties. Construct a
-            ///                              filter using `Prop`.
+            ///     filter (filter.FilterExpr): The filter to apply to the edges.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
@@ -28,24 +27,16 @@ macro_rules! impl_edge_property_filter_ops {
             /// Return a filtered view that only includes exploded edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (PropertyFilter): The filter to apply to the exploded edge properties. Construct a
-            ///                              filter using `Prop`.
+            ///     filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter_exploded_edges(
                 &self,
-                filter: $crate::python::types::wrappers::prop::PyPropertyFilter,
-            ) -> Result<
-                <$base_type as OneHopFilter<'static>>::Filtered<
-                    <PyPropertyFilter as InternalExplodedEdgeFilterOps>::ExplodedEdgeFiltered<
-                        'static,
-                        <$base_type as OneHopFilter<'static>>::FilteredGraph,
-                    >,
-                >,
-                GraphError,
-            > {
-                self.$field.filter_exploded_edges(filter)
+                filter: PyFilterExpr,
+            ) -> Result<<$base_type as OneHopFilter<'static>>::Filtered<DynamicGraph>, GraphError>
+            {
+                Ok(self.$field.filter_exploded_edges(filter)?.into_dyn_hop())
             }
         }
     };

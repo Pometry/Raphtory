@@ -3,7 +3,7 @@ use crate::{
         api::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
-                Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
+                Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
                 InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
                 InheritTimeSemantics, InternalNodeFilterOps, Static,
             },
@@ -21,22 +21,15 @@ use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::No
 #[derive(Debug, Clone)]
 pub struct NodePropertyFilteredGraph<G> {
     graph: G,
-    t_prop_id: Option<usize>,
-    c_prop_id: Option<usize>,
+    prop_id: Option<usize>,
     filter: PropertyFilter,
 }
 
 impl<G> NodePropertyFilteredGraph<G> {
-    pub(crate) fn new(
-        graph: G,
-        t_prop_id: Option<usize>,
-        c_prop_id: Option<usize>,
-        filter: PropertyFilter,
-    ) -> Self {
+    pub(crate) fn new(graph: G, prop_id: Option<usize>, filter: PropertyFilter) -> Self {
         Self {
             graph,
-            t_prop_id,
-            c_prop_id,
+            prop_id,
             filter,
         }
     }
@@ -49,11 +42,8 @@ impl CreateNodeFilter for PropertyFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFiltered<'graph, G>, GraphError> {
-        let t_prop_id = self.resolve_temporal_prop_id(graph.node_meta())?;
-        let c_prop_id = self.resolve_constant_prop_id(graph.node_meta())?;
-        Ok(NodePropertyFilteredGraph::new(
-            graph, t_prop_id, c_prop_id, self,
-        ))
+        let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
+        Ok(NodePropertyFilteredGraph::new(graph, prop_id, self))
     }
 }
 
@@ -73,7 +63,7 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodePropertyFiltered
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodePropertyFilteredGraph<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for NodePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritAllEdgeFilterOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodePropertyFilteredGraph<G> {}
@@ -81,25 +71,9 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodePropertyF
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilteredGraph<G> {
     #[inline]
-    fn internal_nodes_filtered(&self) -> bool {
-        true
-    }
-
-    #[inline]
-    fn internal_node_list_trusted(&self) -> bool {
-        false
-    }
-
-    #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        false
-    }
-
-    #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
         if self.graph.internal_filter_node(node, layer_ids) {
-            self.filter
-                .matches_node(&self.graph, self.t_prop_id, self.c_prop_id, node)
+            self.filter.matches_node(&self.graph, self.prop_id, node)
         } else {
             false
         }

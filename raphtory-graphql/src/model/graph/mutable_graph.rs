@@ -1,7 +1,11 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
+    model::{
+        blocking_io,
+        graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
+    },
     paths::ExistingGraphFolder,
+    rayon::blocking_compute,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -10,7 +14,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
-use tokio::{spawn, task::spawn_blocking};
+use tokio::spawn;
 
 #[derive(InputObject, Clone)]
 #[graphql(name = "PropertyInput")]
@@ -29,7 +33,7 @@ pub struct TemporalPropertyInput {
 pub struct NodeAddition {
     name: String,
     node_type: Option<String>,
-    constant_properties: Option<Vec<GqlPropertyInput>>,
+    metadata: Option<Vec<GqlPropertyInput>>,
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -38,7 +42,7 @@ pub struct EdgeAddition {
     src: String,
     dst: String,
     layer: Option<String>,
-    constant_properties: Option<Vec<GqlPropertyInput>>,
+    metadata: Option<Vec<GqlPropertyInput>>,
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -75,13 +79,11 @@ fn as_properties(
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
     /// Get the non-mutable graph
-
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.graph.clone())
     }
 
     /// Get mutable existing node
-
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
@@ -96,21 +98,19 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let node = spawn_blocking(move || {
+        let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .add_node(time, &name, prop_iter, node_type.as_str())
         })
-        .await
-        .unwrap()?;
+        .await?;
         node.update_embeddings().await?;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(node.into())
         })
         .await
-        .unwrap()
     }
 
     /// Create a new node or fail if it already exists
@@ -123,30 +123,27 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let node = spawn_blocking(move || {
+        let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .create_node(time, &name, prop_iter, node_type.as_str())
         })
-        .await
-        .unwrap()?;
+        .await?;
         node.update_embeddings().await?;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(node.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add a batch of nodes
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
 
         let nodes: Vec<Result<NodeView<GraphWithVectors>, GraphError>> =
-            spawn_blocking(move || {
+            blocking_compute(move || {
                 nodes
                     .iter()
                     .map(|node| {
@@ -162,32 +159,30 @@ impl GqlMutableGraph {
                         if let Some(node_type) = node.node_type.as_str() {
                             self_clone.get_node_view(name)?.set_node_type(node_type)?;
                         }
-                        let constant_props = node.constant_properties.unwrap_or(vec![]);
-                        if !constant_props.is_empty() {
-                            let prop_iter = as_properties(constant_props)?;
-                            self_clone
-                                .get_node_view(name)?
-                                .add_constant_properties(prop_iter)?;
+                        let metadata = node.metadata.unwrap_or(vec![]);
+                        if !metadata.is_empty() {
+                            let prop_iter = as_properties(metadata)?;
+                            self_clone.get_node_view(name)?.add_metadata(prop_iter)?;
                         }
                         self_clone.get_node_view(name)
                     })
                     .collect()
             })
-            .await
-            .unwrap();
-        for node in nodes {
-            let _ = node?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
-        }
-        spawn_blocking(move || {
-            self_clone_2.graph.write_updates()?;
+            .await;
+
+        // Generate embeddings
+        let nodes: Vec<_> = nodes.into_iter().collect::<Result<Vec<_>, _>>()?;
+        self.graph.update_node_embeddings(nodes).await?;
+
+        let self_clone = self.clone();
+        blocking_io(move || {
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Get a mutable existing edge
-
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
@@ -203,31 +198,28 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
-        let edge = spawn_blocking(move || {
+        let edge = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
                 .graph
                 .add_edge(time, src, dst, prop_iter, layer.as_str())
         })
-        .await
-        .unwrap();
+        .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(edge.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add a batch of edges
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
 
         let edges: Vec<Result<EdgeView<GraphWithVectors>, GraphError>> =
-            spawn_blocking(move || {
+            blocking_compute(move || {
                 edges
                     .iter()
                     .map(|edge| {
@@ -241,32 +233,38 @@ impl GqlMutableGraph {
                                 .graph
                                 .add_edge(prop.time, src, dst, prop_iter, layer)?;
                         }
-                        let constant_props = edge.constant_properties.unwrap_or(vec![]);
-                        if !constant_props.is_empty() {
-                            let prop_iter = as_properties(constant_props)?;
+                        let metadata = edge.metadata.unwrap_or(vec![]);
+                        if !metadata.is_empty() {
+                            let prop_iter = as_properties(metadata)?;
                             self_clone
                                 .get_edge_view(src.to_string(), dst.to_string())?
-                                .add_constant_properties(prop_iter, layer)?;
+                                .add_metadata(prop_iter, layer)?;
                         }
                         self_clone.get_edge_view(src.to_string(), dst.to_string())
                     })
                     .collect()
             })
-            .await
-            .unwrap();
-        for edge in edges {
-            let _ = edge?.update_embeddings().await; // FIXME: ideally this should call the embedding function just once!!
-        }
-        spawn_blocking(move || {
-            self_clone_2.graph.write_updates()?;
+            .await;
+
+        // Generate embeddings
+        let edge_pairs: Vec<_> = edges
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()? // Return 1st encountered error
+            .into_iter()
+            .map(|edge| (edge.src().name(), edge.dst().name()))
+            .collect();
+
+        self.graph.update_edge_embeddings(edge_pairs).await?;
+
+        let self_clone = self.clone();
+        blocking_io(move || {
+            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
-
     async fn delete_edge(
         &self,
         time: i64,
@@ -277,17 +275,15 @@ impl GqlMutableGraph {
         let self_clone = self.clone();
         let self_clone_2 = self.clone();
         let edge =
-            spawn_blocking(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
-                .await
-                .unwrap();
+            blocking_compute(move || self_clone.graph.delete_edge(time, src, dst, layer.as_str()))
+                .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        spawn_blocking(move || {
+        blocking_io(move || {
             self_clone_2.graph.write_updates()?;
             Ok(edge.into())
         })
         .await
-        .unwrap()
     }
 
     /// Add temporal properties to graph
@@ -297,7 +293,7 @@ impl GqlMutableGraph {
         properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .graph
                 .add_properties(t, as_properties(properties)?)?;
@@ -305,41 +301,30 @@ impl GqlMutableGraph {
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
-    /// Add constant properties to graph (errors if the property already exists)
-    async fn add_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Add metadata to graph (errors if the property already exists)
+    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
-            self_clone
-                .graph
-                .add_constant_properties(as_properties(properties)?)?;
+        blocking_compute(move || {
+            self_clone.graph.add_metadata(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 
-    /// Update constant properties of the graph (overwrites existing values)
-    async fn update_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Update metadata of the graph (overwrites existing values)
+    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
-        spawn_blocking(move || {
+        blocking_compute(move || {
             self_clone
                 .graph
-                .update_constant_properties(as_properties(properties)?)?;
+                .update_metadata(as_properties(properties)?)?;
             self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
-        .unwrap()
     }
 }
 
@@ -388,16 +373,11 @@ impl GqlMutableNode {
         self.node.clone().into()
     }
 
-    /// Add constant properties to the node (errors if the property already exists)
-    async fn add_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Add metadata to the node (errors if the property already exists)
+    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
-            self_clone
-                .node
-                .add_constant_properties(as_properties(properties)?)?;
+            self_clone.node.add_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
             self_clone.node.graph.write_updates()?;
             Ok(true)
@@ -419,16 +399,13 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Update constant properties of the node (overwrites existing property values)
-    async fn update_constant_properties(
-        &self,
-        properties: Vec<GqlPropertyInput>,
-    ) -> Result<bool, GraphError> {
+    /// Update metadata of the node (overwrites existing property values)
+    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
             self_clone
                 .node
-                .update_constant_properties(as_properties(properties)?)?;
+                .update_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
             self_clone.node.graph.write_updates()?;
             Ok(true)
@@ -504,11 +481,11 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Add constant properties to the edge (errors if the value already exists)
+    /// Add metadata to the edge (errors if the value already exists)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
-    async fn add_constant_properties(
+    async fn add_metadata(
         &self,
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
@@ -517,7 +494,7 @@ impl GqlMutableEdge {
         spawn(async move {
             self_clone
                 .edge
-                .add_constant_properties(as_properties(properties)?, layer.as_str())?;
+                .add_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
             self_clone.edge.graph.write_updates()?;
             Ok(true)
@@ -526,11 +503,11 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Update constant properties of the edge (existing values are overwritten)
+    /// Update metadata of the edge (existing values are overwritten)
     ///
     /// If this is called after `add_edge`, the layer is inherited from the `add_edge` and does not
     /// need to be specified again.
-    async fn update_constant_properties(
+    async fn update_metadata(
         &self,
         properties: Vec<GqlPropertyInput>,
         layer: Option<String>,
@@ -539,7 +516,7 @@ impl GqlMutableEdge {
         spawn(async move {
             self_clone
                 .edge
-                .update_constant_properties(as_properties(properties)?, layer.as_str())?;
+                .update_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
             self_clone.edge.graph.write_updates()?;
             Ok(true)
@@ -571,5 +548,263 @@ impl GqlMutableEdge {
         })
         .await
         .unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        config::app_config::AppConfig,
+        data::{Data, EmbeddingConf},
+    };
+    use itertools::Itertools;
+    use raphtory::{
+        db::api::view::MaterializedGraph,
+        vectors::{
+            cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding,
+        },
+    };
+    use std::collections::HashMap;
+    use tempfile::tempdir;
+
+    async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
+        Ok(texts
+            .into_iter()
+            .map(|_| vec![1.0, 0.0, 0.0].into())
+            .collect_vec())
+    }
+
+    fn custom_template() -> DocumentTemplate {
+        DocumentTemplate {
+            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
+            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
+        }
+    }
+
+    fn create_test_graph() -> MaterializedGraph {
+        let graph = Graph::new();
+        graph.into()
+    }
+
+    async fn create_mutable_graph() -> (GqlMutableGraph, tempfile::TempDir) {
+        let graph = create_test_graph();
+        let tmp_dir = tempdir().unwrap();
+
+        let config = AppConfig::default();
+        let mut data = Data::new(tmp_dir.path(), &config);
+
+        // Override the embedding function with a mock for testing
+        data.embedding_conf = Some(EmbeddingConf {
+            cache: VectorCache::in_memory(fake_embedding),
+            global_template: Some(custom_template()),
+            individual_templates: HashMap::new(),
+        });
+
+        data.insert_graph("test_graph", graph).await.unwrap();
+
+        let (graph_with_vectors, path) = data.get_graph("test_graph").await.unwrap();
+        let mutable_graph = GqlMutableGraph::new(path, graph_with_vectors);
+
+        (mutable_graph, tmp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_empty_list() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![];
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_simple() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![
+            NodeAddition {
+                name: "node1".to_string(),
+                node_type: Some("test_node_type".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+            NodeAddition {
+                name: "node2".to_string(),
+                node_type: Some("test_node_type".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let query = "node1".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 2);
+    }
+
+    #[tokio::test]
+    async fn test_add_nodes_with_properties() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        let nodes = vec![
+            NodeAddition {
+                name: "complex_node_1".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: Some(vec![GqlPropertyInput {
+                    key: "department".to_string(),
+                    value: Value::Str("Sales".to_string()),
+                }]),
+                updates: Some(vec![
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: Some(vec![GqlPropertyInput {
+                            key: "salary".to_string(),
+                            value: Value::F64(50000.0),
+                        }]),
+                    },
+                    TemporalPropertyInput {
+                        time: 0,
+                        properties: Some(vec![GqlPropertyInput {
+                            key: "salary".to_string(),
+                            value: Value::F64(55000.0),
+                        }]),
+                    },
+                ]),
+            },
+            NodeAddition {
+                name: "complex_node_2".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+            NodeAddition {
+                name: "complex_node_3".to_string(),
+                node_type: Some("employee".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: Some(vec![GqlPropertyInput {
+                        key: "salary".to_string(),
+                        value: Value::F64(55000.0),
+                    }]),
+                }]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        let query = "complex_node_1".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 3);
+    }
+
+    #[tokio::test]
+    async fn test_add_edges_simple() {
+        let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
+
+        // First add some nodes
+        let nodes = vec![
+            NodeAddition {
+                name: "node1".to_string(),
+                node_type: Some("person".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+            NodeAddition {
+                name: "node2".to_string(),
+                node_type: Some("person".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+        ];
+
+        let result = mutable_graph.add_nodes(nodes).await;
+        assert!(result.is_ok());
+
+        // Now add edges between them
+        let edges = vec![
+            EdgeAddition {
+                src: "node1".to_string(),
+                dst: "node2".to_string(),
+                layer: Some("friendship".to_string()),
+                metadata: Some(vec![GqlPropertyInput {
+                    key: "strength".to_string(),
+                    value: Value::F64(0.8),
+                }]),
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+            EdgeAddition {
+                src: "node2".to_string(),
+                dst: "node1".to_string(),
+                layer: Some("friendship".to_string()),
+                metadata: None,
+                updates: Some(vec![TemporalPropertyInput {
+                    time: 0,
+                    properties: None,
+                }]),
+            },
+        ];
+
+        let result = mutable_graph.add_edges(edges).await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+
+        // Test that edge embeddings were generated
+        let query = "node1 appeared with node2".to_string();
+        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .edges_by_similarity(embedding, limit, None);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().unwrap().len() == 2);
     }
 }

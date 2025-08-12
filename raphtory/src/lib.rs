@@ -110,6 +110,10 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{
@@ -124,6 +128,7 @@ pub mod prelude {
         db::{
             api::{
                 mutation::{AdditionOps, DeletionOps, ImportOps, PropertyAdditionOps},
+                properties::PropertiesOps,
                 state::{
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
@@ -161,6 +166,7 @@ pub use raphtory_api::{atomic_extra, core::utils::logging};
 #[cfg(test)]
 mod test_utils {
     use crate::{db::api::storage::storage::Storage, prelude::*};
+    use ahash::HashSet;
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
@@ -206,6 +212,13 @@ mod test_utils {
             ),
             0..=len,
         )
+    }
+
+    pub(crate) fn build_edge_deletions(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64)>> {
+        proptest::collection::vec((0..num_nodes, 0..num_nodes, i64::MIN..i64::MAX), 0..=len)
     }
 
     #[derive(Debug, Arbitrary, PartialOrd, PartialEq, Eq, Ord)]
@@ -634,7 +647,7 @@ mod test_utils {
             }
             if let Some(e) = g.edge(src, dst) {
                 if !updates.props.c_props.is_empty() {
-                    e.add_constant_properties(updates.props.c_props.clone(), layer)
+                    e.add_metadata(updates.props.c_props.clone(), layer)
                         .unwrap();
                 }
             }
@@ -648,8 +661,7 @@ mod test_utils {
                 g.add_node(*t, node, props.clone(), None).unwrap();
             }
             if let Some(node) = g.node(node) {
-                node.add_constant_properties(updates.props.c_props.clone())
-                    .unwrap();
+                node.add_metadata(updates.props.c_props.clone()).unwrap();
                 if let Some(node_type) = updates.node_type {
                     node.set_node_type(node_type).unwrap();
                 }
@@ -659,12 +671,24 @@ mod test_utils {
         g
     }
 
-    pub(crate) fn build_graph_layer(
-        graph_fix: &GraphFixture,
-        layers: impl Into<Layer>,
-    ) -> Arc<Storage> {
+    pub(crate) fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
         let g = Arc::new(Storage::default());
-        let layers = layers.into();
+        let actual_layer_set: HashSet<_> = graph_fix
+            .edges()
+            .filter(|(_, updates)| {
+                !updates.deletions.is_empty() || !updates.props.t_props.is_empty()
+            })
+            .map(|((_, _, layer), _)| layer.unwrap_or("_default"))
+            .collect();
+
+        // make sure the graph has the layers in the right order
+        for layer in layers {
+            if actual_layer_set.contains(layer) {
+                g.resolve_layer(Some(layer)).unwrap();
+            }
+        }
+
+        let layers = g.edge_meta().layer_meta();
 
         let session = g.write_session().unwrap();
         for ((src, dst, layer), updates) in graph_fix.edges() {
@@ -688,7 +712,7 @@ mod test_utils {
                 }
                 if let Some(e) = g.edge(src, dst) {
                     if !updates.props.c_props.is_empty() {
-                        e.add_constant_properties(updates.props.c_props.clone(), layer)
+                        e.add_metadata(updates.props.c_props.clone(), layer)
                             .unwrap();
                     }
                 }
@@ -703,8 +727,7 @@ mod test_utils {
                 g.add_node(*t, node, props.clone(), None).unwrap();
             }
             if let Some(node) = g.node(node) {
-                node.add_constant_properties(updates.props.c_props.clone())
-                    .unwrap();
+                node.add_metadata(updates.props.c_props.clone()).unwrap();
                 if let Some(node_type) = updates.node_type {
                     node.set_node_type(node_type).unwrap();
                 }

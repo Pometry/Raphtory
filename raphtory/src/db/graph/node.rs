@@ -6,10 +6,10 @@ use crate::{
         api::{
             mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
             properties::internal::{
-                ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
             view::{
-                internal::{GraphTimeSemanticsOps, OneHopFilter, Static},
+                internal::{OneHopFilter, Static},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed, StaticGraphViewOps,
             },
         },
@@ -24,8 +24,8 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::NodeTimeSemanticsOps, DynamicGraph, ExplodedEdgePropertyFilterOps,
-                IntoDynamic,
+                internal::{GraphView, NodeTimeSemanticsOps},
+                DynamicGraph, ExplodedEdgePropertyFilterOps, IntoDynamic,
             },
         },
         graph::edges::Edges,
@@ -232,34 +232,37 @@ impl<'a, G, GH: CoreGraphOps> Hash for NodeView<'a, G, GH> {
     }
 }
 
-impl<'graph, G, GH: CoreGraphOps + GraphTimeSemanticsOps> TemporalPropertiesOps
+impl<'graph, G: GraphView, GH: GraphView> InternalTemporalPropertiesOps
     for NodeView<'graph, G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().temporal_prop_meta().get_id(name)
+        self.graph.node_meta().temporal_prop_mapper().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
         self.graph
             .node_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_name(id)
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(0..self.graph.node_meta().temporal_prop_meta().len())
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+        Box::new(0..self.graph.node_meta().temporal_prop_mapper().len())
     }
 }
 
-impl<'graph, G, GH: GraphViewOps<'graph>> TemporalPropertyViewOps for NodeView<'graph, G, GH> {
+impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
+    for NodeView<'graph, G, GH>
+{
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .node_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_dtype(id)
             .unwrap()
     }
+
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
@@ -318,25 +321,26 @@ impl<'graph, G, GH: GraphViewOps<'graph>> NodeView<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: Send + Sync, GH: CoreGraphOps> ConstantPropertiesOps for NodeView<'graph, G, GH> {
-    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().const_prop_meta().get_id(name)
+impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G, GH> {
+    fn get_metadata_id(&self, name: &str) -> Option<usize> {
+        self.graph.node_meta().metadata_mapper().get_id(name)
     }
 
-    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+    fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
             .node_meta()
-            .const_prop_meta()
+            .metadata_mapper()
             .get_name(id)
             .clone()
     }
 
-    fn const_prop_ids(&self) -> BoxedLIter<usize> {
-        self.graph.constant_node_prop_ids(self.node)
+    fn metadata_ids(&self) -> BoxedLIter<usize> {
+        Box::new(0..self.graph.node_meta().metadata_mapper().len())
+        // self.graph.node_metadata_ids(self.node)
     }
 
-    fn get_const_prop(&self, id: usize) -> Option<Prop> {
-        self.graph.constant_node_prop(self.node, id)
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
+        self.graph.node_metadata(self.node, id)
     }
 }
 
@@ -404,7 +408,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G, G> {
-    pub fn add_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
+    pub fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
         props: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), GraphError> {
@@ -414,8 +418,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             props.into_iter().map(|(n, p)| (n, p.into())),
         )?;
         self.graph
-            .internal_add_constant_node_properties(self.node, &properties)
-            .map_err(into_graph_err)
+            .internal_add_node_metadata(self.node, &properties)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
@@ -425,10 +430,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         Ok(())
     }
 
-    pub fn update_constant_properties<C: CollectProperties>(
-        &self,
-        props: C,
-    ) -> Result<(), GraphError> {
+    pub fn update_metadata<C: CollectProperties>(&self, props: C) -> Result<(), GraphError> {
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
@@ -438,8 +440,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .inner())
         })?;
         self.graph
-            .internal_update_constant_node_properties(self.node, &properties)
-            .map_err(into_graph_err)
+            .internal_update_node_metadata(self.node, &properties)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 
     pub fn add_updates<
@@ -543,20 +546,20 @@ mod node_test {
     }
 
     #[test]
-    fn test_constant_property_additions() {
+    fn test_metadata_additions() {
         let g = Graph::new();
         let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
-        v1.add_constant_properties([("test", "test")]).unwrap();
-        assert_eq!(v1.properties().get("test"), Some("test".into()))
+        v1.add_metadata([("test", "test")]).unwrap();
+        assert_eq!(v1.metadata().get("test"), Some("test".into()))
     }
 
     #[test]
-    fn test_constant_property_updates() {
+    fn test_metadata_updates() {
         let g = Graph::new();
         let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
-        v1.add_constant_properties([("test", "test")]).unwrap();
-        v1.update_constant_properties([("test", "test2")]).unwrap();
-        assert_eq!(v1.properties().get("test"), Some("test2".into()))
+        v1.add_metadata([("test", "test")]).unwrap();
+        v1.update_metadata([("test", "test2")]).unwrap();
+        assert_eq!(v1.metadata().get("test"), Some("test2".into()))
     }
 
     #[test]

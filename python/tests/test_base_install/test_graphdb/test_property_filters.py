@@ -1,4 +1,4 @@
-from raphtory import Graph, PersistentGraph, Prop
+from raphtory import Graph, PersistentGraph
 from raphtory import filter
 import pytest
 
@@ -12,10 +12,10 @@ def build_graph():
     graph.add_node(2, 3, {"node_str": "third", "node_int": 3})
     graph.add_node(3, 4, {"node_str": "fourth", "node_int": 4, "node_bool": True})
 
-    graph.node(1).add_constant_properties({"c_prop1": "fire_nation"})
-    graph.node(2).add_constant_properties({"c_prop1": "water_tribe"})
-    graph.node(3).add_constant_properties({"c_prop1": "fire_nation"})
-    graph.node(4).add_constant_properties({"c_prop1": "fire_nation"})
+    graph.node(1).add_metadata({"c_prop1": "fire_nation"})
+    graph.node(2).add_metadata({"c_prop1": "water_tribe"})
+    graph.node(3).add_metadata({"c_prop1": "fire_nation"})
+    graph.node(4).add_metadata({"c_prop1": "fire_nation"})
 
     graph.add_edge(0, 1, 2, {"test_str": "first", "test_int": 0})
     graph.add_edge(1, 2, 3, {"test_str": "second", "test_int": 1})
@@ -24,8 +24,8 @@ def build_graph():
     graph.add_edge(4, 2, 3, {"test_bool": True})
     graph.add_edge(5, 2, 3, {"test_str": "third"})
 
-    graph.edge(1, 2).add_constant_properties({"c_prop1": "water_tribe"})
-    graph.edge(2, 3).add_constant_properties({"c_prop1": "water_tribe"})
+    graph.edge(1, 2).add_metadata({"c_prop1": "water_tribe"})
+    graph.edge(2, 3).add_metadata({"c_prop1": "water_tribe"})
 
     return graph
 
@@ -94,28 +94,30 @@ def test_property_filter_edges():
     )
 
 
-@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_filter_exploded_edges():
     graph = build_graph()
 
     test_cases = [
-        (Prop("test_str") == "first", [(1, 2)]),
+        (filter.Property("test_str") == "first", [(1, 2)]),
         (
-            Prop("test_str") != "first",
+            filter.Property("test_str") != "first",
             [(2, 3)],
         ),  # currently excludes edges without the property
-        (Prop("test_str").is_some(), [(1, 2), (2, 3)]),
-        (Prop("test_str").is_none(), [(2, 3), (3, 4)]),
-        (Prop("test_str") == "second", [(2, 3)]),
-        (Prop("test_str").is_in({"first", "fourth"}), [(1, 2)]),
-        (Prop("test_str").is_not_in({"first"}), [(2, 3)]),
-        (Prop("test_int") == 2, [(3, 4)]),
-        (Prop("test_int") != 2, [(1, 2), (2, 3), (3, 4)]),
-        (Prop("test_int") > 2, [(3, 4)]),
-        (Prop("test_int") >= 2, [(3, 4)]),
-        (Prop("test_int") < 3, [(1, 2), (2, 3), (3, 4)]),
-        (Prop("test_int") <= 1, [(1, 2), (2, 3)]),
-        (Prop("test_bool") == True, [(2, 3)]),  # worth adding special support for this?
+        (filter.Property("test_str").is_some(), [(1, 2), (2, 3)]),
+        (filter.Property("test_str").is_none(), [(2, 3), (3, 4)]),
+        (filter.Property("test_str") == "second", [(2, 3)]),
+        (filter.Property("test_str").is_in({"first", "fourth"}), [(1, 2)]),
+        (filter.Property("test_str").is_not_in({"first"}), [(2, 3)]),
+        (filter.Property("test_int") == 2, [(3, 4)]),
+        (filter.Property("test_int") != 2, [(1, 2), (2, 3), (3, 4)]),
+        (filter.Property("test_int") > 2, [(3, 4)]),
+        (filter.Property("test_int") >= 2, [(3, 4)]),
+        (filter.Property("test_int") < 3, [(1, 2), (2, 3), (3, 4)]),
+        (filter.Property("test_int") <= 1, [(1, 2), (2, 3)]),
+        (
+            filter.Property("test_bool") == True,
+            [(2, 3)],
+        ),  # worth adding special support for this?
     ]
 
     for filter_expr, expected_ids in test_cases:

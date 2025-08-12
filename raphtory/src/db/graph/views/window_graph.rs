@@ -42,15 +42,17 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
+                InheritMetadataPropertiesOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps,
             },
             state::Index,
             view::{
                 internal::{
-                    EdgeFilterOps, EdgeHistoryFilter, EdgeList, EdgeTimeSemanticsOps,
-                    GraphTimeSemanticsOps, Immutable, InheritLayerOps, InheritMaterialize,
-                    InheritStorageOps, InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList,
-                    Static, TimeSemantics,
+                    EdgeHistoryFilter, EdgeList, GraphTimeSemanticsOps, GraphView, Immutable,
+                    InheritLayerOps, InheritMaterialize, InheritStorageOps, InternalEdgeFilterOps,
+                    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+                    InternalNodeFilterOps, ListOps, NodeHistoryFilter, NodeList, Static,
+                    TimeSemantics,
                 },
                 BoxableGraphView, BoxedLIter, IntoDynBoxed,
             },
@@ -279,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>> EdgeHistoryFilter for WindowedGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritConstantPropertiesOps for WindowedGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritMetadataPropertiesOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 
@@ -318,8 +320,18 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 
     #[inline]
-    fn edge_and_node_filter_independent(&self) -> bool {
-        self.window_is_empty() || self.graph.edge_and_node_filter_independent()
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.edge_filter_includes_node_filter()
+    }
+
+    #[inline]
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.edge_layer_filter_includes_node_filter()
+    }
+
+    #[inline]
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.exploded_edge_filter_includes_node_filter()
     }
 
     #[inline]
@@ -328,11 +340,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G>
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for WindowedGraph<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .graph_meta()
-            .temporal_prop_meta()
+            .temporal_mapper()
             .get_dtype(id)
             .unwrap()
     }
@@ -367,7 +379,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertyViewOps for WindowedGraph<
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for WindowedGraph<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph
             .get_temporal_prop_id(name)
@@ -378,7 +390,7 @@ impl<'graph, G: GraphViewOps<'graph>> TemporalPropertiesOps for WindowedGraph<G>
         self.graph.get_temporal_prop_name(id)
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(
             self.graph
                 .temporal_prop_ids()
@@ -493,37 +505,67 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for WindowedGraph<G> {
-    #[inline]
-    fn edges_filtered(&self) -> bool {
-        self.window_is_empty() || self.graph.edges_filtered() || self.window_is_bounding()
+// actual filtering is handled upstream for efficiency and to avoid double-checking nested windows
+// here we just define the optimisation flags
+impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
+    fn internal_edge_filtered(&self) -> bool {
+        self.window_is_bounding() || self.graph.internal_edge_filtered()
     }
 
-    #[inline]
-    fn edge_history_filtered(&self) -> bool {
-        self.graph.edge_history_filtered()
-    }
-    #[inline]
-    fn edge_list_trusted(&self) -> bool {
-        self.window_is_empty() || (!self.window_is_bounding() && self.graph.edge_list_trusted())
+    fn internal_edge_list_trusted(&self) -> bool {
+        self.window_is_empty()
+            || (!self.window_is_bounding() && self.graph.internal_edge_list_trusted())
     }
 
-    #[inline]
-    fn filter_edge_history(&self, eid: ELID, t: TimeIndexEntry, layer_ids: &LayerIds) -> bool {
-        self.graph.filter_edge_history(eid, t, layer_ids)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_edge(edge, layer_ids)
     }
 
-    #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        !self.window_is_empty()
-            && self.graph.filter_edge(edge, layer_ids)
-            && (!self.window_is_bounding()
-                || self.graph.edge_time_semantics().include_edge_window(
-                    edge,
-                    &self.graph,
-                    layer_ids,
-                    self.window_bound(),
-                ))
+    fn node_filter_includes_edge_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.node_filter_includes_edge_filter()
+    }
+}
+impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
+        self.window_is_bounding() || self.graph.internal_edge_layer_filtered()
+    }
+
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        self.window_is_empty()
+            || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer)
+    }
+
+    fn node_filter_includes_edge_layer_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.node_filter_includes_edge_layer_filter()
+    }
+}
+
+impl<G: GraphView> InternalExplodedEdgeFilterOps for WindowedGraph<G> {
+    fn internal_exploded_edge_filtered(&self) -> bool {
+        self.graph.internal_exploded_edge_filtered()
+    }
+
+    fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
+        self.window_is_empty()
+            || (!self.window_is_bounding()
+                && self.graph.internal_exploded_filter_edge_list_trusted())
+    }
+
+    fn internal_filter_exploded_edge(
+        &self,
+        eid: ELID,
+        t: TimeIndexEntry,
+        layer_ids: &LayerIds,
+    ) -> bool {
+        self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
+    }
+
+    fn node_filter_includes_exploded_edge_filter(&self) -> bool {
+        self.window_is_empty() || self.graph.node_filter_includes_exploded_edge_filter()
     }
 }
 
@@ -1350,8 +1392,8 @@ mod views_test {
                     graph.add_node(*id, name, props.clone(), *layer).unwrap();
                 }
 
-                // Constant property assignments
-                let constant_properties = vec![
+                // Metadata property assignments
+                let metadata = vec![
                     (
                         "N1",
                         vec![
@@ -1381,13 +1423,9 @@ mod views_test {
                     ("N15", vec![("p1", Prop::U64(1u64))]),
                 ];
 
-                // Apply constant properties
-                for (node, props) in constant_properties {
-                    graph
-                        .node(node)
-                        .unwrap()
-                        .add_constant_properties(props)
-                        .unwrap();
+                // Apply metadata
+                for (node, props) in metadata {
+                    graph.node(node).unwrap().add_metadata(props).unwrap();
                 }
 
                 graph
@@ -1953,7 +1991,7 @@ mod views_test {
             #[test]
             fn test_nodes_filters_pg_for_property_eq() {
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N3", "N6", "N7"];
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -1970,7 +2008,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").eq(2i64);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2005,38 +2043,20 @@ mod views_test {
 
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("k3").eq(true);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                assert_search_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::property("k3").eq(true);
                 let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter,
                     &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
@@ -2235,7 +2255,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2269,7 +2289,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").ne(6.0f64);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N6", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N6", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2361,43 +2381,12 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_nodes_filters_pg_for_property_lt() {
                 let filter = PropertyFilter::property("p1").lt(3u64);
-                let expected_results =
-                    vec!["N1", "N14", "N15", "N2", "N3", "N5", "N6", "N7", "N8", "N9"];
+                let expected_results = vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8", "N9"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2414,7 +2403,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").lt(3i64);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2446,36 +2435,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     vec![TestGraphVariants::PersistentGraph],
-                // );
             }
 
             #[test]
@@ -2531,42 +2490,12 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_nodes_filters_pg_for_property_le() {
                 let filter = PropertyFilter::property("p1").le(1u64);
-                let expected_results = vec!["N1", "N14", "N15", "N3", "N6", "N7"];
+                let expected_results = vec!["N1", "N3", "N6", "N7"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2583,7 +2512,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").le(2i64);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2753,7 +2682,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").gt(6.0f64);
-                let expected_results = vec!["N12", "N13", "N2", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2768,36 +2697,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -2853,44 +2752,13 @@ mod views_test {
                     &expected_results,
                     vec![TestGraphVariants::Graph],
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_nodes_filters_pg_for_property_ge() {
                 let filter = PropertyFilter::property("p1").ge(1u64);
                 let expected_results = vec![
-                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
-                    "N8", "N9",
+                    "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
                 ];
                 assert_filter_nodes_results(
                     init_graph,
@@ -2908,7 +2776,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").ge(2i64);
-                let expected_results = vec!["N1", "N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N1", "N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2925,7 +2793,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").ge(6.0f64);
-                let expected_results = vec!["N1", "N12", "N13", "N2", "N7", "N8"];
+                let expected_results = vec!["N1", "N12", "N2", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -2940,36 +2808,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_nodes_results_pg_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [persistent_graph]
-                // );
-                assert_filter_nodes_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_nodes_results(
-                //     init_graph,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -3081,7 +2919,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -3116,38 +2954,20 @@ mod views_test {
 
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
-                assert_filter_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                assert_search_nodes_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                // TODO: Const properties not supported for disk_graph.
-                let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
                 let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter,
                     &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
@@ -3296,7 +3116,7 @@ mod views_test {
 
                 let filter =
                     PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -3330,7 +3150,7 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
-                let expected_results = vec!["N12", "N13", "N2", "N5", "N6", "N7", "N8"];
+                let expected_results = vec!["N12", "N2", "N5", "N6", "N7", "N8"];
                 assert_filter_nodes_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -3403,8 +3223,7 @@ mod views_test {
             fn test_nodes_filters_pg_for_property_is_some() {
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec![
-                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N6", "N7",
-                    "N8", "N9",
+                    "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
                 ];
                 assert_filter_nodes_results(
                     init_graph,
@@ -3438,8 +3257,8 @@ mod views_test {
                 );
 
                 let expected_results = vec![
-                    "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N4", "N5", "N6",
-                    "N7", "N8", "N9",
+                    "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N4", "N5", "N6", "N7", "N8",
+                    "N9",
                 ];
                 assert_filter_nodes_results(
                     init_graph,
@@ -3811,8 +3630,8 @@ mod views_test {
                         .unwrap();
                 }
 
-                // Constant property assignments
-                let constant_properties = vec![
+                // Metadata property assignments
+                let metadata = vec![
                     (
                         "N1",
                         "N2",
@@ -3846,11 +3665,11 @@ mod views_test {
                     ("N15", "N1", vec![("p1", Prop::U64(1u64))], None),
                 ];
 
-                for (src, dst, props, layer) in constant_properties {
+                for (src, dst, props, layer) in metadata {
                     graph
                         .edge(src, dst)
                         .unwrap()
-                        .add_constant_properties(props, layer)
+                        .add_metadata(props, layer)
                         .unwrap();
                 }
 
@@ -4215,57 +4034,38 @@ mod views_test {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").eq(1u64);
-                let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
-                ];
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k1").eq(2i64);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
@@ -4275,7 +4075,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4286,30 +4086,20 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k3").eq(true);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").eq(6.0f64);
@@ -4319,7 +4109,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4348,7 +4138,7 @@ mod views_test {
                     WindowGraphTransformer(1..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 // TODO: Search APIs don't support list yet
                 // assert_search_edges_results(
@@ -4472,7 +4262,6 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_ne() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").ne(1u64);
                 let expected_results = vec![
@@ -4484,7 +4273,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4501,7 +4290,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4512,30 +4301,20 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k3").ne(true);
@@ -4545,7 +4324,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4556,31 +4335,21 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").ne(6.0f64);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
-                ];
+                let expected_results =
+                    vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results =
-                    vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("x").ne(Prop::List(Arc::new(vec![
@@ -4594,7 +4363,7 @@ mod views_test {
                     WindowGraphTransformer(1..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 // TODO: Search APIs don't support list yet
                 // assert_search_edges_results(
@@ -4632,7 +4401,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4649,7 +4418,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4658,99 +4427,45 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_edges_filters_pg_for_property_lt() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").lt(3u64);
                 let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7",
-                    "N7->N8", "N8->N9", "N9->N10",
+                    "N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec![
-                    "N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
-                ];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k1").lt(3i64);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").lt(10.0f64);
@@ -4760,7 +4475,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4769,28 +4484,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").lt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -4802,7 +4495,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4819,7 +4512,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4836,7 +4529,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4845,95 +4538,43 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(7),
-                    Prop::U64(0),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph,
-                //     WindowGraphTransformer(6..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_edges_filters_pg_for_property_le() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").le(1u64);
-                let expected_results = vec![
-                    "N1->N2", "N14->N15", "N15->N1", "N3->N4", "N6->N7", "N7->N8",
-                ];
+                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k1").le(2i64);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").le(6.0f64);
@@ -4943,7 +4584,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -4952,28 +4593,6 @@ mod views_test {
                     &expected_results,
                     TestVariants::PersistentOnly,
                 );
-
-                let filter = PropertyFilter::property("x").le(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = Vec::<&str>::new();
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
@@ -4985,7 +4604,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5002,7 +4621,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5019,7 +4638,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5054,7 +4673,6 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_gt() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").gt(1u64);
                 let expected_results = vec![
@@ -5066,7 +4684,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5083,7 +4701,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5094,52 +4712,21 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").gt(6.0f64);
-                let expected_results = vec!["N12->N13", "N13->N14", "N2->N3", "N7->N8", "N8->N9"];
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
                 let expected_results = vec!["N12->N13", "N2->N3", "N7->N8", "N8->N9"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
-                );
-
-                let filter = PropertyFilter::property("x").gt(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -5151,7 +4738,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5168,7 +4755,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5185,7 +4772,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5194,153 +4781,65 @@ mod views_test {
                     &expected_results,
                     TestVariants::EventOnly,
                 );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(6),
-                    Prop::U64(9),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                // TODO: List(U64) not supported as disk_graph property
-                // assert_filter_edges_results_w!(
-                //     init_graph2,
-                //     filter,
-                //     1..9,
-                //     expected_results,
-                //     variants = [graph]
-                // );
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::Graph],
-                );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1.9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::EventOnly,
-                // );
             }
 
             #[test]
             fn test_edges_filters_pg_for_property_ge() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").ge(1u64);
-                let expected_results = vec![
-                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
-                    "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
-                    "N9->N10",
-                ];
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
                 let expected_results = vec![
                     "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N3->N4",
                     "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
-                    filter,
+                    filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k1").ge(2i64);
-                let expected_results = vec![
-                    "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results =
+                    vec!["N1->N2", "N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results =
-                    vec!["N1->N2", "N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").ge(6.0f64);
-                let expected_results = vec![
-                    "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N7->N8", "N8->N9",
-                ];
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
                 let expected_results = vec!["N1->N2", "N12->N13", "N2->N3", "N7->N8", "N8->N9"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
-                );
-
-                let filter = PropertyFilter::property("x").ge(Prop::List(Arc::new(vec![
-                    Prop::U64(1),
-                    Prop::U64(2),
-                    Prop::U64(3),
-                ])));
-                let expected_results = vec!["N14->N15"];
-                assert_filter_edges_results(
-                    init_graph2,
-                    WindowGraphTransformer(1..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
-                // TODO: Search APIs don't support list yet
-                // assert_search_edges_results(
-                //     init_graph2,
-                //     WindowGraphTransformer(1..9),
-                //     filter,
-                //     &expected_results,
-                //     TestVariants::PersistentOnly,
-                // );
             }
 
             #[test]
@@ -5352,7 +4851,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5369,7 +4868,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5386,7 +4885,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5403,7 +4902,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5420,7 +4919,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5433,7 +4932,6 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_in() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
                 let expected_results = vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"];
@@ -5442,7 +4940,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5453,31 +4951,20 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
@@ -5487,7 +4974,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5498,31 +4985,20 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
@@ -5532,7 +5008,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5552,7 +5028,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5569,7 +5045,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5587,7 +5063,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5604,7 +5080,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5621,7 +5097,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5634,7 +5110,6 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_not_in() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
                 let expected_results = vec![
@@ -5646,7 +5121,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5663,7 +5138,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5675,31 +5150,20 @@ mod views_test {
 
                 let filter =
                     PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
-                ];
+                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
 
                 let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
@@ -5709,7 +5173,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5720,32 +5184,21 @@ mod views_test {
                 );
 
                 let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
-                let expected_results = vec![
-                    "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
-                ];
+                let expected_results =
+                    vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-
-                let expected_results =
-                    vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
             }
 
@@ -5758,7 +5211,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5771,38 +5224,25 @@ mod views_test {
 
             #[test]
             fn test_edges_filters_pg_for_property_is_some() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 // TODO: Const properties not supported for disk_graph.
                 let filter = PropertyFilter::property("p1").is_some();
                 let expected_results = vec![
-                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15",
-                    "N15->N1", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9",
-                    "N9->N10",
+                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N3->N4",
+                    "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
                 ];
                 assert_filter_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![TestGraphVariants::PersistentGraph],
-                );
-                let expected_results = vec![
-                    "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N3->N4",
-                    "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
-                ];
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    vec![TestGraphVariants::PersistentDiskGraph],
+                    TestVariants::PersistentOnly,
                 );
             }
 
@@ -5818,38 +5258,14 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::All,
                 );
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
                     filter,
                     &expected_results,
-                    TestVariants::EventOnly,
-                );
-            }
-
-            #[test]
-            fn test_edges_filters_pg_for_src_dst() {
-                // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-                let filter = EdgeFilter::src()
-                    .name()
-                    .eq("N1")
-                    .and(EdgeFilter::dst().name().eq("N2"));
-                let expected_results = vec!["N1->N2"];
-                assert_filter_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter.clone(),
-                    &expected_results,
-                    vec![],
-                );
-                assert_search_edges_results(
-                    init_graph,
-                    WindowGraphTransformer(6..9),
-                    filter,
-                    &expected_results,
-                    TestVariants::PersistentOnly,
+                    TestVariants::All,
                 );
             }
 
@@ -5862,7 +5278,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -5879,6 +5295,14 @@ mod views_test {
                 // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
                 let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
                 let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(6..9),
+                    filter.clone(),
+                    &expected_results,
+                    TestVariants::PersistentOnly,
+                );
+
                 assert_search_edges_results(
                     init_graph,
                     WindowGraphTransformer(6..9),
@@ -5897,7 +5321,7 @@ mod views_test {
                     WindowGraphTransformer(6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::EventOnly,
                 );
                 assert_search_edges_results(
                     init_graph,

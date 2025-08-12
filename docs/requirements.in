@@ -1,9 +1,0 @@
-sphinx_autosummary_accessors
-sphinx-notfound-page
-sphinx_copybutton
-sphinx_design
-sphinx_favicon
-autodocsumm
-numpydoc
-pydata-sphinx-theme
-sphinx >= 8

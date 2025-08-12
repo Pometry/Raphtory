@@ -12,9 +12,7 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{
-                PyConstantProperties, PyProperties, PyTemporalProp, PyTemporalProperties,
-            },
+            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -23,10 +21,7 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::{
-            document::PyDocument,
-            prop::{PyPropertyFilter, PyPropertyRef},
-        },
+        types::wrappers::document::PyDocument,
         utils::PyWindowSet,
     },
 };
@@ -50,16 +45,21 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyNestedEdges,
         PyMutableEdge,
         PyProperties,
-        PyConstantProperties,
+        PyMetadata,
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
-        PyPropertyRef,
-        PyPropertyFilter,
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec
     );
+
+    #[pyfunction]
+    pub(crate) fn version() -> String {
+        String::from(crate::version())
+    }
+
+    m.add_function(wrap_pyfunction!(version, m)?)?;
 
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
@@ -105,6 +105,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         hits,
         balance,
         label_propagation,
+        k_core,
         temporal_SEIR,
         louvain,
         fruchterman_reingold,

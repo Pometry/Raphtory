@@ -12,7 +12,7 @@ pub trait CreateEdgeFilter: Sized {
     ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError>;
 }
 
-pub trait InternalExplodedEdgeFilterOps: Sized {
+pub trait CreateExplodedEdgeFilter: Sized {
     type ExplodedEdgeFiltered<'graph, G: GraphViewOps<'graph>>: GraphViewOps<'graph>
     where
         Self: 'graph;

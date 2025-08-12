@@ -22,10 +22,10 @@ use crate::core::{
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Meta {
-    meta_prop_temporal: PropMapper,
-    meta_prop_constant: PropMapper,
-    meta_layer: DictMapper,
-    meta_node_type: DictMapper,
+    temporal_prop_mapper: PropMapper,
+    metadata_mapper: PropMapper,
+    layer_mapper: DictMapper,
+    node_type_mapper: DictMapper,
 }
 
 impl Default for Meta {
@@ -36,32 +36,32 @@ impl Default for Meta {
 
 impl Meta {
     pub fn layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
-        (0..self.meta_layer.len()).map(move |id| {
-            let name = self.meta_layer.get_name(id);
+        (0..self.layer_mapper.len()).map(move |id| {
+            let name = self.layer_mapper.get_name(id);
             (id, name)
         })
     }
 
-    pub fn set_const_prop_meta(&mut self, meta: PropMapper) {
-        self.meta_prop_constant = meta;
+    pub fn set_metadata_mapper(&mut self, meta: PropMapper) {
+        self.metadata_mapper = meta;
     }
     pub fn set_temporal_prop_meta(&mut self, meta: PropMapper) {
-        self.meta_prop_temporal = meta;
+        self.temporal_prop_mapper = meta;
     }
-    pub fn const_prop_meta(&self) -> &PropMapper {
-        &self.meta_prop_constant
+    pub fn metadata_mapper(&self) -> &PropMapper {
+        &self.metadata_mapper
     }
 
-    pub fn temporal_prop_meta(&self) -> &PropMapper {
-        &self.meta_prop_temporal
+    pub fn temporal_prop_mapper(&self) -> &PropMapper {
+        &self.temporal_prop_mapper
     }
 
     pub fn layer_meta(&self) -> &DictMapper {
-        &self.meta_layer
+        &self.layer_mapper
     }
 
     pub fn node_type_meta(&self) -> &DictMapper {
-        &self.meta_node_type
+        &self.node_type_mapper
     }
 
     #[inline]
@@ -79,10 +79,10 @@ impl Meta {
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");
         Self {
-            meta_prop_temporal: PropMapper::default(),
-            meta_prop_constant: PropMapper::default(),
-            meta_layer,
-            meta_node_type, // type 0 is the default type for a node
+            temporal_prop_mapper: PropMapper::default(),
+            metadata_mapper: PropMapper::default(),
+            layer_mapper: meta_layer,
+            node_type_mapper: meta_node_type, // type 0 is the default type for a node
         }
     }
 
@@ -94,26 +94,33 @@ impl Meta {
         is_static: bool,
     ) -> Result<MaybeNew<usize>, PropError> {
         if is_static {
-            self.meta_prop_constant
-                .get_or_create_and_validate(prop, dtype)
+            self.metadata_mapper.get_or_create_and_validate(prop, dtype)
         } else {
-            self.meta_prop_temporal
+            self.temporal_prop_mapper
                 .get_or_create_and_validate(prop, dtype)
         }
     }
 
-    #[inline]
     pub fn get_prop_id(&self, name: &str, is_static: bool) -> Option<usize> {
         if is_static {
-            self.meta_prop_constant.get_id(name)
+            self.metadata_mapper.get_id(name)
         } else {
-            self.meta_prop_temporal.get_id(name)
+            self.temporal_prop_mapper.get_id(name)
+        }
+    }
+
+    pub fn get_prop_id_and_type(&self, name: &str, is_static: bool) -> Option<(usize, PropType)> {
+        if is_static {
+            self.metadata_mapper.get_id_and_dtype(name)
+        } else {
+            self.temporal_prop_mapper.get_id_and_dtype(name)
         }
     }
 
     #[inline]
     pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<usize> {
-        self.meta_layer.get_or_create_id(name.unwrap_or("_default"))
+        self.layer_mapper
+            .get_or_create_id(name.unwrap_or("_default"))
     }
 
     #[inline]
@@ -123,42 +130,42 @@ impl Meta {
 
     #[inline]
     pub fn get_or_create_node_type_id(&self, node_type: &str) -> MaybeNew<usize> {
-        self.meta_node_type.get_or_create_id(node_type)
+        self.node_type_mapper.get_or_create_id(node_type)
     }
 
     #[inline]
     pub fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.meta_layer.get_id(name)
+        self.layer_mapper.get_id(name)
     }
 
     #[inline]
     pub fn get_default_layer_id(&self) -> Option<usize> {
-        self.meta_layer.get_id("_default")
+        self.layer_mapper.get_id("_default")
     }
 
     #[inline]
     pub fn get_node_type_id(&self, node_type: &str) -> Option<usize> {
-        self.meta_node_type.get_id(node_type)
+        self.node_type_mapper.get_id(node_type)
     }
 
     pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
-        self.meta_layer.get_name(id)
+        self.layer_mapper.get_name(id)
     }
 
     pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
         if id == 0 {
             None
         } else {
-            Some(self.meta_node_type.get_name(id))
+            Some(self.node_type_mapper.get_name(id))
         }
     }
 
     pub fn get_all_layers(&self) -> Vec<usize> {
-        self.meta_layer.get_values()
+        self.layer_mapper.get_values()
     }
 
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
-        self.meta_node_type
+        self.node_type_mapper
             .get_keys()
             .iter()
             .filter_map(|key| {
@@ -173,17 +180,17 @@ impl Meta {
 
     pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
         if is_static {
-            self.meta_prop_constant.get_keys()
+            self.metadata_mapper.get_keys()
         } else {
-            self.meta_prop_temporal.get_keys()
+            self.temporal_prop_mapper.get_keys()
         }
     }
 
     pub fn get_prop_name(&self, prop_id: usize, is_static: bool) -> ArcStr {
         if is_static {
-            self.meta_prop_constant.get_name(prop_id)
+            self.metadata_mapper.get_name(prop_id)
         } else {
-            self.meta_prop_temporal.get_name(prop_id)
+            self.temporal_prop_mapper.get_name(prop_id)
         }
     }
 }
@@ -219,35 +226,13 @@ impl PropMapper {
         self.row_size.load(atomic::Ordering::Relaxed)
     }
 
-    pub fn get_and_validate(
-        &self,
-        prop: &str,
-        dtype: PropType,
-    ) -> Result<Option<usize>, PropError> {
-        match self.get_id(prop) {
-            Some(id) => {
-                let existing_dtype = self
-                    .get_dtype(id)
-                    .expect("Existing id should always have a dtype");
-
-                let fast_check = check_for_unification(&dtype, &existing_dtype);
-                if fast_check.is_none() {
-                    // means nothing to do
-                    return Ok(Some(id));
-                }
-                let can_unify = fast_check.unwrap();
-                if can_unify {
-                    Ok(Some(id))
-                } else {
-                    Err(PropError::PropertyTypeError {
-                        name: prop.to_string(),
-                        expected: existing_dtype,
-                        actual: dtype,
-                    })
-                }
-            }
-            None => Ok(None),
-        }
+    pub fn get_id_and_dtype(&self, prop: &str) -> Option<(usize, PropType)> {
+        self.get_id(prop).map(|id| {
+            let existing_dtype = self
+                .get_dtype(id)
+                .expect("Existing id should always have a dtype");
+            (id, existing_dtype)
+        })
     }
 
     pub fn get_or_create_and_validate(
@@ -266,7 +251,7 @@ impl PropMapper {
                     return Ok(wrapped_id);
                 }
             } else {
-                return Err(PropError::PropertyTypeError {
+                return Err(PropError {
                     name: prop.to_owned(),
                     expected: old_type.clone(),
                     actual: dtype,
@@ -281,7 +266,7 @@ impl PropMapper {
                     dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
-                    Err(PropError::PropertyTypeError {
+                    Err(PropError {
                         name: prop.to_owned(),
                         expected: old_type,
                         actual: dtype,
@@ -475,7 +460,7 @@ mod tests {
             .unwrap();
         let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U16);
         assert!(result.is_err());
-        if let Err(PropError::PropertyTypeError {
+        if let Err(PropError {
             name,
             expected,
             actual,

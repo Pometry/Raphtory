@@ -4,7 +4,7 @@ use super::GraphStorage;
 use crate::{
     core::utils::iter::GenLockedIter,
     db::api::{
-        properties::internal::{TemporalPropertiesOps, TemporalPropertyViewOps},
+        properties::internal::{InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps},
         view::BoxedLIter,
     },
     prelude::Prop,
@@ -17,7 +17,7 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
-impl TemporalPropertyViewOps for GraphStorage {
+impl InternalTemporalPropertyViewOps for GraphStorage {
     fn dtype(&self, id: usize) -> PropType {
         self.graph_meta().get_temporal_dtype(id).unwrap()
     }
@@ -59,7 +59,7 @@ impl TemporalPropertyViewOps for GraphStorage {
     }
 }
 
-impl TemporalPropertiesOps for GraphStorage {
+impl InternalTemporalPropertiesOps for GraphStorage {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph_meta().get_temporal_id(name)
     }
@@ -68,11 +68,11 @@ impl TemporalPropertiesOps for GraphStorage {
         self.graph_meta().get_temporal_name(id)
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
         Box::new(self.graph_meta().temporal_ids())
     }
 
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
         Box::new(self.graph_meta().temporal_names().into_iter())
     }
 }

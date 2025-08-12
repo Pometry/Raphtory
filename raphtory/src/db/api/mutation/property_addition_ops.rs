@@ -17,11 +17,8 @@ pub trait PropertyAdditionOps:
         props: PI,
     ) -> Result<(), GraphError>;
 
-    fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
-    fn update_constant_properties<PI: CollectProperties>(
-        &self,
-        props: PI,
-    ) -> Result<(), GraphError>;
+    fn add_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
+    fn update_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
 }
 
 impl<
@@ -47,7 +44,7 @@ impl<
         Ok(())
     }
 
-    fn add_constant_properties<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
+    fn add_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
             Ok(session
@@ -55,12 +52,12 @@ impl<
                 .map_err(into_graph_err)?
                 .inner())
         })?;
-        self.internal_add_constant_properties(&properties)
+        self.internal_add_metadata(&properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
 
-    fn update_constant_properties<PI: CollectProperties>(
+    fn update_metadata<PI: CollectProperties>(
         &self,
         props: PI,
     ) -> Result<(), GraphError> {
@@ -71,7 +68,7 @@ impl<
                 .map_err(into_graph_err)?
                 .inner())
         })?;
-        self.internal_update_constant_properties(&properties)
+        self.internal_update_metadata(&properties)
             .map_err(into_graph_err)?;
         Ok(())
     }

@@ -3,26 +3,23 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             edge::EdgeView,
-            views::filter::{
-                internal::CreateEdgeFilter,
-                model::{
-                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
-                    property_filter::{PropertyRef, Temporal},
-                    Filter,
-                },
+            views::filter::model::{
+                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+                property_filter::{PropertyRef, Temporal},
+                Filter,
             },
         },
     },
     errors::GraphError,
-    prelude::{EdgePropertyFilterOps, EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields,
-        graph_index::GraphIndex,
+        fallback_filter_edges, fields, get_reader,
+        graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
     },
@@ -38,12 +35,12 @@ use tantivy::{
 
 #[derive(Clone, Copy)]
 pub struct EdgeFilterExecutor<'a> {
-    index: &'a GraphIndex,
+    index: &'a Index,
     query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> EdgeFilterExecutor<'a> {
-    pub fn new(index: &'a GraphIndex) -> Self {
+    pub fn new(index: &'a Index) -> Self {
         Self {
             index,
             query_builder: QueryBuilder::new(index),
@@ -105,10 +102,11 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
-            Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
-            None => Self::raph_filter_edges(graph, filter, limit, offset),
+            None => fallback_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -126,22 +124,23 @@ impl<'a> EdgeFilterExecutor<'a> {
         C: Collector<Fruit = HashSet<u64>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
                 query,
                 prop_id,
-                &pi.reader,
+                &reader,
                 limit,
                 offset,
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            None => Self::raph_filter_edges(graph, filter, limit, offset),
+            None => fallback_filter_edges(graph, filter, limit, offset),
         }
     }
 
-    fn apply_const_property_filter<G: StaticGraphViewOps>(
+    fn apply_metadata_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         prop_name: &str,
@@ -153,11 +152,11 @@ impl<'a> EdgeFilterExecutor<'a> {
             .index
             .edge_index
             .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?
+            .get_metadata_index(graph.edge_meta(), prop_name)?
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            Self::raph_filter_edges(graph, filter, limit, offset)
+            fallback_filter_edges(graph, filter, limit, offset)
         }
     }
 
@@ -189,67 +188,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            Self::raph_filter_edges(graph, filter, limit, offset)
-        }
-    }
-
-    fn apply_combined_property_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        prop_name: &str,
-        filter: &PropertyFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let cpi = self
-            .index
-            .edge_index
-            .entity_index
-            .get_const_property_index(graph.edge_meta(), prop_name)?;
-        let tpi = self
-            .index
-            .edge_index
-            .entity_index
-            .get_temporal_property_index(graph.edge_meta(), prop_name)?;
-
-        match (cpi, tpi) {
-            (Some((cpi, _)), Some((tpi, prop_id))) => {
-                let cpi_results = self.execute_or_fallback(graph, &cpi, filter, limit, offset)?;
-                let tpi_results = self.execute_or_fallback_temporal(
-                    graph,
-                    prop_id,
-                    &tpi,
-                    filter,
-                    limit,
-                    offset,
-                    LatestEdgePropertyFilterCollector::new,
-                )?;
-
-                let filtered = cpi_results
-                    .into_iter()
-                    .filter(|n| {
-                        n.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|t| t.is_empty())
-                            .unwrap_or(true)
-                    })
-                    .collect::<HashSet<_>>();
-
-                let combined: Vec<EdgeView<G>> = filtered.into_iter().chain(tpi_results).collect();
-                Ok(combined)
-            }
-            (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
-            (None, Some((tpi, prop_id))) => self.execute_or_fallback_temporal(
-                graph,
-                prop_id,
-                &tpi,
-                filter,
-                limit,
-                offset,
-                LatestEdgePropertyFilterCollector::new,
-            ),
-            _ => Self::raph_filter_edges(graph, filter, limit, offset),
+            fallback_filter_edges(graph, filter, limit, offset)
         }
     }
 
@@ -261,8 +200,8 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match &filter.prop_ref {
-            PropertyRef::ConstantProperty(prop_name) => {
-                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
+            PropertyRef::Metadata(prop_name) => {
+                self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
                 .apply_temporal_property_filter(
@@ -273,18 +212,15 @@ impl<'a> EdgeFilterExecutor<'a> {
                     offset,
                     EdgePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    LatestEdgePropertyFilterCollector::new,
-                ),
-            PropertyRef::Property(prop_name) => {
-                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
-            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
+            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
+                graph,
+                prop_name,
+                filter,
+                limit,
+                offset,
+                LatestEdgePropertyFilterCollector::new,
+            ),
         }
     }
 
@@ -296,18 +232,10 @@ impl<'a> EdgeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let (edge_index, query) = self.query_builder.build_edge_query(filter)?;
-
+        let reader = get_reader(&edge_index.entity_index.index)?;
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                graph,
-                query,
-                &edge_index.entity_index.reader,
-                limit,
-                offset,
-            )?,
-            None => {
-                Self::raph_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?
-            }
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset)?,
+            None => fallback_filter_edges(graph, &EdgeFieldFilter(filter.clone()), limit, offset)?,
         };
 
         Ok(results)
@@ -351,7 +279,7 @@ impl<'a> EdgeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
-            CompositeEdgeFilter::Not(_) => Self::raph_filter_edges(graph, filter, limit, offset),
+            CompositeEdgeFilter::Not(_) => fallback_filter_edges(graph, filter, limit, offset),
         }
     }
 
@@ -406,23 +334,6 @@ impl<'a> EdgeFilterExecutor<'a> {
             })
             .collect_vec();
         Ok(edges)
-    }
-
-    fn raph_filter_edges<G: StaticGraphViewOps>(
-        graph: &G,
-        filter: &(impl CreateEdgeFilter + Clone),
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<EdgeView<G>>, GraphError> {
-        let filtered_edges = graph
-            .filter_edges(filter.clone())?
-            .edges()
-            .iter()
-            .map(|e| EdgeView::new(graph.clone(), e.edge))
-            .skip(offset)
-            .take(limit)
-            .collect();
-        Ok(filtered_edges)
     }
 
     #[allow(dead_code)]

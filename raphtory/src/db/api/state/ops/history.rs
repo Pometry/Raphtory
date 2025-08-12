@@ -110,3 +110,31 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for History<G> {
         }
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct EdgeHistoryCount<G> {
+    pub(crate) graph: G,
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOp for EdgeHistoryCount<G> {
+    type Output = usize;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let node = storage.core_node(node);
+        let ts = self.graph.node_time_semantics();
+        ts.node_edge_history_count(node.as_ref(), &self.graph)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for EdgeHistoryCount<G> {
+    type Graph = G;
+    type Filtered<GH: GraphViewOps<'graph>> = EdgeHistoryCount<GH>;
+
+    fn graph(&self) -> &Self::Graph {
+        &self.graph
+    }
+
+    fn filtered<GH: GraphViewOps<'graph>>(&self, graph: GH) -> Self::Filtered<GH> {
+        EdgeHistoryCount { graph }
+    }
+}

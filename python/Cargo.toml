@@ -14,26 +14,24 @@ homepage.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "raphtory"
+name = "_raphtory"
 crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
 numpy = { workspace = true }
-raphtory_core = { path = "../raphtory", features = [
+raphtory_core = { path = "../raphtory", version = "0.16.0", features = [
     "python",
     "search",
     "vectors",
     "proto",
 ], package = "raphtory" }
 
-raphtory-graphql = { workspace = true, features = ["python"] }
+raphtory-graphql = { workspace = true, features = ["python", "search"] }
 
 [features]
-default = ["extension-module"]
 storage = ["raphtory_core/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
-
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

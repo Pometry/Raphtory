@@ -294,7 +294,7 @@ where
         self.iter_owned().collect()
     }
 
-    pub fn get_const_prop_id(&self, prop_name: &str) -> Option<usize> {
+    pub fn get_metadata_id(&self, prop_name: &str) -> Option<usize> {
         self.graph.node_meta().get_prop_id(prop_name, true)
     }
 
@@ -303,13 +303,11 @@ where
     }
 
     fn is_list_filtered(&self) -> bool {
-        self.node_types_filter.is_some()
-            || self.graph.edge_history_filtered()
-            || !self.graph.node_list_trusted()
+        self.node_types_filter.is_some() || !self.graph.node_list_trusted()
     }
 
     pub fn is_filtered(&self) -> bool {
-        self.node_types_filter.is_some() || self.graph.nodes_filtered()
+        self.node_types_filter.is_some() || self.graph.filtered()
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {

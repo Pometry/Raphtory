@@ -5,7 +5,7 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
@@ -19,20 +19,17 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             path::{PathFromGraph, PathFromNode},
-            views::filter::internal::InternalExplodedEdgeFilterOps,
         },
     },
     errors::GraphError,
+    prelude::PropertiesOps,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
-            properties::{PropertiesView, PyNestedPropsIterable},
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*, prop::PyPropertyFilter},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,
@@ -210,6 +207,15 @@ impl PyNode {
         self.node.properties()
     }
 
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, NodeView<'static, DynamicGraph, DynamicGraph>> {
+        self.node.metadata()
+    }
+
     /// Returns the type of node
     ///
     /// Returns:
@@ -250,6 +256,14 @@ impl PyNode {
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.node.history();
         history.into_pyarray(py)
+    }
+
+    /// Get the number of edge events for this node
+    ///
+    /// Returns:
+    ///     int: The number of edge events
+    pub fn edge_history_count(&self) -> usize {
+        self.node.edge_history_count()
     }
 
     /// Returns the history of a node, including node additions and changes made to node.
@@ -419,30 +433,24 @@ impl PyMutableNode {
         }
     }
 
-    /// Add constant properties to a node in the graph.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Add metadata to a node in the graph.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn add_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.add_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.add_metadata(metadata)
     }
 
-    /// Update constant properties of a node in the graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Update metadata of a node in the graph overwriting existing values.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn update_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.update_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.update_metadata(metadata)
     }
 
     /// Return a string representation of the node.
@@ -639,6 +647,16 @@ impl PyNodes {
         self.nodes.history()
     }
 
+    /// Return the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     EdgeHistoryCountView: a view of the edge history counts
+    fn edge_history_count(
+        &self,
+    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+        self.nodes.edge_history_count()
+    }
+
     /// The node types
     ///
     /// Returns:
@@ -671,6 +689,16 @@ impl PyNodes {
     fn properties(&self) -> PropertiesView {
         let nodes = self.nodes.clone();
         (move || nodes.properties().into_iter_values()).into()
+    }
+
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     MetadataView: A view of the node properties
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let nodes = self.nodes.clone();
+        (move || nodes.metadata().into_iter_values()).into()
     }
 
     /// Returns the number of edges of the nodes
@@ -743,6 +771,7 @@ impl PyNodes {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().unwrap_or(0),
@@ -879,6 +908,12 @@ impl PyPathFromGraph {
         (move || path.history()).into()
     }
 
+    /// Returns the number of edge updates for each node
+    fn edge_history_count(&self) -> NestedUsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let path = self.path.clone();
@@ -890,6 +925,13 @@ impl PyPathFromGraph {
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> PyMetadataListList {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node degrees
@@ -1035,6 +1077,15 @@ impl PyPathFromNode {
         (move || path.node_type()).into()
     }
 
+    /// Get the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     UsizeIterable:
+    fn edge_history_count(&self) -> UsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
@@ -1054,6 +1105,13 @@ impl PyPathFromNode {
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node in-degrees

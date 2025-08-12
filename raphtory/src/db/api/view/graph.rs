@@ -1,3 +1,5 @@
+#[cfg(feature = "search")]
+use crate::search::{fallback_filter_edges, fallback_filter_nodes};
 use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
@@ -5,7 +7,7 @@ use crate::{
     },
     db::{
         api::{
-            properties::{internal::ConstantPropertiesOps, Properties},
+            properties::{internal::InternalMetadataOps, Metadata, Properties},
             view::{internal::*, *},
         },
         graph::{
@@ -42,7 +44,6 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
-    GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -83,7 +84,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
-    fn valid(&self) -> Result<ValidGraph<Self>, GraphError>;
+    fn valid(&self) -> ValidGraph<Self>;
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
@@ -97,6 +98,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
+
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
 
@@ -143,6 +145,9 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+
+    /// Get a view of the metadat for this graph
+    fn metadata(&self) -> Metadata<'graph, Self>;
 }
 
 #[cfg(feature = "search")]
@@ -179,34 +184,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         (edges, layer_ids, graph),
                         move |(edges, layer_ids, graph)| {
                             let iter = edges.iter(layer_ids);
-                            match graph.filter_state() {
-                                FilterState::Neither => iter.map(|e| e.out_ref()).into_dyn_boxed(),
-                                FilterState::Both => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_edge(e, graph.layer_ids())
-                                            && graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
+                            if graph.filtered() {
+                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
                                     .into_dyn_boxed()
-                                }
-                                FilterState::Nodes => {
-                                    let nodes = graph.core_graph().core_nodes();
-                                    iter.filter_map(move |e| {
-                                        (graph.filter_node(nodes.node_entry(e.src()))
-                                            && graph.filter_node(nodes.node_entry(e.dst())))
-                                        .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed()
-                                }
-                                FilterState::Edges | FilterState::BothIndependent => iter
-                                    .filter_map(move |e| {
-                                        graph
-                                            .filter_edge(e, graph.layer_ids())
-                                            .then_some(e.out_ref())
-                                    })
-                                    .into_dyn_boxed(),
+                            } else {
+                                iter.map(|e| e.out_ref()).into_dyn_boxed()
                             }
                         },
                     )
@@ -243,9 +225,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let mut node_meta = Meta::new();
         let mut edge_meta = Meta::new();
 
-        node_meta.set_const_prop_meta(self.node_meta().const_prop_meta().deep_clone());
+        node_meta.set_metadata_mapper(self.node_meta().const_prop_meta().deep_clone());
         node_meta.set_temporal_prop_meta(self.node_meta().temporal_prop_meta().deep_clone());
-        edge_meta.set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
+        edge_meta.set_metadata_mapper(self.edge_meta().const_prop_meta().deep_clone());
         edge_meta.set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
 
         let mut g = TemporalGraph::new_with_meta(Default::default(), node_meta, edge_meta);
@@ -345,8 +327,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         writer.update_c_props(
                             node_pos,
                             0,
-                            node.const_prop_ids()
-                                .filter_map(|id| node.get_const_prop(id).map(|prop| (id, prop))),
+                            node.metadata_ids()
+                                .filter_map(|id| node.get_metadata(id).map(|prop| (id, prop))),
                             0,
                         );
                     }
@@ -401,8 +383,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 src,
                                 dst,
                                 layer,
-                                edge.const_prop_ids().filter_map(move |prop_id| {
-                                    edge.get_const_prop(prop_id).map(|prop| (prop_id, prop))
+                                edge.metadata_ids().filter_map(move |prop_id| {
+                                    edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
                                 }),
                             );
                         }
@@ -524,11 +506,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         CachedView::new(self.clone())
     }
 
-    fn valid(&self) -> Result<ValidGraph<Self>, GraphError> {
-        match self.graph_type() {
-            GraphType::EventGraph => Err(GraphError::EventGraphNoValidView),
-            GraphType::PersistentGraph => Ok(ValidGraph::new(self.clone())),
-        }
+    fn valid(&self) -> ValidGraph<Self> {
+        ValidGraph::new(self.clone())
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
@@ -607,47 +586,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_edges(&self) -> usize {
-        match self.filter_state() {
-            FilterState::Neither => {
-                if matches!(self.layer_ids(), LayerIds::All) {
-                    self.unfiltered_num_edges()
-                } else {
-                    self.core_edges().as_ref().count(self.layer_ids())
-                }
-            }
-            FilterState::Both => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Nodes => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .count()
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edges = self.core_edges();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                    .count()
-            }
+        if self.filtered() {
+            let edges = self.core_edges();
+            edges
+                .as_ref()
+                .par_iter(self.layer_ids())
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .count()
+        } else {
+            self.unfiltered_num_edges()
         }
     }
 
@@ -655,50 +602,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
         let edge_time_semantics = self.edge_time_semantics();
-        match self.filter_state() {
-            FilterState::Neither => core_edges
+        if self.filtered() {
+            core_edges
+                .as_ref()
+                .par_iter(layer_ids)
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .sum()
+        } else {
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
-            FilterState::Both => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |e| edge_time_semantics.edge_exploded_count(e.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Nodes => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()))
-                            && self.filter_node(nodes.node_entry(e.dst()))
-                    })
-                    .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                    .sum()
-            }
-            FilterState::Edges | FilterState::BothIndependent => core_edges
-                .as_ref()
-                .par_iter(layer_ids)
-                .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum(),
+                .sum()
         }
     }
 
     #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
-            if self.nodes_filtered() {
+            if self.filtered() {
                 let node = self.core_node(node_id);
                 self.filter_node(node.as_ref())
             } else {
@@ -717,7 +640,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
-        if self.nodes_filtered() {
+        if self.filtered() {
             let core_node = self.core_node(vid);
             if !self.filter_node(core_node.as_ref()) {
                 return None;
@@ -731,55 +654,43 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
+        let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
-            FilterState::Neither => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Both => {
-                if !self.filter_node(src_node.as_ref()) {
+            FilterState::Neither => {}
+            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
+                let edge = self.core_edge(edge_ref.pid());
+                if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                if !self.filter_node(self.core_node(dst).as_ref()) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
                 if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node(dst).as_ref()) {
+                let dst_node = self.core_node(dst);
+                if !self.filter_node(dst_node.as_ref()) {
                     return None;
                 }
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
+        Some(EdgeView::new(self.clone(), edge_ref))
     }
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
     }
+
+    fn metadata(&self) -> Metadata<'graph, Self> {
+        Metadata::new(self.clone())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct IndexSpec {
-    pub(crate) node_const_props: HashSet<usize>,
-    pub(crate) node_temp_props: HashSet<usize>,
-    pub(crate) edge_const_props: HashSet<usize>,
-    pub(crate) edge_temp_props: HashSet<usize>,
+    pub(crate) node_metadata: HashSet<usize>,
+    pub(crate) node_properties: HashSet<usize>,
+    pub(crate) edge_metadata: HashSet<usize>,
+    pub(crate) edge_properties: HashSet<usize>,
 }
 
 impl IndexSpec {
@@ -788,23 +699,23 @@ impl IndexSpec {
             requested.difference(existing).copied().collect()
         }
 
-        let node_const_props = diff_props(&existing.node_const_props, &requested.node_const_props);
-        let node_temp_props = diff_props(&existing.node_temp_props, &requested.node_temp_props);
-        let edge_const_props = diff_props(&existing.edge_const_props, &requested.edge_const_props);
-        let edge_temp_props = diff_props(&existing.edge_temp_props, &requested.edge_temp_props);
+        let node_metadata = diff_props(&existing.node_metadata, &requested.node_metadata);
+        let node_properties = diff_props(&existing.node_properties, &requested.node_properties);
+        let edge_metadata = diff_props(&existing.edge_metadata, &requested.edge_metadata);
+        let edge_properties = diff_props(&existing.edge_properties, &requested.edge_properties);
 
-        if node_const_props.is_empty()
-            && node_temp_props.is_empty()
-            && edge_const_props.is_empty()
-            && edge_temp_props.is_empty()
+        if node_metadata.is_empty()
+            && node_properties.is_empty()
+            && edge_metadata.is_empty()
+            && edge_properties.is_empty()
         {
             None
         } else {
             Some(IndexSpec {
-                node_const_props,
-                node_temp_props,
-                edge_const_props,
-                edge_temp_props,
+                node_metadata,
+                node_properties,
+                edge_metadata,
+                edge_properties,
             })
         }
     }
@@ -815,14 +726,17 @@ impl IndexSpec {
         }
 
         IndexSpec {
-            node_const_props: union_props(&existing.node_const_props, &other.node_const_props),
-            node_temp_props: union_props(&existing.node_temp_props, &other.node_temp_props),
-            edge_const_props: union_props(&existing.edge_const_props, &other.edge_const_props),
-            edge_temp_props: union_props(&existing.edge_temp_props, &other.edge_temp_props),
+            node_metadata: union_props(&existing.node_metadata, &other.node_metadata),
+            node_properties: union_props(&existing.node_properties, &other.node_properties),
+            edge_metadata: union_props(&existing.edge_metadata, &other.edge_metadata),
+            edge_properties: union_props(&existing.edge_properties, &other.edge_properties),
         }
     }
 
-    pub fn props(&self, graph: &Graph) -> Vec<Vec<String>> {
+    pub fn props<G: BoxableGraphView + Sized + Clone + 'static>(
+        &self,
+        graph: &G,
+    ) -> ResolvedIndexSpec {
         let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
             let mut names: Vec<String> = props
                 .iter()
@@ -832,17 +746,36 @@ impl IndexSpec {
             names
         };
 
+        ResolvedIndexSpec {
+            node_metadata: extract_names(&self.node_metadata, graph.node_meta().metadata_mapper()),
+            node_properties: extract_names(
+                &self.node_properties,
+                graph.node_meta().temporal_prop_mapper(),
+            ),
+            edge_metadata: extract_names(&self.edge_metadata, graph.edge_meta().metadata_mapper()),
+            edge_properties: extract_names(
+                &self.edge_properties,
+                graph.edge_meta().temporal_prop_mapper(),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ResolvedIndexSpec {
+    pub node_metadata: Vec<String>,
+    pub node_properties: Vec<String>,
+    pub edge_metadata: Vec<String>,
+    pub edge_properties: Vec<String>,
+}
+
+impl ResolvedIndexSpec {
+    pub fn to_vec(&self) -> Vec<Vec<String>> {
         vec![
-            extract_names(&self.node_const_props, graph.node_meta().const_prop_meta()),
-            extract_names(
-                &self.node_temp_props,
-                graph.node_meta().temporal_prop_meta(),
-            ),
-            extract_names(&self.edge_const_props, graph.edge_meta().const_prop_meta()),
-            extract_names(
-                &self.edge_temp_props,
-                graph.edge_meta().temporal_prop_meta(),
-            ),
+            self.node_metadata.clone(),
+            self.node_properties.clone(),
+            self.edge_metadata.clone(),
+            self.edge_properties.clone(),
         ]
     }
 }
@@ -850,110 +783,110 @@ impl IndexSpec {
 #[derive(Clone)]
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     pub graph: G,
-    node_const_props: Option<HashSet<usize>>,
-    node_temp_props: Option<HashSet<usize>>,
-    edge_const_props: Option<HashSet<usize>>,
-    edge_temp_props: Option<HashSet<usize>>,
+    node_metadata: Option<HashSet<usize>>,
+    node_properties: Option<HashSet<usize>>,
+    edge_metadata: Option<HashSet<usize>>,
+    edge_properties: Option<HashSet<usize>>,
 }
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     pub fn new(graph: G) -> Self {
         Self {
             graph,
-            node_const_props: None,
-            node_temp_props: None,
-            edge_const_props: None,
-            edge_temp_props: None,
+            node_metadata: None,
+            node_properties: None,
+            edge_metadata: None,
+            edge_properties: None,
         }
     }
 
-    pub fn with_all_node_props(mut self) -> Self {
-        self.node_const_props = Some(Self::extract_props(
-            self.graph.node_meta().const_prop_meta(),
+    pub fn with_all_node_properties_and_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
         ));
-        self.node_temp_props = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_meta(),
-        ));
-        self
-    }
-
-    pub fn with_all_const_node_props(mut self) -> Self {
-        self.node_const_props = Some(Self::extract_props(
-            self.graph.node_meta().const_prop_meta(),
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
         ));
         self
     }
 
-    pub fn with_all_temp_node_props(mut self) -> Self {
-        self.node_temp_props = Some(Self::extract_props(
-            self.graph.node_meta().temporal_prop_meta(),
+    pub fn with_all_node_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
         ));
         self
     }
 
-    pub fn with_const_node_props<S: AsRef<str>>(
+    pub fn with_all_node_properties(mut self) -> Self {
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_node_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.node_const_props = Some(Self::extract_named_props(
-            self.graph.node_meta().const_prop_meta(),
+        self.node_metadata = Some(Self::extract_named_props(
+            self.graph.node_meta().metadata_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_temp_node_props<S: AsRef<str>>(
+    pub fn with_node_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.node_temp_props = Some(Self::extract_named_props(
-            self.graph.node_meta().temporal_prop_meta(),
+        self.node_properties = Some(Self::extract_named_props(
+            self.graph.node_meta().temporal_prop_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_all_edge_props(mut self) -> Self {
-        self.edge_const_props = Some(Self::extract_props(
-            self.graph.edge_meta().const_prop_meta(),
+    pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
         ));
-        self.edge_temp_props = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_meta(),
-        ));
-        self
-    }
-
-    pub fn with_all_edge_const_props(mut self) -> Self {
-        self.edge_const_props = Some(Self::extract_props(
-            self.graph.edge_meta().const_prop_meta(),
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
         ));
         self
     }
 
-    pub fn with_all_temp_edge_props(mut self) -> Self {
-        self.edge_temp_props = Some(Self::extract_props(
-            self.graph.edge_meta().temporal_prop_meta(),
+    pub fn with_all_edge_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
         ));
         self
     }
 
-    pub fn with_const_edge_props<S: AsRef<str>>(
+    pub fn with_all_edge_properties(mut self) -> Self {
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_edge_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.edge_const_props = Some(Self::extract_named_props(
-            self.graph.edge_meta().const_prop_meta(),
+        self.edge_metadata = Some(Self::extract_named_props(
+            self.graph.edge_meta().metadata_mapper(),
             props,
         )?);
         Ok(self)
     }
 
-    pub fn with_temp_edge_props<S: AsRef<str>>(
+    pub fn with_edge_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
     ) -> Result<Self, GraphError> {
-        self.edge_temp_props = Some(Self::extract_named_props(
-            self.graph.edge_meta().temporal_prop_meta(),
+        self.edge_properties = Some(Self::extract_named_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
             props,
         )?);
         Ok(self)
@@ -980,10 +913,10 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
 
     pub fn build(self) -> IndexSpec {
         IndexSpec {
-            node_const_props: self.node_const_props.unwrap_or_default(),
-            node_temp_props: self.node_temp_props.unwrap_or_default(),
-            edge_const_props: self.edge_const_props.unwrap_or_default(),
-            edge_temp_props: self.edge_temp_props.unwrap_or_default(),
+            node_metadata: self.node_metadata.unwrap_or_default(),
+            node_properties: self.node_properties.unwrap_or_default(),
+            edge_metadata: self.edge_metadata.unwrap_or_default(),
+            edge_properties: self.edge_properties.unwrap_or_default(),
         }
     }
 }
@@ -1003,11 +936,14 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_nodes(self, filter, limit, offset)
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_nodes(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
     }
 
     fn search_edges<F: AsEdgeFilter>(
@@ -1016,16 +952,18 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_edges(self, filter, limit, offset)
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
     }
 
     fn is_indexed(&self) -> bool {
-        self.get_storage()
-            .map_or(false, |s| s.get_index().is_some())
+        self.get_storage().map_or(false, |s| s.is_indexed())
     }
 }
 
@@ -1627,8 +1565,7 @@ mod test_materialize {
     fn test_graph_properties() {
         let g = Graph::new();
         g.add_properties(1, [("test", "test")]).unwrap();
-        g.add_constant_properties([("test_constant", "test2")])
-            .unwrap();
+        g.add_metadata([("test_metadata", "test2")]).unwrap();
 
         test_storage!(&g, |g| {
             let gm = g.materialize().unwrap();

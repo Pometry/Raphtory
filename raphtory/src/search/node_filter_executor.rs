@@ -3,26 +3,23 @@ use crate::{
         api::view::StaticGraphViewOps,
         graph::{
             node::NodeView,
-            views::filter::{
-                internal::CreateNodeFilter,
-                model::{
-                    node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
-                    property_filter::{PropertyRef, Temporal},
-                    Filter,
-                },
+            views::filter::model::{
+                node_filter::{CompositeNodeFilter, NodeNameFilter, NodeTypeFilter},
+                property_filter::{PropertyRef, Temporal},
+                Filter,
             },
         },
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodePropertyFilterOps, NodeViewOps, PropertyFilter},
+    prelude::{GraphViewOps, PropertyFilter},
     search::{
         collectors::{
             latest_node_property_filter_collector::LatestNodePropertyFilterCollector,
             node_property_filter_collector::NodePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fields,
-        graph_index::GraphIndex,
+        fallback_filter_nodes, fields, get_reader,
+        graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
     },
@@ -37,12 +34,12 @@ use tantivy::{
 
 #[derive(Clone, Copy)]
 pub struct NodeFilterExecutor<'a> {
-    index: &'a GraphIndex,
+    index: &'a Index,
     query_builder: QueryBuilder<'a>,
 }
 
 impl<'a> NodeFilterExecutor<'a> {
-    pub fn new(index: &'a GraphIndex) -> Self {
+    pub fn new(index: &'a Index) -> Self {
         Self {
             index,
             query_builder: QueryBuilder::new(index),
@@ -104,10 +101,11 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
-            Some(query) => self.execute_filter_query(graph, query, &pi.reader, limit, offset),
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
             // Fallback to raphtory apis
-            None => Self::raph_filter_nodes(graph, filter, limit, offset),
+            None => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -125,22 +123,23 @@ impl<'a> NodeFilterExecutor<'a> {
         C: Collector<Fruit = HashSet<u64>>,
     {
         let query = self.query_builder.build_property_query(pi, filter)?;
+        let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
                 graph,
                 query,
                 prop_id,
-                &pi.reader,
+                &reader,
                 limit,
                 offset,
                 collector_fn,
             ),
             // Fallback to raphtory apis
-            None => Self::raph_filter_nodes(graph, filter, limit, offset),
+            None => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
-    fn apply_const_property_filter<G: StaticGraphViewOps>(
+    fn apply_metadata_filter<G: StaticGraphViewOps>(
         &self,
         graph: &G,
         prop_name: &str,
@@ -152,11 +151,11 @@ impl<'a> NodeFilterExecutor<'a> {
             .index
             .node_index
             .entity_index
-            .get_const_property_index(graph.node_meta(), prop_name)?
+            .get_metadata_index(graph.node_meta(), prop_name)?
         {
             self.execute_or_fallback(graph, &cpi, filter, limit, offset)
         } else {
-            Self::raph_filter_nodes(graph, filter, limit, offset)
+            fallback_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -188,87 +187,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 collector_fn,
             )
         } else {
-            Self::raph_filter_nodes(graph, filter, limit, offset)
-        }
-    }
-
-    // Property Semantics:
-    // There is a possibility that a const and temporal property share same name. This means that if a node
-    // or an edge doesn't have a value for that temporal property, we fall back to its const property value.
-    // Otherwise, the temporal property takes precedence.
-    //
-    // Search semantics:
-    // This means that a property filter criteria, say p == 1, is looked for in both the const and temporal
-    // property indexes for the given property name (if shared by both const and temporal properties). Now,
-    // if the filter matches to docs in const property index but there already is a temporal property with a
-    // different value, the doc is rejected i.e., fails the property filter criteria because temporal property
-    // takes precedence.
-    //          Search p == 1
-    //      t_prop      c_prop
-    //        T           T
-    //        T           F
-    //  (p=2) F     (p=1) T
-    //        F           F
-    //
-    // This applies to both node and edge properties.
-    fn apply_combined_property_filter<G: StaticGraphViewOps>(
-        &self,
-        graph: &G,
-        prop_name: &str,
-        filter: &PropertyFilter,
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let cpi = self
-            .index
-            .node_index
-            .entity_index
-            .get_const_property_index(graph.node_meta(), prop_name)?;
-        let tpi = self
-            .index
-            .node_index
-            .entity_index
-            .get_temporal_property_index(graph.node_meta(), prop_name)?;
-
-        match (cpi, tpi) {
-            (Some((cpi, _)), Some((tpi, prop_id))) => {
-                let cpi_results = self.execute_or_fallback(graph, &cpi, filter, limit, offset)?;
-                let tpi_results = self.execute_or_fallback_temporal(
-                    graph,
-                    prop_id,
-                    &tpi,
-                    filter,
-                    limit,
-                    offset,
-                    LatestNodePropertyFilterCollector::new,
-                )?;
-
-                let filtered = cpi_results
-                    .into_iter()
-                    .filter(|n| {
-                        n.properties()
-                            .temporal()
-                            .get_by_id(prop_id)
-                            .map(|t| t.is_empty())
-                            .unwrap_or(true)
-                    })
-                    .collect::<HashSet<_>>();
-
-                let combined: Vec<NodeView<'static, G>> =
-                    filtered.into_iter().chain(tpi_results).collect();
-                Ok(combined)
-            }
-            (Some((cpi, _)), None) => self.execute_or_fallback(graph, &cpi, filter, limit, offset),
-            (None, Some((tpi, prop_id))) => self.execute_or_fallback_temporal(
-                graph,
-                prop_id,
-                &tpi,
-                filter,
-                limit,
-                offset,
-                LatestNodePropertyFilterCollector::new,
-            ),
-            _ => Self::raph_filter_nodes(graph, filter, limit, offset),
+            fallback_filter_nodes(graph, filter, limit, offset)
         }
     }
 
@@ -280,8 +199,8 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         match &filter.prop_ref {
-            PropertyRef::ConstantProperty(prop_name) => {
-                self.apply_const_property_filter(graph, prop_name, filter, limit, offset)
+            PropertyRef::Metadata(prop_name) => {
+                self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
             PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
                 .apply_temporal_property_filter(
@@ -292,18 +211,15 @@ impl<'a> NodeFilterExecutor<'a> {
                     offset,
                     NodePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    LatestNodePropertyFilterCollector::new,
-                ),
-            PropertyRef::Property(prop_name) => {
-                self.apply_combined_property_filter(graph, prop_name, filter, limit, offset)
-            }
+            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
+            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
+                graph,
+                prop_name,
+                filter,
+                limit,
+                offset,
+                LatestNodePropertyFilterCollector::new,
+            ),
         }
     }
 
@@ -315,21 +231,15 @@ impl<'a> NodeFilterExecutor<'a> {
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
-
+        let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                graph,
-                query,
-                &node_index.entity_index.reader,
-                limit,
-                offset,
-            )?,
+            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset)?,
             None => match filter.field_name.as_str() {
                 "node_name" => {
-                    Self::raph_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
+                    fallback_filter_nodes(graph, &NodeNameFilter(filter.clone()), limit, offset)?
                 }
                 "node_type" => {
-                    Self::raph_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
+                    fallback_filter_nodes(graph, &NodeTypeFilter(filter.clone()), limit, offset)?
                 }
                 _ => vec![],
             },
@@ -374,7 +284,7 @@ impl<'a> NodeFilterExecutor<'a> {
 
                 Ok(combined.into_iter().collect())
             }
-            CompositeNodeFilter::Not(_) => Self::raph_filter_nodes(graph, filter, limit, offset),
+            CompositeNodeFilter::Not(_) => fallback_filter_nodes(graph, filter, limit, offset),
         }
     }
 
@@ -425,23 +335,6 @@ impl<'a> NodeFilterExecutor<'a> {
             .filter_map(|id| graph.node(VID(id as usize)))
             .collect_vec();
         Ok(nodes)
-    }
-
-    fn raph_filter_nodes<G: StaticGraphViewOps>(
-        graph: &G,
-        filter: &(impl CreateNodeFilter + Clone),
-        limit: usize,
-        offset: usize,
-    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
-        let filtered_nodes = graph
-            .filter_nodes(filter.clone())?
-            .nodes()
-            .iter()
-            .map(|n| NodeView::new_internal(graph.clone(), n.node))
-            .skip(offset)
-            .take(limit)
-            .collect();
-        Ok(filtered_nodes)
     }
 
     #[allow(dead_code)]

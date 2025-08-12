@@ -13,8 +13,11 @@ use crate::{
         api::{
             mutation::{time_from_input, time_from_input_session, TryIntoInputTime},
             properties::{
-                internal::{ConstantPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps},
-                Properties,
+                internal::{
+                    InternalMetadataOps, InternalTemporalPropertiesOps,
+                    InternalTemporalPropertyViewOps,
+                },
+                Metadata, Properties,
             },
             view::{
                 internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
@@ -255,6 +258,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         Properties::new(self.clone())
     }
 
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
+        Metadata::new(self.clone())
+    }
+
     fn map_nodes<F: for<'a> Fn(&'a Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
         &self,
         op: F,
@@ -327,7 +334,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         Ok(layer_id)
     }
 
-    /// Add constant properties for the edge
+    /// Add metadata for the edge
     ///
     /// # Arguments
     ///
@@ -337,7 +344,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
     ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
-    pub fn add_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
+    pub fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
@@ -361,12 +368,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         )?;
 
         self.graph
-            .internal_add_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .internal_add_edge_metadata(self.edge.pid(), input_layer_id, &properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
 
-    pub fn update_constant_properties<PN: AsRef<str>, P: Into<Prop>>(
+    pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
         &self,
         props: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
@@ -380,7 +387,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         )?;
 
         self.graph
-            .internal_update_constant_edge_properties(self.edge.pid(), input_layer_id, &properties)
+            .internal_update_edge_metadata(self.edge.pid(), input_layer_id, &properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
@@ -432,40 +439,40 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadataOps
     for EdgeView<G, GH>
 {
-    fn get_const_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.edge_meta().const_prop_meta().get_id(name)
+    fn get_metadata_id(&self, name: &str) -> Option<usize> {
+        self.graph.edge_meta().metadata_mapper().get_id(name)
     }
 
-    fn get_const_prop_name(&self, id: usize) -> ArcStr {
+    fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
             .edge_meta()
-            .const_prop_meta()
+            .metadata_mapper()
             .get_name(id)
             .clone()
     }
 
-    fn const_prop_ids(&self) -> BoxedLIter<usize> {
-        Box::new(0..self.graph.edge_meta().const_prop_meta().len())
+    fn metadata_ids(&self) -> BoxedLIter<usize> {
+        Box::new(0..self.graph.edge_meta().metadata_mapper().len())
     }
 
-    fn const_prop_keys(&self) -> BoxedLIter<ArcStr> {
-        let reverse_map = self.graph.edge_meta().const_prop_meta().get_keys();
-        Box::new(self.const_prop_ids().map(move |id| reverse_map[id].clone()))
+    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+        let reverse_map = self.graph.edge_meta().metadata_mapper().get_keys();
+        Box::new(self.metadata_ids().map(move |id| reverse_map[id].clone()))
     }
 
-    fn get_const_prop(&self, id: usize) -> Option<Prop> {
+    fn get_metadata(&self, id: usize) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             match self.edge.layer() {
-                None => time_semantics.constant_edge_prop(
+                None => time_semantics.edge_metadata(
                     self.graph.core_edge(self.edge.pid()).as_ref(),
                     &self.graph,
                     id,
                 ),
-                Some(layer) => time_semantics.constant_edge_prop(
+                Some(layer) => time_semantics.edge_metadata(
                     self.graph.core_edge(self.edge.pid()).as_ref(),
                     LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                     id,
@@ -477,13 +484,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ConstantProperti
     }
 }
 
-impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalPropertyViewOps
+impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporalPropertyViewOps
     for EdgeView<G, GH>
 {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .edge_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_dtype(id)
             .unwrap()
     }
@@ -649,27 +656,27 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> TemporalProperty
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> TemporalPropertiesOps
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporalPropertiesOps
     for EdgeView<G, GH>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.edge_meta().temporal_prop_meta().get_id(name)
+        self.graph.edge_meta().temporal_prop_mapper().get_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
         self.graph
             .edge_meta()
-            .temporal_prop_meta()
+            .temporal_prop_mapper()
             .get_name(id)
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(0..self.graph.edge_meta().temporal_prop_meta().len())
+    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+        Box::new(0..self.graph.edge_meta().temporal_prop_mapper().len())
     }
 
-    fn temporal_prop_keys(&self) -> Box<dyn Iterator<Item = ArcStr> + '_> {
-        let reverse_map = self.graph.edge_meta().temporal_prop_meta().get_keys();
+    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
+        let reverse_map = self.graph.edge_meta().temporal_prop_mapper().get_keys();
         Box::new(
             self.temporal_prop_ids()
                 .map(move |id| reverse_map[id].clone()),
@@ -752,45 +759,57 @@ mod test_edge {
     }
 
     #[test]
-    fn test_constant_properties() {
+    fn test_metadata() {
         let graph = Graph::new();
         graph
             .add_edge(1, 1, 2, NO_PROPS, Some("layer 1"))
             .unwrap()
-            .add_constant_properties([("test_prop", "test_val")], Some("layer 1"))
+            .add_metadata([("test_prop", "test_val")], None)
             .unwrap();
         graph
             .add_edge(1, 2, 3, NO_PROPS, Some("layer 2"))
             .unwrap()
-            .add_constant_properties([("test_prop", "test_val")], Some("layer 2"))
+            .add_metadata([("test_prop", "test_val"), ("other", "2")], None)
             .unwrap();
 
-        // FIXME: #18 constant prop for edges
+        graph
+            .add_edge(1, 2, 3, NO_PROPS, Some("layer 3"))
+            .unwrap()
+            .add_metadata([("test_prop", "test_val"), ("other", "3")], None)
+            .unwrap();
+
+        // FIXME: #18 metadata prop for edges
         test_graph(&graph, |graph| {
             assert_eq!(
-                graph
-                    .edge(1, 2)
-                    .unwrap()
-                    .properties()
-                    .constant()
-                    .get("test_prop"),
-                Some([("layer 1", "test_val")].into_prop_map())
+                graph.edge(1, 2).unwrap().metadata().get("test_prop"),
+                Some(Prop::map([("layer 1", "test_val")]))
             );
             assert_eq!(
+                graph.edge(2, 3).unwrap().metadata().get("test_prop"),
+                Some(Prop::map([
+                    ("layer 2", "test_val"),
+                    ("layer 3", "test_val")
+                ]))
+            );
+
+            assert_eq!(
+                graph.edge(2, 3).unwrap().metadata().get("other"),
+                Some(Prop::map([("layer 2", "2"), ("layer 3", "3")]))
+            );
+
+            assert_eq!(
                 graph
+                    .valid_layers(["layer 3", "layer 2"])
                     .edge(2, 3)
                     .unwrap()
-                    .properties()
-                    .constant()
-                    .get("test_prop"),
-                Some([("layer 2", "test_val")].into_prop_map())
+                    .metadata()
+                    .get("other"),
+                Some(Prop::map([("layer 2", "2"), ("layer 3", "3")]))
             );
+
             for e in graph.edges() {
                 for ee in e.explode() {
-                    assert_eq!(
-                        ee.properties().constant().get("test_prop"),
-                        Some("test_val".into())
-                    )
+                    assert_eq!(ee.metadata().get("test_prop"), Some("test_val".into()))
                 }
             }
         });
@@ -833,33 +852,24 @@ mod test_edge {
     }
 
     #[test]
-    fn test_constant_property_additions() {
+    fn test_metadata_additions() {
         let g = Graph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
         assert_eq!(e.edge.layer(), Some(0));
-        assert!(e
-            .add_constant_properties([("test1", "test1")], None)
-            .is_ok()); // adds properties to layer `"test"`
-        assert!(e
-            .add_constant_properties([("test", "test")], Some("test2"))
-            .is_err()); // cannot add properties to a different layer
-        e.add_constant_properties([("test", "test")], Some("test"))
-            .unwrap(); // layer is consistent
-        assert_eq!(e.properties().get("test"), Some("test".into()));
-        assert_eq!(e.properties().get("test1"), Some("test1".into()));
+        assert!(e.add_metadata([("test1", "test1")], None).is_ok()); // adds properties to layer `"test"`
+        assert!(e.add_metadata([("test", "test")], Some("test2")).is_err()); // cannot add properties to a different layer
+        e.add_metadata([("test", "test")], Some("test")).unwrap(); // layer is consistent
+        assert_eq!(e.metadata().get("test"), Some("test".into()));
+        assert_eq!(e.metadata().get("test1"), Some("test1".into()));
     }
 
     #[test]
-    fn test_constant_property_updates() {
+    fn test_metadata_updates() {
         let g = Graph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
-        assert!(e
-            .add_constant_properties([("test1", "test1")], None)
-            .is_ok()); // adds properties to layer `"test"`
-        assert!(e
-            .update_constant_properties([("test1", "test2")], None)
-            .is_ok());
-        assert_eq!(e.properties().get("test1"), Some("test2".into()));
+        assert!(e.add_metadata([("test1", "test1")], None).is_ok()); // adds properties to layer `"test"`
+        assert!(e.update_metadata([("test1", "test2")], None).is_ok());
+        assert_eq!(e.metadata().get("test1"), Some("test2".into()));
     }
 
     #[test]
