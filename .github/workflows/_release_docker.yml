@@ -5,7 +5,8 @@ on:
       python:
         type: boolean
         required: false
-  workflow_dispatch:
+      base:
+        type: 'string'
 
 permissions:
   contents: read
@@ -23,8 +24,9 @@ jobs:
           - linux/amd64
           - linux/arm64
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
 
       - name: Extract Package and Rust Versions
         run: |
