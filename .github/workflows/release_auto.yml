@@ -38,7 +38,7 @@ jobs:
     with:
       base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
       dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
-      image_type: rust
+      python: false
     secrets: inherit
   call-release-docker-workflow-python:
     name: Release python docker image
@@ -46,5 +46,5 @@ jobs:
     with:
       base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
       dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
-      image_type: python
+      python: true
     secrets: inherit

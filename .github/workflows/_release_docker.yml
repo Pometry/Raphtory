@@ -4,13 +4,10 @@ on:
     inputs:
       base:
         type: 'string'
-      image_type:
-        type: choice
-        description: The type of image to build
-        default: 'rust'
-        options:
-          - rust
-          - python
+      python:
+        type: boolean
+        description: Wether to build the python version of the image
+        default: true
 
 permissions:
   contents: read
@@ -39,7 +36,7 @@ jobs:
 
       - name: Write dockerfile path
         run: |
-          if [ "${{ inputs.image_type }}" = "python" ]; then
+          if [ "${{ inputs.python }}" = "true" ]; then
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
           else
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
@@ -127,7 +124,7 @@ jobs:
 
       - name: Write docker tag
         run: |
-          if [ "${{ inputs.image_type }}" = "python" ]; then
+          if [ "${{ inputs.python }}" = "true" ]; then
             echo "DOCKER_TAG=${{ steps.meta.outputs.version }}-python" >> $GITHUB_ENV
           else
             echo "DOCKER_TAG=${{ steps.meta.outputs.version }}" >> $GITHUB_ENV

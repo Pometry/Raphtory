@@ -18,11 +18,11 @@ jobs:
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      image_type: rust
+      python: false
   release-python:
     name: Release python docker image
     uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      image_type: python
+      python: true
