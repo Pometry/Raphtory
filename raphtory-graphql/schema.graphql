@@ -25,7 +25,7 @@ type CollectionOfMetaGraph {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [MetaGraph!]!
@@ -46,7 +46,7 @@ type CollectionOfNamespace {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Namespace!]!
@@ -67,7 +67,7 @@ type CollectionOfNamespacedItem {
 	"""
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [NamespacedItem!]!
@@ -438,7 +438,7 @@ type EdgeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edge!]!
@@ -545,7 +545,7 @@ type Edges {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edge!]!
@@ -621,7 +621,7 @@ type EdgesWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edges!]!
@@ -925,8 +925,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1041,7 +1041,7 @@ type GraphWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Graph!]!
@@ -1677,7 +1677,7 @@ type NodeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -1776,7 +1776,7 @@ type Nodes {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -1864,7 +1864,7 @@ type NodesWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Nodes!]!
@@ -2023,7 +2023,7 @@ type PathFromNode {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Node!]!
@@ -2100,7 +2100,7 @@ type PathFromNodeWindowSet {
 	Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
 	
-	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [PathFromNode!]!
@@ -2426,4 +2426,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

@@ -387,7 +387,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -449,7 +449,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -511,7 +511,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1113,7 +1113,7 @@ Returns the list of metadata schemas for edges connecting these types of nodes
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1470,7 +1470,7 @@ Returns the number of edges.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1523,7 +1523,7 @@ will be returned.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -2530,26 +2530,6 @@ Uses Tantivy's exact search.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2567,6 +2547,26 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2626,7 +2626,7 @@ Returns the number of items.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -3923,7 +3923,7 @@ Returns the list of property schemas for this node
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4280,7 +4280,7 @@ Returns the latest time that this Nodes is valid or None if the Nodes are valid 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4342,7 +4342,7 @@ Returns a view of the node ids.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4683,7 +4683,7 @@ Returns the latest time that this PathFromNode is valid or None if the PathFromN
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4755,7 +4755,7 @@ Returns the node ids.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
