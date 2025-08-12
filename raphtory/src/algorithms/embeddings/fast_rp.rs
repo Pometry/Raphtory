@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::NodeState,
-            view::{NodeViewOps, StaticGraphViewOps},
+            view::{NodeViewOps, StaticGraphViewOps, graph::GraphViewOps},
         },
         task::{
             context::Context,
