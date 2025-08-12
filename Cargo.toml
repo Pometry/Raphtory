@@ -166,6 +166,7 @@ arrow-array = { version = "56.2.0", features = ["chrono-tz"] }
 arrow-cast = { version = "56.2.0" }
 arrow-ipc = { version = "56.2.0" }
 arrow-data = { version = "56.2.0" }
+arrow-select = { version = "56.2.0" }
 serde_arrow = { version = "0.13.0" }
 moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
