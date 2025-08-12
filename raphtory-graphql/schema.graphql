@@ -2237,6 +2237,7 @@ type QueryRoot {
 	Returns:: Base64 url safe encoded string
 	"""
 	receiveGraph(path: String!): String!
+	version: String!
 }
 
 type ShortestPathOutput {

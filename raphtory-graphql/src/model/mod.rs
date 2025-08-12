@@ -23,6 +23,7 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::*,
     serialise::InternalStableDecode,
+    version,
 };
 #[cfg(feature = "storage")]
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
@@ -168,6 +169,10 @@ impl QueryRoot {
         let g = data.get_graph(path).await?.0.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
+    }
+
+    async fn version<'a>(_ctx: &Context<'a>) -> String {
+        String::from(version())
     }
 }
 
