@@ -4,7 +4,7 @@ The GraphQL API largely follows the same patterns as the Python API but has a fe
 
 In GraphQL, there are two different types of requests: a query to search through your data or a mutation of your data. Only the top-level fields in mutation operations are allowed to cause side effects. To accommodate this, in the Raphtory API you can make queries to graphs or metagraphs but must make changes using a mutable graph, node or edge.
 
-This division means that the distinction between Graphs and GraphViews is less important in GraphQL and all non-mutable Graph endpoints are GraphViews while MutableGraphs are used for mutation operations. This is also true for Nodes and Edges and their respective views.
+This division means that the distinction between Graphs and GraphViews is less important in GraphQL and all non-mutable Graph endpoints are GraphViews while MutableGraphs are used for mutation operations. This is also true for Nodes and Edges and their respective views. Graphs can be further distinguished as either `PERSISTENT` or `EVENT` types.
 
 ## Graphical playground
 
@@ -34,7 +34,7 @@ query {
 ```
 ///
 
-## List of all the edges, with specific node properties 
+## List of all the edges, with specific node properties
 
 To find nodes with `age`:
 
@@ -151,7 +151,6 @@ Pass your graph object string into the `client.query()` method to execute the Gr
     ```output
     {'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
     ```
-
 
 ## Mutation requests
 
