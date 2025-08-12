@@ -16,5 +16,5 @@ jobs:
     name: _Release 5 - Publish Docker Images to Docker Hub
     uses: ./.github/workflows/_release_docker.yml
     with:
-      version: ${{ inputs.base }}
+      base: ${{ inputs.base }}
     secrets: inherit
