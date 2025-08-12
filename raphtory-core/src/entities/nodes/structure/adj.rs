@@ -68,7 +68,7 @@ impl Adj {
         }
     }
 
-    pub(crate) fn iter(&self, dir: Direction) -> BoxedLIter<(VID, EID)> {
+    pub(crate) fn iter(&self, dir: Direction) -> BoxedLIter<'_, (VID, EID)> {
         match self {
             Adj::Solo => Box::new(std::iter::empty()),
             Adj::List { out, into } => match dir {

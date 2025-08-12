@@ -390,7 +390,7 @@ impl PropColumn {
         }
     }
 
-    pub fn get_ref(&self, index: usize) -> Option<PropRef> {
+    pub fn get_ref(&self, index: usize) -> Option<PropRef<'_>> {
         match self {
             PropColumn::Bool(col) => col.get_opt(index).map(|prop| PropRef::Bool(*prop)),
             PropColumn::I64(col) => col.get_opt(index).map(|prop| PropRef::I64(*prop)),
@@ -446,13 +446,13 @@ impl NodeSlot {
         &mut self.t_props_log
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodePtr> {
+    pub fn iter(&self) -> impl Iterator<Item = NodePtr<'_>> {
         self.nodes
             .iter()
             .map(|ns| NodePtr::new(ns, &self.t_props_log))
     }
 
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr> {
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = NodePtr<'_>> {
         self.nodes
             .par_iter()
             .map(|ns| NodePtr::new(ns, &self.t_props_log))

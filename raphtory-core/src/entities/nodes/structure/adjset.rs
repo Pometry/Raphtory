@@ -95,7 +95,7 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         }
     }
 
-    pub fn iter(&self) -> BoxedLIter<(K, V)> {
+    pub fn iter(&self) -> BoxedLIter<'_, (K, V)> {
         match self {
             AdjSet::Empty => Box::new(std::iter::empty()),
             AdjSet::One(v, e) => Box::new(std::iter::once((*v, *e))),

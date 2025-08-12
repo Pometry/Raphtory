@@ -307,14 +307,14 @@ impl PropMapper {
         self.dtypes.as_ref()
     }
 
-    pub fn locked(&self) -> LockedPropMapper {
+    pub fn locked(&self) -> LockedPropMapper<'_> {
         LockedPropMapper {
             dict_mapper: self.id_mapper.read(),
             d_types: self.dtypes.read_recursive(),
         }
     }
 
-    pub fn write_locked(&self) -> WriteLockedPropMapper {
+    pub fn write_locked(&self) -> WriteLockedPropMapper<'_> {
         WriteLockedPropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),

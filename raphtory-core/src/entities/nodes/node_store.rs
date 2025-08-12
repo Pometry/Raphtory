@@ -287,7 +287,7 @@ impl NodeStore {
         iter
     }
 
-    fn merge_layers(&self, layers: &LayerIds, d: Direction, self_id: VID) -> BoxedLIter<EdgeRef> {
+    fn merge_layers(&self, layers: &LayerIds, d: Direction, self_id: VID) -> BoxedLIter<'_, EdgeRef> {
         match layers {
             LayerIds::All => Box::new(
                 self.layers

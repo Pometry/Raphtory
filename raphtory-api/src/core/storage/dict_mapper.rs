@@ -173,14 +173,14 @@ impl DictMapper {
         }
     }
 
-    pub fn read(&self) -> LockedDictMapper {
+    pub fn read(&self) -> LockedDictMapper<'_> {
         LockedDictMapper {
             map: self.map.read(),
             reverse_map: self.reverse_map.read(),
         }
     }
 
-    pub fn write(&self) -> WriteLockedDictMapper {
+    pub fn write(&self) -> WriteLockedDictMapper<'_> {
         WriteLockedDictMapper {
             map: self.map.write(),
             reverse_map: self.reverse_map.write(),

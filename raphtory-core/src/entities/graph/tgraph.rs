@@ -1,15 +1,12 @@
-use dashmap::DashSet;
 use raphtory_api::core::{
     entities::MAX_LAYER
     ,
     storage::arc_str::ArcStr
     ,
 };
-use rustc_hash::FxHasher;
-use std::{fmt::Debug, hash::BuildHasherDefault};
+use std::{fmt::Debug};
 use thiserror::Error;
 
-pub(crate) type FxDashSet<K> = DashSet<K, BuildHasherDefault<FxHasher>>;
 
 #[derive(Error, Debug)]
 #[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]

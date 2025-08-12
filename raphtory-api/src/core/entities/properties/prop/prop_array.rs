@@ -108,7 +108,7 @@ impl PropArray {
         self.iter_prop_inner().into_iter().flatten()
     }
 
-    fn iter_prop_inner(&self) -> Option<BoxedLIter<Prop>> {
+    fn iter_prop_inner(&self) -> Option<BoxedLIter<'_, Prop>> {
         let arr = self.as_array_ref()?;
 
         arr.as_any()
