@@ -12,9 +12,16 @@ on:
         default: false
 
 jobs:
-  call-release-docker-workflow:
-    name: _Release 5 - Publish Docker Images to Docker Hub
+  release-rust:
+    name: Release rust docker image
     uses: ./.github/workflows/_release_docker.yml
+    secrets: inherit
     with:
       base: ${{ inputs.base }}
+  release-python:
+    name: Release python docker image
+    uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
+    with:
+      base: ${{ inputs.base }}
+      python: true
