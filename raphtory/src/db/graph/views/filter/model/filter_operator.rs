@@ -114,7 +114,10 @@ impl FilterOperator {
                 | FilterOperator::Lt
                 | FilterOperator::Le
                 | FilterOperator::Gt
-                | FilterOperator::Ge => right.is_some_and(|r| self.operation()(r, l)),
+                | FilterOperator::Ge => right.is_some_and(|r| {
+                    println!("right: {:?}, left: {:?}", r, l);
+                    self.operation()(r, l)
+                }),
                 FilterOperator::StartsWith => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => r.deref().starts_with(l.deref()),
                     _ => unreachable!(),

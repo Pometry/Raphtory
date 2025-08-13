@@ -465,6 +465,7 @@ pub(crate) mod test_filters {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
+    use std::sync::Arc;
 
     struct IdentityGraphTransformer;
 
@@ -1276,6 +1277,10 @@ pub(crate) mod test_filters {
                     ("p20", "Gold_ship".into_prop()),
                     ("p30", "Gold_ship".into_prop()),
                     ("p40", 5u64.into_prop()),
+                    (
+                        "p50",
+                        Prop::List(Arc::new(vec![Prop::U64(1), Prop::U64(2), Prop::U64(3)])),
+                    ),
                 ],
                 Some("fire_nation"),
             ),
@@ -1476,23 +1481,30 @@ pub(crate) mod test_filters {
     #[cfg(test)]
     mod test_node_property_filter {
         use crate::db::graph::views::filter::test_filters::init_nodes_graph;
-        use raphtory_api::core::entities::properties::prop::{IntoProp, Prop};
+        use raphtory_api::core::entities::properties::prop::Prop;
+        use std::vec;
 
         use crate::{
             db::graph::{
                 assertions::{
-                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                    assert_filter_nodes_results, assert_search_nodes_results,
+                    TestGraphVariants::{
+                        EventDiskGraph, Graph, PersistentDiskGraph, PersistentGraph,
+                    },
+                    TestVariants,
+                    TestVariants::NonDiskOnly,
                 },
                 views::filter::{
                     model::{
-                        node_filter::NodeFilter, not_filter::NotFilter,
-                        property_filter::PropertyFilterOps, ComposableFilter,
-                        PropertyFilterFactory,
+                        node_filter::NodeFilter,
+                        not_filter::NotFilter,
+                        property_filter::{ListAggOps, PropertyFilterOps},
+                        ComposableFilter, PropertyFilterFactory,
                     },
                     test_filters::IdentityGraphTransformer,
                 },
             },
-            prelude::{AdditionOps, Graph, NodeViewOps},
+            prelude::NodeViewOps,
         };
 
         #[test]
@@ -1879,6 +1891,117 @@ pub(crate) mod test_filters {
                 filter,
                 &expected_results,
                 TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_property_agg() {
+            println!("sum().eq(Prop::F64(6.0)");
+            let filter = NodeFilter::property("p50").sum().eq(Prop::F64(6.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            // assert_search_nodes_results(
+            //     init_nodes_graph,
+            //     IdentityGraphTransformer,
+            //     filter,
+            //     &expected_results,
+            //     TestVariants::All,
+            // );
+            println!();
+            println!("temporal().latest().sum().eq(Prop::F64(6.0)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::F64(6.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            println!();
+            println!("temporal().latest().avg().eq(Prop::F64(2.0)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            println!();
+            println!("temporal().first().avg().eq(Prop::F64(2.0)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            println!();
+            println!("temporal().latest().min().eq(Prop::F64(1.0)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::F64(1.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            println!();
+            println!("temporal().latest().max().eq(Prop::F64(1.0)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::F64(3.0));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
+            );
+            println!();
+            println!("temporal().latest().len().eq(Prop::I64(3)");
+            let filter = NodeFilter::property("p50")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::I64(3));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                NonDiskOnly,
             );
         }
 
