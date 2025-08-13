@@ -115,7 +115,7 @@ impl FilterOperator {
                 | FilterOperator::Le
                 | FilterOperator::Gt
                 | FilterOperator::Ge => right.is_some_and(|r| {
-                    println!("right: {:?}, left: {:?}", r, l);
+                    // println!("right: {:?}, left: {:?}", r, l);
                     self.operation()(r, l)
                 }),
                 FilterOperator::StartsWith => right.is_some_and(|r| match (l, r) {

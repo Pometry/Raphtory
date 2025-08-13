@@ -373,57 +373,87 @@ impl<M> PropertyFilter<M> {
     }
 
     fn validate_list_agg_operator(&self) -> Result<(), GraphError> {
-        use FilterOperator::*;
         if self.list_agg.is_none() {
             return Ok(());
         }
         match self.operator {
-            Eq | Ne | Lt | Le | Gt | Ge | In | NotIn => Ok(()),
-            IsSome
-            | IsNone
-            | StartsWith
-            | EndsWith
-            | Contains
-            | NotContains
-            | FuzzySearch { .. } => Err(GraphError::InvalidFilter(format!(
-                "operator {} is not supported with list aggregation {:?}; allowed: EQ, NE, LT, LE, GT, GE, IN, NOT_IN",
+            FilterOperator::Eq
+            | FilterOperator::Ne
+            | FilterOperator::Lt
+            | FilterOperator::Le
+            | FilterOperator::Gt
+            | FilterOperator::Ge
+            | FilterOperator::In
+            | FilterOperator::NotIn => Ok(()),
+            FilterOperator::IsSome
+            | FilterOperator::IsNone
+            | FilterOperator::StartsWith
+            | FilterOperator::EndsWith
+            | FilterOperator::Contains
+            | FilterOperator::NotContains
+            | FilterOperator::FuzzySearch { .. } => Err(GraphError::InvalidFilter(format!(
+                "Operator {} is not supported with list aggregation {:?}; allowed: EQ, NE, LT, LE, GT, GE, IN, NOT_IN",
                 self.operator, self.list_agg
             ))),
         }
     }
 
-    // Validates if all the elements in the list are of same numeric type
-    fn validate_prop_dtype_is_valid_for_list_agg(
-        &self,
-        dtype: &PropType,
-    ) -> Result<(), GraphError> {
-        use ListAgg::*;
-        match dtype {
-            PropType::List(inner) => {
-                match self.list_agg.expect("Called only if list_agg is Some") {
-                    Len => { // Len works for any list element type
-                        Ok(())
-                    }
-                    Sum | Avg | Min | Max => {  // These require numeric element types
-                        if inner.has_cmp() && inner.is_numeric() {
-                            Ok(())
-                        } else {
-                            Err(GraphError::InvalidFilter(format!(
-                                "List aggregation {:?} requires numeric list elements, but property type is {:?}",
-                                self.list_agg, dtype
-                            )))
-                        }
-                    }
+    /// Effective result dtype for (agg, element PropType) as per semantic:
+    /// Len -> U64
+    /// Avg -> F64
+    /// Sum -> U64 (unsigned), I64 (signed), F64 (float)
+    /// Min/Max -> same as element type (numeric only)
+    fn effective_dtype_for_list_agg_with_inner(
+        agg: ListAgg,
+        inner: &PropType,
+    ) -> Result<PropType, GraphError> {
+        Ok(match agg {
+            ListAgg::Len => PropType::U64,
+            ListAgg::Avg => PropType::F64,
+            ListAgg::Sum => match inner {
+                PropType::U8 | PropType::U16 | PropType::U32 | PropType::U64 => PropType::U64,
+                PropType::I32 | PropType::I64 => PropType::I64,
+                PropType::F32 | PropType::F64 => PropType::F64,
+                _ => {
+                    return Err(GraphError::InvalidFilter(format!(
+                        "SUM requires numeric list; got element type {:?}",
+                        inner
+                    )))
                 }
-            }
-            _ => Err(GraphError::InvalidFilter(format!(
-                "List aggregation {:?} is only supported on list properties, but property type is {:?}",
-                self.list_agg, dtype
-            ))),
+            },
+            ListAgg::Min | ListAgg::Max => match inner {
+                PropType::U8
+                | PropType::U16
+                | PropType::U32
+                | PropType::U64
+                | PropType::I32
+                | PropType::I64
+                | PropType::F32
+                | PropType::F64 => inner.clone(), // same as element type
+                _ => {
+                    return Err(GraphError::InvalidFilter(format!(
+                        "{:?} requires numeric list; got element type {:?}",
+                        agg, inner
+                    )))
+                }
+            },
+        })
+    }
+
+    fn validate_list_agg_and_effective_dtype(
+        &self,
+        prop_dtype: &PropType,
+    ) -> Result<PropType, GraphError> {
+        if let PropType::List(inner) = prop_dtype {
+            Self::effective_dtype_for_list_agg_with_inner(self.list_agg.unwrap(), inner)
+        } else {
+            Err(GraphError::InvalidFilter(format!(
+                "List aggregation {:?} is only supported on list properties; got {:?}",
+                self.list_agg, prop_dtype
+            )))
         }
     }
 
-    // For EQ/NE/LT/LE/GT/GE on an aggregated value (Single prop filter clause)
     fn validate_agg_single_filter_clause_prop(&self, eff: &PropType) -> Result<(), GraphError> {
         let _ = self.validate_single_dtype(eff, false)?;
         // If strictly numeric op, ensure the eff type can compare numerically.
@@ -433,35 +463,18 @@ impl<M> PropertyFilter<M> {
         Ok(())
     }
 
-    // For IN/NOT_IN on an aggregated value (Set prop filter clause)
-    fn validate_agg_set_filter_clause_prop(&self, eff: &PropType) -> Result<(), GraphError> {
+    fn validate_agg_set_filter_clause_prop(&self) -> Result<(), GraphError> {
         match &self.prop_value {
-            PropertyFilterValue::Set(set) => {
-                // Every element in the set must unify with `eff`
-                for v in set.iter() {
-                    let vty = v.dtype();
-                    let _ = unify_types(eff, &vty, &mut false)
-                        .map_err(|e| e.with_name(format!("aggregate({:?})", self.list_agg)))?;
-                }
-                Ok(())
-            }
+            PropertyFilterValue::Set(_) => Ok(()), // filter clause prop list doesn't need to be homogenous
             PropertyFilterValue::Single(_) | PropertyFilterValue::None => {
                 Err(GraphError::InvalidFilterExpectSetGotSingle(self.operator))
             }
         }
     }
 
-    fn validate_agg(&self, dtype: &PropType, agg: ListAgg) -> Result<(), GraphError> {
-        fn effective_dtype_for_list_agg(agg: ListAgg) -> PropType {
-            match agg {
-                ListAgg::Len => PropType::I64,
-                ListAgg::Sum | ListAgg::Avg | ListAgg::Min | ListAgg::Max => PropType::F64,
-            }
-        }
-
+    fn validate_agg(&self, dtype: &PropType) -> Result<(), GraphError> {
         self.validate_list_agg_operator()?;
-        self.validate_prop_dtype_is_valid_for_list_agg(&dtype)?;
-        let eff = effective_dtype_for_list_agg(agg);
+        let eff = self.validate_list_agg_and_effective_dtype(&dtype)?;
         match self.operator {
             FilterOperator::Eq
             | FilterOperator::Ne
@@ -470,11 +483,9 @@ impl<M> PropertyFilter<M> {
             | FilterOperator::Gt
             | FilterOperator::Ge => self.validate_agg_single_filter_clause_prop(&eff),
             FilterOperator::In | FilterOperator::NotIn => {
-                self.validate_agg_set_filter_clause_prop(&eff)
+                self.validate_agg_set_filter_clause_prop()
             }
-            _ => {
-                unreachable!("Other filter operators are invalidated by validate_list_agg_operator")
-            }
+            _ => unreachable!("blocked by validate_list_agg_operator"),
         }
     }
 
@@ -491,8 +502,8 @@ impl<M> PropertyFilter<M> {
         match meta.get_prop_id_and_type(name, is_static) {
             None => Ok(None),
             Some((id, dtype)) => {
-                if let Some(agg) = self.list_agg {
-                    self.validate_agg(&dtype, agg)?;
+                if let Some(_) = self.list_agg {
+                    self.validate_agg(&dtype)?;
                 } else {
                     self.validate(&dtype, is_static && expect_map)?;
                 }
@@ -501,52 +512,138 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    fn aggregate_list_value(list_prop: &Prop, agg: ListAgg) -> Option<Prop> {
-        use Prop::*;
+    fn reduce_unsigned(vals: &[Prop], ret_minmax: fn(u64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        let mut sum: u128 = 0;
+        let mut min_v: u64 = vals[0].clone().unwrap_u64();
+        let mut max_v: u64 = min_v;
+        let mut count: u64 = 0;
+
+        for p in vals {
+            let x = p.clone().unwrap_u64();
+            sum = sum.checked_add(x as u128)?;
+            if x < min_v {
+                min_v = x;
+            }
+            if x > max_v {
+                max_v = x;
+            }
+            count += 1;
+        }
+
+        // println!("sum: {}", sum);
+        // println!("count: {}", count);
+        // println!("min: {}", min_v);
+        // println!("max: {}", max_v);
+
+        Some(match agg {
+            ListAgg::Sum => Prop::U64(u64::try_from(sum).ok()?),
+            ListAgg::Avg => Prop::F64((sum as f64) / (count as f64)),
+            ListAgg::Min => ret_minmax(min_v),
+            ListAgg::Max => ret_minmax(max_v),
+            ListAgg::Len => unreachable!(),
+        })
+    }
+
+    fn reduce_signed(vals: &[Prop], ret_minmax: fn(i64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        let mut sum: i128 = 0;
+        let mut min_v: i64 = vals[0].clone().unwrap_i64();
+        let mut max_v: i64 = min_v;
+        let mut count: u64 = 0;
+
+        for p in vals {
+            let x = p.clone().unwrap_i64();
+            sum = sum.checked_add(x as i128)?;
+            if x < min_v {
+                min_v = x;
+            }
+            if x > max_v {
+                max_v = x;
+            }
+            count += 1;
+        }
+
+        Some(match agg {
+            ListAgg::Sum => Prop::I64(i64::try_from(sum).ok()?),
+            ListAgg::Avg => Prop::F64((sum as f64) / (count as f64)),
+            ListAgg::Min => ret_minmax(min_v),
+            ListAgg::Max => ret_minmax(max_v),
+            ListAgg::Len => unreachable!(),
+        })
+    }
+
+    fn reduce_float(vals: &[Prop], ret_minmax: fn(f64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        let mut sum: f64 = 0.0;
+        let mut min_v: f64 = vals[0].clone().unwrap_f64();
+        let mut max_v: f64 = min_v;
+        let mut count: u64 = 0;
+
+        for p in vals {
+            let x = p.clone().unwrap_f64();
+            if !x.is_finite() {
+                return None;
+            }
+            sum += x;
+            if x < min_v {
+                min_v = x;
+            }
+            if x > max_v {
+                max_v = x;
+            }
+            count += 1;
+        }
+
+        Some(match agg {
+            ListAgg::Sum => Prop::F64(sum),
+            ListAgg::Avg => Prop::F64(sum / (count as f64)),
+            ListAgg::Min => ret_minmax(min_v),
+            ListAgg::Max => ret_minmax(max_v),
+            ListAgg::Len => unreachable!(),
+        })
+    }
+
+    fn aggregate_list_value(&self, list_prop: &Prop, agg: ListAgg) -> Option<Prop> {
         let vals = match list_prop {
-            List(v) => v,
+            Prop::List(v) => v.as_slice(),
             _ => return None,
         };
 
-        match agg {
-            ListAgg::Len => Some(I64(vals.len() as i64)),
-            ListAgg::Sum | ListAgg::Avg | ListAgg::Min | ListAgg::Max => {
-                let mut count = 0usize;
-                let mut sum = 0.0f64;
-                let mut minv: Option<f64> = None;
-                let mut maxv: Option<f64> = None;
+        if vals.is_empty() {
+            return match agg {
+                ListAgg::Len => Some(Prop::U64(0)),
+                _ => None,
+            };
+        }
 
-                for p in vals.iter() {
-                    let v = p.as_f64()?;
-                    sum += v;
-                    count += 1;
-                    minv = Some(if let Some(m) = minv { m.min(v) } else { v });
-                    maxv = Some(if let Some(m) = maxv { m.max(v) } else { v });
-                }
-                println!("count: {}", count);
-                println!("sum: {}", sum);
-                println!("minv: {:?}", minv);
-                println!("maxv: {:?}", maxv);
-                if count == 0 {
-                    return None;
-                }
+        if let ListAgg::Len = agg {
+            return Some(Prop::U64(vals.len() as u64));
+        }
 
-                let out = match agg {
-                    ListAgg::Sum => sum,
-                    ListAgg::Avg => sum / (count as f64),
-                    ListAgg::Min => minv.unwrap(),
-                    ListAgg::Max => maxv.unwrap(),
-                    _ => unreachable!(),
-                };
-                Some(F64(out))
-            }
+        let inner_ty = match list_prop.dtype() {
+            PropType::List(inner) => *inner,
+            _ => unreachable!(),
+        };
+
+        match inner_ty {
+            PropType::U8 => Self::reduce_unsigned(vals, |x| Prop::U8(x as u8), agg),
+            PropType::U16 => Self::reduce_unsigned(vals, |x| Prop::U16(x as u16), agg),
+            PropType::U32 => Self::reduce_unsigned(vals, |x| Prop::U32(x as u32), agg),
+            PropType::U64 => Self::reduce_unsigned(vals, |x| Prop::U64(x), agg),
+
+            PropType::I32 => Self::reduce_signed(vals, |x| Prop::I32(x as i32), agg),
+            PropType::I64 => Self::reduce_signed(vals, |x| Prop::I64(x), agg),
+
+            PropType::F32 => Self::reduce_float(vals, |x| Prop::F32(x as f32), agg),
+            PropType::F64 => Self::reduce_float(vals, |x| Prop::F64(x), agg),
+
+            // non-numeric lists aren’t valid for agg functions
+            _ => None,
         }
     }
 
     pub fn matches(&self, other: Option<&Prop>) -> bool {
         if let Some(agg) = self.list_agg {
-            let agg_other = other.and_then(|x| Self::aggregate_list_value(x, agg));
-            println!("agg_other: {:?}", agg_other);
+            let agg_other = other.and_then(|x| self.aggregate_list_value(x, agg));
+            // println!("agg_other: {:?}", agg_other);
             self.operator
                 .apply_to_property(&self.prop_value, agg_other.as_ref())
         } else {

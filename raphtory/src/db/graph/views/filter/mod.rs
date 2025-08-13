@@ -1896,8 +1896,8 @@ pub(crate) mod test_filters {
 
         #[test]
         fn test_filter_nodes_for_property_agg() {
-            println!("sum().eq(Prop::F64(6.0)");
-            let filter = NodeFilter::property("p50").sum().eq(Prop::F64(6.0));
+            println!("sum().eq(Prop::U64(6.0)");
+            let filter = NodeFilter::property("p50").sum().eq(Prop::U64(6));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1914,12 +1914,12 @@ pub(crate) mod test_filters {
             //     TestVariants::All,
             // );
             println!();
-            println!("temporal().latest().sum().eq(Prop::F64(6.0)");
+            println!("temporal().latest().sum().eq(Prop::U64(6)");
             let filter = NodeFilter::property("p50")
                 .temporal()
                 .latest()
                 .sum()
-                .eq(Prop::F64(6.0));
+                .eq(Prop::U64(6));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1959,12 +1959,12 @@ pub(crate) mod test_filters {
                 NonDiskOnly,
             );
             println!();
-            println!("temporal().latest().min().eq(Prop::F64(1.0)");
+            println!("temporal().latest().min().eq(Prop::U64(1)");
             let filter = NodeFilter::property("p50")
                 .temporal()
                 .latest()
                 .min()
-                .eq(Prop::F64(1.0));
+                .eq(Prop::U64(1));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1974,12 +1974,12 @@ pub(crate) mod test_filters {
                 NonDiskOnly,
             );
             println!();
-            println!("temporal().latest().max().eq(Prop::F64(1.0)");
+            println!("temporal().latest().max().eq(Prop::U64(1)");
             let filter = NodeFilter::property("p50")
                 .temporal()
                 .latest()
                 .max()
-                .eq(Prop::F64(3.0));
+                .eq(Prop::U64(3));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
@@ -1989,12 +1989,12 @@ pub(crate) mod test_filters {
                 NonDiskOnly,
             );
             println!();
-            println!("temporal().latest().len().eq(Prop::I64(3)");
+            println!("temporal().latest().len().eq(Prop::U64(3)");
             let filter = NodeFilter::property("p50")
                 .temporal()
                 .latest()
                 .len()
-                .eq(Prop::I64(3));
+                .eq(Prop::U64(3));
             let expected_results = vec!["1"];
             assert_filter_nodes_results(
                 init_nodes_graph,
