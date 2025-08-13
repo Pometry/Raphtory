@@ -14,7 +14,7 @@ An annotated schema is available from the documentation tab in the left hand men
 
 ![alt text](../../assets/images/raphtory_ui_playground_docs.png)
 
-## Example Queries in GraphQL
+## Make queries in GraphQL
 
 Here are some example queries to get you started:
 
@@ -130,7 +130,7 @@ g.node("Ben").properties.get("age")
 
 ## Querying GraphQL in Python
 
-It is possible to send GraphQL queries in Python without the in-browser IDE. This can be useful if you want to update your Raphtory graph in Python. This example shows you how to do this with the Raphtory client:
+You can also send GraphQL queries in Python directl using the [`.query()`][raphtory.graphql.RaphtoryClient.query] function on a `RaphtoryClient`. The following example shows you how to do this:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
