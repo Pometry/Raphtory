@@ -1,5 +1,8 @@
 name: Nightly release (docker only)
 
+permissions:
+  contents: read
+
 on:
   schedule:
     # Run every day at 02:00 UTC (including weekends)
