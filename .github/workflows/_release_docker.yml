@@ -4,9 +4,11 @@ on:
     inputs:
       base:
         type: 'string'
+      dry_run:
+        type: boolean
+        default: false
       tag:
         type: string
-        description: The tag to use for the docker image
         required: true
       python:
         type: boolean
@@ -24,7 +26,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      # fail-fast: false
       matrix:
         platform:
           - linux/amd64
