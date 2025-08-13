@@ -128,7 +128,10 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
         dtype: PropType,
         is_static: bool,
     ) -> Result<MaybeNew<usize>, Self::Error> {
-        todo!()
+        Ok(self
+            .graph
+            .graph_meta
+            .resolve_property(prop, dtype, is_static)?)
     }
 
     fn resolve_node_property(
