@@ -14,7 +14,7 @@ An annotated schema is available from the documentation tab in the left hand men
 
 ![alt text](../../assets/images/raphtory_ui_playground_docs.png)
 
-## Make queries in GraphQL
+## Query a graph
 
 Here are some example queries to get you started:
 
@@ -34,7 +34,7 @@ query {
 ```
 ///
 
-## List of all the edges, with specific node properties
+### List of all the edges, with specific node properties
 
 To find nodes with `age`:
 
@@ -128,7 +128,7 @@ g.node("Ben").properties.get("age")
 ```
 ///
 
-## Querying GraphQL in Python
+### Querying GraphQL in Python
 
 You can also send GraphQL queries in Python directl using the [`.query()`][raphtory.graphql.RaphtoryClient.query] function on a `RaphtoryClient`. The following example shows you how to do this:
 
@@ -156,33 +156,12 @@ Pass your graph object string into the `client.query()` method to execute the Gr
 
 You can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
 
-The schema in the GraphQL IDE shows how you can mutate the graph within the IDE:
+From GraphQL these operations are available from the [Mutation root](../../../reference/graphql/graphql_API/#mutation-mutroot) which operates on mutable objects by specified by a path.
 
-```
-type MutRoot {
-  plugins: MutationPlugin!
-  deleteGraph(path: String!): Boolean!
-  newGraph(path: String!, graphType: GqlGraphType!): Boolean!
-  moveGraph(path: String!, newPath: String!): Boolean!
-  copyGraph(path: String!, newPath: String!): Boolean!
+!!! note
+    Some methods to mutate the graph are exclusive to Python.
 
-  # Use GQL multipart upload to send new graphs to server
-  #
-  # Returns::
-  # name of the new graph
-  uploadGraph(path: String!, graph: Upload!, overwrite: Boolean!): String!
-
-  # Send graph bincode as base64 encoded string
-  #
-  # Returns::
-  # path of the new graph
-  sendGraph(path: String!, graph: String!, overwrite: Boolean!): String!
-}
-```
-
-There are additional methods to mutate the graph exclusive to Python such as sending, receiving and updating a graph, these will all be explained below.
-
-## Sending a graph
+### Sending a graph
 
 You can send a graph to the server and overwrite an existing graph if needed.
 
@@ -228,7 +207,7 @@ This should return:
     }
     ```
 
-## Receiving graphs
+### Receiving graphs
 
 You can retrieve graphs from a "path" on the server which returns a Python Raphtory graph object.
 
@@ -239,7 +218,7 @@ g.edge("sally", "tony")
 ```
 ///
 
-## Creating a new graph
+### Creating a new graph
 
 This is an example of how to create a new graph in the server.
 
@@ -277,7 +256,7 @@ The returning result to confirm that a new graph has been created:
     }
     ```
 
-## Moving a graph
+### Moving a graph
 
 It is possible to move a graph to a new path on the server.
 
@@ -312,7 +291,7 @@ The returning GraphQL result to confirm that the graph has been moved:
     }
     ```
 
-## Copying a graph
+### Copying a graph
 
 It is possible to copy a graph to a new path on the server.
 
@@ -347,7 +326,7 @@ The returning GraphQL result to confirm that the graph has been copied:
     }
     ```
 
-## Deleting a graph
+### Deleting a graph
 
 It is possible to delete a graph on the server.
 
@@ -382,7 +361,7 @@ The returning GraphQL result to confirm that the graph has been deleted:
     }
     ```
 
-## Updating the graph
+### Updating the graph
 
 It is possible to update the graph using the `remote_graph()` method.
 
