@@ -118,7 +118,7 @@ polars-core = "0.42.0"
 polars-io = "0.42.0"
 bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.2"
-hashbrown = "0.15.1"
+hashbrown = { version = "0.14.5", features = ["raw"] }
 pretty_assertions = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
