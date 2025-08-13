@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             mutation::time_from_input_session,
-            properties::internal::InternalTemporalPropertiesOps,
             view::{internal::InternalMaterialize, StaticGraphViewOps},
         },
         graph::{edge::EdgeView, node::NodeView},
@@ -14,14 +13,12 @@ use crate::{
         PropertyAdditionOps,
     },
 };
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
 use raphtory_storage::mutation::{
-    addition_ops::{InternalAdditionOps, SessionAdditionOps},
-    deletion_ops::InternalDeletionOps,
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
     property_addition_ops::InternalPropertyAdditionOps,
 };
 use std::{borrow::Borrow, fmt::Debug};

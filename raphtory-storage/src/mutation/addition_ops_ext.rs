@@ -1,4 +1,3 @@
-
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
@@ -9,22 +8,16 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers,
-        nodes::node_ref::NodeRef,
-        GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
     },
-    storage::{raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry, WriteLockedNodes},
+    storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    pages::{
-        node_page::writer::{node_info_as_props},
-        session::WriteSession,
-        NODE_ID_PROP_KEY,
-    },
+    pages::{node_page::writer::node_info_as_props, session::WriteSession, NODE_ID_PROP_KEY},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, ES, NS, WalImpl
+    Extension, WalImpl, ES, NS,
 };
 
 use crate::mutation::{
@@ -203,14 +196,6 @@ impl InternalAdditionOps for TemporalGraph {
     fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
         Ok(locked_g)
-    }
-
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
-        todo!()
-    }
-
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
-        todo!()
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {

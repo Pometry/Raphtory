@@ -19,10 +19,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::{
-    entities::{nodes::node_ref::NodeRef, ELID},
-    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-};
+use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
 use storage::{Extension, WalImpl};
 
 pub trait InternalAdditionOps {
@@ -36,8 +33,7 @@ pub trait InternalAdditionOps {
         Self: 'a;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error>;
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error>;
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error>;
+
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
     /// map external node id to internal id, allocating a new empty node if needed
@@ -218,14 +214,6 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.write_lock()
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
-        self.mutable()?.write_lock_nodes()
-    }
-
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
-        self.mutable()?.write_lock_edges()
-    }
-
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         self.mutable()?.resolve_layer(layer)
     }
@@ -331,16 +319,6 @@ where
     }
 
     #[inline]
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
-        self.base().write_lock_nodes()
-    }
-
-    #[inline]
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
-        self.base().write_lock_edges()
-    }
-
-    #[inline]
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
         self.base().resolve_layer(layer)
     }
@@ -404,7 +382,8 @@ where
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
-        self.base().validate_props_with_status(is_static, meta, props)
+        self.base()
+            .validate_props_with_status(is_static, meta, props)
     }
 
     #[inline]

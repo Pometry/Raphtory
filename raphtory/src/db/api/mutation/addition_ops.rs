@@ -13,10 +13,8 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew::New};
-use raphtory_storage::mutation::addition_ops::{
-    EdgeWriteLock, InternalAdditionOps, SessionAdditionOps,
-};
+use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_storage::mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps};
 use storage::wal::{GraphWal, Wal};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {

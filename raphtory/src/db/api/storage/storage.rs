@@ -2,12 +2,11 @@ use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-        Base, IndexSpec, InheritViewOps,
+        Base, InheritViewOps,
     },
     errors::GraphError,
 };
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
-use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -18,13 +17,7 @@ use raphtory_api::core::{
     },
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
-use raphtory_core::{
-    entities::ELID,
-    storage::{
-        raw_edges::{EdgeWGuard, WriteLockedEdges},
-        EntryMut, NodeSlot, WriteLockedNodes,
-    },
-};
+use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
@@ -39,23 +32,24 @@ use raphtory_storage::{
 };
 use std::{
     fmt::{Display, Formatter},
-    ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
-use storage::{
-    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
-    Extension, WalImpl,
-};
-use tracing::info;
+use storage::{Extension, WalImpl};
 
 #[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
 
 #[cfg(feature = "search")]
 use {
-    crate::search::graph_index::{GraphIndex, MutableGraphIndex},
+    crate::{
+        db::api::view::IndexSpec,
+        search::graph_index::{GraphIndex, MutableGraphIndex},
+    },
     once_cell::sync::OnceCell,
+    parking_lot::RwLock,
+    std::ops::{Deref, DerefMut},
+    tracing::info,
 };
 
 #[derive(Debug, Default)]
@@ -442,14 +436,6 @@ impl InternalAdditionOps for Storage {
 
     fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
         Ok(self.graph.write_lock()?)
-    }
-
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes, Self::Error> {
-        Ok(self.graph.write_lock_nodes()?)
-    }
-
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges, Self::Error> {
-        Ok(self.graph.write_lock_edges()?)
     }
 
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {

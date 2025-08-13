@@ -1,22 +1,15 @@
 use crate::{
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-    mutation::MutationError,
+    graph::graph::GraphStorage,
+    mutation::{EdgeWriterT, MutationError, NodeWriterT},
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
-        entities::{
-            properties::prop::{validate_prop, Prop},
-            EID, VID,
-        },
+        entities::{properties::prop::Prop, EID, VID},
         storage::timeindex::TimeIndexEntry,
     },
     inherit::Base,
 };
-use raphtory_core::storage::{EntryMut, NodeSlot};
-use raphtory_core::storage::raw_edges::EdgeWGuard;
 use storage::Extension;
-use crate::mutation::{EdgeWriterT, NodeWriterT};
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
@@ -66,11 +59,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         todo!()
     }
 
-
-    fn internal_update_metadata(
-        &self,
-        props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         todo!()
     }
 
@@ -85,7 +74,11 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         Ok(writer)
     }
 
-    fn internal_update_node_metadata(&self, vid: VID, props: &[(usize, Prop)]) -> Result<NodeWriterT, Self::Error> {
+    fn internal_update_node_metadata(
+        &self,
+        vid: VID,
+        props: &[(usize, Prop)],
+    ) -> Result<NodeWriterT, Self::Error> {
         todo!()
     }
 

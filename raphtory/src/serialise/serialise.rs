@@ -2,7 +2,7 @@ use super::{proto_ext::PropTypeExt, GraphFolder};
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    core::entities::{graph::tgraph::TemporalGraph, LayerIds},
+    core::entities::LayerIds,
     db::{
         api::view::{MaterializedGraph, StaticGraphViewOps},
         graph::views::deletion_graph::PersistentGraph,
@@ -14,6 +14,7 @@ use crate::{
         proto_ext,
     },
 };
+use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
@@ -278,319 +279,318 @@ impl StableEncode for MaterializedGraph {
 
 impl InternalStableDecode for TemporalGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
-        let storage = Self::default();
-        graph.metas.par_iter().for_each(|meta| {
-            if let Some(meta) = meta.meta.as_ref() {
-                match meta {
-                    Meta::NewNodeType(node_type) => {
-                        storage
-                            .node_meta
-                            .node_type_meta()
-                            .set_id(node_type.name.as_str(), node_type.id as usize);
-                    }
-                    Meta::NewNodeCprop(node_cprop) => {
-                        let p_type = node_cprop.prop_type();
-                        storage.node_meta.metadata_mapper().set_id_and_dtype(
-                            node_cprop.name.as_str(),
-                            node_cprop.id as usize,
-                            p_type,
-                        )
-                    }
-                    Meta::NewNodeTprop(node_tprop) => {
-                        let p_type = node_tprop.prop_type();
-                        storage.node_meta.temporal_prop_mapper().set_id_and_dtype(
-                            node_tprop.name.as_str(),
-                            node_tprop.id as usize,
-                            p_type,
-                        )
-                    }
-                    Meta::NewGraphCprop(graph_cprop) => storage
-                        .graph_meta
-                        .metadata_mapper()
-                        .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
-                    Meta::NewGraphTprop(graph_tprop) => {
-                        let p_type = graph_tprop.prop_type();
-                        storage.graph_meta.temporal_mapper().set_id_and_dtype(
-                            graph_tprop.name.as_str(),
-                            graph_tprop.id as usize,
-                            p_type,
-                        )
-                    }
-                    Meta::NewLayer(new_layer) => storage
-                        .edge_meta
-                        .layer_meta()
-                        .set_id(new_layer.name.as_str(), new_layer.id as usize),
-                    Meta::NewEdgeCprop(edge_cprop) => {
-                        let p_type = edge_cprop.prop_type();
-                        storage.edge_meta.metadata_mapper().set_id_and_dtype(
-                            edge_cprop.name.as_str(),
-                            edge_cprop.id as usize,
-                            p_type,
-                        )
-                    }
-                    Meta::NewEdgeTprop(edge_tprop) => {
-                        let p_type = edge_tprop.prop_type();
-                        storage.edge_meta.temporal_prop_mapper().set_id_and_dtype(
-                            edge_tprop.name.as_str(),
-                            edge_tprop.id as usize,
-                            p_type,
-                        )
-                    }
-                }
-            }
-        });
-
-        let new_edge_property_types = storage
-            .write_lock_edges()?
-            .into_par_iter_mut()
-            .map(|mut shard| {
-                let mut metadata_types =
-                    vec![PropType::Empty; storage.edge_meta.metadata_mapper().len()];
-                let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.edge_meta.temporal_prop_mapper().len()];
-
-                for edge in graph.edges.iter() {
-                    if let Some(mut new_edge) = shard.get_mut(edge.eid()) {
-                        let edge_store = new_edge.edge_store_mut();
-                        edge_store.src = edge.src();
-                        edge_store.dst = edge.dst();
-                        edge_store.eid = edge.eid();
-                    }
-                }
-                for update in graph.updates.iter() {
-                    if let Some(update) = update.update.as_ref() {
-                        match update {
-                            Update::DelEdge(del_edge) => {
-                                if let Some(mut edge_mut) = shard.get_mut(del_edge.eid()) {
-                                    edge_mut
-                                        .deletions_mut(del_edge.layer_id())
-                                        .insert(del_edge.time());
-                                    storage.update_time(del_edge.time());
-                                }
-                            }
-                            Update::UpdateEdgeCprops(update) => {
-                                if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
-                                    let edge_layer = edge_mut.layer_mut(update.layer_id());
-                                    for prop_update in update.props() {
-                                        let (id, prop) = prop_update?;
-                                        let prop = storage.process_prop_value(&prop);
-                                        if let Ok(new_type) = unify_types(
-                                            &metadata_types[id],
-                                            &prop.dtype(),
-                                            &mut false,
-                                        ) {
-                                            metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
-                                        }
-                                        edge_layer.update_metadata(id, prop)?;
-                                    }
-                                }
-                            }
-                            Update::UpdateEdgeTprops(update) => {
-                                if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
-                                    edge_mut
-                                        .additions_mut(update.layer_id())
-                                        .insert(update.time());
-                                    if update.has_props() {
-                                        let edge_layer = edge_mut.layer_mut(update.layer_id());
-                                        for prop_update in update.props() {
-                                            let (id, prop) = prop_update?;
-                                            let prop = storage.process_prop_value(&prop);
-                                            if let Ok(new_type) = unify_types(
-                                                &temporal_prop_types[id],
-                                                &prop.dtype(),
-                                                &mut false,
-                                            ) {
-                                                temporal_prop_types[id] = new_type;
-                                                // the original types saved in protos are now incomplete we need to update them
-                                            }
-                                            edge_layer.add_prop(update.time(), id, prop)?;
-                                        }
-                                    }
-                                    storage.update_time(update.time())
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                Ok::<_, GraphError>((metadata_types, temporal_prop_types))
-            })
-            .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
-                unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
-            })
-            .transpose()?;
-
-        if let Some((metadata_types, temp_prop_types)) = new_edge_property_types {
-            update_meta(
-                metadata_types,
-                temp_prop_types,
-                storage.edge_meta.metadata_mapper(),
-                storage.edge_meta.temporal_prop_mapper(),
-            );
-        }
-
-        let new_nodes_property_types = storage
-            .write_lock_nodes()?
-            .into_par_iter_mut()
-            .map(|mut shard| {
-                let mut metadata_types =
-                    vec![PropType::Empty; storage.node_meta.metadata_mapper().len()];
-                let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.node_meta.temporal_prop_mapper().len()];
-
-                for node in graph.nodes.iter() {
-                    let vid = VID(node.vid as usize);
-                    let gid = match node.gid.as_ref().unwrap() {
-                        Gid::GidStr(name) => GidRef::Str(name),
-                        Gid::GidU64(gid) => GidRef::U64(*gid),
-                    };
-                    if let Some(mut node_store) = shard.set(vid, gid) {
-                        storage.logical_to_physical.set(gid, vid)?;
-                        node_store.node_store_mut().node_type = node.type_id as usize;
-                    }
-                }
-                let edges = storage.storage.edges.read_lock();
-                for edge in edges.iter() {
-                    if let Some(src) = shard.get_mut(edge.src()) {
-                        for layer in edge.layer_ids_iter(&LayerIds::All) {
-                            src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
-                            for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid().with_layer(layer));
-                            }
-                            for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid().with_layer_deletion(layer));
-                            }
-                        }
-                    }
-                    if let Some(dst) = shard.get_mut(edge.dst()) {
-                        for layer in edge.layer_ids_iter(&LayerIds::All) {
-                            dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
-                            for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid().with_layer(layer));
-                            }
-                            for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
-                            }
-                        }
-                    }
-                }
-                for update in graph.updates.iter() {
-                    if let Some(update) = update.update.as_ref() {
-                        match update {
-                            Update::UpdateNodeCprops(update) => {
-                                if let Some(node) = shard.get_mut(update.vid()) {
-                                    for prop_update in update.props() {
-                                        let (id, prop) = prop_update?;
-                                        let prop = storage.process_prop_value(&prop);
-                                        if let Ok(new_type) = unify_types(
-                                            &metadata_types[id],
-                                            &prop.dtype(),
-                                            &mut false,
-                                        ) {
-                                            metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
-                                        }
-                                        node.update_metadata(id, prop)?;
-                                    }
-                                }
-                            }
-                            Update::UpdateNodeTprops(update) => {
-                                if let Some(mut node) = shard.get_mut_entry(update.vid()) {
-                                    let mut props = vec![];
-                                    for prop_update in update.props() {
-                                        let (id, prop) = prop_update?;
-                                        let prop = storage.process_prop_value(&prop);
-                                        if let Ok(new_type) = unify_types(
-                                            &temporal_prop_types[id],
-                                            &prop.dtype(),
-                                            &mut false,
-                                        ) {
-                                            temporal_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
-                                        }
-                                        props.push((id, prop));
-                                    }
-
-                                    if props.is_empty() {
-                                        node.node_store_mut()
-                                            .update_t_prop_time(update.time(), None);
-                                    } else {
-                                        let prop_offset = node.t_props_log_mut().push(props)?;
-                                        node.node_store_mut()
-                                            .update_t_prop_time(update.time(), prop_offset);
-                                    }
-
-                                    storage.update_time(update.time())
-                                }
-                            }
-                            Update::UpdateNodeType(update) => {
-                                if let Some(node) = shard.get_mut(update.vid()) {
-                                    node.node_type = update.type_id();
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                Ok::<_, GraphError>((metadata_types, temporal_prop_types))
-            })
-            .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
-                unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
-            })
-            .transpose()?;
-
-        if let Some((metadata_types, temp_prop_types)) = new_nodes_property_types {
-            update_meta(
-                metadata_types,
-                temp_prop_types,
-                storage.node_meta.metadata_mapper(),
-                storage.node_meta.temporal_prop_mapper(),
-            );
-        }
-
-        let graph_prop_new_types = graph
-            .updates
-            .par_iter()
-            .map(|update| {
-                let mut metadata_types =
-                    vec![PropType::Empty; storage.graph_meta.metadata_mapper().len()];
-                let mut graph_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
-
-                if let Some(update) = update.update.as_ref() {
-                    match update {
-                        Update::UpdateGraphCprops(props) => {
-                            let c_props = proto_ext::collect_props(&props.properties)?;
-                            for (id, prop) in &c_props {
-                                metadata_types[*id] = prop.dtype();
-                            }
-                            storage.internal_update_metadata(&c_props)?;
-                        }
-                        Update::UpdateGraphTprops(props) => {
-                            let time = TimeIndexEntry(props.time, props.secondary as usize);
-                            let t_props = proto_ext::collect_props(&props.properties)?;
-                            for (id, prop) in &t_props {
-                                graph_prop_types[*id] = prop.dtype();
-                            }
-                            storage.internal_add_properties(time, &t_props)?;
-                        }
-                        _ => {}
-                    }
-                }
-                Ok::<_, GraphError>((metadata_types, graph_prop_types))
-            })
-            .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
-                unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
-            })
-            .transpose()?;
-
-        if let Some((metadata_types, temp_prop_types)) = graph_prop_new_types {
-            update_meta(
-                metadata_types,
-                temp_prop_types,
-                &PropMapper::default(),
-                storage.graph_meta.temporal_mapper(),
-            );
-        }
-        Ok(storage)
+        // let storage = Self::default();
+        // graph.metas.par_iter().for_each(|meta| {
+        //     if let Some(meta) = meta.meta.as_ref() {
+        //         match meta {
+        //             Meta::NewNodeType(node_type) => {
+        //                 storage.node_meta()
+        //                     .node_type_meta()
+        //                     .set_id(node_type.name.as_str(), node_type.id as usize);
+        //             }
+        //             Meta::NewNodeCprop(node_cprop) => {
+        //                 let p_type = node_cprop.prop_type();
+        //                 storage.node_meta().metadata_mapper().set_id_and_dtype(
+        //                     node_cprop.name.as_str(),
+        //                     node_cprop.id as usize,
+        //                     p_type,
+        //                 )
+        //             }
+        //             Meta::NewNodeTprop(node_tprop) => {
+        //                 let p_type = node_tprop.prop_type();
+        //                 storage.node_meta().temporal_prop_mapper().set_id_and_dtype(
+        //                     node_tprop.name.as_str(),
+        //                     node_tprop.id as usize,
+        //                     p_type,
+        //                 )
+        //             }
+        //             Meta::NewGraphCprop(graph_cprop) => storage
+        //                 .graph_meta
+        //                 .metadata_mapper()
+        //                 .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
+        //             Meta::NewGraphTprop(graph_tprop) => {
+        //                 let p_type = graph_tprop.prop_type();
+        //                 storage.graph_meta.temporal_mapper().set_id_and_dtype(
+        //                     graph_tprop.name.as_str(),
+        //                     graph_tprop.id as usize,
+        //                     p_type,
+        //                 )
+        //             }
+        //             Meta::NewLayer(new_layer) => storage.edge_meta()
+        //                 .layer_meta()
+        //                 .set_id(new_layer.name.as_str(), new_layer.id as usize),
+        //             Meta::NewEdgeCprop(edge_cprop) => {
+        //                 let p_type = edge_cprop.prop_type();
+        //                 storage.edge_meta().metadata_mapper().set_id_and_dtype(
+        //                     edge_cprop.name.as_str(),
+        //                     edge_cprop.id as usize,
+        //                     p_type,
+        //                 )
+        //             }
+        //             Meta::NewEdgeTprop(edge_tprop) => {
+        //                 let p_type = edge_tprop.prop_type();
+        //                 storage.edge_meta().temporal_prop_mapper().set_id_and_dtype(
+        //                     edge_tprop.name.as_str(),
+        //                     edge_tprop.id as usize,
+        //                     p_type,
+        //                 )
+        //             }
+        //         }
+        //     }
+        // });
+        //
+        // let new_edge_property_types = storage
+        //     .write_lock_edges()?
+        //     .into_par_iter_mut()
+        //     .map(|mut shard| {
+        //         let mut metadata_types =
+        //             vec![PropType::Empty; storage.edge_meta.metadata_mapper().len()];
+        //         let mut temporal_prop_types =
+        //             vec![PropType::Empty; storage.edge_meta.temporal_prop_mapper().len()];
+        //
+        //         for edge in graph.edges.iter() {
+        //             if let Some(mut new_edge) = shard.get_mut(edge.eid()) {
+        //                 let edge_store = new_edge.edge_store_mut();
+        //                 edge_store.src = edge.src();
+        //                 edge_store.dst = edge.dst();
+        //                 edge_store.eid = edge.eid();
+        //             }
+        //         }
+        //         for update in graph.updates.iter() {
+        //             if let Some(update) = update.update.as_ref() {
+        //                 match update {
+        //                     Update::DelEdge(del_edge) => {
+        //                         if let Some(mut edge_mut) = shard.get_mut(del_edge.eid()) {
+        //                             edge_mut
+        //                                 .deletions_mut(del_edge.layer_id())
+        //                                 .insert(del_edge.time());
+        //                             storage.update_time(del_edge.time());
+        //                         }
+        //                     }
+        //                     Update::UpdateEdgeCprops(update) => {
+        //                         if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
+        //                             let edge_layer = edge_mut.layer_mut(update.layer_id());
+        //                             for prop_update in update.props() {
+        //                                 let (id, prop) = prop_update?;
+        //                                 let prop = storage.process_prop_value(&prop);
+        //                                 if let Ok(new_type) = unify_types(
+        //                                     &metadata_types[id],
+        //                                     &prop.dtype(),
+        //                                     &mut false,
+        //                                 ) {
+        //                                     metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
+        //                                 }
+        //                                 edge_layer.update_metadata(id, prop)?;
+        //                             }
+        //                         }
+        //                     }
+        //                     Update::UpdateEdgeTprops(update) => {
+        //                         if let Some(mut edge_mut) = shard.get_mut(update.eid()) {
+        //                             edge_mut
+        //                                 .additions_mut(update.layer_id())
+        //                                 .insert(update.time());
+        //                             if update.has_props() {
+        //                                 let edge_layer = edge_mut.layer_mut(update.layer_id());
+        //                                 for prop_update in update.props() {
+        //                                     let (id, prop) = prop_update?;
+        //                                     let prop = storage.process_prop_value(&prop);
+        //                                     if let Ok(new_type) = unify_types(
+        //                                         &temporal_prop_types[id],
+        //                                         &prop.dtype(),
+        //                                         &mut false,
+        //                                     ) {
+        //                                         temporal_prop_types[id] = new_type;
+        //                                         // the original types saved in protos are now incomplete we need to update them
+        //                                     }
+        //                                     edge_layer.add_prop(update.time(), id, prop)?;
+        //                                 }
+        //                             }
+        //                             storage.update_time(update.time())
+        //                         }
+        //                     }
+        //                     _ => {}
+        //                 }
+        //             }
+        //         }
+        //         Ok::<_, GraphError>((metadata_types, temporal_prop_types))
+        //     })
+        //     .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
+        //         unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
+        //     })
+        //     .transpose()?;
+        //
+        // if let Some((metadata_types, temp_prop_types)) = new_edge_property_types {
+        //     update_meta(
+        //         metadata_types,
+        //         temp_prop_types,
+        //         storage.edge_meta.metadata_mapper(),
+        //         storage.edge_meta.temporal_prop_mapper(),
+        //     );
+        // }
+        //
+        // let new_nodes_property_types = storage
+        //     .write_lock_nodes()?
+        //     .into_par_iter_mut()
+        //     .map(|mut shard| {
+        //         let mut metadata_types =
+        //             vec![PropType::Empty; storage.node_meta.metadata_mapper().len()];
+        //         let mut temporal_prop_types =
+        //             vec![PropType::Empty; storage.node_meta.temporal_prop_mapper().len()];
+        //
+        //         for node in graph.nodes.iter() {
+        //             let vid = VID(node.vid as usize);
+        //             let gid = match node.gid.as_ref().unwrap() {
+        //                 Gid::GidStr(name) => GidRef::Str(name),
+        //                 Gid::GidU64(gid) => GidRef::U64(*gid),
+        //             };
+        //             if let Some(mut node_store) = shard.set(vid, gid) {
+        //                 storage.logical_to_physical.set(gid, vid)?;
+        //                 node_store.node_store_mut().node_type = node.type_id as usize;
+        //             }
+        //         }
+        //         let edges = storage.storage.edges.read_lock();
+        //         for edge in edges.iter() {
+        //             if let Some(src) = shard.get_mut(edge.src()) {
+        //                 for layer in edge.layer_ids_iter(&LayerIds::All) {
+        //                     src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
+        //                     for t in edge.additions(layer).iter() {
+        //                         src.update_time(t, edge.eid().with_layer(layer));
+        //                     }
+        //                     for t in edge.deletions(layer).iter() {
+        //                         src.update_time(t, edge.eid().with_layer_deletion(layer));
+        //                     }
+        //                 }
+        //             }
+        //             if let Some(dst) = shard.get_mut(edge.dst()) {
+        //                 for layer in edge.layer_ids_iter(&LayerIds::All) {
+        //                     dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
+        //                     for t in edge.additions(layer).iter() {
+        //                         dst.update_time(t, edge.eid().with_layer(layer));
+        //                     }
+        //                     for t in edge.deletions(layer).iter() {
+        //                         dst.update_time(t, edge.eid().with_layer_deletion(layer));
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //         for update in graph.updates.iter() {
+        //             if let Some(update) = update.update.as_ref() {
+        //                 match update {
+        //                     Update::UpdateNodeCprops(update) => {
+        //                         if let Some(node) = shard.get_mut(update.vid()) {
+        //                             for prop_update in update.props() {
+        //                                 let (id, prop) = prop_update?;
+        //                                 let prop = storage.process_prop_value(&prop);
+        //                                 if let Ok(new_type) = unify_types(
+        //                                     &metadata_types[id],
+        //                                     &prop.dtype(),
+        //                                     &mut false,
+        //                                 ) {
+        //                                     metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
+        //                                 }
+        //                                 node.update_metadata(id, prop)?;
+        //                             }
+        //                         }
+        //                     }
+        //                     Update::UpdateNodeTprops(update) => {
+        //                         if let Some(mut node) = shard.get_mut_entry(update.vid()) {
+        //                             let mut props = vec![];
+        //                             for prop_update in update.props() {
+        //                                 let (id, prop) = prop_update?;
+        //                                 let prop = storage.process_prop_value(&prop);
+        //                                 if let Ok(new_type) = unify_types(
+        //                                     &temporal_prop_types[id],
+        //                                     &prop.dtype(),
+        //                                     &mut false,
+        //                                 ) {
+        //                                     temporal_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
+        //                                 }
+        //                                 props.push((id, prop));
+        //                             }
+        //
+        //                             if props.is_empty() {
+        //                                 node.node_store_mut()
+        //                                     .update_t_prop_time(update.time(), None);
+        //                             } else {
+        //                                 let prop_offset = node.t_props_log_mut().push(props)?;
+        //                                 node.node_store_mut()
+        //                                     .update_t_prop_time(update.time(), prop_offset);
+        //                             }
+        //
+        //                             storage.update_time(update.time())
+        //                         }
+        //                     }
+        //                     Update::UpdateNodeType(update) => {
+        //                         if let Some(node) = shard.get_mut(update.vid()) {
+        //                             node.node_type = update.type_id();
+        //                         }
+        //                     }
+        //                     _ => {}
+        //                 }
+        //             }
+        //         }
+        //         Ok::<_, GraphError>((metadata_types, temporal_prop_types))
+        //     })
+        //     .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
+        //         unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
+        //     })
+        //     .transpose()?;
+        //
+        // if let Some((metadata_types, temp_prop_types)) = new_nodes_property_types {
+        //     update_meta(
+        //         metadata_types,
+        //         temp_prop_types,
+        //         storage.node_meta.metadata_mapper(),
+        //         storage.node_meta.temporal_prop_mapper(),
+        //     );
+        // }
+        //
+        // let graph_prop_new_types = graph
+        //     .updates
+        //     .par_iter()
+        //     .map(|update| {
+        //         let mut metadata_types =
+        //             vec![PropType::Empty; storage.graph_meta.metadata_mapper().len()];
+        //         let mut graph_prop_types =
+        //             vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
+        //
+        //         if let Some(update) = update.update.as_ref() {
+        //             match update {
+        //                 Update::UpdateGraphCprops(props) => {
+        //                     let c_props = proto_ext::collect_props(&props.properties)?;
+        //                     for (id, prop) in &c_props {
+        //                         metadata_types[*id] = prop.dtype();
+        //                     }
+        //                     storage.internal_update_metadata(&c_props)?;
+        //                 }
+        //                 Update::UpdateGraphTprops(props) => {
+        //                     let time = TimeIndexEntry(props.time, props.secondary as usize);
+        //                     let t_props = proto_ext::collect_props(&props.properties)?;
+        //                     for (id, prop) in &t_props {
+        //                         graph_prop_types[*id] = prop.dtype();
+        //                     }
+        //                     storage.internal_add_properties(time, &t_props)?;
+        //                 }
+        //                 _ => {}
+        //             }
+        //         }
+        //         Ok::<_, GraphError>((metadata_types, graph_prop_types))
+        //     })
+        //     .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
+        //         unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
+        //     })
+        //     .transpose()?;
+        //
+        // if let Some((metadata_types, temp_prop_types)) = graph_prop_new_types {
+        //     update_meta(
+        //         metadata_types,
+        //         temp_prop_types,
+        //         &PropMapper::default(),
+        //         storage.graph_meta.temporal_mapper(),
+        //     );
+        // }
+        // Ok(storage)
+        todo!("fix this")
     }
 }
 

@@ -1,7 +1,3 @@
-use crate::{
-    entities::nodes::node_store::NodeStore,
-    storage::{NodeSlot, UninitialisedEntry},
-};
 use dashmap::{mapref::entry::Entry, RwLockWriteGuard, SharedValue};
 use either::Either;
 use hashbrown::raw::RawTable;
@@ -277,27 +273,6 @@ impl Mapping {
         Ok(vid)
     }
 
-    pub fn get_or_init_node<'a>(
-        &self,
-        gid: GidRef,
-        f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-    ) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        let map = self.map.get_or_init(|| match &gid {
-            GidRef::U64(_) => Map::U64(FxDashMap::default()),
-            GidRef::Str(_) => Map::Str(FxDashMap::default()),
-        });
-        match gid {
-            GidRef::U64(id) => map
-                .as_u64()
-                .map(|m| get_or_new(m, id, f_init))
-                .ok_or(InvalidNodeId::InvalidNodeIdU64(id)),
-            GidRef::Str(id) => map
-                .as_str()
-                .map(|m| optim_get_or_insert(m, id, f_init))
-                .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into())),
-        }
-    }
-
     pub fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
@@ -350,43 +325,6 @@ impl Mapping {
             .and_then(|map| map.as_u64())
             .into_iter()
             .flat_map(|m| m.iter().map(|entry| (*entry.key(), *(entry.value()))))
-    }
-}
-
-#[inline]
-fn optim_get_or_insert<'a>(
-    m: &FxDashMap<String, VID>,
-    id: &str,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-) -> MaybeNew<VID> {
-    m.get(id)
-        .map(|vid| MaybeNew::Existing(*vid))
-        .unwrap_or_else(|| get_or_new(m, id.to_owned(), f_init))
-}
-
-#[inline]
-fn get_or_new<'a, K: Eq + Hash>(
-    m: &FxDashMap<K, VID>,
-    id: K,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-) -> MaybeNew<VID> {
-    let entry = match m.entry(id) {
-        Entry::Occupied(entry) => Either::Left(*entry.get()),
-        Entry::Vacant(entry) => {
-            // This keeps the underlying storage shard locked for deferred initialisation but
-            // allows unlocking the map again.
-            let node = f_init();
-            entry.insert(node.value().vid);
-            Either::Right(node)
-        }
-    };
-    match entry {
-        Either::Left(vid) => MaybeNew::Existing(vid),
-        Either::Right(node_entry) => {
-            let vid = node_entry.value().vid;
-            node_entry.init();
-            MaybeNew::New(vid)
-        }
     }
 }
 
