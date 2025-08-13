@@ -162,7 +162,7 @@ impl DocumentTemplate {
 }
 
 fn truncate(text: &mut String) {
-    let limit = text.char_indices().nth(1000);
+    let limit = text.char_indices().nth(10000);
     if let Some((index, _)) = limit {
         text.truncate(index);
     }

@@ -12,6 +12,16 @@ on:
         default: false
 
 jobs:
+  read-raphtory-version:
+    runs-on: ubuntu-latest
+    outputs:
+        version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
+      - id: version
+        run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT
   call-release-rust-workflow:
     name: _Release 2 - Publish Rust package to crates.io
     uses: ./.github/workflows/_release_rust.yml
@@ -34,17 +44,21 @@ jobs:
     secrets: inherit
   call-release-docker-workflow-rust:
     name: Release rust docker image
+    needs: read-raphtory-version
     uses: ./.github/workflows/_release_docker.yml
     with:
       base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      tag: ${{ needs.read-raphtory-version.outputs.version }},latest
       dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
       python: false
     secrets: inherit
   call-release-docker-workflow-python:
     name: Release python docker image
+    needs: read-raphtory-version
     uses: ./.github/workflows/_release_docker.yml
     with:
       base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      tag: ${{ needs.read-raphtory-version.outputs.version }}-python,latest-python
       dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
       python: true
     secrets: inherit

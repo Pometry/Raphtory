@@ -6,23 +6,29 @@ on:
         description: 'Name of branch to open PR against'
         type: 'string'
         default: 'master'
+      tag:
+        type: string
+        description: The tag to use for the docker image (Note that the python version will have the '-python' suffix)
+        required: true
       dry_run:
         description: 'DRY RUN: If true, will not publish the release to PyPI/crates/Docker Hub but will release to GitHub'
         type: boolean
         default: false
 
 jobs:
-  release-rust:
+  release-rust-docker:
     name: Release rust docker image
     uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
     with:
       base: ${{ inputs.base }}
+      tag: ${{ inputs.tag }}
       python: false
-  release-python:
+  release-python-docker:
     name: Release python docker image
     uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
     with:
       base: ${{ inputs.base }}
+      tag: ${{ inputs.tag }}-python
       python: true
