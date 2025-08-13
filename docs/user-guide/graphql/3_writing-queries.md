@@ -67,7 +67,7 @@ query {
 ```
 ///
 
-This will return something like this:
+This will return something like:
 
 !!! Output
 
@@ -127,6 +127,160 @@ query {
 g.node("Ben").properties.get("age")
 ```
 ///
+
+### Examine the metadata of a node
+
+Metadata does not change over the lifetime of an object. You can request it with a query like the following:
+
+
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+{
+  graph(path: "traffic_graph") {
+    nodes {
+      list {
+        name
+        metadata {
+          values {
+            key
+            value
+          }
+        }
+      }
+    }
+  }
+}
+```
+///
+
+Which will return something like:
+
+!!! Output
+    ```json
+    {
+    "data": {
+        "graph": {
+        "nodes": {
+            "list": [
+            {
+                "name": "ServerA",
+                "metadata": {
+                "values": [
+                    {
+                    "key": "datasource",
+                    "value": "network_traffic_edges.csv"
+                    },
+                    {
+                    "key": "server_name",
+                    "value": "Alpha"
+                    },
+                    {
+                    "key": "hardware_type",
+                    "value": "Blade Server"
+                    }
+                ]
+                }
+            },
+            {
+                "name": "ServerB",
+                "metadata": {
+                "values": [
+                    {
+                    "key": "datasource",
+                    "value": "network_traffic_edges.csv"
+                    },
+                    {
+                    "key": "server_name",
+                    "value": "Beta"
+                    },
+                    {
+                    "key": "hardware_type",
+                    "value": "Rack Server"
+                    }
+                ]
+                }
+            }
+            ]
+        }
+        }
+    }
+    }
+    ```
+
+### Examine the properties of a node
+
+Properties can change over time so it is often useful to make a query for a specific time or window.
+
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+{
+  graph(path: "traffic_graph") {
+    at(time: 1693555500000) {
+      nodes {
+        list {
+          name
+          properties {
+            values {
+              key
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+///
+
+Which will return something like:
+
+!!! Output
+    ```json
+    {
+    "data": {
+        "graph": {
+        "at": {
+            "nodes": {
+            "list": [
+                {
+                "name": "ServerA",
+                "properties": {
+                    "values": []
+                }
+                },
+                {
+                "name": "ServerB",
+                "properties": {
+                    "values": [
+                    {
+                        "key": "OS_version",
+                        "value": "Red Hat 8.1"
+                    },
+                    {
+                        "key": "primary_function",
+                        "value": "Web Server"
+                    },
+                    {
+                        "key": "uptime_days",
+                        "value": 45
+                    }
+                    ]
+                }
+                },
+                {
+                "name": "ServerC",
+                "properties": {
+                    "values": []
+                }
+                }
+            ]
+            }
+        }
+        }
+    }
+    }
+    ```
 
 ### Querying GraphQL in Python
 
