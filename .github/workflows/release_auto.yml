@@ -7,7 +7,7 @@ on:
         type: 'string'
         default: 'master'
       dry_run:
-        description: 'DRY RUN: If true will not publish the release to pypi/crates but will release to github'
+        description: 'DRY RUN: If true will not publish the release to pypi/crates/dockerhub but will release to github'
         type: boolean
         default: false
 
@@ -47,9 +47,9 @@ jobs:
     needs: read-raphtory-version
     uses: ./.github/workflows/_release_docker.yml
     with:
-      base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
       tag: ${{ needs.read-raphtory-version.outputs.version }},latest
-      dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
       python: false
     secrets: inherit
   call-release-docker-workflow-python:
@@ -57,8 +57,8 @@ jobs:
     needs: read-raphtory-version
     uses: ./.github/workflows/_release_docker.yml
     with:
-      base: ${{ inputs.base }} # TODO: read this from inside the action or delete it
+      base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
       tag: ${{ needs.read-raphtory-version.outputs.version }}-python,latest-python
-      dry_run: ${{ inputs.dry_run == true }} # TODO: read this from inside the action or simply skip at this level
       python: true
     secrets: inherit

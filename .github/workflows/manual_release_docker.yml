@@ -26,6 +26,7 @@ jobs:
     secrets: inherit
     with:
       base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
       tag: ${{ inputs.tag }}
       python: false
   release-python-docker:
@@ -34,5 +35,6 @@ jobs:
     secrets: inherit
     with:
       base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
       tag: ${{ inputs.tag }}-python
       python: true
