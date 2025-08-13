@@ -1,7 +1,7 @@
 use crate::rayon::blocking_compute;
 use raphtory::{
     errors::{GraphError, InvalidPathReason},
-    serialise::{metadata::GraphMetadata, GraphFolder},
+    serialise::{metadata::GraphMetadata, GraphFolder, META_FILE_NAME},
 };
 use std::{
     fs,
@@ -119,12 +119,12 @@ pub(crate) fn valid_path(
             }
             Component::Normal(component) => {
                 // check if some intermediate path is already a graph
-                if full_path.join(".raph").exists() {
+                if full_path.join(META_FILE_NAME).exists() {
                     return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 full_path.push(component);
                 //check if the path with the component is a graph
-                if namespace && full_path.join(".raph").exists() {
+                if namespace && full_path.join(META_FILE_NAME).exists() {
                     return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 //check for symlinks
