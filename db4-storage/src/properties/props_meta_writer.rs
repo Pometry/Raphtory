@@ -1,9 +1,11 @@
 use either::Either;
-use raphtory_api::core::entities::properties::{
-    meta::{LockedPropMapper, Meta, PropMapper},
-    prop::{Prop, unify_types},
+use raphtory_api::core::{
+    entities::properties::{
+        meta::{LockedPropMapper, Meta, PropMapper},
+        prop::{Prop, unify_types},
+    },
+    storage::dict_mapper::MaybeNew,
 };
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
 
 use crate::error::StorageError;
 

@@ -15,10 +15,7 @@ use raphtory_api::{
     inherit::Base,
     iter::{BoxedIter, BoxedLIter},
 };
-use raphtory_core::entities::{
-    nodes::node_ref::NodeRef,
-    properties::graph_meta::GraphMeta,
-};
+use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{iter, sync::Arc};
 use storage::resolver::GIDResolverOps;
 

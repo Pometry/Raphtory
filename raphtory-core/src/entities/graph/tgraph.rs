@@ -1,12 +1,6 @@
-use raphtory_api::core::{
-    entities::MAX_LAYER
-    ,
-    storage::arc_str::ArcStr
-    ,
-};
-use std::{fmt::Debug};
+use raphtory_api::core::{entities::MAX_LAYER, storage::arc_str::ArcStr};
+use std::fmt::Debug;
 use thiserror::Error;
-
 
 #[derive(Error, Debug)]
 #[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]

@@ -6,10 +6,9 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 
-use crate::wal::no_wal::NoWal;
 use crate::{
     error::StorageError,
-    wal::{GraphReplayer, GraphWal, LSN, TransactionID},
+    wal::{GraphReplayer, GraphWal, LSN, TransactionID, no_wal::NoWal},
 };
 
 impl GraphWal for NoWal {
@@ -95,7 +94,9 @@ impl GraphWal for NoWal {
         Ok(0)
     }
 
-    fn replay_iter(_dir: impl AsRef<Path>) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
+    fn replay_iter(
+        _dir: impl AsRef<Path>,
+    ) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
         std::iter::once(Ok((0, ())))
     }
 

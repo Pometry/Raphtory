@@ -1,9 +1,9 @@
 use raphtory_api::{
     core::{entities::properties::prop::Prop, storage::timeindex::TimeIndexEntry},
     inherit::Base,
+    iter::BoxedLIter,
 };
 use std::ops::Range;
-use raphtory_api::iter::BoxedLIter;
 
 mod base_time_semantics;
 mod event_semantics;

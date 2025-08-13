@@ -57,10 +57,7 @@ impl<
         Ok(())
     }
 
-    fn update_metadata<PI: CollectProperties>(
-        &self,
-        props: PI,
-    ) -> Result<(), GraphError> {
+    fn update_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         let properties: Vec<_> = props.collect_properties(|name, dtype| {
             Ok(session

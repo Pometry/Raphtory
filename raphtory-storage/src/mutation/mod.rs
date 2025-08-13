@@ -6,6 +6,7 @@ use crate::{
         property_addition_ops::InheritPropertyAdditionOps,
     },
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
@@ -18,13 +19,14 @@ use raphtory_core::entities::{
     },
 };
 use std::sync::Arc;
-use parking_lot::RwLockWriteGuard;
-use storage::{error::StorageError, resolver::GIDResolverError, Extension, ES, NS};
+use storage::{
+    error::StorageError,
+    pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
+    resolver::GIDResolverError,
+    segments::{edge::MemEdgeSegment, node::MemNodeSegment},
+    Extension, ES, NS,
+};
 use thiserror::Error;
-use storage::pages::edge_page::writer::EdgeWriter;
-use storage::pages::node_page::writer::NodeWriter;
-use storage::segments::edge::MemEdgeSegment;
-use storage::segments::node::MemNodeSegment;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;

@@ -371,20 +371,54 @@ mod test {
     use crate::prelude::*;
 
     const EDGES: [(i64, u64, u64); 6] = [
-        (1, 0, 1), (2, 0, 2), (-1, 1, 0), (0, 0, 0), (7, 2, 1), (1, 0, 0)
+        (1, 0, 1),
+        (2, 0, 2),
+        (-1, 1, 0),
+        (0, 0, 0),
+        (7, 2, 1),
+        (1, 0, 0),
     ];
 
     fn create_graph() -> Graph {
         let g = Graph::new();
 
-        g.add_node(0, 0, [("type", Prop::from("wallet")), ("cost", Prop::from(99.5))], None).unwrap();
-        g.add_node(-1, 1, [("type", Prop::from("wallet")), ("cost", Prop::from(10.0))], None).unwrap();
-        g.add_node(6, 2, [("type", Prop::from("wallet")), ("cost", Prop::from(76.0))], None).unwrap();
+        g.add_node(
+            0,
+            0,
+            [("type", Prop::from("wallet")), ("cost", Prop::from(99.5))],
+            None,
+        )
+        .unwrap();
+        g.add_node(
+            -1,
+            1,
+            [("type", Prop::from("wallet")), ("cost", Prop::from(10.0))],
+            None,
+        )
+        .unwrap();
+        g.add_node(
+            6,
+            2,
+            [("type", Prop::from("wallet")), ("cost", Prop::from(76.0))],
+            None,
+        )
+        .unwrap();
 
         for edge in EDGES {
             let (t, src, dst) = edge;
 
-            g.add_edge(t, src, dst, [("prop1", Prop::from(1)), ("prop2", Prop::from(9.8)), ("prop3", Prop::from("test"))], None).unwrap();
+            g.add_edge(
+                t,
+                src,
+                dst,
+                [
+                    ("prop1", Prop::from(1)),
+                    ("prop2", Prop::from(9.8)),
+                    ("prop3", Prop::from("test")),
+                ],
+                None,
+            )
+            .unwrap();
         }
 
         g

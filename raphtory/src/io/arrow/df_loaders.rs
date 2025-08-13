@@ -92,12 +92,11 @@ pub(crate) fn load_nodes_from_df<
     let time_index = df_view.get_index(time)?;
 
     let session = graph.write_session().map_err(into_graph_err)?;
-    let shared_metadata =
-        process_shared_properties(shared_metadata, |key, dtype| {
-            session
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        session
+            .resolve_node_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
@@ -117,16 +116,11 @@ pub(crate) fn load_nodes_from_df<
                 .resolve_node_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let metadata_cols = combine_properties(
-            metadata,
-            &metadata_indices,
-            &df,
-            |key, dtype| {
-                session
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            session
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
 
         let time_col = df.time_col(time_index)?;
@@ -233,12 +227,11 @@ pub(crate) fn load_edges_from_df<
         None
     };
     let session = graph.write_session().map_err(into_graph_err)?;
-    let shared_metadata =
-        process_shared_properties(shared_metadata, |key, dtype| {
-            session
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        session
+            .resolve_edge_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
     let _ = pb.update(0);
@@ -289,16 +282,11 @@ pub(crate) fn load_edges_from_df<
                 .resolve_edge_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let metadata_cols = combine_properties(
-            metadata,
-            &metadata_indices,
-            &df,
-            |key, dtype| {
-                session
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            session
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
 
         src_col_resolved.resize_with(df.len(), Default::default);
         dst_col_resolved.resize_with(df.len(), Default::default);
@@ -647,12 +635,11 @@ pub(crate) fn load_node_props_from_df<
     let node_id_index = df_view.get_index(node_id)?;
     let session = graph.write_session().map_err(into_graph_err)?;
 
-    let shared_metadata =
-        process_shared_properties(shared_metadata, |key, dtype| {
-            session
-                .resolve_node_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        session
+            .resolve_node_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
@@ -664,16 +651,11 @@ pub(crate) fn load_node_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let metadata_cols = combine_properties(
-            metadata,
-            &metadata_indices,
-            &df,
-            |key, dtype| {
-                session
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            session
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_id_index)?;
 
@@ -755,12 +737,11 @@ pub(crate) fn load_edges_props_from_df<
         None
     };
     let session = graph.write_session().map_err(into_graph_err)?;
-    let shared_metadata =
-        process_shared_properties(shared_metadata, |key, dtype| {
-            session
-                .resolve_edge_property(key, dtype, true)
-                .map_err(into_graph_err)
-        })?;
+    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+        session
+            .resolve_edge_property(key, dtype, true)
+            .map_err(into_graph_err)
+    })?;
 
     #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edge properties".to_string(), df_view.num_rows)?;
@@ -777,16 +758,11 @@ pub(crate) fn load_edges_props_from_df<
 
     for chunk in df_view.chunks {
         let df = chunk?;
-        let metadata_cols = combine_properties(
-            metadata,
-            &metadata_indices,
-            &df,
-            |key, dtype| {
-                session
-                    .resolve_edge_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            session
+                .resolve_edge_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
 
@@ -917,16 +893,11 @@ pub(crate) fn load_graph_props_from_df<
                 .resolve_graph_property(key, dtype, false)
                 .map_err(into_graph_err)
         })?;
-        let metadata_cols = combine_properties(
-            metadata,
-            &metadata_indices,
-            &df,
-            |key, dtype| {
-                session
-                    .resolve_graph_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            },
-        )?;
+        let metadata_cols = combine_properties(metadata, &metadata_indices, &df, |key, dtype| {
+            session
+                .resolve_graph_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
         let time_col = df.time_col(time_index)?;
 
         time_col

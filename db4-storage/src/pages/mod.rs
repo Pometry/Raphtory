@@ -264,7 +264,10 @@ impl<
         Ok(elid)
     }
 
-    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<TimeIndexEntry, StorageError> {
+    fn as_time_index_entry<T: TryIntoInputTime>(
+        &self,
+        t: T,
+    ) -> Result<TimeIndexEntry, StorageError> {
         let input_time = t.try_into_input_time()?;
         let t = match input_time {
             InputTime::Indexed(t, i) => TimeIndexEntry::new(t, i),
@@ -388,7 +391,10 @@ impl<
     }
 }
 
-fn write_graph_meta(graph_dir: impl AsRef<Path>, graph_meta: GraphMeta) -> Result<(), StorageError> {
+fn write_graph_meta(
+    graph_dir: impl AsRef<Path>,
+    graph_meta: GraphMeta,
+) -> Result<(), StorageError> {
     let meta_file = graph_dir.as_ref().join("graph_meta.json");
     let meta_file = std::fs::File::create(meta_file).unwrap();
     serde_json::to_writer_pretty(meta_file, &graph_meta)?;
