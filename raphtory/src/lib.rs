@@ -173,7 +173,10 @@ mod test_utils {
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
-    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+    use raphtory_storage::{
+        core_ops::CoreGraphOps,
+        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    };
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;

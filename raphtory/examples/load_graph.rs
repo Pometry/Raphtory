@@ -1,9 +1,10 @@
-use std::path::PathBuf;
-
-use raphtory::{io::parquet_loaders::load_edges_from_parquet, prelude::*};
-use raphtory_storage::core_ops::CoreGraphOps;
-
+#[cfg(all(feature = "io", feature = "arrow"))]
 fn main() {
+    use std::path::PathBuf;
+
+    use raphtory::{io::parquet_loaders::load_edges_from_parquet, prelude::*};
+    use raphtory_storage::core_ops::CoreGraphOps;
+
     let graph_path = PathBuf::from("/Volumes/Work/tether/graphs/raphtory_graph");
     let layers = [
         "dai_ava_edge_list",
@@ -66,3 +67,6 @@ fn main() {
         println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
     }
 }
+
+#[cfg(not(all(feature = "io", feature = "arrow")))]
+fn main() {}

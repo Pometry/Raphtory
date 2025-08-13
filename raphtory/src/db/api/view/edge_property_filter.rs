@@ -37,7 +37,7 @@ mod test {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 
     #[test]
     fn test_edge_filter() {
@@ -344,6 +344,8 @@ mod test {
         assert_eq!(gw.count_edges(), 0);
         let expected = PersistentGraph::new();
         expected
+            .write_session()
+            .unwrap()
             .resolve_edge_property("test", PropType::I64, false)
             .unwrap();
         expected.resolve_layer(None).unwrap();

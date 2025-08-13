@@ -9,7 +9,10 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::{iter::BoxedLDIter, GraphType};
+use raphtory_api::{
+    iter::{BoxedLDIter, BoxedLIter},
+    GraphType,
+};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
 
@@ -138,7 +141,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.has_temporal_prop(prop_id))
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
@@ -151,8 +154,17 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        for_all!(self, g => g.temporal_prop_iter_window_rev(prop_id, start, end))
     }
 
     fn temporal_prop_last_at(

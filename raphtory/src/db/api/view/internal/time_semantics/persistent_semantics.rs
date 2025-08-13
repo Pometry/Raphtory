@@ -25,18 +25,29 @@ use raphtory_storage::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{iter, ops::Range};
+use storage::{EdgeAdditions, EdgeDeletions};
 
-fn alive_before<'a, G: GraphViewOps<'a>>(
-    additions: FilteredEdgeTimeIndex<'a, G>,
-    deletions: FilteredEdgeTimeIndex<'a, G>,
+fn alive_before<
+    'a,
+    G: GraphViewOps<'a>,
+    TSA: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSA>,
+    TSD: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSD>,
+>(
+    additions: FilteredEdgeTimeIndex<'a, G, TSA>,
+    deletions: FilteredEdgeTimeIndex<'a, G, TSD>,
     t: i64,
 ) -> bool {
     last_before(additions, deletions, t).is_some()
 }
 
-fn last_before<'a, G: GraphViewOps<'a>>(
-    additions: FilteredEdgeTimeIndex<'a, G>,
-    deletions: FilteredEdgeTimeIndex<'a, G>,
+fn last_before<
+    'a,
+    G: GraphViewOps<'a>,
+    TSA: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSA>,
+    TSD: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSD>,
+>(
+    additions: FilteredEdgeTimeIndex<'a, G, TSA>,
+    deletions: FilteredEdgeTimeIndex<'a, G, TSD>,
     t: i64,
 ) -> Option<TimeIndexEntry> {
     let last_addition_before_start = additions.range_t(i64::MIN..t).last();
@@ -51,9 +62,14 @@ fn last_before<'a, G: GraphViewOps<'a>>(
     }
 }
 
-fn persisted_event<'a, G: GraphViewOps<'a>>(
-    additions: FilteredEdgeTimeIndex<'a, G>,
-    deletions: FilteredEdgeTimeIndex<'a, G>,
+fn persisted_event<
+    'a,
+    G: GraphViewOps<'a>,
+    TSA: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSA>,
+    TSD: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TSD>,
+>(
+    additions: FilteredEdgeTimeIndex<'a, G, TSA>,
+    deletions: FilteredEdgeTimeIndex<'a, G, TSD>,
     t: i64,
 ) -> Option<TimeIndexEntry> {
     let active_at_start = deletions.active_t(t..t.saturating_add(1))
@@ -105,11 +121,14 @@ fn node_has_valid_edges<'graph, G: GraphView>(
         })
 }
 
-fn merged_deletions<'graph, G: GraphViewOps<'graph>>(
-    e: EdgeStorageRef<'graph>,
+fn merged_deletions<'a, G: GraphView + 'a>(
+    e: EdgeStorageRef<'a>,
     view: G,
     layer: usize,
-) -> MergedTimeIndex<FilteredEdgeTimeIndex<'graph, G>, InvertedFilteredEdgeTimeIndex<'graph, G>> {
+) -> MergedTimeIndex<
+    FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>,
+    InvertedFilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>,
+> {
     e.filtered_deletions(layer, view.clone())
         .merge(e.filtered_additions(layer, view).invert())
 }
@@ -275,7 +294,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .is_some()
         {
             Some(
-                (0.._view.node_meta().temporal_prop_meta().len())
+                (0.._view.node_meta().temporal_prop_mapper().len())
                     .map(|prop_id| (prop_id, node.tprop(prop_id)))
                     .filter_map(|(i, tprop)| {
                         if tprop.active_t(start..start.saturating_add(1)) {

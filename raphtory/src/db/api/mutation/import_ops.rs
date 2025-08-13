@@ -350,7 +350,7 @@ fn import_node_internal<
         }
     };
     let session = graph.write_session().map_err(|err| err.into())?;
-    let keys = node.graph.node_meta().temporal_prop_meta().get_keys();
+    let keys = node.graph.node_meta().temporal_prop_mapper().get_keys();
 
     for (t, row) in node.rows() {
         let t = time_from_input_session(&session, t)?;

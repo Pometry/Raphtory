@@ -1,61 +1,62 @@
-#[cfg(feature = "search")]
-use crate::search::graph_index::GraphIndex;
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
-        Base, InheritViewOps,
+        Base, IndexSpec, InheritViewOps,
     },
+    errors::GraphError,
 };
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::{
-    entities::{properties::meta::Meta, EID, VID},
+    entities::{
+        properties::{
+            meta::Meta,
+            prop::{Prop, PropType},
+        },
+        GidRef, EID, VID,
+    },
     storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
 };
+use raphtory_core::{
+    entities::ELID,
+    storage::{
+        raw_edges::{EdgeWGuard, WriteLockedEdges},
+        EntryMut, NodeSlot, WriteLockedNodes,
+    },
+};
 use raphtory_storage::{
+    core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
+    layer_ops::InheritLayerOps,
     mutation::{
-        addition_ops::{EdgeWriteLock, SessionAdditionOps},
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{UnlockedSession, WriteS},
+        deletion_ops::InternalDeletionOps,
+        property_addition_ops::InternalPropertyAdditionOps,
+        EdgeWriterT, NodeWriterT,
     },
 };
 use std::{
     fmt::{Display, Formatter},
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use std::ops::{Deref, DerefMut};
 use storage::{
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, WalImpl,
 };
 use tracing::info;
 
-#[cfg(feature = "search")]
-use crate::search::graph_index::MutableGraphIndex;
-use crate::{db::api::view::IndexSpec, errors::GraphError};
-#[cfg(feature = "search")]
-use once_cell::sync::OnceCell;
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropType},
-    GidRef,
-};
-use raphtory_core::{
-    entities::ELID,
-    storage::{raw_edges::WriteLockedEdges, WriteLockedNodes},
-};
-use raphtory_core::storage::{EntryMut, NodeSlot};
-use raphtory_core::storage::raw_edges::EdgeWGuard;
-use raphtory_storage::{
-    core_ops::InheritCoreGraphOps,
-    layer_ops::InheritLayerOps,
-    mutation::{
-        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
-        property_addition_ops::InternalPropertyAdditionOps,
-    },
-};
+#[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
+
+#[cfg(feature = "search")]
+use {
+    crate::search::graph_index::{GraphIndex, MutableGraphIndex},
+    once_cell::sync::OnceCell,
+};
 
 #[derive(Debug, Default)]
 pub struct Storage {
@@ -385,7 +386,9 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
         self.session.internal_add_node(t, v, props)?;
 
         #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| index.add_node_update(&self.storage.graph, t, MaybeNew::New(v), props))?;
+        self.storage.if_index_mut(|index| {
+            index.add_node_update(&self.storage.graph, t, MaybeNew::New(v), props)
+        })?;
 
         Ok(())
     }
@@ -400,7 +403,9 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
     ) -> Result<MaybeNew<EID>, Self::Error> {
         let id = self.session.internal_add_edge(t, src, dst, props, layer)?;
         #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| index.add_edge_update(&self.storage.graph, id, t, layer, props))?;
+        self.storage.if_index_mut(|index| {
+            index.add_edge_update(&self.storage.graph, id, t, layer, props)
+        })?;
 
         Ok(id)
     }
@@ -417,7 +422,13 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
 
         #[cfg(feature = "search")]
         self.storage.if_index_mut(|index| {
-            index.add_edge_update(&self.storage.graph, MaybeNew::Existing(edge), t, layer, props)
+            index.add_edge_update(
+                &self.storage.graph,
+                MaybeNew::Existing(edge),
+                t,
+                layer,
+                props,
+            )
         })?;
         Ok(())
     }
@@ -565,7 +576,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
@@ -578,7 +589,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
@@ -592,7 +603,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "search")]
@@ -606,7 +617,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;
