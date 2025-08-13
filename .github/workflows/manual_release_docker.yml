@@ -1,4 +1,8 @@
 name: (Manual) Release Docker Hub
+
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
