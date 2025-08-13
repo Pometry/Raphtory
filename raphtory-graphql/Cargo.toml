@@ -67,6 +67,5 @@ pretty_assertions = { workspace = true }
 arrow-array = { workspace = true }
 
 [features]
-storage = ["raphtory/storage"]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]

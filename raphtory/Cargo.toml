@@ -86,7 +86,6 @@ parquet = { workspace = true, optional = true }
 arrow-json = { workspace = true, optional = true }
 memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
-pometry-storage = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 
 prost = { workspace = true, optional = true }
@@ -99,8 +98,6 @@ uuid = { workspace = true }
 [dev-dependencies]
 csv = { workspace = true }
 pretty_assertions = { workspace = true }
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
@@ -164,17 +161,6 @@ python = [
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",
-]
-# storage
-storage = [
-    "arrow",
-    "pometry-storage/storage",
-    "raphtory-api/storage",
-    "raphtory-storage/storage",
-    "dep:memmap2",
-    "dep:tempfile",
-    "polars-arrow?/io_ipc",
-    "polars-arrow?/arrow_rs",
 ]
 arrow = [
     "dep:polars-arrow",

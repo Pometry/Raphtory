@@ -864,6 +864,7 @@ checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
 dependencies = [
  "funty",
  "radium",
+ "serde",
  "tap",
  "wyz",
 ]
@@ -901,9 +902,9 @@ dependencies = [
 
 [[package]]
 name = "boxcar"
-version = "0.2.12"
+version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66bb12751a83493ef4b8da1120451a262554e216a247f14b48cb5e8fe7ed8bdf"
+checksum = "36f64beae40a84da1b4b26ff2761a5b895c12adc41dc25aaee1c4f2bbfe97a6e"
 
 [[package]]
 name = "brotli"
@@ -1923,30 +1924,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "db4-common"
-version = "0.15.1"
+name = "db4-graph"
+version = "0.16.0"
 dependencies = [
- "arrow-schema",
- "parquet",
- "raphtory",
- "serde_json",
- "thiserror 2.0.12",
+ "boxcar",
+ "db4-storage",
+ "parking_lot",
+ "raphtory-api",
+ "raphtory-core",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]
 name = "db4-storage"
-version = "0.15.1"
+version = "0.16.0"
 dependencies = [
  "arrow",
  "arrow-array",
  "arrow-csv",
  "arrow-schema",
  "bigdecimal",
+ "bincode",
  "bitvec",
  "boxcar",
  "bytemuck",
  "chrono",
- "db4-common",
  "either",
  "iter-enum",
  "itertools 0.13.0",
@@ -1954,13 +1957,14 @@ dependencies = [
  "parquet",
  "polars-arrow",
  "proptest",
- "raphtory",
  "raphtory-api",
+ "raphtory-core",
  "rayon",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -4423,10 +4427,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32d19c6db79cb6a3c55af3b5a3976276edaab64cbf7f69b392617c2af30d7742"
 dependencies = [
  "ahash",
- "arrow-array",
- "arrow-buffer",
- "arrow-data",
- "arrow-schema",
  "atoi_simd",
  "bytemuck",
  "chrono",
@@ -4599,10 +4599,6 @@ dependencies = [
  "stacker",
  "version_check",
 ]
-
-[[package]]
-name = "pometry-storage"
-version = "0.16.0"
 
 [[package]]
 name = "portable-atomic"
@@ -5075,6 +5071,8 @@ dependencies = [
  "chrono",
  "csv",
  "dashmap",
+ "db4-graph",
+ "db4-storage",
  "display-error-chain",
  "dotenv",
  "either",
@@ -5106,7 +5104,6 @@ dependencies = [
  "polars-core",
  "polars-io",
  "polars-parquet",
- "pometry-storage",
  "pretty_assertions",
  "proptest",
  "proptest-derive",
@@ -5116,8 +5113,6 @@ dependencies = [
  "pyo3",
  "pyo3-arrow",
  "quad-rand",
- "quickcheck",
- "quickcheck_macros",
  "rand 0.8.5",
  "rand_distr",
  "raphtory-api",
@@ -5208,6 +5203,7 @@ dependencies = [
  "chrono",
  "dashmap",
  "either",
+ "hashbrown 0.15.3",
  "iter-enum",
  "itertools 0.13.0",
  "lock_api",
@@ -5241,7 +5237,6 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
- "pometry-storage",
  "pretty_assertions",
  "proptest",
  "raphtory",
@@ -5319,13 +5314,14 @@ name = "raphtory-storage"
 version = "0.16.0"
 dependencies = [
  "bigdecimal",
+ "db4-graph",
+ "db4-storage",
  "either",
  "iter-enum",
  "itertools 0.13.0",
  "num-traits",
  "parking_lot",
  "polars-arrow",
- "pometry-storage",
  "proptest",
  "raphtory-api",
  "raphtory-core",
