@@ -79,7 +79,7 @@ Returns:: GqlVectorisedGraph
 <td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
 <td>
 
-Returns root namespaces
+Returns all namespaces using recursive search
 
 Returns::  List of namespaces on root
 
@@ -705,7 +705,7 @@ Creates a view of the Edge including all events at a specified  time .
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Returns the latest time of an edge.
+Returns a view of the edge at the latest time of the graph.
 
 </td>
 </tr>
@@ -858,7 +858,7 @@ Returns the latest time of an edge.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the time of an exploded edge.
+Returns the time of an exploded edge. Errors on an unexploded edge.
 
 </td>
 </tr>
@@ -867,7 +867,7 @@ Returns the time of an exploded edge.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the start time for rolling and expanding windows for this edge.
+Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
 
 </td>
 </tr>
@@ -876,7 +876,7 @@ Returns the start time for rolling and expanding windows for this edge.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the latest time that this edge is valid.
+Returns the end time of the window. Returns none if no window is applied.
 
 </td>
 </tr>
@@ -948,7 +948,7 @@ Returns the names of the layers that have this edge as a member.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Returns the names of the layer this edge belongs to, assuming it belongs to only one layer.
+Returns the layer name of an exploded edge, errors on an edge.
 
 </td>
 </tr>
@@ -1167,7 +1167,7 @@ Return a view of Edge containing only the default edge layer.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
+Returns a view of Edge containing all layers in the list of names.
 
 </td>
 </tr>
@@ -1181,7 +1181,7 @@ Returns a view of Edge containing all layers in the list of  names . Errors if a
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
+Returns a view of Edge containing all layers except the excluded list of names.
 
 </td>
 </tr>
@@ -1195,7 +1195,7 @@ Returns a view of Edge containing all layers except the excluded list of  names 
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing the specified layer. Errors if any of the layers do not exist.
+Returns a view of Edge containing the specified layer.
 
 </td>
 </tr>
@@ -1209,7 +1209,7 @@ Returns a view of Edge containing the specified layer. Errors if any of the laye
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded layer specified. Errors if any of the layers do not exist.
+Returns a view of Edge containing all layers except the excluded layer specified.
 
 </td>
 </tr>
@@ -1440,7 +1440,7 @@ Specify a sort order.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
+Returns the start time of the window or none if there is no window.
 
 </td>
 </tr>
@@ -1449,7 +1449,7 @@ Returns the earliest time that this edges is valid or  None  if the edges is val
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
+Returns the end time of the window or none if there is no window.
 
 </td>
 </tr>
@@ -2178,7 +2178,7 @@ Returns the timestamp of the latest activity in the graph.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the earliest time that this graph is valid.
+Returns the start time of the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -2187,7 +2187,7 @@ Returns the earliest time that this graph is valid.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the latest time that this graph is valid or None if the graph is valid for all times.
+Returns the end time of the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -2530,26 +2530,6 @@ Uses Tantivy's exact search.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2567,6 +2547,26 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -3434,7 +3434,7 @@ Return a view of the node containing only the default edge layer.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing all layers specified and an error if any of the layers do not exist.
+Return a view of node containing all layers specified.
 
 </td>
 </tr>
@@ -3448,7 +3448,7 @@ Return a view of node containing all layers specified and an error if any of the
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing all layers except those specified and an error if any of the layers do not exist.
+Return a view of node containing all layers except those specified.
 
 </td>
 </tr>
@@ -3462,7 +3462,7 @@ Return a view of node containing all layers except those specified and an error 
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing the specified layer and errors if the layer does not exist.
+Return a view of node containing the specified layer.
 
 </td>
 </tr>
@@ -3476,7 +3476,7 @@ Return a view of node containing the specified layer and errors if the layer doe
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing all layers except those specified, errors if any of the layers do not exist.
+Return a view of node containing all layers except those specified.
 
 </td>
 </tr>
@@ -3701,7 +3701,7 @@ Returns the latest time that the node exists.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Gets the start time for rolling and expanding windows of this node.
+Gets the start time for the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -3710,7 +3710,7 @@ Gets the start time for rolling and expanding windows of this node.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Gets the latest time that this node is valid.
+Gets the end time for the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -3977,7 +3977,7 @@ Return a view of the nodes containing only the default edge layer.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Return a view of the nodes containing all layers specified and an error if any of the layers do not exist.
+Return a view of the nodes containing all layers specified.
 
 </td>
 </tr>
@@ -3991,7 +3991,7 @@ Return a view of the nodes containing all layers specified and an error if any o
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Return a view of the nodes containing all layers except those specified and an error if any of the layers do not exist.
+Return a view of the nodes containing all layers except those specified.
 
 </td>
 </tr>
@@ -4005,7 +4005,7 @@ Return a view of the nodes containing all layers except those specified and an e
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Return a view of the nodes containing the specified layer and errors if the layer does not exist.
+Return a view of the nodes containing the specified layer.
 
 </td>
 </tr>
@@ -4019,7 +4019,7 @@ Return a view of the nodes containing the specified layer and errors if the laye
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Return a view of the nodes containing all layers except those specified, errors if any of the layers do not exist.
+Return a view of the nodes containing all layers except those specified.
 
 </td>
 </tr>
@@ -4254,7 +4254,7 @@ Returns a view of the node types.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the earliest time that this Nodes is valid or None if the Nodes are valid for all times.
+Returns the start time of the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -4263,7 +4263,7 @@ Returns the earliest time that this Nodes is valid or None if the Nodes are vali
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Returns the latest time that this Nodes is valid or None if the Nodes are valid for all times.
+Returns the end time of the window. Errors if there is no window.
 
 </td>
 </tr>
@@ -6152,7 +6152,7 @@ Property filter.
 <td valign="top"><a href="#metadatafilterexpr">MetadataFilterExpr</a></td>
 <td>
 
-Property metadata.
+Metadata filter.
 
 </td>
 </tr>

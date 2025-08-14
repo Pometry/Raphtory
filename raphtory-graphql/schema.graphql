@@ -135,7 +135,7 @@ type Edge {
 	"""
 	at(time: Int!): Edge!
 	"""
-	Returns the latest time of an edge.
+	Returns a view of the edge at the latest time of the graph.
 	"""
 	latest: Edge!
 	"""
@@ -185,15 +185,15 @@ type Edge {
 	latestTime: Int
 	lastUpdate: Int
 	"""
-	Returns the time of an exploded edge.
+	Returns the time of an exploded edge. Errors on an unexploded edge.
 	"""
 	time: Int!
 	"""
-	Returns the start time for rolling and expanding windows for this edge.
+	Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
 	"""
 	start: Int
 	"""
-	Returns the latest time that this edge is valid.
+	Returns the end time of the window. Returns none if no window is applied.
 	"""
 	end: Int
 	"""
@@ -225,7 +225,7 @@ type Edge {
 	"""
 	layerNames: [String!]!
 	"""
-	Returns the names of the layer this edge belongs to, assuming it belongs to only one layer.
+	Returns the layer name of an exploded edge, errors on an edge.
 	"""
 	layerName: String!
 	"""
@@ -451,19 +451,19 @@ type Edges {
 	"""
 	defaultLayer: Edges!
 	"""
-	Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
+	Returns a view of Edge containing all layers in the list of names.
 	"""
 	layers(names: [String!]!): Edges!
 	"""
-	Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
+	Returns a view of Edge containing all layers except the excluded list of names.
 	"""
 	excludeLayers(names: [String!]!): Edges!
 	"""
-	Returns a view of Edge containing the specified layer. Errors if any of the layers do not exist.
+	Returns a view of Edge containing the specified layer.
 	"""
 	layer(name: String!): Edges!
 	"""
-	Returns a view of Edge containing all layers except the excluded layer specified. Errors if any of the layers do not exist.
+	Returns a view of Edge containing all layers except the excluded layer specified.
 	"""
 	excludeLayer(name: String!): Edges!
 	"""
@@ -530,11 +530,11 @@ type Edges {
 	"""
 	sorted(sortBys: [EdgeSortBy!]!): Edges!
 	"""
-	Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
+	Returns the start time of the window or none if there is no window.
 	"""
 	start: Int
 	"""
-	Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
+	Returns the end time of the window or none if there is no window.
 	"""
 	end: Int
 	"""
@@ -822,11 +822,11 @@ type Graph {
 	"""
 	latestTime: Int
 	"""
-	Returns the earliest time that this graph is valid.
+	Returns the start time of the window. Errors if there is no window.
 	"""
 	start: Int
 	"""
-	Returns the latest time that this graph is valid or None if the graph is valid for all times.
+	Returns the end time of the window. Errors if there is no window.
 	"""
 	end: Int
 	"""
@@ -925,8 +925,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -1359,19 +1359,19 @@ type Node {
 	"""
 	defaultLayer: Node!
 	"""
-	Return a view of node containing all layers specified and an error if any of the layers do not exist.
+	Return a view of node containing all layers specified.
 	"""
 	layers(names: [String!]!): Node!
 	"""
-	Return a view of node containing all layers except those specified and an error if any of the layers do not exist.
+	Return a view of node containing all layers except those specified.
 	"""
 	excludeLayers(names: [String!]!): Node!
 	"""
-	Return a view of node containing the specified layer and errors if the layer does not exist.
+	Return a view of node containing the specified layer.
 	"""
 	layer(name: String!): Node!
 	"""
-	Return a view of node containing all layers except those specified, errors if any of the layers do not exist.
+	Return a view of node containing all layers except those specified.
 	"""
 	excludeLayer(name: String!): Node!
 	"""
@@ -1434,11 +1434,11 @@ type Node {
 	latestTime: Int
 	lastUpdate: Int
 	"""
-	Gets the start time for rolling and expanding windows of this node.
+	Gets the start time for the window. Errors if there is no window.
 	"""
 	start: Int
 	"""
-	Gets the latest time that this node is valid.
+	Gets the end time for the window. Errors if there is no window.
 	"""
 	end: Int
 	"""
@@ -1555,7 +1555,7 @@ input NodeFilter @oneOf {
 	"""
 	property: PropertyFilterExpr
 	"""
-	Property metadata.
+	Metadata filter.
 	"""
 	metadata: MetadataFilterExpr
 	"""
@@ -1690,19 +1690,19 @@ type Nodes {
 	"""
 	defaultLayer: Nodes!
 	"""
-	Return a view of the nodes containing all layers specified and an error if any of the layers do not exist.
+	Return a view of the nodes containing all layers specified.
 	"""
 	layers(names: [String!]!): Nodes!
 	"""
-	Return a view of the nodes containing all layers except those specified and an error if any of the layers do not exist.
+	Return a view of the nodes containing all layers except those specified.
 	"""
 	excludeLayers(names: [String!]!): Nodes!
 	"""
-	Return a view of the nodes containing the specified layer and errors if the layer does not exist.
+	Return a view of the nodes containing the specified layer.
 	"""
 	layer(name: String!): Nodes!
 	"""
-	Return a view of the nodes containing all layers except those specified, errors if any of the layers do not exist.
+	Return a view of the nodes containing all layers except those specified.
 	"""
 	excludeLayer(name: String!): Nodes!
 	"""
@@ -1764,11 +1764,11 @@ type Nodes {
 	applyViews(views: [NodesViewCollection!]!): Nodes!
 	sorted(sortBys: [NodeSortBy!]!): Nodes!
 	"""
-	Returns the earliest time that this Nodes is valid or None if the Nodes are valid for all times.
+	Returns the start time of the window. Errors if there is no window.
 	"""
 	start: Int
 	"""
-	Returns the latest time that this Nodes is valid or None if the Nodes are valid for all times.
+	Returns the end time of the window. Errors if there is no window.
 	"""
 	end: Int
 	count: Int!
@@ -2210,7 +2210,7 @@ type QueryRoot {
 	"""
 	vectorisedGraph(path: String!): VectorisedGraph
 	"""
-	Returns root namespaces
+	Returns all namespaces using recursive search
 	
 	Returns::  List of namespaces on root
 	"""
