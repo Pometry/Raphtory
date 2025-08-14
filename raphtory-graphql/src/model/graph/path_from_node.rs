@@ -2,6 +2,7 @@ use crate::{
     model::graph::{
         filtering::PathFromNodeViewCollection,
         node::GqlNode,
+        timeindex::GqlTimeIndexEntry,
         windowset::GqlPathFromNodeWindowSet,
         WindowDuration::{self, Duration, Epoch},
     },
@@ -153,12 +154,12 @@ impl GqlPathFromNode {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.end().map(|t| t.into())
     }
 
     /////////////////

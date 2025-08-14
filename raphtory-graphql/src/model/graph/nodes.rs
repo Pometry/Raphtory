@@ -3,6 +3,7 @@ use crate::{
         graph::{
             filtering::{NodeFilter, NodesViewCollection},
             node::GqlNode,
+            timeindex::GqlTimeIndexEntry,
             windowset::GqlNodesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -281,12 +282,12 @@ impl GqlNodes {
     //// TIME QUERIES //////
     ////////////////////////
 
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.nn.end().map(|t| t.into())
     }
 
     /////////////////

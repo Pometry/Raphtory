@@ -159,7 +159,7 @@ where
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.left
             .is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w.clone())
@@ -190,7 +190,7 @@ where
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
         self.left.is_edge_prop_update_latest_window(
             layer_ids,

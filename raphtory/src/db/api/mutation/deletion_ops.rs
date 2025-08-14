@@ -1,13 +1,14 @@
 use super::time_from_input;
 use crate::{
-    core::{entities::nodes::node_ref::AsNodeRef, utils::time::IntoTimeWithFormat},
-    db::{
-        api::{mutation::TryIntoInputTime, view::StaticGraphViewOps},
-        graph::edge::EdgeView,
-    },
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     errors::{into_graph_err, GraphError},
 };
-use raphtory_api::core::entities::edges::edge_ref::EdgeRef;
+use raphtory_api::core::{
+    entities::edges::edge_ref::EdgeRef,
+    storage::timeindex::TimeIndexEntry,
+    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
+};
 use raphtory_storage::mutation::{
     addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
 };
@@ -53,7 +54,7 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let time: i64 = t.parse_time(fmt)?;
+        let time: TimeIndexEntry = t.parse_time(fmt)?;
         self.delete_edge(time, src, dst, layer)
     }
 }

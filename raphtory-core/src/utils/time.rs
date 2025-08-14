@@ -1,166 +1,8 @@
-use chrono::{DateTime, Duration, Months, NaiveDate, NaiveDateTime, TimeZone};
+use chrono::{DateTime, Duration, Months};
 use itertools::{Either, Itertools};
+use raphtory_api::core::{storage::timeindex::TimeIndexEntry, utils::time::ParseTimeError};
 use regex::Regex;
-use std::{
-    convert::Infallible,
-    ops::{Add, Sub},
-};
-
-use chrono::ParseError;
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
-use std::num::ParseIntError;
-
-#[derive(thiserror::Error, Debug, Clone, PartialEq)]
-pub enum ParseTimeError {
-    #[error("the interval string doesn't contain a complete number of number-unit pairs")]
-    InvalidPairs,
-    #[error("one of the tokens in the interval string supposed to be a number couldn't be parsed")]
-    ParseInt {
-        #[from]
-        source: ParseIntError,
-    },
-    #[error("'{0}' is not a valid unit")]
-    InvalidUnit(String),
-    #[error(transparent)]
-    ParseError(#[from] ParseError),
-    #[error("negative interval is not supported")]
-    NegativeInt,
-    #[error("0 size step is not supported")]
-    ZeroSizeStep,
-    #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
-    InvalidDateTimeString(String),
-}
-
-impl From<Infallible> for ParseTimeError {
-    fn from(value: Infallible) -> Self {
-        match value {}
-    }
-}
-
-pub trait IntoTime {
-    fn into_time(self) -> i64;
-}
-
-impl IntoTime for i64 {
-    fn into_time(self) -> i64 {
-        self
-    }
-}
-
-impl<Tz: TimeZone> IntoTime for DateTime<Tz> {
-    fn into_time(self) -> i64 {
-        self.timestamp_millis()
-    }
-}
-
-impl IntoTime for NaiveDateTime {
-    fn into_time(self) -> i64 {
-        self.and_utc().timestamp_millis()
-    }
-}
-
-pub trait TryIntoTime {
-    fn try_into_time(self) -> Result<i64, ParseTimeError>;
-}
-
-impl<T: IntoTime> TryIntoTime for T {
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
-        Ok(self.into_time())
-    }
-}
-
-impl TryIntoTime for &str {
-    /// Tries to parse the timestamp as RFC3339 and then as ISO 8601 with local format and all
-    /// fields mandatory except for milliseconds and allows replacing the T with a space
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
-        let rfc_result = DateTime::parse_from_rfc3339(self);
-        if let Ok(datetime) = rfc_result {
-            return Ok(datetime.timestamp_millis());
-        }
-
-        let result = DateTime::parse_from_rfc2822(self);
-        if let Ok(datetime) = result {
-            return Ok(datetime.timestamp_millis());
-        }
-
-        let result = NaiveDate::parse_from_str(self, "%Y-%m-%d");
-        if let Ok(date) = result {
-            return Ok(date
-                .and_hms_opt(00, 00, 00)
-                .unwrap()
-                .and_utc()
-                .timestamp_millis());
-        }
-
-        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%.3f");
-        if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
-        }
-
-        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%dT%H:%M:%S%");
-        if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
-        }
-
-        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%.3f");
-        if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
-        }
-
-        let result = NaiveDateTime::parse_from_str(self, "%Y-%m-%d %H:%M:%S%");
-        if let Ok(datetime) = result {
-            return Ok(datetime.and_utc().timestamp_millis());
-        }
-
-        Err(ParseTimeError::InvalidDateTimeString(self.to_string()))
-    }
-}
-
-/// Used to handle automatic injection of secondary index if not explicitly provided
-pub enum InputTime {
-    Simple(i64),
-    Indexed(i64, usize),
-}
-
-pub trait TryIntoInputTime {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
-}
-
-impl TryIntoInputTime for InputTime {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(self)
-    }
-}
-
-impl TryIntoInputTime for TimeIndexEntry {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.t(), self.i()))
-    }
-}
-
-impl<T: TryIntoTime> TryIntoInputTime for T {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Simple(self.try_into_time()?))
-    }
-}
-
-impl<T: TryIntoTime> TryIntoInputTime for (T, usize) {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.0.try_into_time()?, self.1))
-    }
-}
-
-pub trait IntoTimeWithFormat {
-    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError>;
-}
-
-impl IntoTimeWithFormat for &str {
-    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError> {
-        Ok(NaiveDateTime::parse_from_str(self, fmt)?
-            .and_utc()
-            .timestamp_millis())
-    }
-}
+use std::ops::{Add, Sub};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum IntervalSize {
@@ -481,9 +323,34 @@ impl Add<Interval> for i64 {
     }
 }
 
+impl Add<Interval> for TimeIndexEntry {
+    type Output = TimeIndexEntry;
+    fn add(self, rhs: Interval) -> Self::Output {
+        match rhs.size {
+            IntervalSize::Discrete(number) => TimeIndexEntry::from(self.0 + (number as i64)),
+            IntervalSize::Temporal { millis, months } => {
+                // first we add the number of months and then the number of milliseconds for
+                // consistency with the implementation of Sub (we revert back the steps) so we
+                // guarantee that:  time + interval - interval = time
+                let datetime = DateTime::from_timestamp_millis(self.0)
+                    .unwrap_or_else(|| {
+                        panic!("{self} cannot be interpreted as a milliseconds timestamp")
+                    })
+                    .naive_utc();
+                let timestamp = (datetime + Months::new(months))
+                    .and_utc()
+                    .timestamp_millis()
+                    + millis as i64;
+                TimeIndexEntry(timestamp, self.1)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod time_tests {
-    use crate::utils::time::{Interval, ParseTimeError, TryIntoTime};
+    use crate::utils::time::Interval;
+    use raphtory_api::core::utils::time::{ParseTimeError, TryIntoTime};
 
     #[test]
     fn interval_parsing() {

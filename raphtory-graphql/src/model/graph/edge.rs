@@ -2,8 +2,10 @@ use crate::{
     model::graph::{
         edges::GqlEdges,
         filtering::EdgeViewCollection,
+        history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
+        timeindex::GqlTimeIndexEntry,
         windowset::GqlEdgeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -207,34 +209,34 @@ impl GqlEdge {
         Ok(return_view)
     }
 
-    async fn earliest_time(&self) -> Option<i64> {
-        self.ee.earliest_time()
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.earliest_time().map(|t| t.into())
     }
 
-    async fn first_update(&self) -> Option<i64> {
+    async fn first_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().first().cloned()).await
+        blocking_compute(move || self_clone.ee.history().earliest_time().map(|t| t.into())).await
     }
 
-    async fn latest_time(&self) -> Option<i64> {
-        self.ee.latest_time()
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.latest_time().map(|t| t.into())
     }
 
-    async fn last_update(&self) -> Option<i64> {
+    async fn last_update(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history().last().cloned()).await
+        blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
     }
 
     async fn time(&self) -> Result<i64, GraphError> {
         self.ee.time()
     }
 
-    async fn start(&self) -> Option<i64> {
-        self.ee.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.ee.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.ee.end().map(|t| t.into())
     }
 
     async fn src(&self) -> GqlNode {
@@ -280,9 +282,9 @@ impl GqlEdge {
         GqlEdges::new(self.ee.explode_layers())
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.history()).await
+        blocking_compute(move || self_clone.ee.history().into()).await
     }
 
     async fn deletions(&self) -> Vec<i64> {

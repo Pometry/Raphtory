@@ -9,6 +9,7 @@ use crate::{
             node::GqlNode,
             nodes::GqlNodes,
             property::{GqlMetadata, GqlProperties},
+            timeindex::GqlTimeIndexEntry,
             windowset::GqlGraphWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -42,6 +43,7 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
@@ -238,25 +240,28 @@ impl GqlGraph {
         self.path.last_updated_async().await
     }
 
-    async fn earliest_time(&self) -> Option<i64> {
+    async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.earliest_time()).await
+        blocking_compute(move || self_clone.graph.earliest_time().map(|t| t.into())).await
     }
 
-    async fn latest_time(&self) -> Option<i64> {
+    async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.latest_time()).await
+        blocking_compute(move || self_clone.graph.latest_time().map(|t| t.into())).await
     }
 
-    async fn start(&self) -> Option<i64> {
-        self.graph.start()
+    async fn start(&self) -> Option<GqlTimeIndexEntry> {
+        self.graph.start().map(|t| t.into())
     }
 
-    async fn end(&self) -> Option<i64> {
-        self.graph.end()
+    async fn end(&self) -> Option<GqlTimeIndexEntry> {
+        self.graph.end().map(|t| t.into())
     }
 
-    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    async fn earliest_edge_time(
+        &self,
+        include_negative: Option<bool>,
+    ) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -265,14 +270,15 @@ impl GqlGraph {
                 .edges()
                 .earliest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .min();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .min()
+                .map(|t| t.into());
             all_edges
         })
         .await
     }
 
-    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -281,8 +287,9 @@ impl GqlGraph {
                 .edges()
                 .latest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .max();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .max()
+                .map(|t| t.into());
 
             all_edges
         })

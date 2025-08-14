@@ -160,11 +160,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         TimeSemantics::persistent()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<TimeIndexEntry> {
         self.0.view_start()
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<TimeIndexEntry> {
         self.0.view_end()
     }
 
@@ -200,7 +200,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<TimeIndexEntry>) -> bool {
         self.temporal_prop_iter_window(prop_id, w.start, w.end)
             .next()
             .is_some()
@@ -209,18 +209,16 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: TimeIndexEntry,
+        end: TimeIndexEntry,
     ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
-                .map(|v| (TimeIndexEntry::start(start), v));
+            let first =
+                persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty).map(|v| (start, v));
             first
                 .into_iter()
                 .chain(GenLockedDIter::from(prop, |prop| {
-                    prop.deref()
-                        .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                    prop.deref().iter_window(start..end).into_dyn_dboxed()
                 }))
                 .into_dyn_dboxed()
         } else {
@@ -268,18 +266,18 @@ impl NodeHistoryFilter for PersistentGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        if time.t() >= w.end {
+        if time >= w.end {
             false
-        } else if w.contains(&time.t()) {
+        } else if w.contains(&time) {
             true
         } else {
             let nse = self.0.core_node(node_id);
             let x = nse
                 .tprop(prop_id)
-                .last_before(TimeIndexEntry::start(w.start))
-                .map(|(t, _)| t.t().eq(&time.t()))
+                .last_before(w.start)
+                .map(|(t, _)| t.eq(&time))
                 .unwrap_or(false);
             x
         }
@@ -299,13 +297,11 @@ impl NodeHistoryFilter for PersistentGraph {
         prop_id: usize,
         node_id: VID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        time.t() < w.end && {
+        time < w.end && {
             let nse = self.0.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..TimeIndexEntry::start(w.end));
+            let x = nse.tprop(prop_id).active(time.next()..w.end);
             !x
         }
     }
@@ -330,18 +326,18 @@ impl EdgeHistoryFilter for PersistentGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        if time.t() >= w.end {
+        if time >= w.end {
             false
-        } else if w.contains(&time.t()) {
+        } else if w.contains(&time) {
             true
         } else {
             let ese = self.core_edge(edge_id);
             let bool = ese
                 .temporal_prop_layer(layer_id, prop_id)
-                .last_before(TimeIndexEntry::start(w.start))
-                .map(|(t, _)| time.t().eq(&t.t()))
+                .last_before(w.start)
+                .map(|(t, _)| time.eq(&t))
                 .unwrap_or(false);
             bool
         }
@@ -366,9 +362,9 @@ impl EdgeHistoryFilter for PersistentGraph {
         prop_id: usize,
         edge_id: EID,
         time: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> bool {
-        time.t() < w.end && {
+        time < w.end && {
             let time = time.next();
             let ese = self.core_edge(edge_id);
 
@@ -376,7 +372,7 @@ impl EdgeHistoryFilter for PersistentGraph {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time..w.end)
                 });
 
                 // If no layer has a future update, return true
@@ -404,7 +400,7 @@ mod test_deletions {
     };
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest, sample::subsequence};
-    use raphtory_api::core::entities::GID;
+    use raphtory_api::core::{entities::GID, storage::timeindex::AsTime};
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::ops::Range;
 
@@ -493,6 +489,7 @@ mod test_deletions {
                 .get("added")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             vec![(1, Prop::I64(0))]
         );
@@ -525,13 +522,13 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(1, 1, 2, [("test", "test")], None).unwrap();
         assert_eq!(e.earliest_time().unwrap(), 1); // time of first addition
-        assert_eq!(e.latest_time(), Some(1)); // not deleted so alive forever
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(1)); // not deleted so alive forever
         g.delete_edge(10, 1, 2, None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10); // deleted, so time of last deletion
 
         g.delete_edge(10, 3, 4, None).unwrap();
         let e = g.edge(3, 4).unwrap();
-        assert_eq!(e.earliest_time(), Some(10)); // only deleted, earliest and latest time are the same
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(10)); // only deleted, earliest and latest time are the same
         assert_eq!(e.latest_time().unwrap(), 10);
         g.add_edge(1, 3, 4, [("test", "test")], None).unwrap();
         assert_eq!(e.latest_time().unwrap(), 10);
@@ -623,8 +620,8 @@ mod test_deletions {
         assert!(gw.is_empty());
 
         let gw = g.window(0, 3);
-        assert_eq!(gw.node(0).unwrap().earliest_time(), Some(2));
-        assert_eq!(gw.node(1).unwrap().earliest_time(), Some(2));
+        assert_eq!(gw.node(0).unwrap().earliest_time().unwrap().0, 2);
+        assert_eq!(gw.node(1).unwrap().earliest_time().unwrap().0, 2);
     }
     #[test]
     fn materialize_window_layers_prop_test() {
@@ -767,20 +764,20 @@ mod test_deletions {
         let wg = g.window(3, 5);
 
         let e = wg.edge(1, 2).unwrap();
-        assert_eq!(e.earliest_time(), Some(3));
-        assert_eq!(e.latest_time(), Some(3));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(3));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(3));
         let n1 = wg.node(1).unwrap();
-        assert_eq!(n1.earliest_time(), Some(3));
-        assert_eq!(n1.latest_time(), Some(3));
+        assert_eq!(n1.earliest_time().unwrap().0, 3);
+        assert_eq!(n1.latest_time().unwrap().0, 3);
         let n2 = wg.node(2).unwrap();
-        assert_eq!(n2.earliest_time(), Some(3));
-        assert_eq!(n2.latest_time(), Some(3));
+        assert_eq!(n2.earliest_time().unwrap().0, 3);
+        assert_eq!(n2.latest_time().unwrap().0, 3);
 
         let actual_lt = wg.latest_time();
-        assert_eq!(actual_lt, Some(3));
+        assert_eq!(actual_lt.unwrap().0, 3);
 
         let actual_et = wg.earliest_time();
-        assert_eq!(actual_et, Some(3));
+        assert_eq!(actual_et.unwrap().0, 3);
 
         let gm = g
             .window(3, 5)
@@ -812,8 +809,14 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.delete_edge(10, 1, 2, None).unwrap();
-        assert_eq!(e.latest_time(), Some(10));
-        assert_eq!(e.explode().latest_time().collect_vec(), vec![Some(10)]);
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(10));
+        assert_eq!(
+            e.explode()
+                .latest_time()
+                .map(|t| t.map(|t| t.t()))
+                .collect_vec(),
+            vec![Some(10)]
+        );
     }
 
     #[test]
@@ -849,6 +852,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
         );
@@ -930,6 +934,7 @@ mod test_deletions {
                 .unwrap()
                 .explode()
                 .latest_time()
+                .map(|t| t.map(|t| t.t()))
                 .collect_vec(),
             [Some(10)]
         );
@@ -947,7 +952,7 @@ mod test_deletions {
     ) {
         assert!(!e.is_valid());
         assert!(e.is_deleted());
-        let t = e.latest_time().unwrap_or(i64::MAX);
+        let t = e.latest_time().map(|t| t.t()).unwrap_or(i64::MAX);
         let g = e.graph.at(t); // latest view of the graph
         assert!(!g.has_edge(e.src(), e.dst()));
         assert!(g.edge(e.src(), e.dst()).is_none());
@@ -1044,11 +1049,11 @@ mod test_deletions {
         assert_eq!(e.at(2).earliest_time(), None);
         assert_eq!(e.at(2).latest_time(), None);
         assert!(e.at(2).is_deleted());
-        assert_eq!(e.latest_time(), Some(2));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(2));
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(e.latest_time(), Some(4));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(4));
 
-        assert_eq!(e.window(0, 3).latest_time(), Some(2));
+        assert_eq!(e.window(0, 3).latest_time().map(|t| t.t()), Some(2));
     }
 
     #[test]
@@ -1056,23 +1061,26 @@ mod test_deletions {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         assert_eq!(g.start(), None);
-        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
         assert_eq!(g.end(), None);
-        assert_eq!(g.timeline_end(), Some(1));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(1));
         e.delete(2, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(3));
-        let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
+        let w = g.window(
+            g.timeline_start().unwrap().t(),
+            g.timeline_end().unwrap().t(),
+        );
         assert!(g.has_edge(1, 2));
         assert!(w.has_edge(1, 2));
-        assert_eq!(w.start(), Some(0));
-        assert_eq!(w.timeline_start(), Some(0));
-        assert_eq!(w.end(), Some(3));
-        assert_eq!(w.timeline_end(), Some(3));
+        assert_eq!(w.start().map(|t| t.t()), Some(0));
+        assert_eq!(w.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(w.end().map(|t| t.t()), Some(3));
+        assert_eq!(w.timeline_end().map(|t| t.t()), Some(3));
 
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(5));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(5));
     }
 
     #[test]
@@ -1109,8 +1117,7 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history()
-                .collect_vec(),
+                .history(),
             [1, 11]
         );
         assert_eq!(
@@ -1119,16 +1126,15 @@ mod test_deletions {
                 .temporal()
                 .get("test_prop")
                 .unwrap()
-                .history()
-                .collect_vec(),
+                .history(),
             [10]
         );
 
-        assert_eq!(v_from_graph.earliest_time(), Some(10));
-        assert_eq!(v.earliest_time(), Some(1));
-        assert_eq!(v.at(10).earliest_time(), Some(10));
-        assert_eq!(v.at(10).latest_time(), Some(10));
-        assert_eq!(v.latest_time(), Some(11));
+        assert_eq!(v_from_graph.earliest_time().unwrap().0, 10);
+        assert_eq!(v.earliest_time().unwrap().0, 1);
+        assert_eq!(v.at(10).earliest_time().unwrap().0, 10);
+        assert_eq!(v.at(10).latest_time().unwrap().0, 10);
+        assert_eq!(v.latest_time().unwrap().0, 11);
     }
 
     #[test]
@@ -1156,7 +1162,12 @@ mod test_deletions {
         g.delete_edge(1, 1, 2, None).unwrap();
 
         assert_eq!(
-            g.edge(1, 2).unwrap().explode().latest_time().collect_vec(),
+            g.edge(1, 2)
+                .unwrap()
+                .explode()
+                .latest_time()
+                .map(|t| t.map(|t| t.t()))
+                .collect_vec(),
             [Some(1)]
         );
         assert_eq!(
@@ -1164,6 +1175,7 @@ mod test_deletions {
                 .unwrap()
                 .explode()
                 .earliest_time()
+                .map(|t| t.map(|t| t.t()))
                 .collect_vec(),
             [Some(1)]
         )
@@ -1202,8 +1214,14 @@ mod test_deletions {
         g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         g.add_edge(4, 1, 3, NO_PROPS, None).unwrap();
 
-        assert_eq!(g.window(2, 7).node(3).unwrap().earliest_time(), Some(4));
-        assert_eq!(g.window(2, 7).node(1).unwrap().earliest_time(), Some(2));
+        assert_eq!(
+            g.window(2, 7).node(3).unwrap().earliest_time().unwrap().0,
+            4
+        );
+        assert_eq!(
+            g.window(2, 7).node(1).unwrap().earliest_time().unwrap().0,
+            2
+        );
     }
 
     #[test]
@@ -1211,17 +1229,27 @@ mod test_deletions {
         let g = PersistentGraph::new();
         g.add_properties(1, [("weight", 10i64)]).unwrap();
         g.add_properties(3, [("weight", 20i64)]).unwrap();
-        let prop = g.properties().temporal().get("weight").unwrap();
+        let prop: Vec<(i64, Prop)> = g
+            .properties()
+            .temporal()
+            .get("weight")
+            .unwrap()
+            .into_iter()
+            .map(|(t, p)| (t.t(), p))
+            .collect();
 
-        assert_eq!(prop, [(1, 10i64), (3, 20i64)]);
+        assert_eq!(prop, [(1, 10i64.into_prop()), (3, 20i64.into_prop())]);
 
-        let prop = g
+        let prop: Vec<(i64, Prop)> = g
             .window(5, 7)
             .properties()
             .temporal()
             .get("weight")
-            .unwrap();
-        assert_eq!(prop, [(5, 20i64)])
+            .unwrap()
+            .into_iter()
+            .map(|(t, p)| (t.t(), p))
+            .collect();
+        assert_eq!(prop, [(5, 20i64.into_prop())])
     }
 
     #[test]
@@ -1249,10 +1277,10 @@ mod test_deletions {
     fn test_node_earliest_latest_time_edge_deletion_only() {
         let g = PersistentGraph::new();
         g.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(g.node(0).unwrap().earliest_time(), Some(10));
-        assert_eq!(g.node(1).unwrap().earliest_time(), Some(10));
-        assert_eq!(g.node(0).unwrap().latest_time(), Some(10));
-        assert_eq!(g.node(1).unwrap().latest_time(), Some(10));
+        assert_eq!(g.node(0).unwrap().earliest_time().unwrap().0, 10);
+        assert_eq!(g.node(1).unwrap().earliest_time().unwrap().0, 10);
+        assert_eq!(g.node(0).unwrap().latest_time().unwrap().0, 10);
+        assert_eq!(g.node(1).unwrap().latest_time().unwrap().0, 10);
     }
 
     /// For an edge the earliest time is the time of the first update (either addition or deletion)
@@ -1263,8 +1291,11 @@ mod test_deletions {
     fn test_edge_earliest_latest_time_edge_deletion_only() {
         let g = PersistentGraph::new();
         g.delete_edge(10, 0, 1, None).unwrap();
-        assert_eq!(g.edge(0, 1).unwrap().earliest_time(), Some(10));
-        assert_eq!(g.edge(0, 1).unwrap().latest_time(), Some(10));
+        assert_eq!(
+            g.edge(0, 1).unwrap().earliest_time().map(|t| t.t()),
+            Some(10)
+        );
+        assert_eq!(g.edge(0, 1).unwrap().latest_time().map(|t| t.t()), Some(10));
     }
 
     /// Repeated deletions are ignored, only the first one is relevant. Subsequent deletions do not
@@ -1277,7 +1308,11 @@ mod test_deletions {
         g.delete_edge(4, 0, 1, None).unwrap();
 
         let e = g.edge(0, 1).unwrap();
-        let ex_earliest_t = e.explode().earliest_time().collect_vec();
+        let ex_earliest_t = e
+            .explode()
+            .earliest_time()
+            .map(|t| t.map(|t| t.t()))
+            .collect_vec();
         assert_eq!(ex_earliest_t, [Some(0)]);
     }
 
@@ -1329,6 +1364,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(0, Prop::I64(1)), (0, Prop::I64(2))]
         );
@@ -1341,6 +1377,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(0, Prop::I64(1)), (0, Prop::I64(2))]
         );
@@ -1373,6 +1410,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(2, Prop::I64(2)), (4, Prop::I64(4))]
         );
@@ -1403,6 +1441,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(1, Prop::I64(1)), (2, Prop::I64(2)), (4, Prop::I64(4))]
         );
@@ -1437,6 +1476,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(2, Prop::I64(2)), (4, Prop::I64(4))]
         );
@@ -1472,6 +1512,7 @@ mod test_deletions {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(2, Prop::I64(3)), (4, Prop::I64(4))]
         );
@@ -1656,7 +1697,7 @@ mod test_node_history_filter_persistent_graph {
         let g = init_graph(g);
 
         let prop_id = g.node_meta().temporal_prop_mapper().get_id("p1").unwrap();
-        let w = 6..9;
+        let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
         let node_id = g.node("N1").unwrap().node;
         let bool = g.is_node_prop_update_latest_window(
@@ -1911,7 +1952,7 @@ mod test_edge_history_filter_persistent_graph {
         let g = init_graph(g);
 
         let prop_id = g.edge_meta().temporal_prop_mapper().get_id("p1").unwrap();
-        let w = 6..9;
+        let w = TimeIndexEntry::start(6)..TimeIndexEntry::start(9);
 
         let edge_id = g.edge("N1", "N2").unwrap().edge.pid();
         let bool = g.is_edge_prop_update_latest_window(

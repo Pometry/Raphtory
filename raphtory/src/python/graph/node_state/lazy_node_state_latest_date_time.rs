@@ -1,0 +1,462 @@
+use crate::{
+    db::{
+        api::{
+            state::{ops, LazyNodeState, NodeGroups, NodeOp, NodeState},
+            view::{internal::Static, DynamicGraph, IntoDynHop, IntoDynamic, StaticGraphViewOps},
+        },
+        graph::{node::NodeView, nodes::Nodes},
+    },
+    impl_one_hop,
+    prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
+    python::{
+        types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
+        utils::PyNodeRef,
+    },
+};
+use chrono::{DateTime, Utc};
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+    types::{PyDict, PyNotImplemented},
+    IntoPyObjectExt,
+};
+use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
+use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
+use rayon::prelude::*;
+use std::{cmp::Ordering, collections::HashMap};
+// $name = EarliestDateTimeView
+// $value = EarliestDateTimeOutput
+// $op = EarliestDateTime<DynamicGraph>
+// $to_owned = |v| v
+// $inner_t = LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
+// $py_value = Optional[datetime]
+// $computed = NodeStateResultOptionDateTime
+
+type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
+
+/// Type: Result<Option<DateTime\<Utc>>, TimeError>
+type LatestDateTimeOutput = <LatestDateTime<DynamicGraph> as NodeOp>::Output;
+
+// impl_lazy_node_state
+/// A lazy view over EarliestDateTime values for node
+#[pyclass(module = "raphtory.node_state", frozen)]
+pub struct LatestDateTimeView {
+    inner: LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+}
+
+impl LatestDateTimeView {
+    pub fn inner(
+        &self,
+    ) -> &LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        &self.inner
+    }
+
+    // impl_node_state_ops
+    pub fn iter(&self) -> impl Iterator<Item = LatestDateTimeOutput> + '_ {
+        self.inner.iter_values()
+    }
+}
+
+#[pymethods]
+impl LatestDateTimeView {
+    /// Compute all values and return the result as a node view
+    ///
+    /// Returns:
+    #[doc = "     NodeStateResultOptionDateTime: the computed `NodeState`"]
+    fn compute(&self) -> NodeState<'static, LatestDateTimeOutput, DynamicGraph, DynamicGraph> {
+        self.inner.compute()
+    }
+
+    /// Compute all values and return the result as a list
+    ///
+    /// Returns:
+    #[doc = "     list[Optional[datetime]]: all values as a list"]
+    fn collect(&self) -> PyResult<Vec<Option<DateTime<Utc>>>> {
+        self.inner
+            .par_iter_values()
+            .map(|v| v.map_err(PyErr::from))
+            .collect::<PyResult<Vec<_>>>()
+    }
+
+    // impl_node_state_ops
+    fn __len__(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Iterate over nodes
+    ///
+    /// Returns:
+    ///     Nodes: The nodes
+    fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+        self.inner.nodes()
+    }
+
+    fn __eq__<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+        let res = if let Ok(other) = other.downcast::<Self>() {
+            let other = Bound::get(other);
+            self.inner == other.inner
+        } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
+            self.inner
+                .iter_values()
+                .eq(other.into_iter().map(|o| Ok(o)))
+        } else if let Ok(other) = other.extract::<HashMap<PyNodeRef, Option<DateTime<Utc>>>>() {
+            self.inner.len() == other.len()
+                && other
+                    .into_iter()
+                    .all(|(node, value)| self.inner.get_by_node(node) == Some(Ok(value)))
+        } else if let Ok(other) = other.downcast::<PyDict>() {
+            self.inner.len() == other.len()
+                && other.items().iter().all(|item| {
+                    if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                    {
+                        self.inner
+                            .get_by_node(node_ref)
+                            .map(|l_value| {
+                                match l_value {
+                                    Ok(inner_value) => {
+                                        if let Ok(l_value_py) = inner_value.into_bound_py_any(py) {
+                                            l_value_py.eq(value).unwrap_or(false)
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                    Err(_) => false, // error can't be equal to non-error
+                                }
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+        } else {
+            return Ok(PyNotImplemented::get(py).to_owned().into_any());
+        };
+        Ok(res.into_pyobject(py)?.to_owned().into_any())
+    }
+
+    fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter_result!(
+            self.inner.clone(),
+            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            |inner| inner.iter_values()
+        )
+    }
+
+    /// Get value for node
+    ///
+    /// Arguments:
+    ///     node (NodeInput): the node
+    #[doc = "    default (Optional[datetime]): the default value. Defaults to None."]
+    ///
+    /// Returns:
+    #[doc = "    Optional[datetime]: the value for the node or the default value"]
+    #[pyo3(signature = (node, default=None::<DateTime<Utc>>))]
+    fn get(
+        &self,
+        node: PyNodeRef,
+        default: Option<DateTime<Utc>>,
+    ) -> PyResult<Option<DateTime<Utc>>> {
+        match self.inner.get_by_node(node) {
+            Some(v) => v.map_err(PyErr::from),
+            None => Ok(default),
+        }
+    }
+
+    fn __getitem__(&self, node: PyNodeRef) -> PyResult<Option<DateTime<Utc>>> {
+        let node = node.as_node_ref();
+        match self.inner.get_by_node(node) {
+            Some(v) => v.map_err(PyErr::from),
+            None => match node {
+                NodeRef::External(id) => Err(PyKeyError::new_err(format!(
+                    "Missing value for node with id {id}"
+                ))),
+                NodeRef::Internal(vid) => {
+                    let node = self.inner.graph().node(vid);
+                    match node {
+                        Some(node) => Err(PyKeyError::new_err(format!(
+                            "Missing value {}",
+                            node.repr()
+                        ))),
+                        None => Err(PyTypeError::new_err("Invalid node reference")),
+                    }
+                }
+            },
+        }
+    }
+
+    /// Iterate over items
+    ///
+    /// Returns:
+    #[doc = "     Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items"]
+    fn items(&self) -> PyBorrowingIterator {
+        py_borrowing_iter_tuple_result!(
+            self.inner.clone(),
+            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
+        )
+    }
+
+    /// Iterate over values
+    ///
+    /// Returns:
+    #[doc = "     Iterator[Optional[datetime]]: Iterator over values"]
+    fn values(&self) -> PyBorrowingIterator {
+        self.__iter__()
+    }
+
+    /// Sort results by node id
+    ///
+    /// Returns:
+    #[doc = "     NodeStateResultOptionDateTime: The sorted node state"]
+    fn sorted_by_id(&self) -> NodeState<'static, LatestDateTimeOutput, DynamicGraph> {
+        self.inner.sort_by_id()
+    }
+
+    fn __repr__(&self) -> String {
+        self.inner.repr()
+    }
+
+    /// Convert results to pandas DataFrame
+    ///
+    /// The DataFrame has two columns, "node" with the node ids and "value" with
+    /// the corresponding values.
+    ///
+    /// Returns:
+    ///     DataFrame: the pandas DataFrame
+    fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let pandas = PyModule::import(py, "pandas")?;
+        let columns = PyDict::new(py);
+        columns.set_item("node", self.inner.nodes().id())?;
+        columns.set_item("value", self.values())?;
+        pandas.call_method("DataFrame", (columns,), None)
+    }
+}
+
+// impl_node_state_ord_ops
+#[pymethods]
+impl LatestDateTimeView {
+    /// Sort by value
+    ///
+    /// Arguments:
+    ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+    ///
+    /// Returns:
+    #[doc = "     NodeStateResultOptionDateTime: Sorted node state"]
+    #[pyo3(signature = (reverse = false))]
+    fn sorted(
+        &self,
+        reverse: bool,
+    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
+        if reverse {
+            self.inner.sort_by_values_by(|a, b| match (a, b) {
+                (Ok(a), Ok(b)) => a.cmp(b).reverse(),
+                (Err(_), Ok(_)) => Ordering::Greater,
+                (Ok(_), Err(_)) => Ordering::Less,
+                _ => Ordering::Equal,
+            })
+        } else {
+            self.inner.sort_by_values_by(|a, b| match (a, b) {
+                (Ok(a), Ok(b)) => a.cmp(b),
+                (Err(_), Ok(_)) => Ordering::Greater,
+                (Ok(_), Err(_)) => Ordering::Less,
+                _ => Ordering::Equal,
+            })
+        }
+    }
+
+    /// Compute the k largest values
+    ///
+    /// Arguments:
+    ///     k (int): The number of values to return
+    ///
+    /// Returns:
+    #[doc = "     NodeStateResultOptionDateTime: The k largest values as a node state"]
+    fn top_k(
+        &self,
+        k: usize,
+    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
+        self.inner.top_k_by(
+            |a, b| match (a, b) {
+                (Ok(a), Ok(b)) => a.cmp(b),
+                (Err(_), Ok(_)) => Ordering::Less,
+                (Ok(_), Err(_)) => Ordering::Greater,
+                _ => Ordering::Equal,
+            },
+            k,
+        )
+    }
+
+    /// Compute the k smallest values
+    ///
+    /// Arguments:
+    ///     k (int): The number of values to return
+    ///
+    /// Returns:
+    #[doc = "     NodeStateResultOptionDateTime: The k smallest values as a node state"]
+    fn bottom_k(
+        &self,
+        k: usize,
+    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
+        self.inner.bottom_k_by(
+            |a, b| match (a, b) {
+                (Ok(a), Ok(b)) => a.cmp(b),
+                (Err(_), Ok(_)) => Ordering::Greater,
+                (Ok(_), Err(_)) => Ordering::Less,
+                _ => Ordering::Equal,
+            },
+            k,
+        )
+    }
+
+    /// Return smallest value and corresponding node
+    ///
+    /// Returns:
+    #[doc = "     Optional[Tuple[Node, datetime]]: The Node and minimum value or `None` if empty"]
+    fn min_item(&self) -> PyResult<Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)>> {
+        let min = self.inner.min_item_by(|a, b| match (a, b) {
+            (Ok(a), Ok(b)) => a.cmp(b),
+            (Err(_), Ok(_)) => Ordering::Greater,
+            (Ok(_), Err(_)) => Ordering::Less,
+            _ => Ordering::Equal,
+        });
+        // both the min_item_by and Result outputs can be None, they both return None to python
+        match min {
+            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o.clone()))),
+            Some((_, Ok(None))) => Ok(None),
+            Some((_, Err(e))) => Err(PyErr::from(e.clone())),
+            None => Ok(None),
+        }
+    }
+
+    /// Return the minimum value
+    ///
+    /// Returns:
+    #[doc = "     Optional[datetime]: The minimum value or `None` if empty"]
+    fn min(&self) -> PyResult<Option<DateTime<Utc>>> {
+        self.min_item().map(|v| v.map(|(_, date)| date))
+    }
+
+    /// Return largest value and corresponding node
+    ///
+    /// Returns:
+    #[doc = "     Optional[Tuple[Node, datetime]]: The Node and maximum value or `None` if empty"]
+    fn max_item(&self) -> PyResult<Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)>> {
+        let max = self.inner.max_item_by(|a, b| match (a, b) {
+            (Ok(a), Ok(b)) => a.cmp(b),
+            (Err(_), Ok(_)) => Ordering::Less,
+            (Ok(_), Err(_)) => Ordering::Greater,
+            _ => Ordering::Equal,
+        });
+        // both the max_item_by and Result outputs can be None, they both return None to python
+        match max {
+            Some((n, Ok(Some(o)))) => Ok(Some((n.cloned(), o.clone()))),
+            Some((_, Ok(None))) => Ok(None),
+            Some((_, Err(e))) => Err(PyErr::from(e.clone())),
+            None => Ok(None),
+        }
+    }
+
+    /// Return the maximum value
+    ///
+    /// Returns:
+    #[doc = "     Optional[datetime]: The maximum value or `None` if empty"]
+    fn max(&self) -> PyResult<Option<DateTime<Utc>>> {
+        self.max_item().map(|v| v.map(|(_, date)| date))
+    }
+
+    /// Return the median value
+    ///
+    /// Returns:
+    #[doc = "     Optional[datetime]: The median value or `None` if empty"]
+    fn median(&self) -> Option<DateTime<Utc>> {
+        self.median_item().map(|(_, v)| v)
+    }
+
+    /// Return median value and corresponding node
+    ///
+    /// Returns:
+    #[doc = "     Optional[Tuple[Node, datetime]]: The median value or `None` if empty"]
+    fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)> {
+        // median_item_by but we have to exclude error and none values
+        let mut values: Vec<_> = self
+            .inner
+            .par_iter()
+            .filter_map(|(n, result)| match result {
+                Ok(Some(o)) => Some((n.cloned(), o.clone())),
+                _ => None,
+            })
+            .collect();
+        let len = values.len();
+        if len == 0 {
+            return None;
+        }
+        values.par_sort_by(|(_, v1), (_, v2)| v1.cmp(v2));
+        let median_index = len / 2;
+        values.into_iter().nth(median_index).map(|(n, o)| (n, o)) // nodeview and datetime have already been cloned
+    }
+
+    // impl_node_state_group_by_ops
+    fn groups(&self) -> NodeGroups<Option<DateTime<Utc>>, DynamicGraph> {
+        self.inner.group_by(|result| match result {
+            Ok(Some(dt)) => Some(dt.clone()),
+            _ => None,
+        })
+    }
+}
+
+// impl_timeops
+// #[pymethods]
+// impl EarliestDateTimeView {
+//     pub fn start(&self) -> Option<TimeIndexEntry> {
+//         self.inner.start().into()
+//     }
+// }
+
+impl From<LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>>
+    for LatestDateTimeView
+{
+    fn from(
+        inner: LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+    ) -> Self {
+        LatestDateTimeView { inner }
+    }
+}
+
+impl<'py> pyo3::IntoPyObject<'py>
+    for LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
+{
+    type Target = LatestDateTimeView;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        LatestDateTimeView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'py>
+    for LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
+{
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.downcast::<LatestDateTimeView>()?.get().inner().clone())
+    }
+}
+
+// impl_one_hop
+// impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
+// for LazyNodeState<'static, EarliestDateTime<G>, DynamicGraph, DynamicGraph>
+// {
+//     type Target = EarliestDateTimeView;
+//     type Output = Bound<'py, Self::Target>;
+//     type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+//
+//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+//         self.into_dyn_hop().into_pyobject(py)
+//     }
+// }
+
+impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
