@@ -222,9 +222,8 @@ impl StableEncode for GraphStorage {
 
         // Edges
         let edges = storage.edges();
-        for eid in 0..edges.len() {
-            let eid = EID(eid);
-            let edge = edges.edge(eid);
+        for edge in edges.iter(&LayerIds::All) {
+            let eid = edge.eid();
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
             for layer_id in storage.unfiltered_layer_ids() {

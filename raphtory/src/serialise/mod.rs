@@ -29,8 +29,8 @@ use std::{
 };
 use tracing::info;
 
-const GRAPH_FILE_NAME: &str = "graph";
-const META_FILE_NAME: &str = ".raph";
+pub const GRAPH_FILE_NAME: &str = "graph";
+pub const META_FILE_NAME: &str = ".raph";
 const INDEX_PATH: &str = "index";
 const VECTORS_PATH: &str = "vectors";
 
