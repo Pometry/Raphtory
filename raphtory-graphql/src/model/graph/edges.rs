@@ -47,33 +47,41 @@ impl GqlEdges {
     }
 }
 
+/// A collection of edges that can be iterated over.
 #[ResolvedObjectFields]
 impl GqlEdges {
     ////////////////////////
     // LAYERS AND WINDOWS //
     ////////////////////////
 
+    /// Return a view of Edge containing only the default edge layer.    
     async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
+
+    /// Returns a view of Edge containing all layers in the list of names.
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
+    /// Returns a view of Edge containing all layers except the excluded list of names.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
+    /// Returns a view of Edge containing the specified layer.
     async fn layer(&self, name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
+    /// Returns a view of Edge containing all layers except the excluded layer specified.
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.ee.exclude_valid_layers(name))
     }
 
+    /// Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
     async fn rolling(
         &self,
         window: WindowDuration,
@@ -105,6 +113,7 @@ impl GqlEdges {
         }
     }
 
+    /// Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
         match step {
             Duration(step) => Ok(GqlEdgesWindowSet::new(self.ee.expanding(step)?)),
@@ -112,44 +121,56 @@ impl GqlEdges {
         }
     }
 
+    /// Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.window(start, end))
     }
 
+    /// Creates a view of the Edge including all events at a specified  time .
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }
+
     async fn latest(&self) -> Self {
         self.update(self.ee.latest())
     }
 
+    /// Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.ee.snapshot_at(time))
     }
+
+    /// Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
     async fn snapshot_latest(&self) -> Self {
         self.update(self.ee.snapshot_latest())
     }
 
+    /// Creates a view of the Edge including all events before a specified  end  (exclusive).
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
     }
 
+    /// Creates a view of the Edge including all events after a specified  start  (exclusive).
     async fn after(&self, time: i64) -> Self {
         self.update(self.ee.after(time))
     }
 
+    /// Shrinks both the  start  and  end  of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.shrink_window(start, end))
     }
 
+    /// Set the  start  of the window.
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.ee.shrink_start(start))
     }
 
+    /// Set the  end  of the window.
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.ee.shrink_end(end))
     }
 
+    /// Takes a specified selection of views and applies them in order given.
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
         let mut return_view: GqlEdges = self.update(self.ee.clone());
         for view in views {
@@ -198,14 +219,20 @@ impl GqlEdges {
 
         Ok(return_view)
     }
+
+    /// Returns an edge object for each update within the original edge.
     async fn explode(&self) -> Self {
         self.update(self.ee.explode())
     }
 
+    /// Returns an edge object for each layer within the original edge.
+    ///
+    /// Each new edge object contains only updates from the respective layers.
     async fn explode_layers(&self) -> Self {
         self.update(self.ee.explode_layers())
     }
 
+    /// Specify a sort order.
     async fn sorted(&self, sort_bys: Vec<EdgeSortBy>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -272,10 +299,12 @@ impl GqlEdges {
     //// TIME QUERIES //////
     ////////////////////////
 
+    /// Returns the start time of the window or none if there is no window.
     async fn start(&self) -> Option<i64> {
         self.ee.start()
     }
 
+    /// Returns the end time of the window or none if there is no window.
     async fn end(&self) -> Option<i64> {
         self.ee.end()
     }
@@ -284,18 +313,16 @@ impl GqlEdges {
     //// List ///////
     /////////////////
 
+    /// Returns the number of edges.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.len()).await
     }
 
-    /// Fetch one "page" of items, optionally offset by a specified amount.
+    /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
+    /// The page_index sets the number of pages to skip (defaults to 0).
     ///
-    /// * `limit` - The size of the page (number of items to fetch).
-    /// * `offset` - The number of items to skip (defaults to 0).
-    /// * `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
-    ///
-    /// e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
     async fn page(
         &self,
