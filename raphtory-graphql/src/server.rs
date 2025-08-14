@@ -142,13 +142,13 @@ impl GraphServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   * graph_names - the names of the graphs to vectorise. All if None is provided.
-    ///   * embedding - the embedding function to translate documents to embeddings.
-    ///   * cache - the directory to use as cache for the embeddings.
-    ///   * template - the template to use for creating documents.
+    /// * graph_names - the names of the graphs to vectorise. All if None is provided.
+    /// * embedding - the embedding function to translate documents to embeddings.
+    /// * cache - the directory to use as cache for the embeddings.
+    /// * template - the template to use for creating documents.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    /// A new server object containing the vectorised graphs.
     pub fn with_vectorised_graphs(
         mut self,
         graph_names: Vec<String>,

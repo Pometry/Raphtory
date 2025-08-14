@@ -168,7 +168,7 @@ impl GqlNode {
         self.vv.shrink_window(start, end).into()
     }
 
-    /// Set the start of the window to the larger of a specified start time  and self.start().
+    /// Set the start of the window to the larger of a specified start time and self.start().
     async fn shrink_start(&self, start: i64) -> Self {
         self.vv.shrink_start(start).into()
     }

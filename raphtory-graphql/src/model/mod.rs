@@ -126,7 +126,7 @@ impl QueryRoot {
     }
     /// Returns all namespaces using recursive search
     ///
-    /// Returns::  List of namespaces on root
+    /// Returns:: List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
@@ -151,7 +151,7 @@ impl QueryRoot {
     }
     /// Returns root namespace
     ///
-    /// Returns::  Root namespace
+    /// Returns:: Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
@@ -246,7 +246,7 @@ impl Mut {
     /// Upload graph file from a path on the client.
     ///
     /// Returns::
-    ///    name of the new graph
+    /// name of the new graph
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -272,7 +272,7 @@ impl Mut {
     /// Send graph bincode as base64 encoded string.
     ///
     /// Returns::
-    ///    path of the new graph
+    /// path of the new graph
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -291,7 +291,7 @@ impl Mut {
     /// Returns a subgraph given a set of nodes from an existing graph in the server.
     ///
     /// Returns::
-    ///    name of the new graph
+    /// name of the new graph
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         parent_path: &str,

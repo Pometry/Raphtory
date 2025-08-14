@@ -54,7 +54,7 @@ impl GqlEdges {
     // LAYERS AND WINDOWS //
     ////////////////////////
 
-    /// Return a view of Edge containing only the default edge layer.    
+    /// Return a view of Edge containing only the default edge layer.
     async fn default_layer(&self) -> Self {
         self.update(self.ee.default_layer())
     }
@@ -121,12 +121,12 @@ impl GqlEdges {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
     async fn window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.window(start, end))
     }
 
-    /// Creates a view of the Edge including all events at a specified  time .
+    /// Creates a view of the Edge including all events at a specified time .
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }
@@ -145,27 +145,27 @@ impl GqlEdges {
         self.update(self.ee.snapshot_latest())
     }
 
-    /// Creates a view of the Edge including all events before a specified  end  (exclusive).
+    /// Creates a view of the Edge including all events before a specified end (exclusive).
     async fn before(&self, time: i64) -> Self {
         self.update(self.ee.before(time))
     }
 
-    /// Creates a view of the Edge including all events after a specified  start  (exclusive).
+    /// Creates a view of the Edge including all events after a specified start (exclusive).
     async fn after(&self, time: i64) -> Self {
         self.update(self.ee.after(time))
     }
 
-    /// Shrinks both the  start  and  end  of the window.
+    /// Shrinks both the start and end of the window.
     async fn shrink_window(&self, start: i64, end: i64) -> Self {
         self.update(self.ee.shrink_window(start, end))
     }
 
-    /// Set the  start  of the window.
+    /// Set the start of the window.
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.ee.shrink_start(start))
     }
 
-    /// Set the  end  of the window.
+    /// Set the end of the window.
     async fn shrink_end(&self, end: i64) -> Self {
         self.update(self.ee.shrink_end(end))
     }
@@ -322,7 +322,7 @@ impl GqlEdges {
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
     /// The page_index sets the number of pages to skip (defaults to 0).
     ///
-    /// For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
     async fn page(
         &self,

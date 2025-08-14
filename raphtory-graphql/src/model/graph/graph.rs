@@ -192,7 +192,7 @@ impl GqlGraph {
         }
     }
 
-    /// Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
+    /// Return a graph containing only the activity between start and end measured as milliseconds from epoch
     async fn window(&self, start: i64, end: i64) -> GqlGraph {
         self.apply(|g| g.window(start, end))
     }
