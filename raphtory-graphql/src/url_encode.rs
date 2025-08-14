@@ -87,11 +87,10 @@ mod tests {
         graph.add_edge(1, 2, 3, [("bla", "blu")], None).unwrap();
         let edge = graph.add_edge(2, 3, 4, [("foo", 42)], Some("7")).unwrap();
 
-        edge.add_constant_properties([("14", 15f64)], Some("7"))
-            .unwrap();
+        edge.add_metadata([("14", 15f64)], Some("7")).unwrap();
 
         let node = graph.add_node(17, 0, NO_PROPS, None).unwrap();
-        node.add_constant_properties([("blerg", "test")]).unwrap();
+        node.add_metadata([("blerg", "test")]).unwrap();
 
         let bytes = url_encode_graph(graph.clone()).unwrap();
         let decoded_graph = url_decode_graph(bytes).unwrap();
