@@ -263,7 +263,7 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.history().last().cloned()).await
     }
 
-    /// Returns the time of an exploded edge. Errors on an unexploded edge. 
+    /// Returns the time of an exploded edge. Errors on an unexploded edge.
     async fn time(&self) -> Result<i64, GraphError> {
         self.ee.time()
     }
@@ -318,7 +318,7 @@ impl GqlEdge {
             .collect()
     }
 
-    /// Returns the layer name of an exploded edge, errors on an edge. 
+    /// Returns the layer name of an exploded edge, errors on an edge.
     async fn layer_name(&self) -> Result<String, GraphError> {
         self.ee.layer_name().map(|x| x.into())
     }
