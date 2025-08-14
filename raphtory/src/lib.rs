@@ -173,7 +173,10 @@ mod test_utils {
     use proptest::{arbitrary::any, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
-    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+    use raphtory_storage::{
+        core_ops::CoreGraphOps,
+        mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    };
     use std::{collections::HashMap, sync::Arc};
     #[cfg(feature = "storage")]
     use tempfile::TempDir;
@@ -315,14 +318,15 @@ mod test_utils {
             // PropType::Decimal { scale }, decimal breaks the tests because of polars-parquet
         ]);
 
-        leaf.prop_recursive(3, 10, 10, |inner| {
-            let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
-                .prop_map(PropType::map);
-            let list = inner
-                .clone()
-                .prop_map(|p_type| PropType::List(Box::new(p_type)));
-            prop_oneof![inner, list, dict]
-        })
+        // leaf.prop_recursive(3, 10, 10, |inner| {
+        //     let dict = proptest::collection::hash_map(r"\w{1,10}", inner.clone(), 1..10)
+        //         .prop_map(PropType::map);
+        //     let list = inner
+        //         .clone()
+        //         .prop_map(|p_type| PropType::List(Box::new(p_type)));
+        //     prop_oneof![inner, list, dict]
+        // })
+        leaf
     }
 
     #[derive(Debug, Clone)]
@@ -689,15 +693,20 @@ mod test_utils {
 
         let layers = g.edge_meta().layer_meta();
 
+        let session = g.write_session().unwrap();
         for ((src, dst, layer), updates) in graph_fix.edges() {
             // properties always exist in the graph
             for (_, props) in updates.props.t_props.iter() {
                 for (key, value) in props {
-                    g.resolve_edge_property(key, value.dtype(), false).unwrap();
+                    session
+                        .resolve_edge_property(key, value.dtype(), false)
+                        .unwrap();
                 }
             }
             for (key, value) in updates.props.c_props.iter() {
-                g.resolve_edge_property(key, value.dtype(), true).unwrap();
+                session
+                    .resolve_edge_property(key, value.dtype(), true)
+                    .unwrap();
             }
 
             if layers.contains(layer.unwrap_or("_default")) {

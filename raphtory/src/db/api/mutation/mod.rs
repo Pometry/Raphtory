@@ -18,9 +18,26 @@ use raphtory_api::core::{
     entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
 };
 pub(crate) use raphtory_core::utils::time::{InputTime, TryIntoInputTime};
-use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 
 pub fn time_from_input<G: InternalAdditionOps<Error: Into<GraphError>>, T: TryIntoInputTime>(
+    g: &G,
+    t: T,
+) -> Result<TimeIndexEntry, GraphError> {
+    let t = t.try_into_input_time()?;
+    let session = g.write_session().map_err(|err| err.into())?;
+    Ok(match t {
+        InputTime::Simple(t) => {
+            TimeIndexEntry::new(t, session.next_event_id().map_err(into_graph_err)?)
+        }
+        InputTime::Indexed(t, s) => TimeIndexEntry::new(t, s),
+    })
+}
+
+pub fn time_from_input_session<
+    G: SessionAdditionOps<Error: Into<GraphError>>,
+    T: TryIntoInputTime,
+>(
     g: &G,
     t: T,
 ) -> Result<TimeIndexEntry, GraphError> {

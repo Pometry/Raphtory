@@ -4,7 +4,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef, VID},
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties, TryIntoInputTime},
+            mutation::{time_from_input_session, CollectProperties, TryIntoInputTime},
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
@@ -36,7 +36,11 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::graph::GraphStorage,
+    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -263,8 +267,8 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let res = semantics
-            .node_tprop_iter(node.as_ref(), &self.graph, id)
-            .next_back()
+            .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
+            .next()
             .map(|(_, v)| v);
         res
     }
@@ -285,8 +289,7 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .node_tprop_iter(node.as_ref(), &self.graph, id)
-                .rev()
+                .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -405,14 +408,15 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseNodeViewOps<
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G, G> {
-    pub fn add_metadata<C: CollectProperties>(&self, properties: C) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .resolve_node_property(name, dtype, true)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
+    pub fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), GraphError> {
+        let properties = self.graph.core_graph().validate_props(
+            true,
+            self.graph.node_meta(),
+            props.into_iter().map(|(n, p)| (n, p.into())),
+        )?;
         self.graph
             .internal_add_node_metadata(self.node, &properties)
             .map_err(into_graph_err)?;
@@ -430,7 +434,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
             Ok(self
                 .graph
-                .resolve_node_property(name, dtype, true)
+                .write_session()
+                .and_then(|s| s.resolve_node_property(name, dtype, true))
                 .map_err(into_graph_err)?
                 .inner())
         })?;
@@ -440,21 +445,29 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         Ok(())
     }
 
-    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+    pub fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        PI: Into<Prop>,
+        PII: IntoIterator<Item = (PN, PI)>,
+    >(
         &self,
         time: T,
-        props: C,
+        props: PII,
     ) -> Result<(), GraphError> {
-        let t = time_from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .resolve_node_property(name, dtype, false)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
+        let session = self.graph.write_session().map_err(|err| err.into())?;
+        let t = time_from_input_session(&session, time)?;
+        let props = self
+            .graph
+            .validate_props(
+                false,
+                self.graph.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
+        let vid = self.node;
         self.graph
-            .internal_add_node(t, self.node, &properties)
+            .internal_add_node(t, vid, None, None, props)
             .map_err(into_graph_err)
     }
 }

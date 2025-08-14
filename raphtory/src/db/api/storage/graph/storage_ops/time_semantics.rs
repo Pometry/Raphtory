@@ -1,6 +1,6 @@
 use super::GraphStorage;
 use crate::{
-    core::{entities::LayerIds, storage::timeindex::TimeIndexOps, utils::iter::GenLockedDIter},
+    core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
     db::api::view::internal::{
         EdgeHistoryFilter, GraphTimeSemanticsOps, NodeHistoryFilter, TimeSemantics,
     },
@@ -11,14 +11,19 @@ use raphtory_api::{
         entities::{properties::tprop::TPropOps, EID, VID},
         storage::timeindex::{AsTime, TimeIndexEntry},
     },
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, locked::LockedGraph,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
 };
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
+use storage::gen_ts::ALL_LAYERS;
 
 impl GraphTimeSemanticsOps for GraphStorage {
     fn node_time_semantics(&self) -> TimeSemantics {
@@ -40,34 +45,52 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_earliest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.earliest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_earliest_time()
+            }
         }
     }
 
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_latest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.latest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_latest_time()
+            }
         }
     }
 
     fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).first_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range_t(start..end)
+                    .first_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range_t(start..end)
+                            .first_t(),
+                    )
+            })
             .min()
     }
 
     fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range_t(start..end).last_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range_t(start..end)
+                    .last_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range_t(start..end)
+                            .last_t(),
+                    )
+            })
             .max()
     }
 
@@ -75,14 +98,14 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id < self.graph_meta().temporal_mapper().len()
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| prop.deref().iter().into_dyn_dboxed())
+                GenLockedIter::from(prop, |prop| prop.deref().iter().into_dyn_boxed())
             })
-            .into_dyn_dboxed()
+            .into_dyn_boxed()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
@@ -97,18 +120,37 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
         self.graph_meta()
             .get_temporal_prop(prop_id)
             .into_iter()
             .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| {
+                GenLockedIter::from(prop, |prop| {
                     prop.deref()
                         .iter_window(TimeIndexEntry::range(start..end))
-                        .into_dyn_dboxed()
+                        .into_dyn_boxed()
                 })
             })
-            .into_dyn_dboxed()
+            .into_dyn_boxed()
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+        self.graph_meta()
+            .get_temporal_prop(prop_id)
+            .into_iter()
+            .flat_map(move |prop| {
+                GenLockedIter::from(prop, |prop| {
+                    prop.deref()
+                        .iter_window_rev(TimeIndexEntry::range(start..end))
+                        .into_dyn_boxed()
+                })
+            })
+            .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(

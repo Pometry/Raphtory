@@ -12,6 +12,7 @@ use raphtory_storage::graph::{
     nodes::node_ref::NodeStorageRef,
 };
 
+#[derive(Debug)]
 pub enum FilterState {
     Neither,
     Both,

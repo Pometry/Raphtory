@@ -75,7 +75,8 @@ impl DiskEdges {
                     .into_par_iter()
                     .map(EID)
                     .filter(move |e| {
-                        ids.into_iter()
+                        ids.clone()
+                            .into_iter()
                             .any(|layer_id| self.graph.inner.edge(*e).has_layer_inner(layer_id))
                     }),
             ),

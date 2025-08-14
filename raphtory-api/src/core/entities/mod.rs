@@ -95,6 +95,12 @@ impl EID {
     }
 }
 
+impl From<ELID> for EID {
+    fn from(elid: ELID) -> Self {
+        elid.edge
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ELID {
     pub edge: EID,
@@ -148,6 +154,7 @@ pub enum GID {
     U64(u64),
     Str(String),
 }
+
 impl PartialEq<str> for GID {
     fn eq(&self, other: &str) -> bool {
         match self {
@@ -225,7 +232,7 @@ impl GID {
         }
     }
 
-    pub fn to_str(&self) -> Cow<str> {
+    pub fn to_str(&self) -> Cow<'_, str> {
         match self {
             GID::U64(v) => Cow::Owned(v.to_string()),
             GID::Str(v) => Cow::Borrowed(v),
@@ -246,7 +253,7 @@ impl GID {
         }
     }
 
-    pub fn as_ref(&self) -> GidRef {
+    pub fn as_ref(&self) -> GidRef<'_> {
         match self {
             GID::U64(v) => GidRef::U64(*v),
             GID::Str(v) => GidRef::Str(v),
@@ -315,8 +322,8 @@ impl Display for GidType {
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GidRef::U64(v) => write!(f, "{}", v),
-            GidRef::Str(v) => write!(f, "{}", v),
+            GidRef::U64(v) => write!(f, "{v}"),
+            GidRef::Str(v) => write!(f, "{v}"),
         }
     }
 }
@@ -333,6 +340,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 impl<'a> From<&'a str> for GidRef<'a> {
     fn from(value: &'a str) -> Self {
         GidRef::Str(value)
+    }
+}
+
+impl From<u64> for GidRef<'_> {
+    fn from(value: u64) -> Self {
+        GidRef::U64(value)
     }
 }
 
@@ -454,7 +467,7 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<LayerIds> {
+    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<'_, LayerIds> {
         match e.layer() {
             None => Cow::Borrowed(self),
             Some(l) => self
@@ -476,7 +489,7 @@ impl LayerIds {
         matches!(self, LayerIds::One(_))
     }
 
-    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> {
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> + use<'_> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),
             LayerIds::All => (0..num_layers).into_dyn_boxed(),

@@ -18,6 +18,7 @@ raphtory = { path = "../raphtory", version = "0.16.0", features = [
     'search',
     "io",
 ] }
+tempfile = { workspace = true }
 raphtory-api = { path = "../raphtory-api", version = "0.16.0" }
 raphtory-storage = { path = "../raphtory-storage", version = "0.16.0" }
 base64 = { workspace = true }
@@ -66,6 +67,5 @@ pretty_assertions = { workspace = true }
 arrow-array = { workspace = true }
 
 [features]
-storage = ["raphtory/storage"]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]

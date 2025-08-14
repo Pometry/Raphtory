@@ -12,7 +12,7 @@ impl<T: PartialEq + Clone + std::fmt::Debug + Send + Sync + 'static> StateType f
 #[cfg(test)]
 mod state_test {
     use itertools::Itertools;
-    use quickcheck_macros::quickcheck;
+    use proptest::prelude::*;
     use rand::Rng;
 
     use crate::{
@@ -24,23 +24,25 @@ mod state_test {
         prelude::NO_PROPS,
     };
 
-    #[quickcheck]
-    fn check_merge_2_vecs(mut a: Vec<usize>, b: Vec<usize>) {
-        let len_a = a.len();
-        let len_b = b.len();
+    #[test]
+    fn check_merge_2_vecs() {
+        proptest!(|(mut a: Vec<usize>, b: Vec<usize>)| {
+            let len_a = a.len();
+            let len_b = b.len();
 
-        merge_2_vecs(&mut a, &b, |ia, ib| *ia = usize::max(*ia, *ib));
+            merge_2_vecs(&mut a, &b, |ia, ib| *ia = usize::max(*ia, *ib));
 
-        assert_eq!(a.len(), usize::max(len_a, len_b));
+            assert_eq!(a.len(), usize::max(len_a, len_b));
 
-        for (i, expected) in a.iter().enumerate() {
-            match (a.get(i), b.get(i)) {
-                (Some(va), Some(vb)) => assert_eq!(*expected, usize::max(*va, *vb)),
-                (Some(va), None) => assert_eq!(*expected, *va),
-                (None, Some(vb)) => assert_eq!(*expected, *vb),
-                (None, None) => panic!("value should exist in either a or b"),
+            for (i, expected) in a.iter().enumerate() {
+                match (a.get(i), b.get(i)) {
+                    (Some(va), Some(vb)) => assert_eq!(*expected, usize::max(*va, *vb)),
+                    (Some(va), None) => assert_eq!(*expected, *va),
+                    (None, Some(vb)) => assert_eq!(*expected, *vb),
+                    (None, None) => panic!("value should exist in either a or b"),
+                }
             }
-        }
+        });
     }
 
     fn tiny_graph() -> Graph {

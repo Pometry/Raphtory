@@ -87,4 +87,3 @@ required-features = ["search"]
 
 [features]
 search = ["raphtory/search"]
-storage = ["raphtory/storage"]

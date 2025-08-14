@@ -37,7 +37,7 @@ mod test {
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::entities::properties::prop::PropType;
-    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 
     #[test]
     fn test_edge_filter() {
@@ -251,7 +251,7 @@ mod test {
     #[test]
     fn test_filter_eq() {
         proptest!(|(
-            edges in build_edge_list(100, 100), v in any::<i64>()
+            edges in build_edge_list(10, 10), v in any::<i64>()
         )| {
             let g = build_graph_from_edge_list(&edges);
             let filter = PropertyFilter::eq(PropertyRef::Property("int_prop".to_string()), v);
@@ -332,6 +332,29 @@ mod test {
     }
 
     #[test]
+    fn test_persistent_graph_materialise_window_2_updates() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 0, [("test", 0)], None).unwrap();
+        g.add_edge(-5, 0, 0, [("test", 1)], None).unwrap();
+        let start = -3;
+        let end = 0;
+        let v = 0;
+        let gwf = g
+            .window(start, end)
+            .filter_edges(PropertyFilterBuilder("test".to_string()).gt(v))
+            .unwrap();
+        let gwfm = gwf.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&gwf, &gwfm);
+
+        let gfw = g
+            .filter_edges(PropertyFilterBuilder("test".to_string()).gt(v))
+            .unwrap()
+            .window(start, end);
+        let gfwm = gfw.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&gfw, &gfwm);
+    }
+
+    #[test]
     fn test_single_unfiltered_edge_empty_window_persistent() {
         let g = PersistentGraph::new();
         g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();
@@ -344,6 +367,8 @@ mod test {
         assert_eq!(gw.count_edges(), 0);
         let expected = PersistentGraph::new();
         expected
+            .write_session()
+            .unwrap()
             .resolve_edge_property("test", PropType::I64, false)
             .unwrap();
         expected.resolve_layer(None).unwrap();

@@ -1,16 +1,18 @@
-use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap};
-use dashmap::mapref::entry::Entry;
-use parking_lot::RwLock;
+use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::{Borrow, BorrowMut},
+    collections::hash_map::Entry,
     hash::Hash,
+    ops::DerefMut,
     sync::Arc,
 };
 
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct DictMapper {
-    map: FxDashMap<ArcStr, usize>,
+    map: Arc<RwLock<FxHashMap<ArcStr, usize>>>,
     reverse_map: Arc<RwLock<Vec<ArcStr>>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
 }
 
@@ -31,6 +33,11 @@ where
 }
 
 impl<Index> MaybeNew<Index> {
+    #[inline]
+    pub fn is_new(&self) -> bool {
+        matches!(self, MaybeNew::New(_))
+    }
+
     #[inline]
     pub fn inner(self) -> Index {
         match self {
@@ -97,9 +104,64 @@ impl<Index> BorrowMut<Index> for MaybeNew<Index> {
     }
 }
 
+pub struct LockedDictMapper<'a> {
+    map: RwLockReadGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockReadGuard<'a, Vec<ArcStr>>,
+}
+
+pub struct WriteLockedDictMapper<'a> {
+    map: RwLockWriteGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockWriteGuard<'a, Vec<ArcStr>>,
+}
+
+impl LockedDictMapper<'_> {
+    pub fn get_id(&self, name: &str) -> Option<usize> {
+        self.map.get(name).copied()
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
+impl WriteLockedDictMapper<'_> {
+    pub fn get_or_create_id<Q, T>(&mut self, name: &Q) -> MaybeNew<usize>
+    where
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
+        T: Into<ArcStr>,
+    {
+        let name = name.to_owned().into();
+        let new_id = match self.map.entry(name.clone()) {
+            Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+            Entry::Vacant(entry) => {
+                let id = self.reverse_map.len();
+                self.reverse_map.push(name);
+                entry.insert(id);
+                MaybeNew::New(id)
+            }
+        };
+        new_id
+    }
+
+    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) {
+        let arc_name = name.into();
+        let map_entry = self.map.entry(arc_name.clone());
+        let keys = self.reverse_map.deref_mut();
+        if keys.len() <= id {
+            keys.resize(id + 1, Default::default())
+        }
+        keys[id] = arc_name;
+        map_entry.insert_entry(id);
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
 impl DictMapper {
     pub fn contains(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+        self.map.read().contains_key(key)
     }
 
     pub fn deep_clone(&self) -> Self {
@@ -110,17 +172,36 @@ impl DictMapper {
             reverse_map: Arc::new(RwLock::new(reverse_map)),
         }
     }
+
+    pub fn read(&self) -> LockedDictMapper<'_> {
+        LockedDictMapper {
+            map: self.map.read(),
+            reverse_map: self.reverse_map.read(),
+        }
+    }
+
+    pub fn write(&self) -> WriteLockedDictMapper<'_> {
+        WriteLockedDictMapper {
+            map: self.map.write(),
+            reverse_map: self.reverse_map.write(),
+        }
+    }
+
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> MaybeNew<usize>
     where
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        if let Some(existing_id) = self.map.get(name.borrow()) {
+        let map = self.map.read();
+        if let Some(existing_id) = map.get(name.borrow()) {
             return MaybeNew::Existing(*existing_id);
         }
+        drop(map);
+
+        let mut map = self.map.write();
 
         let name = name.to_owned().into();
-        let new_id = match self.map.entry(name.clone()) {
+        let new_id = match map.entry(name.clone()) {
             Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
             Entry::Vacant(entry) => {
                 let mut reverse = self.reverse_map.write();
@@ -134,19 +215,28 @@ impl DictMapper {
     }
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
-        self.map.get(name).map(|id| *id)
+        self.map.read().get(name).copied()
     }
 
     /// Explicitly set the id for a key (useful for initialising the map in parallel)
     pub fn set_id(&self, name: impl Into<ArcStr>, id: usize) {
+        let mut map = self.map.write();
         let arc_name = name.into();
-        let map_entry = self.map.entry(arc_name.clone());
+        let map_entry = map.entry(arc_name.clone());
         let mut keys = self.reverse_map.write();
         if keys.len() <= id {
             keys.resize(id + 1, Default::default())
         }
         keys[id] = arc_name;
-        map_entry.insert(id);
+        map_entry.insert_entry(id);
+    }
+
+    pub fn set_reverse_id(&self, id: usize, name: impl Into<ArcStr>) {
+        let mut keys = self.reverse_map.write();
+        if keys.len() <= id {
+            keys.resize(id + 1, Default::default())
+        }
+        keys[id] = name.into();
     }
 
     pub fn has_name(&self, id: usize) -> bool {
@@ -156,10 +246,9 @@ impl DictMapper {
 
     pub fn get_name(&self, id: usize) -> ArcStr {
         let guard = self.reverse_map.read();
-        guard
-            .get(id)
-            .cloned()
-            .expect("internal ids should always be mapped to a name")
+        guard.get(id).cloned().unwrap_or_else(|| {
+            panic!("internal ids should always be mapped to a name {id}\n{self:?}")
+        })
     }
 
     pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {
@@ -169,7 +258,7 @@ impl DictMapper {
     }
 
     pub fn get_values(&self) -> Vec<usize> {
-        self.map.iter().map(|entry| *entry.value()).collect()
+        self.map.read().iter().map(|(_, &entry)| entry).collect()
     }
 
     pub fn len(&self) -> usize {
@@ -184,7 +273,7 @@ impl DictMapper {
 #[cfg(test)]
 mod test {
     use crate::core::storage::dict_mapper::DictMapper;
-    use proptest::{arbitrary::any, prop_assert, proptest};
+    use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
     use std::collections::HashMap;
@@ -201,7 +290,7 @@ mod test {
 
     #[test]
     fn check_dict_mapper_concurrent_write() {
-        proptest!(|(write in any::<Vec<String>>())| {
+        proptest!(|(write: Vec<String>)| {
             let n = 100;
             let mapper: DictMapper = DictMapper::default();
 
@@ -223,8 +312,8 @@ mod test {
 
             // check that all maps are the same and that all strings have been assigned an id
             let res_0 = &res[0];
-            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()))
-        })
+            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()));
+        });
     }
 
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times

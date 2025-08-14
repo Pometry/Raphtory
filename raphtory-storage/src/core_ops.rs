@@ -16,10 +16,8 @@ use raphtory_api::{
     iter::{BoxedIter, BoxedLIter},
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
-use std::{
-    iter,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{iter, sync::Arc};
+use storage::resolver::GIDResolverOps;
 
 /// Check if two Graph views point at the same underlying storage
 pub fn is_view_compatible(g1: &impl CoreGraphOps, g2: &impl CoreGraphOps) -> bool {
@@ -33,29 +31,25 @@ pub trait CoreGraphOps: Send + Sync {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.logical_to_physical.dtype()
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => Some(storage.inner().id_type()),
         }
     }
 
-    fn num_shards(&self) -> usize {
-        match self.core_graph() {
-            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
-                graph.storage.num_shards()
-            }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => 1,
-        }
-    }
+    // fn num_shards(&self) -> usize {
+    //     match self.core_graph() {
+    //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+    //             graph.storage.num_shards()
+    //         }
+    //         #[cfg(feature = "storage")]
+    //         GraphStorage::Disk(_) => 1,
+    //     }
+    // }
 
     /// get the current sequence id without incrementing the counter
     fn read_event_id(&self) -> usize {
         match self.core_graph() {
-            GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
-                graph.event_counter.load(Ordering::Relaxed)
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.read_event_counter()
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.count_temporal_edges(),
         }
     }
 
@@ -156,7 +150,7 @@ pub trait CoreGraphOps: Send + Sync {
         let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter()),
+            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter().skip(1)), // first layer is static graph
             LayerIds::One(id) => {
                 let name = self.edge_meta().layer_meta().get_name(id).clone();
                 Box::new(iter::once(name))
@@ -184,9 +178,7 @@ pub trait CoreGraphOps: Send + Sync {
     #[inline]
     fn node_name(&self, v: VID) -> String {
         let node = self.core_node(v);
-        node.name()
-            .map(|name| name.to_string())
-            .unwrap_or_else(|| node.id().to_str().to_string())
+        node.name().as_ref().to_owned()
     }
 
     /// Returns the type of node
@@ -226,7 +218,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// The property value if it exists.
     fn node_metadata(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
-        core_node_entry.prop(id)
+        core_node_entry.constant_prop_layer(0, id)
     }
 
     /// Gets the keys of metadata of a given node
@@ -237,9 +229,12 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The keys of the metadata.
-    fn node_metadata_ids(&self, v: VID) -> BoxedLIter<usize> {
-        let core_node_entry = self.core_node(v);
-        core_node_entry.metadata_ids()
+    fn node_metadata_ids(&self, _v: VID) -> BoxedLIter<usize> {
+        // property 0 = node type, property 1 = external node id
+        // on an empty graph, this will return an empty range
+        let end = self.node_meta().metadata_mapper().len();
+        let start = 2.min(end);
+        Box::new(start..end)
     }
 
     /// Returns a vector of all ids of temporal properties within the given node
@@ -250,9 +245,8 @@ pub trait CoreGraphOps: Send + Sync {
     ///
     /// # Returns
     /// The ids of the temporal properties
-    fn temporal_node_prop_ids(&self, v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        let core_node_entry = self.core_node(v);
-        core_node_entry.temporal_prop_ids()
+    fn temporal_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
+        Box::new(0..self.node_meta().temporal_prop_mapper().len())
     }
 }
 

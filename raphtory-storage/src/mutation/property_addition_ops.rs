@@ -1,22 +1,15 @@
 use crate::{
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-    mutation::MutationError,
+    graph::graph::GraphStorage,
+    mutation::{EdgeWriterT, MutationError, NodeWriterT},
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
-        entities::{
-            properties::prop::{validate_prop, Prop},
-            EID, VID,
-        },
+        entities::{properties::prop::Prop, EID, VID},
         storage::timeindex::TimeIndexEntry,
     },
     inherit::Base,
 };
-use raphtory_core::{
-    entities::graph::tgraph::TemporalGraph,
-    storage::{raw_edges::EdgeWGuard, EntryMut, NodeSlot},
-};
+use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
@@ -31,62 +24,53 @@ pub trait InternalPropertyAdditionOps {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
+    ) -> Result<NodeWriterT, Self::Error>;
     fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error>;
+    ) -> Result<NodeWriterT, Self::Error>;
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error>;
+    ) -> Result<EdgeWriterT, Self::Error>;
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error>;
+    ) -> Result<EdgeWriterT, Self::Error>;
 }
 
-impl InternalPropertyAdditionOps for TemporalGraph {
+impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
+
     fn internal_add_properties(
         &self,
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        if !props.is_empty() {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                self.graph_meta
-                    .add_prop(t, *prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            self.update_time(t);
+        // FIXME: check atomicity
+        for (id, prop) in props {
+            self.graph_meta.add_prop(t, *id, prop.clone())?;
         }
         Ok(())
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        // FIXME: check atomicity
         for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta
-                .add_metadata(*id, prop)
-                .map_err(MutationError::from)?;
+            self.graph_meta.add_metadata(*id, prop.clone())?;
         }
         Ok(())
     }
 
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+        // FIXME: check atomicity
         for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta.update_metadata(*id, prop);
+            self.graph_meta.update_metadata(*id, prop.clone());
         }
         Ok(())
     }
@@ -95,32 +79,19 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .add_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
+    ) -> Result<NodeWriterT, Self::Error> {
+        let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
+        let mut writer = self.storage().nodes().writer(segment_id);
+        writer.update_c_props(node_pos, 0, props.iter().cloned(), 0);
+        Ok(writer)
     }
 
     fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .update_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
+    ) -> Result<NodeWriterT, Self::Error> {
+        todo!()
     }
 
     fn internal_add_edge_metadata(
@@ -128,24 +99,14 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .add_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
+    ) -> Result<EdgeWriterT, Self::Error> {
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(writer)
     }
 
     fn internal_update_edge_metadata(
@@ -153,24 +114,14 @@ impl InternalPropertyAdditionOps for TemporalGraph {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .update_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
+    ) -> Result<EdgeWriterT, Self::Error> {
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(writer)
     }
 }
 
@@ -182,7 +133,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         t: TimeIndexEntry,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        self.mutable()?.internal_add_properties(t, props)
+        Ok(self.mutable()?.internal_add_properties(t, props)?)
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
@@ -197,7 +148,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         self.mutable()?.internal_add_node_metadata(vid, props)
     }
 
@@ -205,7 +156,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         self.mutable()?.internal_update_node_metadata(vid, props)
     }
 
@@ -214,7 +165,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         self.mutable()?
             .internal_add_edge_metadata(eid, layer, props)
     }
@@ -224,7 +175,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         self.mutable()?
             .internal_update_edge_metadata(eid, layer, props)
     }
@@ -262,7 +213,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         self.base().internal_add_node_metadata(vid, props)
     }
 
@@ -271,7 +222,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<EntryMut<RwLockWriteGuard<NodeSlot>>, Self::Error> {
+    ) -> Result<NodeWriterT, Self::Error> {
         self.base().internal_update_node_metadata(vid, props)
     }
 
@@ -281,7 +232,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         self.base().internal_add_edge_metadata(eid, layer, props)
     }
 
@@ -291,7 +242,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard, Self::Error> {
+    ) -> Result<EdgeWriterT, Self::Error> {
         self.base().internal_update_edge_metadata(eid, layer, props)
     }
 }

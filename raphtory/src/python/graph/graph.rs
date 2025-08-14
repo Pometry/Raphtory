@@ -146,11 +146,11 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (num_shards = None))]
-    pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
-        let graph = match num_shards {
+    #[pyo3(signature = (path = None))]
+    pub fn py_new(path: Option<PathBuf>) -> (Self, PyGraphView) {
+        let graph = match path {
             None => Graph::new(),
-            Some(num_shards) => Graph::new_with_shards(num_shards),
+            Some(path) => Graph::new_at_path(path),
         };
         (
             Self {
@@ -158,6 +158,11 @@ impl PyGraph {
             },
             PyGraphView::from(graph),
         )
+    }
+
+    #[staticmethod]
+    pub fn load(path: PathBuf) -> Graph {
+        Graph::load_from_path(path)
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {

@@ -1,16 +1,16 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
 use raphtory_api::core::entities::VID;
-use raphtory_core::storage::ReadLockedStorage;
 use rayon::iter::ParallelIterator;
+use storage::{Extension, ReadLockedNodes};
 
 #[cfg(feature = "storage")]
 use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
 
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {
-    Mem(&'a ReadLockedStorage),
-    Unlocked(ReadLockedStorage),
+    Mem(&'a ReadLockedNodes<Extension>),
+    Unlocked(ReadLockedNodes<Extension>),
     #[cfg(feature = "storage")]
     Disk(DiskNodesRef<'a>),
 }
@@ -29,8 +29,8 @@ macro_rules! for_all_variants {
 impl<'a> NodesStorageEntry<'a> {
     pub fn node(&self, vid: VID) -> NodeStorageRef<'_> {
         match self {
-            NodesStorageEntry::Mem(store) => NodeStorageRef::Mem(store.get_entry(vid)),
-            NodesStorageEntry::Unlocked(store) => NodeStorageRef::Mem(store.get_entry(vid)),
+            NodesStorageEntry::Mem(store) => store.node_ref(vid),
+            NodesStorageEntry::Unlocked(store) => store.node_ref(vid),
             #[cfg(feature = "storage")]
             NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }
@@ -45,11 +45,14 @@ impl<'a> NodesStorageEntry<'a> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeStorageRef<'_>> {
-        for_all_variants!(self, nodes => nodes.par_iter().map(|n| n.into()))
+        for_all_variants!(self, nodes => nodes.par_iter())
     }
 
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
-        for_all_variants!(self, nodes => nodes.iter().map(|n| n.into()))
+        for_all_variants!(self, nodes => nodes.iter())
     }
 }

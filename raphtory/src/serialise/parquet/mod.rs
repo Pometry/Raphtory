@@ -1,5 +1,8 @@
 use crate::{
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::storage::Storage, view::MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::GraphError,
     io::parquet_loaders::{
         load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
@@ -90,6 +93,17 @@ impl ParquetEncoder for PersistentGraph {
     }
 }
 
+impl ParquetEncoder for MaterializedGraph {
+    fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
+        match self {
+            MaterializedGraph::EventGraph(graph) => graph.encode_parquet(path),
+            MaterializedGraph::PersistentGraph(persistent_graph) => {
+                persistent_graph.encode_parquet(path)
+            }
+        }
+    }
+}
+
 fn encode_graph_storage(
     g: &GraphStorage,
     path: impl AsRef<Path>,
@@ -147,6 +161,41 @@ pub(crate) fn run_encode(
             Ok::<_, GraphError>(())
         })?;
     }
+    Ok(())
+}
+
+pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>>(
+    g: &GraphStorage,
+    meta: &PropMapper,
+    items: impl ParallelIterator<Item = (usize, II)>,
+    path: impl AsRef<Path>,
+    suffix: &str,
+    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
+    encode_fn: impl Fn(II, &GraphStorage, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
+        + Sync,
+) -> Result<(), GraphError> {
+    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
+    let root_dir = path.as_ref().join(suffix);
+    std::fs::create_dir_all(&root_dir)?;
+
+    let num_digits = 8;
+
+    items.try_for_each(|(chunk, items)| {
+        let props = WriterProperties::builder()
+            .set_compression(Compression::SNAPPY)
+            .build();
+
+        let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
+        let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+
+        let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
+
+        encode_fn(items, g, &mut decoder, &mut writer)?;
+
+        writer.close()?;
+        Ok::<_, GraphError>(())
+    })?;
+
     Ok(())
 }
 
@@ -263,8 +312,7 @@ fn decode_graph_storage(
 
     if g_type != expected_gt {
         return Err(GraphError::LoadFailure(format!(
-            "Expected graph type {:?}, got {:?}",
-            expected_gt, g_type
+            "Expected graph type {expected_gt:?}, got {g_type:?}"
         )));
     }
 
@@ -394,6 +442,17 @@ impl ParquetDecoder for PersistentGraph {
     {
         let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
         Ok(PersistentGraph(gs))
+    }
+}
+
+impl ParquetDecoder for MaterializedGraph {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
+    where
+        Self: Sized,
+    {
+        let gs = decode_graph_storage(path.as_ref(), GraphType::EventGraph)
+            .or_else(|_| decode_graph_storage(path.as_ref(), GraphType::PersistentGraph))?;
+        Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs)))
     }
 }
 
@@ -856,7 +915,7 @@ mod test {
     }
 
     #[test]
-    fn write_nodes_no_props_to_parquet() {
+    fn write_graph_no_props_to_parquet() {
         let nf = PropUpdatesFixture {
             t_props: vec![(1, vec![])],
             c_props: vec![],
@@ -870,11 +929,59 @@ mod test {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
+
+    #[test]
+    fn write_nodes_any_props_to_parquet_1() {
+        let nodes = NodeFixture(
+            [(
+                0,
+                NodeUpdatesFixture {
+                    props: PropUpdatesFixture {
+                        t_props: vec![(0, vec![])],
+                        c_props: vec![("2".to_string(), Prop::U8(0))],
+                    },
+                    node_type: Some("one"),
+                },
+            )]
+            .into(),
+        );
+        build_and_check_parquet_encoding(nodes.into());
+    }
     #[test]
     fn write_edges_any_props_to_parquet() {
         proptest!(|(edges in build_edge_list_dyn(10, 10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
+    }
+
+    #[test]
+    fn write_edges_any_props_to_parquet_1() {
+        let edges = EdgeFixture(
+            [
+                (
+                    (0, 0, Some("a")),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![(0, vec![])],
+                            c_props: vec![],
+                        },
+                        deletions: vec![0],
+                    },
+                ),
+                (
+                    (0, 1, Some("b")),
+                    EdgeUpdatesFixture {
+                        props: PropUpdatesFixture {
+                            t_props: vec![(0, vec![])],
+                            c_props: vec![],
+                        },
+                        deletions: vec![0],
+                    },
+                ),
+            ]
+            .into(),
+        );
+        build_and_check_parquet_encoding(edges.into());
     }
 
     #[test]
