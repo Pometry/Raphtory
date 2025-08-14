@@ -274,12 +274,12 @@ impl GqlGraph {
         blocking_compute(move || self_clone.graph.latest_time()).await
     }
 
-    /// Returns the earliest time that this graph is valid.
+    /// Returns the start time of the window. Errors if there is no window.
     async fn start(&self) -> Option<i64> {
         self.graph.start()
     }
 
-    /// Returns the latest time that this graph is valid or None if the graph is valid for all times.
+    /// Returns the end time of the window. Errors if there is no window.
     async fn end(&self) -> Option<i64> {
         self.graph.end()
     }

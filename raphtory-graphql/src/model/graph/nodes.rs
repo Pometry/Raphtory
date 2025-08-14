@@ -58,23 +58,23 @@ impl GqlNodes {
         self.update(self.nn.default_layer())
     }
 
-    /// Return a view of the nodes containing all layers specified and an error if any of the layers do not exist.
+    /// Return a view of the nodes containing all layers specified.
     async fn layers(&self, names: Vec<String>) -> Self {
         self.update(self.nn.valid_layers(names))
     }
 
-    /// Return a view of the nodes containing all layers except those specified and an error if any of the layers do not exist.
+    /// Return a view of the nodes containing all layers except those specified.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.exclude_valid_layers(names))).await
     }
 
-    /// Return a view of the nodes containing the specified layer and errors if the layer does not exist.
+    /// Return a view of the nodes containing the specified layer.
     async fn layer(&self, name: String) -> Self {
         self.update(self.nn.valid_layers(name))
     }
 
-    /// Return a view of the nodes containing all layers except those specified, errors if any of the layers do not exist.
+    /// Return a view of the nodes containing all layers except those specified.
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.nn.exclude_valid_layers(name))
     }
@@ -301,12 +301,12 @@ impl GqlNodes {
     //// TIME QUERIES //////
     ////////////////////////
 
-    /// Returns the earliest time that this Nodes is valid or None if the Nodes are valid for all times.
+    /// Returns the start time of the window. Errors if there is no window.
     async fn start(&self) -> Option<i64> {
         self.nn.start()
     }
 
-    /// Returns the latest time that this Nodes is valid or None if the Nodes are valid for all times.
+    /// Returns the end time of the window. Errors if there is no window.
     async fn end(&self) -> Option<i64> {
         self.nn.end()
     }

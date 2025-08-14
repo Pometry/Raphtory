@@ -64,24 +64,24 @@ impl GqlNode {
         self.vv.default_layer().into()
     }
 
-    /// Return a view of node containing all layers specified and an error if any of the layers do not exist.
+    /// Return a view of node containing all layers specified.
     async fn layers(&self, names: Vec<String>) -> GqlNode {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.valid_layers(names).into()).await
     }
 
-    /// Return a view of node containing all layers except those specified and an error if any of the layers do not exist.
+    /// Return a view of node containing all layers except those specified.
     async fn exclude_layers(&self, names: Vec<String>) -> GqlNode {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.exclude_valid_layers(names).into()).await
     }
 
-    /// Return a view of node containing the specified layer and errors if the layer does not exist.
+    /// Return a view of node containing the specified layer.
     async fn layer(&self, name: String) -> GqlNode {
         self.vv.valid_layers(name).into()
     }
 
-    /// Return a view of node containing all layers except those specified, errors if any of the layers do not exist.
+    /// Return a view of node containing all layers except those specified.
     async fn exclude_layer(&self, name: String) -> GqlNode {
         self.vv.exclude_valid_layers(name).into()
     }
@@ -253,12 +253,12 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.history().last().cloned()).await
     }
 
-    /// Gets the start time for rolling and expanding windows of this node.
+    /// Gets the start time for the window. Errors if there is no window.
     async fn start(&self) -> Option<i64> {
         self.vv.start()
     }
 
-    /// Gets the latest time that this node is valid.
+    /// Gets the end time for the window. Errors if there is no window.
     async fn end(&self) -> Option<i64> {
         self.vv.end()
     }

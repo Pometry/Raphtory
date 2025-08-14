@@ -47,7 +47,7 @@ impl GqlEdges {
     }
 }
 
-/// A list of edges that can be iterated over.
+/// A collection of edges that can be iterated over.
 #[ResolvedObjectFields]
 impl GqlEdges {
     ////////////////////////
@@ -59,24 +59,24 @@ impl GqlEdges {
         self.update(self.ee.default_layer())
     }
 
-    /// Returns a view of Edge containing all layers in the list of  names . Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing all layers in the list of names.
     async fn layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.valid_layers(names))).await
     }
 
-    /// Returns a view of Edge containing all layers except the excluded list of  names . Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing all layers except the excluded list of names.
     async fn exclude_layers(&self, names: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.ee.exclude_valid_layers(names))).await
     }
 
-    /// Returns a view of Edge containing the specified layer. Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing the specified layer.
     async fn layer(&self, name: String) -> Self {
         self.update(self.ee.valid_layers(name))
     }
 
-    /// Returns a view of Edge containing all layers except the excluded layer specified. Errors if any of the layers do not exist.
+    /// Returns a view of Edge containing all layers except the excluded layer specified.
     async fn exclude_layer(&self, name: String) -> Self {
         self.update(self.ee.exclude_valid_layers(name))
     }
@@ -299,12 +299,12 @@ impl GqlEdges {
     //// TIME QUERIES //////
     ////////////////////////
 
-    /// Returns the earliest time that this edges is valid or  None  if the edges is valid for all times.
+    /// Returns the start time of the window or none if there is no window.
     async fn start(&self) -> Option<i64> {
         self.ee.start()
     }
 
-    /// Returns the latest time the specified edges are valid or  None  if the edges is valid for all times.
+    /// Returns the end time of the window or none if there is no window.
     async fn end(&self) -> Option<i64> {
         self.ee.end()
     }

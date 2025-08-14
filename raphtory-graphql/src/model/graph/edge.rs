@@ -147,7 +147,7 @@ impl GqlEdge {
         self.ee.at(time).into()
     }
 
-    /// Returns the latest time of an edge.
+    /// Returns a view of the edge at the latest time of the graph.
     async fn latest(&self) -> GqlEdge {
         self.ee.latest().into()
     }
@@ -263,17 +263,17 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.history().last().cloned()).await
     }
 
-    /// Returns the time of an exploded edge.
+    /// Returns the time of an exploded edge. Errors on an unexploded edge. 
     async fn time(&self) -> Result<i64, GraphError> {
         self.ee.time()
     }
 
-    /// Returns the start time for rolling and expanding windows for this edge.
+    /// Returns the start time for rolling and expanding windows for this edge. Returns none if no window is applied.
     async fn start(&self) -> Option<i64> {
         self.ee.start()
     }
 
-    /// Returns the latest time that this edge is valid.
+    /// Returns the end time of the window. Returns none if no window is applied.
     async fn end(&self) -> Option<i64> {
         self.ee.end()
     }
@@ -318,7 +318,7 @@ impl GqlEdge {
             .collect()
     }
 
-    /// Returns the names of the layer this edge belongs to, assuming it belongs to only one layer.
+    /// Returns the layer name of an exploded edge, errors on an edge. 
     async fn layer_name(&self) -> Result<String, GraphError> {
         self.ee.layer_name().map(|x| x.into())
     }

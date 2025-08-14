@@ -124,7 +124,7 @@ impl QueryRoot {
         let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
-    /// Returns root namespaces
+    /// Returns all namespaces using recursive search
     ///
     /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {

@@ -307,7 +307,7 @@ pub enum NodeFilter {
     Node(NodeFieldFilter),
     /// Property filter.
     Property(PropertyFilterExpr),
-    /// Property metadata.
+    /// Metadata filter.
     Metadata(MetadataFilterExpr),
     /// Temporal property filter.
     TemporalProperty(TemporalPropertyFilterExpr),
