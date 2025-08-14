@@ -12,8 +12,9 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::storage::timeindex::TimeIndexWindow;
-use raphtory_storage::graph::nodes::{
-    node_additions::NodeAdditions, node_storage_ops::NodeStorageOps,
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
 };
 use std::ops::Range;
 
@@ -260,23 +261,22 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         let iter = self.edges_iter(layer_ids, dir);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(iter),
-            FilterState::Both => {
-                let nodes = view.core_nodes();
-                let edges = view.core_edges();
-                FilterVariants::Both(iter.filter(move |e| {
-                    view.filter_edge(edges.edge(e.pid()))
-                        && view.filter_node(nodes.node_entry(e.remote()))
+            FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                    && view.filter_node(gs.core_node(e.remote()).as_ref())
+            })),
+            FilterState::Nodes => {
+                FilterVariants::Nodes(iter.filter(move |e| {
+                    let gs = view.core_graph();
+                    view.filter_node(gs.core_node(e.remote()).as_ref())
                 }))
             }
-            FilterState::Nodes => {
-                let nodes = view.core_nodes();
-                FilterVariants::Nodes(
-                    iter.filter(move |e| view.filter_node(nodes.node_entry(e.remote()))),
-                )
-            }
             FilterState::Edges | FilterState::BothIndependent => {
-                let edges = view.core_edges();
-                FilterVariants::Edges(iter.filter(move |e| view.filter_edge(edges.edge(e.pid()))))
+                FilterVariants::Edges(iter.filter(move |e| { 
+                    let gs = view.core_graph();
+                    view.filter_edge(gs.core_edge(e.pid()).as_ref()) 
+                }))
             }
         }
     }

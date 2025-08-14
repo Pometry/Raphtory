@@ -430,18 +430,16 @@ impl FilteredEdgesStorageOps for EdgesStorage {
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(par_iter),
             FilterState::Both => {
-                let nodes = view.core_nodes();
                 FilterVariants::Both(par_iter.filter(move |&e| {
                     view.filter_edge(e)
-                        && view.filter_node(nodes.node_entry(e.src()))
-                        && view.filter_node(nodes.node_entry(e.dst()))
+                        && view.filter_node(view.core_node(e.src()).as_ref())
+                        && view.filter_node(view.core_node(e.dst()).as_ref())
                 }))
             }
             FilterState::Nodes => {
-                let nodes = view.core_nodes();
                 FilterVariants::Nodes(par_iter.filter(move |&e| {
-                    view.filter_node(nodes.node_entry(e.src()))
-                        && view.filter_node(nodes.node_entry(e.dst()))
+                    view.filter_node(view.core_node(e.src()).as_ref())
+                        && view.filter_node(view.core_node(e.dst()).as_ref())
                 }))
             }
             FilterState::Edges | FilterState::BothIndependent => {

@@ -25,6 +25,7 @@ use datafusion::{
 };
 use futures::{Stream, StreamExt};
 use pometry_storage::{
+    chunked_array::chunked_array::IntoCol,
     graph_fragment::TempColGraphFragment,
     prelude::{ArrayOps, BaseArrayOps, PrimitiveCol},
 };
@@ -237,7 +238,7 @@ where
         .edges_storage()
         .temporal_props()?
         .values()
-        .primitive_col::<T::Native>(p_id)?;
+        .into_primitive_col::<T::Native>(p_id)?;
     for r in indices {
         for i in r.clone() {
             // FIXME: this is not great, every get will do a dynamic cast
