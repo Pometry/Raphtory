@@ -254,7 +254,7 @@ mod test {
 
     #[test]
     fn test_props_meta_writer() {
-        let meta = Meta::new();
+        let meta = Meta::default();
         let props = vec![
             (ArcStr::from("prop1"), Prop::U32(0)),
             (ArcStr::from("prop2"), Prop::U32(1)),
@@ -270,7 +270,7 @@ mod test {
 
     #[test]
     fn test_fail_typecheck() {
-        let meta = Meta::new();
+        let meta = Meta::default();
         let prop1 = Prop::U32(0);
         let prop2 = Prop::U64(1);
 

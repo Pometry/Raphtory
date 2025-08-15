@@ -21,6 +21,14 @@ use crate::core::{
     },
 };
 
+// Internal const props for node id and type
+pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
+pub const NODE_ID_IDX: usize = 0;
+
+pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
+pub const NODE_TYPE_IDX: usize = 1;
+
+pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Meta {
     temporal_prop_mapper: PropMapper,
@@ -31,7 +39,12 @@ pub struct Meta {
 
 impl Default for Meta {
     fn default() -> Self {
-        Self::new()
+        Meta {
+            temporal_prop_mapper: Default::default(),
+            metadata_mapper: Default::default(),
+            layer_mapper: DictMapper::new_layer_mapper(),
+            node_type_mapper: Default::default(),
+        }
     }
 }
 
@@ -75,8 +88,23 @@ impl Meta {
         self.metadata_mapper.row_size()
     }
 
-    pub fn new() -> Self {
-        let meta_layer = DictMapper::default();
+    pub fn new_for_nodes() -> Self {
+        let meta_layer = DictMapper::new_layer_mapper();
+        let meta_node_type = DictMapper::default();
+        meta_node_type.get_or_create_id("_default");
+        Self {
+            temporal_prop_mapper: PropMapper::default(),
+            metadata_mapper: PropMapper::new_with_private_fields(
+                [NODE_ID_PROP_KEY, NODE_TYPE_PROP_KEY],
+                [PropType::Empty, PropType::U64],
+            ),
+            layer_mapper: meta_layer,
+            node_type_mapper: meta_node_type, // type 0 is the default type for a node
+        }
+    }
+
+    pub fn new_for_edges() -> Self {
+        let meta_layer = DictMapper::new_layer_mapper();
         let meta_node_type = DictMapper::default();
         meta_node_type.get_or_create_id("_default");
         Self {

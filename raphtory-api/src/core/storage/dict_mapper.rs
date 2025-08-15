@@ -1,4 +1,7 @@
-use crate::core::storage::{arc_str::ArcStr, ArcRwLockReadGuard};
+use crate::core::{
+    entities::properties::meta::STATIC_GRAPH_LAYER,
+    storage::{arc_str::ArcStr, ArcRwLockReadGuard},
+};
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -169,6 +172,10 @@ impl WriteLockedDictMapper<'_> {
 }
 
 impl DictMapper {
+    pub fn new_layer_mapper() -> Self {
+        Self::new_with_private_fields([STATIC_GRAPH_LAYER])
+    }
+
     pub fn new_with_private_fields(fields: impl IntoIterator<Item = impl Into<ArcStr>>) -> Self {
         let fields: Vec<_> = fields.into_iter().map(|s| s.into()).collect();
         let num_private_fields = fields.len();

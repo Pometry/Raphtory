@@ -4,7 +4,6 @@ use super::{
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    pages::NODE_ID_PROP_KEY,
     persist::strategy::PersistentStrategy,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
 };
@@ -42,14 +41,6 @@ impl<
 
     pub fn resolve_node_pos(&self, vid: impl Into<VID>) -> LocalPOS {
         self.graph.nodes().resolve_pos(vid.into()).1
-    }
-
-    pub fn node_id_prop_id(&self) -> usize {
-        self.graph
-            .node_meta()
-            .metadata_mapper()
-            .get_id(NODE_ID_PROP_KEY)
-            .unwrap()
     }
 
     pub fn add_edge_into_layer<T: AsTime>(

@@ -49,10 +49,6 @@ pub mod session;
 #[cfg(feature = "test-utils")]
 pub mod test_utils;
 
-// Internal const props for node id and type
-pub const NODE_ID_PROP_KEY: &str = "_raphtory_node_id";
-pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
-
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 
 #[derive(Debug)]
@@ -186,11 +182,6 @@ impl<
             edge_meta,
             ext.clone(),
         ));
-        // Reserve node_type as a const prop on init
-        let _ = nodes
-            .prop_meta()
-            .metadata_mapper()
-            .get_or_create_and_validate(NODE_TYPE_PROP_KEY, PropType::U64);
 
         let graph_meta = GraphMeta {
             max_page_len_nodes,
@@ -218,8 +209,8 @@ impl<
             graph_dir,
             max_page_len_nodes,
             max_page_len_edges,
-            Meta::new(),
-            Meta::new(),
+            Meta::new_for_nodes(),
+            Meta::new_for_edges(),
         )
     }
 

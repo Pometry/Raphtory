@@ -222,8 +222,8 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let storage = self.core_graph().lock();
 
         // preserve all property mappings
-        let mut node_meta = Meta::new();
-        let mut edge_meta = Meta::new();
+        let mut node_meta = Meta::default();
+        let mut edge_meta = Meta::default();
 
         node_meta.set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         node_meta.set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());

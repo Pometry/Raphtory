@@ -11,7 +11,7 @@ use raphtory_api::{
     core::{
         Direction,
         entities::properties::{
-            meta::Meta,
+            meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
             prop::{Prop, PropUnwrap},
             tprop::TPropOps,
         },
@@ -331,17 +331,17 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn gid(&self) -> GidRef<'a> {
-        self.c_prop_str(0, 1)
+        self.c_prop_str(0, NODE_ID_IDX)
             .map(GidRef::Str)
             .or_else(|| {
-                self.c_prop(0, 1)
+                self.c_prop(0, NODE_ID_IDX)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
             .expect("Node GID should be present")
     }
 
     fn node_type_id(&self) -> usize {
-        self.c_prop(0, 0)
+        self.c_prop(0, NODE_TYPE_IDX)
             .and_then(|prop| prop.into_u64())
             .map_or(0, |id| id as usize)
     }

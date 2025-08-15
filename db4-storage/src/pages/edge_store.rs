@@ -136,7 +136,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
-        Self::new_with_meta(edges_path, max_page_len, Meta::new().into(), ext)
+        Self::new_with_meta(edges_path, max_page_len, Meta::new_for_edges().into(), ext)
     }
 
     pub fn pages(&self) -> &boxcar::Vec<Arc<ES>> {
@@ -176,7 +176,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     ) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
 
-        let meta = Arc::new(Meta::new());
+        let meta = Arc::new(Meta::new_for_edges());
         if !edges_path.exists() {
             return Ok(Self::new(edges_path, max_page_len, ext.clone()));
         }

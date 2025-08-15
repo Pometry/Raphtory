@@ -1,7 +1,7 @@
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
-        meta::Meta,
+        meta::{Meta, NODE_ID_IDX},
         prop::{Prop, PropType},
     },
     storage::dict_mapper::MaybeNew,
@@ -13,7 +13,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
-    pages::{node_page::writer::node_info_as_props, session::WriteSession, NODE_ID_PROP_KEY},
+    pages::{node_page::writer::node_info_as_props, session::WriteSession},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
@@ -83,24 +83,22 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
     fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
         if let Some(id) = node_id {
             let pos = self.static_session.resolve_node_pos(vid);
-            let prop_id = self.static_session.node_id_prop_id();
 
             self.static_session
                 .node_writers()
                 .get_mut_src()
-                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
         };
     }
 
     fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
         if let Some(id) = node_id {
             let pos = self.static_session.resolve_node_pos(vid);
-            let prop_id = self.static_session.node_id_prop_id();
 
             self.static_session
                 .node_writers()
                 .get_mut_dst()
-                .update_c_props(pos, 0, [(prop_id, id.into())], 0);
+                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
         };
     }
 }
@@ -220,10 +218,6 @@ impl InternalAdditionOps for TemporalGraph {
         match id {
             NodeRef::External(id) => {
                 let id = self.logical_to_physical.get_or_init(id, || {
-                    // When initializing a new node, reserve node_id as a const prop.
-                    // Done here since the id type is not known until node creation.
-                    reserve_node_id_as_prop(self.node_meta(), id);
-
                     self.node_count
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
                         .into()
@@ -332,20 +326,5 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn wal(&self) -> &WalImpl {
         &self.wal
-    }
-}
-
-fn reserve_node_id_as_prop(node_meta: &Meta, id: GidRef) -> usize {
-    match id {
-        GidRef::U64(_) => node_meta
-            .metadata_mapper()
-            .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::U64)
-            .unwrap()
-            .inner(),
-        GidRef::Str(_) => node_meta
-            .metadata_mapper()
-            .get_or_create_and_validate(NODE_ID_PROP_KEY, PropType::Str)
-            .unwrap()
-            .inner(),
     }
 }

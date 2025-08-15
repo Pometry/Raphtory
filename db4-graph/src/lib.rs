@@ -116,14 +116,14 @@ impl Default for TemporalGraph<Extension> {
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new() -> Self {
-        let node_meta = Meta::new();
-        let edge_meta = Meta::new();
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
         Self::new_with_meta(GraphDir::default(), node_meta, edge_meta)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {
-        let node_meta = Meta::new();
-        let edge_meta = Meta::new();
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
         Self::new_with_meta(path.as_ref().into(), node_meta, edge_meta)
     }
 
@@ -153,8 +153,6 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     }
 
     pub fn new_with_meta(graph_dir: GraphDir, node_meta: Meta, edge_meta: Meta) -> Self {
-        edge_meta.get_or_create_layer_id(Some("staticgraph"));
-        node_meta.get_or_create_layer_id(Some("staticgraph"));
         std::fs::create_dir_all(&graph_dir)
             .unwrap_or_else(|_| panic!("Failed to create graph directory at {graph_dir:?}"));
 
