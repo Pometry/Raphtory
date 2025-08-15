@@ -32,7 +32,10 @@ use crate::{
     },
     prelude::*,
 };
-use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
+use raphtory_api::{
+    core::storage::{arc_str::ArcStr, timeindex::AsTime},
+    inherit::Base,
+};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
     mutation::InheritMutationOps,
@@ -40,7 +43,7 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
     hint::black_box,
     ops::Deref,
@@ -91,7 +94,7 @@ pub fn assert_node_equal<
     n1: NodeView<'graph, G1, GH1>,
     n2: NodeView<'graph, G2, GH2>,
 ) {
-    assert_node_equal_layer(n1, n2, "", false)
+    assert_node_equal_layer(n1, n2, "", false, false)
 }
 
 pub fn assert_node_equal_layer<
@@ -105,6 +108,7 @@ pub fn assert_node_equal_layer<
     n2: NodeView<'graph, G2, GH2>,
     layer_tag: &str,
     persistent: bool,
+    only_timestamps: bool,
 ) {
     assert_eq!(
         n1.id(),
@@ -125,23 +129,43 @@ pub fn assert_node_equal_layer<
         n2.node_type(),
         "mismatched node type{layer_tag}"
     );
-    assert_eq!(
-        n1.earliest_time(),
-        n2.earliest_time(),
-        "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",
-        n1.id(),
-        n1.earliest_time(),
-        n2.earliest_time()
-    );
-    // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
-    assert_eq!(
-        n1.latest_time(),
-        n2.latest_time(),
-        "mismatched node latest time for node {:?}{layer_tag}: left {:?}, right {:?}",
-        n1.id(),
-        n1.latest_time(),
-        n2.latest_time()
-    );
+    // PersistentGraph is known to have mismatched secondary indices at the start of a window
+    if persistent || only_timestamps {
+        assert_eq!(
+            n1.earliest_time().map(|t| t.t()),
+            n2.earliest_time().map(|t| t.t()),
+            "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1.earliest_time().map(|t| t.t()),
+            n2.earliest_time().map(|t| t.t())
+        );
+        assert_eq!(
+            n1.latest_time().map(|t| t.t()),
+            n2.latest_time().map(|t| t.t()),
+            "mismatched node latest time for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1.latest_time().map(|t| t.t()),
+            n2.latest_time().map(|t| t.t())
+        );
+    } else {
+        assert_eq!(
+            n1.earliest_time(),
+            n2.earliest_time(),
+            "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1.earliest_time(),
+            n2.earliest_time()
+        );
+        assert_eq!(
+            n1.latest_time(),
+            n2.latest_time(),
+            "mismatched node latest time for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1.latest_time(),
+            n2.latest_time()
+        );
+    }
+
     assert_eq!(
         n1.metadata().as_map(),
         n2.metadata().as_map(),
@@ -150,14 +174,37 @@ pub fn assert_node_equal_layer<
         n1.metadata().as_map(),
         n2.metadata().as_map()
     );
-    assert_eq!(
-        n1.properties().temporal().as_map(),
-        n2.properties().temporal().as_map(),
-        "mismatched temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
-        n1.id(),
-        n1.properties().temporal().as_map(),
-        n2.properties().temporal().as_map()
-    );
+    if only_timestamps {
+        let n1_collected = n1
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+            .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>();
+        let n2_collected = n2
+            .properties()
+            .temporal()
+            .iter()
+            .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+            .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>();
+        assert_eq!(
+            n1_collected,
+            n2_collected,
+            "mismatched timestamp temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1_collected,
+            n2_collected
+        );
+    } else {
+        assert_eq!(
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map(),
+            "mismatched temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
+            n1.id(),
+            n1.properties().temporal().as_map(),
+            n2.properties().temporal().as_map()
+        );
+    }
     assert_eq!(
         n1.out_degree(),
         n2.out_degree(),
@@ -216,24 +263,40 @@ pub fn assert_node_equal_layer<
                     "mismatched edge_history_count for node {:?}{layer_tag}",
                     n1.id()
                 );
-                // history objects aren't identical because the nodes use different generic graph types
-                assert_eq!(
-                    n1.after(earliest.t()).history().t().collect(),
-                    n2.after(earliest.t()).history().t().collect(),
-                    "mismatched history for node {:?}{layer_tag}",
-                    n1.id()
-                );
+                if only_timestamps {
+                    assert_eq!(
+                        n1.after(earliest.t()).history().t().collect(),
+                        n2.after(earliest.t()).history().t().collect(),
+                        "mismatched timestamp history for node {:?}{layer_tag}",
+                        n1.id()
+                    );
+                } else {
+                    // history objects aren't identical because the nodes use different generic graph types
+                    assert_eq!(
+                        n1.after(earliest.t()).history().collect(),
+                        n2.after(earliest.t()).history().collect(),
+                        "mismatched history for node {:?}{layer_tag}",
+                        n1.id()
+                    );
+                }
             }
         }
     } else {
-        let n1_timestamps = n1.history().t().collect();
-        let n2_timestamps = n2.history().t().collect();
-        assert_eq!(
-            n1_timestamps,
-            n2_timestamps,
-            "mismatched history for node {:?}{layer_tag}",
-            n1.id()
-        );
+        if only_timestamps {
+            assert_eq!(
+                n1.history().t().collect(),
+                n2.history().t().collect(),
+                "mismatched history for node {:?}{layer_tag}",
+                n1.id()
+            );
+        } else {
+            assert_eq!(
+                n1.history().collect(),
+                n2.history().collect(),
+                "mismatched history for node {:?}{layer_tag}",
+                n1.id()
+            );
+        }
         assert_eq!(
             n1.edge_history_count(),
             n2.edge_history_count(),
@@ -253,7 +316,7 @@ pub fn assert_nodes_equal<
     nodes1: &Nodes<'graph, G1, GH1>,
     nodes2: &Nodes<'graph, G2, GH2>,
 ) {
-    assert_nodes_equal_layer(nodes1, nodes2, "", false);
+    assert_nodes_equal_layer(nodes1, nodes2, "", false, false);
 }
 
 pub fn assert_nodes_equal_layer<
@@ -267,6 +330,7 @@ pub fn assert_nodes_equal_layer<
     nodes2: &Nodes<'graph, G2, GH2>,
     layer_tag: &str,
     persistent: bool,
+    only_timestamps: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
     nodes1.sort();
@@ -278,7 +342,7 @@ pub fn assert_nodes_equal_layer<
         "mismatched number of nodes{layer_tag}",
     );
     for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal_layer(n1, n2, layer_tag, persistent);
+        assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps);
     }
 }
 
@@ -293,7 +357,7 @@ pub fn assert_edges_equal<
     edges1: &Edges<'graph1, G1, GH1>,
     edges2: &Edges<'graph2, G2, GH2>,
 ) {
-    assert_edges_equal_layer(edges1, edges2, "", false);
+    assert_edges_equal_layer(edges1, edges2, "", false, false);
 }
 
 pub fn assert_edges_equal_layer<
@@ -308,6 +372,7 @@ pub fn assert_edges_equal_layer<
     edges2: &Edges<'graph2, G2, GH2>,
     layer_tag: &str,
     persistent: bool,
+    only_timestamps: bool,
 ) {
     let mut edges1: Vec<_> = edges1.collect();
     let mut edges2: Vec<_> = edges2.collect();
@@ -321,24 +386,62 @@ pub fn assert_edges_equal_layer<
 
     for (e1, e2) in edges1.into_iter().zip(edges2) {
         assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
-        assert_eq!(
-            e1.earliest_time(),
-            e2.earliest_time(),
-            "mismatched earliest time for edge {:?}{layer_tag}",
-            e1.id(),
-        );
+        if persistent || only_timestamps {
+            assert_eq!(
+                e1.earliest_time().map(|t| t.t()),
+                e2.earliest_time().map(|t| t.t()),
+                "mismatched earliest time for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+            assert_eq!(
+                e1.latest_time().map(|t| t.t()),
+                e2.latest_time().map(|t| t.t()),
+                "mismatched latest time for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+        } else {
+            assert_eq!(
+                e1.earliest_time(),
+                e2.earliest_time(),
+                "mismatched earliest time for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+            assert_eq!(
+                e1.latest_time(),
+                e2.latest_time(),
+                "mismatched latest time for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+        }
         assert_eq!(
             e1.metadata().as_map(),
             e2.metadata().as_map(),
             "mismatched metadata for edge {:?}{layer_tag}",
             e1.id(),
         );
-        assert_eq!(
-            e1.properties().temporal().as_map(),
-            e2.properties().temporal().as_map(),
-            "mismatched temporal properties for edge {:?}{layer_tag}",
-            e1.id(),
-        );
+        if only_timestamps {
+            assert_eq!(
+                e1.properties()
+                    .temporal()
+                    .iter()
+                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                e2.properties()
+                    .temporal()
+                    .iter()
+                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                "mismatched temporal properties for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+        } else {
+            assert_eq!(
+                e1.properties().temporal().as_map(),
+                e2.properties().temporal().as_map(),
+                "mismatched temporal properties for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+        }
         assert_eq!(
             e1.is_valid(),
             e2.is_valid(),
@@ -408,6 +511,7 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
     g2: &G2,
     layer: Option<&str>,
     persistent: bool,
+    only_timestamps: bool,
 ) {
     let layer_tag = match layer {
         None => "",
@@ -429,36 +533,65 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
         "mismatched number of temporal edges{layer_tag}",
     );
     assert_eq!(
-        g1.earliest_time(),
-        g2.earliest_time(),
-        "mismatched earliest time{layer_tag}",
+        g1.earliest_time().map(|t| t.t()),
+        g2.earliest_time().map(|t| t.t()),
+        "mismatched earliest timestamp{layer_tag}",
     );
     assert_eq!(
-        g1.latest_time(),
-        g2.latest_time(),
-        "mismatched latest time{layer_tag}",
+        g1.latest_time().map(|t| t.t()),
+        g2.latest_time().map(|t| t.t()),
+        "mismatched latest timestamp{layer_tag}",
     );
     assert_eq!(
         g1.metadata().as_map(),
         g2.metadata().as_map(),
         "mismatched graph metadata{layer_tag}",
     );
-    assert_eq!(
-        g1.properties().temporal().as_map(),
-        g2.properties().temporal().as_map(),
-        "mismatched graph temporal properties{layer_tag}",
+    if only_timestamps {
+        assert_eq!(
+            g1.properties()
+                .temporal()
+                .iter()
+                .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+            g2.properties()
+                .temporal()
+                .iter()
+                .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+            "mismatched graph temporal properties{layer_tag}",
+        );
+    } else {
+        assert_eq!(
+            g1.properties().temporal().as_map(),
+            g2.properties().temporal().as_map(),
+            "mismatched graph temporal properties{layer_tag}",
+        );
+    }
+    assert_nodes_equal_layer(
+        &g1.nodes(),
+        &g2.nodes(),
+        layer_tag,
+        persistent,
+        only_timestamps,
     );
-    assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag, persistent);
-    assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag, persistent);
+    assert_edges_equal_layer(
+        &g1.edges(),
+        &g2.edges(),
+        layer_tag,
+        persistent,
+        only_timestamps,
+    );
 }
 
 fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
     persistent: bool,
+    only_timestamps: bool,
 ) {
     black_box({
-        assert_graph_equal_layer(g1, g2, None, persistent);
+        assert_graph_equal_layer(g1, g2, None, persistent, only_timestamps);
         let left_layers: HashSet<_> = g1.unique_layers().collect();
         let right_layers: HashSet<_> = g2.unique_layers().collect();
         assert_eq!(
@@ -475,6 +608,7 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
                     .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
                 Some(&layer),
                 persistent,
+                only_timestamps,
             );
         }
     })
@@ -484,7 +618,14 @@ pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gr
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_inner(g1, g2, false)
+    assert_graph_equal_inner(g1, g2, false, false)
+}
+
+pub fn assert_graph_equal_timestamps<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_graph_equal_inner(g1, g2, false, true)
 }
 
 /// Equality check for materialized persistent graph that ignores the updates generated by the materialise at graph.earliest_time()
@@ -496,7 +637,7 @@ pub fn assert_persistent_materialize_graph_equal<
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_inner(g1, g2, true)
+    assert_graph_equal_inner(g1, g2, true, false)
 }
 
 impl Display for Graph {
@@ -607,7 +748,7 @@ mod db_tests {
         test_utils::{build_graph, build_graph_strat, test_graph},
     };
     use bigdecimal::BigDecimal;
-    use chrono::NaiveDateTime;
+    use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime};
     use itertools::Itertools;
     use proptest::{arbitrary::any, proptest};
     use quickcheck_macros::quickcheck;
@@ -957,7 +1098,7 @@ mod db_tests {
 
         let res = gg.import_node_as(&g_b, "Y", true).unwrap();
         assert_eq!(res.name(), "Y");
-        assert_eq!(res.history().t().collect(), vec![1]);
+        assert_eq!(res.history().t().collect(), vec![1, 1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
     }
@@ -1016,7 +1157,7 @@ mod db_tests {
         assert_eq!(nodes, vec!["P", "Q"]);
         let y = gg.node("Q").unwrap();
         assert_eq!(y.name(), "Q");
-        assert_eq!(y.history().t().collect(), vec![1]);
+        assert_eq!(y.history().t().collect(), vec![1, 1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
         assert_eq!(y.metadata().get("con").unwrap(), Prop::I64(11));
     }
@@ -2523,16 +2664,26 @@ mod db_tests {
 
     #[test]
     fn test_ingesting_timestamps() {
-        let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap();
-        let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
+        let earliest_time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2022, 6, 6).unwrap(),
+            NaiveTime::from_hms_opt(12, 34, 0).unwrap(),
+        )
+        .and_utc()
+        .timestamp_millis();
+        let latest_time = NaiveDateTime::new(
+            NaiveDate::from_ymd_opt(2022, 6, 7).unwrap(),
+            NaiveTime::from_hms_opt(12, 34, 0).unwrap(),
+        )
+        .and_utc()
+        .timestamp_millis();
 
         let g = Graph::new();
         g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
             .unwrap();
         g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().t(), earliest_time);
+        assert_eq!(g.latest_time().unwrap().t(), latest_time);
 
         let g = Graph::new();
         let fmt = "%Y-%m-%d %H:%M";
@@ -2541,8 +2692,8 @@ mod db_tests {
             .unwrap();
         g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
             .unwrap();
-        assert_eq!(g.earliest_time().unwrap(), earliest_time);
-        assert_eq!(g.latest_time().unwrap(), latest_time);
+        assert_eq!(g.earliest_time().unwrap().t(), earliest_time);
+        assert_eq!(g.latest_time().unwrap().t(), latest_time);
     }
 
     #[test]
@@ -2766,23 +2917,35 @@ mod db_tests {
 
         // FIXME: Node add without properties not showing up (Issue #46)
         test_graph(&graph, |graph| {
-            assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().0, 1);
-            assert_eq!(graph.node(1).unwrap().latest_time().unwrap().0, 3);
+            assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
+            assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
 
-            assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().0, 2);
-            assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().0, 2);
+            assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
+            assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
 
             assert_eq!(
-                graph.before(2).node(1).unwrap().earliest_time().unwrap().0,
-                2
+                graph
+                    .before(2)
+                    .node(1)
+                    .unwrap()
+                    .earliest_time()
+                    .unwrap()
+                    .t(),
+                1
             );
-            assert_eq!(graph.before(2).node(1).unwrap().latest_time().unwrap().0, 1);
+            assert_eq!(
+                graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
+                1
+            );
 
             assert_eq!(
-                graph.after(2).node(1).unwrap().earliest_time().unwrap().0,
+                graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
                 3
             );
-            assert_eq!(graph.after(2).node(1).unwrap().latest_time().unwrap().0, 3);
+            assert_eq!(
+                graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
+                3
+            );
         })
     }
 

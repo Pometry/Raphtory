@@ -24,9 +24,12 @@ use crate::{
     serialise::StableEncode,
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr};
-use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::{properties::prop::Prop, GID},
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    python::timeindex::TimeIndexComponent,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
@@ -134,7 +137,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn add_node(
         &self,
-        timestamp: TimeIndexEntry,
+        timestamp: TimeIndexComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -170,7 +173,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
     pub fn create_node(
         &self,
-        timestamp: TimeIndexEntry,
+        timestamp: TimeIndexComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
@@ -205,7 +208,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, properties, secondary_index = None))]
     pub fn add_properties(
         &self,
-        timestamp: TimeIndexEntry,
+        timestamp: TimeIndexComponent,
         properties: HashMap<String, Prop>,
         secondary_index: Option<usize>,
     ) -> Result<(), GraphError> {
@@ -263,7 +266,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
     pub fn add_edge(
         &self,
-        timestamp: TimeIndexEntry,
+        timestamp: TimeIndexComponent,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -301,7 +304,7 @@ impl PyPersistentGraph {
     #[pyo3(signature = (timestamp, src, dst, layer=None, secondary_index = None))]
     pub fn delete_edge(
         &self,
-        timestamp: TimeIndexEntry,
+        timestamp: TimeIndexComponent,
         src: GID,
         dst: GID,
         layer: Option<&str>,

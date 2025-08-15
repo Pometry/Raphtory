@@ -641,11 +641,15 @@ mod graphql_test {
               temporal {
                 values {
                   od1: orderedDedupe(latestTime: true) {
-                    time
+                    time {
+                      timestamp secondaryIndex
+                    }
                     value
                   },
                   od2: orderedDedupe(latestTime: false) {
-                    time
+                    time {
+                      timestamp secondaryIndex
+                    }
                     value
                   }
                 }
@@ -656,11 +660,15 @@ mod graphql_test {
                 temporal {
                   values {
                     od1: orderedDedupe(latestTime: true) {
-                      time
+                      time {
+                        timestamp secondaryIndex
+                      }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      time
+                      time {
+                        timestamp secondaryIndex
+                      }
                       value
                     }
                   }
@@ -675,11 +683,15 @@ mod graphql_test {
                 temporal{
                   values{
                     od1: orderedDedupe(latestTime: true) {
-                      time
+                      time {
+                        timestamp secondaryIndex
+                      }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      time
+                      time {
+                        timestamp secondaryIndex
+                      }
                       value
                     }
                   }
@@ -701,29 +713,47 @@ mod graphql_test {
                     {
                       "od1": [
                         {
-                          "time": 2,
+                          "time": {
+                            "timestamp": 2,
+                            "secondaryIndex": 1
+                          },
                           "value": "abc"
                         },
                         {
-                          "time": 3,
+                          "time": {
+                            "timestamp": 3,
+                            "secondaryIndex": 2
+                          },
                           "value": "xyz"
                         },
                         {
-                          "time": 4,
+                          "time": {
+                            "timestamp": 4,
+                            "secondaryIndex": 3
+                          },
                           "value": "abc"
                         }
                       ],
                       "od2": [
                         {
-                          "time": 1,
+                          "time": {
+                            "timestamp": 1,
+                            "secondaryIndex": 0
+                          },
                           "value": "abc"
                         },
                         {
-                          "time": 3,
+                          "time": {
+                            "timestamp": 3,
+                            "secondaryIndex": 2
+                          },
                           "value": "xyz"
                         },
                         {
-                          "time": 4,
+                          "time": {
+                            "timestamp": 4,
+                            "secondaryIndex": 3
+                          },
                           "value": "abc"
                         }
                       ]
@@ -738,21 +768,33 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 11,
+                            "time": {
+                              "timestamp": 11,
+                              "secondaryIndex": 13
+                            },
                             "value": "phone"
                           },
                           {
-                            "time": 13,
+                            "time": {
+                              "timestamp": 13,
+                              "secondaryIndex": 15
+                            },
                             "value": "fax"
                           }
                         ],
                         "od2": [
                           {
-                            "time": 11,
+                            "time": {
+                              "timestamp": 11,
+                              "secondaryIndex": 13
+                            },
                             "value": "phone"
                           },
                           {
-                            "time": 12,
+                            "time": {
+                              "timestamp": 12,
+                              "secondaryIndex": 14
+                            },
                             "value": "fax"
                           }
                         ]
@@ -768,37 +810,61 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 2,
+                            "time": {
+                              "timestamp": 2,
+                              "secondaryIndex": 5
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 3,
+                            "time": {
+                              "timestamp": 3,
+                              "secondaryIndex": 6
+                            },
                             "value": "review"
                           },
                           {
-                            "time": 4,
+                            "time": {
+                              "timestamp": 4,
+                              "secondaryIndex": 7
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "secondaryIndex": 9
+                            },
                             "value": "in-progress"
                           }
                         ],
                         "od2": [
                           {
-                            "time": 1,
+                            "time": {
+                              "timestamp": 1,
+                              "secondaryIndex": 4
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 3,
+                            "time": {
+                              "timestamp": 3,
+                              "secondaryIndex": 6
+                            },
                             "value": "review"
                           },
                           {
-                            "time": 4,
+                            "time": {
+                              "timestamp": 4,
+                              "secondaryIndex": 7
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 5,
+                            "time": {
+                              "timestamp": 5,
+                              "secondaryIndex": 8
+                            },
                             "value": "in-progress"
                           }
                         ]
@@ -806,21 +872,33 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 9,
+                            "time": {
+                              "timestamp": 9,
+                              "secondaryIndex": 10
+                            },
                             "value": true
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "secondaryIndex": 11
+                            },
                             "value": false
                           }
                         ],
                         "od2": [
                           {
-                            "time": 9,
+                            "time": {
+                              "timestamp": 9,
+                              "secondaryIndex": 10
+                            },
                             "value": true
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "secondaryIndex": 11
+                            },
                             "value": false
                           }
                         ]

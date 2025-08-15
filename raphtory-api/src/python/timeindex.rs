@@ -1,6 +1,6 @@
 use crate::core::{
     storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
-    utils::time::{IntoTime, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
+    utils::time::{IntoTime, ParseTimeError, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{
@@ -11,12 +11,12 @@ use pyo3::{
 use serde::Serialize;
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
-    type Target = PyTime;
+    type Target = PyTimeIndexEntry;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyTime::from(self).into_pyobject(py)
+        PyTimeIndexEntry::from(self).into_pyobject(py)
     }
 }
 
@@ -36,7 +36,7 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
                 )));
             }
         }
-        if let Ok(py_time) = time.downcast::<PyTime>() {
+        if let Ok(py_time) = time.downcast::<PyTimeIndexEntry>() {
             return Ok(py_time.get().inner());
         }
         let message = format!("time '{time}' must be a str, datetime, float, integer, or a tuple/list of two of those types");
@@ -50,6 +50,14 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
 pub struct TimeIndexComponent {
     component: i64,
 }
+
+impl TryIntoTime for TimeIndexComponent {
+    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
+        Ok(TimeIndexEntry::from(self.component))
+    }
+}
+
+impl TryIntoTimeNeedsSecondaryIndex for TimeIndexComponent {}
 
 impl TimeIndexComponent {
     pub fn new(component: i64) -> Self {
@@ -98,6 +106,9 @@ impl<'source> FromPyObject<'source> for TimeIndexComponent {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(TimeIndexComponent::new(time));
         }
+        if let Ok(py_time) = component.downcast::<PyTimeIndexEntry>() {
+            return Ok(TimeIndexComponent::new(py_time.get().inner().t()));
+        }
         let message =
             format!("time component '{component}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
@@ -114,13 +125,13 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
     })
 }
 
-#[pyclass(name = "RaphtoryTime", module = "raphtory", frozen, eq, ord)]
+#[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen, eq, ord)]
 #[derive(Debug, Clone, Serialize, PartialEq, Ord, PartialOrd, Eq)]
-pub struct PyTime {
+pub struct PyTimeIndexEntry {
     time: TimeIndexEntry,
 }
 
-impl PyTime {
+impl PyTimeIndexEntry {
     pub fn new(time: TimeIndexEntry) -> Self {
         Self { time }
     }
@@ -129,16 +140,16 @@ impl PyTime {
         self.time
     }
 
-    pub const MIN: PyTime = PyTime {
+    pub const MIN: PyTimeIndexEntry = PyTimeIndexEntry {
         time: TimeIndexEntry::MIN,
     };
-    pub const MAX: PyTime = PyTime {
+    pub const MAX: PyTimeIndexEntry = PyTimeIndexEntry {
         time: TimeIndexEntry::MAX,
     };
 }
 
 #[pymethods]
-impl PyTime {
+impl PyTimeIndexEntry {
     /// Get the datetime representation of the time
     #[getter]
     pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
@@ -169,22 +180,22 @@ impl PyTime {
     }
 }
 
-impl IntoTime for PyTime {
+impl IntoTime for PyTimeIndexEntry {
     fn into_time(self) -> TimeIndexEntry {
         self.time
     }
 }
 
-impl TryIntoTimeNeedsSecondaryIndex for PyTime {}
+impl TryIntoTimeNeedsSecondaryIndex for PyTimeIndexEntry {}
 
-impl From<TimeIndexEntry> for PyTime {
+impl From<TimeIndexEntry> for PyTimeIndexEntry {
     fn from(time: TimeIndexEntry) -> Self {
         Self { time }
     }
 }
 
-impl From<PyTime> for TimeIndexEntry {
-    fn from(value: PyTime) -> Self {
+impl From<PyTimeIndexEntry> for TimeIndexEntry {
+    fn from(value: PyTimeIndexEntry) -> Self {
         value.inner()
     }
 }

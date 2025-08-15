@@ -68,17 +68,9 @@ mod test {
 
         let g_expected = Graph::new();
         g_expected
-            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
             .unwrap();
 
-        assert_eq!(
-            filtered_edges
-                .edges()
-                .iter()
-                .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-                .collect::<Vec<_>>(),
-            vec!["John->David"]
-        );
         assert_graph_equal(&filtered_edges, &g_expected);
     }
 
@@ -102,7 +94,7 @@ mod test {
 
         let g_expected = PersistentGraph::new();
         g_expected
-            .add_edge(1, "John", "David", [("band", "Dead & Company")], None)
+            .add_edge((1, 1), "John", "David", [("band", "Dead & Company")], None)
             .unwrap();
 
         assert_eq!(

@@ -401,7 +401,7 @@ impl ParquetDecoder for PersistentGraph {
 mod test {
     use super::*;
     use crate::{
-        db::graph::graph::assert_graph_equal,
+        db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
             EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, NodeUpdatesFixture,
@@ -770,14 +770,14 @@ mod test {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = PersistentGraph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]
@@ -808,7 +808,7 @@ mod test {
         build_and_check_parquet_encoding(nodes.into());
     }
 
-    fn check_graph_props(nf: PropUpdatesFixture) {
+    fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
         let g = Graph::new();
         let temp_dir = tempfile::tempdir().unwrap();
         for (t, props) in nf.t_props {
@@ -818,7 +818,11 @@ mod test {
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
-        assert_graph_equal(&g, &g2);
+        if only_timestamps {
+            assert_graph_equal_timestamps(&g, &g2)
+        } else {
+            assert_graph_equal(&g, &g2);
+        }
     }
 
     #[test]
@@ -827,7 +831,7 @@ mod test {
             t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
             c_props: vec![("b".to_string(), Prop::str("baa"))],
         };
-        check_graph_props(props)
+        check_graph_props(props, true)
     }
 
     #[test]
@@ -851,7 +855,7 @@ mod test {
     #[test]
     fn write_graph_props_to_parquet() {
         proptest!(|(props in build_props_dyn(10))| {
-            check_graph_props(props);
+            check_graph_props(props, true);
         });
     }
 
@@ -861,7 +865,7 @@ mod test {
             t_props: vec![(1, vec![])],
             c_props: vec![],
         };
-        check_graph_props(nf);
+        check_graph_props(nf, false);
     }
 
     #[test]

@@ -23,12 +23,15 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::prelude::*;
-use raphtory_api::core::{
-    entities::GID,
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{TimeError, TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{TimeError, TimeIndexEntry},
+        },
     },
+    python::timeindex::TimeIndexComponent,
 };
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
@@ -394,7 +397,7 @@ impl PyMutableEdge {
     #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
     fn add_updates(
         &self,
-        t: TimeIndexEntry,
+        t: TimeIndexComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         secondary_index: Option<usize>,

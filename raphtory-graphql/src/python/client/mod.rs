@@ -7,7 +7,7 @@ use raphtory_api::{
         storage::timeindex::TimeIndexEntry,
         utils::time::IntoTime,
     },
-    python::timeindex::PyTime,
+    python::timeindex::PyTimeIndexEntry,
 };
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
@@ -26,7 +26,7 @@ pub mod remote_node;
 #[derive(Clone)]
 #[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
-    time: PyTime,
+    time: PyTimeIndexEntry,
     properties: Option<HashMap<String, Prop>>,
 }
 
@@ -67,7 +67,7 @@ impl PyUpdate {
     #[pyo3(signature = (time, properties=None))]
     pub(crate) fn new(time: TimeIndexEntry, properties: Option<HashMap<String, Prop>>) -> Self {
         Self {
-            time: PyTime::new(time),
+            time: PyTimeIndexEntry::new(time),
             properties,
         }
     }

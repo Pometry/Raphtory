@@ -222,7 +222,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
     /// History object for the edge
     fn history(&self) -> Self::ValueType<History<'graph, EdgeView<Self::Graph>>> {
-        self.map(|g, e| History::new(g.edge(e.src(), e.dst()).unwrap()))
+        self.map(|g, e| History::new(EdgeView::new(g.clone(), e)))
     }
 
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {

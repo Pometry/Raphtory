@@ -290,7 +290,7 @@ mod tests {
         g.add_edge(3, 1, 0, NO_PROPS, Some("b")).unwrap();
         let gw = g.valid().window(0, 9);
         let gwm = gw.materialize().unwrap();
-        assert_graph_equal(&gw, &gwm);
+        assert_persistent_materialize_graph_equal(&gw, &gwm);
     }
 
     #[test]
@@ -352,19 +352,25 @@ mod tests {
         assert_eq!(gv.latest_time().unwrap().0, 2);
         assert_eq!(gv.node(6).unwrap().latest_time().unwrap().0, 0);
         let expected = PersistentGraph::new();
-        expected.add_edge(0, 4, 9, NO_PROPS, None).unwrap();
-        expected.add_edge(0, 4, 6, NO_PROPS, None).unwrap();
-        expected.add_edge(0, 4, 6, NO_PROPS, Some("b")).unwrap();
-        expected.add_edge(1, 4, 9, NO_PROPS, Some("a")).unwrap();
-        expected.add_edge(2, 5, 4, NO_PROPS, Some("a")).unwrap();
+        expected.add_edge((0, 1), 4, 9, NO_PROPS, None).unwrap();
+        expected.add_edge((0, 2), 4, 6, NO_PROPS, None).unwrap();
+        expected
+            .add_edge((0, 3), 4, 6, NO_PROPS, Some("b"))
+            .unwrap();
+        expected
+            .add_edge((1, 4), 4, 9, NO_PROPS, Some("a"))
+            .unwrap();
+        expected
+            .add_edge((2, 5), 5, 4, NO_PROPS, Some("a"))
+            .unwrap();
 
-        assert_graph_equal(&gv, &expected);
+        assert_persistent_materialize_graph_equal(&gv, &expected); // PersistentGraph ignores the earliest time secondary index
 
         let n4 = gv.node(4).unwrap();
         assert_eq!(n4.out_degree(), 2);
         assert_eq!(n4.in_degree(), 1);
 
-        assert_graph_equal(&gv, &gv.materialize().unwrap());
+        assert_persistent_materialize_graph_equal(&gv, &gv.materialize().unwrap());
     }
 
     #[test]

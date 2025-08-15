@@ -457,7 +457,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     #[inline]
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global().map(TimeIndexEntry::from), // couldn't change earliest_time_global() to return TimeIndexEntry
+            FilterState::Neither => self.earliest_time_global().map(TimeIndexEntry::from), // TODO: couldn't change earliest_time_global() to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()
@@ -479,7 +479,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     #[inline]
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global().map(TimeIndexEntry::end),
+            FilterState::Neither => self.latest_time_global().map(TimeIndexEntry::end), // TODO: Couldn't change latest_time_global to return TimeIndexEntry
             _ => self
                 .properties()
                 .temporal()

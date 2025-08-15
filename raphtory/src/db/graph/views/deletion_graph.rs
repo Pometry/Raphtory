@@ -684,7 +684,11 @@ mod test_deletions {
             .add_metadata([("other", "b")], None)
             .unwrap();
         let gw = g.window(-7549523977641994620, -995047120251067629);
-        assert_persistent_materialize_graph_equal(&gw, &gw.materialize().unwrap())
+        assert_eq!(gw.count_nodes(), 1);
+        assert_eq!(gw.layers("a").unwrap().count_nodes(), 1);
+        let materialized_graph = gw.materialize().unwrap();
+        dbg!(&materialized_graph);
+        assert_persistent_materialize_graph_equal(&gw, &materialized_graph)
     }
 
     #[test]
