@@ -184,7 +184,7 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Returns a plugin.
+    /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
@@ -243,7 +243,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Upload graph file from a path on the client.
+    /// Upload a graph file from a path on the client using GQL multipart uploading.
     ///
     /// Returns::
     /// name of the new graph
@@ -310,7 +310,7 @@ impl Mut {
         Ok(new_path)
     }
 
-    /// Creates search index.
+    /// (Experimental) Creates search index.
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,

@@ -137,12 +137,14 @@ impl GqlEdge {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive). 
+    /// 
+    /// For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
     async fn window(&self, start: i64, end: i64) -> GqlEdge {
         self.ee.window(start, end).into()
     }
 
-    /// Creates a view of the Edge including all events at a specified time .
+    /// Creates a view of the Edge including all events at a specified time.
     async fn at(&self, time: i64) -> GqlEdge {
         self.ee.at(time).into()
     }
@@ -152,14 +154,14 @@ impl GqlEdge {
         self.ee.latest().into()
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at time.
+    /// Creates a view of the Edge including all events that are valid at time.
     ///
     /// This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
     async fn snapshot_at(&self, time: i64) -> GqlEdge {
         self.ee.snapshot_at(time).into()
     }
 
-    /// Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+    /// Creates a view of the Edge including all events that are valid at the latest time.
     ///
     /// This is equivalent to a no-op for Graph and latest() for PersistentGraph.
     async fn snapshot_latest(&self) -> GqlEdge {
@@ -191,7 +193,7 @@ impl GqlEdge {
         self.ee.shrink_end(end).into()
     }
 
-    /// Takes a specified selection of views and applies them in order given
+    /// Takes a specified selection of views and applies them in given order.
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
         let mut return_view: GqlEdge = self.ee.clone().into();
         for view in views {
@@ -368,7 +370,7 @@ impl GqlEdge {
         self.ee.is_deleted()
     }
 
-    /// Checks if the edge is on the same node.
+    /// Returns true if the edge source and destination nodes are the same.
     ///
     /// Returns: boolean
     async fn is_self_loop(&self) -> bool {

@@ -120,13 +120,13 @@ impl GqlPathFromNode {
         self.update(self.nn.at(time))
     }
 
-    /// Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
+    /// Create a view of the PathFromNode including all events that are valid at the latest time.
     async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
     }
 
-    /// Create a view of the PathFromNode including all events that have not been explicitly deleted at the specified time.
+    /// Create a view of the PathFromNode including all events that are valid at the specified time.
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.nn.snapshot_at(time))
     }
@@ -221,6 +221,7 @@ impl GqlPathFromNode {
         blocking_compute(move || self_clone.nn.name().collect()).await
     }
 
+    /// Takes a specified selection of views and applies them in given order.
     async fn apply_views(
         &self,
         views: Vec<PathFromNodeViewCollection>,

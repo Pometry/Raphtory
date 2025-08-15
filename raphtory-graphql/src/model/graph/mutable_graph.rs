@@ -47,15 +47,15 @@ pub struct NodeAddition {
 
 #[derive(InputObject, Clone)]
 pub struct EdgeAddition {
-    /// Source node
+    /// Source node.
     src: String,
-    /// Destination node
+    /// Destination node.
     dst: String,
-    /// Layer
+    /// Layer.
     layer: Option<String>,
-    /// Metadata
+    /// Metadata.
     metadata: Option<Vec<GqlPropertyInput>>,
-    // Update events
+    // Update events.
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
@@ -91,17 +91,17 @@ fn as_properties(
 
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
-    /// Get the non-mutable graph
+    /// Get the non-mutable graph.
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.path.clone(), self.graph.graph.clone())
     }
 
-    /// Get mutable existing node
+    /// Get mutable existing node.
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| n.into())
     }
 
-    /// Add a new node or add updates to an existing node
+    /// Add a new node or add updates to an existing node.
     async fn add_node(
         &self,
         time: i64,
@@ -126,7 +126,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Create a new node or fail if it already exists
+    /// Create a new node or fail if it already exists.
     async fn create_node(
         &self,
         time: i64,
@@ -151,7 +151,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add a batch of nodes
+    /// Add a batch of nodes.
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
 
@@ -183,7 +183,7 @@ impl GqlMutableGraph {
             })
             .await;
 
-        // Generate embeddings
+        // Generate embeddings.
         let nodes: Vec<_> = nodes.into_iter().collect::<Result<Vec<_>, _>>()?;
         self.graph.update_node_embeddings(nodes).await?;
 
@@ -195,12 +195,12 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Get a mutable existing edge
+    /// Get a mutable existing edge.
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| e.into())
     }
 
-    /// Add a new edge or add updates to an existing edge
+    /// Add a new edge or add updates to an existing edge.
     async fn add_edge(
         &self,
         time: i64,
@@ -227,7 +227,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add a batch of edges
+    /// Add a batch of edges.
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
 
@@ -259,7 +259,7 @@ impl GqlMutableGraph {
             })
             .await;
 
-        // Generate embeddings
+        // Generate embeddings.
         let edge_pairs: Vec<_> = edges
             .into_iter()
             .collect::<Result<Vec<_>, _>>()? // Return 1st encountered error
@@ -277,7 +277,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Mark an edge as deleted (creates the edge if it did not exist)
+    /// Mark an edge as deleted (creates the edge if it did not exist).
     async fn delete_edge(
         &self,
         time: i64,
@@ -299,7 +299,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add temporal properties to graph
+    /// Add temporal properties to graph.
     async fn add_properties(
         &self,
         t: i64,
@@ -316,7 +316,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Add metadata to graph (errors if the property already exists)
+    /// Add metadata to graph (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -327,7 +327,7 @@ impl GqlMutableGraph {
         .await
     }
 
-    /// Update metadata of the graph (overwrites existing values)
+    /// Update metadata of the graph (overwrites existing values).
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -376,17 +376,17 @@ impl From<NodeView<'static, GraphWithVectors>> for GqlMutableNode {
 
 #[ResolvedObjectFields]
 impl GqlMutableNode {
-    /// Use to check if adding the node was successful
+    /// Use to check if adding the node was successful.
     async fn success(&self) -> bool {
         true
     }
 
-    /// Get the non-mutable Node
+    /// Get the non-mutable Node.
     async fn node(&self) -> GqlNode {
         self.node.clone().into()
     }
 
-    /// Add metadata to the node (errors if the property already exists)
+    /// Add metadata to the node (errors if the property already exists).
     async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -399,7 +399,7 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Set the node type (errors if the node already has a non-default type)
+    /// Set the node type (errors if the node already has a non-default type).
     async fn set_node_type(&self, new_type: String) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -412,7 +412,7 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Update metadata of the node (overwrites existing property values)
+    /// Update metadata of the node (overwrites existing property values).
     async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -427,7 +427,7 @@ impl GqlMutableNode {
         .unwrap()
     }
 
-    /// Add temporal property updates to the node
+    /// Add temporal property updates to the node.
     async fn add_updates(
         &self,
         time: i64,
@@ -461,27 +461,27 @@ impl From<EdgeView<GraphWithVectors>> for GqlMutableEdge {
 
 #[ResolvedObjectFields]
 impl GqlMutableEdge {
-    /// Use to check if adding the edge was successful
+    /// Use to check if adding the edge was successful.
     async fn success(&self) -> bool {
         true
     }
 
-    /// Get the non-mutable edge for querying
+    /// Get the non-mutable edge for querying.
     async fn edge(&self) -> GqlEdge {
         self.edge.clone().into()
     }
 
-    /// Get the mutable source node of the edge
+    /// Get the mutable source node of the edge.
     async fn src(&self) -> GqlMutableNode {
         self.edge.src().into()
     }
 
-    /// Get the mutable destination node of the edge
+    /// Get the mutable destination node of the edge.
     async fn dst(&self) -> GqlMutableNode {
         self.edge.dst().into()
     }
 
-    /// Mark the edge as deleted at time time
+    /// Mark the edge as deleted at time time.
     async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         spawn(async move {
@@ -494,9 +494,9 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Add metadata to the edge (errors if the value already exists)
+    /// Add metadata to the edge (errors if the value already exists).
     ///
-    /// If this is called after add_edge , the layer is inherited from the add_edge and does not
+    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
     /// need to be specified again.
     async fn add_metadata(
         &self,
@@ -516,9 +516,9 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Update metadata of the edge (existing values are overwritten)
+    /// Update metadata of the edge (existing values are overwritten).
     ///
-    /// If this is called after add_edge , the layer is inherited from the add_edge and does not
+    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
     /// need to be specified again.
     async fn update_metadata(
         &self,
@@ -538,9 +538,9 @@ impl GqlMutableEdge {
         .unwrap()
     }
 
-    /// Add temporal property updates to the edge
+    /// Add temporal property updates to the edge.
     ///
-    /// If this is called after add_edge , the layer is inherited from the add_edge and does not
+    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
     /// need to be specified again.
     async fn add_updates(
         &self,
@@ -607,7 +607,7 @@ mod tests {
         let config = AppConfig::default();
         let mut data = Data::new(tmp_dir.path(), &config);
 
-        // Override the embedding function with a mock for testing
+        // Override the embedding function with a mock for testing.
         data.embedding_conf = Some(EmbeddingConf {
             cache: VectorCache::in_memory(fake_embedding),
             global_template: Some(custom_template()),
@@ -750,7 +750,7 @@ mod tests {
     async fn test_add_edges_simple() {
         let (mutable_graph, _tmp_dir) = create_mutable_graph().await;
 
-        // First add some nodes
+        // First add some nodes.
         let nodes = vec![
             NodeAddition {
                 name: "node1".to_string(),
@@ -775,7 +775,7 @@ mod tests {
         let result = mutable_graph.add_nodes(nodes).await;
         assert!(result.is_ok());
 
-        // Now add edges between them
+        // Now add edges between them.
         let edges = vec![
             EdgeAddition {
                 src: "node1".to_string(),
@@ -807,7 +807,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        // Test that edge embeddings were generated
+        // Test that edge embeddings were generated.
         let query = "node1 appeared with node2".to_string();
         let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
         let limit = 5;

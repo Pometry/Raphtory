@@ -57,6 +57,7 @@ impl GqlGraphWindowSet {
         .await
     }
 
+    
     async fn list(&self) -> Vec<GqlGraph> {
         let self_clone = self.clone();
         blocking_compute(move || {

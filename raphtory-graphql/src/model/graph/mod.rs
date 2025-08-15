@@ -22,6 +22,8 @@ mod windowset;
 #[derive(OneOfInput, Clone)]
 pub(crate) enum WindowDuration {
     /// Duration of window period.
+    /// 
+    /// Choose from: 
     Duration(String),
     /// Time.
     Epoch(u64),
