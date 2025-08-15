@@ -2,7 +2,13 @@ use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, pages::layer_counter::GraphStats,
     segments::node::MemNodeSegment,
 };
-use raphtory_api::core::entities::{EID, VID, properties::prop::Prop};
+use raphtory_api::core::entities::{
+    EID, VID,
+    properties::{
+        meta::{NODE_ID_IDX, NODE_TYPE_IDX},
+        prop::Prop,
+    },
+};
 use raphtory_core::{
     entities::{ELID, GidRef},
     storage::timeindex::AsTime,
@@ -200,9 +206,11 @@ pub fn node_info_as_props(
     gid: Option<GidRef>,
     node_type: Option<usize>,
 ) -> impl Iterator<Item = (usize, Prop)> {
-    gid.into_iter()
-        .map(|g| (1, g.into()))
-        .chain(node_type.into_iter().map(|nt| (0, Prop::U64(nt as u64))))
+    gid.into_iter().map(|g| (NODE_ID_IDX, g.into())).chain(
+        node_type
+            .into_iter()
+            .map(|nt| (NODE_TYPE_IDX, Prop::U64(nt as u64))),
+    )
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
