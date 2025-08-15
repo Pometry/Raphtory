@@ -209,6 +209,9 @@ pub(crate) fn load_edges_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))

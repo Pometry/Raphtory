@@ -48,6 +48,10 @@ where
             .position(|n| n == name)
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.num_rows == 0
+    }
 }
 
 pub struct TimeCol(PrimitiveArray<i64>);

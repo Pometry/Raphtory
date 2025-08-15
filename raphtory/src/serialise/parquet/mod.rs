@@ -992,6 +992,12 @@ mod test {
     }
 
     #[test]
+    fn test_empty_graph() {
+        let graph = Graph::new();
+        check_parquet_encoding(graph);
+    }
+
+    #[test]
     fn test_deletion() {
         let graph = PersistentGraph::new();
         graph.delete_edge(0, 0, 0, Some("a")).unwrap();
