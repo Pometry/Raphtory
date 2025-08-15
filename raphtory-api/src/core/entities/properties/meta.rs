@@ -15,8 +15,9 @@ use crate::core::{
     entities::properties::prop::{check_for_unification, unify_types, PropError, PropType},
     storage::{
         arc_str::ArcStr,
-        dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, WriteLockedDictMapper},
-        locked_vec::ArcReadLockedVec,
+        dict_mapper::{
+            AllKeys, DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper,
+        },
     },
 };
 
@@ -36,7 +37,7 @@ impl Default for Meta {
 
 impl Meta {
     pub fn layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
-        (0..self.layer_mapper.len()).map(move |id| {
+        self.layer_mapper.ids().map(move |id| {
             let name = self.layer_mapper.get_name(id);
             (id, name)
         })
@@ -160,13 +161,9 @@ impl Meta {
         }
     }
 
-    pub fn get_all_layers(&self) -> Vec<usize> {
-        self.layer_mapper.get_values()
-    }
-
     pub fn get_all_node_types(&self) -> Vec<ArcStr> {
         self.node_type_mapper
-            .get_keys()
+            .keys()
             .iter()
             .filter_map(|key| {
                 if key != "_default" {
@@ -178,11 +175,11 @@ impl Meta {
             .collect()
     }
 
-    pub fn get_all_property_names(&self, is_static: bool) -> ArcReadLockedVec<ArcStr> {
+    pub fn get_all_property_names(&self, is_static: bool) -> PublicKeys<ArcStr> {
         if is_static {
-            self.metadata_mapper.get_keys()
+            self.metadata_mapper.keys()
         } else {
-            self.temporal_prop_mapper.get_keys()
+            self.temporal_prop_mapper.keys()
         }
     }
 
@@ -212,6 +209,20 @@ impl Deref for PropMapper {
 }
 
 impl PropMapper {
+    pub fn new_with_private_fields(
+        fields: impl IntoIterator<Item = impl Into<ArcStr>>,
+        dtypes: impl IntoIterator<Item = PropType>,
+    ) -> Self {
+        let dtypes = Vec::from_iter(dtypes);
+        let row_size = dtypes.iter().map(|dtype| dtype.est_size()).sum();
+
+        PropMapper {
+            id_mapper: DictMapper::new_with_private_fields(fields),
+            row_size: AtomicUsize::new(row_size),
+            dtypes: Arc::new(RwLock::new(dtypes)),
+        }
+    }
+
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read().clone();
         Self {
@@ -299,14 +310,6 @@ impl PropMapper {
         self.dtypes.read_recursive().get(prop_id).cloned()
     }
 
-    pub fn dtypes(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
-        self.dtypes.read_recursive()
-    }
-
-    pub fn locked_dtypes(&self) -> &RwLock<Vec<PropType>> {
-        self.dtypes.as_ref()
-    }
-
     pub fn locked(&self) -> LockedPropMapper<'_> {
         LockedPropMapper {
             dict_mapper: self.id_mapper.read(),
@@ -392,6 +395,12 @@ impl<'a> LockedPropMapper<'a> {
         dtype: PropType,
     ) -> Result<Option<Either<usize, usize>>, PropError> {
         fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+
+    pub fn iter_ids_and_types(&self) -> impl Iterator<Item = (usize, &ArcStr, &PropType)> {
+        self.dict_mapper
+            .iter_ids()
+            .map(move |(id, name)| (id, name, &self.d_types[id]))
     }
 }
 

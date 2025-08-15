@@ -455,12 +455,20 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
     }
 
     fn metadata_ids(&self) -> BoxedLIter<usize> {
-        Box::new(0..self.graph.edge_meta().metadata_mapper().len())
+        self.graph
+            .edge_meta()
+            .metadata_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
-        let reverse_map = self.graph.edge_meta().metadata_mapper().get_keys();
-        Box::new(self.metadata_ids().map(move |id| reverse_map[id].clone()))
+        self.graph
+            .edge_meta()
+            .metadata_mapper()
+            .keys()
+            .into_iter()
+            .into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -672,15 +680,20 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporal
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
-        Box::new(0..self.graph.edge_meta().temporal_prop_mapper().len())
+        self.graph
+            .edge_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
-        let reverse_map = self.graph.edge_meta().temporal_prop_mapper().get_keys();
-        Box::new(
-            self.temporal_prop_ids()
-                .map(move |id| reverse_map[id].clone()),
-        )
+        self.graph
+            .edge_meta()
+            .temporal_prop_mapper()
+            .keys()
+            .into_iter()
+            .into_dyn_boxed()
     }
 }
 

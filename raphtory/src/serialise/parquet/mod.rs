@@ -228,10 +228,10 @@ pub(crate) fn derive_schema(
 }
 
 fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
-    meta.get_keys()
-        .into_iter()
-        .filter_map(|name| {
-            let prop_id = meta.get_id(&name)?;
+    meta.keys()
+        .iter()
+        .zip(meta.ids())
+        .filter_map(|(name, prop_id)| {
             meta.get_dtype(prop_id)
                 .map(move |prop_type| (name, prop_type))
         })

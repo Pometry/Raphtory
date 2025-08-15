@@ -265,7 +265,7 @@ mod test {
 
         assert_eq!(props, vec![(0, Prop::U32(0)), (1, Prop::U32(1))]);
 
-        assert_eq!(meta.temporal_prop_mapper().len(), 2);
+        assert_eq!(meta.temporal_prop_mapper().keys().len(), 2);
     }
 
     #[test]
@@ -280,14 +280,14 @@ mod test {
         let props = writer.into_props_temporal().unwrap();
         assert_eq!(props.len(), 1);
 
-        assert_eq!(meta.temporal_prop_mapper().len(), 1);
+        assert_eq!(meta.temporal_prop_mapper().keys().len(), 1);
         assert!(meta.temporal_prop_mapper().get_id("prop1").is_some());
 
         let writer =
             PropsMetaWriter::temporal(&meta, vec![(ArcStr::from("prop1"), prop2)].into_iter());
 
         assert!(writer.is_err());
-        assert_eq!(meta.temporal_prop_mapper().len(), 1);
+        assert_eq!(meta.temporal_prop_mapper().keys().len(), 1);
         assert!(meta.temporal_prop_mapper().get_id("prop1").is_some());
     }
 }

@@ -239,7 +239,10 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 .map(|w| Iter2::I1(additions.range(w).iter()))
                 .unwrap_or_else(|| Iter2::I2(additions.iter()));
 
-            let mut time_ordered_iter = (0..self.node_meta().temporal_prop_mapper().len())
+            let mut time_ordered_iter = self
+                .node_meta()
+                .temporal_prop_mapper()
+                .ids()
                 .map(move |prop_id| {
                     self.temporal_prop_layer(layer_id, prop_id)
                         .iter_inner(w.clone())

@@ -290,7 +290,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     fn get_valid_layers(edge_meta: &Meta) -> Vec<String> {
         edge_meta
             .layer_meta()
-            .get_keys()
+            .keys()
             .iter()
             .map(|x| x.to_string())
             .collect::<Vec<_>>()

@@ -240,24 +240,24 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 vec![]
             }
             LayerIds::All => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
-                let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 0..layers.len() {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                let layers = storage.edge_meta().layer_meta().keys();
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
+                    let new_id = g.resolve_layer(Some(&name))?.inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
                 let new_id =
                     g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
                 layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
-                let mut layer_map = vec![0; self.unfiltered_num_layers() + 1];
-                let layers = storage.edge_meta().layer_meta().get_keys();
+                let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
+                let layers = storage.edge_meta().layer_meta().all_keys();
                 for id in ids {
                     let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
                     layer_map[id] = new_id;
@@ -893,7 +893,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     }
 
     fn extract_props(meta: &PropMapper) -> HashSet<usize> {
-        (0..meta.len()).collect()
+        meta.ids().collect()
     }
 
     fn extract_named_props<S: AsRef<str>>(

@@ -282,7 +282,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let start = w.start;
@@ -294,7 +294,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .is_some()
         {
             Some(
-                (0.._view.node_meta().temporal_prop_mapper().len())
+                view.node_meta()
+                    .temporal_prop_mapper()
+                    .ids()
                     .map(|prop_id| (prop_id, node.tprop(prop_id)))
                     .filter_map(|(i, tprop)| {
                         if tprop.active_t(start..start.saturating_add(1)) {

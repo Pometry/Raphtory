@@ -50,22 +50,14 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let keys: Vec<String> = self
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .temporal_prop_mapper()
-            .get_keys()
-            .into_iter()
-            .map(|k| k.to_string())
-            .collect();
-        let property_types: Vec<String> = self
-            .graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .dtypes()
-            .iter()
-            .map(|dtype| dtype.to_string())
-            .collect();
+            .locked()
+            .iter_ids_and_types()
+            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .unzip();
 
         if self.graph.unfiltered_num_nodes() > 1000 {
             // large graph, do not collect detailed schema as it is expensive
@@ -78,7 +70,7 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().len()];
+                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
                     node_types_filter[self.type_id] = true;
                     let unique_values: ahash::HashSet<_> =
                         NodeTypeFilteredGraph::new(self.graph.clone(), node_types_filter.into())
@@ -104,22 +96,14 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        let keys: Vec<String> = self
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .metadata_mapper()
-            .get_keys()
-            .into_iter()
-            .map(|k| k.to_string())
-            .collect();
-        let property_types: Vec<String> = self
-            .graph
-            .node_meta()
-            .metadata_mapper()
-            .dtypes()
-            .iter()
-            .map(|dtype| dtype.to_string())
-            .collect();
+            .locked()
+            .iter_ids_and_types()
+            .map(|(_, k, dtype)| (k.to_string(), dtype.to_string()))
+            .unzip();
 
         if self.graph.unfiltered_num_nodes() > 1000 {
             // large graph, do not collect detailed schema as it is expensive
@@ -132,7 +116,7 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().len()];
+                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
                     node_types_filter[self.type_id] = true;
                     let unique_values: ahash::HashSet<_> =
                         NodeTypeFilteredGraph::new(self.graph.clone(), node_types_filter.into())

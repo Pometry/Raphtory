@@ -112,18 +112,12 @@ impl StableEncode for GraphStorage {
 
         // Graph Properties
         let graph_meta = storage.graph_meta();
-        for (id, key) in graph_meta.metadata_mapper().get_keys().iter().enumerate() {
+        for (id, key) in graph_meta.metadata_mapper().read().iter_ids() {
             graph.new_graph_cprop(key, id);
         }
         graph.update_graph_cprops(graph_meta.metadata());
 
-        for (id, (key, dtype)) in graph_meta
-            .temporal_mapper()
-            .get_keys()
-            .iter()
-            .zip(graph_meta.temporal_mapper().dtypes().iter())
-            .enumerate()
-        {
+        for (id, key, dtype) in graph_meta.temporal_mapper().locked().iter_ids_and_types() {
             graph.new_graph_tprop(key, id, dtype);
         }
         for (t, group) in &graph_meta
@@ -142,44 +136,22 @@ impl StableEncode for GraphStorage {
         }
 
         // Layers
-        for (id, layer) in storage
-            .edge_meta()
-            .layer_meta()
-            .get_keys()
-            .iter()
-            .enumerate()
-        {
+        for (id, layer) in storage.edge_meta().layer_meta().read().iter_ids() {
             graph.new_layer(layer, id);
         }
 
         // Node Types
-        for (id, node_type) in storage
-            .node_meta()
-            .node_type_meta()
-            .get_keys()
-            .iter()
-            .enumerate()
-        {
+        for (id, node_type) in storage.node_meta().node_type_meta().read().iter_ids() {
             graph.new_node_type(node_type, id);
         }
 
         // Node Properties
         let n_const_meta = self.node_meta().metadata_mapper();
-        for (id, (key, dtype)) in n_const_meta
-            .get_keys()
-            .iter()
-            .zip(n_const_meta.dtypes().iter())
-            .enumerate()
-        {
+        for (id, key, dtype) in n_const_meta.locked().iter_ids_and_types() {
             graph.new_node_cprop(key, id, dtype);
         }
         let n_temporal_meta = self.node_meta().temporal_prop_mapper();
-        for (id, (key, dtype)) in n_temporal_meta
-            .get_keys()
-            .iter()
-            .zip(n_temporal_meta.dtypes().iter())
-            .enumerate()
-        {
+        for (id, key, dtype) in n_temporal_meta.locked().iter_ids_and_types() {
             graph.new_node_tprop(key, id, dtype);
         }
 
@@ -195,28 +167,19 @@ impl StableEncode for GraphStorage {
 
             graph.update_node_cprops(
                 node.vid(),
-                (0..n_const_meta.len())
+                n_const_meta
+                    .ids()
                     .flat_map(|i| node.constant_prop_layer(0, i).map(|v| (i, v))),
             );
         }
 
         // Edge Properties
         let e_const_meta = self.edge_meta().metadata_mapper();
-        for (id, (key, dtype)) in e_const_meta
-            .get_keys()
-            .iter()
-            .zip(e_const_meta.dtypes().iter())
-            .enumerate()
-        {
+        for (id, key, dtype) in e_const_meta.locked().iter_ids_and_types() {
             graph.new_edge_cprop(key, id, dtype);
         }
         let e_temporal_meta = self.edge_meta().temporal_prop_mapper();
-        for (id, (key, dtype)) in e_temporal_meta
-            .get_keys()
-            .iter()
-            .zip(e_temporal_meta.dtypes().iter())
-            .enumerate()
-        {
+        for (id, key, dtype) in e_temporal_meta.locked().iter_ids_and_types() {
             graph.new_edge_tprop(key, id, dtype);
         }
 
@@ -227,9 +190,9 @@ impl StableEncode for GraphStorage {
             let edge = edge.as_ref();
             graph.new_edge(edge.src(), edge.dst(), eid);
             for layer_id in storage.unfiltered_layer_ids() {
-                for (t, props) in
-                    zip_tprop_updates!((0..e_temporal_meta.len())
-                        .map(|i| (i, edge.temporal_prop_layer(layer_id, i))))
+                for (t, props) in zip_tprop_updates!(e_temporal_meta
+                    .ids()
+                    .map(|i| (i, edge.temporal_prop_layer(layer_id, i))))
                 {
                     graph.update_edge_tprops(eid, t, layer_id, props.map(|(_, v)| v));
                 }
@@ -242,7 +205,8 @@ impl StableEncode for GraphStorage {
                 graph.update_edge_cprops(
                     eid,
                     layer_id,
-                    (0..e_const_meta.len())
+                    e_const_meta
+                        .ids()
                         .filter_map(|i| edge.metadata_layer(layer_id, i).map(|prop| (i, prop))),
                 );
             }
@@ -593,41 +557,41 @@ impl InternalStableDecode for TemporalGraph {
     }
 }
 
-fn update_meta(
-    metadata_types: Vec<PropType>,
-    temp_prop_types: Vec<PropType>,
-    const_meta: &PropMapper,
-    temp_meta: &PropMapper,
-) {
-    let keys = { const_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
-    for ((id, prop_type), key) in metadata_types.into_iter().enumerate().zip(keys) {
-        const_meta.set_id_and_dtype(key, id, prop_type);
-    }
-    let keys = { temp_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
-
-    for ((id, prop_type), key) in temp_prop_types.into_iter().enumerate().zip(keys) {
-        temp_meta.set_id_and_dtype(key, id, prop_type);
-    }
-}
-
-fn unify_property_types(
-    l_const: &[PropType],
-    r_const: &[PropType],
-    l_temp: &[PropType],
-    r_temp: &[PropType],
-) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
-    let const_pt = l_const
-        .iter()
-        .zip(r_const)
-        .map(|(l, r)| unify_types(l, r, &mut false))
-        .collect::<Result<Vec<PropType>, _>>()?;
-    let temp_pt = l_temp
-        .iter()
-        .zip(r_temp)
-        .map(|(l, r)| unify_types(l, r, &mut false))
-        .collect::<Result<Vec<PropType>, _>>()?;
-    Ok((const_pt, temp_pt))
-}
+// fn update_meta(
+//     metadata_types: Vec<PropType>,
+//     temp_prop_types: Vec<PropType>,
+//     const_meta: &PropMapper,
+//     temp_meta: &PropMapper,
+// ) {
+//     let keys = { const_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
+//     for ((id, prop_type), key) in metadata_types.into_iter().enumerate().zip(keys) {
+//         const_meta.set_id_and_dtype(key, id, prop_type);
+//     }
+//     let keys = { temp_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
+//
+//     for ((id, prop_type), key) in temp_prop_types.into_iter().enumerate().zip(keys) {
+//         temp_meta.set_id_and_dtype(key, id, prop_type);
+//     }
+// }
+//
+// fn unify_property_types(
+//     l_const: &[PropType],
+//     r_const: &[PropType],
+//     l_temp: &[PropType],
+//     r_temp: &[PropType],
+// ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
+//     let const_pt = l_const
+//         .iter()
+//         .zip(r_const)
+//         .map(|(l, r)| unify_types(l, r, &mut false))
+//         .collect::<Result<Vec<PropType>, _>>()?;
+//     let temp_pt = l_temp
+//         .iter()
+//         .zip(r_temp)
+//         .map(|(l, r)| unify_types(l, r, &mut false))
+//         .collect::<Result<Vec<PropType>, _>>()?;
+//     Ok((const_pt, temp_pt))
+// }
 
 impl InternalStableDecode for GraphStorage {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {

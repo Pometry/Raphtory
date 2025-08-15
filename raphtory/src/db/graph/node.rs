@@ -248,7 +248,11 @@ impl<'graph, G: GraphView, GH: GraphView> InternalTemporalPropertiesOps
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
-        Box::new(0..self.graph.node_meta().temporal_prop_mapper().len())
+        self.graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 }
 
@@ -335,8 +339,11 @@ impl<'graph, G: Send + Sync, GH: CoreGraphOps> InternalMetadataOps for NodeView<
     }
 
     fn metadata_ids(&self) -> BoxedLIter<usize> {
-        Box::new(0..self.graph.node_meta().metadata_mapper().len())
-        // self.graph.node_metadata_ids(self.node)
+        self.graph
+            .node_meta()
+            .metadata_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {

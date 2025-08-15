@@ -33,12 +33,7 @@ pub(crate) fn encode_nodes_tprop(
         |nodes, g, decoder, writer| {
             let row_group_size = 100_000;
 
-            let cols = g
-                .node_meta()
-                .temporal_prop_mapper()
-                .get_keys()
-                .into_iter()
-                .collect_vec();
+            let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
             for node_rows in nodes
                 .into_iter()

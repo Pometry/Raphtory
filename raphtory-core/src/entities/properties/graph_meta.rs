@@ -10,7 +10,11 @@ use raphtory_api::core::{
         meta::PropMapper,
         prop::{Prop, PropError, PropType},
     },
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, locked_vec::ArcReadLockedVec, FxDashMap},
+    storage::{
+        arc_str::ArcStr,
+        dict_mapper::{AllKeys, MaybeNew, PublicKeys},
+        FxDashMap,
+    },
 };
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
@@ -134,20 +138,20 @@ impl GraphMeta {
         self.metadata_mapper.get_dtype(prop_id)
     }
 
-    pub fn metadata_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.metadata_mapper.get_keys()
+    pub fn metadata_names(&self) -> PublicKeys<ArcStr> {
+        self.metadata_mapper.keys()
     }
 
     pub fn metadata_ids(&self) -> impl Iterator<Item = usize> {
-        0..self.metadata_mapper.len()
+        self.metadata_mapper.ids()
     }
 
-    pub fn temporal_names(&self) -> ArcReadLockedVec<ArcStr> {
-        self.temporal_mapper.get_keys()
+    pub fn temporal_names(&self) -> PublicKeys<ArcStr> {
+        self.temporal_mapper.keys()
     }
 
     pub fn temporal_ids(&self) -> impl Iterator<Item = usize> {
-        0..self.temporal_mapper.len()
+        self.temporal_mapper.ids()
     }
 
     pub fn metadata(&self) -> impl Iterator<Item = (usize, Prop)> + '_ {
@@ -159,6 +163,8 @@ impl GraphMeta {
     pub fn temporal_props(
         &self,
     ) -> impl Iterator<Item = (usize, impl Deref<Target = TProp> + '_)> + '_ {
-        (0..self.temporal_mapper.len()).filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))
+        self.temporal_mapper
+            .ids()
+            .filter_map(|id| self.temporal.get(&id).map(|v| (id, v)))
     }
 }

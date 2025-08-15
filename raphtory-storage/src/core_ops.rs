@@ -13,7 +13,7 @@ use raphtory_api::{
         storage::arc_str::ArcStr,
     },
     inherit::Base,
-    iter::{BoxedIter, BoxedLIter},
+    iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::GraphMeta};
 use std::{iter, sync::Arc};
@@ -150,13 +150,13 @@ pub trait CoreGraphOps: Send + Sync {
         let layer_ids = layer_ids.clone();
         match layer_ids {
             LayerIds::None => Box::new(iter::empty()),
-            LayerIds::All => Box::new(self.edge_meta().layer_meta().get_keys().into_iter().skip(1)), // first layer is static graph
+            LayerIds::All => Box::new(self.edge_meta().layer_meta().keys().into_iter()), // first layer is static graph and private
             LayerIds::One(id) => {
                 let name = self.edge_meta().layer_meta().get_name(id).clone();
                 Box::new(iter::once(name))
             }
             LayerIds::Multiple(ids) => {
-                let keys = self.edge_meta().layer_meta().get_keys();
+                let keys = self.edge_meta().layer_meta().all_keys();
                 Box::new(ids.into_iter().map(move |id| keys[id].clone()))
             }
         }
@@ -230,11 +230,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// # Returns
     /// The keys of the metadata.
     fn node_metadata_ids(&self, _v: VID) -> BoxedLIter<usize> {
-        // property 0 = node type, property 1 = external node id
-        // on an empty graph, this will return an empty range
-        let end = self.node_meta().metadata_mapper().len();
-        let start = 2.min(end);
-        Box::new(start..end)
+        self.node_meta().metadata_mapper().ids().into_dyn_boxed()
     }
 
     /// Returns a vector of all ids of temporal properties within the given node
@@ -246,7 +242,10 @@ pub trait CoreGraphOps: Send + Sync {
     /// # Returns
     /// The ids of the temporal properties
     fn temporal_node_prop_ids(&self, _v: VID) -> Box<dyn Iterator<Item = usize> + '_> {
-        Box::new(0..self.node_meta().temporal_prop_mapper().len())
+        self.node_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 }
 
