@@ -18,6 +18,22 @@ raphtory = { version = "x"}
 ```
 ///
 
+## Importing
+
+To use the library import it into your project:
+
+/// tab | :fontawesome-brands-python: Python
+``` python
+import raphtory as rp
+```
+///
+
+/// tab | :fontawesome-brands-rust: Rust
+``` rust
+use raphtory::prelude::*;
+```
+///
+
 ## Docker image
 
 Both the Python and Rust packages are available as official Docker images from the [Pometry Docker Hub](https://hub.docker.com/r/pometry/raphtory) page.
@@ -40,20 +56,10 @@ Running either container will start a Raphtory server by default, if this is all
 
 However, the Python image contains the Raphtory Python package and all the required dependencies. You should use this image if you want to develop using the Python APIs in a containerised environment.
 
+You can run a Raphtory container with the following Docker command:
+
+```docker
+docker run --rm -p 1736:1736 -v "$(pwd):/home/raphtory_server" pometry/raphtory:latest-python
+```
+
 For more information about running and configuring containers see the [Docker documentation](https://docs.docker.com/).
-
-## Importing
-
-To use the library import it into your project:
-
-/// tab | :fontawesome-brands-python: Python
-``` python
-import raphtory as rp
-```
-///
-
-/// tab | :fontawesome-brands-rust: Rust
-``` rust
-use raphtory::prelude::*;
-```
-///
