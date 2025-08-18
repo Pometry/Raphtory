@@ -47,7 +47,7 @@ impl MetaGraph {
 }
 
 #[ResolvedObjectFields]
-/// Metagraphs are a GraphQL specific object that wraps  the normal graph functions. Metagraphs exist in memory and reduce the need to load full graphs from disk. 
+/// Metagraphs are a GraphQL specific object that wraps  the normal graph functions. Metagraphs exist in memory and reduce the need to load full graphs from disk.
 impl MetaGraph {
     /// Returns the graph name.
     async fn name(&self) -> Option<String> {

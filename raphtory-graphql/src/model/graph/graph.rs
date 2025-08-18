@@ -336,7 +336,7 @@ impl GqlGraph {
     }
 
     /// Returns the number of nodes in the graph.
-    /// 
+    ///
     /// Optionally takes a list of node ids to return a subset.
     async fn count_nodes(&self) -> usize {
         let self_clone = self.clone();

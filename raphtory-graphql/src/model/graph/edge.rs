@@ -137,8 +137,8 @@ impl GqlEdge {
         }
     }
 
-    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive). 
-    /// 
+    /// Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+    ///
     /// For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
     async fn window(&self, start: i64, end: i64) -> GqlEdge {
         self.ee.window(start, end).into()

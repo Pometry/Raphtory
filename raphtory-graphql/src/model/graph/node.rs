@@ -45,7 +45,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
 
 #[ResolvedObjectFields]
 /// A collection of edges.
-/// 
+///
 /// Collections can be filtered and used to create lists.
 impl GqlNode {
     /// Returns the unique id of the node.
@@ -90,7 +90,7 @@ impl GqlNode {
     }
 
     /// Creates a WindowSet with the specified window size and optional step using a rolling window.
-    /// 
+    ///
     /// Returns a collection of collections. This means that item in the window set is a collection of nodes.
     async fn rolling(
         &self,
@@ -370,7 +370,6 @@ impl GqlNode {
     async fn out_neighbours(&self) -> GqlPathFromNode {
         GqlPathFromNode::new(self.vv.out_neighbours())
     }
-
 
     async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();

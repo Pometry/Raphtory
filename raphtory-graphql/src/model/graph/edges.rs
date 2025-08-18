@@ -48,7 +48,7 @@ impl GqlEdges {
 }
 
 /// A collection of edges.
-/// 
+///
 /// Collections can be filtered and used to create lists.
 #[ResolvedObjectFields]
 impl GqlEdges {
@@ -84,7 +84,7 @@ impl GqlEdges {
     }
 
     /// Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
-    /// 
+    ///
     /// Returns a collection of collections. This means that item in the window set is a collection of edges.
     async fn rolling(
         &self,
@@ -118,7 +118,7 @@ impl GqlEdges {
     }
 
     /// Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
-    /// 
+    ///
     /// Returns a collection of collections. This means that item in the window set is a collection of edges.
     async fn expanding(&self, step: WindowDuration) -> Result<GqlEdgesWindowSet, GraphError> {
         match step {
