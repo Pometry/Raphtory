@@ -807,7 +807,7 @@ def test_graph_node_not_property_filter(graph):
       graph(path: "g") {
         nodeFilter (
           filter: {
-            not: 
+            not:
               {
                 property: {
                   name: "prop5"
