@@ -124,6 +124,38 @@ pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
 }
 
 impl Prop {
+    /// Losslessly widen unsigned integer variants to u64.
+    #[inline]
+    pub fn as_u64_lossless(&self) -> Option<u64> {
+        match self {
+            Prop::U8(v) => Some(*v as u64),
+            Prop::U16(v) => Some(*v as u64),
+            Prop::U32(v) => Some(*v as u64),
+            Prop::U64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// Losslessly widen signed integer variants to i64.
+    #[inline]
+    pub fn as_i64_lossless(&self) -> Option<i64> {
+        match self {
+            Prop::I32(v) => Some(*v as i64),
+            Prop::I64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// Losslessly widen float variants to i64.
+    #[inline]
+    pub fn as_f64_lossless(&self) -> Option<f64> {
+        match self {
+            Prop::F32(v) => Some(*v as f64),
+            Prop::F64(v) => Some(*v),
+            _ => None,
+        }
+    }
+
     pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, InvalidBigDecimal> {
         let prop = Prop::Decimal(bd);
         validate_prop(prop)

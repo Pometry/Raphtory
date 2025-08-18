@@ -199,6 +199,10 @@ impl<'a> NodeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
+        if filter.list_agg.is_some() {
+            return fallback_filter_nodes(graph, filter, limit, offset);
+        }
+
         match &filter.prop_ref {
             PropertyRef::Metadata(prop_name) => {
                 self.apply_metadata_filter(graph, prop_name, filter, limit, offset)

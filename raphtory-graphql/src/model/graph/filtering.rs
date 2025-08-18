@@ -510,6 +510,7 @@ fn build_property_filter<M>(
         prop_ref,
         prop_value,
         operator: operator.into(),
+        list_agg: None,
         _phantom: PhantomData,
     })
 }

@@ -66,6 +66,9 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
         }
+        if let Ok(v) = ob.extract() {
+            return Ok(Prop::U64(v));
+        }
         if ob.get_type().name()?.contains("Decimal")? {
             // this sits before f64, otherwise it will be picked up as f64
             let py_str = &ob.str()?;

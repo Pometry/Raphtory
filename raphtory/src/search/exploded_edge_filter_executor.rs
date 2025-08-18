@@ -18,7 +18,7 @@ use crate::{
             latest_exploded_edge_property_filter_collector::LatestExplodedEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_exploded_edges, fields, get_reader,
+        fallback_filter_exploded_edges, fallback_filter_nodes, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -196,6 +196,10 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        if filter.list_agg.is_some() {
+            return fallback_filter_exploded_edges(graph, filter, limit, offset);
+        }
+
         match &filter.prop_ref {
             PropertyRef::Metadata(prop_name) => {
                 self.apply_metadata_filter(graph, prop_name, filter, limit, offset)

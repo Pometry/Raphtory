@@ -514,12 +514,12 @@ impl<M> PropertyFilter<M> {
 
     fn reduce_unsigned(vals: &[Prop], ret_minmax: fn(u64) -> Prop, agg: ListAgg) -> Option<Prop> {
         let mut sum: u128 = 0;
-        let mut min_v: u64 = vals[0].clone().unwrap_u64();
+        let mut min_v: u64 = vals[0].as_u64_lossless()?;
         let mut max_v: u64 = min_v;
         let mut count: u64 = 0;
 
         for p in vals {
-            let x = p.clone().unwrap_u64();
+            let x = p.as_u64_lossless()?;
             sum = sum.checked_add(x as u128)?;
             if x < min_v {
                 min_v = x;
@@ -529,11 +529,6 @@ impl<M> PropertyFilter<M> {
             }
             count += 1;
         }
-
-        // println!("sum: {}", sum);
-        // println!("count: {}", count);
-        // println!("min: {}", min_v);
-        // println!("max: {}", max_v);
 
         Some(match agg {
             ListAgg::Sum => Prop::U64(u64::try_from(sum).ok()?),
@@ -546,12 +541,12 @@ impl<M> PropertyFilter<M> {
 
     fn reduce_signed(vals: &[Prop], ret_minmax: fn(i64) -> Prop, agg: ListAgg) -> Option<Prop> {
         let mut sum: i128 = 0;
-        let mut min_v: i64 = vals[0].clone().unwrap_i64();
+        let mut min_v: i64 = vals[0].as_i64_lossless()?;
         let mut max_v: i64 = min_v;
         let mut count: u64 = 0;
 
         for p in vals {
-            let x = p.clone().unwrap_i64();
+            let x = p.as_i64_lossless()?;
             sum = sum.checked_add(x as i128)?;
             if x < min_v {
                 min_v = x;
@@ -573,12 +568,12 @@ impl<M> PropertyFilter<M> {
 
     fn reduce_float(vals: &[Prop], ret_minmax: fn(f64) -> Prop, agg: ListAgg) -> Option<Prop> {
         let mut sum: f64 = 0.0;
-        let mut min_v: f64 = vals[0].clone().unwrap_f64();
+        let mut min_v: f64 = vals[0].as_f64_lossless()?;
         let mut max_v: f64 = min_v;
         let mut count: u64 = 0;
 
         for p in vals {
-            let x = p.clone().unwrap_f64();
+            let x = p.as_f64_lossless()?;
             if !x.is_finite() {
                 return None;
             }
@@ -643,7 +638,6 @@ impl<M> PropertyFilter<M> {
     pub fn matches(&self, other: Option<&Prop>) -> bool {
         if let Some(agg) = self.list_agg {
             let agg_other = other.and_then(|x| self.aggregate_list_value(x, agg));
-            // println!("agg_other: {:?}", agg_other);
             self.operator
                 .apply_to_property(&self.prop_value, agg_other.as_ref())
         } else {
@@ -1065,80 +1059,87 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps
 }
 
 #[derive(Clone)]
-pub struct LenFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct LenFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
 #[derive(Clone)]
-pub struct SumFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct SumFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
 #[derive(Clone)]
-pub struct AvgFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct AvgFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
 #[derive(Clone)]
-pub struct MinFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct MinFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
 #[derive(Clone)]
-pub struct MaxFilterBuilder<M>(pub String, PhantomData<M>);
+pub struct MaxFilterBuilder<M>(pub PropertyRef, PhantomData<M>);
 
 pub trait ListAggOps<M>: Sized {
-    fn name(&self) -> &String;
+    fn property_ref_for_self(&self) -> PropertyRef;
 
     fn len(self) -> LenFilterBuilder<M> {
-        LenFilterBuilder(self.name().clone(), PhantomData)
+        LenFilterBuilder(self.property_ref_for_self(), PhantomData)
     }
 
     fn sum(self) -> SumFilterBuilder<M> {
-        SumFilterBuilder(self.name().clone(), PhantomData)
+        SumFilterBuilder(self.property_ref_for_self(), PhantomData)
     }
 
     fn avg(self) -> AvgFilterBuilder<M> {
-        AvgFilterBuilder(self.name().clone(), PhantomData)
+        AvgFilterBuilder(self.property_ref_for_self(), PhantomData)
     }
 
     fn min(self) -> MinFilterBuilder<M> {
-        MinFilterBuilder(self.name().clone(), PhantomData)
+        MinFilterBuilder(self.property_ref_for_self(), PhantomData)
     }
 
     fn max(self) -> MaxFilterBuilder<M> {
-        MaxFilterBuilder(self.name().clone(), PhantomData)
+        MaxFilterBuilder(self.property_ref_for_self(), PhantomData)
     }
 }
 
 impl<M> ListAggOps<M> for PropertyFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::Property(self.0.clone())
     }
 }
+
 impl<M> ListAggOps<M> for MetadataFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::Metadata(self.0.clone())
     }
 }
+
 impl<M> ListAggOps<M> for AnyTemporalPropertyFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Any)
     }
 }
+
 impl<M> ListAggOps<M> for LatestTemporalPropertyFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::Latest)
     }
 }
+
 impl<M> ListAggOps<M> for FirstTemporalPropertyFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::First)
     }
 }
+
 impl<M> ListAggOps<M> for AllTemporalPropertyFilterBuilder<M> {
-    fn name(&self) -> &String {
-        &self.0
+    fn property_ref_for_self(&self) -> PropertyRef {
+        PropertyRef::TemporalProperty(self.0.clone(), Temporal::All)
     }
 }
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for LenFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        self.0.clone()
     }
+
     fn list_agg(&self) -> Option<ListAgg> {
         Some(ListAgg::Len)
     }
@@ -1146,9 +1147,11 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for LenFilterBu
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for SumFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        self.0.clone()
     }
+
     fn list_agg(&self) -> Option<ListAgg> {
         Some(ListAgg::Sum)
     }
@@ -1156,9 +1159,11 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for SumFilterBu
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AvgFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        self.0.clone()
     }
+
     fn list_agg(&self) -> Option<ListAgg> {
         Some(ListAgg::Avg)
     }
@@ -1166,9 +1171,11 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for AvgFilterBu
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MinFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        self.0.clone()
     }
+
     fn list_agg(&self) -> Option<ListAgg> {
         Some(ListAgg::Min)
     }
@@ -1176,9 +1183,11 @@ impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MinFilterBu
 
 impl<M: Send + Sync + Clone + 'static> InternalPropertyFilterOps for MaxFilterBuilder<M> {
     type Marker = M;
+
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        self.0.clone()
     }
+
     fn list_agg(&self) -> Option<ListAgg> {
         Some(ListAgg::Max)
     }

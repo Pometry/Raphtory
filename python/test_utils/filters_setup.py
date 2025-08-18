@@ -344,15 +344,42 @@ def create_test_graph(g):
             "prop2": 31.3,
             "prop3": "abc123",
             "prop4": True,
-            "prop5": [1, 2, 3],
+            "prop5": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
+            "prop6": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
         },
         "fire_nation",
+    )
+    g.add_node(
+        2,
+        "a",
+        {
+            "prop5": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
+            "prop6": [3, 4, 5],  # min: 3, max: 5, sum: 12, avg: 4.0, len: 3
+        },
+        "fire_nation",
+    )
+    g.node("a").add_metadata(
+        {
+            "prop1": [11, 12, 13],  # min: 11, max: 13, sum: 36, avg: 12.0, len: 3
+            "prop2": [1, -2, 3, 0],  # min: -2, max: 3, sum: 2, avg: 0.5, len: 4
+        }
     )
     g.add_node(
         1,
         "b",
         {"prop1": 10, "prop2": 31.3, "prop3": "abc223", "prop4": False},
         "fire_nation",
+    )
+    g.node("b").add_metadata(
+        {
+            "prop2": [1, -2, 0, 9],  # min: -2, max: 9, sum: 8, avg: 2.0, len: 4
+            "prop3": [
+                11.0,
+                12.0,
+                13.0,
+            ],  # min: 11.0, max: 13.0, sum: 36.0, avg: 12.0, len: 3
+            "prop4": [11, 12],  # min: 11, max: 12, sum: 23, avg: 11.5, len: 2
+        }
     )
     g.add_node(
         1,
@@ -362,7 +389,12 @@ def create_test_graph(g):
             "prop2": 31.3,
             "prop3": "abc333",
             "prop4": True,
-            "prop5": [5, 6, 7],
+            "prop5": [5, 6, 7],  # min: 5, max: 7, sum: 18, avg: 6.0, len: 3
+            "prop7": [
+                "shifu",
+                "po",
+                "oogway",
+            ],  # min: None, max: None, sum: None, avg: None, len: 3
         },
         "water_tribe",
     )
@@ -381,7 +413,7 @@ def create_test_graph(g):
             "eprop2": 0.4,
             "eprop3": "xyz123",
             "eprop4": True,
-            "eprop5": [1, 2, 3],
+            "eprop5": [1, 2, 3],  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
         },
     )
     g.add_edge(
@@ -393,7 +425,7 @@ def create_test_graph(g):
             "eprop2": 1.7,
             "eprop3": "xyz123",
             "eprop4": True,
-            "eprop5": [3, 4, 5],
+            "eprop5": [3, 4, 5],  # min: 3, max: 5, sum: 12, avg: 4.0, len: 3
         },
     )
     g.add_edge(
@@ -405,7 +437,7 @@ def create_test_graph(g):
             "eprop2": 6.4,
             "eprop3": "xyz123",
             "eprop4": False,
-            "eprop5": [10],
+            "eprop5": [10],  # min: 10, max: 10, sum: 10, avg: 10.0, len: 1
         },
     )
     return g

@@ -7,17 +7,16 @@ use crate::{
 };
 
 #[cfg(feature = "search")]
+pub use crate::db::api::view::SearchableGraphOps;
+#[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
+use crate::{db::graph::views::filter::model::TryAsCompositeFilter, errors::GraphError};
 use raphtory_api::core::Direction;
 #[cfg(feature = "storage")]
 use {
     crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
     raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
 };
-
-#[cfg(feature = "search")]
-pub use crate::db::api::view::SearchableGraphOps;
-use crate::db::graph::views::filter::model::TryAsCompositeFilter;
 
 pub enum TestGraphVariants {
     Graph,
@@ -170,6 +169,74 @@ pub fn assert_filter_nodes_results(
     )
 }
 
+fn assert_filter_err_contains<E>(err: GraphError, expected: E)
+where
+    E: AsRef<str>,
+{
+    match err {
+        GraphError::InvalidFilter(msg) => {
+            assert!(
+                msg.contains(expected.as_ref()),
+                "unexpected InvalidFilter message.\nexpected to contain: {}\nactual: {}",
+                expected.as_ref(),
+                msg
+            );
+        }
+        other => panic!("expected InvalidFilter, got: {other:?}"),
+    }
+}
+pub fn assert_filter_nodes_err(
+    init_graph: impl FnOnce(Graph) -> Graph,
+    transform: impl GraphTransformer,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+    expected: &str,
+    variants: impl Into<Vec<TestGraphVariants>>,
+) {
+    let graph = init_graph(Graph::new());
+    let variants = variants.into();
+
+    for v in variants {
+        match v {
+            TestGraphVariants::Graph => {
+                let graph = transform.apply(graph.clone());
+                let res = graph.filter(filter.clone());
+                assert!(res.is_err(), "expected error, filter was accepted");
+                assert_filter_err_contains(res.err().unwrap(), expected);
+            }
+            TestGraphVariants::PersistentGraph => {
+                let base = graph.persistent_graph();
+                let graph = transform.apply(base);
+                let res = graph.filter(filter.clone());
+                assert!(res.is_err(), "expected error, filter was accepted");
+                assert_filter_err_contains(res.err().unwrap(), expected);
+            }
+            TestGraphVariants::EventDiskGraph => {
+                #[cfg(feature = "storage")]
+                {
+                    let tmp = TempDir::new().unwrap();
+                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
+                    let graph = transform.apply(graph);
+                    let res = graph.filter(filter.clone());
+                    assert!(res.is_err(), "expected error, filter was accepted");
+                    assert_filter_err_contains(res.err().unwrap(), expected);
+                }
+            }
+            TestGraphVariants::PersistentDiskGraph => {
+                #[cfg(feature = "storage")]
+                {
+                    let tmp = TempDir::new().unwrap();
+                    let disk = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
+                    let graph = disk.into_graph().persistent_graph();
+                    let graph = transform.apply(graph);
+                    let res = graph.filter(filter.clone());
+                    assert!(res.is_err(), "expected error, filter was accepted");
+                    assert_filter_err_contains(res.err().unwrap(), expected);
+                }
+            }
+        }
+    }
+}
+
 pub fn assert_filter_neighbours_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
@@ -254,20 +321,33 @@ fn assert_results(
     variants: Vec<TestGraphVariants>,
     apply: impl ApplyFilter,
 ) {
+    fn sorted<I, S>(iter: I) -> Vec<String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
+        v.sort();
+        v
+    }
+
     let graph = init_graph(Graph::new());
+
+    let expected = sorted(expected.iter());
+
     for v in variants {
         match v {
             TestGraphVariants::Graph => {
                 pre_transform(&graph);
                 let graph = transform.apply(graph.clone());
-                let result = apply.apply(graph);
+                let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
             TestGraphVariants::PersistentGraph => {
                 pre_transform(&graph);
                 let base = graph.persistent_graph();
                 let graph = transform.apply(base);
-                let result = apply.apply(graph);
+                let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
             TestGraphVariants::EventDiskGraph => {
@@ -277,7 +357,7 @@ fn assert_results(
                     let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
                     pre_transform(&graph);
                     let graph = transform.apply(graph);
-                    let result = apply.apply(graph);
+                    let result = sorted(apply.apply(graph));
                     assert_eq!(expected, result);
                 }
             }
@@ -290,7 +370,7 @@ fn assert_results(
                     pre_transform(&graph);
                     let graph = graph.persistent_graph();
                     let graph = transform.apply(graph);
-                    let result = apply.apply(graph);
+                    let result = sorted(apply.apply(graph));
                     assert_eq!(expected, result);
                 }
             }

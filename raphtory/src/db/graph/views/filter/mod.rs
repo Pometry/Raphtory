@@ -1277,10 +1277,6 @@ pub(crate) mod test_filters {
                     ("p20", "Gold_ship".into_prop()),
                     ("p30", "Gold_ship".into_prop()),
                     ("p40", 5u64.into_prop()),
-                    (
-                        "p50",
-                        Prop::List(Arc::new(vec![Prop::U64(1), Prop::U64(2), Prop::U64(3)])),
-                    ),
                 ],
                 Some("fire_nation"),
             ),
@@ -1479,6 +1475,418 @@ pub(crate) mod test_filters {
     }
 
     #[cfg(test)]
+    mod test_node_filter {
+        use crate::db::graph::{
+            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
+            views::filter::{
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_nodes_graph, IdentityGraphTransformer},
+            },
+        };
+
+        #[test]
+        fn test_filter_nodes_for_node_name_eq() {
+            let filter = NodeFilter::name().eq("3");
+            let expected_results = vec!["3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_name_ne() {
+            let filter = NodeFilter::name().ne("2");
+            let expected_results = vec!["1", "3", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_name_in() {
+            let filter = NodeFilter::name().is_in(vec!["1".into()]);
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name().is_in(vec!["".into()]);
+            let expected_results = Vec::<&str>::new();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
+            let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_name_not_in() {
+            let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
+            let expected_results = vec!["2", "3", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name().is_not_in(vec!["".into()]);
+            let expected_results = vec!["1", "2", "3", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_eq() {
+            let filter = NodeFilter::node_type().eq("fire_nation");
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_ne() {
+            let filter = NodeFilter::node_type().ne("fire_nation");
+            let expected_results = vec!["2", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_in() {
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter =
+                NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomads".into()]);
+            let expected_results = vec!["1", "2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_not_in() {
+            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
+            let expected_results = vec!["2", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_starts_with() {
+            let filter = NodeFilter::node_type().starts_with("fire");
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().starts_with("rocket");
+            let expected_results = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_ends_with() {
+            let filter = NodeFilter::node_type().ends_with("nomads");
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().ends_with("circle");
+            let expected_results = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_contains() {
+            let filter = NodeFilter::node_type().contains("fire");
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_node_type_contains_not() {
+            let filter = NodeFilter::node_type().not_contains("fire");
+            let expected_results = vec!["2", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_fuzzy_search() {
+            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, true);
+            let expected_results: Vec<&str> = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, false);
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type().fuzzy_search("air_noma", 2, false);
+            let expected_results: Vec<&str> = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_nodes_for_not_node_type() {
+            let filter = NodeFilter::node_type()
+                .is_not_in(vec!["fire_nation".into()])
+                .not();
+            let expected_results = vec!["1", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+    }
+
+    #[cfg(test)]
     mod test_node_property_filter {
         use crate::db::graph::views::filter::test_filters::init_nodes_graph;
         use raphtory_api::core::entities::properties::prop::Prop;
@@ -1487,11 +1895,7 @@ pub(crate) mod test_filters {
         use crate::{
             db::graph::{
                 assertions::{
-                    assert_filter_nodes_results, assert_search_nodes_results,
-                    TestGraphVariants::{
-                        EventDiskGraph, Graph, PersistentDiskGraph, PersistentGraph,
-                    },
-                    TestVariants,
+                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                     TestVariants::NonDiskOnly,
                 },
                 views::filter::{
@@ -1891,117 +2295,6 @@ pub(crate) mod test_filters {
                 filter,
                 &expected_results,
                 TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_property_agg() {
-            println!("sum().eq(Prop::U64(6.0)");
-            let filter = NodeFilter::property("p50").sum().eq(Prop::U64(6));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            // assert_search_nodes_results(
-            //     init_nodes_graph,
-            //     IdentityGraphTransformer,
-            //     filter,
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
-            println!();
-            println!("temporal().latest().sum().eq(Prop::U64(6)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .latest()
-                .sum()
-                .eq(Prop::U64(6));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            println!();
-            println!("temporal().latest().avg().eq(Prop::F64(2.0)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .latest()
-                .avg()
-                .eq(Prop::F64(2.0));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            println!();
-            println!("temporal().first().avg().eq(Prop::F64(2.0)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .first()
-                .avg()
-                .eq(Prop::F64(2.0));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            println!();
-            println!("temporal().latest().min().eq(Prop::U64(1)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .latest()
-                .min()
-                .eq(Prop::U64(1));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            println!();
-            println!("temporal().latest().max().eq(Prop::U64(1)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .latest()
-                .max()
-                .eq(Prop::U64(3));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
-            );
-            println!();
-            println!("temporal().latest().len().eq(Prop::U64(3)");
-            let filter = NodeFilter::property("p50")
-                .temporal()
-                .latest()
-                .len()
-                .eq(Prop::U64(3));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                NonDiskOnly,
             );
         }
 
@@ -2686,6 +2979,3998 @@ pub(crate) mod test_filters {
                 filter,
                 &expected_results,
                 TestVariants::All,
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod test_node_composite_filter {
+        use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
+        use raphtory_api::core::Direction;
+
+        use crate::db::graph::{
+            assertions::{
+                assert_filter_neighbours_results, assert_filter_nodes_results,
+                assert_search_nodes_results, TestVariants,
+            },
+            views::filter::{
+                model::{
+                    node_filter::{NodeFilter, NodeFilterBuilderOps},
+                    property_filter::PropertyFilterOps,
+                    ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
+                },
+                test_filters::IdentityGraphTransformer,
+            },
+        };
+
+        #[test]
+        fn test_filter_nodes_by_props_added_at_different_times() {
+            let filter = NodeFilter::property("p4")
+                .eq("pometry")
+                .and(NodeFilter::property("p5").eq(12u64));
+            let expected_results = vec!["4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_unique_results_from_composite_filters() {
+            let filter = NodeFilter::property("p2")
+                .ge(2u64)
+                .and(NodeFilter::property("p2").ge(1u64));
+            let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p2")
+                .ge(2u64)
+                .or(NodeFilter::property("p2").ge(5u64));
+            let expected_results = vec!["2", "3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_composite_filter_nodes() {
+            let filter = NodeFilter::property("p2")
+                .eq(2u64)
+                .and(NodeFilter::property("p1").eq("kapoor"));
+            let expected_results = Vec::<&str>::new();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p2")
+                .eq(2u64)
+                .or(NodeFilter::property("p1").eq("shivam_kapoor"));
+            let expected_results = vec!["1", "2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p1")
+                .eq("pometry")
+                .or(NodeFilter::property("p2")
+                    .eq(6u64)
+                    .and(NodeFilter::property("p3").eq(1u64)));
+            let expected_results = vec!["3"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type()
+                .eq("fire_nation")
+                .and(NodeFilter::property("p1").eq("prop1"));
+            let expected_results = Vec::<&str>::new();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::property("p9")
+                .eq(5u64)
+                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::node_type()
+                .eq("fire_nation")
+                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(NodeFilter::property("p2").eq(2u64));
+            let expected_results = vec!["2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64));
+            let expected_results = vec!["1", "2"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            let filter = filter.try_as_composite_node_filter().unwrap();
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_not_composite_filter_nodes() {
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64))
+                .not();
+            let expected_results = vec!["3", "4"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = NodeFilter::name()
+                .eq("2")
+                .not()
+                .and(NodeFilter::property("p2").eq(2u64))
+                .or(NodeFilter::property("p9").eq(5u64));
+            let expected_results = vec!["1"];
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_out_neighbours_filter() {
+            let filter = NodeFilter::name()
+                .eq("2")
+                .and(NodeFilter::property("p2").eq(2u64));
+            let expected_results = vec!["2"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "1",
+                Direction::OUT,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_in_neighbours_filter() {
+            let filter = NodeFilter::property("p9").ge(1u64);
+            let expected_results = vec!["1"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::IN,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_neighbours_filter() {
+            let filter = NodeFilter::property("p10").contains("Paper");
+            let expected_results = vec!["1", "3"];
+            assert_filter_neighbours_results(
+                |graph| init_edges_graph(init_nodes_graph(graph)),
+                IdentityGraphTransformer,
+                "2",
+                Direction::BOTH,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod test_node_property_filter_agg {
+        use crate::{
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::{
+                    assertions::{
+                        assert_filter_nodes_err, assert_filter_nodes_results,
+                        assert_search_nodes_results, TestVariants::NonDiskOnly,
+                    },
+                    views::filter::{
+                        internal::CreateFilter,
+                        model::{
+                            node_filter::NodeFilter,
+                            property_filter::{ListAggOps, PropertyFilterOps},
+                            PropertyFilterFactory, TryAsCompositeFilter,
+                        },
+                        test_filters::IdentityGraphTransformer,
+                    },
+                },
+            },
+            prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps},
+        };
+        use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+        use raphtory_storage::mutation::{
+            addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+        };
+        use std::{sync::Arc, vec};
+
+        fn list_u8(xs: &[u8]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::U8).collect()))
+        }
+        fn list_u16(xs: &[u16]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::U16).collect()))
+        }
+        fn list_u32(xs: &[u32]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::U32).collect()))
+        }
+        fn list_u64(xs: &[u64]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::U64).collect()))
+        }
+        fn list_i32(xs: &[i32]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::I32).collect()))
+        }
+        fn list_i64(xs: &[i64]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::I64).collect()))
+        }
+        fn list_f32(xs: &[f32]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::F32).collect()))
+        }
+        fn list_f64(xs: &[f64]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::F64).collect()))
+        }
+        fn list_str(xs: &[&str]) -> Prop {
+            Prop::List(Arc::new(
+                xs.iter().map(|s| Prop::Str(ArcStr::from(*s))).collect(),
+            ))
+        }
+        fn list_bool(xs: &[bool]) -> Prop {
+            Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
+        }
+
+        pub fn init_nodes_graph<
+            G: StaticGraphViewOps
+                + AdditionOps
+                + InternalAdditionOps
+                + InternalPropertyAdditionOps
+                + PropertyAdditionOps,
+        >(
+            graph: G,
+        ) -> G {
+            let nodes: [(i64, &str, Vec<(&str, Prop)>); 12] = [
+                (
+                    1,
+                    "n1",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u8s", list_u8(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u16s", list_u16(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_i64s", list_i64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
+                        ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                    ],
+                ),
+                (
+                    2,
+                    "n1",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c", "d"])), // min: None, max: None, sum: None, avg: None, len: 4
+                        ("p_bools", list_bool(&[true, true])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u8s", list_u8(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_u16s", list_u16(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_u32s", list_u32(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_u64s", list_u64(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_i32s", list_i32(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_i64s", list_i64(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_f32s", list_f32(&[1.0, 2.0, 3.5, 4.5])), // min: 1.0, max: 4.5, sum: 11.0, avg: 2.75, len: 4
+                        ("p_f64s", list_f64(&[30.0, 50.0, 40.0])), // min: 30.0, max: 50.0, sum: 120.0, avg: 40.0, len: 3
+                    ],
+                ),
+                (
+                    1,
+                    "n2",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c", "d"])), // min: None, max: None, sum: None, avg: None, len: 4
+                        ("p_u64s", list_u64(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_f64s", list_f64(&[30.0, 50.0, 40.0])), // min: 30.0, max: 50.0, sum: 120.0, avg: 40.0, len: 3
+                    ],
+                ),
+                (
+                    2,
+                    "n2",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c", "d"])), // min: None, max: None, sum: None, avg: None, len: 4
+                        ("p_u64s", list_u64(&[1, 2, 3, 4])), // min: 1,  max: 4,  sum: 10,   avg: 2.5,  len: 4
+                        ("p_f64s", list_f64(&[30.0, 50.0, 40.0])), // min: 30.0, max: 50.0, sum: 120.0, avg: 40.0, len: 3
+                    ],
+                ),
+                (
+                    1,
+                    "n3",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u8s", list_u8(&[1, 1, 4])), // min: 1,  max: 4,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u16s", list_u16(&[1, 0, 5])), // min: 0,  max: 5,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u32s", list_u32(&[2, 2, 2])), // min: 2,  max: 2,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u64s", list_u64(&[0, 3, 3])), // min: 0,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i32s", list_i32(&[-1, 4, 3])), // min: -1, max: 4,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i64s", list_i64(&[0, 3, -3])), // min: -3, max: 3,  sum: 0,   avg: 0.0,  len: 3
+                        ("p_f32s", list_f32(&[1.0, 2.5, 3.0])), // min: 1.0, max: 3.0, sum: 6.5, avg: 2.1666666666666665, len: 3
+                        ("p_f64s", list_f64(&[30.0, 60.0])), // min: 30.0, max: 60.0, sum: 90.0, avg: 45.0, len: 2
+                    ],
+                ),
+                (
+                    2,
+                    "n3",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u8s", list_u8(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u16s", list_u16(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i64s", list_i64(&[1, 2, -3])), // min: -3, max: 2,  sum: 0,   avg: 0.0,  len: 3
+                        ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5, avg: 2.1666666666666665, len: 3
+                        ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                    ],
+                ),
+                (
+                    1,
+                    "n4",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
+                    ],
+                ),
+                (
+                    2,
+                    "n4",
+                    vec![
+                        ("p_strs", list_str(&["x", "y", "z"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[false, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u64s", list_u64(&[10, 20, 30])), // min: 10, max: 30, sum: 60,   avg: 20.0, len: 3
+                        ("p_i32s", list_i32(&[10, 20, 30])), // min: 10, max: 30, sum: 60,   avg: 20.0, len: 3
+                        ("p_f32s", list_f32(&[10.0, 20.0, 30.0])), // min: 10.0, max: 30.0, sum: 60.0, avg: 20.0, len: 3
+                    ],
+                ),
+                (
+                    2,
+                    "n5",
+                    vec![
+                        ("p_u64s", list_u64(&[u64::MAX, 1])), // min: 1,  max: u64::MAX, sum: None (overflow), avg: 9223372036854775808.0, len: 2
+                        ("p_u64s_max", list_u64(&[u64::MAX, 1])), // min: 1,  max: u64::MAX, sum: None (overflow), avg: 9223372036854775808.0, len: 2
+                        ("p_u64s_min", list_u64(&[u64::MIN, 1])), // min: 1,  max: u64::MAX, sum: None (overflow), avg: 9223372036854775808.0, len: 2
+                        ("p_i64s", list_i64(&[i64::MAX, 1])), // min: 1,  max: i64::MAX, sum: None (overflow), avg: 4611686018427387904.0, len: 2
+                        ("p_i64s_max", list_i64(&[i64::MAX, 1])), // min: 1,  max: i64::MAX, sum: None (overflow), avg: 4611686018427387904.0, len: 2
+                        ("p_i64s_min", list_i64(&[i64::MIN, 1])), // min: 1,  max: i64::MAX, sum: None (overflow), avg: 4611686018427387904.0, len: 2
+                    ],
+                ),
+                (
+                    2,
+                    "n6",
+                    vec![
+                        ("p_i32s", list_i32(&[-2, 1, 3])), // min: -2, max: 3, sum: 2, avg: 0.6666666666666666, len: 3
+                    ],
+                ),
+                (
+                    1,
+                    "n7",
+                    vec![
+                        ("p_u64s", list_u64(&[])), // min: None, max: None, sum: None, avg: None, len: 0
+                    ],
+                ),
+                (
+                    2,
+                    "n10",
+                    vec![
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                        ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
+                        ("p_u8s", list_u8(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u16s", list_u16(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_i64s", list_i64(&[1, 2, -3])), // min: -3, max: 2,  sum: 0,   avg: 0.0,  len: 3
+                        ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5, avg: 2.1666666666666665, len: 3
+                        ("p_f64s", list_f64(&[50.0, 40.0])), // min: 40.0, max: 50.0, sum: 90.0, avg: 45.0, len: 2
+                    ],
+                ),
+            ];
+
+            for (t, id, props) in nodes {
+                graph.add_node(t, id, props, None).unwrap();
+            }
+
+            let metadata: [(&str, Vec<(&str, Prop)>); 8] = [
+                (
+                    "n1",
+                    vec![
+                        ("p_u8s", list_u8(&[2, 9])), // min: 2,  max: 9,  sum: 11,  avg: 5.5,  len: 2
+                        ("p_u16s", list_u16(&[3, 5])), // min: 3,  max: 5,  sum: 8,   avg: 4.0,  len: 2
+                        ("p_u32s", list_u32(&[4, 9])), // min: 4,  max: 9,  sum: 13,  avg: 6.5,  len: 2
+                    ],
+                ),
+                (
+                    "n2",
+                    vec![
+                        ("p_u64s", list_u64(&[2, 3, 7])), // min: 2,  max: 7,  sum: 12,  avg: 4.0,  len: 3
+                    ],
+                ),
+                (
+                    "n3",
+                    vec![
+                        ("p_i32s", list_i32(&[10, 2, -3])), // min: -3, max: 10, sum: 9,   avg: 3.0,  len: 3
+                        ("p_i64s", list_i64(&[1, 12, 3, 4])), // min: 1,  max: 12, sum: 20,  avg: 5.0,  len: 4
+                    ],
+                ),
+                (
+                    "n4",
+                    vec![
+                        ("p_f32s", list_f32(&[1.5, 2.5])), // min: 1.5, max: 2.5, sum: 4.0,  avg: 2.0,  len: 2
+                        ("p_f64s", list_f64(&[0.5, 1.5])), // min: 0.5, max: 1.5, sum: 2.0,  avg: 1.0,  len: 2
+                    ],
+                ),
+                (
+                    "n5",
+                    vec![
+                        ("p_strs", list_str(&["m1", "m2", "m3"])), // min: None, max: None, sum: None, avg: None, len: 3
+                    ],
+                ),
+                (
+                    "n6",
+                    vec![
+                        ("p_u64s", list_u64(&[])), // min: None, max: None, sum: None, avg: None, len: 0
+                    ],
+                ),
+                (
+                    "n7",
+                    vec![
+                        ("p_u64s", list_u64(&[u64::MAX, 1])), // min: 1, max: u64::MAX, sum: None (overflow), avg: ~9.22e18, len: 2
+                    ],
+                ),
+                (
+                    "n10",
+                    vec![
+                        ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,   avg: 2.0,  len: 3
+                        ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
+                    ],
+                ),
+            ];
+
+            for (node_id, md) in metadata {
+                println!("node {}: {:?}", node_id, md);
+                graph.node(node_id).unwrap().add_metadata(md).unwrap();
+            }
+
+            graph
+        }
+
+        fn apply_assertion(
+            filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+            expected: &[&str],
+        ) {
+            assert_filter_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected,
+                NonDiskOnly,
+            );
+
+            assert_search_nodes_results(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter,
+                &expected,
+                NonDiskOnly,
+            );
+        }
+
+        fn apply_assertion_err(
+            filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+            expected: &str,
+        ) {
+            assert_filter_nodes_err(
+                init_nodes_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected,
+                NonDiskOnly,
+            );
+
+            // assert_search_nodes_err(
+            //     init_nodes_graph,
+            //     IdentityGraphTransformer,
+            //     filter,
+            //     expected,
+            //     NonDiskOnly,
+            // );
+        }
+
+        // ------ Property: SUM ----
+        #[test]
+        fn test_node_property_sum_u8s() {
+            let filter = NodeFilter::property("p_u8s").sum().eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_u16s() {
+            let filter = NodeFilter::property("p_u16s").sum().eq(Prop::U64(6));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_u32s() {
+            let filter = NodeFilter::property("p_u32s").sum().eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_u64s() {
+            let filter = NodeFilter::property("p_u64s").sum().eq(Prop::U64(6));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_i32s() {
+            let filter = NodeFilter::property("p_i32s").sum().eq(Prop::I64(2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_i64s() {
+            let filter = NodeFilter::property("p_i64s").sum().eq(Prop::I64(0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_f32s() {
+            let filter = NodeFilter::property("p_f32s").sum().eq(Prop::F64(6.5));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_sum_f64s() {
+            let filter = NodeFilter::property("p_f64s").sum().eq(Prop::F64(120.0));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: AVG ----
+        #[test]
+        fn test_node_property_avg_u8s() {
+            let filter = NodeFilter::property("p_u8s").avg().eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_u16s() {
+            let filter = NodeFilter::property("p_u16s").avg().eq(Prop::F64(2.0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_u32s() {
+            let filter = NodeFilter::property("p_u32s").avg().eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_u64s() {
+            let filter = NodeFilter::property("p_u64s").avg().eq(Prop::F64(2.0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .avg()
+                .eq(Prop::F64(0.6666666666666666));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_i64s() {
+            let filter = NodeFilter::property("p_i64s").avg().eq(Prop::F64(0.0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .avg()
+                .eq(Prop::F64(2.1666666666666665));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_avg_f64s() {
+            let filter = NodeFilter::property("p_f64s").avg().eq(Prop::F64(40.0));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: LEN ------
+        #[test]
+        fn test_node_property_len_u8s() {
+            let filter = NodeFilter::property("p_u8s").len().eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_u16s() {
+            let filter = NodeFilter::property("p_u16s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_u32s() {
+            let filter = NodeFilter::property("p_u32s").len().eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_u64s() {
+            let filter = NodeFilter::property("p_u64s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_i32s() {
+            let filter = NodeFilter::property("p_i32s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_i64s() {
+            let filter = NodeFilter::property("p_i64s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_f32s() {
+            let filter = NodeFilter::property("p_f32s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_f64s() {
+            let filter = NodeFilter::property("p_f64s").len().eq(Prop::U64(3));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_len_strs() {
+            let filter = NodeFilter::property("p_strs").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: MIN ------
+        #[test]
+        fn test_node_property_min_u8s() {
+            let filter = NodeFilter::property("p_u8s").min().eq(Prop::U8(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_u16s() {
+            let filter = NodeFilter::property("p_u16s").min().eq(Prop::U16(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_u32s() {
+            let filter = NodeFilter::property("p_u32s").min().eq(Prop::U32(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_u64s() {
+            let filter = NodeFilter::property("p_u64s").min().eq(Prop::U64(1));
+            let expected = vec!["n1", "n10", "n2", "n3", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_i32s() {
+            let filter = NodeFilter::property("p_i32s").min().eq(Prop::I32(-2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_i64s() {
+            let filter = NodeFilter::property("p_i64s").min().eq(Prop::I64(-3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_f32s() {
+            let filter = NodeFilter::property("p_f32s").min().eq(Prop::F32(10.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_min_f64s() {
+            let filter = NodeFilter::property("p_f64s").min().eq(Prop::F64(40.0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Property: MAX ------
+        #[test]
+        fn test_node_property_max_u8s() {
+            let filter = NodeFilter::property("p_u8s").max().eq(Prop::U8(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_u16s() {
+            let filter = NodeFilter::property("p_u16s").max().eq(Prop::U16(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_u32s() {
+            let filter = NodeFilter::property("p_u32s").max().eq(Prop::U32(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_u64s() {
+            let filter = NodeFilter::property("p_u64s").max().eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_i32s() {
+            let filter = NodeFilter::property("p_i32s").max().eq(Prop::I32(3));
+            let expected = vec!["n10", "n3", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_i64s() {
+            let filter = NodeFilter::property("p_i64s").max().eq(Prop::I64(2));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_f32s() {
+            let filter = NodeFilter::property("p_f32s").max().eq(Prop::F32(30.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_max_f64s() {
+            let filter = NodeFilter::property("p_f64s").max().eq(Prop::F64(50.0));
+            let expected = vec!["n1", "n10", "n2", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: SUM ------
+        #[test]
+        fn test_node_property_metadata_sum_u8s() {
+            let filter = NodeFilter::metadata("p_u8s").sum().eq(Prop::U64(11));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_u16s() {
+            let filter = NodeFilter::metadata("p_u16s").sum().eq(Prop::U64(8));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_u32s() {
+            let filter = NodeFilter::metadata("p_u32s").sum().eq(Prop::U64(13));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_u64s() {
+            let filter = NodeFilter::metadata("p_u64s").sum().eq(Prop::U64(12));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_i32s() {
+            let filter = NodeFilter::metadata("p_i32s").sum().eq(Prop::I64(9));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_i64s() {
+            let filter = NodeFilter::metadata("p_i64s").sum().eq(Prop::I64(20));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_f32s() {
+            let filter = NodeFilter::metadata("p_f32s").sum().eq(Prop::F64(4.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_sum_f64s() {
+            let filter = NodeFilter::metadata("p_f64s").sum().eq(Prop::F64(2.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: AVG ------
+        #[test]
+        fn test_node_property_metadata_avg_u8s() {
+            let filter = NodeFilter::metadata("p_u8s").avg().eq(Prop::F64(5.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_u16s() {
+            let filter = NodeFilter::metadata("p_u16s").avg().eq(Prop::F64(4.0));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_u32s() {
+            let filter = NodeFilter::metadata("p_u32s").avg().eq(Prop::F64(6.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_u64s() {
+            let filter = NodeFilter::metadata("p_u64s").avg().eq(Prop::F64(4.0));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_i32s() {
+            let filter = NodeFilter::metadata("p_i32s").avg().eq(Prop::F64(3.0));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_i64s() {
+            let filter = NodeFilter::metadata("p_i64s").avg().eq(Prop::F64(5.0));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_f32s() {
+            let filter = NodeFilter::metadata("p_f32s").avg().eq(Prop::F64(2.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_avg_f64s() {
+            let filter = NodeFilter::metadata("p_f64s").avg().eq(Prop::F64(1.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: MIN ------
+        #[test]
+        fn test_node_property_metadata_min_u8s() {
+            let filter = NodeFilter::metadata("p_u8s").min().eq(Prop::U8(2));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_u16s() {
+            let filter = NodeFilter::metadata("p_u16s").min().eq(Prop::U16(3));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_u32s() {
+            let filter = NodeFilter::metadata("p_u32s").min().eq(Prop::U32(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_u64s() {
+            let filter = NodeFilter::metadata("p_u64s").min().eq(Prop::U64(2));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_i32s() {
+            let filter = NodeFilter::metadata("p_i32s").min().eq(Prop::I32(-3));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_i64s() {
+            let filter = NodeFilter::metadata("p_i64s").min().eq(Prop::I64(1));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_f32s() {
+            let filter = NodeFilter::metadata("p_f32s").min().eq(Prop::F32(1.5));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_min_f64s() {
+            let filter = NodeFilter::metadata("p_f64s").min().eq(Prop::F64(0.5));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: MAX ------
+        #[test]
+        fn test_node_property_metadata_max_u8s() {
+            let filter = NodeFilter::metadata("p_u8s").max().eq(Prop::U8(9));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_u16s() {
+            let filter = NodeFilter::metadata("p_u16s").max().eq(Prop::U16(5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_u32s() {
+            let filter = NodeFilter::metadata("p_u32s").max().eq(Prop::U32(9));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_u64s() {
+            let filter = NodeFilter::metadata("p_u64s").max().eq(Prop::U64(7));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_i32s() {
+            let filter = NodeFilter::metadata("p_i32s").max().eq(Prop::I32(10));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_i64s() {
+            let filter = NodeFilter::metadata("p_i64s").max().eq(Prop::I64(12));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_f32s() {
+            let filter = NodeFilter::metadata("p_f32s").max().eq(Prop::F32(2.5));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_max_f64s() {
+            let filter = NodeFilter::metadata("p_f64s").max().eq(Prop::F64(1.5));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Metadata: Len ------
+        #[test]
+        fn test_node_property_metadata_len_u8s() {
+            let filter = NodeFilter::metadata("p_u8s").len().eq(Prop::U64(2));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_u16s() {
+            let filter = NodeFilter::metadata("p_u16s").len().eq(Prop::U64(2));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_u32s() {
+            let filter = NodeFilter::metadata("p_u32s").len().eq(Prop::U64(2));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_u64s() {
+            let filter = NodeFilter::metadata("p_u64s").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_i32s() {
+            let filter = NodeFilter::metadata("p_i32s").len().eq(Prop::U64(3));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_i64s() {
+            let filter = NodeFilter::metadata("p_i64s").len().eq(Prop::U64(4));
+            let expected = vec!["n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_f32s() {
+            let filter = NodeFilter::metadata("p_f32s").len().eq(Prop::U64(2));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_f64s() {
+            let filter = NodeFilter::metadata("p_f64s").len().eq(Prop::U64(2));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_metadata_len_strs() {
+            let filter = NodeFilter::metadata("p_strs").len().eq(Prop::U64(3));
+            let expected = vec!["n10", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal latest: SUM ------
+        #[test]
+        fn test_node_property_temporal_latest_sum_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::U64(60));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::I64(60));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::I64(0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::F64(6.5));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_sum_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .latest()
+                .sum()
+                .eq(Prop::F64(90.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal latest: AVG ------
+        #[test]
+        fn test_node_property_temporal_latest_avg_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(20.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(0.6666666666666666));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(0.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(20.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_avg_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .latest()
+                .avg()
+                .eq(Prop::F64(45.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal latest: MIN ------
+        #[test]
+        fn test_node_property_temporal_latest_min_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::U8(1));
+            let expected = vec!["n1", "n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::U16(1));
+            let expected = vec!["n1", "n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::U32(1));
+            let expected = vec!["n1", "n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::U64(10));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::I32(-2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::I64(-3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::F32(10.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_min_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::F64(40.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal latest: MAX ------
+        #[test]
+        fn test_node_property_temporal_latest_max_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::U8(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::U16(3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::U32(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::U64(30));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::I32(3));
+            let expected = vec!["n3", "n6", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::I64(2));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_max_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .latest()
+                .max()
+                .eq(Prop::F64(50.0));
+            let expected = vec!["n1", "n2", "n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal latest: LEN ------
+        #[test]
+        fn test_node_property_temporal_latest_len_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n4", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n4", "n6", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n3", "n4", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_latest_len_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .latest()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal all: SUM ------
+        #[test]
+        fn test_node_property_temporal_all_sum_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::I64(6));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::I64(0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::F64(6.5));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_sum_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .all()
+                .sum()
+                .eq(Prop::F64(90.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal all: AVG ------
+        #[test]
+        fn test_node_property_temporal_all_avg_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(0.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(2.1666666666666665));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_avg_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .all()
+                .avg()
+                .eq(Prop::F64(45.0));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal all: MIN ------
+        #[test]
+        fn test_node_property_temporal_all_min_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::U8(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::U16(1));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::U32(1));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::U64(1));
+            let expected = vec!["n1", "n10", "n2", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::I32(-2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::I64(-3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::F32(1.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_min_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .all()
+                .min()
+                .eq(Prop::F64(30.0));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal all: MAX ------
+        #[test]
+        fn test_node_property_temporal_all_max_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::U8(3));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::U16(3));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::U32(3));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::U64(4));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::I32(3));
+            let expected = vec!["n10", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::I64(2));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_max_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .all()
+                .max()
+                .eq(Prop::F64(50.0));
+            let expected = vec!["n1", "n10", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal all: LEN ------
+        #[test]
+        fn test_node_property_temporal_all_len_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_all_len_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .all()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal first: SUM ------
+        #[test]
+        fn test_node_property_temporal_first_sum_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::I64(6));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::I64(0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::F64(6.5));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_sum_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .first()
+                .sum()
+                .eq(Prop::F64(90.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal first: AVG ------
+        #[test]
+        fn test_node_property_temporal_first_avg_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(0.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(2.1666666666666665));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_avg_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .first()
+                .avg()
+                .eq(Prop::F64(45.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal first: MIN ------
+        #[test]
+        fn test_node_property_temporal_first_min_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::U8(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::U16(1));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::U32(1));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::U64(1));
+            let expected = vec!["n1", "n10", "n2", "n4", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::I32(-2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::I64(-3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::F32(1.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_min_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .first()
+                .min()
+                .eq(Prop::F64(30.0));
+            let expected = vec!["n2", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal first: MAX ------
+        #[test]
+        fn test_node_property_temporal_first_max_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::U8(3));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::U16(3));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::U32(3));
+            let expected = vec!["n1", "n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::U64(4));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::I32(3));
+            let expected = vec!["n1", "n10", "n4", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::I64(2));
+            let expected = vec!["n10"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n1", "n10", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_max_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::F64(50.0));
+            let expected = vec!["n1", "n10", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal first: LEN ------
+        #[test]
+        fn test_node_property_temporal_first_len_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4", "n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_first_len_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .first()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal any: SUM ------
+        #[test]
+        fn test_node_property_temporal_any_sum_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(6));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::U64(10));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::I64(6));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::I64(60));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::I64(0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::I64(10));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::F64(6.5));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::F64(60.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_sum_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::F64(90.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .sum()
+                .eq(Prop::F64(120.0));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal any: AVG ------
+        #[test]
+        fn test_node_property_temporal_any_avg_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(0.0));
+            let expected = vec!["n3", "n10"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.5));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(2.1666666666666665));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(20.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_avg_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(45.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .avg()
+                .eq(Prop::F64(40.0));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal any: MIN ------
+        #[test]
+        fn test_node_property_temporal_any_min_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::U8(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::U16(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::U32(1));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::U64(1));
+            let expected = vec!["n1", "n10", "n2", "n3", "n4", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::I32(-2));
+            let expected = vec!["n6"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::I32(10));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::I64(-3));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::I64(1));
+            let expected = vec!["n1", "n5"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::F32(1.0));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::F32(10.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_min_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::F64(30.0));
+            let expected = vec!["n1", "n2", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .min()
+                .eq(Prop::F64(40.0));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal any: MAX ------
+        #[test]
+        fn test_node_property_temporal_any_max_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U8(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U8(4));
+            let expected = vec!["n1", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U16(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U16(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U32(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U32(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::I32(3));
+            let expected = vec!["n1", "n10", "n3", "n4", "n6"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::I32(30));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::I64(2));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::I64(2));
+            let expected = vec!["n10", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::F32(3.5));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::F32(30.0));
+            let expected = vec!["n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_max_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .max()
+                .eq(Prop::F64(50.0));
+            let expected = vec!["n1", "n10", "n2", "n3"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Temporal any: LEN ------
+        #[test]
+        fn test_node_property_temporal_any_len_u8s() {
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .len()
+                .is_in(vec![Prop::U64(3)]);
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u8s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_u16s() {
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u16s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_u32s() {
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_u64s() {
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_i32s() {
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4", "n6"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_i64s() {
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_f32s() {
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n10", "n3", "n4"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f32s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(4));
+            let expected = vec!["n1"];
+            apply_assertion(filter, &expected);
+        }
+
+        #[test]
+        fn test_node_property_temporal_any_len_f64s() {
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(2));
+            let expected = vec!["n1", "n10", "n3"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_f64s")
+                .temporal()
+                .any()
+                .len()
+                .eq(Prop::U64(3));
+            let expected = vec!["n1", "n2"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ EMPTY LISTS ------
+        #[test]
+        fn test_empty_list_agg() {
+            let filter = NodeFilter::property("p_u64s").sum().eq(Prop::U64(0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s").avg().eq(Prop::F64(0.0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .latest()
+                .min()
+                .eq(Prop::U64(0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s")
+                .temporal()
+                .first()
+                .max()
+                .eq(Prop::U64(0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s").len().eq(Prop::U64(0));
+            let expected: Vec<&str> = vec!["n7"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::metadata("p_u64s").len().eq(Prop::U64(0));
+            let expected: Vec<&str> = vec!["n6"];
+            apply_assertion(filter, &expected);
+        }
+
+        // ------ Unsupported filter operations ------
+        #[test]
+        fn test_unsupported_filter_ops_agg() {
+            let filter = NodeFilter::property("p_u64s").sum().starts_with("abc");
+            let expected: &str = "Operator STARTS_WITH is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+
+            let filter = NodeFilter::property("p_u64s").avg().ends_with("abc");
+            let expected: &str = "Operator ENDS_WITH is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+
+            let filter = NodeFilter::property("p_u64s").min().is_none();
+            let expected: &str = "Operator IS_NONE is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+
+            let filter = NodeFilter::property("p_u64s").max().is_some();
+            let expected: &str = "Operator IS_SOME is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+
+            let filter = NodeFilter::property("p_u64s").len().contains("abc");
+            let expected: &str = "Operator CONTAINS is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+
+            let filter = NodeFilter::property("p_u64s").sum().not_contains("abc");
+            let expected: &str = "Operator NOT_CONTAINS is not supported with list aggregation";
+            apply_assertion_err(filter, expected);
+        }
+
+        // --------------- OVERFLOW ---------------
+        #[test]
+        fn test_overflow_agg() {
+            let filter = NodeFilter::property("p_u64s_max")
+                .max()
+                .eq(Prop::U64(u64::MAX));
+            let expected: Vec<&str> = vec!["n5"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s_min")
+                .min()
+                .eq(Prop::U64(u64::MIN));
+            let expected: Vec<&str> = vec!["n5"];
+            apply_assertion(filter, &expected);
+
+            // let filter = NodeFilter::property("p_u64s_max")
+            //     .sum()
+            //     .eq(Prop::U64(0));
+            // let expected: Vec<&str> = vec![];
+            // apply_assertion(filter, &expected);
+            //
+            // let filter = NodeFilter::property("p_i64s_max")
+            //     .sum()
+            //     .eq(Prop::I64(0));
+            // let expected: Vec<&str> = vec![];
+            // apply_assertion(filter, &expected);
+        }
+    }
+
+    #[cfg(test)]
+    mod test_edge_filter {
+        use crate::db::graph::{
+            assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants},
+            views::filter::{
+                model::{
+                    edge_filter::{EdgeFilter, EdgeFilterOps},
+                    ComposableFilter,
+                },
+                test_filters::{init_edges_graph, IdentityGraphTransformer},
+            },
+        };
+
+        #[test]
+        fn test_filter_edges_for_src_eq() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().eq("3");
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_ne() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().ne("1");
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
+            let expected_results = vec!["1->2"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
+            let expected_results = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_not_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_eq() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().name().eq("2");
+            let expected_results = vec!["1->2"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_ne() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().name().ne("2");
+            let expected_results = vec![
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
+            let expected_results = vec!["1->2"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
+            let expected_results = vec!["1->2", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_not_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
+            let expected_results = vec![
+                "1->2",
+                "2->3",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_dst_starts_with() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().starts_with("Joh");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().name().starts_with("Joker");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().starts_with("Jimmy");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().starts_with("Tango");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_dst_ends_with() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().ends_with("Mayer");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().name().ends_with("Cruise");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().ends_with("Page");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().name().ends_with("Cruise");
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_contains() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().contains("Mayer");
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_contains_not() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().not_contains("Mayer");
+            let expected_results: Vec<&str> =
+                vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_fuzzy_search() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, true);
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+
+            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, false);
+            let expected_results: Vec<&str> = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+
+            let filter = EdgeFilter::src().name().fuzzy_search("John May", 2, false);
+            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_not_src() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
+            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]).not();
+            let expected_results = vec!["1->2"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
             );
         }
     }
@@ -3837,1339 +8122,6 @@ pub(crate) mod test_filters {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
             let filter = EdgeFilter::property("p2").ne(2u64).not();
             let expected_results = vec!["2->3"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-        }
-    }
-
-    #[cfg(test)]
-    mod test_node_filter {
-        use crate::db::graph::{
-            assertions::{assert_filter_nodes_results, assert_search_nodes_results, TestVariants},
-            views::filter::{
-                model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    ComposableFilter,
-                },
-                test_filters::{init_nodes_graph, IdentityGraphTransformer},
-            },
-        };
-
-        #[test]
-        fn test_filter_nodes_for_node_name_eq() {
-            let filter = NodeFilter::name().eq("3");
-            let expected_results = vec!["3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_name_ne() {
-            let filter = NodeFilter::name().ne("2");
-            let expected_results = vec!["1", "3", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_name_in() {
-            let filter = NodeFilter::name().is_in(vec!["1".into()]);
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name().is_in(vec!["".into()]);
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
-            let expected_results = vec!["2", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_name_not_in() {
-            let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
-            let expected_results = vec!["2", "3", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name().is_not_in(vec!["".into()]);
-            let expected_results = vec!["1", "2", "3", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_eq() {
-            let filter = NodeFilter::node_type().eq("fire_nation");
-            let expected_results = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_ne() {
-            let filter = NodeFilter::node_type().ne("fire_nation");
-            let expected_results = vec!["2", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_in() {
-            let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
-            let expected_results = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter =
-                NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomads".into()]);
-            let expected_results = vec!["1", "2", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_not_in() {
-            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
-            let expected_results = vec!["2", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_starts_with() {
-            let filter = NodeFilter::node_type().starts_with("fire");
-            let expected_results = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type().starts_with("rocket");
-            let expected_results = vec![];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_ends_with() {
-            let filter = NodeFilter::node_type().ends_with("nomads");
-            let expected_results = vec!["2"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type().ends_with("circle");
-            let expected_results = vec![];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_contains() {
-            let filter = NodeFilter::node_type().contains("fire");
-            let expected_results = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_node_type_contains_not() {
-            let filter = NodeFilter::node_type().not_contains("fire");
-            let expected_results = vec!["2", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_fuzzy_search() {
-            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, true);
-            let expected_results: Vec<&str> = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type().fuzzy_search("fire", 2, false);
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type().fuzzy_search("air_noma", 2, false);
-            let expected_results: Vec<&str> = vec!["2"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_nodes_for_not_node_type() {
-            let filter = NodeFilter::node_type()
-                .is_not_in(vec!["fire_nation".into()])
-                .not();
-            let expected_results = vec!["1", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-    }
-
-    #[cfg(test)]
-    mod test_node_composite_filter {
-        use crate::db::graph::views::filter::test_filters::{init_edges_graph, init_nodes_graph};
-        use raphtory_api::core::Direction;
-
-        use crate::db::graph::{
-            assertions::{
-                assert_filter_neighbours_results, assert_filter_nodes_results,
-                assert_search_nodes_results, TestVariants,
-            },
-            views::filter::{
-                model::{
-                    node_filter::{NodeFilter, NodeFilterBuilderOps},
-                    property_filter::PropertyFilterOps,
-                    ComposableFilter, PropertyFilterFactory, TryAsCompositeFilter,
-                },
-                test_filters::IdentityGraphTransformer,
-            },
-        };
-
-        #[test]
-        fn test_filter_nodes_by_props_added_at_different_times() {
-            let filter = NodeFilter::property("p4")
-                .eq("pometry")
-                .and(NodeFilter::property("p5").eq(12u64));
-            let expected_results = vec!["4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter,
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_unique_results_from_composite_filters() {
-            let filter = NodeFilter::property("p2")
-                .ge(2u64)
-                .and(NodeFilter::property("p2").ge(1u64));
-            let expected_results = vec!["2", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::property("p2")
-                .ge(2u64)
-                .or(NodeFilter::property("p2").ge(5u64));
-            let expected_results = vec!["2", "3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_composite_filter_nodes() {
-            let filter = NodeFilter::property("p2")
-                .eq(2u64)
-                .and(NodeFilter::property("p1").eq("kapoor"));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::property("p2")
-                .eq(2u64)
-                .or(NodeFilter::property("p1").eq("shivam_kapoor"));
-            let expected_results = vec!["1", "2"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::property("p1")
-                .eq("pometry")
-                .or(NodeFilter::property("p2")
-                    .eq(6u64)
-                    .and(NodeFilter::property("p3").eq(1u64)));
-            let expected_results = vec!["3"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type()
-                .eq("fire_nation")
-                .and(NodeFilter::property("p1").eq("prop1"));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::property("p9")
-                .eq(5u64)
-                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::node_type()
-                .eq("fire_nation")
-                .and(NodeFilter::property("p1").eq("shivam_kapoor"));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name()
-                .eq("2")
-                .and(NodeFilter::property("p2").eq(2u64));
-            let expected_results = vec!["2"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name()
-                .eq("2")
-                .and(NodeFilter::property("p2").eq(2u64))
-                .or(NodeFilter::property("p9").eq(5u64));
-            let expected_results = vec!["1", "2"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            let filter = filter.try_as_composite_node_filter().unwrap();
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_not_composite_filter_nodes() {
-            let filter = NodeFilter::name()
-                .eq("2")
-                .and(NodeFilter::property("p2").eq(2u64))
-                .or(NodeFilter::property("p9").eq(5u64))
-                .not();
-            let expected_results = vec!["3", "4"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = NodeFilter::name()
-                .eq("2")
-                .not()
-                .and(NodeFilter::property("p2").eq(2u64))
-                .or(NodeFilter::property("p9").eq(5u64));
-            let expected_results = vec!["1"];
-            assert_filter_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-            assert_search_nodes_results(
-                init_nodes_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_out_neighbours_filter() {
-            let filter = NodeFilter::name()
-                .eq("2")
-                .and(NodeFilter::property("p2").eq(2u64));
-            let expected_results = vec!["2"];
-            assert_filter_neighbours_results(
-                |graph| init_edges_graph(init_nodes_graph(graph)),
-                IdentityGraphTransformer,
-                "1",
-                Direction::OUT,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_in_neighbours_filter() {
-            let filter = NodeFilter::property("p9").ge(1u64);
-            let expected_results = vec!["1"];
-            assert_filter_neighbours_results(
-                |graph| init_edges_graph(init_nodes_graph(graph)),
-                IdentityGraphTransformer,
-                "2",
-                Direction::IN,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_neighbours_filter() {
-            let filter = NodeFilter::property("p10").contains("Paper");
-            let expected_results = vec!["1", "3"];
-            assert_filter_neighbours_results(
-                |graph| init_edges_graph(init_nodes_graph(graph)),
-                IdentityGraphTransformer,
-                "2",
-                Direction::BOTH,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-    }
-
-    #[cfg(test)]
-    mod test_edge_filter {
-        use crate::db::graph::{
-            assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants},
-            views::filter::{
-                model::{
-                    edge_filter::{EdgeFilter, EdgeFilterOps},
-                    ComposableFilter,
-                },
-                test_filters::{init_edges_graph, IdentityGraphTransformer},
-            },
-        };
-
-        #[test]
-        fn test_filter_edges_for_src_eq() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().eq("3");
-            let expected_results = vec!["3->1"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_ne() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().ne("1");
-            let expected_results = vec![
-                "2->1",
-                "2->3",
-                "3->1",
-                "David Gilmour->John Mayer",
-                "John Mayer->Jimmy Page",
-            ];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_in() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
-            let expected_results = vec!["1->2"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
-            let expected_results = vec!["1->2", "2->1", "2->3"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_not_in() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
-            let expected_results = vec![
-                "2->1",
-                "2->3",
-                "3->1",
-                "David Gilmour->John Mayer",
-                "John Mayer->Jimmy Page",
-            ];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_dst_eq() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::dst().name().eq("2");
-            let expected_results = vec!["1->2"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_dst_ne() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::dst().name().ne("2");
-            let expected_results = vec![
-                "2->1",
-                "2->3",
-                "3->1",
-                "David Gilmour->John Mayer",
-                "John Mayer->Jimmy Page",
-            ];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_dst_in() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
-            let expected_results = vec!["1->2"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
-            let expected_results = vec!["1->2", "2->3"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_dst_not_in() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
-            let expected_results = vec![
-                "1->2",
-                "2->3",
-                "David Gilmour->John Mayer",
-                "John Mayer->Jimmy Page",
-            ];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_dst_starts_with() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().starts_with("Joh");
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::src().name().starts_with("Joker");
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::dst().name().starts_with("Jimmy");
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::dst().name().starts_with("Tango");
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_dst_ends_with() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().ends_with("Mayer");
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::src().name().ends_with("Cruise");
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::dst().name().ends_with("Page");
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-
-            let filter = EdgeFilter::dst().name().ends_with("Cruise");
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_contains() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().contains("Mayer");
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_src_contains_not() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().not_contains("Mayer");
-            let expected_results: Vec<&str> =
-                vec!["1->2", "2->1", "2->3", "3->1", "David Gilmour->John Mayer"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            assert_search_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::All,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_fuzzy_search() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, true);
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-
-            let filter = EdgeFilter::src().name().fuzzy_search("John", 2, false);
-            let expected_results: Vec<&str> = vec![];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-
-            let filter = EdgeFilter::src().name().fuzzy_search("John May", 2, false);
-            let expected_results: Vec<&str> = vec!["John Mayer->Jimmy Page"];
-            assert_filter_edges_results(
-                init_edges_graph,
-                IdentityGraphTransformer,
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-        }
-
-        #[test]
-        fn test_filter_edges_for_not_src() {
-            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for both filter_edges and search_edges. Search API uses filter API internally for this filter.
-            let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]).not();
-            let expected_results = vec!["1->2"];
             assert_filter_edges_results(
                 init_edges_graph,
                 IdentityGraphTransformer,
