@@ -352,7 +352,7 @@ impl GqlGraph {
         self.graph.has_node(name)
     }
 
-    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
         match layer {
             Some(name) => self
