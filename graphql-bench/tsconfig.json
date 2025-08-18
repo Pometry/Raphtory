@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "es2019", // es2019 works!
+        "module": "CommonJS",
+        "outDir": "./dist",
+        "rootDir": ".",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        /* Linting */
+        "strict": true,
+        "noFallthroughCasesInSwitch": true
+    },
+    "include": ["./src"]
+}

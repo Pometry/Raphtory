@@ -132,7 +132,7 @@ impl GqlEdges {
         self.update(self.ee.window(start, end))
     }
 
-    /// Creates a view of the Edge including all events at a specified time .
+    /// Creates a view of the Edge including all events at a specified time.
     async fn at(&self, time: i64) -> Self {
         self.update(self.ee.at(time))
     }

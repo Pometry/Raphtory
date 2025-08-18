@@ -126,7 +126,7 @@ impl QueryRoot {
     }
     /// Returns all namespaces using recursive search
     ///
-    /// Returns:: List of namespaces on root
+    /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
@@ -151,7 +151,7 @@ impl QueryRoot {
     }
     /// Returns root namespace
     ///
-    /// Returns:: Root namespace
+    /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())

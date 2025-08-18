@@ -154,8 +154,8 @@ pub trait NodeStateOps<'graph>:
         cmp: F,
         k: usize,
     ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
-        let values = node_state_ord_ops::par_top_k(
-            self.par_iter(),
+        let values = node_state_ord_ops::top_k(
+            self.iter(),
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
             k,
         );

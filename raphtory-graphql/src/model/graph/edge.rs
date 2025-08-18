@@ -63,7 +63,7 @@ impl GqlEdge {
         self.ee.default_layer().into()
     }
 
-    /// Returns a view of Edge containing all layers in the list of names .
+    /// Returns a view of Edge containing all layers in the list of names.
     ///
     /// Errors if any of the layers do not exist.
     async fn layers(&self, names: Vec<String>) -> GqlEdge {
