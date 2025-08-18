@@ -7,11 +7,21 @@ on:
         type: 'string'
         default: 'master'
       dry_run:
-        description: 'DRY RUN: If true will not publish the release to pypi/crates but will release to github'
+        description: 'DRY RUN: If true will not publish the release to pypi/crates/dockerhub but will release to github'
         type: boolean
         default: false
 
 jobs:
+  read-raphtory-version:
+    runs-on: ubuntu-latest
+    outputs:
+        version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
+      - id: version
+        run: echo "version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT
   call-release-rust-workflow:
     name: _Release 2 - Publish Rust package to crates.io
     uses: ./.github/workflows/_release_rust.yml
@@ -32,9 +42,23 @@ jobs:
     with:
       base: ${{ inputs.base }}
     secrets: inherit
-  # call-release-docker-workflow:
-  #   name: _Release 5 - Publish Docker Images to Docker Hub
-  #   uses: ./.github/workflows/_release_docker.yml
-  #   with:
-    #   version: ${{ inputs.base }}
-    # secrets: inherit
+  call-release-docker-workflow-rust:
+    name: Release rust docker image
+    needs: read-raphtory-version
+    uses: ./.github/workflows/_release_docker.yml
+    with:
+      base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
+      tag: ${{ needs.read-raphtory-version.outputs.version }},latest
+      python: false
+    secrets: inherit
+  call-release-docker-workflow-python:
+    name: Release python docker image
+    needs: read-raphtory-version
+    uses: ./.github/workflows/_release_docker.yml
+    with:
+      base: ${{ inputs.base }}
+      dry_run: ${{ inputs.dry_run == true }}
+      tag: ${{ needs.read-raphtory-version.outputs.version }}-python,latest-python
+      python: true
+    secrets: inherit

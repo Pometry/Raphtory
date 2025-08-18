@@ -1,0 +1,42 @@
+name: Nightly release (docker only)
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Run every day at 02:00 UTC (including weekends)
+    - cron: '0 2 * * *'
+
+jobs:
+  check_date:
+      runs-on: ubuntu-latest
+      name: Check latest commit
+      outputs:
+        should_run: ${{ steps.should_run.outputs.should_run }}
+      steps:
+        - uses: actions/checkout@v4
+        - id: should_run
+          continue-on-error: true
+          name: Check latest commit is less than a day
+          run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+  release-rust-docker:
+    name: Release rust docker image
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    uses: ./.github/workflows/_release_docker.yml
+    secrets: inherit
+    with:
+      base: ${{ inputs.base }}
+      tag: nightly-${{ date +%Y-%m-%d }},nightly
+      python: false
+  release-python-docker:
+    name: Release python docker image
+    needs: check_date
+    if: ${{ needs.check_date.outputs.should_run != 'false' }}
+    uses: ./.github/workflows/_release_docker.yml
+    secrets: inherit
+    with:
+      base: ${{ inputs.base }}
+      tag: nightly-${{ date +%Y-%m-%d }}-python,nightly-python
+      python: true

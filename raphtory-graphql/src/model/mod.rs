@@ -77,7 +77,9 @@ pub enum GqlGraphError {
 #[derive(Enum)]
 #[graphql(name = "GraphType")]
 pub enum GqlGraphType {
+    /// Persistent.
     Persistent,
+    /// Event.
     Event,
 }
 
@@ -87,6 +89,7 @@ pub(crate) struct QueryRoot;
 
 #[ResolvedObjectFields]
 impl QueryRoot {
+    /// Hello world demo
     async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
     }
@@ -99,7 +102,9 @@ impl QueryRoot {
             .await
             .map(|(g, folder)| GqlGraph::new(folder, g.graph))?)
     }
-
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
@@ -111,18 +116,26 @@ impl QueryRoot {
         Ok(graph)
     }
 
+    /// Create vectorised graph in the format used for queries
+    ///
+    /// Returns:: GqlVectorisedGraph
     async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
         let data = ctx.data_unchecked::<Data>();
         let g = data.get_graph(path).await.ok()?.0.vectors?;
         Some(g.into())
     }
-
+    /// Returns all namespaces using recursive search
+    ///
+    /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::new(data.work_dir.clone(), data.work_dir.clone());
         GqlCollection::new(root.get_all_namespaces().into())
     }
 
+    /// Returns a specific namespace at a given path
+    ///
+    /// Returns:: Namespace or error if no namespace found
     async fn namespace<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -136,16 +149,20 @@ impl QueryRoot {
             Err(InvalidPathReason::NamespaceDoesNotExist(path))
         }
     }
-
+    /// Returns root namespace
+    ///
+    /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
-
+    /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
-
+    /// Encodes graph and returns as string
+    ///
+    /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
@@ -167,10 +184,12 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
+    /// Returns a plugin.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
 
+    /// Delete graph from a path on the server.
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -178,6 +197,7 @@ impl Mut {
         Ok(true)
     }
 
+    /// Creates a new graph.
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -192,8 +212,10 @@ impl Mut {
         Ok(true)
     }
 
-    // If namespace is not provided, it will be set to the current working directory.
-    // This applies to both the graph namespace and new graph namespace.
+    /// Move graph from a path path on the server to a new_path on the server.
+    ///
+    /// If namespace is not provided, it will be set to the current working directory.
+    /// This applies to both the graph namespace and new graph namespace.
     async fn move_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         Self::copy_graph(ctx, path, new_path).await?;
         let data = ctx.data_unchecked::<Data>();
@@ -201,8 +223,10 @@ impl Mut {
         Ok(true)
     }
 
-    // If namespace is not provided, it will be set to the current working directory.
-    // This applies to both the graph namespace and new graph namespace.
+    /// Copy graph from a path path on the server to a new_path on the server.
+    ///
+    /// If namespace is not provided, it will be set to the current working directory.
+    /// This applies to both the graph namespace and new graph namespace.
     async fn copy_graph<'a>(ctx: &Context<'a>, path: &str, new_path: &str) -> Result<bool> {
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
@@ -219,7 +243,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Use GQL multipart upload to send new graphs to server
+    /// Upload graph file from a path on the client.
     ///
     /// Returns::
     ///    name of the new graph
@@ -245,7 +269,7 @@ impl Mut {
         Ok(path)
     }
 
-    /// Send graph bincode as base64 encoded string
+    /// Send graph bincode as base64 encoded string.
     ///
     /// Returns::
     ///    path of the new graph
@@ -264,7 +288,7 @@ impl Mut {
         Ok(path.to_owned())
     }
 
-    /// Create a subgraph out of some existing graph in the server
+    /// Returns a subgraph given a set of nodes from an existing graph in the server.
     ///
     /// Returns::
     ///    name of the new graph
@@ -286,6 +310,7 @@ impl Mut {
         Ok(new_path)
     }
 
+    /// Creates search index.
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,
