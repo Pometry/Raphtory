@@ -3502,9 +3502,13 @@ pub(crate) mod test_filters {
                         ("p_strs", list_str(&["a", "b", "c"])), // min: None, max: None, sum: None, avg: None, len: 3
                         ("p_bools", list_bool(&[true, false])), // min: None, max: None, sum: None, avg: None, len: 2
                         ("p_u8s", list_u8(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u8s_max", list_u8(&[u8::MAX, u8::MAX])), // min: u8::MAX,  max: u8::MAX,  sum: 510
                         ("p_u16s", list_u16(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u16s_max", list_u16(&[u16::MAX, u16::MAX])), // min: u16::MAX,  max: u16::MAX,  sum: 131070
                         ("p_u32s", list_u32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u32s_max", list_u32(&[u32::MAX, u32::MAX])), // min: 1,  max: 3,  sum: 8589934590
                         ("p_u64s", list_u64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
+                        ("p_u64s_max", list_u64(&[u64::MAX, u64::MAX])), // min: 1,  max: 3,  sum: OVERFLOW
                         ("p_i32s", list_i32(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                         ("p_i64s", list_i64(&[1, 2, 3])), // min: 1,  max: 3,  sum: 6,    avg: 2.0,  len: 3
                         ("p_f32s", list_f32(&[1.0, 2.0, 3.5])), // min: 1.0, max: 3.5, sum: 6.5,  avg: 2.1666666666666665, len: 3
@@ -3704,7 +3708,6 @@ pub(crate) mod test_filters {
             ];
 
             for (node_id, md) in metadata {
-                println!("node {}: {:?}", node_id, md);
                 graph.node(node_id).unwrap().add_metadata(md).unwrap();
             }
 
@@ -6467,11 +6470,11 @@ pub(crate) mod test_filters {
 
         // --------------- OVERFLOW ---------------
         #[test]
-        fn test_overflow_agg() {
+        fn test_max_value_agg() {
             let filter = NodeFilter::property("p_u64s_max")
                 .max()
                 .eq(Prop::U64(u64::MAX));
-            let expected: Vec<&str> = vec!["n5"];
+            let expected: Vec<&str> = vec!["n5", "n1"];
             apply_assertion(filter, &expected);
 
             let filter = NodeFilter::property("p_u64s_min")
@@ -6480,17 +6483,41 @@ pub(crate) mod test_filters {
             let expected: Vec<&str> = vec!["n5"];
             apply_assertion(filter, &expected);
 
-            // let filter = NodeFilter::property("p_u64s_max")
-            //     .sum()
-            //     .eq(Prop::U64(0));
-            // let expected: Vec<&str> = vec![];
-            // apply_assertion(filter, &expected);
-            //
-            // let filter = NodeFilter::property("p_i64s_max")
-            //     .sum()
-            //     .eq(Prop::I64(0));
-            // let expected: Vec<&str> = vec![];
-            // apply_assertion(filter, &expected);
+            let filter = NodeFilter::property("p_u8s_max").sum().eq(Prop::U64(510));
+            let expected: Vec<&str> = vec!["n1"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u16s_max")
+                .sum()
+                .eq(Prop::U64(131070));
+            let expected: Vec<&str> = vec!["n1"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u32s_max")
+                .sum()
+                .eq(Prop::U64(8589934590));
+            let expected: Vec<&str> = vec!["n1"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_u64s_max").sum().gt(Prop::U64(0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            // AVG is computed in f64 even if SUM overflowed.
+            let avg = (u64::MAX as f64 + 1.0) / 2.0;
+            let filter = NodeFilter::property("p_u64s_max").avg().eq(avg);
+            let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
+
+            let filter = NodeFilter::property("p_i64s_max").sum().gt(Prop::I64(0));
+            let expected: Vec<&str> = vec![];
+            apply_assertion(filter, &expected);
+
+            // AVG is computed in f64 even if SUM overflowed.
+            let avg = (i64::MAX as f64 + 1.0) / 2.0;
+            let filter = NodeFilter::property("p_i64s_max").avg().eq(avg);
+            let expected = vec!["n5"];
+            apply_assertion(filter, &expected);
         }
     }
 

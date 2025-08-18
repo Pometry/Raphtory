@@ -513,14 +513,28 @@ impl<M> PropertyFilter<M> {
     }
 
     fn reduce_unsigned(vals: &[Prop], ret_minmax: fn(u64) -> Prop, agg: ListAgg) -> Option<Prop> {
-        let mut sum: u128 = 0;
+        let mut sum64: u64 = 0;
+        let mut sum128: u128 = 0;
+        let mut promoted = false;
+
         let mut min_v: u64 = vals[0].as_u64_lossless()?;
         let mut max_v: u64 = min_v;
         let mut count: u64 = 0;
 
         for p in vals {
             let x = p.as_u64_lossless()?;
-            sum = sum.checked_add(x as u128)?;
+
+            if !promoted {
+                if let Some(s) = sum64.checked_add(x) {
+                    sum64 = s
+                } else {
+                    promoted = true;
+                    sum128 = (sum64 as u128) + (x as u128);
+                }
+            } else {
+                sum128 += x as u128;
+            }
+
             if x < min_v {
                 min_v = x;
             }
@@ -531,8 +545,21 @@ impl<M> PropertyFilter<M> {
         }
 
         Some(match agg {
-            ListAgg::Sum => Prop::U64(u64::try_from(sum).ok()?),
-            ListAgg::Avg => Prop::F64((sum as f64) / (count as f64)),
+            ListAgg::Sum => {
+                if promoted {
+                    Prop::U64(u64::try_from(sum128).ok()?) // overflow -> None
+                } else {
+                    Prop::U64(sum64)
+                }
+            }
+            ListAgg::Avg => {
+                let s = if promoted {
+                    sum128 as f64
+                } else {
+                    sum64 as f64
+                };
+                Prop::F64(s / (count as f64))
+            }
             ListAgg::Min => ret_minmax(min_v),
             ListAgg::Max => ret_minmax(max_v),
             ListAgg::Len => unreachable!(),
@@ -540,14 +567,28 @@ impl<M> PropertyFilter<M> {
     }
 
     fn reduce_signed(vals: &[Prop], ret_minmax: fn(i64) -> Prop, agg: ListAgg) -> Option<Prop> {
-        let mut sum: i128 = 0;
+        let mut sum64: i64 = 0;
+        let mut sum128: i128 = 0;
+        let mut promoted = false;
+
         let mut min_v: i64 = vals[0].as_i64_lossless()?;
         let mut max_v: i64 = min_v;
         let mut count: u64 = 0;
 
         for p in vals {
             let x = p.as_i64_lossless()?;
-            sum = sum.checked_add(x as i128)?;
+
+            if !promoted {
+                if let Some(s) = sum64.checked_add(x) {
+                    sum64 = s
+                } else {
+                    promoted = true;
+                    sum128 = (sum64 as i128) + (x as i128);
+                }
+            } else {
+                sum128 += x as i128;
+            }
+
             if x < min_v {
                 min_v = x;
             }
@@ -558,8 +599,21 @@ impl<M> PropertyFilter<M> {
         }
 
         Some(match agg {
-            ListAgg::Sum => Prop::I64(i64::try_from(sum).ok()?),
-            ListAgg::Avg => Prop::F64((sum as f64) / (count as f64)),
+            ListAgg::Sum => {
+                if promoted {
+                    Prop::I64(i64::try_from(sum128).ok()?) // overflow -> None
+                } else {
+                    Prop::I64(sum64)
+                }
+            }
+            ListAgg::Avg => {
+                let s = if promoted {
+                    sum128 as f64
+                } else {
+                    sum64 as f64
+                };
+                Prop::F64(s / (count as f64))
+            }
             ListAgg::Min => ret_minmax(min_v),
             ListAgg::Max => ret_minmax(max_v),
             ListAgg::Len => unreachable!(),
