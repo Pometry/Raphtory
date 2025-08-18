@@ -4,7 +4,7 @@ use crate::{
     errors::GraphError,
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID, TIME_COL, TYPE_COL,
+        run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, TIME_COL, TYPE_COL,
     },
 };
 use arrow_schema::{DataType, Field};
@@ -25,7 +25,7 @@ pub(crate) fn encode_nodes_tprop(
         NODES_T_PATH,
         |id_type| {
             vec![
-                Field::new(NODE_ID, id_type.clone(), false),
+                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
             ]
@@ -78,7 +78,7 @@ pub(crate) fn encode_nodes_cprop(
         NODES_C_PATH,
         |id_type| {
             vec![
-                Field::new(NODE_ID, id_type.clone(), false),
+                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
             ]
         },

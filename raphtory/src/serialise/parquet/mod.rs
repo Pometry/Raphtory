@@ -58,7 +58,7 @@ pub trait ParquetDecoder {
         Self: Sized;
 }
 
-const NODE_ID: &str = "rap_node_id";
+const NODE_ID_COL: &str = "rap_node_id";
 const TYPE_COL: &str = "rap_node_type";
 const TIME_COL: &str = "rap_time";
 const SRC_COL: &str = "rap_src";
@@ -327,7 +327,7 @@ fn decode_graph_storage(
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
     if std::fs::exists(&t_node_path)? {
-        let exclude = vec![NODE_ID, TIME_COL, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TIME_COL, TYPE_COL];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
             .iter()
@@ -338,7 +338,7 @@ fn decode_graph_storage(
             &g,
             &t_node_path,
             TIME_COL,
-            NODE_ID,
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &t_prop_columns,
@@ -349,7 +349,7 @@ fn decode_graph_storage(
 
     let c_node_path = path.as_ref().join(NODES_C_PATH);
     if std::fs::exists(&c_node_path)? {
-        let exclude = vec![NODE_ID, TYPE_COL];
+        let exclude = vec![NODE_ID_COL, TYPE_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
         let c_prop_columns = c_prop_columns
             .iter()
@@ -359,7 +359,7 @@ fn decode_graph_storage(
         load_node_props_from_parquet(
             &g,
             &c_node_path,
-            NODE_ID,
+            NODE_ID_COL,
             None,
             Some(TYPE_COL),
             &c_prop_columns,

@@ -1,4 +1,4 @@
-use super::{Prop, DST_COL, LAYER_COL, NODE_ID, SRC_COL, TIME_COL, TYPE_COL};
+use super::{Prop, DST_COL, LAYER_COL, NODE_ID_COL, SRC_COL, TIME_COL, TYPE_COL};
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
@@ -167,7 +167,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID, &ParquetGID(self.node.id()))?;
+        state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
@@ -190,7 +190,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID, &ParquetGID(self.node.id()))?;
+        state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.node.metadata().iter_filtered() {
