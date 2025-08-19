@@ -173,32 +173,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
         let ti = time_from_input_session(&session, t)?;
-        let (node_id, node_type) = match node_type {
-            None => self
-                .resolve_node(v.as_node_ref())
-                .map_err(into_graph_err)?
-                .map(|node_id| (node_id, None))
-                .inner(),
-            Some(node_type) => {
-                let node_id = self
-                    .resolve_node_and_type(v.as_node_ref(), node_type)
-                    .map_err(into_graph_err)?;
-                node_id
-                    .map(|(node_id, node_type)| (node_id.inner(), Some(node_type.inner())))
-                    .inner()
-            }
-        };
+        let (node_id, _) = self
+            .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
+            .map_err(into_graph_err)?
+            .inner();
 
-        self.internal_add_node(
-            ti,
-            node_id,
-            v.as_node_ref().as_gid_ref().left(),
-            node_type,
-            props,
-        )
-        .map_err(into_graph_err)?;
+        self.internal_add_node(ti, node_id.inner(), props)
+            .map_err(into_graph_err)?;
 
-        Ok(NodeView::new_internal(self.clone(), node_id))
+        Ok(NodeView::new_internal(self.clone(), node_id.inner()))
     }
 
     fn create_node<
@@ -231,35 +214,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
         let ti = time_from_input_session(&session, t)?;
-        let node_id = match node_type {
-            None => self
-                .resolve_node(v.as_node_ref())
-                .map_err(into_graph_err)?
-                .map(|node_id| (node_id, None)),
-            Some(node_type) => {
-                let node_id = self
-                    .resolve_node_and_type(v.as_node_ref(), node_type)
-                    .map_err(into_graph_err)?;
-                node_id.map(|(node_id, node_type)| (node_id.inner(), Some(node_type.inner())))
-            }
-        };
+        let (node_id, _) = self
+            .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
+            .map_err(into_graph_err)?
+            .inner();
 
         let is_new = node_id.is_new();
-        let (node_id, node_type) = node_id.inner();
+        let node_id = node_id.inner();
 
         if !is_new {
             let node_id = self.node(node_id).unwrap().id();
             return Err(GraphError::NodeExistsError(node_id));
         }
 
-        self.internal_add_node(
-            ti,
-            node_id,
-            v.as_node_ref().as_gid_ref().left(),
-            node_type,
-            props,
-        )
-        .map_err(into_graph_err)?;
+        self.internal_add_node(ti, node_id, props)
+            .map_err(into_graph_err)?;
 
         Ok(NodeView::new_internal(self.clone(), node_id))
     }

@@ -339,6 +339,16 @@ impl MemNodeSegment {
         (is_new, added_size)
     }
 
+    pub fn get_metadata(
+        &self,
+        node_pos: LocalPOS,
+        layer_id: usize,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        let segment_container = &self.layers[layer_id];
+        segment_container.c_prop(node_pos, prop_id)
+    }
+
     pub fn latest(&self) -> Option<TimeIndexEntry> {
         Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }

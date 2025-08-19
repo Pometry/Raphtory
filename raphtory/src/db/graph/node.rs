@@ -432,7 +432,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.graph
-            .resolve_node_and_type(NodeRef::Internal(self.node), new_type)
+            .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
             .map_err(into_graph_err)?;
         Ok(())
     }
@@ -474,7 +474,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .map_err(into_graph_err)?;
         let vid = self.node;
         self.graph
-            .internal_add_node(t, vid, None, None, props)
+            .internal_add_node(t, vid, props)
             .map_err(into_graph_err)
     }
 }

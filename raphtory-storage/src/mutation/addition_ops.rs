@@ -38,29 +38,21 @@ pub trait InternalAdditionOps {
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
     /// map external node id to internal id, allocating a new empty node if needed
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
-    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
 
-    fn resolve_node_and_type_fast(
+    /// resolve a node and corresponding type, outer MaybeNew tracks whether the type assignment is new for the node even if both node and type already existed.
+    /// updates the storage atomically to set the node type
+    fn resolve_and_update_node_and_type(
         &self,
         id: NodeRef,
         node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        match node_type {
-            Some(node_type) => {
-                let (vid, node_type_id) = self.resolve_node_and_type(id, node_type)?.inner();
-                Ok((vid.inner(), node_type_id.inner()))
-            }
-            None => {
-                let vid = self.resolve_node(id)?.inner();
-                Ok((vid, 0))
-            }
-        }
-    }
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error>;
+
+    /// resolve node and type without modifying the storage (use in bulk loaders only)
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error>;
 
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
@@ -81,10 +73,8 @@ pub trait InternalAdditionOps {
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
-        v: impl Into<VID>,
-        gid: Option<GidRef>,
-        node_type: Option<usize>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        v: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error>;
 
     fn validate_props<PN: AsRef<str>>(
@@ -222,12 +212,14 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.resolve_node(id)
     }
 
-    fn resolve_node_and_type(
+    fn resolve_and_update_node_and_type(
         &self,
         id: NodeRef,
-        node_type: &str,
+        node_type: Option<&str>,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        Ok(self.mutable()?.resolve_node_and_type(id, node_type)?)
+        Ok(self
+            .mutable()?
+            .resolve_and_update_node_and_type(id, node_type)?)
     }
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
@@ -247,13 +239,10 @@ impl InternalAdditionOps for GraphStorage {
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
-        v: impl Into<VID>,
-        gid: Option<GidRef>,
-        node_type: Option<usize>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        v: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
-        self.mutable()?
-            .internal_add_node(t, v, gid, node_type, props)
+        self.mutable()?.internal_add_node(t, v, props)
     }
 
     fn validate_props<PN: AsRef<str>>(
@@ -292,6 +281,16 @@ impl InternalAdditionOps for GraphStorage {
     fn wal(&self) -> &WalImpl {
         self.mutable().unwrap().wal.as_ref()
     }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        self.mutable()?
+            .resolve_node_and_type(id, node_type)
+            .map_err(MutationError::from)
+    }
 }
 
 pub trait InheritAdditionOps: Base {}
@@ -329,12 +328,12 @@ where
     }
 
     #[inline]
-    fn resolve_node_and_type(
+    fn resolve_and_update_node_and_type(
         &self,
         id: NodeRef,
-        node_type: &str,
+        node_type: Option<&str>,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        self.base().resolve_node_and_type(id, node_type)
+        self.base().resolve_and_update_node_and_type(id, node_type)
     }
 
     #[inline]
@@ -357,12 +356,10 @@ where
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
-        v: impl Into<VID>,
-        gid: Option<GidRef>,
-        node_type: Option<usize>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        v: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
-        self.base().internal_add_node(t, v, gid, node_type, props)
+        self.base().internal_add_node(t, v, props)
     }
 
     #[inline]
@@ -402,5 +399,13 @@ where
     #[inline]
     fn wal(&self) -> &WalImpl {
         self.base().wal()
+    }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        self.base().resolve_node_and_type(id, node_type)
     }
 }
