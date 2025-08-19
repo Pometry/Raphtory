@@ -129,23 +129,23 @@ pub(crate) fn load_nodes_from_df<
         node_col_resolved.resize_with(df.len(), Default::default);
         node_type_col_resolved.resize_with(df.len(), Default::default);
 
-        node_col
-            .par_iter()
-            .zip(node_col_resolved.par_iter_mut())
-            .zip(node_type_col.par_iter())
-            .zip(node_type_col_resolved.par_iter_mut())
-            .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
+        // TODO: Using parallel iterators results in a 5x speedup, but
+        // needs to be implemented such that node VID order is preserved.
+        // See: https://github.com/Pometry/pometry-storage/issues/81
+        for (((gid, resolved), node_type), node_type_resolved) in node_col
+            .iter()
+            .zip(node_col_resolved.iter_mut())
+            .zip(node_type_col.iter())
+            .zip(node_type_col_resolved.iter_mut())
+        {
+            let (vid, res_node_type) = write_locked_graph
+                .graph()
+                .resolve_node_and_type(gid.as_node_ref(), node_type)
+                .map_err(|_| LoadError::FatalError)?;
 
-                let (vid, res_node_type) = write_locked_graph
-                    .graph()
-                    .resolve_node_and_type(gid.as_node_ref(), node_type)
-                    .map_err(|_| LoadError::FatalError)?;
-                *resolved = vid;
-                *node_type_resolved = res_node_type;
-
-                Ok::<(), LoadError>(())
-            })?;
+            *resolved = vid;
+            *node_type_resolved = res_node_type;
+        }
 
         let node_stats = write_locked_graph.node_stats().clone();
         let update_time = |time: TimeIndexEntry| {
@@ -706,6 +706,7 @@ pub(crate) fn load_node_props_from_df<
                         writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
                     };
                 }
+
                 Ok::<_, GraphError>(())
             })?;
 

@@ -47,6 +47,23 @@ impl<'a> LayerCol<'a> {
         }
     }
 
+    pub fn iter(self) -> impl Iterator<Item = Option<&'a str>> {
+        match self {
+            LayerCol::Name { name, len } => {
+                LayerColVariants::Name((0..len).map(move |_| name))
+            }
+            LayerCol::Utf8 { col } => {
+                LayerColVariants::Utf8((0..col.len()).map(|i| col.get(i)))
+            }
+            LayerCol::LargeUtf8 { col } => {
+                LayerColVariants::LargeUtf8((0..col.len()).map(|i| col.get(i)))
+            }
+            LayerCol::Utf8View { col } => {
+                LayerColVariants::Utf8View((0..col.len()).map(|i| col.get(i)))
+            }
+        }
+    }
+
     pub fn resolve(
         self,
         graph: &(impl AdditionOps + Send + Sync),
