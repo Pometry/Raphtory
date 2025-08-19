@@ -25,7 +25,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -2223,7 +2223,7 @@ class Node(object):
 
     def is_active(self) -> bool:
         """
-        Check if the node is active, i.e., it's history is not empty
+        Check if the node is active (has at least one update within this period).
 
         Returns:
             bool:
@@ -4261,7 +4261,7 @@ class Edge(object):
 
     def is_active(self) -> bool:
         """
-        Check if the edge is currently active (i.e., has at least one update within this period)
+        Check if the edge is currently active (has at least one update within this period).
         Returns:
             bool:
         """
@@ -4742,8 +4742,13 @@ class Edges(object):
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self):
-        ...
+    def is_active(self) -> bool:
+        """
+        Check if the edges are active (have at least one update within this period).
+
+        Returns:
+            bool:
+        """
 
     def is_deleted(self):
         """Check if the edges are deleted"""
@@ -5195,9 +5200,14 @@ class NestedEdges(object):
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self):
-        ...
+    def is_active(self) -> bool:
+        """
+        Check if the edges are active (have at least one update within this period).
 
+        Returns:
+            bool:
+        """
+    
     def is_deleted(self):
         """Check if edges are deleted"""
 
@@ -5912,3 +5922,6 @@ class IndexSpec(object):
     @property
     def node_properties(self):
         ...
+
+def version():
+    ...
