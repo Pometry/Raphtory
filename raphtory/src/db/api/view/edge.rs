@@ -180,7 +180,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
     fn nbr(&self) -> Self::Nodes;
 
-    /// Check if edge is active at a given time point
+    /// Check if the edge is active (has some update within the current bound) at a given time point.
     fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
@@ -395,7 +395,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map_nodes(|_, e| e.remote())
     }
 
-    /// Check if edge is active (i.e. has some update within the current bound)
+    /// Check if an edge is active is active (has some update within the current bound) at a given time point.
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
             if edge_valid_layer(g, e) {

@@ -248,7 +248,7 @@ impl PyEdge {
         self.edge.is_valid()
     }
 
-    /// Check if the edge is currently active (i.e., has at least one update within this period)
+    /// Check if the edge is currently active (has at least one update within this period).
     /// Returns:
     ///     bool:
     pub fn is_active(&self) -> bool {

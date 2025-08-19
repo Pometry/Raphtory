@@ -97,7 +97,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         &self,
     ) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, Option<Vec<DateTime<Utc>>>>>;
 
-    //Returns true if the node has any updates within the current window, otherwise false
+    /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>>;
 
     /// Get a view of the temporal properties of this node.
@@ -264,6 +264,7 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         self.map(op)
     }
 
+    /// Returns true if the node has any updates within the current window, otherwise false.
     fn is_active(&self) -> Self::ValueType<ops::Map<ops::History<Self::Graph>, bool>> {
         let op = ops::History {
             graph: self.graph().clone(),

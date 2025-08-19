@@ -275,7 +275,7 @@ impl PyNode {
         self.node.history_date_time()
     }
 
-    /// Check if the node is active, i.e., it's history is not empty
+    /// Check if the node is active (it's history is not empty).
     ///
     /// Returns:
     ///     bool:
