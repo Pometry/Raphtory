@@ -10,8 +10,9 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        graph::properties::{
-            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        graph::{
+            history::{HistoryIterable, NestedHistoryIterable},
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -22,11 +23,10 @@ use crate::{
                 NestedResultVecUtcDateTimeIterable, ResultVecUtcDateTimeIterable,
             },
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
-                HistoryIterable, I64Iterable, NestedArcStringIterable, NestedArcStringVecIterable,
-                NestedBoolIterable, NestedGIDGIDIterable, NestedHistoryIterable,
-                NestedI64VecIterable, NestedOptionI64Iterable, NestedOptionRaphtoryTimeIterable,
-                OptionRaphtoryTimeIterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
+                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
+                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
+                NestedOptionTimeIndexEntryIterable, OptionTimeIndexEntryIterable,
             },
         },
         utils::{
@@ -95,9 +95,9 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    /// Earliest time of the edges as an iterable of RaphtoryTime items.
+    /// Earliest time of the edges as an iterable of TimeIndexEntry items.
     #[getter]
-    fn earliest_time(&self) -> OptionRaphtoryTimeIterable {
+    fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
@@ -105,9 +105,9 @@ impl PyEdges {
     /// Returns the latest time of the edges.
     ///
     /// Returns:
-    ///  Latest time of the edges as an iterable of RaphtoryTime items.
+    ///  Latest time of the edges as an iterable of TimeIndexEntry items.
     #[getter]
-    fn latest_time(&self) -> OptionRaphtoryTimeIterable {
+    fn latest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
@@ -391,16 +391,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
 
 #[pymethods]
 impl PyNestedEdges {
-    /// Returns the earliest time of the edges as RaphtoryTime.
+    /// Returns the earliest time of the edges as TimeIndexEntry.
     #[getter]
-    fn earliest_time(&self) -> NestedOptionRaphtoryTimeIterable {
+    fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
 
     /// Returns the latest time of the edges.
     #[getter]
-    fn latest_time(&self) -> NestedOptionRaphtoryTimeIterable {
+    fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }

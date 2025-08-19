@@ -22,42 +22,9 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = [
-    "NodeGroups",
-    "DegreeView",
-    "NodeStateUsize",
-    "NodeStateU64",
-    "NodeStateOptionI64",
-    "IdView",
-    "NodeStateGID",
-    "EarliestTimeView",
-    "LatestTimeView",
-    "NameView",
-    "NodeStateString",
-    "EarliestDateTimeView",
-    "LatestDateTimeView",
-    "NodeStateOptionDateTime",
-    "HistoryView",
-    "EdgeHistoryCountView",
-    "NodeStateListI64",
-    "HistoryDateTimeView",
-    "NodeStateOptionListDateTime",
-    "NodeTypeView",
-    "NodeStateOptionStr",
-    "NodeStateListDateTime",
-    "NodeStateWeightedSP",
-    "NodeStateF64",
-    "NodeStateNodes",
-    "NodeStateReachability",
-    "NodeStateListF64",
-    "NodeStateMotifs",
-    "NodeStateHits",
-    "NodeStateSEIR",
-    "NodeLayout",
-    "NodeStateF64String",
-]
+__all__ = ['NodeGroups', 'DegreeView', 'NodeStateUsize', 'NodeStateU64', 'NodeStateOptionI64', 'NodeStateOptionTimeIndexEntry', 'IdView', 'NodeStateGID', 'EarliestTimeView', 'LatestTimeView', 'NameView', 'NodeStateString', 'HistoryView', 'EdgeHistoryCountView', 'UsizeIterable', 'NodeTypeView', 'NodeStateOptionStr', 'NodeStateListDateTime', 'NodeStateWeightedSP', 'NodeStateF64', 'NodeStateNodes', 'NodeStateReachability', 'NodeStateListF64', 'NodeStateMotifs', 'NodeStateHits', 'NodeStateHistory', 'NodeStateSEIR', 'NodeLayout', 'NodeStateF64String']
+class NodeGroups(object): 
 
-class NodeGroups(object):
     def __bool__(self):
         """True if self else False"""
 
@@ -100,7 +67,7 @@ class NodeGroups(object):
             Iterator[Tuple[Any, GraphView]]: Iterator over subgraphs with corresponding value
         """
 
-class DegreeView(object):
+class DegreeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -201,21 +168,12 @@ class DegreeView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this DegreeView is valid.
 
         Returns:
-           Optional[int]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this DegreeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> DegreeView:
@@ -425,34 +383,34 @@ class DegreeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> DegreeView:
+    def shrink_end(self, end: TimeIndexEntry) -> DegreeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              DegreeView:
         """
 
-    def shrink_start(self, start: TimeInput) -> DegreeView:
+    def shrink_start(self, start: TimeIndexEntry) -> DegreeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              DegreeView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> DegreeView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> DegreeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              DegreeView:
@@ -501,21 +459,12 @@ class DegreeView(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this DegreeView
 
         Returns:
-            Optional[int]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this DegreeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this DegreeView is valid or None if the DegreeView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this DegreeView is valid or None if the DegreeView is valid for all times.
         """
 
     def sum(self) -> int:
@@ -589,7 +538,8 @@ class DegreeView(object):
             Optional[int]:
         """
 
-class NodeStateUsize(object):
+class NodeStateUsize(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -780,7 +730,8 @@ class NodeStateUsize(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateU64(object):
+class NodeStateU64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -963,7 +914,8 @@ class NodeStateU64(object):
              Iterator[int]: Iterator over values
         """
 
-class NodeStateOptionI64(object):
+class NodeStateOptionI64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1005,9 +957,7 @@ class NodeStateOptionI64(object):
              NodeStateOptionI64: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -1140,7 +1090,183 @@ class NodeStateOptionI64(object):
              Iterator[Optional[int]]: Iterator over values
         """
 
-class IdView(object):
+class NodeStateOptionTimeIndexEntry(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def bottom_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+        """
+        Compute the k smallest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateOptionTimeIndexEntry: The k smallest values as a node state
+        """
+
+    def get(self, node: NodeInput, default: Optional[Optional[TimeIndexEntry]] = None) -> Optional[Optional[TimeIndexEntry]]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (Optional[Optional[TimeIndexEntry]]): the default value. Defaults to None.
+
+        Returns:
+            Optional[Optional[TimeIndexEntry]]: the value for the node or the default value
+        """
+
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Optional[TimeIndexEntry]]]:
+        """
+        Iterate over items
+
+        Returns:
+             Iterator[Tuple[Node, Optional[TimeIndexEntry]]]: Iterator over items
+        """
+
+    def max(self) -> Optional[Optional[TimeIndexEntry]]:
+        """
+        Return the maximum value
+
+        Returns:
+             Optional[Optional[TimeIndexEntry]]: The maximum value or `None` if empty
+        """
+
+    def max_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
+        """
+        Return largest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and maximum value or `None` if empty
+        """
+
+    def median(self) -> Optional[Optional[TimeIndexEntry]]:
+        """
+        Return the median value
+
+        Returns:
+             Optional[Optional[TimeIndexEntry]]:
+        """
+
+    def median_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
+        """
+        Return median value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The median value or `None` if empty
+        """
+
+    def min(self) -> Optional[Optional[TimeIndexEntry]]:
+        """
+        Return the minimum value
+
+        Returns:
+             Optional[Optional[TimeIndexEntry]]: The minimum value or `None` if empty
+        """
+
+    def min_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
+        """
+        Return smallest value and corresponding node
+
+        Returns:
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and minimum value or `None` if empty
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted(self, reverse: bool = False) -> NodeStateOptionTimeIndexEntry:
+        """
+        Sort by value
+
+        Arguments:
+            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
+
+        Returns:
+             NodeStateOptionTimeIndexEntry: Sorted node state
+        """
+
+    def sorted_by_id(self) -> NodeStateOptionTimeIndexEntry:
+        """
+        Sort results by node id
+
+        Returns:
+             NodeStateOptionTimeIndexEntry: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def top_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
+        """
+        Compute the k largest values
+
+        Arguments:
+            k (int): The number of values to return
+
+        Returns:
+             NodeStateOptionTimeIndexEntry: The k largest values as a node state
+        """
+
+    def values(self) -> Iterator[Optional[TimeIndexEntry]]:
+        """
+        Iterate over values
+
+        Returns:
+             Iterator[Optional[TimeIndexEntry]]: Iterator over values
+        """
+
+class IdView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1325,7 +1451,8 @@ class IdView(object):
              Iterator[GID]: Iterator over values
         """
 
-class NodeStateGID(object):
+class NodeStateGID(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -1492,7 +1619,7 @@ class NodeStateGID(object):
              Iterator[GID]: Iterator over values
         """
 
-class EarliestTimeView(object):
+class EarliestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -1558,7 +1685,7 @@ class EarliestTimeView(object):
              EarliestTimeView:
         """
 
-    def bottom_k(self, k: int) -> NodeStateOptionI64:
+    def bottom_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
         """
         Compute the k smallest values
 
@@ -1566,23 +1693,23 @@ class EarliestTimeView(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionI64: The k smallest values as a node state
+             NodeStateOptionTimeIndexEntry: The k smallest values as a node state
         """
 
-    def collect(self) -> list[Optional[int]]:
+    def collect(self) -> list[Optional[TimeIndexEntry]]:
         """
         Compute all values and return the result as a list
 
         Returns:
-             list[Optional[int]]: all values as a list
+             list[Optional[TimeIndexEntry]]: all values as a list
         """
 
-    def compute(self) -> NodeStateOptionI64:
+    def compute(self) -> NodeStateOptionTimeIndexEntry:
         """
         Compute all values and return the result as a node view
 
         Returns:
-             NodeStateOptionI64: the computed `NodeState`
+             NodeStateOptionTimeIndexEntry: the computed `NodeState`
         """
 
     def default_layer(self) -> EarliestTimeView:
@@ -1593,21 +1720,12 @@ class EarliestTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this EarliestTimeView is valid.
 
         Returns:
-           Optional[int]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EarliestTimeView:
@@ -1667,18 +1785,16 @@ class EarliestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[TimeIndexEntry]] = None) -> Optional[Optional[TimeIndexEntry]]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[Optional[int]]): the default value. Defaults to None.
+            default (Optional[Optional[TimeIndexEntry]]): the default value. Defaults to None.
 
         Returns:
-            Optional[Optional[int]]: the value for the node or the default value
+            Optional[Optional[TimeIndexEntry]]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -1700,12 +1816,12 @@ class EarliestTimeView(object):
             bool:
         """
 
-    def items(self) -> Iterator[Tuple[Node, Optional[int]]]:
+    def items(self) -> Iterator[Tuple[Node, Optional[TimeIndexEntry]]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, Optional[int]]]: Iterator over items
+             Iterator[Tuple[Node, Optional[TimeIndexEntry]]]: Iterator over items
         """
 
     def latest(self) -> EarliestTimeView:
@@ -1740,52 +1856,52 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def max(self) -> Optional[Optional[int]]:
+    def max(self) -> Optional[Optional[TimeIndexEntry]]:
         """
         Return the maximum value
 
         Returns:
-             Optional[Optional[int]]: The maximum value or `None` if empty
+             Optional[Optional[TimeIndexEntry]]: The maximum value or `None` if empty
         """
 
-    def max_item(self) -> Optional[Tuple[Node, Optional[int]]]:
+    def max_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
         """
         Return largest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[int]]]: The Node and maximum value or `None` if empty
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and maximum value or `None` if empty
         """
 
-    def median(self) -> Optional[Optional[int]]:
+    def median(self) -> Optional[Optional[TimeIndexEntry]]:
         """
         Return the median value
 
         Returns:
-             Optional[Optional[int]]:
+             Optional[Optional[TimeIndexEntry]]:
         """
 
-    def median_item(self) -> Optional[Tuple[Node, Optional[int]]]:
+    def median_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
         """
         Return median value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[int]]]: The median value or `None` if empty
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The median value or `None` if empty
         """
 
-    def min(self) -> Optional[Optional[int]]:
+    def min(self) -> Optional[Optional[TimeIndexEntry]]:
         """
         Return the minimum value
 
         Returns:
-             Optional[Optional[int]]: The minimum value or `None` if empty
+             Optional[Optional[TimeIndexEntry]]: The minimum value or `None` if empty
         """
 
-    def min_item(self) -> Optional[Tuple[Node, Optional[int]]]:
+    def min_item(self) -> Optional[Tuple[Node, Optional[TimeIndexEntry]]]:
         """
         Return smallest value and corresponding node
 
         Returns:
-             Optional[Tuple[Node, Optional[int]]]: The Node and minimum value or `None` if empty
+             Optional[Tuple[Node, Optional[TimeIndexEntry]]]: The Node and minimum value or `None` if empty
         """
 
     def nodes(self) -> Nodes:
@@ -1811,34 +1927,34 @@ class EarliestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> EarliestTimeView:
+    def shrink_end(self, end: TimeIndexEntry) -> EarliestTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              EarliestTimeView:
         """
 
-    def shrink_start(self, start: TimeInput) -> EarliestTimeView:
+    def shrink_start(self, start: TimeIndexEntry) -> EarliestTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              EarliestTimeView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestTimeView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> EarliestTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              EarliestTimeView:
@@ -1867,7 +1983,7 @@ class EarliestTimeView(object):
              EarliestTimeView:
         """
 
-    def sorted(self, reverse: bool = False) -> NodeStateOptionI64:
+    def sorted(self, reverse: bool = False) -> NodeStateOptionTimeIndexEntry:
         """
         Sort by value
 
@@ -1875,33 +1991,24 @@ class EarliestTimeView(object):
             reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
 
         Returns:
-             NodeStateOptionI64: Sorted node state
+             NodeStateOptionTimeIndexEntry: Sorted node state
         """
 
-    def sorted_by_id(self) -> NodeStateOptionI64:
+    def sorted_by_id(self) -> NodeStateOptionTimeIndexEntry:
         """
         Sort results by node id
 
         Returns:
-             NodeStateOptionI64: The sorted node state
+             NodeStateOptionTimeIndexEntry: The sorted node state
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this EarliestTimeView
 
         Returns:
-            Optional[int]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EarliestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this EarliestTimeView is valid or None if the EarliestTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -1915,7 +2022,7 @@ class EarliestTimeView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def top_k(self, k: int) -> NodeStateOptionI64:
+    def top_k(self, k: int) -> NodeStateOptionTimeIndexEntry:
         """
         Compute the k largest values
 
@@ -1923,7 +2030,7 @@ class EarliestTimeView(object):
             k (int): The number of values to return
 
         Returns:
-             NodeStateOptionI64: The k largest values as a node state
+             NodeStateOptionTimeIndexEntry: The k largest values as a node state
         """
 
     def valid_layers(self, names: list[str]) -> EarliestTimeView:
@@ -1938,17 +2045,15 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def values(self) -> Iterator[Optional[int]]:
+    def values(self) -> Iterator[Optional[TimeIndexEntry]]:
         """
         Iterate over values
 
         Returns:
-             Iterator[Optional[int]]: Iterator over values
+             Iterator[Optional[TimeIndexEntry]]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> EarliestTimeView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestTimeView:
         """
          Create a view of the EarliestTimeView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -1969,7 +2074,7 @@ class EarliestTimeView(object):
             Optional[int]:
         """
 
-class LatestTimeView(object):
+class LatestTimeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2070,21 +2175,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this LatestTimeView is valid.
 
         Returns:
-           Optional[int]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this LatestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> LatestTimeView:
@@ -2144,9 +2240,7 @@ class LatestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[int]] = None
-    ) -> Optional[Optional[int]]:
+    def get(self, node: NodeInput, default: Optional[Optional[int]] = None) -> Optional[Optional[int]]:
         """
         Get value for node
 
@@ -2288,34 +2382,34 @@ class LatestTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> LatestTimeView:
+    def shrink_end(self, end: TimeIndexEntry) -> LatestTimeView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              LatestTimeView:
         """
 
-    def shrink_start(self, start: TimeInput) -> LatestTimeView:
+    def shrink_start(self, start: TimeIndexEntry) -> LatestTimeView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              LatestTimeView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestTimeView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> LatestTimeView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              LatestTimeView:
@@ -2364,21 +2458,12 @@ class LatestTimeView(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this LatestTimeView
 
         Returns:
-            Optional[int]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this LatestTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this LatestTimeView is valid or None if the LatestTimeView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -2444,7 +2529,7 @@ class LatestTimeView(object):
             Optional[int]:
         """
 
-class NameView(object):
+class NameView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -2637,7 +2722,8 @@ class NameView(object):
              Iterator[str]: Iterator over values
         """
 
-class NodeStateString(object):
+class NodeStateString(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -2812,1139 +2898,8 @@ class NodeStateString(object):
              Iterator[str]: Iterator over values
         """
 
-class EarliestDateTimeView(object):
-    """A lazy view over node values"""
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def after(self, start: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def bottom_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k smallest values as a node state
-        """
-
-    def collect(self) -> list[Optional[datetime]]:
-        """
-        Compute all values and return the result as a list
-
-        Returns:
-             list[Optional[datetime]]: all values as a list
-        """
-
-    def compute(self) -> NodeStateOptionDateTime:
-        """
-        Compute all values and return the result as a node view
-
-        Returns:
-             NodeStateOptionDateTime: the computed `NodeState`
-        """
-
-    def default_layer(self) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing only the default edge layer
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this EarliestDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EarliestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def expanding(self, step: int | str) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def get(
-        self, node: NodeInput, default: Optional[Optional[datetime]] = None
-    ) -> Optional[Optional[datetime]]:
-        """
-        Get value for node
-
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[Optional[datetime]]): the default value. Defaults to None.
-
-        Returns:
-            Optional[Optional[datetime]]: the value for the node or the default value
-        """
-
-    def groups(self) -> NodeGroups:
-        """
-        Group by value
-
-        Returns:
-            NodeGroups: The grouped nodes
-        """
-
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if EarliestDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
-    def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
-        """
-
-    def latest(self) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events at the latest time.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def layer(self, name: str) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def max(self) -> Optional[Optional[datetime]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[Optional[datetime]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[Optional[datetime]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[Optional[datetime]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[Optional[datetime]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[Optional[datetime]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> EarliestDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> EarliestDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EarliestDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def snapshot_latest(self) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             EarliestDateTimeView:
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateOptionDateTime: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateOptionDateTime:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateOptionDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this EarliestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EarliestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EarliestDateTimeView is valid or None if the EarliestDateTimeView is valid for all times.
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k largest values as a node state
-        """
-
-    def valid_layers(self, names: list[str]) -> EarliestDateTimeView:
-        """
-         Return a view of EarliestDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             EarliestDateTimeView: The layered view
-        """
-
-    def values(self) -> Iterator[Optional[datetime]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[Optional[datetime]]: Iterator over values
-        """
-
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> EarliestDateTimeView:
-        """
-         Create a view of the EarliestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
-
-        Returns:
-            EarliestDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this EarliestDateTimeView
-
-        Returns:
-            Optional[int]:
-        """
-
-class LatestDateTimeView(object):
-    """A lazy view over node values"""
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def after(self, start: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def bottom_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k smallest values as a node state
-        """
-
-    def collect(self) -> list[Optional[datetime]]:
-        """
-        Compute all values and return the result as a list
-
-        Returns:
-             list[Optional[datetime]]: all values as a list
-        """
-
-    def compute(self) -> NodeStateOptionDateTime:
-        """
-        Compute all values and return the result as a node view
-
-        Returns:
-             NodeStateOptionDateTime: the computed `NodeState`
-        """
-
-    def default_layer(self) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing only the default edge layer
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this LatestDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this LatestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def expanding(self, step: int | str) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def get(
-        self, node: NodeInput, default: Optional[Optional[datetime]] = None
-    ) -> Optional[Optional[datetime]]:
-        """
-        Get value for node
-
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[Optional[datetime]]): the default value. Defaults to None.
-
-        Returns:
-            Optional[Optional[datetime]]: the value for the node or the default value
-        """
-
-    def groups(self) -> NodeGroups:
-        """
-        Group by value
-
-        Returns:
-            NodeGroups: The grouped nodes
-        """
-
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if LatestDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
-    def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
-        """
-
-    def latest(self) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events at the latest time.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def layer(self, name: str) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def max(self) -> Optional[Optional[datetime]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[Optional[datetime]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[Optional[datetime]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[Optional[datetime]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[Optional[datetime]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[Optional[datetime]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> LatestDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> LatestDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> LatestDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def snapshot_latest(self) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             LatestDateTimeView:
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateOptionDateTime: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateOptionDateTime:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateOptionDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this LatestDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this LatestDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this LatestDateTimeView is valid or None if the LatestDateTimeView is valid for all times.
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k largest values as a node state
-        """
-
-    def valid_layers(self, names: list[str]) -> LatestDateTimeView:
-        """
-         Return a view of LatestDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             LatestDateTimeView: The layered view
-        """
-
-    def values(self) -> Iterator[Optional[datetime]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[Optional[datetime]]: Iterator over values
-        """
-
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> LatestDateTimeView:
-        """
-         Create a view of the LatestDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
-
-        Returns:
-            LatestDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this LatestDateTimeView
-
-        Returns:
-            Optional[int]:
-        """
-
-class NodeStateOptionDateTime(object):
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def bottom_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k smallest values as a node state
-        """
-
-    def get(
-        self, node: NodeInput, default: Optional[Optional[datetime]] = None
-    ) -> Optional[Optional[datetime]]:
-        """
-        Get value for node
-
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[Optional[datetime]]): the default value. Defaults to None.
-
-        Returns:
-            Optional[Optional[datetime]]: the value for the node or the default value
-        """
-
-    def groups(self) -> NodeGroups:
-        """
-        Group by value
-
-        Returns:
-            NodeGroups: The grouped nodes
-        """
-
-    def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
-        """
-
-    def max(self) -> Optional[Optional[datetime]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[Optional[datetime]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[Optional[datetime]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[Optional[datetime]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[Optional[datetime]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[Optional[datetime]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, Optional[datetime]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[datetime]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateOptionDateTime:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateOptionDateTime: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateOptionDateTime:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateOptionDateTime: The sorted node state
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateOptionDateTime:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionDateTime: The k largest values as a node state
-        """
-
-    def values(self) -> Iterator[Optional[datetime]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[Optional[datetime]]: Iterator over values
-        """
-
-class HistoryView(object):
-    """A lazy view over node values"""
+class HistoryView(object): 
+    """A lazy view over History values for node"""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -4009,31 +2964,20 @@ class HistoryView(object):
              HistoryView:
         """
 
-    def bottom_k(self, k: int) -> NodeStateListI64:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateListI64: The k smallest values as a node state
-        """
-
-    def collect(self) -> list[list[int]]:
+    def collect(self) -> list[History]:
         """
         Compute all values and return the result as a list
 
         Returns:
-             list[list[int]]: all values as a list
+            list[History]: all values as a list
         """
 
-    def compute(self) -> NodeStateListI64:
+    def compute(self) -> NodeStateHistory:
         """
         Compute all values and return the result as a node view
 
         Returns:
-             NodeStateListI64: the computed `NodeState`
+            NodeStateHistory: the computed `NodeState`
         """
 
     def default_layer(self) -> HistoryView:
@@ -4044,21 +2988,12 @@ class HistoryView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this HistoryView is valid.
 
         Returns:
-           Optional[int]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this HistoryView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> HistoryView:
@@ -4118,18 +3053,16 @@ class HistoryView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[list[int]] = None
-    ) -> Optional[list[int]]:
+    def get(self, node: NodeInput, default=...) -> Optional[History]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-            default (Optional[list[int]]): the default value. Defaults to None.
+           default (Optional[History]): the default value. Defaults to None.
 
         Returns:
-            Optional[list[int]]: the value for the node or the default value
+           Optional[History]: the value for the node or the default value
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4143,12 +3076,12 @@ class HistoryView(object):
             bool:
         """
 
-    def items(self) -> Iterator[Tuple[Node, list[int]]]:
+    def items(self) -> Iterator[Tuple[Node, History]]:
         """
         Iterate over items
 
         Returns:
-             Iterator[Tuple[Node, list[int]]]: Iterator over items
+            Iterator[Tuple[Node, History]]: Iterator over items
         """
 
     def latest(self) -> HistoryView:
@@ -4183,54 +3116,6 @@ class HistoryView(object):
              HistoryView: The layered view
         """
 
-    def max(self) -> Optional[list[int]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[list[int]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[list[int]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[list[int]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[list[int]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[list[int]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
-        """
-
     def nodes(self) -> Nodes:
         """
         Iterate over nodes
@@ -4254,34 +3139,34 @@ class HistoryView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> HistoryView:
+    def shrink_end(self, end: TimeIndexEntry) -> HistoryView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              HistoryView:
         """
 
-    def shrink_start(self, start: TimeInput) -> HistoryView:
+    def shrink_start(self, start: TimeIndexEntry) -> HistoryView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              HistoryView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> HistoryView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              HistoryView:
@@ -4310,41 +3195,21 @@ class HistoryView(object):
              HistoryView:
         """
 
-    def sorted(self, reverse: bool = False) -> NodeStateListI64:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateListI64: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateListI64:
+    def sorted_by_id(self) -> NodeStateHistory:
         """
         Sort results by node id
 
         Returns:
-             NodeStateListI64: The sorted node state
+            NodeStateHistory: The sorted node state
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this HistoryView
 
         Returns:
-            Optional[int]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this HistoryView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this HistoryView is valid or None if the HistoryView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
 
     def to_df(self) -> DataFrame:
@@ -4356,17 +3221,6 @@ class HistoryView(object):
 
         Returns:
             DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateListI64:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateListI64: The k largest values as a node state
         """
 
     def valid_layers(self, names: list[str]) -> HistoryView:
@@ -4381,12 +3235,12 @@ class HistoryView(object):
              HistoryView: The layered view
         """
 
-    def values(self) -> Iterator[list[int]]:
+    def values(self) -> Iterator[History]:
         """
         Iterate over values
 
         Returns:
-             Iterator[list[int]]: Iterator over values
+            Iterator[History]: Iterator over values
         """
 
     def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryView:
@@ -4410,7 +3264,7 @@ class HistoryView(object):
             Optional[int]:
         """
 
-class EdgeHistoryCountView(object):
+class EdgeHistoryCountView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -4511,21 +3365,12 @@ class EdgeHistoryCountView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this EdgeHistoryCountView is valid.
 
         Returns:
-           Optional[int]: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this EdgeHistoryCountView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> EdgeHistoryCountView:
@@ -4727,34 +3572,34 @@ class EdgeHistoryCountView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> EdgeHistoryCountView:
+    def shrink_end(self, end: TimeIndexEntry) -> EdgeHistoryCountView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              EdgeHistoryCountView:
         """
 
-    def shrink_start(self, start: TimeInput) -> EdgeHistoryCountView:
+    def shrink_start(self, start: TimeIndexEntry) -> EdgeHistoryCountView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              EdgeHistoryCountView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> EdgeHistoryCountView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> EdgeHistoryCountView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              EdgeHistoryCountView:
@@ -4803,21 +3648,12 @@ class EdgeHistoryCountView(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this EdgeHistoryCountView
 
         Returns:
-            Optional[int]: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this EdgeHistoryCountView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this EdgeHistoryCountView is valid or None if the EdgeHistoryCountView is valid for all times.
         """
 
     def sum(self) -> int:
@@ -4870,9 +3706,7 @@ class EdgeHistoryCountView(object):
              Iterator[int]: Iterator over values
         """
 
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> EdgeHistoryCountView:
+    def window(self, start: TimeInput | None, end: TimeInput | None) -> EdgeHistoryCountView:
         """
          Create a view of the EdgeHistoryCountView including all events between `start` (inclusive) and `end` (exclusive)
 
@@ -4893,15 +3727,13 @@ class EdgeHistoryCountView(object):
             Optional[int]:
         """
 
-class NodeStateListI64(object):
+class UsizeIterable(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
     def __ge__(self, value):
         """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
 
     def __gt__(self, value):
         """Return self>value."""
@@ -4924,783 +3756,22 @@ class NodeStateListI64(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def bottom_k(self, k: int) -> NodeStateListI64:
-        """
-        Compute the k smallest values
+    def collect(self):
+        ...
 
-        Arguments:
-            k (int): The number of values to return
+    def max(self):
+        ...
 
-        Returns:
-             NodeStateListI64: The k smallest values as a node state
-        """
+    def mean(self):
+        ...
 
-    def get(
-        self, node: NodeInput, default: Optional[list[int]] = None
-    ) -> Optional[list[int]]:
-        """
-        Get value for node
+    def min(self):
+        ...
 
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[list[int]]): the default value. Defaults to None.
+    def sum(self):
+        ...
 
-        Returns:
-            Optional[list[int]]: the value for the node or the default value
-        """
-
-    def items(self) -> Iterator[Tuple[Node, list[int]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, list[int]]]: Iterator over items
-        """
-
-    def max(self) -> Optional[list[int]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[list[int]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[list[int]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[list[int]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[list[int]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[list[int]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, list[int]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, list[int]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateListI64:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateListI64: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateListI64:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateListI64: The sorted node state
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateListI64:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateListI64: The k largest values as a node state
-        """
-
-    def values(self) -> Iterator[list[int]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[list[int]]: Iterator over values
-        """
-
-class HistoryDateTimeView(object):
-    """A lazy view over node values"""
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def after(self, start: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events after `start` (exclusive).
-
-        Arguments:
-            start (TimeInput): The start time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def at(self, time: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events at `time`.
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def before(self, end: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events before `end` (exclusive).
-
-        Arguments:
-            end (TimeInput): The end time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def bottom_k(self, k: int) -> NodeStateOptionListDateTime:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionListDateTime: The k smallest values as a node state
-        """
-
-    def collect(self) -> list[Optional[list[datetime]]]:
-        """
-        Compute all values and return the result as a list
-
-        Returns:
-             list[Optional[list[datetime]]]: all values as a list
-        """
-
-    def compute(self) -> NodeStateOptionListDateTime:
-        """
-        Compute all values and return the result as a node view
-
-        Returns:
-             NodeStateOptionListDateTime: the computed `NodeState`
-        """
-
-    def default_layer(self) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing only the default edge layer
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    @property
-    def end(self) -> Optional[int]:
-        """
-         Gets the latest time that this HistoryDateTimeView is valid.
-
-        Returns:
-           Optional[int]: The latest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this HistoryDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    def exclude_layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `name`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_valid_layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `name`
-        Arguments:
-            name (str): layer name that is excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def exclude_valid_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers except the excluded `names`
-        Arguments:
-            names (list[str]): list of layer names that are excluded for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def expanding(self, step: int | str) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `step` size using an expanding window.
-
-        An expanding window is a window that grows by `step` size at each iteration.
-
-        Arguments:
-            step (int | str): The step size of the window.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def get(
-        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
-    ) -> Optional[Optional[list[datetime]]]:
-        """
-        Get value for node
-
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[Optional[list[datetime]]]): the default value. Defaults to None.
-
-        Returns:
-            Optional[Optional[list[datetime]]]: the value for the node or the default value
-        """
-
-    def has_layer(self, name: str) -> bool:
-        """
-         Check if HistoryDateTimeView has the layer `"name"`
-
-        Arguments:
-            name (str): the name of the layer to check
-
-        Returns:
-            bool:
-        """
-
-    def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, Optional[list[datetime]]]]: Iterator over items
-        """
-
-    def latest(self) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events at the latest time.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def layer(self, name: str) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing the layer `"name"`
-        Errors if the layer does not exist
-
-        Arguments:
-            name (str): then name of the layer.
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers `names`
-        Errors if any of the layers do not exist.
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def max(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[Optional[list[datetime]]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[Optional[list[datetime]]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[Optional[list[datetime]]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
-        """
-        Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
-
-        A rolling window is a window that moves forward by `step` size at each iteration.
-
-        Arguments:
-            window (int | str): The size of the window.
-            step (int | str | None): The step size of the window.
-                `step` defaults to `window`.
-
-        Returns:
-            WindowSet: A `WindowSet` object.
-        """
-
-    def shrink_end(self, end: TimeInput) -> HistoryDateTimeView:
-        """
-        Set the end of the window to the smaller of `end` and `self.end()`
-
-        Arguments:
-            end (TimeInput): the new end time of the window
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def shrink_start(self, start: TimeInput) -> HistoryDateTimeView:
-        """
-        Set the start of the window to the larger of `start` and `self.start()`
-
-        Arguments:
-           start (TimeInput): the new start time of the window
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> HistoryDateTimeView:
-        """
-        Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
-
-        Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def snapshot_at(self, time: TimeInput) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at `time`.
-
-        This is equivalent to `before(time + 1)` for `Graph` and `at(time)` for `PersistentGraph`
-
-        Arguments:
-            time (TimeInput): The time of the window.
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def snapshot_latest(self) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events that have not been explicitly deleted at the latest time.
-
-        This is equivalent to a no-op for `Graph` and `latest()` for `PersistentGraph`
-
-        Returns:
-             HistoryDateTimeView:
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateOptionListDateTime:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateOptionListDateTime: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateOptionListDateTime:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateOptionListDateTime: The sorted node state
-        """
-
-    @property
-    def start(self) -> Optional[int]:
-        """
-         Gets the start time for rolling and expanding windows for this HistoryDateTimeView
-
-        Returns:
-            Optional[int]: The earliest time that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this HistoryDateTimeView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this HistoryDateTimeView is valid or None if the HistoryDateTimeView is valid for all times.
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateOptionListDateTime:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionListDateTime: The k largest values as a node state
-        """
-
-    def valid_layers(self, names: list[str]) -> HistoryDateTimeView:
-        """
-         Return a view of HistoryDateTimeView containing all layers `names`
-        Any layers that do not exist are ignored
-
-        Arguments:
-            names (list[str]): list of layer names for the new view
-
-        Returns:
-             HistoryDateTimeView: The layered view
-        """
-
-    def values(self) -> Iterator[Optional[list[datetime]]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[Optional[list[datetime]]]: Iterator over values
-        """
-
-    def window(
-        self, start: TimeInput | None, end: TimeInput | None
-    ) -> HistoryDateTimeView:
-        """
-         Create a view of the HistoryDateTimeView including all events between `start` (inclusive) and `end` (exclusive)
-
-        Arguments:
-            start (TimeInput | None): The start time of the window (unbounded if `None`).
-            end (TimeInput | None): The end time of the window (unbounded if `None`).
-
-        Returns:
-            HistoryDateTimeView:
-        """
-
-    @property
-    def window_size(self) -> Optional[int]:
-        """
-         Get the window size (difference between start and end) for this HistoryDateTimeView
-
-        Returns:
-            Optional[int]:
-        """
-
-class NodeStateOptionListDateTime(object):
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __getitem__(self, key):
-        """Return self[key]."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def bottom_k(self, k: int) -> NodeStateOptionListDateTime:
-        """
-        Compute the k smallest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionListDateTime: The k smallest values as a node state
-        """
-
-    def get(
-        self, node: NodeInput, default: Optional[Optional[list[datetime]]] = None
-    ) -> Optional[Optional[list[datetime]]]:
-        """
-        Get value for node
-
-        Arguments:
-            node (NodeInput): the node
-            default (Optional[Optional[list[datetime]]]): the default value. Defaults to None.
-
-        Returns:
-            Optional[Optional[list[datetime]]]: the value for the node or the default value
-        """
-
-    def items(self) -> Iterator[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Iterate over items
-
-        Returns:
-             Iterator[Tuple[Node, Optional[list[datetime]]]]: Iterator over items
-        """
-
-    def max(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the maximum value
-
-        Returns:
-             Optional[Optional[list[datetime]]]: The maximum value or `None` if empty
-        """
-
-    def max_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return largest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and maximum value or `None` if empty
-        """
-
-    def median(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the median value
-
-        Returns:
-             Optional[Optional[list[datetime]]]:
-        """
-
-    def median_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return median value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The median value or `None` if empty
-        """
-
-    def min(self) -> Optional[Optional[list[datetime]]]:
-        """
-        Return the minimum value
-
-        Returns:
-             Optional[Optional[list[datetime]]]: The minimum value or `None` if empty
-        """
-
-    def min_item(self) -> Optional[Tuple[Node, Optional[list[datetime]]]]:
-        """
-        Return smallest value and corresponding node
-
-        Returns:
-             Optional[Tuple[Node, Optional[list[datetime]]]]: The Node and minimum value or `None` if empty
-        """
-
-    def nodes(self) -> Nodes:
-        """
-        Iterate over nodes
-
-        Returns:
-            Nodes: The nodes
-        """
-
-    def sorted(self, reverse: bool = False) -> NodeStateOptionListDateTime:
-        """
-        Sort by value
-
-        Arguments:
-            reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
-
-        Returns:
-             NodeStateOptionListDateTime: Sorted node state
-        """
-
-    def sorted_by_id(self) -> NodeStateOptionListDateTime:
-        """
-        Sort results by node id
-
-        Returns:
-             NodeStateOptionListDateTime: The sorted node state
-        """
-
-    def to_df(self) -> DataFrame:
-        """
-        Convert results to pandas DataFrame
-
-        The DataFrame has two columns, "node" with the node ids and "value" with
-        the corresponding values.
-
-        Returns:
-            DataFrame: the pandas DataFrame
-        """
-
-    def top_k(self, k: int) -> NodeStateOptionListDateTime:
-        """
-        Compute the k largest values
-
-        Arguments:
-            k (int): The number of values to return
-
-        Returns:
-             NodeStateOptionListDateTime: The k largest values as a node state
-        """
-
-    def values(self) -> Iterator[Optional[list[datetime]]]:
-        """
-        Iterate over values
-
-        Returns:
-             Iterator[Optional[list[datetime]]]: Iterator over values
-        """
-
-class NodeTypeView(object):
+class NodeTypeView(object): 
     """A lazy view over node values"""
 
     def __eq__(self, value):
@@ -5760,9 +3831,7 @@ class NodeTypeView(object):
              NodeStateOptionStr: the computed `NodeState`
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[str]] = None
-    ) -> Optional[Optional[str]]:
+    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -5895,7 +3964,8 @@ class NodeTypeView(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateOptionStr(object):
+class NodeStateOptionStr(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -5937,9 +4007,7 @@ class NodeStateOptionStr(object):
              NodeStateOptionStr: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Optional[str]] = None
-    ) -> Optional[Optional[str]]:
+    def get(self, node: NodeInput, default: Optional[Optional[str]] = None) -> Optional[Optional[str]]:
         """
         Get value for node
 
@@ -6072,7 +4140,8 @@ class NodeStateOptionStr(object):
              Iterator[Optional[str]]: Iterator over values
         """
 
-class NodeStateListDateTime(object):
+class NodeStateListDateTime(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6114,9 +4183,7 @@ class NodeStateListDateTime(object):
              NodeStateListDateTime: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[list[datetime]] = None
-    ) -> Optional[list[datetime]]:
+    def get(self, node: NodeInput, default: Optional[list[datetime]] = None) -> Optional[list[datetime]]:
         """
         Get value for node
 
@@ -6241,7 +4308,8 @@ class NodeStateListDateTime(object):
              Iterator[list[datetime]]: Iterator over values
         """
 
-class NodeStateWeightedSP(object):
+class NodeStateWeightedSP(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6272,9 +4340,7 @@ class NodeStateWeightedSP(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None
-    ) -> Optional[Tuple[float, Nodes]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, Nodes]] = None) -> Optional[Tuple[float, Nodes]]:
         """
         Get value for node
 
@@ -6329,7 +4395,8 @@ class NodeStateWeightedSP(object):
              Iterator[Tuple[float, Nodes]]: Iterator over values
         """
 
-class NodeStateF64(object):
+class NodeStateF64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6512,7 +4579,8 @@ class NodeStateF64(object):
              Iterator[float]: Iterator over values
         """
 
-class NodeStateNodes(object):
+class NodeStateNodes(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6598,7 +4666,8 @@ class NodeStateNodes(object):
              Iterator[Nodes]: Iterator over values
         """
 
-class NodeStateReachability(object):
+class NodeStateReachability(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6629,9 +4698,7 @@ class NodeStateReachability(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None
-    ) -> Optional[list[Tuple[int, str]]]:
+    def get(self, node: NodeInput, default: Optional[list[Tuple[int, str]]] = None) -> Optional[list[Tuple[int, str]]]:
         """
         Get value for node
 
@@ -6686,7 +4753,8 @@ class NodeStateReachability(object):
              Iterator[list[Tuple[int, str]]]: Iterator over values
         """
 
-class NodeStateListF64(object):
+class NodeStateListF64(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6717,9 +4785,7 @@ class NodeStateListF64(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[float]] = None
-    ) -> Optional[list[float]]:
+    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -6774,7 +4840,8 @@ class NodeStateListF64(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateMotifs(object):
+class NodeStateMotifs(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6816,9 +4883,7 @@ class NodeStateMotifs(object):
              NodeStateMotifs: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[list[int]] = None
-    ) -> Optional[list[int]]:
+    def get(self, node: NodeInput, default: Optional[list[int]] = None) -> Optional[list[int]]:
         """
         Get value for node
 
@@ -6943,7 +5008,8 @@ class NodeStateMotifs(object):
              Iterator[list[int]]: Iterator over values
         """
 
-class NodeStateHits(object):
+class NodeStateHits(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -6985,9 +5051,7 @@ class NodeStateHits(object):
              NodeStateHits: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, float]] = None
-    ) -> Optional[Tuple[float, float]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, float]] = None) -> Optional[Tuple[float, float]]:
         """
         Get value for node
 
@@ -7112,7 +5176,95 @@ class NodeStateHits(object):
              Iterator[Tuple[float, float]]: Iterator over values
         """
 
-class NodeStateSEIR(object):
+class NodeStateHistory(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def get(self, node: NodeInput, default=...) -> Optional[History]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+           default (Optional[History]): the default value. Defaults to None.
+
+        Returns:
+           Optional[History]: the value for the node or the default value
+        """
+
+    def items(self) -> Iterator[Tuple[Node, History]]:
+        """
+        Iterate over items
+
+        Returns:
+            Iterator[Tuple[Node, History]]: Iterator over items
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sorted_by_id(self) -> NodeStateHistory:
+        """
+        Sort results by node id
+
+        Returns:
+            NodeStateHistory: The sorted node state
+        """
+
+    def to_df(self) -> DataFrame:
+        """
+        Convert results to pandas DataFrame
+
+        The DataFrame has two columns, "node" with the node ids and "value" with
+        the corresponding values.
+
+        Returns:
+            DataFrame: the pandas DataFrame
+        """
+
+    def values(self) -> Iterator[History]:
+        """
+        Iterate over values
+
+        Returns:
+            Iterator[History]: Iterator over values
+        """
+
+class NodeStateSEIR(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7154,9 +5306,7 @@ class NodeStateSEIR(object):
              NodeStateSEIR: The k smallest values as a node state
         """
 
-    def get(
-        self, node: NodeInput, default: Optional[Infected] = None
-    ) -> Optional[Infected]:
+    def get(self, node: NodeInput, default: Optional[Infected] = None) -> Optional[Infected]:
         """
         Get value for node
 
@@ -7281,7 +5431,8 @@ class NodeStateSEIR(object):
              Iterator[Infected]: Iterator over values
         """
 
-class NodeLayout(object):
+class NodeLayout(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7312,9 +5463,7 @@ class NodeLayout(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[list[float]] = None
-    ) -> Optional[list[float]]:
+    def get(self, node: NodeInput, default: Optional[list[float]] = None) -> Optional[list[float]]:
         """
         Get value for node
 
@@ -7369,7 +5518,8 @@ class NodeLayout(object):
              Iterator[list[float]]: Iterator over values
         """
 
-class NodeStateF64String(object):
+class NodeStateF64String(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -7400,9 +5550,7 @@ class NodeStateF64String(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(
-        self, node: NodeInput, default: Optional[Tuple[float, str]] = None
-    ) -> Optional[Tuple[float, str]]:
+    def get(self, node: NodeInput, default: Optional[Tuple[float, str]] = None) -> Optional[Tuple[float, str]]:
         """
         Get value for node
 

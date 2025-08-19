@@ -117,10 +117,10 @@ install-doc-deps:
 	pip install -r docs/requirements.txt
 
 install-stub-gen:
-	python -mpip install -e stub_gen
+	python -mpip install ./stub_gen
 
 stubs: install-stub-gen
-	cd python && ./scripts/gen-stubs.py && mypy -m raphtory
+	cd python && python ./scripts/gen-stubs.py && mypy -m raphtory
 
 debug-stubs: debug-python stubs
 

@@ -1,6 +1,6 @@
 use crate::{
     db::api::view::{
-        history::{History, HistoryDateTime, InternalHistoryOps},
+        history::{History, HistoryDateTime, HistoryTimestamp, InternalHistoryOps},
         BoxedIter,
     },
     prelude::Prop,
@@ -9,11 +9,15 @@ use crate::{
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::core::{
-    entities::GID,
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    },
+    inherit::Base,
+    iter::IntoDynBoxed,
 };
-use std::{iter::Sum, sync::Arc};
+use std::{iter::Sum, ops::Deref, sync::Arc};
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where
@@ -101,48 +105,30 @@ py_iterable_comp!(
     NestedOptionI64IterableCmp
 );
 
-py_ordered_iterable!(OptionRaphtoryTimeIterable, Option<TimeIndexEntry>);
+py_ordered_iterable!(OptionTimeIndexEntryIterable, Option<TimeIndexEntry>);
 py_iterable_comp!(
-    OptionRaphtoryTimeIterable,
+    OptionTimeIndexEntryIterable,
     Option<TimeIndexEntry>,
-    OptionRaphtoryTimeIterableCmp
+    OptionTimeIndexEntryIterableCmp
 );
 py_ordered_iterable!(
-    OptionOptionRaphtoryTimeIterable,
+    OptionOptionTimeIndexEntryIterable,
     Option<Option<TimeIndexEntry>>
 );
 py_iterable_comp!(
-    OptionOptionRaphtoryTimeIterable,
+    OptionOptionTimeIndexEntryIterable,
     Option<Option<TimeIndexEntry>>,
-    OptionOptionRaphtoryTimeIterableCmp
+    OptionOptionTimeIndexEntryIterableCmp
 );
 py_nested_ordered_iterable!(
-    NestedOptionRaphtoryTimeIterable,
+    NestedOptionTimeIndexEntryIterable,
     Option<TimeIndexEntry>,
-    OptionOptionRaphtoryTimeIterable
+    OptionOptionTimeIndexEntryIterable
 );
 py_iterable_comp!(
-    NestedOptionRaphtoryTimeIterable,
-    OptionRaphtoryTimeIterableCmp,
-    NestedOptionRaphtoryTimeIterableCmp
-);
-
-py_iterable!(
-    HistoryIterable,
-    History<'static, Arc<dyn InternalHistoryOps>>
-);
-py_nested_iterable!(
-    NestedHistoryIterable,
-    History<'static, Arc<dyn InternalHistoryOps>>
-);
-
-py_iterable!(
-    HistoryDateTimeIterable,
-    HistoryDateTime<Arc<dyn InternalHistoryOps>>
-);
-py_nested_iterable!(
-    NestedHistoryDateTimeIterable,
-    HistoryDateTime<Arc<dyn InternalHistoryOps>>
+    NestedOptionTimeIndexEntryIterable,
+    OptionTimeIndexEntryIterableCmp,
+    NestedOptionTimeIndexEntryIterableCmp
 );
 
 py_numeric_iterable!(UsizeIterable, usize);

@@ -273,7 +273,7 @@ impl PyEdge {
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     RaphtoryTime: The earliest time of an edge
+    ///     TimeIndexEntry: The earliest time of an edge
     #[getter]
     pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.earliest_time()
@@ -282,7 +282,7 @@ impl PyEdge {
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     RaphtoryTime: The latest time of an edge
+    ///     TimeIndexEntry: The latest time of an edge
     #[getter]
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.edge.latest_time()

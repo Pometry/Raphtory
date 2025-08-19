@@ -100,7 +100,7 @@ impl PyTemporalProperties {
     /// List the values of the properties
     ///
     /// Returns:
-    ///     list[TemporalProp]: the list of property views
+    ///     list[TemporalProperty]: the list of property views
     fn values(&self) -> Vec<DynTemporalProperty> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }
@@ -121,7 +121,7 @@ impl PyTemporalProperties {
     /// Get property value for `key`
     ///
     /// Returns:
-    ///     TemporalProp: the property view
+    ///     TemporalProperty: the property view
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -132,7 +132,7 @@ impl PyTemporalProperties {
     /// Get property value for `key` if it exists
     ///
     /// Returns:
-    ///     TemporalProp: the property view if it exists, otherwise `None`
+    ///     TemporalProperty: the property view if it exists, otherwise `None`
     fn get(&self, key: &str) -> Option<DynTemporalProperty> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -218,7 +218,7 @@ impl PyTemporalProp {
         self.prop.values().collect()
     }
 
-    /// List update timestamps and corresponding property values
+    /// List update TimeIndexEntry and corresponding property values
     pub fn items(&self) -> Vec<(TimeIndexEntry, Prop)> {
         self.prop.iter().collect()
     }
@@ -393,7 +393,7 @@ impl<P: InternalPropertiesOps + Clone> Repr for TemporalProperties<P> {
 
 impl<P: InternalPropertiesOps + Clone> Repr for TemporalPropertyView<P> {
     fn repr(&self) -> String {
-        format!("TemporalProp({})", iterator_repr(self.iter()))
+        format!("TemporalProperty({})", iterator_repr(self.iter()))
     }
 }
 

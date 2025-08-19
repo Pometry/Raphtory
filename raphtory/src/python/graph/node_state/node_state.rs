@@ -506,17 +506,17 @@ impl_node_state_ord!(NodeStateGID<GID>, "NodeStateGID", "GID");
 
 impl_lazy_node_state_ord!(
     EarliestTimeView<ops::EarliestTime<DynamicGraph>>,
-    "NodeStateOptionRaphtoryTime",
-    "Optional[RaphtoryTime]"
+    "NodeStateOptionTimeIndexEntry",
+    "Optional[TimeIndexEntry]"
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<TimeIndexEntry>);
 impl_node_state_ord!(
-    NodeStateOptionRaphtoryTime<Option<TimeIndexEntry>>,
-    "NodeStateOptionRaphtoryTime",
-    "Optional[RaphtoryTime]"
+    NodeStateOptionTimeIndexEntry<Option<TimeIndexEntry>>,
+    "NodeStateOptionTimeIndexEntry",
+    "Optional[TimeIndexEntry]"
 );
-impl_node_state_group_by_ops!(NodeStateOptionRaphtoryTime, Option<TimeIndexEntry>);
+impl_node_state_group_by_ops!(NodeStateOptionTimeIndexEntry, Option<TimeIndexEntry>);
 
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,

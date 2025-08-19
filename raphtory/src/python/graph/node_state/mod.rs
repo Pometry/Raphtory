@@ -8,7 +8,13 @@ mod node_state_history;
 
 use crate::{
     add_classes,
-    python::graph::node_state::{group_by::PyNodeGroups, lazy_node_state_history::HistoryView},
+    python::{
+        graph::node_state::{
+            group_by::PyNodeGroups, lazy_node_state_history::HistoryView,
+            node_state_history::NodeStateHistory,
+        },
+        types::wrappers::iterables::UsizeIterable,
+    },
 };
 pub use node_state::*;
 use pyo3::prelude::*;
@@ -22,7 +28,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateUsize,
         NodeStateU64,
         NodeStateOptionI64,
-        NodeStateOptionRaphtoryTime,
+        NodeStateOptionTimeIndexEntry,
         IdView,
         NodeStateGID,
         EarliestTimeView,
@@ -37,6 +43,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         // NodeStateListI64,
         // HistoryDateTimeView,
         // NodeStateOptionListDateTime,
+        UsizeIterable,
         NodeTypeView,
         NodeStateOptionStr,
         NodeStateListDateTime,
@@ -47,6 +54,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateListF64,
         NodeStateMotifs,
         NodeStateHits,
+        NodeStateHistory,
         NodeStateSEIR,
         NodeLayout,
         NodeStateF64String,

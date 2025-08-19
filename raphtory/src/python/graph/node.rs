@@ -28,7 +28,7 @@ use crate::{
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{
-            history::PyHistory,
+            history::{NestedHistoryIterable, PyHistory},
             node::internal::OneHopFilter,
             properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
@@ -813,14 +813,14 @@ impl PyPathFromGraph {
 
     /// the node earliest times
     #[getter]
-    fn earliest_time(&self) -> NestedOptionRaphtoryTimeIterable {
+    fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
     /// the node latest times
     #[getter]
-    fn latest_time(&self) -> NestedOptionRaphtoryTimeIterable {
+    fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
@@ -1016,14 +1016,14 @@ impl PyPathFromNode {
 
     /// the node earliest times
     #[getter]
-    fn earliest_time(&self) -> OptionRaphtoryTimeIterable {
+    fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
     /// the node latest times
     #[getter]
-    fn latest_time(&self) -> OptionRaphtoryTimeIterable {
+    fn latest_time(&self) -> OptionTimeIndexEntryIterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }

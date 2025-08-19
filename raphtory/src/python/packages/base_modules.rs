@@ -11,6 +11,7 @@ use crate::{
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
+            history::PyHistory,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
             views::graph_view::PyGraphView,
@@ -26,6 +27,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use raphtory_api::python::timeindex::PyTimeIndexEntry;
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -49,6 +51,8 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
+        PyTimeIndexEntry,
+        PyHistory,
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec

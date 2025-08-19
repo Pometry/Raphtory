@@ -13,7 +13,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the start time for rolling and expanding windows for this ", $name)]
             ///
             /// Returns:
-            #[doc = concat!(r"    Optional[RaphtoryTime]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!(r"    Optional[TimeIndexEntry]: The earliest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn start(&self) -> Option<TimeIndexEntry> {
                 self.$field.start().into()
@@ -22,7 +22,7 @@ macro_rules! impl_timeops {
             #[doc = concat!(r" Gets the latest time that this ", $name, r" is valid.")]
             ///
             /// Returns:
-            #[doc = concat!("   Optional[RaphtoryTime]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
+            #[doc = concat!("   Optional[TimeIndexEntry]: The latest time that this ", $name, r" is valid or None if the ", $name, r" is valid for all times.")]
             #[getter]
             pub fn end(&self) -> Option<TimeIndexEntry> {
                 self.$field.end().into()
@@ -154,7 +154,7 @@ macro_rules! impl_timeops {
             /// Set the start of the window to the larger of `start` and `self.start()`
             ///
             /// Arguments:
-            ///    start (RaphtoryTime): the new start time of the window
+            ///    start (TimeIndexEntry): the new start time of the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
@@ -165,7 +165,7 @@ macro_rules! impl_timeops {
             /// Set the end of the window to the smaller of `end` and `self.end()`
             ///
             /// Arguments:
-            ///     end (RaphtoryTime): the new end time of the window
+            ///     end (TimeIndexEntry): the new end time of the window
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]
             fn shrink_end(&self, end: $crate::api::core::storage::timeindex::TimeIndexEntry) -> <$base_type as TimeOps<'static>>::WindowedViewType {
@@ -175,8 +175,8 @@ macro_rules! impl_timeops {
             /// Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
             ///
             /// Arguments:
-            ///     start (RaphtoryTime): the new start time for the window
-            ///     end (RaphtoryTime): the new end time for the window
+            ///     start (TimeIndexEntry): the new start time for the window
+            ///     end (TimeIndexEntry): the new end time for the window
             ///
             /// Returns:
             #[doc = concat!(r"     ", $name, ":")]

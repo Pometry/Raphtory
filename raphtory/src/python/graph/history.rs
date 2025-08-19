@@ -3,22 +3,29 @@ use crate::{
     python::{
         graph::{edge::PyEdge, node::PyNode},
         types::{
-            iterable::FromIterable,
+            iterable::{FromIterable, Iterable},
             repr::{iterator_repr, Repr},
             wrappers::iterators::PyBorrowingIterator,
         },
+        utils::{PyGenericIterator, PyNestedGenericIterator},
     },
 };
 use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
 use std::{
     any::Any,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
 };
+
+impl Repr for TimeIndexEntry {
+    fn repr(&self) -> String {
+        self.to_string()
+    }
+}
 
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]
@@ -40,20 +47,6 @@ impl PyHistory {
 
 #[pymethods]
 impl PyHistory {
-    #[staticmethod]
-    pub fn from_node(node: &PyNode) -> Self {
-        Self {
-            history: History::new(Arc::new(node.node.clone())),
-        }
-    }
-
-    #[staticmethod]
-    pub fn from_edge(edge: &PyEdge) -> Self {
-        Self {
-            history: History::new(Arc::new(edge.edge.clone())),
-        }
-    }
-
     #[staticmethod]
     pub fn compose_histories(objects: FromIterable<PyHistory>) -> Self {
         // the only way to get History objects from python is if they are already Arc<...>
@@ -126,7 +119,7 @@ impl PyHistory {
     }
 
     /// Collect all time events
-    pub fn __list__(&self) -> Vec<TimeIndexEntry> {
+    pub fn collect(&self) -> Vec<TimeIndexEntry> {
         self.history.collect()
     }
 
@@ -183,6 +176,40 @@ impl PyHistory {
     }
 }
 
+impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
+    fn from(history: History<T>) -> Self {
+        let arc_ops: Arc<dyn InternalHistoryOps> = {
+            // Check if T is already Arc<dyn InternalHistoryOps> to avoid nesting them
+            let any_ref: &dyn Any = &history.0;
+            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
+                Arc::clone(arc_obj)
+            } else {
+                Arc::new(history.0)
+            }
+        };
+        Self {
+            history: History::new(arc_ops),
+        }
+    }
+}
+
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> {
+    type Target = PyHistory;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistory::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
+    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let py_history = ob.downcast::<PyHistory>()?;
+        Ok(py_history.get().history.clone())
+    }
+}
+
 #[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistoryTimestamp {
@@ -192,7 +219,7 @@ pub struct PyHistoryTimestamp {
 #[pymethods]
 impl PyHistoryTimestamp {
     /// Collect all time events
-    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect();
         t.into_pyarray(py)
     }
@@ -222,6 +249,30 @@ impl PyHistoryTimestamp {
     }
 }
 
+impl<T: InternalHistoryOps> Repr for HistoryTimestamp<T> {
+    fn repr(&self) -> String {
+        format!("HistoryTimestamp({})", iterator_repr(self.iter()))
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> From<HistoryTimestamp<T>> for PyHistoryTimestamp {
+    fn from(value: HistoryTimestamp<T>) -> Self {
+        PyHistoryTimestamp {
+            history_t: HistoryTimestamp::new(Arc::new(value.0)),
+        }
+    }
+}
+
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryTimestamp<T> {
+    type Target = PyHistoryTimestamp;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistoryTimestamp::from(self).into_pyobject(py)
+    }
+}
+
 #[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyHistoryDateTime {
@@ -231,7 +282,7 @@ pub struct PyHistoryDateTime {
 #[pymethods]
 impl PyHistoryDateTime {
     /// Collect all time events
-    pub fn __list__(&self) -> PyResult<Vec<DateTime<Utc>>> {
+    pub fn collect(&self) -> PyResult<Vec<DateTime<Utc>>> {
         self.history_dt.collect().map_err(PyErr::from)
     }
 
@@ -292,7 +343,7 @@ pub struct PyHistorySecondaryIndex {
 #[pymethods]
 impl PyHistorySecondaryIndex {
     /// Collect all time events
-    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect();
         u.into_pyarray(py)
     }
@@ -322,6 +373,30 @@ impl PyHistorySecondaryIndex {
     }
 }
 
+impl<T: InternalHistoryOps> Repr for HistorySecondaryIndex<T> {
+    fn repr(&self) -> String {
+        format!("HistorySecondaryIndex({})", iterator_repr(self.iter()))
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> From<HistorySecondaryIndex<T>> for PyHistorySecondaryIndex {
+    fn from(value: HistorySecondaryIndex<T>) -> Self {
+        PyHistorySecondaryIndex {
+            history_s: HistorySecondaryIndex::new(Arc::new(value.0)),
+        }
+    }
+}
+
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistorySecondaryIndex<T> {
+    type Target = PyHistorySecondaryIndex;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyHistorySecondaryIndex::from(self).into_pyobject(py)
+    }
+}
+
 #[pyclass(name = "Intervals", module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyIntervals {
@@ -331,7 +406,7 @@ pub struct PyIntervals {
 #[pymethods]
 impl PyIntervals {
     /// Collect all interval values
-    pub fn __list__<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect();
         i.into_pyarray(py)
     }
@@ -381,42 +456,188 @@ impl PyIntervals {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
-    fn from(history: History<T>) -> Self {
-        let arc_ops: Arc<dyn InternalHistoryOps> = {
-            // Check if T is already Arc<dyn InternalHistoryOps>
-            let any_ref: &dyn Any = &history.0;
-            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
-                Arc::clone(arc_obj)
-            } else {
-                Arc::new(history.0)
-            }
-        };
-        Self {
-            history: History::new(arc_ops),
+impl<T: InternalHistoryOps> Repr for Intervals<T> {
+    fn repr(&self) -> String {
+        format!("Intervals({})", iterator_repr(self.iter()))
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> From<Intervals<T>> for PyIntervals {
+    fn from(value: Intervals<T>) -> Self {
+        PyIntervals {
+            intervals: Intervals::new(Arc::new(value.0)),
         }
     }
 }
 
-impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> {
-    type Target = PyHistory;
+impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for Intervals<T> {
+    type Target = PyIntervals;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyHistory::from(self).into_pyobject(py)
+        PyIntervals::from(self).into_pyobject(py)
     }
 }
 
-impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let py_history = ob.downcast::<PyHistory>()?;
-        Ok(py_history.get().history.clone())
+// Iterable types used by Edges
+py_iterable_base!(
+    HistoryIterable,
+    History<'static, Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(HistoryIterable, PyGenericIterator);
+
+#[pymethods]
+impl HistoryIterable {
+    #[getter]
+    pub fn t(&self) -> HistoryTimestampIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|h| h.t())).into()
+    }
+
+    #[getter]
+    pub fn dt(&self) -> HistoryDateTimeIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|h| h.dt())).into()
+    }
+
+    #[getter]
+    pub fn secondary_index(&self) -> HistorySecondaryIndexIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|h| h.secondary_index())).into()
+    }
+
+    #[getter]
+    pub fn intervals(&self) -> IntervalsIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|h| h.intervals())).into()
+    }
+
+    pub fn collect(&self) -> Vec<Vec<TimeIndexEntry>> {
+        self.iter().map(|h| h.collect()).collect()
     }
 }
 
-impl Repr for TimeIndexEntry {
-    fn repr(&self) -> String {
-        self.to_string()
+py_nested_iterable_base!(
+    NestedHistoryIterable,
+    History<'static, Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(NestedHistoryIterable, PyNestedGenericIterator);
+
+#[pymethods]
+impl NestedHistoryIterable {
+    pub fn collect(&self) -> Vec<Vec<Vec<TimeIndexEntry>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect()).collect())
+            .collect()
+    }
+}
+
+py_iterable_base!(
+    HistoryTimestampIterable,
+    HistoryTimestamp<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(HistoryTimestampIterable, PyGenericIterator);
+
+#[pymethods]
+impl HistoryTimestampIterable {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
+        self.iter().map(|h| h.collect().into_pyarray(py)).collect()
+    }
+}
+
+py_nested_iterable_base!(
+    NestedHistoryTimestampIterable,
+    HistoryTimestamp<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(NestedHistoryTimestampIterable, PyNestedGenericIterator);
+
+#[pymethods]
+impl NestedHistoryTimestampIterable {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<i64, Ix1>>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
+            .collect()
+    }
+}
+
+py_iterable_base!(
+    HistoryDateTimeIterable,
+    HistoryDateTime<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(HistoryDateTimeIterable, PyGenericIterator);
+
+#[pymethods]
+impl HistoryDateTimeIterable {
+    pub fn collect(&self) -> Result<Vec<Vec<DateTime<Utc>>>, TimeError> {
+        self.iter().map(|h| h.collect()).collect()
+    }
+}
+
+py_nested_iterable_base!(
+    NestedHistoryDateTimeIterable,
+    HistoryDateTime<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(NestedHistoryDateTimeIterable, PyNestedGenericIterator);
+
+#[pymethods]
+impl NestedHistoryDateTimeIterable {
+    pub fn collect<'py>(&self, py: Python<'py>) -> Result<Vec<Vec<Vec<DateTime<Utc>>>>, TimeError> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect()).collect())
+            .collect()
+    }
+}
+
+py_iterable_base!(
+    HistorySecondaryIndexIterable,
+    HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(HistorySecondaryIndexIterable, PyGenericIterator);
+
+#[pymethods]
+impl HistorySecondaryIndexIterable {
+    pub fn collect(&self) -> Vec<Vec<usize>> {
+        Iterable::iter(self).map(|h| h.collect()).collect()
+    }
+}
+
+py_nested_iterable_base!(
+    NestedHistorySecondaryIndexIterable,
+    HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(NestedHistorySecondaryIndexIterable, PyNestedGenericIterator);
+
+#[pymethods]
+impl NestedHistorySecondaryIndexIterable {
+    pub fn collect<'py>(&self) -> Vec<Vec<Vec<usize>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect()).collect())
+            .collect()
+    }
+}
+
+py_iterable_base!(IntervalsIterable, Intervals<Arc<dyn InternalHistoryOps>>);
+py_iterable_base_methods!(IntervalsIterable, PyGenericIterator);
+
+#[pymethods]
+impl IntervalsIterable {
+    pub fn collect(&self) -> Vec<Vec<i64>> {
+        self.iter().map(|h| h.collect()).collect()
+    }
+}
+
+py_nested_iterable_base!(
+    NestedIntervalsIterable,
+    Intervals<Arc<dyn InternalHistoryOps>>
+);
+py_iterable_base_methods!(NestedIntervalsIterable, PyNestedGenericIterator);
+
+#[pymethods]
+impl NestedIntervalsIterable {
+    pub fn collect<'py>(&self) -> Vec<Vec<Vec<i64>>> {
+        self.iter()
+            .map(|h| h.map(|h| h.collect()).collect())
+            .collect()
     }
 }

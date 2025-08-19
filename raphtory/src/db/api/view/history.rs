@@ -596,7 +596,7 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
 
 // converts operations to return timestamps instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
-pub struct HistoryTimestamp<T>(T);
+pub struct HistoryTimestamp<T>(pub(crate) T);
 
 impl<T: InternalHistoryOps> HistoryTimestamp<T> {
     pub fn new(item: T) -> Self {
@@ -660,7 +660,7 @@ impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
 
 // converts operations to return secondary time information inside TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
-pub struct HistorySecondaryIndex<T>(T);
+pub struct HistorySecondaryIndex<T>(pub(crate) T);
 
 impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
     pub fn new(item: T) -> Self {

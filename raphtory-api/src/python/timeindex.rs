@@ -4,6 +4,7 @@ use crate::core::{
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{
+    basic::CompareOp,
     exceptions::{PyException, PyRuntimeError, PyTypeError},
     prelude::*,
     types::PyDateTime,
@@ -31,7 +32,7 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
                 return Ok(TimeIndexEntry::new(seq[0].t(), seq[1].t() as usize));
             } else {
                 return Err(PyTypeError::new_err(format!(
-                    "List/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
+                    "list/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
                     seq.len()
                 )));
             }
@@ -106,9 +107,9 @@ impl<'source> FromPyObject<'source> for TimeIndexComponent {
             let time = (py_datetime.call_method0("timestamp")?.extract::<f64>()? * 1000.0) as i64;
             return Ok(TimeIndexComponent::new(time));
         }
-        if let Ok(py_time) = component.downcast::<PyTimeIndexEntry>() {
-            return Ok(TimeIndexComponent::new(py_time.get().inner().t()));
-        }
+        // if let Ok(py_time) = component.downcast::<PyTimeIndexEntry>() {
+        //     return Ok(TimeIndexComponent::new(py_time.get().inner().t()));
+        // }
         let message =
             format!("time component '{component}' must be a str, datetime, float, or an integer");
         Err(PyTypeError::new_err(message))
@@ -125,7 +126,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
     })
 }
 
-#[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen, eq, ord)]
+#[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyTimeIndexEntry {
     time: TimeIndexEntry,
@@ -165,6 +166,32 @@ impl PyTimeIndexEntry {
     #[getter]
     pub fn t(&self) -> i64 {
         self.time.t()
+    }
+
+    pub fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp) -> PyResult<bool> {
+        // extract TimeIndexComponent first. If we're dealing with a single i64 (or something that can be converted to an i64), we only compare timestamps
+        if let Ok(component) = other.extract::<TimeIndexComponent>() {
+            match op {
+                CompareOp::Eq => Ok(self.t() == component.t()),
+                CompareOp::Ne => Ok(self.t() != component.t()),
+                CompareOp::Gt => Ok(self.t() > component.t()),
+                CompareOp::Lt => Ok(self.t() < component.t()),
+                CompareOp::Ge => Ok(self.t() >= component.t()),
+                CompareOp::Le => Ok(self.t() <= component.t()),
+            }
+        // If a TimeIndexEntry was passed, we then compare the secondary index
+        } else if let Ok(time_index) = other.extract::<TimeIndexEntry>() {
+            match op {
+                CompareOp::Eq => Ok(self.time == time_index),
+                CompareOp::Ne => Ok(self.time != time_index),
+                CompareOp::Gt => Ok(self.time > time_index),
+                CompareOp::Lt => Ok(self.time < time_index),
+                CompareOp::Ge => Ok(self.time >= time_index),
+                CompareOp::Le => Ok(self.time <= time_index),
+            }
+        } else {
+            Err(PyTypeError::new_err("unsupported comparison: TimeIndexEntry can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another TimeIndexEntry"))
+        }
     }
 
     pub fn __repr__(&self) -> String {

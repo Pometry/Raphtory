@@ -1,7 +1,6 @@
 """
 Raphtory graph analytics library
 """
-
 from __future__ import annotations
 
 ###############################################################################
@@ -26,39 +25,8 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = [
-    "GraphView",
-    "Graph",
-    "PersistentGraph",
-    "Node",
-    "Nodes",
-    "PathFromNode",
-    "PathFromGraph",
-    "MutableNode",
-    "Edge",
-    "Edges",
-    "NestedEdges",
-    "MutableEdge",
-    "Properties",
-    "Metadata",
-    "TemporalProperties",
-    "PropertiesView",
-    "TemporalProp",
-    "WindowSet",
-    "IndexSpecBuilder",
-    "IndexSpec",
-    "graphql",
-    "algorithms",
-    "graph_loader",
-    "graph_gen",
-    "vectors",
-    "node_state",
-    "filter",
-    "nullmodels",
-    "plottingutils",
-]
-
-class GraphView(object):
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
     def __eq__(self, value):
@@ -157,21 +125,12 @@ class GraphView(object):
         """
 
     @property
-    def earliest_date_time(self) -> Optional[datetime]:
+    def earliest_time(self) -> Optional[TimeIndexEntry]:
         """
-        DateTime of earliest activity in the graph
+        Time entry of the earliest activity in the graph
 
         Returns:
-            Optional[datetime]: the datetime of the earliest activity in the graph
-        """
-
-    @property
-    def earliest_time(self) -> Optional[int]:
-        """
-        Timestamp of earliest activity in the graph
-
-        Returns:
-            Optional[int]: the timestamp of the earliest activity in the graph
+            Optional[TimeIndexEntry]: the time entry of the earliest activity in the graph
         """
 
     def edge(self, src: NodeInput, dst: NodeInput) -> Optional[Edge]:
@@ -196,21 +155,12 @@ class GraphView(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this GraphView is valid.
 
         Returns:
-           Optional[int]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this GraphView is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> GraphView:
@@ -378,21 +328,12 @@ class GraphView(object):
         """
 
     @property
-    def latest_date_time(self) -> Optional[datetime]:
+    def latest_time(self) -> Optional[TimeIndexEntry]:
         """
-        DateTime of latest activity in the graph
+        Time entry of the latest activity in the graph
 
         Returns:
-            Optional[datetime]: the datetime of the latest activity in the graph
-        """
-
-    @property
-    def latest_time(self) -> Optional[int]:
-        """
-        Timestamp of latest activity in the graph
-
-        Returns:
-            Optional[int]: the timestamp of the latest activity in the graph
+            Optional[TimeIndexEntry]: the time entry of the latest activity in the graph
         """
 
     def layer(self, name: str) -> GraphView:
@@ -508,34 +449,34 @@ class GraphView(object):
            list[Node]: A list of nodes which match the filter expression. The list will be empty if no nodes match.
         """
 
-    def shrink_end(self, end: TimeInput) -> GraphView:
+    def shrink_end(self, end: TimeIndexEntry) -> GraphView:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              GraphView:
         """
 
-    def shrink_start(self, start: TimeInput) -> GraphView:
+    def shrink_start(self, start: TimeIndexEntry) -> GraphView:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              GraphView:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> GraphView:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> GraphView:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              GraphView:
@@ -565,21 +506,12 @@ class GraphView(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this GraphView
 
         Returns:
-            Optional[int]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this GraphView is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this GraphView is valid or None if the GraphView is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this GraphView is valid or None if the GraphView is valid for all times.
         """
 
     def subgraph(self, nodes: list[NodeInput]) -> GraphView:
@@ -604,14 +536,7 @@ class GraphView(object):
            GraphView: Returns the subgraph
         """
 
-    def to_networkx(
-        self,
-        explode_edges: bool = False,
-        include_node_properties: bool = True,
-        include_edge_properties: bool = True,
-        include_update_history: bool = True,
-        include_property_history: bool = True,
-    ) -> nx.MultiDiGraph:
+    def to_networkx(self, explode_edges: bool = False, include_node_properties: bool = True, include_edge_properties: bool = True, include_update_history: bool = True, include_property_history: bool = True) -> nx.MultiDiGraph:
         """
         Returns a graph with NetworkX.
 
@@ -630,19 +555,7 @@ class GraphView(object):
                 nx.MultiDiGraph: A Networkx MultiDiGraph.
         """
 
-    def to_pyvis(
-        self,
-        explode_edges: bool = False,
-        edge_color: str = "#000000",
-        shape: str = "dot",
-        node_image: Optional[str] = None,
-        edge_weight: Optional[str] = None,
-        edge_label: Optional[str] = None,
-        colour_nodes_by_type: bool = False,
-        directed: bool = True,
-        notebook: bool = False,
-        **kwargs: Any,
-    ) -> pyvis.network.Network:
+    def to_pyvis(self, explode_edges: bool = False, edge_color: str = '#000000', shape: str = 'dot', node_image: Optional[str] = None, edge_weight: Optional[str] = None, edge_label: Optional[str] = None, colour_nodes_by_type: bool = False, directed: bool = True, notebook: bool = False, **kwargs: Any) -> pyvis.network.Network:
         """
         Draw a graph with PyVis.
         Pyvis is a required dependency. If you intend to use this function make sure that you install Pyvis
@@ -703,14 +616,7 @@ class GraphView(object):
              GraphView: The layered view
         """
 
-    def vectorise(
-        self,
-        embedding: Callable[[list], list],
-        nodes: bool | str = True,
-        edges: bool | str = True,
-        cache: Optional[str] = None,
-        verbose: bool = False,
-    ) -> VectorisedGraph:
+    def vectorise(self, embedding: Callable[[list], list], nodes: bool | str = True, edges: bool | str = True, cache: Optional[str] = None, verbose: bool = False) -> VectorisedGraph:
         """
         Create a VectorisedGraph from the current graph
 
@@ -746,7 +652,7 @@ class GraphView(object):
             Optional[int]:
         """
 
-class Graph(GraphView):
+class Graph(GraphView): 
     """
     A temporal graph with event semantics.
 
@@ -757,16 +663,10 @@ class Graph(GraphView):
     def __new__(cls, num_shards: Optional[int] = None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __reduce__(self): ...
-    def add_edge(
-        self,
-        timestamp: TimeInput,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> MutableEdge:
+    def __reduce__(self):
+        ...
+
+    def add_edge(self, timestamp: TimeInput, src: str|int, dst: str|int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -799,14 +699,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(
-        self,
-        timestamp: TimeInput,
-        id: str | int,
-        properties: Optional[PropInput] = None,
-        node_type: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> MutableNode:
+    def add_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -824,12 +717,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(
-        self,
-        timestamp: TimeInput,
-        properties: PropInput,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def add_properties(self, timestamp: TimeInput, properties: PropInput, secondary_index: Optional[int] = None) -> None:
         """
         Adds properties to the graph.
 
@@ -881,14 +769,7 @@ class Graph(GraphView):
     def create_index_with_spec(self, py_spec):
         """Create graph index with the provided index spec."""
 
-    def create_node(
-        self,
-        timestamp: TimeInput,
-        id: str | int,
-        properties: Optional[PropInput] = None,
-        node_type: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> MutableNode:
+    def create_node(self, timestamp: TimeInput, id: str|int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -918,7 +799,7 @@ class Graph(GraphView):
            Graph:
         """
 
-    def edge(self, src: str | int, dst: str | int) -> MutableEdge:
+    def edge(self, src: str|int, dst: str|int) -> MutableEdge:
         """
         Gets the edge with the specified source and destination nodes
 
@@ -1011,9 +892,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_edges_as(
-        self, edges: List[Edge], new_ids: List[Tuple[int, int]], merge: bool = False
-    ) -> None:
+    def import_edges_as(self, edges: List[Edge], new_ids: List[Tuple[int, int]], merge: bool = False) -> None:
         """
         Import multiple edges into the graph with new ids.
 
@@ -1048,9 +927,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_node_as(
-        self, node: Node, new_id: str | int, merge: bool = False
-    ) -> MutableNode:
+    def import_node_as(self, node: Node, new_id: str|int, merge: bool = False) -> MutableNode:
         """
         Import a single node into the graph with new id.
 
@@ -1085,9 +962,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_nodes_as(
-        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
-    ) -> None:
+    def import_nodes_as(self, nodes: List[Node], new_ids: List[str|int], merge: bool = False) -> None:
         """
         Import multiple nodes into the graph with new ids.
 
@@ -1132,16 +1007,7 @@ class Graph(GraphView):
            Graph: the loaded graph with initialised cache
         """
 
-    def load_edge_props_from_pandas(
-        self,
-        df: DataFrame,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1161,16 +1027,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(
-        self,
-        parquet_path: str,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edge properties from parquet file
 
@@ -1190,18 +1047,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1223,18 +1069,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -1268,15 +1103,7 @@ class Graph(GraphView):
            Graph:
         """
 
-    def load_node_props_from_pandas(
-        self,
-        df: DataFrame,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_node_props_from_pandas(self, df: DataFrame, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -1295,15 +1122,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(
-        self,
-        parquet_path: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load node properties from a parquet file.
 
@@ -1322,17 +1141,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -1353,17 +1162,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -1384,7 +1183,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def node(self, id: str | int) -> MutableNode:
+    def node(self, id: str|int) -> MutableNode:
         """
         Gets the node with the specified id
 
@@ -1463,22 +1262,16 @@ class Graph(GraphView):
             None:
         """
 
-class PersistentGraph(GraphView):
+class PersistentGraph(GraphView): 
     """A temporal graph that allows edges and nodes to be deleted."""
 
     def __new__(cls) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def __reduce__(self): ...
-    def add_edge(
-        self,
-        timestamp: int,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def __reduce__(self):
+        ...
+
+    def add_edge(self, timestamp: int, src: str | int, dst: str | int, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
@@ -1511,14 +1304,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_node(
-        self,
-        timestamp: TimeInput,
-        id: str | int,
-        properties: Optional[PropInput] = None,
-        node_type: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def add_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
         """
         Adds a new node with the given id and properties to the graph.
 
@@ -1536,12 +1322,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def add_properties(
-        self,
-        timestamp: TimeInput,
-        properties: dict,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def add_properties(self, timestamp: TimeInput, properties: dict, secondary_index: Optional[int] = None) -> None:
         """
         Adds properties to the graph.
 
@@ -1593,14 +1374,7 @@ class PersistentGraph(GraphView):
     def create_index_with_spec(self, py_spec):
         """Create graph index with the provided index spec."""
 
-    def create_node(
-        self,
-        timestamp: TimeInput,
-        id: str | int,
-        properties: Optional[PropInput] = None,
-        node_type: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> MutableNode:
+    def create_node(self, timestamp: TimeInput, id: str | int, properties: Optional[PropInput] = None, node_type: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
 
@@ -1618,14 +1392,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def delete_edge(
-        self,
-        timestamp: int,
-        src: str | int,
-        dst: str | int,
-        layer: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> MutableEdge:
+    def delete_edge(self, timestamp: int, src: str | int, dst: str | int, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> MutableEdge:
         """
         Deletes an edge given the timestamp, src and dst nodes and layer (optional)
 
@@ -1738,9 +1505,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_edges_as(
-        self, edges: List[Edge], new_ids: list[Tuple[GID, GID]], merge: bool = False
-    ) -> None:
+    def import_edges_as(self, edges: List[Edge], new_ids: list[Tuple[GID, GID]], merge: bool = False) -> None:
         """
         Import multiple edges into the graph with new ids.
 
@@ -1777,9 +1542,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_node_as(
-        self, node: Node, new_id: str | int, merge: bool = False
-    ) -> Node:
+    def import_node_as(self, node: Node, new_id: str|int, merge: bool = False) -> Node:
         """
         Import a single node into the graph with new id.
 
@@ -1816,9 +1579,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def import_nodes_as(
-        self, nodes: List[Node], new_ids: List[str | int], merge: bool = False
-    ) -> None:
+    def import_nodes_as(self, nodes: List[Node], new_ids: List[str|int], merge: bool = False) -> None:
         """
         Import multiple nodes into the graph with new ids.
 
@@ -1852,15 +1613,7 @@ class PersistentGraph(GraphView):
            PersistentGraph: the loaded graph with initialised cache
         """
 
-    def load_edge_deletions_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_deletions_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges deletions from a Pandas DataFrame into the graph.
 
@@ -1879,15 +1632,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_deletions_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges deletions from a Parquet file into the graph.
 
@@ -1906,16 +1651,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(
-        self,
-        df: DataFrame,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_props_from_pandas(self, df: DataFrame, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edge properties from a Pandas DataFrame.
 
@@ -1935,16 +1671,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_parquet(
-        self,
-        parquet_path: str,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edge_props_from_parquet(self, parquet_path: str, src: str, dst: str, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edge properties from parquet file
 
@@ -1964,18 +1691,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edges_from_pandas(self, df: DataFrame, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges from a Pandas DataFrame into the graph.
 
@@ -1997,18 +1713,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edges_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
+    def load_edges_from_parquet(self, parquet_path: str, time: str, src: str, dst: str, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None, layer: Optional[str] = None, layer_col: Optional[str] = None) -> None:
         """
         Load edges from a Parquet file into the graph.
 
@@ -2042,15 +1747,7 @@ class PersistentGraph(GraphView):
            PersistentGraph:
         """
 
-    def load_node_props_from_pandas(
-        self,
-        df: DataFrame,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_node_props_from_pandas(self, df: DataFrame, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load node properties from a Pandas DataFrame.
 
@@ -2069,15 +1766,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_parquet(
-        self,
-        parquet_path: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_node_props_from_parquet(self, parquet_path: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load node properties from a parquet file.
 
@@ -2096,17 +1785,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_nodes_from_pandas(self, df: DataFrame, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load nodes from a Pandas DataFrame into the graph.
 
@@ -2127,17 +1806,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_nodes_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
+    def load_nodes_from_parquet(self, parquet_path: str, time: str, id: str, node_type: Optional[str] = None, node_type_col: Optional[str] = None, properties: Optional[List[str]] = None, metadata: Optional[List[str]] = None, shared_metadata: Optional[PropInput] = None) -> None:
         """
         Load nodes from a Parquet file into the graph.
 
@@ -2228,7 +1897,7 @@ class PersistentGraph(GraphView):
             None:
         """
 
-class Node(object):
+class Node(object): 
     """A node (or node) in the graph."""
 
     def __eq__(self, value):
@@ -2307,15 +1976,6 @@ class Node(object):
         """
 
     @property
-    def earliest_date_time(self) -> datetime:
-        """
-        Returns the earliest datetime that the node exists.
-
-        Returns:
-            datetime: The earliest datetime that the node exists as a Datetime.
-        """
-
-    @property
     def earliest_time(self) -> int:
         """
         Returns the earliest time that the node exists.
@@ -2343,21 +2003,12 @@ class Node(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Node is valid.
 
         Returns:
-           Optional[int]: The latest time that this Node is valid or None if the Node is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Node is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Node is valid or None if the Node is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Node:
@@ -2461,25 +2112,17 @@ class Node(object):
             bool:
         """
 
-    def history(self) -> List[int]:
+    @property
+    def history(self) -> History:
         """
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            List[int]: A list of unix timestamps of the event history of node.
-        """
-
-    def history_date_time(self) -> List[datetime]:
-        """
-        Returns the history of a node, including node additions and changes made to node.
-
-        Returns:
-            List[datetime]: A list of timestamps of the event history of node.
-
+            History: A History object for the node, providing access to time information
         """
 
     @property
-    def id(self) -> str | int:
+    def id(self) -> (str|int):
         """
         Returns the id of the node.
         This is a unique identifier for the node.
@@ -2530,15 +2173,6 @@ class Node(object):
 
         Returns:
              Node:
-        """
-
-    @property
-    def latest_date_time(self) -> datetime:
-        """
-        Returns the latest datetime that the node exists.
-
-        Returns:
-            datetime: The latest datetime that the node exists as a Datetime.
         """
 
     @property
@@ -2663,34 +2297,34 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Node:
+    def shrink_end(self, end: TimeIndexEntry) -> Node:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Node:
         """
 
-    def shrink_start(self, start: TimeInput) -> Node:
+    def shrink_start(self, start: TimeIndexEntry) -> Node:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Node:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Node:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Node:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Node:
@@ -2720,21 +2354,12 @@ class Node(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Node
 
         Returns:
-            Optional[int]: The earliest time that this Node is valid or None if the Node is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Node is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Node is valid or None if the Node is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Node is valid or None if the Node is valid for all times.
         """
 
     def valid_layers(self, names: list[str]) -> Node:
@@ -2770,7 +2395,7 @@ class Node(object):
             Optional[int]:
         """
 
-class Nodes(object):
+class Nodes(object): 
     """A list of nodes that can be iterated over."""
 
     def __bool__(self):
@@ -2863,15 +2488,6 @@ class Nodes(object):
         """
 
     @property
-    def earliest_date_time(self) -> EarliestDateTimeView:
-        """
-        The earliest time nodes are active as datetime objects
-
-        Returns:
-            EarliestDateTimeView: a view of the earliest active times.
-        """
-
-    @property
     def earliest_time(self) -> EarliestTimeView:
         """
         The earliest times nodes are active
@@ -2899,21 +2515,12 @@ class Nodes(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Nodes is valid.
 
         Returns:
-           Optional[int]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Nodes is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Nodes is valid or None if the Nodes is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Nodes:
@@ -3017,22 +2624,13 @@ class Nodes(object):
             bool:
         """
 
+    @property
     def history(self) -> HistoryView:
         """
-        Returns all timestamps of nodes, when a node is added or change to a node is made.
+        Returns all history objects of nodes, with information on when a node is added or change to a node is made.
 
         Returns:
            HistoryView: a view of the node histories
-
-        """
-
-    def history_date_time(self) -> HistoryDateTimeView:
-        """
-        Returns all timestamps of nodes, when a node is added or change to a node is made.
-
-        Returns:
-           HistoryDateTimeView: a view of the node histories as datetime objects.
-
         """
 
     @property
@@ -3078,15 +2676,6 @@ class Nodes(object):
 
         Returns:
              Nodes:
-        """
-
-    @property
-    def latest_date_time(self) -> LatestDateTimeView:
-        """
-        The latest time nodes are active as datetime objects
-
-        Returns:
-          LatestDateTimeView: a view of the latest active times
         """
 
     @property
@@ -3211,34 +2800,34 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Nodes:
+    def shrink_end(self, end: TimeIndexEntry) -> Nodes:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Nodes:
         """
 
-    def shrink_start(self, start: TimeInput) -> Nodes:
+    def shrink_start(self, start: TimeIndexEntry) -> Nodes:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Nodes:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Nodes:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Nodes:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Nodes:
@@ -3268,26 +2857,15 @@ class Nodes(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Nodes
 
         Returns:
-            Optional[int]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Nodes is valid or None if the Nodes is valid for all times.
         """
 
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Nodes is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Nodes is valid or None if the Nodes is valid for all times.
-        """
-
-    def to_df(
-        self, include_property_history: bool = False, convert_datetime: bool = False
-    ) -> DataFrame:
+    def to_df(self, include_property_history: bool = False, convert_datetime: bool = False) -> DataFrame:
         """
         Converts the graph's nodes into a Pandas DataFrame.
 
@@ -3348,7 +2926,8 @@ class Nodes(object):
             Optional[int]:
         """
 
-class PathFromNode(object):
+class PathFromNode(object): 
+
     def __bool__(self):
         """True if self else False"""
 
@@ -3402,6 +2981,9 @@ class PathFromNode(object):
              list[Node]: the list of nodes
         """
 
+    def combined_history(self):
+        """Returns a single history object containing time information for all nodes in the path"""
+
     def default_layer(self) -> PathFromNode:
         """
          Return a view of PathFromNode containing only the default edge layer
@@ -3416,7 +2998,7 @@ class PathFromNode(object):
     def earliest_time(self):
         """the node earliest times"""
 
-    def edge_history_count(self):
+    def edge_history_count(self) -> UsizeIterable:
         """
         Get the number of edge updates for each node
 
@@ -3435,21 +3017,12 @@ class PathFromNode(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this PathFromNode is valid.
 
         Returns:
-           Optional[int]: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this PathFromNode is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromNode:
@@ -3680,34 +3253,34 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> PathFromNode:
+    def shrink_end(self, end: TimeIndexEntry) -> PathFromNode:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              PathFromNode:
         """
 
-    def shrink_start(self, start: TimeInput) -> PathFromNode:
+    def shrink_start(self, start: TimeIndexEntry) -> PathFromNode:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              PathFromNode:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromNode:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> PathFromNode:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              PathFromNode:
@@ -3737,21 +3310,12 @@ class PathFromNode(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this PathFromNode
 
         Returns:
-            Optional[int]: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this PathFromNode is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this PathFromNode is valid or None if the PathFromNode is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromNode:
@@ -3798,7 +3362,8 @@ class PathFromNode(object):
             Optional[int]:
         """
 
-class PathFromGraph(object):
+class PathFromGraph(object): 
+
     def __bool__(self):
         """True if self else False"""
 
@@ -3852,6 +3417,9 @@ class PathFromGraph(object):
              list[list[Node]]: the list of nodes
         """
 
+    def combined_history(self):
+        """Returns a single history object containing time information for all nodes in the path"""
+
     def default_layer(self) -> PathFromGraph:
         """
          Return a view of PathFromGraph containing only the default edge layer
@@ -3861,10 +3429,6 @@ class PathFromGraph(object):
 
     def degree(self):
         """the node degrees"""
-
-    @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the nodes."""
 
     @property
     def earliest_time(self):
@@ -3884,21 +3448,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this PathFromGraph is valid.
 
         Returns:
-           Optional[int]: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this PathFromGraph is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> PathFromGraph:
@@ -4002,11 +3557,9 @@ class PathFromGraph(object):
             bool:
         """
 
+    @property
     def history(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
-
-    def history_date_time(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+        """Returns a history object for each node with time information for when a node is added or change to a node is made."""
 
     @property
     def id(self):
@@ -4042,10 +3595,6 @@ class PathFromGraph(object):
         Returns:
              PathFromGraph:
         """
-
-    @property
-    def latest_date_time(self):
-        """Returns the latest date time of the nodes."""
 
     @property
     def latest_time(self):
@@ -4139,34 +3688,34 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> PathFromGraph:
+    def shrink_end(self, end: TimeIndexEntry) -> PathFromGraph:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              PathFromGraph:
         """
 
-    def shrink_start(self, start: TimeInput) -> PathFromGraph:
+    def shrink_start(self, start: TimeIndexEntry) -> PathFromGraph:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              PathFromGraph:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> PathFromGraph:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> PathFromGraph:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              PathFromGraph:
@@ -4196,21 +3745,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this PathFromGraph
 
         Returns:
-            Optional[int]: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this PathFromGraph is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this PathFromGraph is valid or None if the PathFromGraph is valid for all times.
         """
 
     def type_filter(self, node_types: list[str]) -> PathFromGraph:
@@ -4257,7 +3797,8 @@ class PathFromGraph(object):
             Optional[int]:
         """
 
-class MutableNode(Node):
+class MutableNode(Node): 
+
     def __repr__(self):
         """Return repr(self)."""
 
@@ -4271,12 +3812,7 @@ class MutableNode(Node):
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-    def add_updates(
-        self,
-        t: TimeInput,
-        properties: Optional[PropInput] = None,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, secondary_index: Optional[int] = None) -> None:
         """
         Add updates to a node in the graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -4315,7 +3851,7 @@ class MutableNode(Node):
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
         """
 
-class Edge(object):
+class Edge(object): 
     """
     PyEdge is a Python class that represents an edge in the graph.
     An edge is a directed connection between two nodes.
@@ -4405,52 +3941,26 @@ class Edge(object):
             List[int]: A list of unix timestamps
         """
 
-    def deletions_data_time(self):
-        """
-        Returns a list of timestamps of when an edge is deleted
-
-        Returns:
-            List[datetime]
-        """
-
     @property
     def dst(self):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self) -> datetime:
-        """
-        Gets of earliest datetime of an edge.
-
-        Returns:
-            datetime: the earliest datetime of an edge
-        """
-
-    @property
-    def earliest_time(self) -> int:
+    def earliest_time(self) -> TimeIndexEntry:
         """
         Gets the earliest time of an edge.
 
         Returns:
-            int: The earliest time of an edge
+            TimeIndexEntry: The earliest time of an edge
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Edge is valid.
 
         Returns:
-           Optional[int]: The latest time that this Edge is valid or None if the Edge is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Edge is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Edge is valid or None if the Edge is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edge:
@@ -4527,31 +4037,13 @@ class Edge(object):
             bool:
         """
 
-    def history(self) -> List[int]:
+    @property
+    def history(self) -> History:
         """
-        Returns a list of timestamps of when an edge is added or change to an edge is made.
+        Returns a history object with information on when an edge is added or change to an edge is made.
 
         Returns:
-           List[int]:  A list of unix timestamps.
-
-        """
-
-    def history_counts(self) -> int:
-        """
-        Returns the number of times an edge is added or change to an edge is made.
-
-        Returns:
-           int: The number of times an edge is added or change to an edge is made.
-
-        """
-
-    def history_date_time(self):
-        """
-        Returns a list of timestamps of when an edge is added or change to an edge is made.
-
-        Returns:
-            List[datetime]
-
+           History:  A history object containing temporal information about the edge
         """
 
     @property
@@ -4595,21 +4087,12 @@ class Edge(object):
         """
 
     @property
-    def latest_date_time(self) -> datetime:
-        """
-        Gets of latest datetime of an edge.
-
-        Returns:
-            datetime: the latest datetime of an edge
-        """
-
-    @property
-    def latest_time(self) -> int:
+    def latest_time(self) -> TimeIndexEntry:
         """
         Gets the latest time of an edge.
 
         Returns:
-            int: The latest time of an edge
+            TimeIndexEntry: The latest time of an edge
         """
 
     def layer(self, name: str) -> Edge:
@@ -4691,34 +4174,34 @@ class Edge(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Edge:
+    def shrink_end(self, end: TimeIndexEntry) -> Edge:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Edge:
         """
 
-    def shrink_start(self, start: TimeInput) -> Edge:
+    def shrink_start(self, start: TimeIndexEntry) -> Edge:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Edge:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edge:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Edge:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Edge:
@@ -4752,21 +4235,12 @@ class Edge(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Edge
 
         Returns:
-            Optional[int]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Edge is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Edge is valid or None if the Edge is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Edge is valid or None if the Edge is valid for all times.
         """
 
     @property
@@ -4811,7 +4285,7 @@ class Edge(object):
             Optional[int]:
         """
 
-class Edges(object):
+class Edges(object): 
     """A list of edges that can be iterated over."""
 
     def __bool__(self):
@@ -4907,39 +4381,21 @@ class Edges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self):
-        """
-        Returns the earliest date time of the edges.
-
-        Returns:
-         Earliest date time of the edges.
-        """
-
-    @property
     def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
         Returns:
-        Earliest time of the edges.
+        Earliest time of the edges as an iterable of TimeIndexEntry items.
         """
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this Edges is valid.
 
         Returns:
-           Optional[int]: The latest time that this Edges is valid or None if the Edges is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this Edges is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this Edges is valid or None if the Edges is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> Edges:
@@ -5016,22 +4472,13 @@ class Edges(object):
             bool:
         """
 
+    @property
     def history(self):
         """
-        Returns all timestamps of edges, when an edge is added or change to an edge is made.
+        Returns history objects for edges containing their timestamps, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists unix timestamps.
-
-        """
-
-    def history_counts(self): ...
-    def history_date_time(self):
-        """
-        Returns all timestamps of edges, when an edge is added or change to an edge is made.
-
-        Returns:
-           A list of lists of timestamps.
+           An iterable of history objects, one for each edge.
 
         """
 
@@ -5039,7 +4486,9 @@ class Edges(object):
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self): ...
+    def is_active(self):
+        ...
+
     def is_deleted(self):
         """Check if the edges are deleted"""
 
@@ -5058,21 +4507,12 @@ class Edges(object):
         """
 
     @property
-    def latest_date_time(self):
-        """
-        Returns the latest date time of the edges.
-
-        Returns:
-          Latest date time of the edges.
-        """
-
-    @property
     def latest_time(self):
         """
         Returns the latest time of the edges.
 
         Returns:
-         Latest time of the edges.
+         Latest time of the edges as an iterable of TimeIndexEntry items.
         """
 
     def layer(self, name: str) -> Edges:
@@ -5154,34 +4594,34 @@ class Edges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> Edges:
+    def shrink_end(self, end: TimeIndexEntry) -> Edges:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              Edges:
         """
 
-    def shrink_start(self, start: TimeInput) -> Edges:
+    def shrink_start(self, start: TimeIndexEntry) -> Edges:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              Edges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> Edges:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> Edges:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              Edges:
@@ -5215,21 +4655,12 @@ class Edges(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this Edges
 
         Returns:
-            Optional[int]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this Edges is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this Edges is valid or None if the Edges is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this Edges is valid or None if the Edges is valid for all times.
         """
 
     @property
@@ -5241,12 +4672,7 @@ class Edges(object):
           Time of edge
         """
 
-    def to_df(
-        self,
-        include_property_history: bool = True,
-        convert_datetime: bool = False,
-        explode: bool = False,
-    ) -> DataFrame:
+    def to_df(self, include_property_history: bool = True, convert_datetime: bool = False, explode: bool = False) -> DataFrame:
         """
         Converts the graph's edges into a Pandas DataFrame.
 
@@ -5299,7 +4725,8 @@ class Edges(object):
             Optional[int]:
         """
 
-class NestedEdges(object):
+class NestedEdges(object): 
+
     def __bool__(self):
         """True if self else False"""
 
@@ -5385,29 +4812,16 @@ class NestedEdges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the edges."""
-
-    @property
     def earliest_time(self):
-        """Returns the earliest time of the edges."""
+        """Returns the earliest time of the edges as TimeIndexEntry."""
 
     @property
-    def end(self) -> Optional[int]:
+    def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this NestedEdges is valid.
 
         Returns:
-           Optional[int]: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
-        """
-
-    @property
-    def end_date_time(self) -> Optional[datetime]:
-        """
-         Gets the latest datetime that this NestedEdges is valid
-
-        Returns:
-             Optional[datetime]: The latest datetime that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+           Optional[TimeIndexEntry]: The latest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     def exclude_layer(self, name: str) -> NestedEdges:
@@ -5484,17 +4898,17 @@ class NestedEdges(object):
             bool:
         """
 
+    @property
     def history(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
-
-    def history_date_time(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        """Returns history objects for edges, containing information about when an edge is added or change to an edge is made."""
 
     @property
     def id(self):
         """Returns all ids of the edges."""
 
-    def is_active(self): ...
+    def is_active(self):
+        ...
+
     def is_deleted(self):
         """Check if edges are deleted"""
 
@@ -5511,10 +4925,6 @@ class NestedEdges(object):
         Returns:
              NestedEdges:
         """
-
-    @property
-    def latest_date_time(self):
-        """Returns the latest date time of the edges."""
 
     @property
     def latest_time(self):
@@ -5579,34 +4989,34 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def shrink_end(self, end: TimeInput) -> NestedEdges:
+    def shrink_end(self, end: TimeIndexEntry) -> NestedEdges:
         """
         Set the end of the window to the smaller of `end` and `self.end()`
 
         Arguments:
-            end (TimeInput): the new end time of the window
+            end (TimeIndexEntry): the new end time of the window
         Returns:
              NestedEdges:
         """
 
-    def shrink_start(self, start: TimeInput) -> NestedEdges:
+    def shrink_start(self, start: TimeIndexEntry) -> NestedEdges:
         """
         Set the start of the window to the larger of `start` and `self.start()`
 
         Arguments:
-           start (TimeInput): the new start time of the window
+           start (TimeIndexEntry): the new start time of the window
 
         Returns:
              NestedEdges:
         """
 
-    def shrink_window(self, start: TimeInput, end: TimeInput) -> NestedEdges:
+    def shrink_window(self, start: TimeIndexEntry, end: TimeIndexEntry) -> NestedEdges:
         """
         Shrink both the start and end of the window (same as calling `shrink_start` followed by `shrink_end` but more efficient)
 
         Arguments:
-            start (TimeInput): the new start time for the window
-            end (TimeInput): the new end time for the window
+            start (TimeIndexEntry): the new start time for the window
+            end (TimeIndexEntry): the new end time for the window
 
         Returns:
              NestedEdges:
@@ -5640,21 +5050,12 @@ class NestedEdges(object):
         """Returns the source node of the edge."""
 
     @property
-    def start(self) -> Optional[int]:
+    def start(self) -> Optional[TimeIndexEntry]:
         """
          Gets the start time for rolling and expanding windows for this NestedEdges
 
         Returns:
-            Optional[int]: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
-        """
-
-    @property
-    def start_date_time(self) -> Optional[datetime]:
-        """
-         Gets the earliest datetime that this NestedEdges is valid
-
-        Returns:
-             Optional[datetime]: The earliest datetime that this NestedEdges is valid or None if the NestedEdges is valid for all times.
+            Optional[TimeIndexEntry]: The earliest time that this NestedEdges is valid or None if the NestedEdges is valid for all times.
         """
 
     @property
@@ -5694,7 +5095,8 @@ class NestedEdges(object):
             Optional[int]:
         """
 
-class MutableEdge(Edge):
+class MutableEdge(Edge): 
+
     def __repr__(self):
         """Return repr(self)."""
 
@@ -5709,13 +5111,7 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
-    def add_updates(
-        self,
-        t: TimeInput,
-        properties: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        secondary_index: Optional[int] = None,
-    ) -> None:
+    def add_updates(self, t: TimeInput, properties: Optional[PropInput] = None, layer: Optional[str] = None, secondary_index: Optional[int] = None) -> None:
         """
         Add updates to an edge in the graph at a specified time.
         This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
@@ -5753,7 +5149,7 @@ class MutableEdge(Edge):
             layer (str, optional): The layer you want these properties to be added on to.
         """
 
-class Properties(object):
+class Properties(object): 
     """A view of the properties of an entity"""
 
     def __contains__(self, key):
@@ -5813,7 +5209,7 @@ class Properties(object):
     def values(self):
         """Get the values of the properties"""
 
-class Metadata(object):
+class Metadata(object): 
     """A view of metadata of an entity"""
 
     def __contains__(self, key):
@@ -5894,7 +5290,7 @@ class Metadata(object):
             list | Array: the property values
         """
 
-class TemporalProperties(object):
+class TemporalProperties(object): 
     """A view of the temporal properties of an entity"""
 
     def __contains__(self, key):
@@ -5930,28 +5326,12 @@ class TemporalProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, key) -> TemporalProp:
+    def get(self, key) -> TemporalProperty:
         """
         Get property value for `key` if it exists
 
         Returns:
-            TemporalProp: the property view if it exists, otherwise `None`
-        """
-
-    def histories(self) -> dict[str, list[Tuple[int, PropValue]]]:
-        """
-        Get the histories of all properties
-
-        Returns:
-            dict[str, list[Tuple[int, PropValue]]]: the mapping of property keys to histories
-        """
-
-    def histories_date_time(self) -> dict[str, list[Tuple[datetime, PropValue]]]:
-        """
-        Get the histories of all properties
-
-        Returns:
-            dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
+            TemporalProperty: the property view if it exists, otherwise `None`
         """
 
     def items(self):
@@ -5968,15 +5348,16 @@ class TemporalProperties(object):
             dict[str, PropValue]: the mapping of property keys to latest values
         """
 
-    def values(self) -> list[TemporalProp]:
+    def values(self) -> list[TemporalProperty]:
         """
         List the values of the properties
 
         Returns:
-            list[TemporalProp]: the list of property views
+            list[TemporalProperty]: the list of property views
         """
 
-class PropertiesView(object):
+class PropertiesView(object): 
+
     def __contains__(self, key):
         """Return bool(key in self)."""
 
@@ -6026,7 +5407,7 @@ class PropertiesView(object):
     def values(self):
         """Get the values of the properties"""
 
-class TemporalProp(object):
+class TemporalProperty(object): 
     """A view of a temporal property"""
 
     def __eq__(self, value):
@@ -6072,24 +5453,19 @@ class TemporalProp(object):
             int: The number of properties.
         """
 
+    @property
     def history(self):
-        """Get the timestamps at which the property was updated"""
-
-    def history_date_time(self):
-        """Get the timestamps at which the property was updated"""
+        """Get a history object which contains time entries for when the property was updated"""
 
     def items(self):
-        """List update timestamps and corresponding property values"""
+        """List update TimeIndexEntry and corresponding property values"""
 
-    def items_date_time(self):
-        """List update timestamps and corresponding property values"""
-
-    def max(self) -> Tuple[int, PropValue]:
+    def max(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Find the maximum property value and its associated time.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the maximum property value.
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the maximum property value.
         """
 
     def mean(self) -> PropValue:
@@ -6100,20 +5476,20 @@ class TemporalProp(object):
             PropValue: The mean of each property values, or None if count is zero.
         """
 
-    def median(self) -> Tuple[int, PropValue]:
+    def median(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Compute the median of all property values.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the median property value, or None if empty
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the median property value, or None if empty
         """
 
-    def min(self) -> Tuple[int, PropValue]:
+    def min(self) -> Tuple[TimeIndexEntry, PropValue]:
         """
         Find the minimum property value and its associated time.
 
         Returns:
-            Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
+            Tuple[TimeIndexEntry, PropValue]: A tuple containing the time and the minimum property value.
         """
 
     def ordered_dedupe(self, latest_time):
@@ -6136,7 +5512,123 @@ class TemporalProp(object):
     def values(self):
         """Get the property values for each update"""
 
-class WindowSet(object):
+class TimeIndexEntry(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @staticmethod
+    def create(t, s):
+        ...
+
+    @property
+    def dt(self):
+        """Get the datetime representation of the time"""
+
+    @property
+    def secondary_index(self):
+        ...
+
+    @property
+    def t(self):
+        """Get the epoch timestamp of the time"""
+
+class History(object): 
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __hash__(self):
+        """Return hash(self)."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self):
+        """Iterate over all time events in reverse"""
+
+    def collect(self):
+        """Collect all time events"""
+
+    def collect_rev(self):
+        """Collect all time events in reverse"""
+
+    @staticmethod
+    def compose_histories(objects):
+        ...
+
+    @property
+    def dt(self):
+        """Access history events as DateTime items"""
+
+    def earliest_time(self):
+        """Get the earliest time in the history"""
+
+    @property
+    def intervals(self):
+        ...
+
+    def is_empty(self):
+        ...
+
+    def latest_time(self):
+        """Get the latest time in the history"""
+
+    def merge(self, other):
+        ...
+
+    def reverse(self):
+        ...
+
+    @property
+    def secondary_index(self):
+        """Access secondary index (unique index) of history events"""
+
+    @property
+    def t(self):
+        """Access history events as i64 timestamps"""
+
+class WindowSet(object): 
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -6154,31 +5646,61 @@ class WindowSet(object):
             Iterable: the time index"
         """
 
-class IndexSpecBuilder(object):
+class IndexSpecBuilder(object): 
+
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self): ...
-    def with_all_edge_metadata(self): ...
-    def with_all_edge_properties(self): ...
-    def with_all_edge_properties_and_metadata(self): ...
-    def with_all_node_metadata(self): ...
-    def with_all_node_properties(self): ...
-    def with_all_node_properties_and_metadata(self): ...
-    def with_edge_metadata(self, props): ...
-    def with_edge_properties(self, props): ...
-    def with_node_metadata(self, props): ...
-    def with_node_properties(self, props): ...
+    def build(self):
+        ...
 
-class IndexSpec(object):
+    def with_all_edge_metadata(self):
+        ...
+
+    def with_all_edge_properties(self):
+        ...
+
+    def with_all_edge_properties_and_metadata(self):
+        ...
+
+    def with_all_node_metadata(self):
+        ...
+
+    def with_all_node_properties(self):
+        ...
+
+    def with_all_node_properties_and_metadata(self):
+        ...
+
+    def with_edge_metadata(self, props):
+        ...
+
+    def with_edge_properties(self, props):
+        ...
+
+    def with_node_metadata(self, props):
+        ...
+
+    def with_node_properties(self, props):
+        ...
+
+class IndexSpec(object): 
+
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self): ...
+    def edge_metadata(self):
+        ...
+
     @property
-    def edge_properties(self): ...
+    def edge_properties(self):
+        ...
+
     @property
-    def node_metadata(self): ...
+    def node_metadata(self):
+        ...
+
     @property
-    def node_properties(self): ...
+    def node_properties(self):
+        ...

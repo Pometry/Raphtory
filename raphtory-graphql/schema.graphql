@@ -74,13 +74,13 @@ type Edge {
 	shrinkStart(start: Int!): Edge!
 	shrinkEnd(end: Int!): Edge!
 	applyViews(views: [EdgeViewCollection!]!): Edge!
-	earliestTime: Int
-	firstUpdate: Int
-	latestTime: Int
-	lastUpdate: Int
+	earliestTime: TimeIndexEntry
+	firstUpdate: TimeIndexEntry
+	latestTime: TimeIndexEntry
+	lastUpdate: TimeIndexEntry
 	time: Int!
-	start: Int
-	end: Int
+	start: TimeIndexEntry
+	end: TimeIndexEntry
 	src: Node!
 	dst: Node!
 	nbr: Node!
@@ -91,7 +91,7 @@ type Edge {
 	layerName: String!
 	explode: Edges!
 	explodeLayers: Edges!
-	history: [Int!]!
+	history: History!
 	deletions: [Int!]!
 	isValid: Boolean!
 	isActive: Boolean!
@@ -198,8 +198,8 @@ type Edges {
 	explode: Edges!
 	explodeLayers: Edges!
 	sorted(sortBys: [EdgeSortBy!]!): Edges!
-	start: Int
-	end: Int
+	start: TimeIndexEntry
+	end: TimeIndexEntry
 	count: Int!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -305,12 +305,12 @@ type Graph {
 	created: Int!
 	lastOpened: Int!
 	lastUpdated: Int!
-	earliestTime: Int
-	latestTime: Int
-	start: Int
-	end: Int
-	earliestEdgeTime(includeNegative: Boolean): Int
-	latestEdgeTime(includeNegative: Boolean): Int
+	earliestTime: TimeIndexEntry
+	latestTime: TimeIndexEntry
+	start: TimeIndexEntry
+	end: TimeIndexEntry
+	earliestEdgeTime(includeNegative: Boolean): TimeIndexEntry
+	latestEdgeTime(includeNegative: Boolean): TimeIndexEntry
 	countEdges: Int!
 	countTemporalEdges: Int!
 	countNodes: Int!
@@ -344,8 +344,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -398,6 +398,196 @@ type GraphWindowSet {
 	list: [Graph!]!
 }
 
+"""
+Represents the history of updates for an object in Raphtory.
+It provides access to the temporal properties of the object.
+"""
+type History {
+	"""
+	The earliest time entry (as a `TimeIndexEntry`) associated with this history.
+	Returns `null` if the history is empty.
+	"""
+	earliestTime: TimeIndexEntry
+	"""
+	The latest time entry (as a `TimeIndexEntry`) associated with this history.
+	Returns `null` if the history is empty.
+	"""
+	latestTime: TimeIndexEntry
+	"""
+	A list of all time entries (as `TimeIndexEntry` items) present in this history.
+	"""
+	list: [TimeIndexEntry!]!
+	"""
+	A list of all time entries (as `TimeIndexEntry` items) present in this history, in reverse order.
+	"""
+	listRev: [TimeIndexEntry!]!
+	"""
+	Fetch one "page" of `TimeIndexEntry` entries, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	page(limit: Int!, offset: Int, pageIndex: Int): [TimeIndexEntry!]!
+	"""
+	Fetch one "page" of `TimeIndexEntry` items in reverse chronological order, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	pageRev(limit: Int!, offset: Int, pageIndex: Int): [TimeIndexEntry!]!
+	"""
+	Returns true if the History object is empty
+	"""
+	isEmpty: Boolean!
+	"""
+	Returns the number of entries contained in the History object
+	"""
+	count: Int!
+	"""
+	A HistoryTimestamp object which provides access to timestamps (as Unix epochs in milliseconds) instead of `TimeIndexEntry` entries
+	"""
+	timestamps: HistoryTimestamp!
+	"""
+	A HistoryDateTime object which provides access to datetimes instead of `TimeIndexEntry` entries.
+	Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
+	Optionally takes a format string as argument to format the output of datetimes.
+	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+	"""
+	datetimes(formatString: String): HistoryDateTime!
+	"""
+	A HistorySecondaryIndex object which provides access to the secondary indices of `TimeIndexEntry` entries
+	"""
+	secondaryIndex: HistorySecondaryIndex!
+	"""
+	Returns an Intervals object that provides access to the intervals between temporal entries
+	"""
+	intervals: Intervals!
+}
+
+"""
+History object that provides access to datetimes instead of `TimeIndexEntry` entries
+"""
+type HistoryDateTime {
+	"""
+	A list of all datetimes present in this history, formatted as strings.
+	Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
+	Throws an error if a time conversion fails
+	filter_broken continues on time conversion errors, filtering out the errors. Defaults to `false`
+	"""
+	list(filterBroken: Boolean): [String!]!
+	"""
+	A list of all datetimes present in this history in reverse order, formatted as strings.
+	Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
+	Throws an error if a time conversion fails
+	filter_broken continues on time conversion errors, filtering out the errors. Defaults to `false`
+	"""
+	listRev(filterBroken: Boolean): [String!]!
+	"""
+	Fetch one "page" of history datetimes formatted as strings, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	* `filter_broken` - continues on time conversion errors, filtering out the errors (defaults to `false`).
+	
+	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	page(limit: Int!, offset: Int, pageIndex: Int, filterBroken: Boolean): [String!]!
+	"""
+	Fetch one "page" of history datetimes formatted as strings in reverse chronological order, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	* `filter_broken` - continues on time conversion errors, filtering out the errors (defaults to `false`)
+	
+	e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	pageRev(limit: Int!, offset: Int, pageIndex: Int, filterBroken: Boolean): [String!]!
+}
+
+"""
+History object that provides access to secondary indices instead of `TimeIndexEntry` entries
+"""
+type HistorySecondaryIndex {
+	"""
+	A list of secondary indices from `TimeIndexEntry` entries
+	"""
+	list: [Int!]!
+	"""
+	A list of secondary indices from `TimeIndexEntry` entries in reverse order
+	"""
+	listRev: [Int!]!
+	"""
+	Fetch one "page" of history items, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	page(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+	"""
+	Fetch one "page" of history items in reverse chronological order, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	pageRev(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+}
+
+"""
+History object that provides access to timestamps (as Unix epochs in milliseconds) instead of `TimeIndexEntry` entries
+"""
+type HistoryTimestamp {
+	"""
+	A list of all timestamps (as Unix epochs in milliseconds) present in this history,
+	"""
+	list: [Int!]!
+	"""
+	A list of all timestamps (as Unix epochs in milliseconds) present in this history, in reverse order.
+	"""
+	listRev: [Int!]!
+	"""
+	Fetch one "page" of history timestamps (as Unix epochs in milliseconds), optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	page(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+	"""
+	Fetch one "page" of history timestamps (as Unix epochs in milliseconds) in reverse chronological order, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	pageRev(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+}
+
 
 input IndexSpecInput {
 	nodeProps: PropsInput!
@@ -409,6 +599,62 @@ input InputEdge {
 	dst: String!
 }
 
+
+"""
+Provides access to the intervals between temporal entries of an object.
+"""
+type Intervals {
+	"""
+	Returns a list of time intervals between consecutive timestamps
+	"""
+	list: [Int!]!
+	"""
+	Returns a list of time intervals between consecutive timestamps in reverse
+	"""
+	listRev: [Int!]!
+	"""
+	Fetch one "page" of history items, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	page(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+	"""
+	Fetch one "page" of history items in reverse chronological order, optionally offset by a specified amount.
+	
+	* `limit` - The size of the page (number of items to fetch).
+	* `offset` - The number of items to skip (defaults to 0).
+	* `page_index` - The number of pages (of size `limit`) to skip (defaults to 0).
+	
+	e.g. if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+	will be returned.
+	"""
+	pageRev(limit: Int!, offset: Int, pageIndex: Int): [Int!]!
+	"""
+	The mean (average) interval between consecutive timestamps.
+	Returns `null` if there are fewer than 2 timestamps.
+	"""
+	mean: Float
+	"""
+	The median interval between consecutive timestamps.
+	Returns `null` if there are fewer than 2 timestamps.
+	"""
+	median: Float
+	"""
+	The maximum interval between consecutive timestamps.
+	Returns `null` if there are fewer than 2 timestamps.
+	"""
+	max: Int
+	"""
+	The minimum interval between consecutive timestamps.
+	Returns `null` if there are fewer than 2 timestamps.
+	"""
+	min: Int
+}
 
 type LayerSchema {
 	"""
@@ -632,13 +878,13 @@ type Node {
 	shrinkStart(start: Int!): Node!
 	shrinkEnd(end: Int!): Node!
 	applyViews(views: [NodeViewCollection!]!): Node!
-	earliestTime: Int
-	firstUpdate: Int
-	latestTime: Int
-	lastUpdate: Int
-	start: Int
-	end: Int
-	history: [Int!]!
+	earliestTime: TimeIndexEntry
+	firstUpdate: TimeIndexEntry
+	latestTime: TimeIndexEntry
+	lastUpdate: TimeIndexEntry
+	start: TimeIndexEntry
+	end: TimeIndexEntry
+	history: History!
 	edgeHistoryCount: Int!
 	isActive: Boolean!
 	nodeType: String
@@ -768,8 +1014,8 @@ type Nodes {
 	nodeFilter(filter: NodeFilter!): Nodes!
 	applyViews(views: [NodesViewCollection!]!): Nodes!
 	sorted(sortBys: [NodeSortBy!]!): Nodes!
-	start: Int
-	end: Int
+	start: TimeIndexEntry
+	end: TimeIndexEntry
 	count: Int!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -865,8 +1111,8 @@ type PathFromNode {
 	shrinkStart(start: Int!): PathFromNode!
 	shrinkEnd(end: Int!): PathFromNode!
 	typeFilter(nodeTypes: [String!]!): PathFromNode!
-	start: Int
-	end: Int
+	start: TimeIndexEntry
+	end: TimeIndexEntry
 	count: Int!
 	"""
 	Fetch one "page" of items, optionally offset by a specified amount.
@@ -951,7 +1197,7 @@ type PropertySchema {
 }
 
 type PropertyTuple {
-	time: Int!
+	time: TimeIndexEntry!
 	asString: String!
 	value: PropertyOutput!
 }
@@ -1005,7 +1251,7 @@ type TemporalProperties {
 
 type TemporalProperty {
 	key: String!
-	history: [Int!]!
+	history: History!
 	values: [String!]!
 	at(t: Int!): String
 	latest: String
@@ -1028,6 +1274,31 @@ input TemporalPropertyInput {
 enum TemporalType {
 	ANY
 	LATEST
+}
+
+"""
+Represents a time index entry with timestamp and secondary index for ordering
+"""
+type TimeIndexEntry {
+	"""
+	The timestamp as milliseconds since Unix epoch
+	"""
+	timestamp: Int!
+	"""
+	The secondary index of the TimeIndexEntry
+	"""
+	secondaryIndex: Int!
+	"""
+	Returns a datetime string representation if timestamp is valid, or else returns an error message string.
+	Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
+	Optionally takes a format string as argument to format the output of datetimes.
+	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
+	"""
+	datetime(formatString: String): String!
+	"""
+	String representation showing both timestamp and secondary index
+	"""
+	display: String!
 }
 
 scalar Upload
