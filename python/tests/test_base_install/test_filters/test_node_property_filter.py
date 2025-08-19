@@ -1,5 +1,5 @@
-from raphtory import filter, Graph
-from filters_setup import init_graph, create_test_graph
+from raphtory import filter, Prop
+from filters_setup import init_graph, create_test_graph, create_test_graph2
 from utils import with_disk_variants
 
 
@@ -297,7 +297,8 @@ def test_filter_nodes_for_not_property():
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
 def test_filter_nodes_for_property_sum():
     def check(graph):
-        filter_expr = filter.Node.property("prop5").sum() == 6
+        # Since this graph is created in python prop5 values are all i64
+        filter_expr = filter.Node.property("prop5").sum() == Prop.i64(6)
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = ["a"]
         assert result_ids == expected_ids
@@ -338,15 +339,15 @@ def test_filter_nodes_for_property_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_property_len():
-#     def check(graph):
-#         filter_expr = filter.Node.property("prop7").len() == 3
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["c"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property("prop7").len() == Prop.u64(3)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["c"]
+        assert result_ids == expected_ids
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
@@ -393,15 +394,17 @@ def test_filter_nodes_for_temporal_latest_property_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_temporal_latest_property_len():
-#     def check(graph):
-#         filter_expr = filter.Node.property("prop6").temporal().latest().len() == 3
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["a"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_latest_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property(
+            "prop6"
+        ).temporal().latest().len() == Prop.u64(3)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
@@ -468,15 +471,17 @@ def test_filter_nodes_for_temporal_any_property_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_temporal_any_property_len():
-#     def check(graph):
-#         filter_expr = filter.Node.property("prop6").temporal().any().len() == 3
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["a"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_any_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property("prop6").temporal().any().len() == Prop.u64(
+            3
+        )
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
@@ -543,15 +548,17 @@ def test_filter_nodes_for_temporal_all_property_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_temporal_all_property_len():
-#     def check(graph):
-#         filter_expr = filter.Node.property("prop5").temporal().all().len() == 3
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["a"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_all_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property("prop5").temporal().all().len() == Prop.u64(
+            3
+        )
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a", "c"]
+        assert result_ids == expected_ids
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
@@ -598,15 +605,17 @@ def test_filter_nodes_for_temporal_first_property_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_temporal_first_property_len():
-#     def check(graph):
-#         filter_expr = filter.Node.property("prop6").temporal().first().len() == 3
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["a"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_temporal_first_property_len():
+    def check(graph):
+        filter_expr = filter.Node.property(
+            "prop6"
+        ).temporal().first().len() == Prop.u64(3)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["a"]
+        assert result_ids == expected_ids
+
+    return check
 
 
 @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
@@ -653,44 +662,12 @@ def test_filter_nodes_for_metadata_max():
     return check
 
 
-# @with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
-# def test_filter_nodes_for_metadata_len():
-#     def check(graph):
-#         filter_expr = filter.Node.metadata("prop4").lucas() == -2
-#         result_ids = sorted(graph.filter(filter_expr).nodes.id)
-#         expected_ids = ["b"]
-#         assert result_ids == expected_ids
-#
-#     return check
+@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+def test_filter_nodes_for_metadata_len():
+    def check(graph):
+        filter_expr = filter.Node.metadata("prop4").len() == Prop.u64(2)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["b"]
+        assert result_ids == expected_ids
 
-
-# import pandas as pd
-# import numpy as np
-#
-# def test_u64():
-#     ts = [1, 2, 3, 4]
-#     srcs = [1, 2, 3, 4]
-#     dsts = [2, 3, 4, 5]
-#     values = np.array([1, 2, 3, 4], dtype=np.uint64)
-#
-#     # u64::max >> i64::max
-#     # u64::max - 1 = 18_446_744_073_709_551_614
-#                 #     9_223_372_036_854_775_807
-#     # raph.u64(3)
-#
-#     df = pd.DataFrame({
-#         "time": ts,
-#         "src": srcs,
-#         "dst": dsts,
-#         "prop": values,
-#     })
-#
-#     graph = Graph()
-#     graph.load_edges_from_pandas(df, "time", "src", "dst", ["prop"])
-#
-#     print(graph.count_nodes())
-#     print(graph.count_edges())
-#
-#     filter_expr = filter.Edge.property("prop") <= prop_value.u64(3)
-#     edges = graph.filter(filter_expr).edges
-#     print(edges)
+    return check

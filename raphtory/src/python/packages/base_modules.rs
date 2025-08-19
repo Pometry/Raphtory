@@ -26,6 +26,7 @@ use crate::{
     },
 };
 use pyo3::prelude::*;
+use raphtory_api::python::PyProp;
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -51,7 +52,8 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyTemporalProp,
         PyWindowSet,
         PyIndexSpecBuilder,
-        PyIndexSpec
+        PyIndexSpec,
+        PyProp
     );
 
     #[cfg(feature = "storage")]

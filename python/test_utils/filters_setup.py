@@ -3,6 +3,8 @@ import tempfile
 import pytest
 import shutil
 import atexit
+import numpy as np
+import pandas as pd
 
 
 def combined(initializers):
@@ -440,4 +442,159 @@ def create_test_graph(g):
             "eprop5": [10],  # min: 10, max: 10, sum: 10, avg: 10.0, len: 1
         },
     )
+    return g
+
+
+U8_MAX = np.uint8((1 << 8) - 1)  # 255
+U16_MAX = np.uint16((1 << 16) - 1)  # 65535
+U32_MAX = np.uint32((1 << 32) - 1)  # 4294967295
+U64_MAX = np.uint64((1 << 64) - 1)  # 18446744073709551615
+I64_MAX = np.int64((1 << 63) - 1)  # 9223372036854775807
+
+
+def create_test_graph2(g: Graph):
+
+    df = pd.DataFrame(
+        {
+            "time": [1, 1, 2, 2],
+            "src": ["a", "b", "c", "d"],
+            "dst": ["b", "c", "d", "a"],
+            "prop": np.array([1, 2, 3, 4], dtype=np.uint64),
+        }
+    )
+
+    df["p_u8s"] = [
+        np.array([1, 2, 3], dtype=np.uint8),  # min: 1, max: 3, sum: 6, avg: 2.0, len: 3
+        np.array(
+            [200], dtype=np.uint8
+        ),  # min: 200, max: 200, sum: 200, avg: 200.0, len: 1
+        np.array([], dtype=np.uint8),  # min: None, max: None, sum: 0, avg: None, len: 0
+        np.array(
+            [U8_MAX], dtype=np.uint8
+        ),  # min: 255, max: 255, sum: 255, avg: 255.0, len: 1
+    ]
+
+    df["p_u16s"] = [
+        np.array(
+            [1000, 2000], dtype=np.uint16
+        ),  # min: 1000, max: 2000, sum: 3000, avg: 1500.0, len: 2
+        np.array(
+            [U16_MAX], dtype=np.uint16
+        ),  # min: 65535, max: 65535, sum: 65535, avg: 65535.0, len: 1
+        np.array([42], dtype=np.uint16),  # min: 42, max: 42, sum: 42, avg: 42.0, len: 1
+        np.array(
+            [], dtype=np.uint16
+        ),  # min: None, max: None, sum: 0, avg: None, len: 0
+    ]
+
+    df["p_u32s"] = [
+        np.array(
+            [1_000_000], dtype=np.uint32
+        ),  # min: 1_000_000, max: 1_000_000, sum: 1_000_000, avg: 1_000_000.0, len: 1
+        np.array(
+            [2_000_000, 3_000_000], dtype=np.uint32
+        ),  # min: 2_000_000, max: 3_000_000, sum: 5_000_000, avg: 2_500_000.0, len: 2
+        np.array(
+            [], dtype=np.uint32
+        ),  # min: None, max: None, sum: 0, avg: None, len: 0
+        np.array(
+            [U32_MAX], dtype=np.uint32
+        ),  # min: 4294967295, max: 4294967295, sum: 4294967295, avg: 4294967295.0, len: 1
+    ]
+
+    df["p_i32s"] = [
+        np.array(
+            [1, -2, 3], dtype=np.int32
+        ),  # min: -2, max: 3, sum: 2, avg: 0.67, len: 3
+        np.array(
+            [2**31 - 1], dtype=np.int32
+        ),  # min: 2147483647, max: 2147483647, sum: 2147483647, avg: 2147483647.0, len: 1
+        np.array([], dtype=np.int32),  # min: None, max: None, sum: 0, avg: None, len: 0
+        np.array(
+            [-100, 0, 100], dtype=np.int32
+        ),  # min: -100, max: 100, sum: 0, avg: 0.0, len: 3
+    ]
+
+    df["p_u64s"] = [
+        np.array([1, 2], dtype=np.uint64),  # min: 1, max: 2, sum: 3, avg: 1.5, len: 2
+        np.array(
+            [10, 20], dtype=np.uint64
+        ),  # min: 10, max: 20, sum: 30, avg: 15.0, len: 2
+        np.array([30], dtype=np.uint64),  # min: 30, max: 30, sum: 30, avg: 30.0, len: 1
+        np.array(
+            [U64_MAX, 1], dtype=np.uint64
+        ),  # min: 1.84e19, max: 1.84e19, sum: 1.84e19, avg: 1.84e19, len: 1
+    ]
+
+    df["p_i64s"] = [
+        np.array(
+            [-1, -2], dtype=np.int64
+        ),  # min: -2, max: -1, sum: -3, avg: -1.5, len: 2
+        np.array(
+            [I64_MAX], dtype=np.int64
+        ),  # min: 9.22e18, max: 9.22e18, sum: 9.22e18, avg: 9.22e18, len: 1
+        np.array([], dtype=np.int64),  # min: None, max: None, sum: 0, avg: None, len: 0
+        np.array([0, 1], dtype=np.int64),  # min: 0, max: 1, sum: 1, avg: 0.5, len: 2
+    ]
+
+    df["p_f32s"] = [
+        np.array(
+            [1.5, 2.5], dtype=np.float32
+        ),  # min: 1.5, max: 2.5, sum: 4.0, avg: 2.0, len: 2
+        np.array(
+            [3.0], dtype=np.float32
+        ),  # min: 3.0, max: 3.0, sum: 3.0, avg: 3.0, len: 1
+        np.array(
+            [], dtype=np.float32
+        ),  # min: None, max: None, sum: 0.0, avg: None, len: 0
+        np.array(
+            [-1.5, 0.0, 1.5], dtype=np.float32
+        ),  # min: -1.5, max: 1.5, sum: 0.0, avg: 0.0, len: 3
+    ]
+
+    df["p_f64s"] = [
+        np.array(
+            [1.5, 2.5], dtype=np.float64
+        ),  # min: 1.5, max: 2.5, sum: 4.0, avg: 2.0, len: 2
+        np.array(
+            [3.0], dtype=np.float64
+        ),  # min: 3.0, max: 3.0, sum: 3.0, avg: 3.0, len: 1
+        np.array(
+            [], dtype=np.float64
+        ),  # min: None, max: None, sum: 0.0, avg: None, len: 0
+        np.array(
+            [-1.5, 0.0, 1.5], dtype=np.float64
+        ),  # min: -1.5, max: 1.5, sum: 0.0, avg: 0.0, len: 3
+    ]
+
+    df["p_strs"] = [
+        ["a", "b", "c"],  # len: 3
+        ["x"],  # len: 1
+        [],  # len: 0
+        ["longword"],  # len: 1
+    ]
+
+    df["p_bools"] = [
+        [True, False],  # len: 2
+        [True],  # len: 1
+        [],  # len: 0
+        [False, False],  # len: 2
+    ]
+
+    prop_cols = [
+        "prop",
+        "p_u8s",
+        "p_u16s",
+        "p_u32s",
+        "p_u64s",
+        "p_i32s",
+        "p_i64s",
+        "p_f32s",
+        "p_f64s",
+        "p_strs",
+        "p_bools",
+    ]
+
+    g.load_edges_from_pandas(df, "time", "src", "dst", prop_cols)
+
     return g

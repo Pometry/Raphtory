@@ -1,6 +1,8 @@
-from raphtory import filter
-from filters_setup import init_graph
+from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
+from raphtory import filter, Prop
+from filters_setup import init_graph, create_test_graph2
 from utils import with_disk_variants
+import pytest
 
 
 @with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
@@ -371,5 +373,674 @@ def test_filter_edges_for_not_property():
             ]
         )
         assert result_ids == expected_ids
+
+    return check
+
+
+def _pairs(edges):
+    return {(e.src.name, e.dst.name) for e in edges}
+
+
+# ------ SUM ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_u8s():
+    def check(graph):
+        # [1,2,3] -> 6
+        expr = filter.Edge.property("p_u8s").sum() == Prop.u64(6)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_u16s():
+    def check(graph):
+        # [1000,2000] -> 3000
+        expr = filter.Edge.property("p_u16s").sum() == Prop.u64(3000)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_u32s():
+    def check(graph):
+        # [2_000_000,3_000_000] -> 5_000_000
+        expr = filter.Edge.property("p_u32s").sum() == Prop.u64(5_000_000)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_u64s():
+    def check(graph):
+        # [1,2] -> 3
+        expr = filter.Edge.property("p_u64s").sum() == Prop.u64(3)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_i32s():
+    def check(graph):
+        # [1,-2,3] -> 2
+        expr = filter.Edge.property("p_i32s").sum() == Prop.i64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_i64s():
+    def check(graph):
+        # [-1,-2] -> -3
+        expr = filter.Edge.property("p_i64s").sum() == Prop.i64(-3)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_f32s():
+    def check(graph):
+        expr = filter.Edge.property("p_f32s").sum() == Prop.f64(3.0)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_sum_f64s():
+    def check(graph):
+        # [1.5,2.5] -> 4.0
+        expr = filter.Edge.property("p_f64s").sum() == Prop.f64(4.0)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+# ------ AVG ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").avg() == Prop.f64(2.0)  # 6/3
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_u16s():
+    def check(graph):
+        expr = filter.Edge.property("p_u16s").avg() == Prop.f64(1500.0)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").avg() == Prop.f64(2_500_000.0)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").avg() == Prop.f64(1.5)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").avg() == Prop.f64((1 - 2 + 3) / 3.0)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_i64s():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").avg() == Prop.f64((-1 - 2) / 2.0)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_avg_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").avg() == Prop.f64(2.0)  # (1.5+2.5)/2
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+# ------ LEN ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").len() == Prop.u64(3)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_u16s():
+    def check(graph):
+        expr = filter.Edge.property("p_u16s").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("b", "c"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").len() == Prop.u64(3)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_i64s():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_strs():
+    def check(graph):
+        expr = filter.Edge.property("p_strs").len() == Prop.u64(3)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_bools():
+    def check(graph):
+        expr = filter.Edge.property("p_bools").len() == Prop.u64(2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_len_zero_on_empty_lists():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").len() == Prop.u64(0)
+        assert _pairs(graph.filter(expr).edges) == {("c", "d")}
+
+    return check
+
+
+# ------ MIN ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").min() == Prop.u8(1)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_u16s():
+    def check(graph):
+        expr = filter.Edge.property("p_u16s").min() == Prop.u16(1000)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").min() == Prop.u32(1_000_000)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").min() == Prop.u64(1)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_i32s():
+    def check(graph):
+        # [-100,0,100] on (d->a)
+        expr = filter.Edge.property("p_i32s").min() == Prop.i32(-100)
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_i64s():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").min() == Prop.i64(-2)
+        assert _pairs(graph.filter(expr).edges) == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_min_f64s():
+    def check(graph):
+        # [-1.5,0.0,1.5] on (d->a)
+        expr = filter.Edge.property("p_f64s").min() == Prop.f64(-1.5)
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+# ------ MAX ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_u8s():
+    def check(graph):
+        # [255] for (d->a)
+        expr = filter.Edge.property("p_u8s").max() == Prop.u8(255)
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_u16s():
+    def check(graph):
+        expr = filter.Edge.property("p_u16s").max() == Prop.u16(65535)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").max() == Prop.u32(U32_MAX)
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").max() == Prop.u64(U64_MAX)
+        assert _pairs(graph.filter(expr).edges) == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").max() == Prop.i32(2_147_483_647)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_i64s():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").max() == Prop.i64(I64_MAX)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_max_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").max() == Prop.f64(3.0)
+        assert _pairs(graph.filter(expr).edges) == {("b", "c")}
+
+    return check
+
+
+# ------ latest ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_latest_sum_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().latest().sum() == Prop.u64(30)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("b", "c"), ("c", "d")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_latest_avg_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").temporal().latest().avg() == Prop.f64(
+            0.6666666666666666
+        )
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_latest_min_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").temporal().latest().min() == Prop.u8(1)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_latest_max_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").temporal().latest().max() == Prop.f64(1.5)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_latest_len_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().latest().len() == Prop.u64(2)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b"), ("b", "c"), ("d", "a")}
+
+    return check
+
+
+# ------ all ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_all_sum_i64s():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").temporal().all().sum() == Prop.i64(-3)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_all_avg_f32s():
+    def check(graph):
+        expr = filter.Edge.property("p_f32s").temporal().all().avg() == Prop.f64(2.0)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_all_min_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().all().min() == Prop.u64(1)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b"), ("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_all_max_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").temporal().all().max() == Prop.u32(
+            3_000_000
+        )
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("b", "c")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_all_len_u16s():
+    def check(graph):
+        expr = filter.Edge.property("p_u16s").temporal().all().len() == Prop.u64(2)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+# ------ first ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_first_sum_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").temporal().first().sum() == Prop.u64(6)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_first_avg_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().first().avg() == Prop.f64(30.0)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("c", "d")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_first_min_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").temporal().first().min() == Prop.i32(-2)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_first_max_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").temporal().first().max() == Prop.f64(1.5)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_first_len_u32s():
+    def check(graph):
+        expr = filter.Edge.property("p_u32s").temporal().first().len() == Prop.u64(0)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("c", "d")}
+
+    return check
+
+
+# ------ any ------
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_any_sum_u64s():
+    def check(graph):
+        expr = filter.Edge.property("p_u64s").temporal().any().sum() == Prop.u64(3)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("a", "b")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_any_avg_i32s():
+    def check(graph):
+        expr = filter.Edge.property("p_i32s").temporal().any().avg() == Prop.f64(0.0)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_any_min_f32s():
+    def check(graph):
+        expr = filter.Edge.property("p_f32s").temporal().any().min() == Prop.f32(-1.5)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_any_max_u8s():
+    def check(graph):
+        expr = filter.Edge.property("p_u8s").temporal().any().max() == Prop.u8(U8_MAX)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_property_temporal_any_len_f64s():
+    def check(graph):
+        expr = filter.Edge.property("p_f64s").temporal().any().len() == Prop.u64(3)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_empty_list_agg():
+    def check(graph):
+        expr = filter.Edge.property("p_i64s").len() == Prop.u64(0)
+        pairs = _pairs(graph.filter(expr).edges)
+        assert pairs == {("c", "d")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_overflow_max_values():
+    def check(graph):
+        # max checks
+        assert _pairs(
+            graph.filter(
+                filter.Edge.property("p_u64s").max() == Prop.u64(U64_MAX)
+            ).edges
+        ) == {("d", "a")}
+        assert _pairs(
+            graph.filter(
+                filter.Edge.property("p_u32s").max() == Prop.u32(U32_MAX)
+            ).edges
+        ) == {("d", "a")}
+        assert _pairs(
+            graph.filter(
+                filter.Edge.property("p_u16s").max() == Prop.u16(U16_MAX)
+            ).edges
+        ) == {("b", "c")}
+        assert _pairs(
+            graph.filter(filter.Edge.property("p_u8s").max() == Prop.u8(U8_MAX)).edges
+        ) == {("d", "a")}
+        assert _pairs(
+            graph.filter(
+                filter.Edge.property("p_i64s").max() == Prop.i64(I64_MAX)
+            ).edges
+        ) == {("b", "c")}
+
+        # overflow SUM for u64: if your engine returns None when sum overflows,
+        pairs = _pairs(
+            graph.filter(filter.Edge.property("p_u64s").sum() > Prop.u64(0)).edges
+        )
+        assert ("d", "a") not in pairs
+
+        # AVG computed in f64 even if sum overflows (mirror node test)
+        avg_u64_max_pair = _pairs(
+            graph.filter(
+                filter.Edge.property("p_u64s").avg() == Prop.f64((U64_MAX + 1.0) / 2.0)
+            ).edges
+        )
+        assert avg_u64_max_pair == {("d", "a")}
+
+    return check
+
+
+@with_disk_variants(create_test_graph2, variants=["graph", "event_disk_graph"])
+def test_edge_unsupported_ops_agg():
+    def check(graph):
+        # STARTS_WITH on SUM
+        expr = filter.Edge.property("p_u64s").sum().starts_with("abc")
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
+
+        # ENDS_WITH on AVG
+        expr = filter.Edge.property("p_u64s").avg().ends_with("abc")
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
+
+        # IS_NONE on MIN
+        expr = filter.Edge.property("p_u64s").min().is_none()
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
+
+        # IS_SOME on MAX
+        expr = filter.Edge.property("p_u64s").max().is_some()
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
+
+        # CONTAINS on LEN
+        expr = filter.Edge.property("p_u64s").len().contains("abc")
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
+
+        # NOT_CONTAINS on SUM
+        expr = filter.Edge.property("p_u64s").sum().not_contains("abc")
+        with pytest.raises(Exception) as _:
+            graph.filter(expr)
 
     return check
