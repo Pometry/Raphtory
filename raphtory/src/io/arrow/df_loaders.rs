@@ -105,10 +105,8 @@ pub(crate) fn load_nodes_from_df<
     let mut node_type_col_resolved = vec![];
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+    let mut start_id = session.reserve_event_ids(df_view.num_rows).map_err(into_graph_err)?;
 
-    let mut start_id = session
-        .reserve_event_ids(df_view.num_rows)
-        .map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols = combine_properties(properties, &properties_indices, &df, |key, dtype| {
