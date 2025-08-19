@@ -8,7 +8,7 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::node_ref::NodeStorageRef,
 };
 
@@ -45,16 +45,16 @@ pub trait FilterOps {
 
     fn node_list_trusted(&self) -> bool;
 
-    fn filter_edge(&self, edge: EdgeStorageRef) -> bool;
+    fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
-    fn filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool;
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool;
 
     fn filter_exploded_edge(&self, eid: ELID, t: TimeIndexEntry) -> bool;
 
     fn edge_list_trusted(&self) -> bool;
 
     fn exploded_filter_independent(&self) -> bool;
-    fn filter_edge_from_nodes(&self, edge: EdgeStorageRef) -> bool;
+    fn filter_edge_from_nodes(&self, edge: EdgeEntryRef) -> bool;
 }
 
 /// Implements all the filtering except for time semantics as it is used to define the time semantics
@@ -63,10 +63,10 @@ pub trait InnerFilterOps {
 
     fn filtered_inner(&self) -> bool;
 
-    fn filter_edge_inner(&self, edge: EdgeStorageRef) -> bool;
+    fn filter_edge_inner(&self, edge: EdgeEntryRef) -> bool;
 
     /// handles edge and edge layer filter (not exploded edge filter or windows)
-    fn filter_edge_layer_inner(&self, edge: EdgeStorageRef, layer: usize) -> bool;
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool;
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: TimeIndexEntry) -> bool;
 }
@@ -83,7 +83,7 @@ impl<G: GraphView> InnerFilterOps for G {
             || self.internal_exploded_edge_filtered()
     }
 
-    fn filter_edge_inner(&self, edge: EdgeStorageRef) -> bool {
+    fn filter_edge_inner(&self, edge: EdgeEntryRef) -> bool {
         self.internal_filter_edge(edge, self.layer_ids())
             && (self.edge_filter_includes_edge_layer_filter()
                 || edge
@@ -93,7 +93,7 @@ impl<G: GraphView> InnerFilterOps for G {
             && self.filter_edge_from_nodes(edge)
     }
 
-    fn filter_edge_layer_inner(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.layer_ids().contains(&layer)
             && self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
@@ -174,7 +174,7 @@ impl<G: GraphView> FilterOps for G {
             && self.node_filter_includes_exploded_edge_filter()
     }
 
-    fn filter_edge(&self, edge: EdgeStorageRef) -> bool {
+    fn filter_edge(&self, edge: EdgeEntryRef) -> bool {
         self.internal_filter_edge(edge, self.layer_ids()) && self.filter_edge_from_nodes(edge) && {
             let time_semantics = self.edge_time_semantics();
             edge.layer_ids_iter(self.layer_ids()).any(|layer_id| {
@@ -184,7 +184,7 @@ impl<G: GraphView> FilterOps for G {
         }
     }
 
-    fn filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
                 || self.internal_filter_edge(edge, self.layer_ids()))
@@ -207,7 +207,7 @@ impl<G: GraphView> FilterOps for G {
             && self.exploded_edge_filter_includes_edge_layer_filter()
     }
 
-    fn filter_edge_from_nodes(&self, edge: EdgeStorageRef) -> bool {
+    fn filter_edge_from_nodes(&self, edge: EdgeEntryRef) -> bool {
         self.exploded_edge_filter_includes_node_filter()
             || self.edge_layer_filter_includes_node_filter()
             || self.edge_filter_includes_node_filter()
@@ -216,7 +216,7 @@ impl<G: GraphView> FilterOps for G {
     }
 }
 
-fn filter_edge_from_exploded_filter<G: GraphView>(view: &G, edge: EdgeStorageRef) -> bool {
+fn filter_edge_from_exploded_filter<G: GraphView>(view: &G, edge: EdgeEntryRef) -> bool {
     view.edge_filter_includes_exploded_edge_filter()
         || view.edge_layer_filter_includes_exploded_edge_filter()
         || {

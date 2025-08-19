@@ -23,10 +23,11 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    edges::{edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use storage::EdgeEntryRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Temporal {
@@ -378,7 +379,7 @@ impl PropertyFilter {
         &self,
         graph: &G,
         prop_id: Option<usize>,
-        edge: EdgeStorageRef,
+        edge: EdgeEntryRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
         match self.prop_ref {

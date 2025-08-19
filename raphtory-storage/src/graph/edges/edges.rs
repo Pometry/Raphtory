@@ -1,9 +1,8 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
-use crate::graph::edges::edge_ref::EdgeStorageRef;
 use raphtory_api::core::entities::{LayerIds, EID};
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
-use storage::{utils::Iter2, Extension, ReadLockedEdges};
+use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges};
 
 pub struct EdgesStorage {
     storage: Arc<ReadLockedEdges<Extension>>,
@@ -19,21 +18,21 @@ impl EdgesStorage {
         EdgesStorageRef::Mem(self.storage.as_ref())
     }
 
-    pub fn edge(&self, eid: EID) -> EdgeStorageRef {
+    pub fn edge(&self, eid: EID) -> EdgeEntryRef {
         self.storage.edge_ref(eid)
     }
 
     pub fn iter<'a>(
         &'a self,
         layers: &'a LayerIds,
-    ) -> impl Iterator<Item = EdgeStorageRef<'a>> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = EdgeEntryRef<'a>> + Send + Sync + 'a {
         self.storage.iter(layers)
     }
 
     pub fn par_iter<'a>(
         &'a self,
         layers: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + Sync + 'a {
+    ) -> impl ParallelIterator<Item = EdgeEntryRef<'a>> + Sync + 'a {
         self.storage.par_iter(layers)
     }
 }

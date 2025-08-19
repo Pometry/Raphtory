@@ -1,3 +1,1 @@
-use storage::EdgeEntryRef;
-
-pub type EdgeStorageRef<'a> = EdgeEntryRef<'a>;
+pub use storage::EdgeEntryRef;

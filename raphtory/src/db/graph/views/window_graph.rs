@@ -74,7 +74,7 @@ use raphtory_api::{
 };
 use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+    graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -517,7 +517,7 @@ impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_edge_list_trusted())
     }
 
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_edge(edge, layer_ids)
     }
 
@@ -535,7 +535,7 @@ impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

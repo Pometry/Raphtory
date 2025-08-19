@@ -11,13 +11,12 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::{
-    edge_ref::EdgeStorageRef,
-    edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
+    edge_storage_ops::{EdgeStorageOps},
     edges::EdgesStorage,
 };
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, ops::Range};
-use storage::{EdgeAdditions, EdgeDeletions};
+use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 #[derive(Clone)]
 pub struct FilteredEdgeTimeIndex<'graph, G, TS> {
@@ -313,7 +312,7 @@ pub trait FilteredEdgeStorageOps<'a> {
     ) -> Option<Prop>;
 }
 
-impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
+impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
@@ -449,7 +448,7 @@ pub trait FilteredEdgesStorageOps {
         &'a self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + 'a;
+    ) -> impl ParallelIterator<Item = EdgeEntryRef<'a>> + 'a;
 }
 
 impl FilteredEdgesStorageOps for EdgesStorage {
@@ -457,7 +456,7 @@ impl FilteredEdgesStorageOps for EdgesStorage {
         &'a self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl ParallelIterator<Item = EdgeStorageRef<'a>> + 'a {
+    ) -> impl ParallelIterator<Item = EdgeEntryRef<'a>> + 'a {
         let par_iter = self.par_iter(layer_ids);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(par_iter),

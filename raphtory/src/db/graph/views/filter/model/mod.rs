@@ -11,8 +11,9 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
+use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
+use storage::EdgeEntryRef;
 
 pub mod edge_filter;
 pub mod filter_operator;
@@ -130,7 +131,7 @@ impl Filter {
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
         &self,
         graph: &G,
-        edge: EdgeStorageRef,
+        edge: EdgeEntryRef,
     ) -> bool {
         match self.field_name.as_str() {
             "src" => self.matches(graph.node(edge.src()).map(|n| n.name()).as_deref()),

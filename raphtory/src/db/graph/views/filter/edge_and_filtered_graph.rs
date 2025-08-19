@@ -24,8 +24,9 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{core_ops::InheritCoreGraphOps};
 use std::ops::Range;
+use storage::EdgeEntryRef;
 
 #[derive(Debug, Clone)]
 pub struct EdgeAndFilteredGraph<G, L, R> {
@@ -217,7 +218,7 @@ impl<G, L: InternalEdgeLayerFilterOps, R: InternalEdgeLayerFilterOps> InternalEd
             && self.right.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.left.internal_filter_edge_layer(edge, layer)
             && self.right.internal_filter_edge_layer(edge, layer)
     }
@@ -260,7 +261,7 @@ impl<G, L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOp
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         self.left.internal_filter_edge(edge, layer_ids)
             && self.right.internal_filter_edge(edge, layer_ids)
     }
