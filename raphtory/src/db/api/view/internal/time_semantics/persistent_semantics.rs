@@ -152,12 +152,11 @@ fn persisted_prop_value_at<'a, 'b>(
     t: i64,
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
-) -> Option<(TimeIndexEntry, Prop)> {
+) -> Option<Prop> {
     if props.active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
         None
     } else {
-        last_prop_value_before(TimeIndexEntry::start(t), props, deletions)
-            .map(|(update_t, v)| (TimeIndexEntry(t, update_t.i()), v))
+        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
     }
 }
 
@@ -471,12 +470,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         }
     }
 
-    fn include_edge<G: GraphView>(
-        &self,
-        _edge: EdgeEntryRef,
-        _view: G,
-        _layer_id: usize,
-    ) -> bool {
+    fn include_edge<G: GraphView>(&self, _edge: EdgeEntryRef, _view: G, _layer_id: usize) -> bool {
         // history filtering only maps additions to deletions and thus doesn't filter edges
         true
     }
@@ -1151,14 +1145,17 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view.clone(), layer_ids)
             .map(|(layer, props)| {
-                let deletions = e
-                    .filtered_deletions(layer, &view)
-                    .merge(e.filtered_additions(layer, &view).invert());
-                let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|(t, v)| (t, layer, v));
+                let additions = e.filtered_additions(layer, &view);
+                let deletions = e.filtered_deletions(layer, &view);
+                let merged_deletions = deletions.clone().merge(additions.clone().invert());
+                let persisted_ts = persisted_event(additions, deletions, w.start);
+                let first_prop = persisted_ts.and_then(|ts| {
+                    persisted_prop_value_at(w.start, props.clone(), &merged_deletions)
+                        .map(|v| (TimeIndexEntry(w.start, ts.i()), layer, v))
+                });
                 first_prop.into_iter().chain(
                     props
-                        .iter_window(interior_window(w.clone(), &deletions))
+                        .iter_window(interior_window(w.clone(), &merged_deletions))
                         .map(move |(t, v)| (t, layer, v)),
                 )
             })
@@ -1175,11 +1172,16 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view.clone(), layer_ids)
             .map(|(layer, props)| {
-                let deletions = merged_deletions(e, &view, layer);
-                let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|(t, v)| (t, layer, v));
+                let additions = e.filtered_additions(layer, &view);
+                let deletions = e.filtered_deletions(layer, &view);
+                let merged_deletions = deletions.clone().merge(additions.clone().invert());
+                let persisted_ts = persisted_event(additions, deletions, w.start);
+                let first_prop = persisted_ts.and_then(|ts| {
+                    persisted_prop_value_at(w.start, props.clone(), &merged_deletions)
+                        .map(|v| (TimeIndexEntry(w.start, ts.i()), layer, v))
+                });
                 props
-                    .iter_inner_rev(Some(interior_window(w.clone(), &deletions)))
+                    .iter_inner_rev(Some(interior_window(w.clone(), &merged_deletions)))
                     .map(move |(t, v)| (t, layer, v))
                     .chain(first_prop.into_iter())
             })
