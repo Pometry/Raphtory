@@ -408,20 +408,22 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     let eid = EID(eid);
                     let src_id = node_map[edge.edge.src().index()];
                     let dst_id = node_map[edge.edge.dst().index()];
+                    let maybe_src_pos = shard.resolve_pos(src_id);
+                    let maybe_dst_pos = shard.resolve_pos(dst_id);
 
-                    if let Some(node_pos) = shard.resolve_pos(src_id) {
+                    if let Some(node_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
                         writer.add_static_outbound_edge(node_pos, dst_id, eid, 0);
                     }
 
-                    if let Some(node_pos) = shard.resolve_pos(dst_id) {
+                    if let Some(node_pos) = maybe_dst_pos {
                         let mut writer = shard.writer();
                         writer.add_static_inbound_edge(node_pos, src_id, eid, 0);
                     }
 
                     for e in edge.explode_layers() {
                         let layer = layer_map[e.edge.layer().unwrap()];
-                        if let Some(node_pos) = shard.resolve_pos(src_id) {
+                        if let Some(node_pos) = maybe_src_pos {
                             let mut writer = shard.writer();
                             writer.add_outbound_edge::<i64>(
                                 None,
@@ -431,7 +433,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 0,
                             );
                         }
-                        if let Some(node_pos) = shard.resolve_pos(dst_id) {
+                        if let Some(node_pos) = maybe_dst_pos {
                             let mut writer = shard.writer();
                             writer.add_inbound_edge::<i64>(
                                 None,
@@ -444,14 +446,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     }
 
                     for e in edge.explode() {
-                        if let Some(node_pos) = shard.resolve_pos(src_id) {
+                        if let Some(node_pos) = maybe_src_pos {
                             let mut writer = shard.writer();
 
                             let t = e.time_and_index().expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
                         }
-                        if let Some(node_pos) = shard.resolve_pos(dst_id) {
+                        if let Some(node_pos) = maybe_dst_pos {
                             let mut writer = shard.writer();
 
                             let t = e.time_and_index().expect("exploded edge should have time");
@@ -467,10 +469,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         self,
                         self.layer_ids(),
                     ) {
-                        let src = node_map[edge.edge.src().index()];
-                        let dst = node_map[edge.edge.dst().index()];
-
-                        if let Some(node_pos) = shard.resolve_pos(src) {
+                        if let Some(node_pos) = maybe_src_pos {
                             let mut writer = shard.writer();
                             writer.update_deletion_time(
                                 t,
@@ -479,7 +478,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                                 0,
                             );
                         }
-                        if let Some(node_pos) = shard.resolve_pos(dst) {
+                        if let Some(node_pos) = maybe_dst_pos {
                             let mut writer = shard.writer();
                             writer.update_deletion_time(
                                 t,
