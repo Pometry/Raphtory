@@ -7,6 +7,7 @@ use crate::{
     errors::GraphError,
 };
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -40,6 +41,8 @@ use storage::{Extension, WalImpl};
 #[cfg(feature = "proto")]
 use crate::serialise::GraphFolder;
 
+use raphtory_core::entities::nodes::node_ref::AsNodeRef;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -380,9 +383,8 @@ impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
         self.session.internal_add_node(t, v, props)?;
 
         #[cfg(feature = "search")]
-        self.storage.if_index_mut(|index| {
-            index.add_node_update(&self.storage.graph, t, MaybeNew::New(v), props)
-        })?;
+        self.storage
+            .if_index_mut(|index| index.add_node_update(t, v, props))?;
 
         Ok(())
     }
@@ -455,12 +457,23 @@ impl InternalAdditionOps for Storage {
         }
     }
 
-    fn resolve_node_and_type(
+    fn resolve_and_update_node_and_type(
         &self,
         id: NodeRef,
-        node_type: &str,
+        node_type: Option<&str>,
     ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
+        let node_and_type = self.graph.resolve_and_update_node_and_type(id, node_type)?;
+
+        #[cfg(feature = "search")]
+        node_and_type
+            .if_new(|(node_id, _)| {
+                let name = match id.as_gid_ref() {
+                    Either::Left(gid) => gid.to_string(),
+                    Either::Right(vid) => self.core_node(vid).name().to_string(),
+                };
+                self.if_index_mut(|index| index.add_new_node(node_id.inner(), name, node_type))
+            })
+            .transpose()?;
 
         Ok(node_and_type)
     }
@@ -490,12 +503,18 @@ impl InternalAdditionOps for Storage {
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
-        v: impl Into<VID>,
-        gid: Option<GidRef>,
-        node_type: Option<usize>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        v: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
-        Ok(self.graph.internal_add_node(t, v, gid, node_type, props)?)
+        #[cfg(feature = "search")]
+        let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
+        // don't fail early on indexing, actually update the graph even if indexing failed
+        self.graph.internal_add_node(t, v, props)?;
+
+        #[cfg(feature = "search")]
+        index_res?;
+
+        Ok(())
     }
 
     fn validate_props<PN: AsRef<str>>(
@@ -531,6 +550,14 @@ impl InternalAdditionOps for Storage {
 
     fn wal(&self) -> &WalImpl {
         self.graph.mutable().unwrap().wal.as_ref()
+    }
+
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 }
 

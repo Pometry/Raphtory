@@ -1007,6 +1007,14 @@ mod test_deletions {
     }
 
     #[test]
+    fn test_materialize_node_type() {
+        let g = PersistentGraph::new();
+        g.delete_edge(0, 0, 0, None).unwrap();
+        g.node(0).unwrap().set_node_type("test").unwrap();
+        assert_graph_equal(&g, &g.materialize().unwrap());
+    }
+
+    #[test]
     fn test_edge_is_valid() {
         let g = PersistentGraph::new();
 
@@ -2046,4 +2054,6 @@ mod test_edge_history_filter_persistent_graph {
         // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
         // assert!(!bool);
     }
+
+
 }

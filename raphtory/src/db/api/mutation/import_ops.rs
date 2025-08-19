@@ -333,19 +333,11 @@ fn import_node_internal<
         }
     }
 
-    let (node_internal, node_type) = match node.node_type().as_str() {
-        None => (
-            graph.resolve_node(id).map_err(into_graph_err)?.inner(),
-            None,
-        ),
-        Some(node_type) => {
-            let (node_internal, node_type) = graph
-                .resolve_node_and_type(id, node_type)
-                .map_err(into_graph_err)?
-                .inner();
-            (node_internal.inner(), Some(node_type.inner()))
-        }
-    };
+    let (node_internal, _) = graph
+        .resolve_and_update_node_and_type(id, node.node_type().as_str())
+        .map_err(into_graph_err)?
+        .inner();
+    let node_internal = node_internal.inner();
     let session = graph.write_session().map_err(|err| err.into())?;
     let keys = node.graph.node_meta().temporal_prop_mapper().all_keys();
 
@@ -364,7 +356,7 @@ fn import_node_internal<
             .map_err(into_graph_err)?;
 
         graph
-            .internal_add_node(t, node_internal, gid_ref, node_type, props)
+            .internal_add_node(t, node_internal, props)
             .map_err(into_graph_err)?;
     }
 

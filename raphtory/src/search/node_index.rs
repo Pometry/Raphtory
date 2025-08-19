@@ -13,7 +13,10 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::storage::{
+    arc_str::{ArcStr, OptionAsStr},
+    dict_mapper::MaybeNew,
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{
@@ -193,7 +196,7 @@ impl NodeIndex {
         &self,
         node_id: u64,
         node_name: String,
-        node_type: Option<ArcStr>,
+        node_type: Option<&str>,
     ) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.node_id_field, node_id);
@@ -215,7 +218,7 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type();
 
-        let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
+        let node_doc = self.create_document(node_id, node_name.clone(), node_type.as_str());
         writer.add_document(node_doc)?;
 
         Ok(())
@@ -250,31 +253,29 @@ impl NodeIndex {
         Ok(())
     }
 
+    pub(crate) fn add_new_node(
+        &self,
+        node_id: VID,
+        name: String,
+        node_type: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let vid_u64 = node_id.as_u64(); // Check if the node document is already in the index,
+                                        // if it does skip adding a new doc for same node
+
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
+        let node_doc = self.create_document(vid_u64, name, node_type);
+        writer.add_document(node_doc)?;
+        writer.commit()?;
+        Ok(())
+    }
+
     pub(crate) fn add_node_update(
         &self,
-        graph: &GraphStorage,
         t: TimeIndexEntry,
-        node_id: MaybeNew<VID>,
+        node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.inner().as_u64() as usize))
-            .expect("Node for internal id should exist.")
-            .at(t.t());
-        let vid_u64 = node_id.inner().as_u64();
-
-        // Check if the node document is already in the index,
-        // if it does skip adding a new doc for same node
-        node_id
-            .if_new(|_| {
-                let mut writer = self.entity_index.index.writer(100_000_000)?;
-                let node_doc = self.create_document(vid_u64, node.name(), node.node_type());
-                writer.add_document(node_doc)?;
-                writer.commit()?;
-                Ok::<(), GraphError>(())
-            })
-            .transpose()?;
-
+        let vid_u64 = node_id.as_u64();
         let indexes = self.entity_index.temporal_property_indexes.read();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {

@@ -139,7 +139,7 @@ pub(crate) fn load_nodes_from_df<
 
                 let (vid, res_node_type) = write_locked_graph
                     .graph()
-                    .resolve_node_and_type_fast(gid.as_node_ref(), node_type)
+                    .resolve_node_and_type(gid.as_node_ref(), node_type)
                     .map_err(|_| LoadError::FatalError)?;
                 *resolved = vid;
                 *node_type_resolved = res_node_type;
@@ -674,7 +674,7 @@ pub(crate) fn load_node_props_from_df<
                 let gid = gid.ok_or(LoadError::FatalError)?;
                 let (vid, res_node_type) = write_locked_graph
                     .graph()
-                    .resolve_node_and_type_fast(gid.as_node_ref(), node_type)
+                    .resolve_node_and_type(gid.as_node_ref(), node_type)
                     .map_err(|_| LoadError::FatalError)?;
                 *resolved = vid;
                 *node_type_resolved = res_node_type;

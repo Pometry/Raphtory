@@ -10,7 +10,7 @@ use crate::{
     serialise::GraphFolder,
 };
 use parking_lot::RwLock;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
@@ -77,14 +77,22 @@ impl MutableGraphIndex {
         Ok(())
     }
 
+    pub(crate) fn add_new_node(
+        &self,
+        node_id: VID,
+        name: String,
+        node_type: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.index.node_index.add_new_node(node_id, name, node_type)
+    }
+
     pub(crate) fn add_node_update(
         &self,
-        graph: &GraphStorage,
         t: TimeIndexEntry,
-        v: MaybeNew<VID>,
+        v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        self.index.node_index.add_node_update(graph, t, v, props)?;
+        self.index.node_index.add_node_update(t, v, props)?;
         Ok(())
     }
 

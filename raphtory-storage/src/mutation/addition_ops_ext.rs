@@ -1,14 +1,16 @@
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
-        meta::{Meta, NODE_ID_IDX},
-        prop::{Prop, PropType},
+        meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
+        prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers, nodes::node_ref::NodeRef, GidRef, EID, ELID, MAX_LAYER, VID,
+        graph::tgraph::TooManyLayers,
+        nodes::node_ref::{AsNodeRef, NodeRef},
+        GidRef, EID, ELID, MAX_LAYER, VID,
     },
     storage::timeindex::TimeIndexEntry,
 };
@@ -72,7 +74,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
         let eid = self
             .static_session
             .add_static_edge(src, dst, lsn)
-            .map(|eid| eid.with_layer(layer));
+            .map(|eid| eid.with_layer_deletion(layer));
 
         self.static_session
             .delete_edge_from_layer(t, src, dst, eid, lsn);
@@ -229,14 +231,66 @@ impl InternalAdditionOps for TemporalGraph {
         }
     }
 
+    fn resolve_and_update_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        let vid = self.resolve_node(id)?;
+        let (segment_id, local_pos) = self.storage().nodes().resolve_pos(vid.inner());
+        let mut writer = self.storage().nodes().writer(segment_id);
+        let node_type_id = match node_type {
+            None => {
+                writer.update_c_props(
+                    local_pos,
+                    0,
+                    node_info_as_props(id.as_gid_ref().left(), None),
+                    0,
+                );
+                MaybeNew::Existing(0)
+            }
+            Some(node_type) => {
+                let old_type = writer.get_metadata(local_pos, 0, NODE_TYPE_IDX).into_u64();
+                match old_type {
+                    None => {
+                        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
+                        writer.update_c_props(
+                            local_pos,
+                            0,
+                            node_info_as_props(
+                                id.as_gid_ref().left(),
+                                Some(node_type_id.inner()).filter(|&id| id != 0),
+                            ),
+                            0,
+                        );
+                        node_type_id
+                    }
+                    Some(old_type) => MaybeNew::Existing(
+                        self.node_meta()
+                            .get_node_type_id(node_type)
+                            .filter(|&new_id| new_id == old_type as usize)
+                            .ok_or(MutationError::NodeTypeError)?,
+                    ),
+                }
+            }
+        };
+        Ok(vid.map(|_| (vid, node_type_id)))
+    }
+
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
-        let vid = self.resolve_node(id)?;
-        let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
-        Ok(vid.map(|_| (vid, node_type_id)))
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        let vid = self.resolve_node(id)?.inner();
+        let node_type_id = match node_type {
+            Some(node_type) => self
+                .node_meta()
+                .get_or_create_node_type_id(node_type)
+                .inner(),
+            None => 0,
+        };
+        Ok((vid, node_type_id))
     }
 
     fn validate_gids<'a>(
@@ -266,19 +320,12 @@ impl InternalAdditionOps for TemporalGraph {
     fn internal_add_node(
         &self,
         t: TimeIndexEntry,
-        v: impl Into<VID>,
-        gid: Option<GidRef>,
-        node_type: Option<usize>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        v: VID,
+        props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
-        let v = v.into();
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
         node_writer.add_props(t, node_pos, 0, props, 0);
-        if gid.is_some() || node_type.is_some() {
-            let node_info = node_info_as_props(gid, node_type);
-            node_writer.update_c_props(node_pos, 0, node_info, 0);
-        }
         Ok(())
     }
 

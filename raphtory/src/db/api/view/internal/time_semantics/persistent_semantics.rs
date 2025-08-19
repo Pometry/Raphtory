@@ -152,11 +152,12 @@ fn persisted_prop_value_at<'a, 'b>(
     t: i64,
     props: impl TPropOps<'a>,
     deletions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
-) -> Option<Prop> {
+) -> Option<(TimeIndexEntry, Prop)> {
     if props.active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
         None
     } else {
-        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
+        last_prop_value_before(TimeIndexEntry::start(t), props, deletions)
+            .map(|(update_t, v)| (TimeIndexEntry(t, update_t.i()), v))
     }
 }
 
@@ -1154,7 +1155,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     .filtered_deletions(layer, &view)
                     .merge(e.filtered_additions(layer, &view).invert());
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|v| (TimeIndexEntry::start(w.start), layer, v));
+                    .map(|(t, v)| (t, layer, v));
                 first_prop.into_iter().chain(
                     props
                         .iter_window(interior_window(w.clone(), &deletions))
@@ -1176,7 +1177,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .map(|(layer, props)| {
                 let deletions = merged_deletions(e, &view, layer);
                 let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|v| (TimeIndexEntry::start(w.start), layer, v));
+                    .map(|(t, v)| (t, layer, v));
                 props
                     .iter_inner_rev(Some(interior_window(w.clone(), &deletions)))
                     .map(move |(t, v)| (t, layer, v))
