@@ -74,7 +74,7 @@ impl<'a, EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> EdgeWriteLock for 
         let eid = self
             .static_session
             .add_static_edge(src, dst, lsn)
-            .map(|eid| eid.with_layer(layer));
+            .map(|eid| eid.with_layer_deletion(layer));
 
         self.static_session
             .delete_edge_from_layer(t, src, dst, eid, lsn);
