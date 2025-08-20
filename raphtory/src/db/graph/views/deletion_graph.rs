@@ -662,7 +662,6 @@ mod test_deletions {
     }
 
     #[test]
-
     #[test]
     fn materialize_window_multilayer() {
         let g = PersistentGraph::new();
@@ -892,6 +891,21 @@ mod test_deletions {
                 .collect_vec(),
             vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
         );
+    }
+
+    #[test]
+    fn test_multiple_edge_properties() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, [("test1", "test1")], None).unwrap();
+        g.add_edge(1, 0, 1, [("test2", "test2")], None).unwrap();
+
+        let e = g.edge(0, 1).unwrap();
+        assert_eq!(e.properties().get("test1").unwrap_str(), "test1");
+        assert_eq!(e.properties().get("test2").unwrap_str(), "test2");
+
+        let ew = e.window(1, 10);
+        assert_eq!(ew.properties().get("test1").unwrap_str(), "test1");
+        assert_eq!(ew.properties().get("test2").unwrap_str(), "test2");
     }
 
     #[test]
