@@ -4,11 +4,10 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     sync::GILOnceCell,
-    types::{PyBool, PyType},
+    types::{PyBool, PyIterator, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use std::{ops::Deref, str::FromStr, sync::Arc};
-
 #[cfg(feature = "arrow")]
 use {crate::core::entities::properties::prop::PropArray, pyo3_arrow::PyArray};
 
@@ -110,6 +109,24 @@ impl PyProp {
     #[staticmethod]
     pub fn bool(value: bool) -> Self {
         PyProp(Prop::Bool(value))
+    }
+
+    #[staticmethod]
+    pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let iter = PyIterator::from_object(values)?;
+        let mut elems = Vec::new();
+
+        for item in iter {
+            let item = item?;
+            if let Ok(pyref) = item.extract::<PyRef<PyProp>>() {
+                elems.push(pyref.0.clone());
+                continue;
+            }
+            let p: Prop = item.extract()?;
+            elems.push(p);
+        }
+
+        Ok(PyProp(Prop::List(Arc::new(elems))))
     }
 
     pub fn dtype(&self) -> String {
