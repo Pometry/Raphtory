@@ -10,10 +10,7 @@ use raphtory_api::core::{
     },
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
-use raphtory_storage::graph::edges::{
-    edge_storage_ops::{EdgeStorageOps},
-    edges::EdgesStorage,
-};
+use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorage};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, ops::Range};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
@@ -254,6 +251,12 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 }
 
 pub trait FilteredEdgeStorageOps<'a> {
+    fn filtered_layer_ids_iter<G: GraphView + 'a>(
+        self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + 'a;
+
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
@@ -313,16 +316,22 @@ pub trait FilteredEdgeStorageOps<'a> {
 }
 
 impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
+    fn filtered_layer_ids_iter<G: GraphView + 'a>(
+        self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .filter(move |layer_id| view.internal_filter_edge_layer(self, *layer_id))
+    }
+
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)> {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer)
-                .then(move || (layer, self.filtered_additions(layer, view.clone())))
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| (layer_id, self.filtered_additions(layer_id, view.clone())))
     }
 
     fn filtered_deletions_iter<G: GraphViewOps<'a>>(
@@ -330,11 +339,8 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)> {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer)
-                .then(move || (layer, self.filtered_deletions(layer, view.clone())))
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer| (layer, self.filtered_deletions(layer, view.clone())))
     }
 
     fn filtered_updates_iter<G: GraphViewOps<'a>>(
@@ -348,29 +354,26 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
             FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>>,
         ),
     > + 'a {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer_id| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer_id)
-                .then(move || {
-                    (
-                        layer_id,
-                        self.filtered_additions(layer_id, view.clone()),
-                        self.filtered_deletions(layer_id, view.clone()),
-                    )
-                })
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| {
+                (
+                    layer_id,
+                    self.filtered_additions(layer_id, view.clone()),
+                    self.filtered_deletions(layer_id, view.clone()),
+                )
+            })
     }
 
     fn filtered_additions<G: GraphViewOps<'a>>(
         self,
         layer_id: usize,
         view: G,
-    ) -> FilteredEdgeTimeIndex<'a, G, storage::EdgeAdditions<'a>> {
+    ) -> FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>> {
         FilteredEdgeTimeIndex {
             eid: self.eid().with_layer(layer_id),
             time_index: self.additions(layer_id),
             view,
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 
@@ -383,7 +386,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
             eid: self.eid().with_layer_deletion(layer_id),
             time_index: self.deletions(layer_id),
             view,
-            _marker: std::marker::PhantomData,
+            _marker: PhantomData,
         }
     }
 
@@ -406,16 +409,13 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer_id| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer_id)
-                .then(move || {
-                    (
-                        layer_id,
-                        self.filtered_temporal_prop_layer(layer_id, prop_id, view.clone()),
-                    )
-                })
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| {
+                (
+                    layer_id,
+                    self.filtered_temporal_prop_layer(layer_id, prop_id, view.clone()),
+                )
+            })
     }
 
     fn filtered_edge_metadata<G: GraphView>(
