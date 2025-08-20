@@ -212,7 +212,7 @@ mod subgraph_tests {
     use ahash::HashSet;
     use itertools::Itertools;
     use proptest::{proptest, sample::subsequence};
-    use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
+    use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use std::collections::BTreeSet;
 
     #[test]

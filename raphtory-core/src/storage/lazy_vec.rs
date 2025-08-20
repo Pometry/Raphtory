@@ -168,7 +168,7 @@ where
     A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
     // fails if there is already a value set for the given id to a different value
-    pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
+    pub fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
         match self {
             LazyVec::Empty => {
                 *self = Self::from(id, value);
@@ -199,7 +199,7 @@ where
         }
     }
 
-    pub(crate) fn update<F, B, E>(&mut self, id: usize, updater: F) -> Result<B, E>
+    pub fn update<F, B, E>(&mut self, id: usize, updater: F) -> Result<B, E>
     where
         F: FnOnce(&mut A) -> Result<B, E>,
         E: From<IllegalSet<A>>,
@@ -241,7 +241,7 @@ where
         LazyVec::LazyVec1(A::default(), TupleCol::from(inner))
     }
 
-    pub(crate) fn filled_ids(&self) -> BoxedLIter<usize> {
+    pub fn filled_ids(&self) -> BoxedLIter<'_, usize> {
         match self {
             LazyVec::Empty => Box::new(iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(
@@ -281,7 +281,7 @@ where
         }
     }
 
-    pub(crate) fn get(&self, id: usize) -> Option<&A> {
+    pub fn get(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(default, tuples) => tuples
                 .get(id)

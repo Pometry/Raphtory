@@ -32,7 +32,7 @@ impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
 
 impl<'a> NodeStorageEntry<'a> {
     #[inline]
-    pub fn as_ref(&self) -> NodeStorageRef {
+    pub fn as_ref(&self) -> NodeStorageRef<'_> {
         match self {
             NodeStorageEntry::Mem(entry) => *entry,
             NodeStorageEntry::Unlocked(entry) => entry.as_ref(),

@@ -7,7 +7,6 @@ use crate::{
     errors::GraphError,
 };
 use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
-use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -38,19 +37,17 @@ use std::{
 };
 use storage::{Extension, WalImpl};
 
-#[cfg(feature = "proto")]
-use crate::serialise::GraphFolder;
-
-use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 #[cfg(feature = "search")]
 use {
     crate::{
         db::api::view::IndexSpec,
         search::graph_index::{GraphIndex, MutableGraphIndex},
+        serialise::GraphFolder,
     },
-    once_cell::sync::OnceCell,
+    either::Either,
     parking_lot::RwLock,
+    raphtory_core::entities::nodes::node_ref::AsNodeRef,
+    raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
     std::ops::{Deref, DerefMut},
     tracing::info,
 };
@@ -278,6 +275,15 @@ pub struct AtomicAddEdgeSession<'a> {
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
+    fn internal_add_static_edge(
+        &mut self,
+        src: impl Into<VID>,
+        dst: impl Into<VID>,
+        lsn: u64,
+    ) -> MaybeNew<EID> {
+        self.session.internal_add_static_edge(src, dst, lsn)
+    }
+
     fn internal_add_edge(
         &mut self,
         t: TimeIndexEntry,
@@ -289,15 +295,6 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     ) -> MaybeNew<ELID> {
         self.session
             .internal_add_edge(t, src, dst, e_id, lsn, props)
-    }
-
-    fn internal_add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        lsn: u64,
-    ) -> MaybeNew<EID> {
-        self.session.internal_add_static_edge(src, dst, lsn)
     }
 
     fn internal_delete_edge(
@@ -436,7 +433,7 @@ impl InternalAdditionOps for Storage {
     type WS<'a> = StorageWriteSession<'a>;
     type AtomicAddEdge<'a> = AtomicAddEdgeSession<'a>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         Ok(self.graph.write_lock()?)
     }
 
@@ -589,7 +586,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
@@ -602,7 +599,7 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
@@ -616,7 +613,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "search")]
@@ -630,7 +627,7 @@ impl InternalPropertyAdditionOps for Storage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;

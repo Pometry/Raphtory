@@ -72,9 +72,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn segment_id(&self) -> usize;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment>;
-    fn head(&self) -> RwLockReadGuard<MemNodeSegment>;
+    fn head(&self) -> RwLockReadGuard<'_, MemNodeSegment>;
 
-    fn head_mut(&self) -> RwLockWriteGuard<MemNodeSegment>;
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
     fn num_nodes(&self) -> usize {
         self.layer_count(0)

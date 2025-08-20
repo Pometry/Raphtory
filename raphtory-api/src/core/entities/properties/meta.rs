@@ -1,23 +1,19 @@
+use crate::core::{
+    entities::properties::prop::{check_for_unification, unify_types, PropError, PropType},
+    storage::{
+        arc_str::ArcStr,
+        dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},
+    },
+};
+use itertools::Either;
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use std::{
     ops::{Deref, DerefMut},
     sync::{
         atomic::{self, AtomicUsize},
         Arc,
-    },
-};
-
-use itertools::Either;
-use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
-
-use crate::core::{
-    entities::properties::prop::{check_for_unification, unify_types, PropError, PropType},
-    storage::{
-        arc_str::ArcStr,
-        dict_mapper::{
-            AllKeys, DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper,
-        },
     },
 };
 

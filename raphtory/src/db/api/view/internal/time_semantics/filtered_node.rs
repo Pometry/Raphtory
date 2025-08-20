@@ -11,10 +11,7 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use std::ops::Range;
 use storage::gen_ts::ALL_LAYERS;
 

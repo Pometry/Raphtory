@@ -24,24 +24,24 @@ pub trait InternalPropertyAdditionOps {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error>;
+    ) -> Result<NodeWriterT<'_>, Self::Error>;
     fn internal_update_node_metadata(
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error>;
+    ) -> Result<NodeWriterT<'_>, Self::Error>;
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error>;
+    ) -> Result<EdgeWriterT<'_>, Self::Error>;
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error>;
+    ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
 
 impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
@@ -79,7 +79,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
         writer.update_c_props(node_pos, 0, props.iter().cloned(), 0);
@@ -90,7 +90,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         todo!()
     }
 
@@ -99,7 +99,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
@@ -114,7 +114,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
@@ -148,7 +148,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_add_node_metadata(vid, props)
     }
 
@@ -156,7 +156,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_update_node_metadata(vid, props)
     }
 
@@ -165,7 +165,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_add_edge_metadata(eid, layer, props)
     }
@@ -175,7 +175,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_update_edge_metadata(eid, layer, props)
     }
@@ -213,7 +213,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_add_node_metadata(vid, props)
     }
 
@@ -222,7 +222,7 @@ where
         &self,
         vid: VID,
         props: &[(usize, Prop)],
-    ) -> Result<NodeWriterT, Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_update_node_metadata(vid, props)
     }
 
@@ -232,7 +232,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_add_edge_metadata(eid, layer, props)
     }
 
@@ -242,7 +242,7 @@ where
         eid: EID,
         layer: usize,
         props: &[(usize, Prop)],
-    ) -> Result<EdgeWriterT, Self::Error> {
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_update_edge_metadata(eid, layer, props)
     }
 }

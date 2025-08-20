@@ -19,12 +19,12 @@ impl NodesStorage {
     }
 
     #[inline]
-    pub fn as_ref(&self) -> NodesStorageEntry {
+    pub fn as_ref(&self) -> NodesStorageEntry<'_> {
         NodesStorageEntry::Mem(self.storage.as_ref())
     }
 
     #[inline]
-    pub fn node_entry(&self, vid: VID) -> NodeStorageRef {
+    pub fn node_entry(&self, vid: VID) -> NodeStorageRef<'_> {
         self.storage.node_ref(vid)
     }
 

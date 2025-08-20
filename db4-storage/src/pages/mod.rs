@@ -1,19 +1,8 @@
-use std::{
-    path::Path,
-    sync::{
-        Arc,
-        atomic::{self, AtomicUsize},
-    },
-};
-
 use crate::{
     LocalPOS,
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{
-        edge_store::ReadLockedEdgeStorage, flush_thread::FlushThread,
-        node_store::ReadLockedNodeStorage,
-    },
+    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::strategy::PersistentStrategy,
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
@@ -24,10 +13,7 @@ use node_page::writer::{NodeWriter, WriterPair};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{
-        meta::Meta,
-        prop::{Prop, PropType},
-    },
+    entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -37,6 +23,13 @@ use raphtory_core::{
 };
 use serde::{Deserialize, Serialize};
 use session::WriteSession;
+use std::{
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{self, AtomicUsize},
+    },
+};
 
 pub mod edge_page;
 pub mod edge_store;
@@ -369,15 +362,18 @@ impl<
     pub fn node_writer(
         &self,
         node_segment: usize,
-    ) -> NodeWriter<RwLockWriteGuard<MemNodeSegment>, NS> {
+    ) -> NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS> {
         self.nodes().writer(node_segment)
     }
 
-    pub fn edge_writer(&self, eid: EID) -> EdgeWriter<RwLockWriteGuard<MemEdgeSegment>, ES> {
+    pub fn edge_writer(
+        &self,
+        eid: EID,
+    ) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
         self.edges().get_writer(eid)
     }
 
-    pub fn get_free_writer(&self) -> EdgeWriter<RwLockWriteGuard<MemEdgeSegment>, ES> {
+    pub fn get_free_writer(&self) -> EdgeWriter<'_, RwLockWriteGuard<'_, MemEdgeSegment>, ES> {
         self.edges().get_free_writer()
     }
 }

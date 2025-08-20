@@ -1,16 +1,11 @@
+use crate::{
+    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
+    pages::node_store::NodeStorageInner,
+};
 use std::{
     collections::BinaryHeap,
     sync::{Arc, atomic::AtomicBool},
     thread::JoinHandle,
-};
-
-use itertools::Itertools;
-
-use crate::{
-    NS,
-    api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
-    pages::node_store::NodeStorageInner,
-    persist::strategy::PersistentStrategy,
 };
 
 // This should be a rayon thread with a reference to Arc<NodeStorageInner> that will flush the data to disk periodically.

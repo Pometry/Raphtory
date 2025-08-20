@@ -1,12 +1,8 @@
 use crate::{
     entities::properties::tprop::{IllegalPropType, TProp},
-    storage::{
-        lazy_vec::{IllegalSet, LazyVec},
-        timeindex::TimeIndexEntry,
-    },
+    storage::lazy_vec::IllegalSet,
 };
 use raphtory_api::core::entities::properties::prop::Prop;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
 

@@ -455,7 +455,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.num_edges.load(atomic::Ordering::Relaxed)
     }
 
-    fn head(&self) -> parking_lot::RwLockReadGuard<MemEdgeSegment> {
+    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {
         self.segment.read_recursive()
     }
 
@@ -463,11 +463,11 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.segment.read_arc_recursive()
     }
 
-    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<MemEdgeSegment> {
+    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemEdgeSegment> {
         self.segment.write()
     }
 
-    fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<MemEdgeSegment>> {
+    fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
         self.segment.try_write()
     }
 

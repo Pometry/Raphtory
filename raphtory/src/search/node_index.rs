@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::VID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
-    },
+    core::{entities::VID, storage::timeindex::TimeIndexEntry},
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
     prelude::*,
@@ -13,10 +10,7 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::{
-    arc_str::{ArcStr, OptionAsStr},
-    dict_mapper::MaybeNew,
-};
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{
@@ -203,7 +197,7 @@ impl NodeIndex {
         document.add_text(self.node_name_field, node_name.clone());
         document.add_text(self.node_name_tokenized_field, node_name);
         if let Some(node_type) = node_type {
-            document.add_text(self.node_type_field, node_type.clone());
+            document.add_text(self.node_type_field, node_type);
             document.add_text(self.node_type_tokenized_field, node_type);
         }
         document

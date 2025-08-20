@@ -10,7 +10,7 @@ use crate::{
     serialise::GraphFolder,
 };
 use parking_lot::RwLock;
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::storage::dict_mapper::MaybeNew;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
@@ -368,7 +368,7 @@ impl GraphIndex {
         !matches!(self, GraphIndex::Empty)
     }
 
-    pub fn searcher(&self) -> Option<Searcher> {
+    pub fn searcher(&self) -> Option<Searcher<'_>> {
         self.index().map(Searcher::new)
     }
 }

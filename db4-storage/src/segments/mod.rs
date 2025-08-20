@@ -173,7 +173,7 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data.is_empty()
     }
 
-    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry)> {
+    pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
         self.items.iter_ones().filter_map(move |l_pos| {
             let entry = self.data.get(&LocalPOS(l_pos))?;
             Some((
@@ -184,7 +184,9 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
-    pub fn all_entries(&self) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, RowEntry)>)> {
+    pub fn all_entries(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
         self.items.iter().enumerate().map(move |(l_pos, exists)| {
             let l_pos = LocalPOS(l_pos);
             let entry = (*exists).then(|| {
@@ -197,7 +199,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn all_entries_par(
         &self,
-    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry)>)> + '_ {
+    ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> + '_ {
         (0..self.items.len()).into_par_iter().map(move |l_pos| {
             let exists = unsafe { self.items.get_unchecked(l_pos) };
             let l_pos = LocalPOS(l_pos);

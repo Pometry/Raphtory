@@ -32,7 +32,7 @@ pub trait InternalAdditionOps {
     where
         Self: 'a;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error>;
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error>;
 
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
@@ -200,7 +200,7 @@ impl InternalAdditionOps for GraphStorage {
 
     type AtomicAddEdge<'a> = WriteS<'a, Extension>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         self.mutable()?.write_lock()
     }
 
@@ -313,7 +313,7 @@ where
         G: 'a;
 
     #[inline]
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         self.base().write_lock()
     }
 

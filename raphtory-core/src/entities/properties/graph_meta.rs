@@ -12,7 +12,7 @@ use raphtory_api::core::{
     },
     storage::{
         arc_str::ArcStr,
-        dict_mapper::{AllKeys, MaybeNew, PublicKeys},
+        dict_mapper::{MaybeNew, PublicKeys},
         FxDashMap,
     },
 };

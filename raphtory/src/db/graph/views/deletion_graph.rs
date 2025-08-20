@@ -194,7 +194,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
@@ -210,7 +210,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
                 .map(|v| (TimeIndexEntry::start(start), v));
@@ -232,7 +232,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         prop_id: usize,
         start: i64,
         end: i64,
-    ) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    ) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
             let first = persisted_prop_value_at(start, &*prop, &TimeIndex::Empty)
                 .map(|v| (TimeIndexEntry::start(start), v));
@@ -2054,6 +2054,4 @@ mod test_edge_history_filter_persistent_graph {
         // let bool = g.is_edge_prop_update_latest_window(prop_id, edge_id, TimeIndexEntry::end(3), w.clone());
         // assert!(!bool);
     }
-
-
 }

@@ -21,10 +21,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::{
-    entities::{
-        graph::logical_to_physical::{Mapping, ResolverShardT},
-        GidRef, GidType, VID,
-    },
+    entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
     storage::timeindex::AsTime,
 };
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -37,7 +34,6 @@ use std::{
         Arc,
     },
 };
-use storage::resolver::GIDResolverOps;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -250,7 +246,7 @@ pub(crate) fn load_edges_from_df<
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
     // set the type of the resolver;
-    let mut chunks = df_view.chunks.peekable();
+    let chunks = df_view.chunks.peekable();
     // let mapping = Mapping::new();
     // let mapping = write_locked_graph.graph().logical_to_physical.clone();
 
@@ -949,8 +945,6 @@ mod tests {
     use itertools::Itertools;
     use polars_arrow::array::{MutableArray, MutablePrimitiveArray, MutableUtf8Array};
     use proptest::proptest;
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use tempfile::TempDir;
 
     #[cfg(feature = "storage")]
     mod load_multi_layer {

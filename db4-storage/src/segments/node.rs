@@ -361,7 +361,7 @@ impl MemNodeSegment {
         self.layers.iter().map(|seg| seg.t_len()).sum()
     }
 
-    pub fn node_ref(&self, pos: LocalPOS) -> MemNodeRef {
+    pub fn node_ref(&self, pos: LocalPOS) -> MemNodeRef<'_> {
         MemNodeRef::new(pos, self)
     }
 }
@@ -460,7 +460,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.segment_id
     }
 
-    fn head(&self) -> parking_lot::RwLockReadGuard<MemNodeSegment> {
+    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
         self.inner.read()
     }
 
@@ -468,7 +468,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.inner.read_arc_recursive()
     }
 
-    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<MemNodeSegment> {
+    fn head_mut(&self) -> parking_lot::RwLockWriteGuard<'_, MemNodeSegment> {
         self.inner.write()
     }
 

@@ -52,13 +52,13 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn num_edges(&self) -> usize;
 
-    fn head(&self) -> RwLockReadGuard<MemEdgeSegment>;
+    fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
 
-    fn head_mut(&self) -> RwLockWriteGuard<MemEdgeSegment>;
+    fn head_mut(&self) -> RwLockWriteGuard<'_, MemEdgeSegment>;
 
-    fn try_head_mut(&self) -> Option<RwLockWriteGuard<MemEdgeSegment>>;
+    fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
     fn notify_write(
         &self,

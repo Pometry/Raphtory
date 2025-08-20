@@ -380,12 +380,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::{entities::properties::tcell::TCell, storage::timeindex::TimeIndexOps};
     use raphtory_api::core::storage::timeindex::TimeIndexEntry;
-
-    use crate::{
-        entities::properties::tcell::TCell,
-        storage::timeindex::{TimeIndex, TimeIndexOps, TimeIndexWindow},
-    };
 
     #[test]
     fn window_of_window_not_empty() {

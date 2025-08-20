@@ -98,7 +98,7 @@ impl TimeCol {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct DFChunk {
+pub struct DFChunk {
     pub(crate) chunk: Vec<Box<dyn Array>>,
 }
 

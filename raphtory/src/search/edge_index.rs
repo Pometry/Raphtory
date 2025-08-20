@@ -15,7 +15,7 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
 };
-use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
+use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,

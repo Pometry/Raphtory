@@ -1,4 +1,3 @@
-use std::iter::Peekable;
 use crate::db::api::view::internal::{
     time_semantics::{
         filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
@@ -16,7 +15,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::{
-    edges::{edge_storage_ops::EdgeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::ops::Range;

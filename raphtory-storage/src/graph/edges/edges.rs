@@ -14,11 +14,11 @@ impl EdgesStorage {
     }
 
     #[inline]
-    pub fn as_ref(&self) -> EdgesStorageRef {
+    pub fn as_ref(&self) -> EdgesStorageRef<'_> {
         EdgesStorageRef::Mem(self.storage.as_ref())
     }
 
-    pub fn edge(&self, eid: EID) -> EdgeEntryRef {
+    pub fn edge(&self, eid: EID) -> EdgeEntryRef<'_> {
         self.storage.edge_ref(eid)
     }
 

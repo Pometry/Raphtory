@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::graph::edges::{edge_storage_ops::EdgeStorageOps};
+use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::entities::{LayerIds, EID, VID};
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
@@ -18,7 +18,7 @@ pub enum EdgeStorageEntry<'a> {
 
 impl<'a> EdgeStorageEntry<'a> {
     #[inline]
-    pub fn as_ref(&self) -> EdgeEntryRef {
+    pub fn as_ref(&self) -> EdgeEntryRef<'_> {
         match self {
             EdgeStorageEntry::Mem(edge) => *edge,
             EdgeStorageEntry::Unlocked(edge) => edge.as_ref(),

@@ -7,7 +7,6 @@ use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
 use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 
 #[derive(Copy, Clone)]

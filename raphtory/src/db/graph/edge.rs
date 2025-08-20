@@ -129,7 +129,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> 
         }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<(TimeIndexEntry, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (TimeIndexEntry, usize)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -454,7 +454,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
             .clone()
     }
 
-    fn metadata_ids(&self) -> BoxedLIter<usize> {
+    fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
         self.graph
             .edge_meta()
             .metadata_mapper()
@@ -462,7 +462,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
             .into_dyn_boxed()
     }
 
-    fn metadata_keys(&self) -> BoxedLIter<ArcStr> {
+    fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
         self.graph
             .edge_meta()
             .metadata_mapper()
@@ -543,7 +543,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -582,7 +582,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
+    fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (TimeIndexEntry, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -679,7 +679,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporal
             .clone()
     }
 
-    fn temporal_prop_ids(&self) -> BoxedLIter<usize> {
+    fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
         self.graph
             .edge_meta()
             .temporal_prop_mapper()
@@ -687,7 +687,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporal
             .into_dyn_boxed()
     }
 
-    fn temporal_prop_keys(&self) -> BoxedLIter<ArcStr> {
+    fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
         self.graph
             .edge_meta()
             .temporal_prop_mapper()

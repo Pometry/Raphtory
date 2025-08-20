@@ -3,31 +3,22 @@ use crate::{
     storage::lazy_vec::IllegalSet,
 };
 use bigdecimal::BigDecimal;
-use itertools::Itertools;
 use lazy_vec::LazyVec;
-use lock_api;
-#[cfg(feature = "arrow")]
-use raphtory_api::core::entities::properties::prop::PropArray;
 use raphtory_api::core::{
     entities::properties::prop::{Prop, PropRef, PropType},
     storage::arc_str::ArcStr,
 };
-use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-    ops::{Deref, DerefMut, Index, IndexMut},
-    sync::Arc,
-};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
+
+#[cfg(feature = "arrow")]
+use raphtory_api::core::entities::properties::prop::PropArray;
 
 pub mod lazy_vec;
 pub mod locked_view;
 pub mod timeindex;
-
-type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct TColumns {
@@ -288,7 +279,7 @@ impl PropColumn {
         }
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         matches!(self, PropColumn::Empty(_))
     }
 
@@ -391,7 +382,6 @@ impl PropColumn {
 mod test {
     use super::TColumns;
     use raphtory_api::core::entities::properties::prop::Prop;
-    use rayon::prelude::*;
 
     #[test]
     fn tcolumns_append_1() {

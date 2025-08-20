@@ -49,14 +49,14 @@ impl Properties {
         self.t_properties.len() + self.c_properties.len()
     }
 
-    pub(crate) fn get_mut_entry(&mut self, row: usize) -> PropMutEntry {
+    pub(crate) fn get_mut_entry(&mut self, row: usize) -> PropMutEntry<'_> {
         PropMutEntry {
             row,
             properties: self,
         }
     }
 
-    pub(crate) fn get_entry(&self, row: usize) -> RowEntry {
+    pub(crate) fn get_entry(&self, row: usize) -> RowEntry<'_> {
         RowEntry {
             row,
             properties: self,

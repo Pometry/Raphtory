@@ -196,7 +196,7 @@ impl InternalAdditionOps for TemporalGraph {
 
     type AtomicAddEdge<'a> = WriteS<'a, Extension>;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<Extension>, Self::Error> {
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
         Ok(locked_g)
     }

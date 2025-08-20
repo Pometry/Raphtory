@@ -12,7 +12,7 @@ trait NodeColOps: Send + Sync {
     fn has_missing_values(&self) -> bool {
         self.null_count() != 0
     }
-    fn get(&self, i: usize) -> Option<GidRef>;
+    fn get(&self, i: usize) -> Option<GidRef<'_>>;
 
     fn dtype(&self) -> GidType;
 
@@ -22,7 +22,7 @@ trait NodeColOps: Send + Sync {
 }
 
 impl NodeColOps for PrimitiveArray<u64> {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         StaticArray::get(self, i).map(GidRef::U64)
     }
 
@@ -39,7 +39,7 @@ impl NodeColOps for PrimitiveArray<u64> {
 }
 
 impl NodeColOps for PrimitiveArray<u32> {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
@@ -56,7 +56,7 @@ impl NodeColOps for PrimitiveArray<u32> {
 }
 
 impl NodeColOps for PrimitiveArray<i64> {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
@@ -72,7 +72,7 @@ impl NodeColOps for PrimitiveArray<i64> {
 }
 
 impl NodeColOps for PrimitiveArray<i32> {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         StaticArray::get(self, i).map(|v| GidRef::U64(v as u64))
     }
 
@@ -88,7 +88,7 @@ impl NodeColOps for PrimitiveArray<i32> {
 }
 
 impl NodeColOps for Utf8ViewArray {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i >= self.len() {
             None
         } else {
@@ -114,7 +114,7 @@ impl NodeColOps for Utf8ViewArray {
 }
 
 impl<O: Offset> NodeColOps for Utf8Array<O> {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i >= self.len() {
             None
         } else {
@@ -143,7 +143,7 @@ impl<O: Offset> NodeColOps for Utf8Array<O> {
 }
 
 impl NodeColOps for Int32Array {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v as u64))
     }
 
@@ -159,7 +159,7 @@ impl NodeColOps for Int32Array {
 }
 
 impl NodeColOps for Int64Array {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v as u64))
     }
 
@@ -175,7 +175,7 @@ impl NodeColOps for Int64Array {
 }
 
 impl NodeColOps for arrow_array::StringArray {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i >= ArrowArray::len(self) {
             None
         } else {
@@ -199,7 +199,7 @@ impl NodeColOps for arrow_array::StringArray {
 }
 
 impl NodeColOps for arrow_array::LargeStringArray {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i >= ArrowArray::len(self) {
             None
         } else {
@@ -224,7 +224,7 @@ impl NodeColOps for arrow_array::LargeStringArray {
 }
 
 impl NodeColOps for arrow_array::StringViewArray {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         if i >= ArrowArray::len(self) {
             None
         } else {
@@ -248,7 +248,7 @@ impl NodeColOps for arrow_array::StringViewArray {
 }
 
 impl NodeColOps for arrow_array::UInt32Array {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v as u64))
     }
 
@@ -264,7 +264,7 @@ impl NodeColOps for arrow_array::UInt32Array {
 }
 
 impl NodeColOps for arrow_array::UInt64Array {
-    fn get(&self, i: usize) -> Option<GidRef> {
+    fn get(&self, i: usize) -> Option<GidRef<'_>> {
         self.values().get(i).map(|v| GidRef::U64(*v))
     }
 
@@ -418,7 +418,7 @@ impl NodeCol {
         (0..self.0.len()).into_par_iter().map(|i| self.0.get(i))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = GidRef> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = GidRef<'_>> + '_ {
         (0..self.0.len()).map(|i| self.0.get(i).unwrap())
     }
 
