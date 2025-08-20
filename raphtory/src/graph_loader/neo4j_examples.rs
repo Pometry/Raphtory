@@ -42,6 +42,7 @@ fn load_movies(row: Row, graph: &rap::Graph) {
         .unwrap();
 }
 
+/// Returns the neo4j movie graph example.
 pub async fn neo4j_movie_graph(
     uri: String,
     username: String,

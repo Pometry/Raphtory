@@ -15,6 +15,7 @@ pub enum AllPropertySpec {
 }
 
 #[derive(InputObject)]
+/// SomePropertySpec object containing lists of metadata and property names.
 pub struct SomePropertySpec {
     /// List of metadata.
     pub metadata: Vec<String>,
