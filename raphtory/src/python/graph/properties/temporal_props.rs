@@ -63,7 +63,7 @@ impl From<&PyTemporalProperties> for PyTemporalPropsCmp {
         Self(
             value
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, v)| (k.clone(), v.into()))
                 .collect(),
         )
@@ -116,6 +116,17 @@ impl PyTemporalProperties {
     ///     dict[str, PropValue]: the mapping of property keys to latest values
     fn latest(&self) -> HashMap<ArcStr, Prop> {
         self.props.iter_latest().collect()
+    }
+
+    /// Get the histories of all properties
+    ///
+    /// Returns:
+    ///     dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
+    fn histories(&self) -> HashMap<ArcStr, Vec<(TimeIndexEntry, Prop)>> {
+        self.props
+            .iter()
+            .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .collect()
     }
 
     /// Get property value for `key`

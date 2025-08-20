@@ -526,6 +526,30 @@ py_iterable_base_methods!(NestedHistoryIterable, PyNestedGenericIterator);
 
 #[pymethods]
 impl NestedHistoryIterable {
+    #[getter]
+    pub fn t(&self) -> NestedHistoryTimestampIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|it| it.map(|h| h.t()))).into()
+    }
+
+    #[getter]
+    pub fn dt(&self) -> NestedHistoryDateTimeIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|it| it.map(|h| h.dt()))).into()
+    }
+
+    #[getter]
+    pub fn secondary_index(&self) -> NestedHistorySecondaryIndexIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|it| it.map(|h| h.secondary_index()))).into()
+    }
+
+    #[getter]
+    pub fn intervals(&self) -> NestedIntervalsIterable {
+        let builder = self.0.builder.clone();
+        (move || builder().map(|it| it.map(|h| h.intervals()))).into()
+    }
+
     pub fn collect(&self) -> Vec<Vec<Vec<TimeIndexEntry>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())

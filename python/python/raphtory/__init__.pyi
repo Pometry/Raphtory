@@ -5334,6 +5334,14 @@ class TemporalProperties(object):
             TemporalProperty: the property view if it exists, otherwise `None`
         """
 
+    def histories(self) -> dict[str, list[Tuple[TimeIndexEntry, PropValue]]]:
+        """
+        Get the histories of all properties
+
+        Returns:
+            dict[str, list[Tuple[TimeIndexEntry, PropValue]]]: the mapping of property keys to histories
+        """
+
     def items(self):
         """List the property keys together with the corresponding values"""
 
