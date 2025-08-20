@@ -1,12 +1,13 @@
-use crate::core::entities::properties::prop::Prop;
+use crate::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     sync::GILOnceCell,
-    types::{PyBool, PyIterator, PyType},
+    types::{PyBool, PyDict, PyIterator, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
+use rustc_hash::FxHashMap;
 use std::{ops::Deref, str::FromStr, sync::Arc};
 #[cfg(feature = "arrow")]
 use {crate::core::entities::properties::prop::PropArray, pyo3_arrow::PyArray};
@@ -127,6 +128,22 @@ impl PyProp {
         }
 
         Ok(PyProp(Prop::List(Arc::new(elems))))
+    }
+
+    #[staticmethod]
+    pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
+        let mut map: FxHashMap<ArcStr, Prop> =
+            FxHashMap::with_capacity_and_hasher(dict.len(), Default::default());
+        for (k_any, v_any) in dict.iter() {
+            let k: &str = k_any.extract()?;
+            let v: Prop = if let Ok(pyref) = v_any.extract::<PyRef<PyProp>>() {
+                pyref.0.clone()
+            } else {
+                v_any.extract::<Prop>()?
+            };
+            map.insert(ArcStr::from(k), v);
+        }
+        Ok(PyProp(Prop::Map(Arc::new(map))))
     }
 
     pub fn dtype(&self) -> String {
