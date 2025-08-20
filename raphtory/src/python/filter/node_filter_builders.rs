@@ -25,14 +25,17 @@ impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder 
 
 #[pymethods]
 impl PyNodeFilterBuilder {
+    /// Returns true if ids are equal or false otherwise.
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.0.eq(value)
     }
 
+    /// Returns true if ids are not equal or false otherwise.
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.0.ne(value)
     }
 
+    /// Returns true if X is in Y or false otherwise.
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         self.0.is_in(values.into())
     }

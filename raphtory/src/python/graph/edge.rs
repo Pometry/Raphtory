@@ -153,26 +153,32 @@ impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
 /// An edge is a directed connection between two nodes.
 #[pymethods]
 impl PyEdge {
+    /// Returns true if the value of this edge is equal to the value of the specified edge or false otherwise.
     fn __eq__(&self, other: Bound<PyEdge>) -> bool {
         self.edge == other.get().edge
     }
 
+    /// Returns true if the value of this edge is not equal to the value of the specified edge or false otherwise.
     fn __ne__(&self, other: Bound<PyEdge>) -> bool {
         self.edge != other.get().edge
     }
 
+    /// Returns true if the value of this edge is less than the value of the specified edge or false otherwise.
     fn __lt__(&self, other: Bound<PyEdge>) -> bool {
         self.edge < other.get().edge
     }
 
+    /// Returns true if the value of this edge is less than or equal to the value of the specified edge or false otherwise.
     fn __le__(&self, other: Bound<PyEdge>) -> bool {
         self.edge <= other.get().edge
     }
 
+    /// Returns true if the value of this edge is greater than the value of the specified edge or false otherwise.
     fn __gt__(&self, other: Bound<PyEdge>) -> bool {
         self.edge > other.get().edge
     }
 
+    /// Returns true if the value of this edge is greater than or equal to the value of the specified edge or false otherwise.
     fn __ge__(&self, other: Bound<PyEdge>) -> bool {
         self.edge >= other.get().edge
     }

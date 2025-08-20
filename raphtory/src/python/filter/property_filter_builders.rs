@@ -28,11 +28,13 @@ impl<T: InternalPropertyFilterOps + 'static> From<T> for PyPropertyFilterOps {
 
 #[pymethods]
 impl PyPropertyFilterOps {
+    /// Returns true if ids are equal or false otherwise.
     fn __eq__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.eq(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Returns true if ids are not equal or false otherwise.
     fn __ne__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ne(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))

@@ -22,11 +22,13 @@ impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
 
 #[pymethods]
 impl PyEdgeFilterOp {
+    /// Returns true if ids are equal or false otherwise.
     fn __eq__(&self, value: String) -> PyFilterExpr {
         let field = self.0.eq(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns true if ids are not equal or false otherwise.
     fn __ne__(&self, value: String) -> PyFilterExpr {
         let field = self.0.ne(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
