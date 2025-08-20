@@ -426,7 +426,8 @@ mod test_deletions {
     use proptest::{arbitrary::any, proptest, sample::subsequence};
     use raphtory_api::core::entities::GID;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-    use std::ops::Range;
+    use rayon::ThreadPoolBuilder;
+    use std::ops::{Deref, Range};
 
     #[test]
     fn test_nodes() {
@@ -648,14 +649,33 @@ mod test_deletions {
     }
     #[test]
     fn materialize_window_layers_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
-            let g = PersistentGraph(build_graph(&graph_f));
-            let glw = g.valid_layers(l).window(w.start, w.end);
-            let gmlw = glw.materialize().unwrap();
-            assert_persistent_materialize_graph_equal(&glw, &gmlw);
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2), num_threads in 1..=16usize)| {
+            let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
+            pool.install(|| {
+                let g = PersistentGraph(build_graph(&graph_f));
+                let glw = g.valid_layers(l.clone()).window(w.start, w.end);
+                let gmlw = glw.materialize().unwrap();
+                assert_persistent_materialize_graph_equal(&glw, &gmlw);
+            })
+
         })
     }
 
+    #[test]
+
+    #[test]
+    fn materialize_window_multilayer() {
+        let g = PersistentGraph::new();
+        g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
+        g.delete_edge(3, 0, 0, Some("a")).unwrap();
+
+        let w = 0..10;
+        let glw = g.valid_layers("a").window(w.start, w.end);
+        let layers = glw.edge(0, 0).unwrap().explode_layers();
+        dbg!(layers);
+        let gmlw = glw.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&glw, &gmlw);
+    }
     #[test]
     fn test_materialize_deleted_edge() {
         let g = PersistentGraph::new();

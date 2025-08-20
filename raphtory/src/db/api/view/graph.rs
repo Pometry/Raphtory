@@ -396,6 +396,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                             self,
                             self.layer_ids(),
                         ) {
+                            let layer = layer_map[layer];
                             writer.delete_edge(t, edge_pos, src, dst, layer, 0);
                         }
                     }
@@ -469,23 +470,14 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         self,
                         self.layer_ids(),
                     ) {
+                        let layer = layer_map[layer];
                         if let Some(node_pos) = maybe_src_pos {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(
-                                t,
-                                node_pos,
-                                eid.with_layer_deletion(layer),
-                                0,
-                            );
+                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
                         }
                         if let Some(node_pos) = maybe_dst_pos {
                             let mut writer = shard.writer();
-                            writer.update_deletion_time(
-                                t,
-                                node_pos,
-                                eid.with_layer_deletion(layer),
-                                0,
-                            );
+                            writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
                         }
                     }
                 }
