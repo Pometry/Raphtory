@@ -151,13 +151,28 @@ fn last_prop_value_before<'a, 'b>(
 fn persisted_prop_value_at<'a, 'b>(
     t: i64,
     props: impl TPropOps<'a>,
+    additions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
     deletions: impl TimeIndexOps<'b, IndexType = TimeIndexEntry>,
-) -> Option<Prop> {
+) -> Option<(TimeIndexEntry, Prop)> {
     if props.active_t(t..t.saturating_add(1)) || deletions.active_t(t..t.saturating_add(1)) {
         None
     } else {
-        last_prop_value_before(TimeIndexEntry::start(t), props, deletions).map(|(_, v)| v)
+        persisted_secondary_index(t, additions).and_then(|index| {
+            last_prop_value_before(TimeIndexEntry::start(t), props, deletions)
+                .map(|(_, v)| (TimeIndexEntry(t, index), v))
+        })
     }
+}
+
+fn persisted_secondary_index<'a>(
+    t: i64,
+    additions: impl TimeIndexOps<'a, IndexType = TimeIndexEntry>,
+) -> Option<usize> {
+    additions
+        .range_t(t..t.saturating_add(1))
+        .first()
+        .or_else(|| additions.range_t(i64::MIN..t).last())
+        .map(|t| t.i())
 }
 
 /// Exclude anything from the window that happens before the last deletion at the start of the window
@@ -1148,11 +1163,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 let additions = e.filtered_additions(layer, &view);
                 let deletions = e.filtered_deletions(layer, &view);
                 let merged_deletions = deletions.clone().merge(additions.clone().invert());
-                let persisted_ts = persisted_event(additions, deletions, w.start);
-                let first_prop = persisted_ts.and_then(|ts| {
-                    persisted_prop_value_at(w.start, props.clone(), &merged_deletions)
-                        .map(|v| (TimeIndexEntry(w.start, ts.i()), layer, v))
-                });
+                let first_prop =
+                    persisted_prop_value_at(w.start, props.clone(), additions, &merged_deletions)
+                        .map(|(ts, v)| (ts, layer, v));
                 first_prop.into_iter().chain(
                     props
                         .iter_window(interior_window(w.clone(), &merged_deletions))
@@ -1175,11 +1188,9 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 let additions = e.filtered_additions(layer, &view);
                 let deletions = e.filtered_deletions(layer, &view);
                 let merged_deletions = deletions.clone().merge(additions.clone().invert());
-                let persisted_ts = persisted_event(additions, deletions, w.start);
-                let first_prop = persisted_ts.and_then(|ts| {
-                    persisted_prop_value_at(w.start, props.clone(), &merged_deletions)
-                        .map(|v| (TimeIndexEntry(w.start, ts.i()), layer, v))
-                });
+                let first_prop =
+                    persisted_prop_value_at(w.start, props.clone(), additions, &merged_deletions)
+                        .map(|(ts, v)| (ts, layer, v));
                 props
                     .iter_inner_rev(Some(interior_window(w.clone(), &merged_deletions)))
                     .map(move |(t, v)| (t, layer, v))

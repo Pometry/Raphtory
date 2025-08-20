@@ -89,10 +89,9 @@ impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
         self,
         w: Option<Range<TimeIndexEntry>>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        let w = w.map(|w| (w.start, w.end));
         let tprops = self.tprops(self.prop_id);
         tprops
-            .map(|t_prop| t_prop.iter_inner(w.map(|(start, end)| start..end)))
+            .map(|t_prop| t_prop.iter_inner(w.clone()))
             .kmerge_by(|(a, _), (b, _)| a < b)
     }
 
@@ -100,10 +99,9 @@ impl<'a, Ref: WithTProps<'a> + 'a> TPropOps<'a> for GenTProps<'a, Ref> {
         self,
         w: Option<Range<TimeIndexEntry>>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
-        let w = w.map(|w| (w.start, w.end));
         let tprops = self
             .tprops(self.prop_id)
-            .map(move |t_cell| t_cell.iter_inner_rev(w.map(|(start, end)| start..end)));
+            .map(move |t_cell| t_cell.iter_inner_rev(w.clone()));
         tprops.kmerge_by(|(a, _), (b, _)| a > b)
     }
 
