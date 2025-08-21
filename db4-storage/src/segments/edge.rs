@@ -7,17 +7,6 @@ use std::{
     },
 };
 
-use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    VID,
-    properties::{meta::Meta, prop::Prop},
-};
-use raphtory_core::{
-    entities::LayerIds,
-    storage::timeindex::{AsTime, TimeIndexEntry},
-};
-use rayon::prelude::*;
-
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
@@ -27,6 +16,16 @@ use crate::{
     segments::edge_entry::MemEdgeRef,
     utils::Iter4,
 };
+use parking_lot::lock_api::ArcRwLockReadGuard;
+use raphtory_api::core::entities::{
+    VID,
+    properties::{meta::Meta, prop::Prop},
+};
+use raphtory_core::{
+    entities::{LayerIds, properties::props::MetadataError},
+    storage::timeindex::{AsTime, TimeIndexEntry},
+};
+use rayon::prelude::*;
 
 use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 
@@ -268,6 +267,24 @@ impl MemEdgeSegment {
                 },
             );
         row.either(|a| a, |a| a)
+    }
+
+    pub fn check_const_properties(
+        &self,
+        edge_pos: LocalPOS,
+        layer_id: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        if let Some(layer) = self.layers.get(layer_id) {
+            if let Some(edge) = layer.get(&edge_pos) {
+                let local_row = edge.row();
+                let edge_properties = layer.properties().get_entry(local_row);
+                for (prop_id, prop_val) in props {
+                    edge_properties.check_metadata(*prop_id, prop_val)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn update_const_properties<B: Borrow<(usize, Prop)>>(

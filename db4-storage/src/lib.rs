@@ -62,7 +62,7 @@ pub mod error {
     use std::{path::PathBuf, sync::Arc};
 
     use raphtory_api::core::entities::properties::prop::PropError;
-    use raphtory_core::utils::time::ParseTimeError;
+    use raphtory_core::{entities::properties::props::MetadataError, utils::time::ParseTimeError};
 
     #[derive(thiserror::Error, Debug)]
     pub enum StorageError {
@@ -76,9 +76,10 @@ pub mod error {
         ArrowRS(#[from] arrow_schema::ArrowError),
         #[error("Parquet error: {0}")]
         Parquet(#[from] parquet::errors::ParquetError),
-
-        #[error("Property error: {0}")]
+        #[error(transparent)]
         PropError(#[from] PropError),
+        #[error(transparent)]
+        MetadataError(#[from] MetadataError),
         #[error("Empty Graph: {0}")]
         EmptyGraphDir(PathBuf),
         #[error("Failed to parse time string")]

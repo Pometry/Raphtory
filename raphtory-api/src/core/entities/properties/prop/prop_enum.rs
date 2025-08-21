@@ -431,15 +431,39 @@ impl From<DateTime<Utc>> for Prop {
     }
 }
 
+impl From<NaiveDateTime> for Prop {
+    fn from(value: NaiveDateTime) -> Self {
+        Prop::NDTime(value)
+    }
+}
+
 impl From<bool> for Prop {
     fn from(b: bool) -> Self {
         Prop::Bool(b)
     }
 }
 
+impl From<Arc<Vec<Prop>>> for Prop {
+    fn from(value: Arc<Vec<Prop>>) -> Self {
+        Prop::List(value)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<PropArray> for Prop {
+    fn from(value: PropArray) -> Self {
+        Prop::Array(value)
+    }
+}
 impl From<HashMap<ArcStr, Prop>> for Prop {
     fn from(value: HashMap<ArcStr, Prop>) -> Self {
         Prop::Map(Arc::new(value.into_iter().collect()))
+    }
+}
+
+impl From<Arc<FxHashMap<ArcStr, Prop>>> for Prop {
+    fn from(value: Arc<FxHashMap<ArcStr, Prop>>) -> Self {
+        Prop::Map(value)
     }
 }
 

@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, ops::DerefMut};
 
 use crate::{
-    LocalPOS, api::edges::EdgeSegmentOps, pages::layer_counter::GraphStats,
+    LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
@@ -114,6 +114,16 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
     pub fn get_edge(&self, layer_id: usize, edge_pos: LocalPOS) -> Option<(VID, VID)> {
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
+    }
+
+    pub fn validate_c_props(
+        &self,
+        edge_pos: LocalPOS,
+        layer_id: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        self.writer
+            .check_const_properties(edge_pos, layer_id, props)
     }
 
     pub fn update_c_props<B: Borrow<(usize, Prop)>>(

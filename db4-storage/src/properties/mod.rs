@@ -1,5 +1,4 @@
-use std::borrow::Borrow;
-
+use crate::error::StorageError;
 use bigdecimal::ToPrimitive;
 use polars_arrow::array::{Array, BooleanArray, PrimitiveArray, Utf8ViewArray};
 use raphtory_api::core::entities::properties::{
@@ -9,10 +8,11 @@ use raphtory_api::core::entities::properties::{
 use raphtory_core::{
     entities::{
         ELID,
-        properties::{tcell::TCell, tprop::TPropCell},
+        properties::{props::MetadataError, tcell::TCell, tprop::TPropCell},
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
+use std::borrow::Borrow;
 
 pub mod props_meta_writer;
 
@@ -341,12 +341,7 @@ impl<'a> PropMutEntry<'a> {
                     .resize_with(prop_id + 1, Default::default);
             }
             let const_props = &mut self.properties.c_properties[*prop_id];
-            if let Err(err) = const_props.set(self.row, prop.clone()) {
-                panic!(
-                    "Failed to set constant property {prop_id} for row {}: {err}",
-                    self.row
-                );
-            }
+            const_props.upsert(self.row, prop.clone());
         }
     }
 }
@@ -355,6 +350,18 @@ impl<'a> RowEntry<'a> {
     pub(crate) fn prop(self, prop_id: usize) -> Option<TPropCell<'a>> {
         let t_cell = self.t_cell();
         Some(TPropCell::new(t_cell, self.properties.t_column(prop_id)))
+    }
+
+    pub fn metadata(self, prop_id: usize) -> Option<Prop> {
+        self.properties.c_column(prop_id)?.get(self.row)
+    }
+
+    pub fn check_metadata(self, prop_id: usize, new_val: &Prop) -> Result<(), StorageError> {
+        if let Some(col) = self.properties.c_column(prop_id) {
+            col.check(self.row, new_val)
+                .map_err(Into::<MetadataError>::into)?;
+        }
+        Ok(())
     }
 
     pub fn t_cell(self) -> &'a TCell<Option<usize>> {

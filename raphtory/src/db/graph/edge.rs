@@ -334,6 +334,26 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         Ok(layer_id)
     }
 
+    fn resolve_and_check_layer_for_metadata(
+        &self,
+        layer: Option<&str>,
+    ) -> Result<usize, GraphError> {
+        let layer_id = self.resolve_layer(layer, false)?;
+        if self
+            .graph
+            .core_edge(self.edge.pid())
+            .has_layer(&LayerIds::One(layer_id))
+        {
+            Ok(layer_id)
+        } else {
+            Err(GraphError::InvalidEdgeLayer {
+                layer: layer.unwrap_or("_default").to_string(),
+                src: self.src().name(),
+                dst: self.dst().name(),
+            })
+        }
+    }
+
     /// Add metadata for the edge
     ///
     /// # Arguments
@@ -349,18 +369,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_layer(layer, false)?;
-        if !self
-            .graph
-            .core_edge(self.edge.pid())
-            .has_layer(&LayerIds::One(input_layer_id))
-        {
-            return Err(GraphError::InvalidEdgeLayer {
-                layer: layer.unwrap_or("_default").to_string(),
-                src: self.src().name(),
-                dst: self.dst().name(),
-            });
-        }
+        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
         let properties = self.graph.core_graph().validate_props(
             true,
             self.graph.edge_meta(),
@@ -378,7 +387,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         props: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_layer(layer, false).map_err(into_graph_err)?;
+        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
 
         let properties = self.graph.core_graph().validate_props(
             true,

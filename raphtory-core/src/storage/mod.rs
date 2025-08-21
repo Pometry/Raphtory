@@ -117,40 +117,21 @@ pub enum PropColumn {
 #[derive(Error, Debug)]
 pub enum TPropColumnError {
     #[error(transparent)]
-    IllegalSetBool(#[from] IllegalSet<bool>),
+    IllegalSet(IllegalSet<Prop>),
     #[error(transparent)]
-    IllegalSetU8(#[from] IllegalSet<u8>),
-    #[error(transparent)]
-    IllegalSetU16(#[from] IllegalSet<u16>),
-    #[error(transparent)]
-    IllegalSetU32(#[from] IllegalSet<u32>),
-    #[error(transparent)]
-    IllegalSetU64(#[from] IllegalSet<u64>),
-    #[error(transparent)]
-    IllegalSetI32(#[from] IllegalSet<i32>),
-    #[error(transparent)]
-    IllegalSetI64(#[from] IllegalSet<i64>),
-    #[error(transparent)]
-    IllegalSetF32(#[from] IllegalSet<f32>),
-    #[error(transparent)]
-    IllegalSetF64(#[from] IllegalSet<f64>),
-    #[error(transparent)]
-    IllegalSetStr(#[from] IllegalSet<ArcStr>),
-    #[cfg(feature = "arrow")]
-    #[error(transparent)]
-    IllegalSetArray(#[from] IllegalSet<PropArray>),
-    #[error(transparent)]
-    IllegalSetList(#[from] IllegalSet<Arc<Vec<Prop>>>),
-    #[error(transparent)]
-    IllegalSetMap(#[from] IllegalSet<Arc<FxHashMap<ArcStr, Prop>>>),
-    #[error(transparent)]
-    IllegalSetNDTime(#[from] IllegalSet<chrono::NaiveDateTime>),
-    #[error(transparent)]
-    IllegalSetDTime(#[from] IllegalSet<chrono::DateTime<chrono::Utc>>),
-    #[error(transparent)]
-    Decimal(#[from] IllegalSet<BigDecimal>),
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
+    IllegalType(#[from] IllegalPropType),
+}
+
+impl<A: Into<Prop> + Debug> From<IllegalSet<A>> for TPropColumnError {
+    fn from(value: IllegalSet<A>) -> Self {
+        let previous_value = value.previous_value.into();
+        let new_value = value.new_value.into();
+        TPropColumnError::IllegalSet(IllegalSet {
+            index: value.index,
+            previous_value,
+            new_value,
+        })
+    }
 }
 
 impl Default for PropColumn {
@@ -162,7 +143,7 @@ impl Default for PropColumn {
 impl PropColumn {
     pub(crate) fn new(idx: usize, prop: Prop) -> Self {
         let mut col = PropColumn::default();
-        col.set(idx, prop).unwrap();
+        col.upsert(idx, prop).unwrap();
         col
     }
 
@@ -195,26 +176,56 @@ impl PropColumn {
         }
     }
 
-    pub fn set(&mut self, index: usize, prop: Prop) -> Result<(), TPropColumnError> {
+    pub fn upsert(&mut self, index: usize, prop: Prop) -> Result<(), TPropColumnError> {
         self.init_empty_col(&prop);
         match (self, prop) {
-            (PropColumn::Bool(col), Prop::Bool(v)) => col.set(index, v)?,
-            (PropColumn::I64(col), Prop::I64(v)) => col.set(index, v)?,
-            (PropColumn::U32(col), Prop::U32(v)) => col.set(index, v)?,
-            (PropColumn::U64(col), Prop::U64(v)) => col.set(index, v)?,
-            (PropColumn::F32(col), Prop::F32(v)) => col.set(index, v)?,
-            (PropColumn::F64(col), Prop::F64(v)) => col.set(index, v)?,
-            (PropColumn::Str(col), Prop::Str(v)) => col.set(index, v)?,
+            (PropColumn::Bool(col), Prop::Bool(v)) => col.upsert(index, v),
+            (PropColumn::I64(col), Prop::I64(v)) => col.upsert(index, v),
+            (PropColumn::U32(col), Prop::U32(v)) => col.upsert(index, v),
+            (PropColumn::U64(col), Prop::U64(v)) => col.upsert(index, v),
+            (PropColumn::F32(col), Prop::F32(v)) => col.upsert(index, v),
+            (PropColumn::F64(col), Prop::F64(v)) => col.upsert(index, v),
+            (PropColumn::Str(col), Prop::Str(v)) => col.upsert(index, v),
             #[cfg(feature = "arrow")]
-            (PropColumn::Array(col), Prop::Array(v)) => col.set(index, v)?,
-            (PropColumn::U8(col), Prop::U8(v)) => col.set(index, v)?,
-            (PropColumn::U16(col), Prop::U16(v)) => col.set(index, v)?,
-            (PropColumn::I32(col), Prop::I32(v)) => col.set(index, v)?,
-            (PropColumn::List(col), Prop::List(v)) => col.set(index, v)?,
-            (PropColumn::Map(col), Prop::Map(v)) => col.set(index, v)?,
-            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.set(index, v)?,
-            (PropColumn::DTime(col), Prop::DTime(v)) => col.set(index, v)?,
-            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.set(index, v)?,
+            (PropColumn::Array(col), Prop::Array(v)) => col.upsert(index, v),
+            (PropColumn::U8(col), Prop::U8(v)) => col.upsert(index, v),
+            (PropColumn::U16(col), Prop::U16(v)) => col.upsert(index, v),
+            (PropColumn::I32(col), Prop::I32(v)) => col.upsert(index, v),
+            (PropColumn::List(col), Prop::List(v)) => col.upsert(index, v),
+            (PropColumn::Map(col), Prop::Map(v)) => col.upsert(index, v),
+            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.upsert(index, v),
+            (PropColumn::DTime(col), Prop::DTime(v)) => col.upsert(index, v),
+            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.upsert(index, v),
+            (col, prop) => {
+                Err(IllegalPropType {
+                    expected: col.dtype(),
+                    actual: prop.dtype(),
+                })?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check(&self, index: usize, prop: &Prop) -> Result<(), TPropColumnError> {
+        match (self, prop) {
+            (PropColumn::Empty(_), _) => {}
+            (PropColumn::Bool(col), Prop::Bool(v)) => col.check(index, v)?,
+            (PropColumn::I64(col), Prop::I64(v)) => col.check(index, v)?,
+            (PropColumn::U32(col), Prop::U32(v)) => col.check(index, v)?,
+            (PropColumn::U64(col), Prop::U64(v)) => col.check(index, v)?,
+            (PropColumn::F32(col), Prop::F32(v)) => col.check(index, v)?,
+            (PropColumn::F64(col), Prop::F64(v)) => col.check(index, v)?,
+            (PropColumn::Str(col), Prop::Str(v)) => col.check(index, v)?,
+            #[cfg(feature = "arrow")]
+            (PropColumn::Array(col), Prop::Array(v)) => col.check(index, v)?,
+            (PropColumn::U8(col), Prop::U8(v)) => col.check(index, v)?,
+            (PropColumn::U16(col), Prop::U16(v)) => col.check(index, v)?,
+            (PropColumn::I32(col), Prop::I32(v)) => col.check(index, v)?,
+            (PropColumn::List(col), Prop::List(v)) => col.check(index, v)?,
+            (PropColumn::Map(col), Prop::Map(v)) => col.check(index, v)?,
+            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.check(index, v)?,
+            (PropColumn::DTime(col), Prop::DTime(v)) => col.check(index, v)?,
+            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.check(index, v)?,
             (col, prop) => {
                 Err(IllegalPropType {
                     expected: col.dtype(),

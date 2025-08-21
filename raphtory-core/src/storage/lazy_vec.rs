@@ -168,48 +168,54 @@ where
     A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
     // fails if there is already a value set for the given id to a different value
-    pub fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
+
+    pub fn upsert(&mut self, id: usize, value: A) {
         match self {
             LazyVec::Empty => {
                 *self = Self::from(id, value);
-                Ok(())
             }
             LazyVec::LazyVec1(_, tuples) => {
-                if let Some(only_value) = tuples.get(id) {
-                    if only_value != &value {
-                        return Err(IllegalSet::new(id, only_value.clone(), value));
-                    }
-                } else {
-                    tuples.upsert(id, Some(value));
+                tuples.upsert(id, Some(value));
+                self.swap_lazy_types();
+            }
+            LazyVec::LazyVecN(_, vector) => {
+                vector.upsert(id, Some(value));
+            }
+        }
+    }
 
-                    self.swap_lazy_types();
+    /// checks if there is already a different value for a given id
+    pub fn check(&self, id: usize, value: &A) -> Result<(), IllegalSet<A>> {
+        match self {
+            LazyVec::Empty => {}
+            LazyVec::LazyVec1(_, tuples) => {
+                if let Some(only_value) = tuples.get(id) {
+                    if only_value != value {
+                        return Err(IllegalSet::new(id, only_value.clone(), value.clone()));
+                    }
                 }
-                Ok(())
             }
             LazyVec::LazyVecN(_, vector) => {
                 if let Some(only_value) = vector.get(id) {
-                    if only_value != &value {
-                        return Err(IllegalSet::new(id, only_value.clone(), value));
+                    if only_value != value {
+                        return Err(IllegalSet::new(id, only_value.clone(), value.clone()));
                     }
-                } else {
-                    vector.upsert(id, Some(value));
                 }
-                Ok(())
             }
         }
+        Ok(())
     }
 
     pub fn update<F, B, E>(&mut self, id: usize, updater: F) -> Result<B, E>
     where
         F: FnOnce(&mut A) -> Result<B, E>,
-        E: From<IllegalSet<A>>,
     {
         let b = match self.get_mut(id) {
             Some(value) => updater(value)?,
             None => {
                 let mut value = A::default();
                 let b = updater(&mut value)?;
-                self.set(id, value)?;
+                self.upsert(id, value);
                 b
             }
         };
@@ -404,9 +410,9 @@ mod lazy_vec_tests {
     fn normal_operation() {
         let mut vec = LazyVec::<u32>::Empty;
 
-        vec.set(5, 55).unwrap();
-        vec.set(1, 11).unwrap();
-        vec.set(8, 88).unwrap();
+        vec.upsert(5, 55);
+        vec.upsert(1, 11);
+        vec.upsert(8, 88);
         assert_eq!(vec.get(5), Some(&55));
         assert_eq!(vec.get(1), Some(&11));
         assert_eq!(vec.get(0), Some(&0));
@@ -436,9 +442,9 @@ mod lazy_vec_tests {
     }
 
     #[test]
-    fn set_fails_if_present() {
+    fn check_fails_if_present() {
         let mut vec = LazyVec::from(5, 55);
-        let result = vec.set(5, 555);
+        let result = vec.check(5, &555);
         assert_eq!(result, Err(IllegalSet::new(5, 55, 555)))
     }
 }

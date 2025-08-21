@@ -1,6 +1,6 @@
 use crate::{
     entities::properties::tprop::{IllegalPropType, TProp},
-    storage::lazy_vec::IllegalSet,
+    storage::{lazy_vec::IllegalSet, TPropColumnError},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::fmt::Debug;
@@ -18,6 +18,9 @@ pub enum TPropError {
 pub enum MetadataError {
     #[error("Attempted to change value of metadata, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
+
+    #[error(transparent)]
+    IllegalPropType(#[from] IllegalPropType),
 }
 
 impl From<IllegalSet<Option<Prop>>> for MetadataError {
@@ -25,6 +28,19 @@ impl From<IllegalSet<Option<Prop>>> for MetadataError {
         let old = value.previous_value.unwrap_or(Prop::str("NONE"));
         let new = value.new_value.unwrap_or(Prop::str("NONE"));
         MetadataError::IllegalUpdate { old, new }
+    }
+}
+
+impl From<TPropColumnError> for MetadataError {
+    fn from(value: TPropColumnError) -> Self {
+        match value {
+            TPropColumnError::IllegalSet(inner) => {
+                let old = inner.previous_value;
+                let new = inner.new_value;
+                MetadataError::IllegalUpdate { old, new }
+            }
+            TPropColumnError::IllegalType(inner) => MetadataError::IllegalPropType(inner),
+        }
     }
 }
 
