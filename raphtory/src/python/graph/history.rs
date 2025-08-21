@@ -247,6 +247,10 @@ impl PyHistoryTimestamp {
             |history_t| history_t.iter_rev()
         )
     }
+
+    pub fn __repr__(&self) -> String {
+        self.history_t.repr()
+    }
 }
 
 impl<T: InternalHistoryOps> Repr for HistoryTimestamp<T> {
@@ -307,6 +311,10 @@ impl PyHistoryDateTime {
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
             |history_dt| history_dt.iter_rev()
         )
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.history_dt.repr()
     }
 }
 
@@ -371,6 +379,10 @@ impl PyHistorySecondaryIndex {
             |history_s| history_s.iter_rev()
         )
     }
+
+    pub fn __repr__(&self) -> String {
+        self.history_s.repr()
+    }
 }
 
 impl<T: InternalHistoryOps> Repr for HistorySecondaryIndex<T> {
@@ -433,6 +445,10 @@ impl PyIntervals {
             Intervals<Arc<dyn InternalHistoryOps>>,
             |intervals| intervals.iter_rev()
         )
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.intervals.repr()
     }
 
     /// Calculate the mean interval between values
