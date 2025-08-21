@@ -13,6 +13,7 @@ comparison-benchmark/python/data/*
 .DS_Store
 .python-version
 .ipynb_checkpoints
+.virtual_documents
 _autosummary
 examples/docker/lotr/lotr
 examples/python/enron/emails.csv

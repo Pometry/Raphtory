@@ -48,6 +48,7 @@ __all__ = [
     "IndexSpecBuilder",
     "IndexSpec",
     "Prop",
+    "version",
     "graphql",
     "algorithms",
     "graph_loader",
@@ -6103,3 +6104,5 @@ class Prop(object):
     def u64(value): ...
     @staticmethod
     def u8(value): ...
+
+def version(): ...

@@ -56,6 +56,13 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyProp
     );
 
+    #[pyfunction]
+    pub(crate) fn version() -> String {
+        String::from(crate::version())
+    }
+
+    m.add_function(wrap_pyfunction!(version, m)?)?;
+
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
     Ok(())

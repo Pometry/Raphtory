@@ -7,7 +7,7 @@ from raphtory.graphql import add_custom_gql_apis
 def test_hello_world():
     work_dir = tempfile.mkdtemp()
     server = GraphServer(work_dir)
-    server = add_custom_gql_apis(server)
+    add_custom_gql_apis()
     with server.start() as server:
         client = server.get_client()
         query = """query {

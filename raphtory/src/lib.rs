@@ -110,6 +110,10 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+pub fn version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
 pub mod prelude {
     pub const NO_PROPS: [(&str, Prop); 0] = [];
     pub use crate::{

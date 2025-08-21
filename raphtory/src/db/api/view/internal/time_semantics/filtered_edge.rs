@@ -225,6 +225,12 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 }
 
 pub trait FilteredEdgeStorageOps<'a> {
+    fn filtered_layer_ids_iter<G: GraphView + 'a>(
+        self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + 'a;
+
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
@@ -284,16 +290,22 @@ pub trait FilteredEdgeStorageOps<'a> {
 }
 
 impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
+    fn filtered_layer_ids_iter<G: GraphView + 'a>(
+        self,
+        view: G,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .filter(move |layer_id| view.internal_filter_edge_layer(self, *layer_id))
+    }
+
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer)
-                .then(move || (layer, self.filtered_additions(layer, view.clone())))
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| (layer_id, self.filtered_additions(layer_id, view.clone())))
     }
 
     fn filtered_deletions_iter<G: GraphViewOps<'a>>(
@@ -301,11 +313,8 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G>)> {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer)
-                .then(move || (layer, self.filtered_deletions(layer, view.clone())))
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer| (layer, self.filtered_deletions(layer, view.clone())))
     }
 
     fn filtered_updates_iter<G: GraphViewOps<'a>>(
@@ -319,17 +328,14 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
             FilteredEdgeTimeIndex<'a, G>,
         ),
     > + 'a {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer_id| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer_id)
-                .then(move || {
-                    (
-                        layer_id,
-                        self.filtered_additions(layer_id, view.clone()),
-                        self.filtered_deletions(layer_id, view.clone()),
-                    )
-                })
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| {
+                (
+                    layer_id,
+                    self.filtered_additions(layer_id, view.clone()),
+                    self.filtered_deletions(layer_id, view.clone()),
+                )
+            })
     }
 
     fn filtered_additions<G: GraphViewOps<'a>>(
@@ -375,16 +381,13 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeStorageRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
-        self.layer_ids_iter(layer_ids).filter_map(move |layer_id| {
-            let view = view.clone();
-            view.internal_filter_edge_layer(self, layer_id)
-                .then(move || {
-                    (
-                        layer_id,
-                        self.filtered_temporal_prop_layer(layer_id, prop_id, view.clone()),
-                    )
-                })
-        })
+        self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            .map(move |layer_id| {
+                (
+                    layer_id,
+                    self.filtered_temporal_prop_layer(layer_id, prop_id, view.clone()),
+                )
+            })
     }
 
     fn filtered_edge_metadata<'graph, G: GraphView + 'graph>(
@@ -429,21 +432,15 @@ impl FilteredEdgesStorageOps for EdgesStorage {
         let par_iter = self.par_iter(layer_ids);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(par_iter),
-            FilterState::Both => {
-                let nodes = view.core_nodes();
-                FilterVariants::Both(par_iter.filter(move |&e| {
-                    view.filter_edge(e)
-                        && view.filter_node(nodes.node_entry(e.src()))
-                        && view.filter_node(nodes.node_entry(e.dst()))
-                }))
-            }
-            FilterState::Nodes => {
-                let nodes = view.core_nodes();
-                FilterVariants::Nodes(par_iter.filter(move |&e| {
-                    view.filter_node(nodes.node_entry(e.src()))
-                        && view.filter_node(nodes.node_entry(e.dst()))
-                }))
-            }
+            FilterState::Both => FilterVariants::Both(par_iter.filter(move |&e| {
+                view.filter_edge(e)
+                    && view.filter_node(view.core_node(e.src()).as_ref())
+                    && view.filter_node(view.core_node(e.dst()).as_ref())
+            })),
+            FilterState::Nodes => FilterVariants::Nodes(par_iter.filter(move |&e| {
+                view.filter_node(view.core_node(e.src()).as_ref())
+                    && view.filter_node(view.core_node(e.dst()).as_ref())
+            })),
             FilterState::Edges | FilterState::BothIndependent => {
                 FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e)))
             }

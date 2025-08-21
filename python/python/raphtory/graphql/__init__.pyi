@@ -176,7 +176,7 @@ class RaphtoryClient(object):
 
     def copy_graph(self, path: str, new_path: str) -> None:
         """
-        Copy graph from a path `path` on the server to a `new_path` on the server
+        Copy graph from a path  path  on the server to a  new_path  on the server
 
         Arguments:
           path (str): the path of the graph to be copied
@@ -204,7 +204,7 @@ class RaphtoryClient(object):
 
     def delete_graph(self, path: str) -> None:
         """
-        Delete graph from a path `path` on the server
+        Delete graph from a path  path  on the server
 
         Arguments:
           path (str): the path of the graph to be deleted
@@ -223,7 +223,7 @@ class RaphtoryClient(object):
 
     def move_graph(self, path: str, new_path: str) -> None:
         """
-        Move graph from a path `path` on the server to a `new_path` on the server
+        Move graph from a path  path  on the server to a  new_path  on the server
 
         Arguments:
           path (str): the path of the graph to be moved
@@ -235,7 +235,7 @@ class RaphtoryClient(object):
 
     def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
         """
-        Create a new empty Graph on the server at `path`
+        Create a new empty Graph on the server at  path
 
         Arguments:
           path (str): the path of the graph to be created
@@ -257,12 +257,12 @@ class RaphtoryClient(object):
           variables (dict[str, Any], optional): a dict of variables present on the query and their values.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response.
+           dict[str, Any]: The  data  field from the graphQL response.
         """
 
     def receive_graph(self, path: str) -> Union[Graph, PersistentGraph]:
         """
-        Receive graph from a path `path` on the server
+        Receive graph from a path  path  on the server
 
         Note:
             This downloads a copy of the graph. Modifications are not persistet to the server.
@@ -276,7 +276,7 @@ class RaphtoryClient(object):
 
     def remote_graph(self, path: str) -> RemoteGraph:
         """
-        Get a RemoteGraph reference to a graph on the server at `path`
+        Get a RemoteGraph reference to a graph on the server at  path
 
         Arguments:
           path (str): the path of the graph to be created
@@ -298,14 +298,14 @@ class RaphtoryClient(object):
           overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+           dict[str, Any]: The  data  field from the graphQL response after executing the mutation.
         """
 
     def upload_graph(
         self, path: str, file_path: str, overwrite: bool = False
     ) -> dict[str, Any]:
         """
-        Upload graph file from a path `file_path` on the client
+        Upload graph file from a path  file_path  on the client
 
         Arguments:
           path (str): the name of the graph
@@ -313,7 +313,7 @@ class RaphtoryClient(object):
           overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+           dict[str, Any]: The  data  field from the graphQL response after executing the mutation.
         """
 
 class RemoteGraph(object):
@@ -662,7 +662,7 @@ class RemoteEdgeAddition(object):
 
 class RemoteIndexSpec(object):
     """
-    Create a `RemoteIndexSpec` specifying which node and edge properties to index.
+    Create a  RemoteIndexSpec  specifying which node and edge properties to index.
 
     Arguments:
         node_props (PropsInput): Property spec for nodes.
@@ -674,14 +674,14 @@ class RemoteIndexSpec(object):
 
 class PropsInput(object):
     """
-    Create a `PropsInput` by choosing to include all/some properties explicitly.
+    Create a  PropsInput  by choosing to include all/some properties explicitly.
 
     Arguments:
         all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
         some (SomePropertySpec, optional): Explicitly list the properties to include.
 
     Raises:
-        ValueError: If neither `all` and `some` are specified.
+        ValueError: If neither  all  and  some  are specified.
     """
 
     def __new__(
@@ -693,7 +693,7 @@ class PropsInput(object):
 
 class SomePropertySpec(object):
     """
-    Create a `SomePropertySpec` by explicitly listing metadata and/or temporal property names.
+    Create a  SomePropertySpec  by explicitly listing metadata and/or temporal property names.
 
     Arguments:
         metadata (list[str]): Metadata property names. Defaults to [].
@@ -706,7 +706,7 @@ class SomePropertySpec(object):
 class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_TEMPORAL`.
+    Use one of the predefined variants:  ALL ,  ALL_METADATA , or  ALL_TEMPORAL .
     """
 
     def __eq__(self, value):

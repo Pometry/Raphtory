@@ -8,7 +8,6 @@ use std::{
 use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
 use futures_util::StreamExt;
 use rand::{rngs::StdRng, SeedableRng};
-use sysinfo::System;
 use tempfile::TempDir;
 
 use super::{
@@ -256,10 +255,7 @@ impl VectorDb {
 
             // TODO: review this -> You can specify the number of trees to use or specify None.
             let mut rng = StdRng::seed_from_u64(42);
-            writer
-                .builder(&mut rng)
-                .available_memory(System::new().total_memory() as usize / 2)
-                .build(&mut wtxn)?;
+            writer.builder(&mut rng).build(&mut wtxn)?;
             dimensions.into()
         } else {
             OnceLock::new()

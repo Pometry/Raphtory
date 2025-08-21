@@ -188,7 +188,7 @@ impl PyGraphServer {
     fn with_vectorised_graphs(
         slf: PyRefMut<Self>,
         graph_names: Vec<String>,
-        // TODO: support more models by just providing a string, e.g. "openai", here and in the VectorisedGraph API
+        // TODO: support more models by just providing a string, For example,  "openai", here and in the VectorisedGraph API
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<GraphServer> {

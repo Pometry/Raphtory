@@ -28,147 +28,259 @@ use std::{
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum GraphViewCollection {
+    /// Contains only the default layer.
     DefaultLayer(bool),
+    /// List of included layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single included layer.
     Layer(String),
+    /// Single excluded layer.
     ExcludeLayer(String),
+    /// Subgraph nodes.
     Subgraph(Vec<String>),
+    /// Subgraph node types.
     SubgraphNodeTypes(Vec<String>),
+    /// List of excluded nodes.
     ExcludeNodes(Vec<String>),
+    /// Valid state.
     Valid(bool),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Latest time.
     Latest(bool),
+    /// Snapshot at specified time.
     SnapshotAt(i64),
+    /// Snapshot at latest time.
     SnapshotLatest(bool),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
+    /// Node filter.
     NodeFilter(NodeFilter),
+    /// Edge filter.
     EdgeFilter(EdgeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum NodesViewCollection {
+    /// Contains only the default layer.
     DefaultLayer(bool),
+    /// Latest time.
     Latest(bool),
+    /// Snapshot at latest time.
     SnapshotLatest(bool),
+    /// List of included layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single included layer.
     Layer(String),
+    /// Single excluded layer.
     ExcludeLayer(String),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Time.
     SnapshotAt(i64),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
+    /// Node filter.
     NodeFilter(NodeFilter),
+    /// List of types.
     TypeFilter(Vec<String>),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum NodeViewCollection {
+    /// Contains only the default layer.
     DefaultLayer(bool),
+    /// Latest time.
     Latest(bool),
+    /// Snapshot at latest time.
     SnapshotLatest(bool),
+    /// Snapshot at specified time.
     SnapshotAt(i64),
+    /// List of included layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single included layer.
     Layer(String),
+    /// Single excluded layer.
     ExcludeLayer(String),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
+    /// Node filter.
     NodeFilter(NodeFilter),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum EdgesViewCollection {
+    /// Contains only the default layer.
     DefaultLayer(bool),
+    /// Latest time.
     Latest(bool),
+    /// Snapshot at latest time.
     SnapshotLatest(bool),
+    /// Snapshot at specified time.
     SnapshotAt(i64),
+    /// List of included layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single included layer.
     Layer(String),
+    /// Single excluded layer.
     ExcludeLayer(String),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum EdgeViewCollection {
+    /// Contains only the default layer.
     DefaultLayer(bool),
+    /// Latest time.
     Latest(bool),
+    /// Snapshot at latest time.
     SnapshotLatest(bool),
+    /// Snapshot at specified time.
     SnapshotAt(i64),
+    /// List of included layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single included layer.
     Layer(String),
+    /// Single excluded layer.
     ExcludeLayer(String),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum PathFromNodeViewCollection {
+    /// Latest time.
     Latest(bool),
+    /// Latest snapshot.
     SnapshotLatest(bool),
+    /// Time.
     SnapshotAt(i64),
+    /// List of layers.
     Layers(Vec<String>),
+    /// List of excluded layers.
     ExcludeLayers(Vec<String>),
+    /// Single layer.
     Layer(String),
+    /// Single layer to exclude.
     ExcludeLayer(String),
+    /// Window between a start and end time.
     Window(Window),
+    /// Time.
     At(i64),
+    /// Time.
     Before(i64),
+    /// Time.
     After(i64),
+    /// Window between a start and end time.
     ShrinkWindow(Window),
+    /// Time.
     ShrinkStart(i64),
+    /// Time.
     ShrinkEnd(i64),
 }
 
 #[derive(InputObject, Clone, Debug)]
 pub struct Window {
+    /// Time.
     pub start: i64,
+    /// Time.
     pub end: i64,
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum Operator {
+    /// Equality operator.
     Equal,
+    /// Inequality operator.
     NotEqual,
+    /// Greater Than Or Equal operator.
     GreaterThanOrEqual,
+    /// Less Than Or Equal operator.
     LessThanOrEqual,
+    /// Greater Than operator.
     GreaterThan,
+    /// Less Than operator.
     LessThan,
+    /// Is None operator.
     IsNone,
+    /// Is Some operator.
     IsSome,
+    /// Is In operator.
     IsIn,
+    /// Is Not In operator.
     IsNotIn,
     StartsWith,
     EndsWith,
+    /// Contains operator.
     Contains,
+    /// Not Contains operator.
     NotContains,
 }
 
@@ -196,12 +308,19 @@ impl Display for Operator {
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum NodeFilter {
+    /// Node filter.
     Node(NodeFieldFilter),
+    /// Property filter.
     Property(PropertyFilterExpr),
+    /// Metadata filter.
     Metadata(MetadataFilterExpr),
+    /// Temporal property filter.
     TemporalProperty(TemporalPropertyFilterExpr),
+    /// AND operator.
     And(Vec<NodeFilter>),
+    /// OR operator.
     Or(Vec<NodeFilter>),
+    /// NOT operator.
     Not(Wrapped<NodeFilter>),
 }
 
@@ -241,8 +360,11 @@ impl<T: InputTypeName + 'static> InputTypeName for Wrapped<T> {}
 
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFieldFilter {
+    /// Node Field filter.
     pub field: NodeField,
+    /// Operator filter.
     pub operator: Operator,
+    /// Value filter.
     pub value: Value,
 }
 
@@ -254,26 +376,39 @@ impl NodeFieldFilter {
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum NodeField {
+    /// Node name.
     NodeName,
+    /// Node type.
     NodeType,
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum EdgeFilter {
+    /// Source node.
     Src(NodeFieldFilter),
+    /// Destination node.
     Dst(NodeFieldFilter),
+    /// Property.
     Property(PropertyFilterExpr),
+    /// Metadata.
     Metadata(MetadataFilterExpr),
+    /// Temporal property.
     TemporalProperty(TemporalPropertyFilterExpr),
+    /// AND operator.
     And(Vec<EdgeFilter>),
+    /// OR operator.
     Or(Vec<EdgeFilter>),
+    /// NOT operator.
     Not(Wrapped<EdgeFilter>),
 }
 
 #[derive(InputObject, Clone, Debug)]
 pub struct PropertyFilterExpr {
+    /// Name.
     pub name: String,
+    /// Operator.
     pub operator: Operator,
+    /// Value.
     pub value: Option<Value>,
 }
 
@@ -285,8 +420,11 @@ impl PropertyFilterExpr {
 
 #[derive(InputObject, Clone, Debug)]
 pub struct MetadataFilterExpr {
+    /// Name.
     pub name: String,
+    /// Operator.
     pub operator: Operator,
+    /// Value.
     pub value: Option<Value>,
 }
 
@@ -298,9 +436,13 @@ impl MetadataFilterExpr {
 
 #[derive(InputObject, Clone, Debug)]
 pub struct TemporalPropertyFilterExpr {
+    /// Name.
     pub name: String,
+    /// Temporal property type.
     pub temporal: TemporalType,
+    /// Operator.
     pub operator: Operator,
+    /// Value.
     pub value: Option<Value>,
 }
 
@@ -312,7 +454,9 @@ impl TemporalPropertyFilterExpr {
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum TemporalType {
+    /// Any.
     Any,
+    /// Latest.
     Latest,
     First,
     All,
