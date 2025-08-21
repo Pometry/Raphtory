@@ -13,19 +13,31 @@ def test_latest_and_active():
               name
               isActive
               latest {
-                history
+                history {
+                  list {
+                    display
+                  }
+                }
               }
             }
             e12: edge(src: "1", dst: "2") {
               isActive
               latest {
-                history
+                history {
+                  list {
+                    display
+                  }
+                }
               }
             }
             e13: edge(src: "1", dst: "3") {
               latest {
                 isActive
-                history
+                history {
+                  list {
+                    display
+                  }
+                }
               }
             }
             nodes {
@@ -34,7 +46,11 @@ def test_latest_and_active():
                 edges {
                   latest {
                     list {
-                      history
+                      history {
+                        list {
+                          display
+                        }
+                      }
                     }
                   }
                 }
@@ -42,14 +58,22 @@ def test_latest_and_active():
               latest {
                 list {
                   name
-                  history
+                  history {
+                    list {
+                      display
+                    }
+                  }
                 }
               }
             }
             edges {
               latest {
                 list {
-                  history
+                  history {
+                    list {
+                      display
+                    }
+                  }
                 }
               }
             }
@@ -59,9 +83,32 @@ def test_latest_and_active():
 
     result = {
         "graph": {
-            "node": {"name": "1", "isActive": True, "latest": {"history": [3]}},
-            "e12": {"isActive": True, "latest": {"history": [3]}},
-            "e13": {"latest": {"isActive": False, "history": []}},
+            "node": {
+                "name": "1",
+                "isActive": True,
+                "latest": {
+                    "history": {
+                        "list": [{"display": "TimeIndexEntry[3, 2]" }, {"display": "TimeIndexEntry[3, 5]"}
+                        ]
+                    }
+                }
+            },
+            "e12": {
+                "isActive": True,
+                "latest": {
+                    "history": {
+                        "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                    }
+                }
+            },
+            "e13": {
+                "latest": {
+                    "isActive": False,
+                    "history": {
+                        "list": []
+                    }
+                }
+            },
             "nodes": {
                 "list": [
                     {
@@ -69,30 +116,113 @@ def test_latest_and_active():
                         "edges": {
                             "latest": {
                                 "list": [
-                                    {"history": [3]},
-                                    {"history": []},
-                                    {"history": [3]},
+                                    {
+                                        "history": {
+                                            "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                                        }
+                                    },
+                                    {
+                                        "history": {
+                                            "list": []
+                                        }
+                                    },
+                                    {
+                                        "history": {
+                                            "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                        }
+                                    }
                                 ]
                             }
-                        },
+                        }
                     },
-                    {"name": "2", "edges": {"latest": {"list": [{"history": [3]}]}}},
-                    {"name": "3", "edges": {"latest": {"list": [{"history": []}]}}},
-                    {"name": "4", "edges": {"latest": {"list": [{"history": [3]}]}}},
+                    {
+                        "name": "2",
+                        "edges": {
+                            "latest": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "list": [{"display": "TimeIndexEntry[3, 2]"}
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "3",
+                        "edges": {
+                            "latest": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "list": []
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "name": "4",
+                        "edges": {
+                            "latest": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
                 ],
                 "latest": {
                     "list": [
-                        {"name": "1", "history": [3]},
-                        {"name": "2", "history": [3]},
-                        {"name": "4", "history": [3]},
+                        {
+                            "name": "1",
+                            "history": {
+                                "list": [{"display": "TimeIndexEntry[3, 2]"}, {"display": "TimeIndexEntry[3, 5]"}]
+                            }
+                        },
+                        {
+                            "name": "2",
+                            "history": {
+                                "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                            }
+                        },
+                        {
+                            "name": "4",
+                            "history": {
+                                "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                            }
+                        }
                     ]
-                },
+                }
             },
             "edges": {
                 "latest": {
-                    "list": [{"history": [3]}, {"history": []}, {"history": [3]}]
+                    "list": [
+                        {
+                            "history": {
+                                "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                            }
+                        },
+                        {
+                            "history": {
+                                "list": []
+                            }
+                        },
+                        {
+                            "history": {
+                                "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                            }
+                        }
+                    ]
                 }
-            },
+            }
         }
     }
 

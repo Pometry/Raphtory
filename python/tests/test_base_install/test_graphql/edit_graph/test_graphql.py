@@ -222,11 +222,21 @@ def test_graph_windows_and_layers_query():
             window(start: 200, end: 800) {
               node(name: "Frodo") {
                 after(time: 500) {
-                  history
+                  history {
+                    list {
+                      display
+                    }
+                  }
                   neighbours {
                     list {
-                        name
-                        before(time: 300) { history }
+                      name
+                        before(time: 300) { 
+                        history {
+                          list {
+                            display
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -241,11 +251,84 @@ def test_graph_windows_and_layers_query():
               "window": {
                 "node": {
                   "after": {
-                    "history": [555, 562],
+                    "history": {
+                      "list": [
+                        {
+                          "display": "TimeIndexEntry[555, 93]"
+                        },
+                        {
+                          "display": "TimeIndexEntry[555, 95]"
+                        },
+                        {
+                          "display": "TimeIndexEntry[555, 96]"
+                        },
+                        {
+                          "display": "TimeIndexEntry[555, 98]"
+                        },
+                        {
+                          "display": "TimeIndexEntry[562, 102]"
+                        },
+                        {
+                          "display": "TimeIndexEntry[562, 104]"
+                        }
+                      ]
+                    },
                     "neighbours": {
                       "list": [
-                        {"name": "Gandalf", "before": {"history": [270]}},
-                        {"name": "Bilbo", "before": {"history": [205, 270, 286]}}
+                        {
+                          "name": "Gandalf",
+                          "before": {
+                            "history": {
+                              "list": [
+                                {
+                                  "display": "TimeIndexEntry[270, 13]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 14]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 18]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 20]"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "name": "Bilbo",
+                          "before": {
+                            "history": {
+                              "list": [
+                                {
+                                  "display": "TimeIndexEntry[205, 10]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[205, 11]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 16]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 17]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 19]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[270, 20]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[286, 22]"
+                                },
+                                {
+                                  "display": "TimeIndexEntry[286, 23]"
+                                }
+                              ]
+                            }
+                          }
+                        }
                       ]
                     }
                   }
@@ -325,7 +408,11 @@ def test_graph_properties_query():
                     temporal {
                       values(keys:["prop2"]) {
                         key
-                        history
+                        history {
+                          list {
+                            display
+                          }
+                        }
                       }
                     }
                   }
@@ -348,7 +435,24 @@ def test_graph_properties_query():
                             "properties": {
                                 "values": [{"key": "prop1", "asString": "val3"}],
                                 "temporal": {
-                                    "values": [{"key": "prop2", "history": [1, 2, 3]}]
+                                    "values": [
+                                        {
+                                            "key": "prop2",
+                                            "history": {
+                                                "list": [
+                                                    {
+                                                        "display": "TimeIndexEntry[1, 0]"
+                                                    },
+                                                    {
+                                                        "display": "TimeIndexEntry[2, 1]"
+                                                    },
+                                                    {
+                                                        "display": "TimeIndexEntry[3, 2]"
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
                                 },
                             },
                             "metadata": {"values": [{"key": "prop5", "value": "val4"}]},
