@@ -377,7 +377,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         )?;
 
         self.graph
-            .internal_add_edge_metadata(self.edge.pid(), input_layer_id, &properties)
+            .internal_add_edge_metadata(self.edge.pid(), input_layer_id, properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
@@ -396,7 +396,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
         )?;
 
         self.graph
-            .internal_update_edge_metadata(self.edge.pid(), input_layer_id, &properties)
+            .internal_update_edge_metadata(self.edge.pid(), input_layer_id, properties)
             .map_err(into_graph_err)?;
         Ok(())
     }

@@ -425,7 +425,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             props.into_iter().map(|(n, p)| (n, p.into())),
         )?;
         self.graph
-            .internal_add_node_metadata(self.node, &properties)
+            .internal_add_node_metadata(self.node, properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
@@ -447,7 +447,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .inner())
         })?;
         self.graph
-            .internal_update_node_metadata(self.node, &properties)
+            .internal_update_node_metadata(self.node, properties)
             .map_err(into_graph_err)?;
         Ok(())
     }

@@ -126,13 +126,13 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
             .check_const_properties(edge_pos, layer_id, props)
     }
 
-    pub fn update_c_props<B: Borrow<(usize, Prop)>>(
+    pub fn update_c_props(
         &mut self,
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-        props: impl IntoIterator<Item = B>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let existing_edge = self
             .page

@@ -585,12 +585,15 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_node_metadata(vid, props))?;
+        self.if_index_mut(|index| index.add_node_metadata(vid, &props_for_index))?;
 
         Ok(lock)
     }
@@ -598,12 +601,15 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_node_metadata(vid, props))?;
+        self.if_index_mut(|index| index.update_node_metadata(vid, &props_for_index))?;
 
         Ok(lock)
     }
@@ -612,12 +618,17 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        // FIXME: this whole thing is not great
+
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_edge_metadata(eid, layer, props))?;
+        self.if_index_mut(|index| index.add_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
     }
@@ -626,14 +637,19 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        // FIXME: this whole thing is not great
+
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_edge_metadata(eid, layer, props))?;
+        self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
     }

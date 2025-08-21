@@ -1,5 +1,6 @@
 use std::{collections::hash_map::Entry, fmt::Debug, sync::Arc};
 
+use crate::{LocalPOS, error::StorageError};
 use bitvec::{order::Msb0, vec::BitVec};
 use either::Either;
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
@@ -12,8 +13,6 @@ use raphtory_core::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
-
-use crate::LocalPOS;
 
 use super::properties::{Properties, RowEntry};
 
@@ -140,6 +139,21 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn properties_mut(&mut self) -> &mut Properties {
         &mut self.properties
+    }
+
+    pub fn check_metadata(
+        &self,
+        local_pos: LocalPOS,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        if let Some(item) = self.get(&local_pos) {
+            let local_row = item.row();
+            let edge_properties = self.properties().get_entry(local_row);
+            for (prop_id, prop_val) in props {
+                edge_properties.check_metadata(*prop_id, prop_val)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn meta(&self) -> &Arc<Meta> {

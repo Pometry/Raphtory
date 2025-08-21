@@ -317,6 +317,18 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
+    pub fn check_metadata(
+        &self,
+        node_pos: LocalPOS,
+        layer_id: usize,
+        props: &[(usize, Prop)],
+    ) -> Result<(), StorageError> {
+        if let Some(layer) = self.layers.get(layer_id) {
+            layer.check_metadata(node_pos, props)?;
+        }
+        Ok(())
+    }
+
     pub fn update_c_props(
         &mut self,
         node_pos: LocalPOS,

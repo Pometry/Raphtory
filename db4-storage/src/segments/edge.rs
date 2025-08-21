@@ -276,24 +276,18 @@ impl MemEdgeSegment {
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id) {
-            if let Some(edge) = layer.get(&edge_pos) {
-                let local_row = edge.row();
-                let edge_properties = layer.properties().get_entry(local_row);
-                for (prop_id, prop_val) in props {
-                    edge_properties.check_metadata(*prop_id, prop_val)?;
-                }
-            }
+            layer.check_metadata(edge_pos, props)?;
         }
         Ok(())
     }
 
-    pub fn update_const_properties<B: Borrow<(usize, Prop)>>(
+    pub fn update_const_properties(
         &mut self,
         edge_pos: impl Into<LocalPOS>,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-        props: impl IntoIterator<Item = B>,
+        props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let edge_pos = edge_pos.into();
         let src = src.into();
@@ -302,7 +296,6 @@ impl MemEdgeSegment {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
-
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()

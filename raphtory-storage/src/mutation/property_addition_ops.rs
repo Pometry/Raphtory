@@ -23,24 +23,24 @@ pub trait InternalPropertyAdditionOps {
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
 
@@ -78,34 +78,38 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.update_c_props(node_pos, 0, props.iter().cloned(), 0);
+        writer.check_metadata(node_pos, 0, &props)?;
+        writer.update_c_props(node_pos, 0, props, 0);
         Ok(writer)
     }
 
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
-        todo!()
+        let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
+        let mut writer = self.storage().nodes().writer(segment_id);
+        writer.update_c_props(node_pos, 0, props, 0);
+        Ok(writer)
     }
 
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
-        writer.validate_c_props(edge_pos, layer, props)?;
+        writer.validate_c_props(edge_pos, layer, &props)?;
         writer.update_c_props(edge_pos, src, dst, layer, props);
         Ok(writer)
     }
@@ -114,7 +118,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
@@ -148,7 +152,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_add_node_metadata(vid, props)
     }
@@ -156,7 +160,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_update_node_metadata(vid, props)
     }
@@ -165,7 +169,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_add_edge_metadata(eid, layer, props)
@@ -175,7 +179,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_update_edge_metadata(eid, layer, props)
@@ -213,7 +217,7 @@ where
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_add_node_metadata(vid, props)
     }
@@ -222,7 +226,7 @@ where
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_update_node_metadata(vid, props)
     }
@@ -232,7 +236,7 @@ where
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_add_edge_metadata(eid, layer, props)
     }
@@ -242,7 +246,7 @@ where
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
+        props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_update_edge_metadata(eid, layer, props)
     }
