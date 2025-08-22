@@ -85,7 +85,7 @@ impl PyRunningGraphServer {
     /// Get the client for the server
     ///
     /// Returns:
-    ///     RaphtoryClient: the client
+    /// RaphtoryClient: the client
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
         // TODO: return an authenticated server with rw access to everything?
         self.apply_if_alive(|handler| {
@@ -98,7 +98,7 @@ impl PyRunningGraphServer {
     /// Stop the server and wait for it to finish
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
         self.stop_server(py)
     }

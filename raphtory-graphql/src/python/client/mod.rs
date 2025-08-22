@@ -14,8 +14,8 @@ pub mod remote_node;
 /// A temporal update
 ///
 /// Arguments:
-///     time (TimeInput): the timestamp for the update
-///     properties (PropInput, optional): the properties for the update
+/// time (TimeInput): the timestamp for the update
+/// properties (PropInput, optional): the properties for the update
 #[derive(Clone)]
 #[pyclass(name = "RemoteUpdate", module = "raphtory.graphql")]
 pub struct PyUpdate {
@@ -66,10 +66,10 @@ impl PyUpdate {
 /// Node addition update
 ///
 /// Arguments:
-///     name (GID): the id of the node
-///     node_type (str, optional): the node type
-///     metadata (PropInput, optional): the metadata
-///     updates (list[RemoteUpdate], optional): the temporal updates
+/// name (GID): the id of the node
+/// node_type (str, optional): the node type
+/// metadata (PropInput, optional): the metadata
+/// updates (list[RemoteUpdate], optional): the temporal updates
 #[derive(Clone)]
 #[pyclass(name = "RemoteNodeAddition", module = "raphtory.graphql")]
 pub struct PyNodeAddition {
@@ -143,11 +143,11 @@ impl PyNodeAddition {
 /// An edge update
 ///
 /// Arguments:
-///     src (GID): the id of the source node
-///     dst (GID): the id of the destination node
-///     layer (str, optional): the layer for the update
-///     metadata (PropInput, optional): the metadata for the edge
-///     updates (list[RemoteUpdate], optional): the temporal updates for the edge
+/// src (GID): the id of the source node
+/// dst (GID): the id of the destination node
+/// layer (str, optional): the layer for the update
+/// metadata (PropInput, optional): the metadata for the edge
+/// updates (list[RemoteUpdate], optional): the temporal updates for the edge
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdgeAddition", module = "raphtory.graphql")]
 pub struct PyEdgeAddition {
@@ -325,7 +325,7 @@ pub(crate) fn build_query(template: &str, context: Value) -> Result<String, Grap
 }
 
 /// Specifies that **all** properties should be included when creating an index.
-/// Use one of the predefined variants:  ALL ,  ALL_METADATA , or  ALL_TEMPORAL .
+/// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
 #[derive(Clone, Serialize, PartialEq)]
 #[pyclass(name = "AllPropertySpec", module = "raphtory.graphql", eq, eq_int)]
 pub enum PyAllPropertySpec {
@@ -340,11 +340,11 @@ pub enum PyAllPropertySpec {
     AllProperties,
 }
 
-/// Create a  SomePropertySpec  by explicitly listing metadata and/or temporal property names.
+/// Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
 ///
 /// Arguments:
-///     metadata (list[str]): Metadata property names. Defaults to [].
-///     temporal (list[str]): Temporal property names. Defaults to [].
+/// metadata (list[str]): Metadata property names. Defaults to [].
+/// temporal (list[str]): Temporal property names. Defaults to [].
 #[derive(Clone, Serialize)]
 #[pyclass(name = "SomePropertySpec", module = "raphtory.graphql")]
 pub struct PySomePropertySpec {
@@ -366,14 +366,14 @@ impl PySomePropertySpec {
     }
 }
 
-/// Create a  PropsInput  by choosing to include all/some properties explicitly.
+/// Create a PropsInput by choosing to include all/some properties explicitly.
 ///
 /// Arguments:
-///     all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
-///     some (SomePropertySpec, optional): Explicitly list the properties to include.
+/// all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+/// some (SomePropertySpec, optional): Explicitly list the properties to include.
 ///
 /// Raises:
-///     ValueError: If neither  all  and  some  are specified.
+/// ValueError: If neither all and some are specified.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "PropsInput", module = "raphtory.graphql")]
 pub struct PyPropsInput {
@@ -399,11 +399,11 @@ impl PyPropsInput {
     }
 }
 
-/// Create a  RemoteIndexSpec  specifying which node and edge properties to index.
+/// Create a RemoteIndexSpec specifying which node and edge properties to index.
 ///
 /// Arguments:
-///     node_props (PropsInput): Property spec for nodes.
-///     edge_props (PropsInput): Property spec for edges.
+/// node_props (PropsInput): Property spec for nodes.
+/// edge_props (PropsInput): Property spec for edges.
 #[derive(Clone, Serialize)]
 #[pyclass(name = "RemoteIndexSpec", module = "raphtory.graphql")]
 pub struct PyRemoteIndexSpec {

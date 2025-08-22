@@ -22,15 +22,15 @@ use std::{path::PathBuf, sync::Arc, thread};
 /// A class for defining and running a Raphtory GraphQL server
 ///
 /// Arguments:
-///     work_dir (str | PathLike): the working directory for the server
-///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-///     log_level (str, optional): the log level for the server
-///     tracing (bool, optional): whether tracing should be enabled
-///     otlp_agent_host (str, optional): OTLP agent host for tracing
-///     otlp_agent_port(str, optional): OTLP agent port for tracing
-///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
-///     config_path (str | PathLike, optional): Path to the config file
+/// work_dir (str | PathLike): the working directory for the server
+/// cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
+/// cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
+/// log_level (str, optional): the log level for the server
+/// tracing (bool, optional): whether tracing should be enabled
+/// otlp_agent_host (str, optional): OTLP agent host for tracing
+/// otlp_agent_port(str, optional): OTLP agent port for tracing
+/// otlp_tracing_service_name (str, optional): The OTLP tracing service name
+/// config_path (str | PathLike, optional): Path to the config file
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 
@@ -138,7 +138,7 @@ impl PyGraphServer {
     /// Turn off index for all graphs
     ///
     /// Returns:
-    ///     GraphServer: The server with indexing disabled
+    /// GraphServer: The server with indexing disabled
     fn turn_off_index(slf: PyRefMut<Self>) -> PyResult<GraphServer> {
         let server = take_server_ownership(slf)?;
         Ok(server.turn_off_index())
@@ -147,13 +147,13 @@ impl PyGraphServer {
     /// Setup the server to vectorise graphs with a default template.
     ///
     /// Arguments:
-    ///   cache (str):  the directory to use as cache for the embeddings.
-    ///   embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    /// cache (str): the directory to use as cache for the embeddings.
+    /// embedding (Callable, optional): the embedding function to translate documents to embeddings.
+    /// nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    /// edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
-    ///    GraphServer: A new server object with embeddings setup.
+    /// GraphServer: A new server object with embeddings setup.
     #[pyo3(
         signature = (cache, embedding = None, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -176,12 +176,12 @@ impl PyGraphServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   graph_names (list[str]): the names of the graphs to vectorise. All by default.
-    ///   nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///   edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    /// graph_names (list[str]): the names of the graphs to vectorise. All by default.
+    /// nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    /// edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///
     /// Returns:
-    ///    GraphServer: A new server object containing the vectorised graphs.
+    /// GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
         signature = (graph_names, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -202,12 +202,12 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    ///   port (int):  the port to use. Defaults to 1736.
-    ///   timeout_ms (int): wait for server to be online. Defaults to 5000.
-    ///     The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+    /// port (int): the port to use. Defaults to 1736.
+    /// timeout_ms (int): wait for server to be online. Defaults to 5000.
+    /// The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
     ///
     /// Returns:
-    ///   RunningGraphServer: The running server
+    /// RunningGraphServer: The running server
     #[pyo3(
         signature = (port = 1736, timeout_ms = 5000)
     )]
@@ -264,11 +264,11 @@ impl PyGraphServer {
     /// Run the server until completion.
     ///
     /// Arguments:
-    ///   port (int): The port to use. Defaults to 1736.
-    ///   timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+    /// port (int): The port to use. Defaults to 1736.
+    /// timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(
         signature = (port = 1736, timeout_ms = 180000)
     )]
