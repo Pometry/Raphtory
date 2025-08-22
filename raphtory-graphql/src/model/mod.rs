@@ -25,8 +25,6 @@ use raphtory::{
     serialise::InternalStableDecode,
     version,
 };
-#[cfg(feature = "storage")]
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -209,11 +207,6 @@ impl Mut {
         // for the templates or if it needs to be vectorised at all
         let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph(path).await?.0.graph;
-
-        #[cfg(feature = "storage")]
-        if let GraphStorage::Disk(_) = graph.core_graph() {
-            return Err(GqlGraphError::ImmutableDiskGraph.into());
-        }
         data.insert_graph(new_path, graph).await?;
 
         Ok(true)

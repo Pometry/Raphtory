@@ -19,21 +19,11 @@ use std::ops::Range;
     ParallelIterator,
     IndexedParallelIterator,
 )]
-pub enum StorageVariants3<Mem, Unlocked, #[cfg(feature = "storage")] Disk> {
+pub enum StorageVariants3<Mem, Unlocked> {
     Mem(Mem),
     Unlocked(Unlocked),
-    #[cfg(feature = "storage")]
-    Disk(Disk),
 }
 
-#[cfg(feature = "storage")]
-macro_rules! SelfType {
-    ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
-        StorageVariants3<$Mem, $Unlocked, $Disk>
-    };
-}
-
-#[cfg(not(feature = "storage"))]
 macro_rules! SelfType {
     ($Mem:ident, $Unlocked:ident, $Disk:ident) => {
         StorageVariants3<$Mem, $Unlocked>
@@ -45,8 +35,6 @@ macro_rules! for_all {
         match $value {
             StorageVariants3::Mem($pattern) => $result,
             StorageVariants3::Unlocked($pattern) => $result,
-            #[cfg(feature = "storage")]
-            StorageVariants3::Disk($pattern) => $result,
         }
     };
 }
@@ -56,18 +44,12 @@ macro_rules! for_all_iter {
         match $value {
             StorageVariants3::Mem($pattern) => StorageVariants3::Mem($result),
             StorageVariants3::Unlocked($pattern) => StorageVariants3::Unlocked($result),
-            #[cfg(feature = "storage")]
-            StorageVariants3::Disk($pattern) => StorageVariants3::Disk($result),
         }
     };
 }
 
-impl<
-        'a,
-        Mem: TPropOps<'a> + 'a,
-        Unlocked: TPropOps<'a> + 'a,
-        #[cfg(feature = "storage")] Disk: TPropOps<'a> + 'a,
-    > TPropOps<'a> for SelfType!(Mem, Unlocked, Disk)
+impl<'a, Mem: TPropOps<'a> + 'a, Unlocked: TPropOps<'a> + 'a> TPropOps<'a>
+    for SelfType!(Mem, Unlocked, Disk)
 {
     fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, props => props.last_before(t))

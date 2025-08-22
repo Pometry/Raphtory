@@ -39,8 +39,6 @@ pub trait CoreGraphOps: Send + Sync {
     //         GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
     //             graph.storage.num_shards()
     //         }
-    //         #[cfg(feature = "storage")]
-    //         GraphStorage::Disk(_) => 1,
     //     }
     // }
 

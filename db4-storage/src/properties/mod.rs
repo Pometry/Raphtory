@@ -12,7 +12,6 @@ use raphtory_core::{
     },
     storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
 };
-use std::borrow::Borrow;
 
 pub mod props_meta_writer;
 

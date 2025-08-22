@@ -234,26 +234,6 @@ pub(crate) mod data_tests {
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;
 
-    #[cfg(feature = "storage")]
-    use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-
-    #[cfg(feature = "storage")]
-    fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
-        fs::create_dir_all(target_dir)?;
-        for entry in fs::read_dir(source_dir)? {
-            let entry = entry?;
-            let entry_path = entry.path();
-            let target_path = target_dir.join(entry.file_name());
-
-            if entry_path.is_dir() {
-                copy_dir_recursive(&entry_path, &target_path)?;
-            } else {
-                fs::copy(&entry_path, &target_path)?;
-            }
-        }
-        Ok(())
-    }
-
     // This function creates files that mimic disk graph for tests
     fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
         if !dir_path.exists() {
@@ -283,65 +263,13 @@ pub(crate) mod data_tests {
         for (name, graph) in graphs.into_iter() {
             let data = Data::new(work_dir, &AppConfig::default());
             let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
-
-            #[cfg(feature = "storage")]
-            if let GraphStorage::Disk(dg) = graph.core_graph() {
-                let disk_graph_path = dg.graph_dir();
-                copy_dir_recursive(disk_graph_path, &folder.get_graph_path())?;
-                File::create(folder.get_meta_path())?;
-            } else {
-                graph.encode(folder)?;
-            }
-
-            #[cfg(not(feature = "storage"))]
             graph.encode(folder)?;
         }
         Ok(())
     }
 
     #[tokio::test]
-    #[cfg(feature = "storage")]
-    async fn test_get_disk_graph_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-
-        let base_path = tmp_graph_dir.path().to_owned();
-        let graph_path = base_path.join("test_dg");
-        fs::create_dir(&graph_path).unwrap();
-        File::create(graph_path.join(".raph")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
-
-        let data = Data::new(&base_path, &Default::default());
-        let res = data.get_graph("test_dg").await.unwrap().0;
-        assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
-
-        // Dir path doesn't exists
-        let res = data.get_graph("test_dg1").await;
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.to_string().contains("Graph not found"));
-        }
-
-        // Dir path exists but is not a disk graph path
-        // let tmp_graph_dir = tempfile::tempdir().unwrap();
-        // let res = read_graph_from_path(base_path, "");
-        let res = data.get_graph("").await;
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.to_string().contains("Graph not found"));
-        }
-    }
-
-    #[tokio::test]
     async fn test_save_graphs_to_work_dir() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
@@ -353,20 +281,11 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        #[cfg(feature = "storage")]
-        let graph2: MaterializedGraph = graph
-            .persist_as_disk_graph(tmp_graph_dir.path())
-            .unwrap()
-            .into();
-
         let graph: MaterializedGraph = graph.into();
 
         let mut graphs = HashMap::new();
 
         graphs.insert("test_g".to_string(), graph);
-
-        #[cfg(feature = "storage")]
-        graphs.insert("test_dg".to_string(), graph2);
 
         save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
 

@@ -155,7 +155,7 @@ impl PropType {
     }
 }
 
-#[cfg(feature = "storage")]
+#[cfg(feature = "polars")]
 mod storage {
     use crate::core::entities::properties::prop::PropType;
     use polars_arrow::datatypes::ArrowDataType as PolarsDataType;

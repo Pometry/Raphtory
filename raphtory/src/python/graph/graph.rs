@@ -170,18 +170,6 @@ impl PyGraph {
         (PyGraphEncoder, (state,))
     }
 
-    /// Persist graph on disk
-    ///
-    /// Arguments:
-    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
-    ///
-    /// Returns:
-    ///     Graph: a view of the persisted graph
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
-    }
-
     /// Persist graph to parquet files
     ///
     /// Arguments:

@@ -443,7 +443,7 @@ mod lazy_vec_tests {
 
     #[test]
     fn check_fails_if_present() {
-        let mut vec = LazyVec::from(5, 55);
+        let vec = LazyVec::from(5, 55);
         let result = vec.check(5, &555);
         assert_eq!(result, Err(IllegalSet::new(5, 55, 555)))
     }

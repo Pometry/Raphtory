@@ -1,11 +1,10 @@
-use std::{borrow::Borrow, ops::DerefMut};
-
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::MemEdgeSegment,
 };
 use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::storage::timeindex::AsTime;
+use std::ops::DerefMut;
 
 pub struct EdgeWriter<
     'a,

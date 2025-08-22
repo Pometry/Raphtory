@@ -5,15 +5,10 @@ use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::entities::{LayerIds, EID, VID};
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
-#[cfg(feature = "storage")]
-use crate::disk::graph_impl::DiskEdge;
-
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
     Mem(EdgeEntryRef<'a>),
     Unlocked(EdgeEntry<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdge<'a>),
 }
 
 impl<'a> EdgeStorageEntry<'a> {
@@ -22,8 +17,6 @@ impl<'a> EdgeStorageEntry<'a> {
         match self {
             EdgeStorageEntry::Mem(edge) => *edge,
             EdgeStorageEntry::Unlocked(edge) => edge.as_ref(),
-            #[cfg(feature = "storage")]
-            EdgeStorageEntry::Disk(edge) => EdgeEntryRef::Disk(*edge),
         }
     }
 }

@@ -5,9 +5,6 @@ use crate::graph::nodes::nodes_ref::NodesStorageEntry;
 use raphtory_api::core::entities::VID;
 use storage::{Extension, ReadLockedNodes};
 
-#[cfg(feature = "storage")]
-use crate::disk::storage_interface::nodes::DiskNodesOwned;
-
 #[repr(transparent)]
 pub struct NodesStorage {
     storage: Arc<ReadLockedNodes<Extension>>,

@@ -55,7 +55,7 @@ python = [
     "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
 ]
 
-storage = [
+polars = [
     "dep:polars-arrow",
 ]
 

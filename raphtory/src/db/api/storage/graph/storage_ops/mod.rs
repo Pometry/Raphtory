@@ -1,8 +1,6 @@
 use crate::db::api::{storage::storage::Storage, view::internal::InternalStorageOps};
 use raphtory_storage::graph::graph::GraphStorage;
 
-#[cfg(feature = "storage")]
-pub(crate) mod disk_storage;
 pub mod edge_filter;
 pub mod list_ops;
 pub mod materialize;

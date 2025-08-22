@@ -1,7 +1,4 @@
 //ALGORITHMS
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
@@ -61,8 +58,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(version, m)?)?;
 
-    #[cfg(feature = "storage")]
-    add_classes!(m, PyDiskGraph);
     Ok(())
 }
 
@@ -114,8 +109,6 @@ pub fn base_algorithm_module(py: Python) -> Result<Bound<PyModule>, PyErr> {
     );
 
     add_classes!(&algorithm_module, PyMatching, PyInfected);
-    #[cfg(feature = "storage")]
-    add_functions!(&algorithm_module, connected_components);
     Ok(algorithm_module)
 }
 

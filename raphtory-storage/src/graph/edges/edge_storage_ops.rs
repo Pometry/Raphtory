@@ -1,6 +1,4 @@
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-#[cfg(feature = "storage")]
-use pometry_storage::timestamps::TimeStamps;
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
@@ -17,16 +15,12 @@ use storage::api::edges::EdgeRefOps;
 pub enum TimeIndexRef<'a> {
     Ref(&'a TimeIndex<TimeIndexEntry>),
     Range(TimeIndexWindow<'a, TimeIndexEntry, TimeIndex<TimeIndexEntry>>),
-    #[cfg(feature = "storage")]
-    External(TimeStamps<'a, TimeIndexEntry>),
 }
 
 #[derive(Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator, Debug, Clone)]
-pub enum TimeIndexRefVariants<Ref, Range, #[cfg(feature = "storage")] External> {
+pub enum TimeIndexRefVariants<Ref, Range> {
     Ref(Ref),
     Range(Range),
-    #[cfg(feature = "storage")]
-    External(External),
 }
 
 impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
@@ -38,8 +32,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => t.active(w),
             TimeIndexRef::Range(t) => t.active(w),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => t.active(w),
         }
     }
 
@@ -47,8 +39,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRef::Range(t.range(w)),
             TimeIndexRef::Range(t) => TimeIndexRef::Range(t.range(w)),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => TimeIndexRef::External(t.range(w)),
         }
     }
 
@@ -56,8 +46,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => t.first(),
             TimeIndexRef::Range(t) => t.first(),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => t.first(),
         }
     }
 
@@ -65,8 +53,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => t.last(),
             TimeIndexRef::Range(t) => t.last(),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => t.last(),
         }
     }
 
@@ -74,8 +60,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRefVariants::Ref(t.iter()),
             TimeIndexRef::Range(t) => TimeIndexRefVariants::Range(t.iter()),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => TimeIndexRefVariants::External(t.iter()),
         }
     }
 
@@ -83,8 +67,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(t) => TimeIndexRefVariants::Ref(t.iter_rev()),
             TimeIndexRef::Range(t) => TimeIndexRefVariants::Range(t.iter_rev()),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => TimeIndexRefVariants::External(t.iter_rev()),
         }
     }
 
@@ -92,8 +74,6 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
         match self {
             TimeIndexRef::Ref(ts) => ts.len(),
             TimeIndexRef::Range(ts) => ts.len(),
-            #[cfg(feature = "storage")]
-            TimeIndexRef::External(t) => t.len(),
         }
     }
 }

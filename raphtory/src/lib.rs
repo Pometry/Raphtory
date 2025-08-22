@@ -142,12 +142,6 @@ pub mod prelude {
         },
     };
 
-    #[cfg(feature = "storage")]
-    pub use {
-        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
-    };
-
     #[cfg(feature = "proto")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
@@ -157,9 +151,6 @@ pub mod prelude {
     #[cfg(feature = "search")]
     pub use crate::db::api::{mutation::IndexMutationOps, view::SearchableGraphOps};
 }
-
-#[cfg(feature = "storage")]
-pub use polars_arrow as arrow2;
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};
 
@@ -178,8 +169,6 @@ mod test_utils {
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
     };
     use std::{collections::HashMap, sync::Arc};
-    #[cfg(feature = "storage")]
-    use tempfile::TempDir;
 
     pub(crate) fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
         test(graph)
@@ -189,16 +178,7 @@ mod test_utils {
     macro_rules! test_storage {
         ($graph:expr, $test:expr) => {
             $crate::test_utils::test_graph($graph, $test);
-            #[cfg(feature = "storage")]
-            $crate::test_utils::test_disk_graph($graph, $test);
         };
-    }
-
-    #[cfg(feature = "storage")]
-    pub(crate) fn test_disk_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
-        let test_dir = TempDir::new().unwrap();
-        let disk_graph = graph.persist_as_disk_graph(test_dir.path()).unwrap();
-        test(&disk_graph)
     }
 
     pub(crate) fn build_edge_list(

@@ -1,12 +1,3 @@
-use std::{
-    borrow::Borrow,
-    ops::{Deref, DerefMut},
-    sync::{
-        Arc,
-        atomic::{self, AtomicUsize},
-    },
-};
-
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
@@ -22,10 +13,17 @@ use raphtory_api::core::entities::{
     properties::{meta::Meta, prop::Prop},
 };
 use raphtory_core::{
-    entities::{LayerIds, properties::props::MetadataError},
+    entities::LayerIds,
     storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{
+        Arc,
+        atomic::{self, AtomicUsize},
+    },
+};
 
 use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 

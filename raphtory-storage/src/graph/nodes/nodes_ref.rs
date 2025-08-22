@@ -4,15 +4,10 @@ use raphtory_api::core::entities::VID;
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
-#[cfg(feature = "storage")]
-use crate::disk::storage_interface::nodes_ref::DiskNodesRef;
-
 #[derive(Debug)]
 pub enum NodesStorageEntry<'a> {
     Mem(&'a ReadLockedNodes<Extension>),
     Unlocked(ReadLockedNodes<Extension>),
-    #[cfg(feature = "storage")]
-    Disk(DiskNodesRef<'a>),
 }
 
 macro_rules! for_all_variants {
@@ -20,8 +15,6 @@ macro_rules! for_all_variants {
         match $value {
             NodesStorageEntry::Mem($pattern) => StorageVariants3::Mem($result),
             NodesStorageEntry::Unlocked($pattern) => StorageVariants3::Unlocked($result),
-            #[cfg(feature = "storage")]
-            NodesStorageEntry::Disk($pattern) => StorageVariants3::Disk($result),
         }
     };
 }
@@ -31,8 +24,6 @@ impl<'a> NodesStorageEntry<'a> {
         match self {
             NodesStorageEntry::Mem(store) => store.node_ref(vid),
             NodesStorageEntry::Unlocked(store) => store.node_ref(vid),
-            #[cfg(feature = "storage")]
-            NodesStorageEntry::Disk(store) => NodeStorageRef::Disk(store.node(vid)),
         }
     }
 
@@ -40,8 +31,6 @@ impl<'a> NodesStorageEntry<'a> {
         match self {
             NodesStorageEntry::Mem(store) => store.len(),
             NodesStorageEntry::Unlocked(store) => store.len(),
-            #[cfg(feature = "storage")]
-            NodesStorageEntry::Disk(store) => store.len(),
         }
     }
 

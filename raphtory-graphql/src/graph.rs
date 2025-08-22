@@ -22,9 +22,6 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 
-#[cfg(feature = "storage")]
-use {raphtory::prelude::IntoGraph, raphtory_storage::disk::DiskGraphStorage};
-
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
@@ -71,8 +68,6 @@ impl GraphWithVectors {
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
         match self.graph.core_graph() {
             GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => Ok(()),
         }
     }
 
@@ -81,12 +76,7 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph_path = &folder.get_graph_path();
-        let graph = if graph_path.is_dir() {
-            get_disk_graph_from_path(folder)?
-        } else {
-            MaterializedGraph::load_cached(folder.clone())?
-        };
+        let graph = MaterializedGraph::load_cached(folder.clone())?;
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
@@ -101,20 +91,6 @@ impl GraphWithVectors {
             folder: OnceCell::with_value(folder.clone().into()),
         })
     }
-}
-
-#[cfg(feature = "storage")]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
-        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
-    let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
-    println!("Disk Graph loaded = {}", path.get_original_path().display());
-    Ok(graph)
-}
-
-#[cfg(not(feature = "storage"))]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    Err(GraphError::GraphNotFound(path.to_error_path()))
 }
 
 impl Base for GraphWithVectors {

@@ -263,8 +263,6 @@ mod test {
     use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};
-    #[cfg(feature = "storage")]
-    use tempfile::TempDir;
     use tracing::info;
 
     fn correct_res(x: f64) -> f64 {
@@ -385,37 +383,5 @@ mod test {
         let p = 0.1;
 
         inner_test(event_rate, recovery_rate, p);
-    }
-
-    #[cfg(feature = "storage")]
-    #[test]
-    fn compare_disk_with_in_mem() {
-        let event_rate = 0.00000001;
-        let recovery_rate = 0.000000001;
-        let p = 0.3;
-
-        let mut rng = SmallRng::seed_from_u64(0);
-        let g = generate_graph(1000, event_rate, &mut rng);
-        let test_dir = TempDir::new().unwrap();
-        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
-        let mut rng = SmallRng::seed_from_u64(0);
-        let res_arrow = temporal_SEIR(
-            &disk_graph,
-            Some(recovery_rate),
-            None,
-            p,
-            0,
-            Number(1),
-            &mut rng,
-        )
-        .unwrap();
-
-        let mut rng = SmallRng::seed_from_u64(0);
-        let res_mem =
-            temporal_SEIR(&g, Some(recovery_rate), None, p, 0, Number(1), &mut rng).unwrap();
-
-        assert!(res_mem
-            .iter()
-            .all(|(key, val)| res_arrow.get_by_node(key.id()).unwrap() == val));
     }
 }

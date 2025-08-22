@@ -427,7 +427,7 @@ mod test_deletions {
     use raphtory_api::core::entities::GID;
     use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
     use rayon::ThreadPoolBuilder;
-    use std::ops::{Deref, Range};
+    use std::ops::Range;
 
     #[test]
     fn test_nodes() {
@@ -661,7 +661,6 @@ mod test_deletions {
         })
     }
 
-    #[test]
     #[test]
     fn materialize_window_multilayer() {
         let g = PersistentGraph::new();

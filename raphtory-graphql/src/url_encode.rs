@@ -1,12 +1,10 @@
-use std::io::{copy, Read, Write};
-
 use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
     db::api::view::MaterializedGraph,
     errors::GraphError,
     prelude::{ParquetDecoder, ParquetEncoder},
-    serialise::StableEncode,
 };
+use std::io::copy;
 use zip::write::SimpleFileOptions;
 
 #[derive(thiserror::Error, Debug)]

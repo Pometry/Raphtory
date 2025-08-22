@@ -2,10 +2,13 @@ use super::{
     edges::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges},
     nodes::node_entry::NodeStorageEntry,
 };
-use crate::graph::{
-    edges::edges::{EdgesStorage, EdgesStorageRef},
-    locked::LockedGraph,
-    nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
+use crate::{
+    graph::{
+        edges::edges::{EdgesStorage, EdgesStorageRef},
+        locked::LockedGraph,
+        nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
+    },
+    mutation::MutationError,
 };
 use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
@@ -13,31 +16,16 @@ use raphtory_core::entities::{nodes::node_ref::NodeRef, properties::graph_meta::
 use std::{fmt::Debug, iter, sync::Arc};
 use thiserror::Error;
 
-#[cfg(feature = "storage")]
-use crate::disk::{
-    storage_interface::{
-        edges::DiskEdges, edges_ref::DiskEdgesRef, node::DiskNode, nodes::DiskNodesOwned,
-        nodes_ref::DiskNodesRef,
-    },
-    DiskGraphStorage,
-};
-use crate::mutation::MutationError;
-
 #[derive(Clone, Debug)]
 pub enum GraphStorage {
     Mem(LockedGraph),
     Unlocked(Arc<TemporalGraph>),
-    #[cfg(feature = "storage")]
-    Disk(Arc<DiskGraphStorage>),
 }
 
 #[derive(Error, Debug)]
 pub enum Immutable {
     #[error("The graph is locked and cannot be mutated")]
     ReadLockedImmutable,
-    #[cfg(feature = "storage")]
-    #[error("DiskGraph cannot be mutated")]
-    DiskGraphImmutable,
 }
 
 impl From<TemporalGraph> for GraphStorage {
@@ -75,13 +63,6 @@ impl GraphStorage {
                     graph: other_graph, ..
                 })
                 | GraphStorage::Unlocked(other_graph) => Arc::ptr_eq(this_graph, other_graph),
-                #[cfg(feature = "storage")]
-                _ => false,
-            },
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(this_graph) => match other {
-                GraphStorage::Disk(other_graph) => Arc::ptr_eq(this_graph, other_graph),
-                _ => false,
             },
         }
     }
@@ -90,8 +71,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(_) => Err(Immutable::ReadLockedImmutable)?,
             GraphStorage::Unlocked(graph) => Ok(graph),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => Err(Immutable::DiskGraphImmutable)?,
         }
     }
 
@@ -100,8 +79,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(_) => true,
             GraphStorage::Unlocked(_) => false,
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => true,
         }
     }
 
@@ -123,10 +100,6 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodesStorageEntry::Unlocked(storage.storage().nodes().locked())
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                NodesStorageEntry::Disk(DiskNodesRef::new(&storage.inner))
-            }
         }
     }
 
@@ -137,11 +110,6 @@ impl GraphStorage {
             node_ref => match self {
                 GraphStorage::Mem(locked) => locked.graph.resolve_node_ref(node_ref),
                 GraphStorage::Unlocked(unlocked) => unlocked.resolve_node_ref(node_ref),
-                #[cfg(feature = "storage")]
-                GraphStorage::Disk(storage) => match v {
-                    NodeRef::External(id) => storage.inner.find_node(id),
-                    _ => unreachable!("VID is handled above!"),
-                },
             },
         }
     }
@@ -151,8 +119,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(),
             GraphStorage::Unlocked(storage) => storage.internal_num_nodes(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.num_nodes(),
         }
     }
 
@@ -161,8 +127,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.internal_num_edges(),
             GraphStorage::Unlocked(storage) => storage.internal_num_edges(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.count_edges(),
         }
     }
 
@@ -171,8 +135,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.num_layers(),
             GraphStorage::Unlocked(storage) => storage.num_layers(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.layers().len(),
         }
     }
 
@@ -182,10 +144,6 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => NodesStorage::new(storage.nodes.clone()),
             GraphStorage::Unlocked(storage) => {
                 NodesStorage::new(storage.read_locked().nodes.clone())
-            }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                NodesStorage::Disk(DiskNodesOwned::new(storage.inner.clone()))
             }
         }
     }
@@ -197,10 +155,6 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodeStorageEntry::Unlocked(storage.storage().nodes().node(vid))
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => {
-                NodeStorageEntry::Disk(DiskNode::new(&storage.inner, vid))
-            }
         }
     }
 
@@ -211,8 +165,6 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 EdgesStorageRef::Unlocked(UnlockedEdges(storage.storage()))
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgesStorageRef::Disk(DiskEdgesRef::new(&storage.inner)),
         }
     }
 
@@ -223,8 +175,6 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 EdgesStorage::new(storage.storage().edges().locked().into())
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgesStorage::Disk(DiskEdges::new(storage)),
         }
     }
 
@@ -235,8 +185,6 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 EdgeStorageEntry::Unlocked(storage.storage().edges().edge(eid))
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => EdgeStorageEntry::Disk(storage.inner.edge(eid)),
         }
     }
 
@@ -257,8 +205,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.node_meta(),
             GraphStorage::Unlocked(storage) => storage.node_meta(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.node_meta(),
         }
     }
 
@@ -266,8 +212,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.edge_meta(),
             GraphStorage::Unlocked(storage) => storage.edge_meta(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.edge_meta(),
         }
     }
 
@@ -275,8 +219,6 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(storage) => storage.graph.graph_meta(),
             GraphStorage::Unlocked(storage) => storage.graph_meta(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.graph_meta(),
         }
     }
 }

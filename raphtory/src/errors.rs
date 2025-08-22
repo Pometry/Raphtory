@@ -26,8 +26,6 @@ use tracing::error;
 #[cfg(feature = "io")]
 use parquet::errors::ParquetError;
 
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 #[cfg(feature = "arrow")]
 use {
     polars_arrow::{datatypes::ArrowDataType, legacy::error},
@@ -269,10 +267,6 @@ pub enum GraphError {
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "storage")]
-    #[error("Raphtory Arrow Error: {0}")]
-    DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed: {source}")]

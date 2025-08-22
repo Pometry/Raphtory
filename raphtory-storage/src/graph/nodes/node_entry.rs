@@ -66,8 +66,6 @@ impl<'b> NodeStorageEntry<'b> {
     //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
     //             Box::new(e.as_ref().node().const_prop_ids())
     //         })),
-    //         #[cfg(feature = "storage")]
-    //         NodeStorageEntry::Disk(node) => Box::new(node.constant_node_prop_ids()),
     //     }
     // }
 
@@ -77,8 +75,6 @@ impl<'b> NodeStorageEntry<'b> {
     //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
     //             Box::new(e.as_ref().temporal_prop_ids())
     //         })),
-    //         #[cfg(feature = "storage")]
-    //         NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
     //     }
     // }
 }

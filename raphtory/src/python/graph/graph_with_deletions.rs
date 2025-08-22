@@ -107,11 +107,6 @@ impl PyPersistentGraph {
         )
     }
 
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<PersistentGraph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
-    }
-
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
         let state = self.graph.encode_to_vec();
         (PyGraphEncoder, (state,))
