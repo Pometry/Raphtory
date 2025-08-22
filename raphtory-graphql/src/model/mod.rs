@@ -184,7 +184,7 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Returns a plugin.
+    /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
@@ -243,10 +243,10 @@ impl Mut {
         Ok(true)
     }
 
-    /// Upload graph file from a path on the client.
+    /// Upload a graph file from a path on the client using GQL multipart uploading.
     ///
     /// Returns::
-    ///    name of the new graph
+    /// name of the new graph
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -272,7 +272,7 @@ impl Mut {
     /// Send graph bincode as base64 encoded string.
     ///
     /// Returns::
-    ///    path of the new graph
+    /// path of the new graph
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -291,7 +291,7 @@ impl Mut {
     /// Returns a subgraph given a set of nodes from an existing graph in the server.
     ///
     /// Returns::
-    ///    name of the new graph
+    /// name of the new graph
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         parent_path: &str,
@@ -310,7 +310,7 @@ impl Mut {
         Ok(new_path)
     }
 
-    /// Creates search index.
+    /// (Experimental) Creates search index.
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,

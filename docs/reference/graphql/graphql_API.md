@@ -161,7 +161,7 @@ Returns:: Base64 url safe encoded string
 <td valign="top"><a href="#mutationplugin">MutationPlugin</a>!</td>
 <td>
 
-Returns a plugin.
+Returns a collection of mutation plugins.
 
 </td>
 </tr>
@@ -247,7 +247,7 @@ This applies to both the graph namespace and new graph namespace.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Upload graph file from a path on the client.
+Upload a graph file from a path on the client using GQL multipart uploading.
 
 Returns::
 name of the new graph
@@ -333,7 +333,7 @@ name of the new graph
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Creates search index.
+(Experimental) Creates search index.
 
 </td>
 </tr>
@@ -387,7 +387,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -449,7 +449,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -511,7 +511,7 @@ Returns a list of collection objects.
 
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -571,7 +571,7 @@ Return a view of Edge containing only the default edge layer.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers in the list of  names .
+Returns a view of Edge containing all layers in the list of names.
 
 Errors if any of the layers do not exist.
 
@@ -587,7 +587,7 @@ Errors if any of the layers do not exist.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded list of  names .
+Returns a view of Edge containing all layers except the excluded list of names.
 
 Errors if any of the layers do not exist.
 
@@ -672,7 +672,9 @@ An expanding window is a window that grows by step size at each iteration.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
+
+For persistent graphs, any edge which exists at any point during the window will be included. You may want to restrict this to only edges that are present at the end of the window using the is_valid function.
 
 </td>
 </tr>
@@ -691,7 +693,7 @@ Creates a view of the Edge including all events between the specified  start  (i
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events at a specified  time .
+Creates a view of the Edge including all events at a specified time.
 
 </td>
 </tr>
@@ -714,7 +716,7 @@ Returns a view of the edge at the latest time of the graph.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events that have not been explicitly deleted at time.
+Creates a view of the Edge including all events that are valid at time.
 
 This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 
@@ -730,7 +732,7 @@ This is equivalent to before(time + 1) for Graph and at(time) for PersistentGrap
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
+Creates a view of the Edge including all events that are valid at the latest time.
 
 This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 
@@ -741,7 +743,7 @@ This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events before a specified  end  (exclusive).
+Creates a view of the Edge including all events before a specified end (exclusive).
 
 </td>
 </tr>
@@ -755,7 +757,7 @@ Creates a view of the Edge including all events before a specified  end  (exclus
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Creates a view of the Edge including all events after a specified  start  (exclusive).
+Creates a view of the Edge including all events after a specified start (exclusive).
 
 </td>
 </tr>
@@ -769,7 +771,7 @@ Creates a view of the Edge including all events after a specified  start  (exclu
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Shrinks both the  start  and  end  of the window.
+Shrinks both the start and end of the window.
 
 </td>
 </tr>
@@ -788,7 +790,7 @@ Shrinks both the  start  and  end  of the window.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Set the  start  of the window.
+Set the start of the window.
 
 </td>
 </tr>
@@ -802,7 +804,7 @@ Set the  start  of the window.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Set the  end  of the window.
+Set the end of the window.
 
 </td>
 </tr>
@@ -816,7 +818,7 @@ Set the  end  of the window.
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Takes a specified selection of views and applies them in order given
+Takes a specified selection of views and applies them in given order.
 
 </td>
 </tr>
@@ -1028,7 +1030,7 @@ Returns: boolean
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Checks if the edge is on the same node.
+Returns true if the edge source and destination nodes are the same.
 
 Returns: boolean
 
@@ -1113,7 +1115,7 @@ Returns the list of metadata schemas for edges connecting these types of nodes
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1158,7 +1160,7 @@ will be returned.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Return a view of Edge containing only the default edge layer.
+Returns a collection containing only edges in the default edge layer.
 
 </td>
 </tr>
@@ -1167,7 +1169,7 @@ Return a view of Edge containing only the default edge layer.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers in the list of names.
+Returns a collection containing only edges belonging to the listed layers.
 
 </td>
 </tr>
@@ -1181,7 +1183,7 @@ Returns a view of Edge containing all layers in the list of names.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded list of names.
+Returns a collection containing edges belonging to all layers except the excluded list of layers.
 
 </td>
 </tr>
@@ -1195,7 +1197,7 @@ Returns a view of Edge containing all layers except the excluded list of names.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing the specified layer.
+Returns a collection containing edges belonging to the specified layer.
 
 </td>
 </tr>
@@ -1209,7 +1211,7 @@ Returns a view of Edge containing the specified layer.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Returns a view of Edge containing all layers except the excluded layer specified.
+Returns a collection containing edges belonging to all layers except the excluded layer specified.
 
 </td>
 </tr>
@@ -1224,6 +1226,8 @@ Returns a view of Edge containing all layers except the excluded layer specified
 <td>
 
 Creates a WindowSet with the given window duration and optional step using a rolling window. A rolling window is a window that moves forward by step size at each iteration.
+
+Returns a collection of collections. This means that item in the window set is a collection of edges.
 
 </td>
 </tr>
@@ -1244,6 +1248,8 @@ Creates a WindowSet with the given window duration and optional step using a rol
 
 Creates a WindowSet with the given step size using an expanding window. An expanding window is a window that grows by step size at each iteration.
 
+Returns a collection of collections. This means that item in the window set is a collection of edges.
+
 </td>
 </tr>
 <tr>
@@ -1256,7 +1262,7 @@ Creates a WindowSet with the given step size using an expanding window. An expan
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events between the specified  start  (inclusive) and  end  (exclusive).
+Creates a view of the Edge including all events between the specified start (inclusive) and end (exclusive).
 
 </td>
 </tr>
@@ -1275,7 +1281,7 @@ Creates a view of the Edge including all events between the specified  start  (i
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events at a specified  time .
+Creates a view of the Edge including all events at a specified time.
 
 </td>
 </tr>
@@ -1294,7 +1300,7 @@ Creates a view of the Edge including all events at a specified  time .
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events that have not been explicitly deleted at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
+Creates a view of the Edge including all events that are valid at time. This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 
 </td>
 </tr>
@@ -1308,7 +1314,7 @@ Creates a view of the Edge including all events that have not been explicitly de
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events that have not been explicitly deleted at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
+Creates a view of the Edge including all events that are valid at the latest time. This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 
 </td>
 </tr>
@@ -1317,7 +1323,7 @@ Creates a view of the Edge including all events that have not been explicitly de
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events before a specified  end  (exclusive).
+Creates a view of the Edge including all events before a specified end (exclusive).
 
 </td>
 </tr>
@@ -1331,7 +1337,7 @@ Creates a view of the Edge including all events before a specified  end  (exclus
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Creates a view of the Edge including all events after a specified  start  (exclusive).
+Creates a view of the Edge including all events after a specified start (exclusive).
 
 </td>
 </tr>
@@ -1345,7 +1351,7 @@ Creates a view of the Edge including all events after a specified  start  (exclu
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Shrinks both the  start  and  end  of the window.
+Shrinks both the start and end of the window.
 
 </td>
 </tr>
@@ -1364,7 +1370,7 @@ Shrinks both the  start  and  end  of the window.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Set the  start  of the window.
+Set the start of the window.
 
 </td>
 </tr>
@@ -1378,7 +1384,7 @@ Set the  start  of the window.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Set the  end  of the window.
+Set the end of the window.
 
 </td>
 </tr>
@@ -1426,7 +1432,7 @@ Each new edge object contains only updates from the respective layers.
 <td valign="top"><a href="#edges">Edges</a>!</td>
 <td>
 
-Specify a sort order.
+Specify a sort order from: source, destination, property, time. You can also reverse the ordering.
 
 </td>
 </tr>
@@ -1470,7 +1476,7 @@ Returns the number of edges.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1493,7 +1499,11 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="edges.list">list</strong></td>
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
-<td></td>
+<td>
+
+Returns a list of all objects in the current selection of the collection. You should filter filter the collection first then call list.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -1523,7 +1533,7 @@ will be returned.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -1588,7 +1598,7 @@ Content of the document.
 <td valign="top">[<a href="#float">Float</a>!]!</td>
 <td>
 
-Embedding vector.
+Similarity score with a specified query
 
 </td>
 </tr>
@@ -1835,7 +1845,7 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 <td valign="top">[<a href="#string">String</a>!]!</td>
 <td>
 
-Returns the names of all layers in the graph.
+Returns the names of all layers in the graphview.
 
 </td>
 </tr>
@@ -1844,7 +1854,7 @@ Returns the names of all layers in the graph.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Returns a view containing only the default edge layer.
+Returns a view containing only the default layer.
 
 </td>
 </tr>
@@ -1909,7 +1919,7 @@ Returns a view containing all layers except the specified excluded layer.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Returns a subgraph of a specified set of nodes.
+Returns a subgraph of a specified set of nodes which contains only the edges that connect nodes of the subgraph to each other.
 
 </td>
 </tr>
@@ -1960,7 +1970,7 @@ Returns a subgraph containing all nodes except the specified excluded nodes.
 <td valign="top"><a href="#graphwindowset">GraphWindowSet</a>!</td>
 <td>
 
-Creates a rolling window with the specified window size and an optional step..
+Creates a rolling window with the specified window size and an optional step.
 
 </td>
 </tr>
@@ -1993,7 +2003,7 @@ Creates a expanding window with the specified step size.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Return a graph containing only the activity between  start  and  end  measured as milliseconds from epoch
+Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
 
 </td>
 </tr>
@@ -2035,7 +2045,7 @@ Creates a view including all events at the latest time.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Create a view including all events that have not been explicitly deleted at the specified time.
+Create a view including all events that are valid at the specified time.
 
 </td>
 </tr>
@@ -2049,7 +2059,7 @@ Create a view including all events that have not been explicitly deleted at the 
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Create a view including all events that have not been explicitly deleted at the latest time.
+Create a view including all events that are valid at the latest time.
 
 </td>
 </tr>
@@ -2105,7 +2115,7 @@ Shrink both the start and end of the window.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Set the start of the window to the larger of start and self.start().
+Set the start of the window to the larger of the specified value or current start.
 
 </td>
 </tr>
@@ -2119,7 +2129,7 @@ Set the start of the window to the larger of start and self.start().
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Set the end of the window to the smaller of end and self.end()
+Set the end of the window to the smaller of the specified value or current end.
 
 </td>
 </tr>
@@ -2142,7 +2152,7 @@ Returns the timestamp for the creation of the graph.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the graph's last opened timestamp.
+Returns the graph's last opened timestamp according to system time.
 
 </td>
 </tr>
@@ -2244,6 +2254,8 @@ Returns the number of temporal edges in the graph.
 
 Returns the number of nodes in the graph.
 
+Optionally takes a list of node ids to return a subset.
+
 </td>
 </tr>
 <tr>
@@ -2265,7 +2277,7 @@ Returns true if the graph contains the specified node.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id.
+Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
 
 </td>
 </tr>
@@ -2448,7 +2460,7 @@ Export all nodes and edges from this graph view to another existing graph
 <td valign="top"><a href="#gqlindexspec">GqlIndexSpec</a>!</td>
 <td>
 
-Get index specification.
+(Experimental) Get index specification.
 
 </td>
 </tr>
@@ -2457,7 +2469,7 @@ Get index specification.
 <td valign="top">[<a href="#node">Node</a>!]!</td>
 <td>
 
-Searches for nodes which match the given filter expression.
+(Experimental) Searches for nodes which match the given filter expression.
 
 Uses Tantivy's exact search.
 
@@ -2483,7 +2495,7 @@ Uses Tantivy's exact search.
 <td valign="top">[<a href="#edge">Edge</a>!]!</td>
 <td>
 
-Searches for edges which match the given filter expression.
+(Experimental) Searches the index for edges which match the given filter expression.
 
 Uses Tantivy's exact search.
 
@@ -2507,7 +2519,12 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" valign="top"><strong id="graph.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
-<td></td>
+<td>
+
+Returns the specified graph view or if none is specified returns the default view.
+This allows you to specify multiple operations together.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
@@ -2530,26 +2547,6 @@ Uses Tantivy's exact search.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
-<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">iterCount</td>
-<td valign="top"><a href="#int">Int</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">threads</td>
-<td valign="top"><a href="#int">Int</a></td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">tol</td>
-<td valign="top"><a href="#float">Float</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
@@ -2567,6 +2564,26 @@ Uses Tantivy's exact search.
 <tr>
 <td colspan="2" align="right" valign="top">direction</td>
 <td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
+<td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">iterCount</td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">threads</td>
+<td valign="top"><a href="#int">Int</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">tol</td>
+<td valign="top"><a href="#float">Float</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2626,7 +2643,7 @@ Returns the number of items.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -2704,7 +2721,7 @@ Returns the list of edge schemas for this edge layer
 <td valign="top"><a href="#string">String</a></td>
 <td>
 
-Returns the metagraph name.
+Returns the graph name.
 
 </td>
 </tr>
@@ -2713,7 +2730,7 @@ Returns the metagraph name.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Returns path of metagraph.
+Returns path of graph.
 
 </td>
 </tr>
@@ -2722,7 +2739,7 @@ Returns path of metagraph.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the timestamp for the creation of the metagraph.
+Returns the timestamp for the creation of the graph.
 
 </td>
 </tr>
@@ -2731,7 +2748,7 @@ Returns the timestamp for the creation of the metagraph.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the metagraph's last opened timestamp.
+Returns the graph's last opened timestamp according to system time.
 
 </td>
 </tr>
@@ -2740,7 +2757,7 @@ Returns the metagraph's last opened timestamp.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the metagraph's last updated timestamp.
+Returns the graph's last updated timestamp.
 
 </td>
 </tr>
@@ -2749,7 +2766,7 @@ Returns the metagraph's last updated timestamp.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number of nodes in the metagraph.
+Returns the number of nodes in the graph.
 
 </td>
 </tr>
@@ -2758,7 +2775,7 @@ Returns the number of nodes in the metagraph.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number of edges in the metagraph.
+Returns the number of edges in the graph.
 
 </td>
 </tr>
@@ -2767,7 +2784,7 @@ Returns the number of edges in the metagraph.
 <td valign="top">[<a href="#property">Property</a>!]!</td>
 <td>
 
-Returns the metadata of the metagraph.
+Returns the metadata of the graph.
 
 </td>
 </tr>
@@ -2857,7 +2874,7 @@ Return all metadata keys.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Use to check if adding the edge was successful
+Use to check if adding the edge was successful.
 
 </td>
 </tr>
@@ -2866,7 +2883,7 @@ Use to check if adding the edge was successful
 <td valign="top"><a href="#edge">Edge</a>!</td>
 <td>
 
-Get the non-mutable edge for querying
+Get the non-mutable edge for querying.
 
 </td>
 </tr>
@@ -2875,7 +2892,7 @@ Get the non-mutable edge for querying
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
 
-Get the mutable source node of the edge
+Get the mutable source node of the edge.
 
 </td>
 </tr>
@@ -2884,7 +2901,7 @@ Get the mutable source node of the edge
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
 
-Get the mutable destination node of the edge
+Get the mutable destination node of the edge.
 
 </td>
 </tr>
@@ -2893,7 +2910,7 @@ Get the mutable destination node of the edge
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Mark the edge as deleted at time  time
+Mark the edge as deleted at time time.
 
 </td>
 </tr>
@@ -2912,9 +2929,9 @@ Mark the edge as deleted at time  time
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add metadata to the edge (errors if the value already exists)
+Add metadata to the edge (errors if the value already exists).
 
-If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+If this is called after add_edge, the layer is inherited from the add_edge and does not
 need to be specified again.
 
 </td>
@@ -2934,9 +2951,9 @@ need to be specified again.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Update metadata of the edge (existing values are overwritten)
+Update metadata of the edge (existing values are overwritten).
 
-If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+If this is called after add_edge, the layer is inherited from the add_edge and does not
 need to be specified again.
 
 </td>
@@ -2956,9 +2973,9 @@ need to be specified again.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add temporal property updates to the edge
+Add temporal property updates to the edge.
 
-If this is called after  add_edge , the layer is inherited from the  add_edge  and does not
+If this is called after add_edge, the layer is inherited from the add_edge and does not
 need to be specified again.
 
 </td>
@@ -2998,7 +3015,7 @@ need to be specified again.
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td>
 
-Get the non-mutable graph
+Get the non-mutable graph.
 
 </td>
 </tr>
@@ -3007,7 +3024,7 @@ Get the non-mutable graph
 <td valign="top"><a href="#mutablenode">MutableNode</a></td>
 <td>
 
-Get mutable existing node
+Get mutable existing node.
 
 </td>
 </tr>
@@ -3021,7 +3038,7 @@ Get mutable existing node
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
 
-Add a new node or add updates to an existing node
+Add a new node or add updates to an existing node.
 
 </td>
 </tr>
@@ -3050,7 +3067,7 @@ Add a new node or add updates to an existing node
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
 
-Create a new node or fail if it already exists
+Create a new node or fail if it already exists.
 
 </td>
 </tr>
@@ -3079,7 +3096,7 @@ Create a new node or fail if it already exists
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of nodes
+Add a batch of nodes.
 
 </td>
 </tr>
@@ -3093,7 +3110,7 @@ Add a batch of nodes
 <td valign="top"><a href="#mutableedge">MutableEdge</a></td>
 <td>
 
-Get a mutable existing edge
+Get a mutable existing edge.
 
 </td>
 </tr>
@@ -3112,7 +3129,7 @@ Get a mutable existing edge
 <td valign="top"><a href="#mutableedge">MutableEdge</a>!</td>
 <td>
 
-Add a new edge or add updates to an existing edge
+Add a new edge or add updates to an existing edge.
 
 </td>
 </tr>
@@ -3146,7 +3163,7 @@ Add a new edge or add updates to an existing edge
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add a batch of edges
+Add a batch of edges.
 
 </td>
 </tr>
@@ -3160,7 +3177,7 @@ Add a batch of edges
 <td valign="top"><a href="#mutableedge">MutableEdge</a>!</td>
 <td>
 
-Mark an edge as deleted (creates the edge if it did not exist)
+Mark an edge as deleted (creates the edge if it did not exist).
 
 </td>
 </tr>
@@ -3189,7 +3206,7 @@ Mark an edge as deleted (creates the edge if it did not exist)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add temporal properties to graph
+Add temporal properties to graph.
 
 </td>
 </tr>
@@ -3208,7 +3225,7 @@ Add temporal properties to graph
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add metadata to graph (errors if the property already exists)
+Add metadata to graph (errors if the property already exists).
 
 </td>
 </tr>
@@ -3222,7 +3239,7 @@ Add metadata to graph (errors if the property already exists)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Update metadata of the graph (overwrites existing values)
+Update metadata of the graph (overwrites existing values).
 
 </td>
 </tr>
@@ -3251,7 +3268,7 @@ Update metadata of the graph (overwrites existing values)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Use to check if adding the node was successful
+Use to check if adding the node was successful.
 
 </td>
 </tr>
@@ -3260,7 +3277,7 @@ Use to check if adding the node was successful
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Get the non-mutable  Node
+Get the non-mutable Node.
 
 </td>
 </tr>
@@ -3269,7 +3286,7 @@ Get the non-mutable  Node
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add metadata to the node (errors if the property already exists)
+Add metadata to the node (errors if the property already exists).
 
 </td>
 </tr>
@@ -3283,7 +3300,7 @@ Add metadata to the node (errors if the property already exists)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Set the node type (errors if the node already has a non-default type)
+Set the node type (errors if the node already has a non-default type).
 
 </td>
 </tr>
@@ -3297,7 +3314,7 @@ Set the node type (errors if the node already has a non-default type)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Update metadata of the node (overwrites existing property values)
+Update metadata of the node (overwrites existing property values).
 
 </td>
 </tr>
@@ -3311,7 +3328,7 @@ Update metadata of the node (overwrites existing property values)
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Add temporal property updates to the node
+Add temporal property updates to the node.
 
 </td>
 </tr>
@@ -3425,7 +3442,7 @@ Returns the name of the node.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of the node containing only the default edge layer.
+Return a view of the node containing only the default layer.
 
 </td>
 </tr>
@@ -3448,7 +3465,7 @@ Return a view of node containing all layers specified.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing all layers except those specified.
+Returns a collection containing nodes belonging to all layers except the excluded list of layers.
 
 </td>
 </tr>
@@ -3462,7 +3479,7 @@ Return a view of node containing all layers except those specified.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing the specified layer.
+Returns a collection containing nodes belonging to the specified layer.
 
 </td>
 </tr>
@@ -3476,7 +3493,7 @@ Return a view of node containing the specified layer.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Return a view of node containing all layers except those specified.
+Returns a collection containing nodes belonging to all layers except the excluded layer.
 
 </td>
 </tr>
@@ -3491,6 +3508,8 @@ Return a view of node containing all layers except those specified.
 <td>
 
 Creates a WindowSet with the specified window size and optional step using a rolling window.
+
+Returns a collection of collections. This means that item in the window set is a collection of nodes.
 
 </td>
 </tr>
@@ -3565,7 +3584,7 @@ Create a view of the node including all events at the latest time.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Create a view of the node including all events that have not been explicitly deleted at the specified time.
+Create a view of the node including all events that are valid at the specified time.
 
 </td>
 </tr>
@@ -3579,7 +3598,7 @@ Create a view of the node including all events that have not been explicitly del
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Create a view of the node including all events that have not been explicitly deleted at the latest time.
+Create a view of the node including all events that are valid at the latest time.
 
 </td>
 </tr>
@@ -3616,7 +3635,7 @@ Create a view of the node including all events after the specified start time (e
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Shrink both the start and end of the window.
+Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
 
 </td>
 </tr>
@@ -3635,7 +3654,7 @@ Shrink both the start and end of the window.
 <td valign="top"><a href="#node">Node</a>!</td>
 <td>
 
-Set the start of the window to the larger of a specified start time  and self.start().
+Set the start of the window to the larger of a specified start time and self.start().
 
 </td>
 </tr>
@@ -3680,7 +3699,11 @@ Returns the earliest time that the node exists.
 <tr>
 <td colspan="2" valign="top"><strong id="node.firstupdate">firstUpdate</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the time of the first update made to the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.latesttime">latestTime</strong></td>
@@ -3694,7 +3717,11 @@ Returns the latest time that the node exists.
 <tr>
 <td colspan="2" valign="top"><strong id="node.lastupdate">lastUpdate</strong></td>
 <td valign="top"><a href="#int">Int</a></td>
-<td></td>
+<td>
+
+Returns the time of the last update made to the node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.start">start</strong></td>
@@ -3773,7 +3800,7 @@ Returns the metadata of the node.
 <td valign="top"><a href="#int">Int</a>!</td>
 <td>
 
-Returns the number of edges connected to this node.
+Returns the number of unique counter parties for this node.
 
 </td>
 </tr>
@@ -3844,12 +3871,20 @@ Returns neighbouring nodes.
 <tr>
 <td colspan="2" valign="top"><strong id="node.inneighbours">inNeighbours</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Returns the number of neighbours that have at least one in-going edge to this node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.outneighbours">outNeighbours</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Returns the number of neighbours that have at least one out-going edge from this node.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="node.nodefilter">nodeFilter</strong></td>
@@ -3923,7 +3958,7 @@ Returns the list of property schemas for this node
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4108,7 +4143,7 @@ Create a view of the nodes including all events at the latest time.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Create a view of the nodes including all events that have not been explicitly deleted at the specified time.
+Create a view of the nodes including all events that are valid at the specified time.
 
 </td>
 </tr>
@@ -4122,7 +4157,7 @@ Create a view of the nodes including all events that have not been explicitly de
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Create a view of the nodes including all events that have not been explicitly deleted at the latest time.
+Create a view of the nodes including all events that are valid at the latest time.
 
 </td>
 </tr>
@@ -4178,7 +4213,7 @@ Shrink both the start and end of the window.
 <td valign="top"><a href="#nodes">Nodes</a>!</td>
 <td>
 
-Set the start of the window to the larger of a specified start time  and self.start().
+Set the start of the window to the larger of a specified start time and self.start().
 
 </td>
 </tr>
@@ -4280,7 +4315,7 @@ Returns the end time of the window. Errors if there is no window.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4342,7 +4377,7 @@ Returns a view of the node ids.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4536,7 +4571,7 @@ Create a view of the PathFromNode including all events at time.
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
 
-Create a view of the PathFromNode including all events that have not been explicitly deleted at the latest time.
+Create a view of the PathFromNode including all events that are valid at the latest time.
 
 </td>
 </tr>
@@ -4545,7 +4580,7 @@ Create a view of the PathFromNode including all events that have not been explic
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
 <td>
 
-Create a view of the PathFromNode including all events that have not been explicitly deleted at  the specified time.
+Create a view of the PathFromNode including all events that are valid at the specified time.
 
 </td>
 </tr>
@@ -4683,7 +4718,7 @@ Returns the latest time that this PathFromNode is valid or None if the PathFromN
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -4720,7 +4755,11 @@ Returns the node ids.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnode.applyviews">applyViews</strong></td>
 <td valign="top"><a href="#pathfromnode">PathFromNode</a>!</td>
-<td></td>
+<td>
+
+Takes a specified selection of views and applies them in given order.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">views</td>
@@ -4755,7 +4794,7 @@ Returns the node ids.
 Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
 The page_index sets the number of pages to skip (defaults to 0).
 
-For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 will be returned.
 
 </td>
@@ -5237,7 +5276,7 @@ Search the top scoring edges according to a specified query returning no more th
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Source node
+Source node.
 
 </td>
 </tr>
@@ -5246,7 +5285,7 @@ Source node
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Destination node
+Destination node.
 
 </td>
 </tr>
@@ -5255,7 +5294,7 @@ Destination node
 <td valign="top"><a href="#string">String</a></td>
 <td>
 
-Layer
+Layer.
 
 </td>
 </tr>
@@ -5264,7 +5303,7 @@ Layer
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
 <td>
 
-Metadata
+Metadata.
 
 </td>
 </tr>
@@ -5518,7 +5557,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -5527,7 +5566,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -5536,7 +5575,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -5545,7 +5584,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -5554,7 +5593,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -5563,7 +5602,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -5667,7 +5706,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -5676,7 +5715,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -5685,7 +5724,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -5694,7 +5733,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -5703,7 +5742,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -5712,7 +5751,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -5825,7 +5864,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -5834,7 +5873,7 @@ Time.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Latest time.
+View at the latest time.
 
 </td>
 </tr>
@@ -5861,7 +5900,7 @@ Snapshot at latest time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -5870,7 +5909,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -5879,7 +5918,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -5888,7 +5927,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -5897,7 +5936,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -6002,7 +6041,7 @@ Destination node.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Name.
+Node metadata to compare against.
 
 </td>
 </tr>
@@ -6093,7 +6132,7 @@ Updates.
 <td valign="top"><a href="#nodefield">NodeField</a>!</td>
 <td>
 
-Node Field filter.
+Node component to compare against.
 
 </td>
 </tr>
@@ -6270,7 +6309,7 @@ Contains only the default layer.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Latest time.
+View at the latest time.
 
 </td>
 </tr>
@@ -6342,7 +6381,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -6351,7 +6390,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -6360,7 +6399,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -6369,7 +6408,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -6378,7 +6417,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -6387,7 +6426,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -6428,7 +6467,7 @@ Contains only the default layer.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Latest time.
+View at the latest time.
 
 </td>
 </tr>
@@ -6491,7 +6530,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -6500,7 +6539,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Snapshot at specified time.
 
 </td>
 </tr>
@@ -6509,7 +6548,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -6518,7 +6557,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -6527,7 +6566,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -6536,7 +6575,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -6545,7 +6584,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -6690,7 +6729,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View at a specified time.
 
 </td>
 </tr>
@@ -6699,7 +6738,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View before a specified time (end exclusive).
 
 </td>
 </tr>
@@ -6708,7 +6747,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+View after a specified time (start exclusive).
 
 </td>
 </tr>
@@ -6717,7 +6756,7 @@ Time.
 <td valign="top"><a href="#window">Window</a></td>
 <td>
 
-Window between a start and end time.
+Shrink a Window to a specified start and end time.
 
 </td>
 </tr>
@@ -6726,7 +6765,7 @@ Window between a start and end time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window start to a specified time.
 
 </td>
 </tr>
@@ -6735,7 +6774,7 @@ Time.
 <td valign="top"><a href="#int">Int</a></td>
 <td>
 
-Time.
+Set the window end to a specified time.
 
 </td>
 </tr>
@@ -6758,7 +6797,7 @@ Time.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Name.
+Node property to compare against.
 
 </td>
 </tr>
@@ -6904,7 +6943,7 @@ Name.
 <td valign="top"><a href="#temporaltype">TemporalType</a>!</td>
 <td>
 
-Temporal property type.
+Type of temporal property. Choose from: any, latest.
 
 </td>
 </tr>
@@ -7087,6 +7126,8 @@ End time.
 <td>
 
 Duration of window period.
+
+Choose from:
 
 </td>
 </tr>
