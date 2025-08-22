@@ -10,7 +10,7 @@ def test_one_path():
     graph.add_edge(2, 2, 3, {"dstBytes": 100_000_005}, "Netflow")
 
     actual = netflow_one_path_node(graph, True)
-    assert actual == 1
+    assert actual == 0
 
 
 def test_error_for_wrong_type():

@@ -21,6 +21,7 @@ use std::{
     borrow::Cow,
     fmt,
     fmt::{Display, Formatter},
+    marker::PhantomData,
     ops::Deref,
     sync::Arc,
 };
@@ -275,6 +276,8 @@ pub enum Operator {
     IsIn,
     /// Is Not In operator.
     IsNotIn,
+    StartsWith,
+    EndsWith,
     /// Contains operator.
     Contains,
     /// Not Contains operator.
@@ -294,6 +297,8 @@ impl Display for Operator {
             Operator::IsSome => "IS_SOME",
             Operator::IsIn => "IS_IN",
             Operator::IsNotIn => "IS_NOT_IN",
+            Operator::StartsWith => "STARTS_WITH",
+            Operator::EndsWith => "ENDS_WITH",
             Operator::Contains => "CONTAINS",
             Operator::NotContains => "NOT_CONTAINS",
         };
@@ -453,6 +458,8 @@ pub enum TemporalType {
     Any,
     /// Latest.
     Latest,
+    First,
+    All,
 }
 
 fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
@@ -626,11 +633,11 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
     }
 }
 
-fn build_property_filter(
+fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
     value: Option<Value>,
-) -> Result<PropertyFilter, GraphError> {
+) -> Result<PropertyFilter<M>, GraphError> {
     let prop = value.clone().map(Prop::try_from).transpose()?;
 
     validate_operator_value_pair(operator, &value)?;
@@ -647,10 +654,12 @@ fn build_property_filter(
         prop_ref,
         prop_value,
         operator: operator.into(),
+        list_agg: None,
+        _phantom: PhantomData,
     })
 }
 
-impl TryFrom<PropertyFilterExpr> for PropertyFilter {
+impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
@@ -658,7 +667,7 @@ impl TryFrom<PropertyFilterExpr> for PropertyFilter {
     }
 }
 
-impl TryFrom<MetadataFilterExpr> for PropertyFilter {
+impl<M> TryFrom<MetadataFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: MetadataFilterExpr) -> Result<Self, Self::Error> {
@@ -666,7 +675,7 @@ impl TryFrom<MetadataFilterExpr> for PropertyFilter {
     }
 }
 
-impl TryFrom<TemporalPropertyFilterExpr> for PropertyFilter {
+impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: TemporalPropertyFilterExpr) -> Result<Self, Self::Error> {
@@ -701,6 +710,8 @@ impl From<Operator> for FilterOperator {
             Operator::IsNotIn => FilterOperator::NotIn,
             Operator::IsSome => FilterOperator::IsSome,
             Operator::IsNone => FilterOperator::IsNone,
+            Operator::StartsWith => FilterOperator::StartsWith,
+            Operator::EndsWith => FilterOperator::EndsWith,
             Operator::Contains => FilterOperator::Contains,
             Operator::NotContains => FilterOperator::NotContains,
         }
@@ -712,6 +723,8 @@ impl From<TemporalType> for Temporal {
         match temporal {
             TemporalType::Any => Temporal::Any,
             TemporalType::Latest => Temporal::Latest,
+            TemporalType::First => Temporal::First,
+            TemporalType::All => Temporal::All,
         }
     }
 }
@@ -743,7 +756,7 @@ fn validate_operator_value_pair(
             ))),
         },
 
-        Contains | NotContains => match value {
+        StartsWith | EndsWith | Contains | NotContains => match value {
             Some(Value::Str(_)) => Ok(()),
             Some(v) => Err(GraphError::InvalidGqlFilter(format!(
                 "Operator {operator} requires a string value, got {v}"

@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             views::filter::model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter},
+                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
                 property_filter::{PropertyRef, Temporal},
                 Filter,
             },
@@ -15,10 +15,11 @@ use crate::{
     search::{
         collectors::{
             edge_property_filter_collector::EdgePropertyFilterCollector,
+            first_edge_property_filter_collector::FirstEdgePropertyFilterCollector,
             latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_edges, fields, get_reader,
+        fallback_filter_edges, fallback_filter_nodes, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -54,7 +55,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::EDGE_ID.to_string());
         let edge_ids = searcher.search(&query, &collector)?;
@@ -76,7 +77,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError>
+    ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<u64>>,
@@ -97,7 +98,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
@@ -115,7 +116,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         graph: &G,
         prop_id: usize,
         pi: &Arc<PropertyIndex>,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -144,7 +145,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
@@ -164,7 +165,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         &self,
         graph: &G,
         prop_name: &str,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
         collector_fn: impl Fn(String, usize, G) -> C,
@@ -195,10 +196,14 @@ impl<'a> EdgeFilterExecutor<'a> {
     fn filter_property_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &PropertyFilter,
+        filter: &PropertyFilter<EdgeFilter>,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        if filter.list_agg.is_some() {
+            return fallback_filter_edges(graph, filter, limit, offset);
+        }
+
         match &filter.prop_ref {
             PropertyRef::Metadata(prop_name) => {
                 self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
@@ -221,6 +226,18 @@ impl<'a> EdgeFilterExecutor<'a> {
                 offset,
                 LatestEdgePropertyFilterCollector::new,
             ),
+            PropertyRef::TemporalProperty(prop_name, Temporal::First) => self
+                .apply_temporal_property_filter(
+                    graph,
+                    prop_name,
+                    filter,
+                    limit,
+                    offset,
+                    FirstEdgePropertyFilterCollector::new,
+                ),
+            PropertyRef::TemporalProperty(_, Temporal::All) => {
+                fallback_filter_edges(graph, filter, limit, offset)
+            }
         }
     }
 
@@ -247,7 +264,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         match filter {
             CompositeEdgeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
@@ -289,7 +306,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         filter: &CompositeEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<EdgeView<G, G>>, GraphError> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
         self.filter_edges_internal(graph, filter, limit, offset)
     }
 

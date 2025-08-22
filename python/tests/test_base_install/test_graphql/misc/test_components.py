@@ -133,11 +133,11 @@ def test_in_out_component_hop_reset():
                         "list": [
                             {
                                 "name": "3",
-                                "degree": 4,
+                                "degree": 2,
                             },
                             {
                                 "name": "4",
-                                "degree": 2,
+                                "degree": 1,
                             },
                         ]
                     }
@@ -171,7 +171,7 @@ def test_in_out_component_hop_reset():
                         "list": [
                             {
                                 "name": "1",
-                                "degree": 2,
+                                "degree": 1,
                             }
                         ]
                     }

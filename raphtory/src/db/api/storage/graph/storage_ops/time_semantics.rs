@@ -169,7 +169,20 @@ impl NodeHistoryFilter for GraphStorage {
         time: TimeIndexEntry,
     ) -> bool {
         let nse = self.core_node(node_id);
+        // Is there any update after time
         let x = nse.tprop(prop_id).active(time.next()..TimeIndexEntry::MAX);
+        !x
+    }
+
+    fn is_node_prop_update_first(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        let nse = self.core_node(node_id);
+        // Is there any update before time
+        let x = nse.tprop(prop_id).active(TimeIndexEntry::MIN..time);
         !x
     }
 
@@ -185,6 +198,22 @@ impl NodeHistoryFilter for GraphStorage {
             let x = nse
                 .tprop(prop_id)
                 .active(time.next()..TimeIndexEntry::start(w.end));
+            !x
+        }
+    }
+
+    fn is_node_prop_update_first_window(
+        &self,
+        prop_id: usize,
+        node_id: VID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&time.t()) && {
+            let nse = self.core_node(node_id);
+            let x = nse
+                .tprop(prop_id)
+                .active(TimeIndexEntry::start(w.start)..time);
             !x
         }
     }
@@ -244,6 +273,27 @@ impl EdgeHistoryFilter for GraphStorage {
         false
     }
 
+    fn is_edge_prop_update_first(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+    ) -> bool {
+        let ese = self.core_edge(edge_id);
+        if layer_ids.contains(&layer_id) {
+            // Check if any layer has an active update beyond `time`
+            let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                ese.temporal_prop_layer(layer_id, prop_id)
+                    .active(TimeIndexEntry::MIN..time)
+            });
+            // If no layer has a future update, return true
+            return !has_future_update;
+        };
+        false
+    }
+
     fn is_edge_prop_update_latest_window(
         &self,
         layer_ids: &LayerIds,
@@ -254,20 +304,40 @@ impl EdgeHistoryFilter for GraphStorage {
         w: Range<i64>,
     ) -> bool {
         w.contains(&time.t()) && {
-            let time = time.next();
             let ese = self.core_edge(edge_id);
-
             if layer_ids.contains(&layer_id) {
                 // Check if any layer has an active update beyond `time`
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..TimeIndexEntry::start(w.end))
+                        .active(time.next()..TimeIndexEntry::start(w.end))
                 });
-
                 // If no layer has a future update, return true
                 return !has_future_update;
             };
+            false
+        }
+    }
 
+    fn is_edge_prop_update_first_window(
+        &self,
+        layer_ids: &LayerIds,
+        layer_id: usize,
+        prop_id: usize,
+        edge_id: EID,
+        time: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> bool {
+        w.contains(&time.t()) && {
+            let ese = self.core_edge(edge_id);
+            if layer_ids.contains(&layer_id) {
+                // Check if any layer has an active update beyond `time`
+                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                    ese.temporal_prop_layer(layer_id, prop_id)
+                        .active(TimeIndexEntry::start(w.start)..time)
+                });
+                // If no layer has a future update, return true
+                return !has_future_update;
+            };
             false
         }
     }
@@ -737,8 +807,14 @@ mod test_graph_storage {
     mod search_nodes {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
+            db::{
+                api::view::SearchableGraphOps,
+                graph::views::filter::model::{
+                    node_filter::NodeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
+                },
+            },
+            prelude::{Graph, IndexMutationOps, NodeViewOps},
         };
 
         #[test]
@@ -746,7 +822,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_nodes_tests(g);
             g.create_index().unwrap();
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_nodes(filter, 10, 0)
                 .expect("Failed to search for nodes")
@@ -763,8 +839,14 @@ mod test_graph_storage {
     mod search_edges {
         use super::*;
         use crate::{
-            db::{api::view::SearchableGraphOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
+            db::{
+                api::view::SearchableGraphOps,
+                graph::views::filter::model::{
+                    edge_filter::EdgeFilter, property_filter::PropertyFilterOps,
+                    PropertyFilterFactory,
+                },
+            },
+            prelude::{EdgeViewOps, Graph, IndexMutationOps, NodeViewOps},
         };
 
         #[test]
@@ -772,7 +854,7 @@ mod test_graph_storage {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);
             g.create_index().unwrap();
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter::property("p1").eq(1u64);
             let mut results = g
                 .search_edges(filter, 10, 0)
                 .expect("Failed to search for nodes")

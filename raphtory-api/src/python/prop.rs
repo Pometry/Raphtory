@@ -1,14 +1,14 @@
-use crate::core::entities::properties::prop::Prop;
+use crate::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use bigdecimal::BigDecimal;
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     sync::GILOnceCell,
-    types::{PyBool, PyType},
+    types::{PyBool, PyDict, PyIterator, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
+use rustc_hash::FxHashMap;
 use std::{ops::Deref, str::FromStr, sync::Arc};
-
 #[cfg(feature = "arrow")]
 use {crate::core::entities::properties::prop::PropArray, pyo3_arrow::PyArray};
 
@@ -57,15 +57,123 @@ impl<'py> IntoPyObject<'py> for Prop {
     }
 }
 
+#[pyclass(name = "Prop", module = "raphtory")]
+pub struct PyProp(pub Prop);
+
+#[pymethods]
+impl PyProp {
+    #[staticmethod]
+    pub fn u8(value: u8) -> Self {
+        PyProp(Prop::U8(value))
+    }
+
+    #[staticmethod]
+    pub fn u16(value: u16) -> Self {
+        PyProp(Prop::U16(value))
+    }
+
+    #[staticmethod]
+    pub fn u32(value: u32) -> Self {
+        PyProp(Prop::U32(value))
+    }
+
+    #[staticmethod]
+    pub fn u64(value: u64) -> Self {
+        PyProp(Prop::U64(value))
+    }
+
+    #[staticmethod]
+    pub fn i32(value: i32) -> Self {
+        PyProp(Prop::I32(value))
+    }
+
+    #[staticmethod]
+    pub fn i64(value: i64) -> Self {
+        PyProp(Prop::I64(value))
+    }
+
+    #[staticmethod]
+    pub fn f32(value: f32) -> Self {
+        PyProp(Prop::F32(value))
+    }
+
+    #[staticmethod]
+    pub fn f64(value: f64) -> Self {
+        PyProp(Prop::F64(value))
+    }
+
+    #[staticmethod]
+    pub fn str(value: &str) -> Self {
+        PyProp(Prop::str(value))
+    }
+
+    #[staticmethod]
+    pub fn bool(value: bool) -> Self {
+        PyProp(Prop::Bool(value))
+    }
+
+    #[staticmethod]
+    pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let iter = PyIterator::from_object(values)?;
+        let mut elems = Vec::new();
+
+        for item in iter {
+            let item = item?;
+            if let Ok(pyref) = item.extract::<PyRef<PyProp>>() {
+                elems.push(pyref.0.clone());
+                continue;
+            }
+            let p: Prop = item.extract()?;
+            elems.push(p);
+        }
+
+        Ok(PyProp(Prop::List(Arc::new(elems))))
+    }
+
+    #[staticmethod]
+    pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
+        let mut map: FxHashMap<ArcStr, Prop> =
+            FxHashMap::with_capacity_and_hasher(dict.len(), Default::default());
+        for (k_any, v_any) in dict.iter() {
+            let k: &str = k_any.extract()?;
+            let v: Prop = if let Ok(pyref) = v_any.extract::<PyRef<PyProp>>() {
+                pyref.0.clone()
+            } else {
+                v_any.extract::<Prop>()?
+            };
+            map.insert(ArcStr::from(k), v);
+        }
+        Ok(PyProp(Prop::Map(Arc::new(map))))
+    }
+
+    pub fn dtype(&self) -> String {
+        format!("{:?}", self.0.dtype())
+    }
+
+    pub fn __repr__(&self) -> String {
+        format!("{}", self.0)
+    }
+}
+
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
 impl<'source> FromPyObject<'source> for Prop {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(pyref) = ob.extract::<PyRef<PyProp>>() {
+            return Ok(pyref.0.clone());
+        }
+
         if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }
+
         if let Ok(v) = ob.extract() {
             return Ok(Prop::I64(v));
         }
+
+        if let Ok(v) = ob.extract() {
+            return Ok(Prop::U64(v));
+        }
+
         if ob.get_type().name()?.contains("Decimal")? {
             // this sits before f64, otherwise it will be picked up as f64
             let py_str = &ob.str()?;
@@ -80,29 +188,37 @@ impl<'source> FromPyObject<'source> for Prop {
                         .map_err(|_| PyTypeError::new_err(format!("Decimal too large {}", rs_str)))
                 });
         }
+
         if let Ok(v) = ob.extract() {
             return Ok(Prop::F64(v));
         }
+
         if let Ok(d) = ob.extract() {
             return Ok(Prop::NDTime(d));
         }
+
         if let Ok(d) = ob.extract() {
             return Ok(Prop::DTime(d));
         }
+
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
+
         #[cfg(feature = "arrow")]
         if let Ok(arrow) = ob.extract::<PyArray>() {
             let (arr, _) = arrow.into_inner();
             return Ok(Prop::Array(PropArray::Array(arr)));
         }
+
         if let Ok(list) = ob.extract() {
             return Ok(Prop::List(Arc::new(list)));
         }
+
         if let Ok(map) = ob.extract() {
             return Ok(Prop::Map(Arc::new(map)));
         }
+
         Err(PyTypeError::new_err(format!(
             "Could not convert {:?} to Prop",
             ob

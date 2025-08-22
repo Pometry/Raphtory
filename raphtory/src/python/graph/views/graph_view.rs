@@ -4,10 +4,9 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                internal::{
-                    DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
-                },
-                ExplodedEdgePropertyFilterOps, LayerOps, StaticGraphViewOps,
+                filter_ops::BaseFilterOps,
+                internal::{BaseFilter, DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph},
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -84,9 +83,8 @@ pub struct PyGraphView {
 }
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_node_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
+impl_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -343,11 +341,7 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(
-        &self,
-        src: PyNodeRef,
-        dst: PyNodeRef,
-    ) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 

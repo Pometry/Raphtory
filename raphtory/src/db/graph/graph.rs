@@ -81,28 +81,16 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
     }
 }
 
-pub fn assert_node_equal<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
 ) {
     assert_node_equal_layer(n1, n2, "", false)
 }
 
-pub fn assert_node_equal_layer<
-    'graph,
-    G1: GraphViewOps<'graph>,
-    GH1: GraphViewOps<'graph>,
-    G2: GraphViewOps<'graph>,
-    GH2: GraphViewOps<'graph>,
->(
-    n1: NodeView<'graph, G1, GH1>,
-    n2: NodeView<'graph, G2, GH2>,
+pub fn assert_node_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    n1: NodeView<'graph, G1>,
+    n2: NodeView<'graph, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -710,10 +698,7 @@ mod db_tests {
             assert!(graph.is_empty());
 
             assert!(graph.nodes().collect().is_empty());
-            assert_eq!(
-                graph.edges().collect(),
-                Vec::<EdgeView<Graph, Graph>>::new()
-            );
+            assert_eq!(graph.edges().collect(), Vec::<EdgeView<Graph>>::new());
             assert!(!graph.internal_edge_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
@@ -1314,7 +1299,7 @@ mod db_tests {
     }
 
     #[test]
-    fn graph_degree_window() {
+    fn graph_degree_window2() {
         let vs = vec![
             (1, 1, 2),
             (2, 1, 3),
@@ -1859,23 +1844,25 @@ mod db_tests {
             let actual = (1..=3)
                 .map(|i| {
                     let v = graph.node(i).unwrap();
-                    (
-                        v.window(-1, 7)
-                            .in_neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                        v.window(1, 7)
-                            .out_neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                        v.window(0, 1)
-                            .neighbours()
-                            .id()
-                            .filter_map(|id| id.as_u64())
-                            .collect::<Vec<_>>(),
-                    )
+                    let first = v
+                        .window(-1, 7)
+                        .in_neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    let second = v
+                        .window(1, 7)
+                        .out_neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    let third = v
+                        .window(0, 1)
+                        .neighbours()
+                        .id()
+                        .filter_map(|id| id.as_u64())
+                        .collect::<Vec<_>>();
+                    (first, second, third)
                 })
                 .collect::<Vec<_>>();
 
@@ -3251,6 +3238,8 @@ mod db_tests {
     }
 
     #[test]
+    #[ignore]
+    // TODO: Resetting is not a thing now. This test can be rewritten for the filter_iter tests
     fn test_one_hop_filter_reset() {
         let graph = Graph::new();
         graph.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
@@ -3274,6 +3263,16 @@ mod db_tests {
                 .id()
                 .collect();
             assert_eq!(out_out, [GID::U64(3)]);
+
+            // let out_out: Vec<_> = v
+            //     .out_neighbours()
+            //     .filter_iter(layers == "1" & at == 0)
+            //     .unwrap()
+            //     .layers("2")
+            //     .unwrap()
+            //     .out_neighbours()
+            //     .id()
+            //     .collect();
 
             let out_out: Vec<_> = v
                 .at(0)

@@ -204,3 +204,16 @@ def assert_has_metadata(entity, props):
             assert v == actual
         else:
             assert entity.metadata.get(k) == v
+
+
+def expect_unify_error(fn):
+    try:
+        fn()
+        pytest.fail("Expected a unification error but none was raised")
+    except BaseException as e:
+        assert "Cannot unify" in str(e)
+
+
+def assert_in_all(haystack: str, needles):
+    for n in needles:
+        assert n in haystack, f"expected to find {n!r} in {haystack!r}"

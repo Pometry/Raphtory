@@ -1952,6 +1952,8 @@ enum Operator {
 	Is Not In operator.
 	"""
 	IS_NOT_IN
+	STARTS_WITH
+	ENDS_WITH
 	"""
 	Contains operator.
 	"""
@@ -2374,6 +2376,8 @@ enum TemporalType {
 	Latest.
 	"""
 	LATEST
+	FIRST
+	ALL
 }
 
 scalar Upload

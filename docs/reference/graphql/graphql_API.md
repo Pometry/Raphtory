@@ -7331,6 +7331,14 @@ Is Not In operator.
 </td>
 </tr>
 <tr>
+<td valign="top"><strong>STARTS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ENDS_WITH</strong></td>
+<td></td>
+</tr>
+<tr>
 <td valign="top"><strong>CONTAINS</strong></td>
 <td>
 
@@ -7403,6 +7411,14 @@ Any.
 Latest.
 
 </td>
+</tr>
+<tr>
+<td valign="top"><strong>FIRST</strong></td>
+<td></td>
+</tr>
+<tr>
+<td valign="top"><strong>ALL</strong></td>
+<td></td>
 </tr>
 </tbody>
 </table>
