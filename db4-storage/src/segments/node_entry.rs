@@ -139,8 +139,10 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a {
         let node_pos = self.pos;
-        self.ns.as_ref()[layer_id]
-            .t_prop(node_pos, prop_id)
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .and_then(|layer| layer.t_prop(node_pos, prop_id))
             .into_iter()
     }
 }

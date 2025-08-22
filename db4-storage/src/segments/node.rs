@@ -335,7 +335,7 @@ impl MemNodeSegment {
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> (bool, usize) {
-        let segment_container = &mut self.layers[layer_id];
+        let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
 
         let row = segment_container
