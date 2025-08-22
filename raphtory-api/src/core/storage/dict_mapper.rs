@@ -258,14 +258,6 @@ impl DictMapper {
         map_entry.insert_entry(id);
     }
 
-    pub fn set_reverse_id(&self, id: usize, name: impl Into<ArcStr>) {
-        let mut keys = self.reverse_map.write();
-        if keys.len() <= id {
-            keys.resize(id + 1, Default::default())
-        }
-        keys[id] = name.into();
-    }
-
     pub fn has_id(&self, id: usize) -> bool {
         let guard = self.reverse_map.read();
         guard.get(id).is_some()
@@ -309,6 +301,10 @@ impl DictMapper {
 
     pub fn num_fields(&self) -> usize {
         self.map.read().len()
+    }
+
+    pub fn num_private_fields(&self) -> usize {
+        self.num_private_fields
     }
 }
 

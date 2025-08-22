@@ -175,11 +175,17 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     }
 
     fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        self.ns.as_ref()[layer_id].c_prop(self.pos, prop_id)
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .and_then(|layer| layer.c_prop(self.pos, prop_id))
     }
 
     fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str> {
-        self.ns.as_ref()[layer_id].c_prop_str(self.pos, prop_id)
+        self.ns
+            .as_ref()
+            .get(layer_id)
+            .and_then(|layer| layer.c_prop_str(self.pos, prop_id))
     }
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions {

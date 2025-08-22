@@ -221,15 +221,16 @@ pub fn check_graph_with_nodes_support<
 
     let graph_dir = tempfile::tempdir().unwrap();
     let graph = make_graph(graph_dir.path());
+    let layer_id = graph.edge_meta().get_default_layer_id().unwrap();
 
     for (node, t, t_props) in temp_props {
-        let err = graph.add_node_props(*t, *node, 0, t_props.clone());
+        let err = graph.add_node_props(*t, *node, layer_id, t_props.clone());
 
         assert!(err.is_ok(), "Failed to add node: {err:?}");
     }
 
     for (node, const_props) in const_props {
-        let err = graph.update_node_const_props(*node, 0, const_props.clone());
+        let err = graph.update_node_const_props(*node, layer_id, const_props.clone());
 
         assert!(err.is_ok(), "Failed to add node: {err:?}");
     }
@@ -249,9 +250,9 @@ pub fn check_graph_with_nodes_support<
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
             let actual: Vec<_> = node_entry
-                .edge_additions(0)
+                .edge_additions(layer_id)
                 .iter_t()
-                .merge(node_entry.node_additions(0).iter_t())
+                .merge(node_entry.node_additions(layer_id).iter_t())
                 .collect();
             assert_eq!(
                 actual, ts_expected,
@@ -279,7 +280,7 @@ pub fn check_graph_with_nodes_support<
                 .metadata_mapper()
                 .get_id(name)
                 .unwrap_or_else(|| panic!("Failed to get prop id for {name}"));
-            let actual_props = node_entry.c_prop(0, prop_id);
+            let actual_props = node_entry.c_prop(layer_id, prop_id);
 
             if !const_props.is_empty() {
                 let actual_prop = actual_props
@@ -318,7 +319,7 @@ pub fn check_graph_with_nodes_support<
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
             let actual_props = node_entry
-                .temporal_prop_layer(0, prop_id)
+                .temporal_prop_layer(layer_id, prop_id)
                 .iter_t()
                 .collect::<Vec<_>>();
 

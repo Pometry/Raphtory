@@ -25,7 +25,7 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub const NODE_TYPE_IDX: usize = 1;
 
 pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Meta {
     temporal_prop_mapper: PropMapper,
     metadata_mapper: PropMapper,
@@ -33,23 +33,11 @@ pub struct Meta {
     node_type_mapper: DictMapper,
 }
 
-impl Default for Meta {
-    fn default() -> Self {
-        Meta {
-            temporal_prop_mapper: Default::default(),
-            metadata_mapper: Default::default(),
-            layer_mapper: DictMapper::new_layer_mapper(),
-            node_type_mapper: Default::default(),
-        }
-    }
-}
-
 impl Meta {
-    pub fn layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
-        self.layer_mapper.ids().map(move |id| {
-            let name = self.layer_mapper.get_name(id);
-            (id, name)
-        })
+    pub fn all_layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
+        self.layer_mapper
+            .all_ids()
+            .zip(self.layer_mapper.all_keys())
     }
 
     pub fn set_metadata_mapper(&mut self, meta: PropMapper) {
