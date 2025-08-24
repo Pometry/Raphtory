@@ -23,38 +23,25 @@ g.save_to_file(working_dir + "your_graph")
 ```
 ///
 
-## Starting a server with .run()
+## Starting a server
 
-To run the GraphQL server with `.run()`, create a python file `run_server.py` with the following code:
+You can start the raphtory GraphQL in multiple ways depending on your usecase.
 
-/// tab | :fontawesome-brands-python: Python
-```{.python notest}
-from raphtory import graphql
+### Using the CLI
 
-import argparse
-parser = argparse.ArgumentParser(description="For passing the working_dir")
-parser.add_argument(
-    "--working_dir",
-    type=str,
-    help="path for the working directory of the raphtory server",
-)
-args = parser.parse_args()
+You can use the [Raphtory CLI](../getting-started/3_cli.md)  with the `server` command by running:
 
-server = graphql.GraphServer(args.working_dir)
-
-server.run()
-```
-///
-
-To run the server:
-
-```bash
-python run_server.py --working_dir ../your_working_dir
+```sh
+raphtory server --port 1736
 ```
 
-## Starting a server with .start()
+This option is the simplist and provides the most configuration options.
 
-It is also possible to start the server in Python with `.start()`. Below is an example of how to start the server and send a Raphtory graph to the server, where `new_graph` is your Raphtory graph object.
+### Start a server in Python
+
+If you have a [`GraphServer`][raphtory.graphql.GraphServer] object you can use either the [`.run()`][raphtory.graphql.GraphServer.run] or [`.start()`][raphtory.graphql.GraphServer.start] functions to start a GraphQL sever and Raphtory UI.
+
+Below is an example of how to start the server and send a Raphtory graph to the server, where `new_graph` is your Raphtory graph object.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
