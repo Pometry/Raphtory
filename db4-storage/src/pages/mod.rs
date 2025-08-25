@@ -331,28 +331,24 @@ impl<
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
-        let acquire_node_writers = || {
-            if src_chunk < dst_chunk {
-                let src_writer = self.node_writer(src_chunk);
-                let dst_writer = self.node_writer(dst_chunk);
-                WriterPair::Different {
-                    src_writer,
-                    dst_writer,
-                }
-            } else if src_chunk > dst_chunk {
-                let dst_writer = self.node_writer(dst_chunk);
-                let src_writer = self.node_writer(src_chunk);
-                WriterPair::Different {
-                    src_writer,
-                    dst_writer,
-                }
-            } else {
-                let writer = self.node_writer(src_chunk);
-                WriterPair::Same { writer }
+        let node_writers = if src_chunk < dst_chunk {
+            let src_writer = self.node_writer(src_chunk);
+            let dst_writer = self.node_writer(dst_chunk);
+            WriterPair::Different {
+                src_writer,
+                dst_writer,
             }
+        } else if src_chunk > dst_chunk {
+            let dst_writer = self.node_writer(dst_chunk);
+            let src_writer = self.node_writer(src_chunk);
+            WriterPair::Different {
+                src_writer,
+                dst_writer,
+            }
+        } else {
+            let writer = self.node_writer(src_chunk);
+            WriterPair::Same { writer }
         };
-
-        let node_writers = acquire_node_writers();
 
         let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
 
