@@ -29,7 +29,13 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeError},
+    },
+};
 use std::collections::HashMap;
 
 macro_rules! impl_node_state_ops {
@@ -511,6 +517,66 @@ impl_lazy_node_state_ord!(
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<TimeIndexEntry>);
+// implement custom functions for LazyNodeState<EarliestTime>
+#[pymethods]
+impl EarliestTimeView {
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<'static, EarliestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self
+            .inner
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn secondary_index(
+        &self,
+    ) -> LazyNodeState<'static, EarliestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
+    {
+        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+}
+type EarliestTimestamp<G> = ops::Map<ops::EarliestTime<G>, Option<i64>>;
+impl_lazy_node_state_ord!(
+    EarliestTimestampView<EarliestTimestamp<DynamicGraph>>,
+    "NodeStateOptionI64",
+    "Optional[int]"
+);
+impl_one_hop!(
+    EarliestTimestampView<EarliestTimestamp>,
+    "EarliestTimestampView"
+);
+impl_node_state_group_by_ops!(EarliestTimestampView, Option<i64>);
+
+type EarliestSecondaryIndex<G> = ops::Map<ops::EarliestTime<G>, Option<usize>>;
+impl_lazy_node_state_ord!(
+    EarliestSecondaryIndexView<EarliestSecondaryIndex<DynamicGraph>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_one_hop!(
+    EarliestSecondaryIndexView<EarliestSecondaryIndex>,
+    "EarliestSecondaryIndexView"
+);
+impl_node_state_group_by_ops!(EarliestSecondaryIndexView, Option<usize>);
 impl_node_state_ord!(
     NodeStateOptionTimeIndexEntry<Option<TimeIndexEntry>>,
     "NodeStateOptionTimeIndexEntry",
@@ -525,38 +591,81 @@ impl_lazy_node_state_ord!(
 );
 impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
 impl_node_state_group_by_ops!(LatestTimeView, Option<TimeIndexEntry>);
+// implement custom functions for LazyNodeState<LatestTime>
+#[pymethods]
+impl LatestTimeView {
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<'static, LatestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self
+            .inner
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn secondary_index(
+        &self,
+    ) -> LazyNodeState<'static, LatestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
+    {
+        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+}
+type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
+impl_lazy_node_state_ord!(
+    LatestTimestampView<LatestTimestamp<DynamicGraph>>,
+    "NodeStateOptionI64",
+    "Optional[int]"
+);
+impl_one_hop!(LatestTimestampView<LatestTimestamp>, "LatestTimestampView");
+impl_node_state_group_by_ops!(LatestTimestampView, Option<i64>);
+
+type LatestSecondaryIndex<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
+impl_lazy_node_state_ord!(
+    LatestSecondaryIndexView<LatestSecondaryIndex<DynamicGraph>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_one_hop!(
+    LatestSecondaryIndexView<LatestSecondaryIndex>,
+    "LatestSecondaryIndexView"
+);
+impl_node_state_group_by_ops!(LatestSecondaryIndexView, Option<usize>);
 impl_node_state_ord!(
     NodeStateOptionI64<Option<i64>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
 impl_node_state_group_by_ops!(NodeStateOptionI64, Option<i64>);
+impl_node_state_ord!(
+    NodeStateOptionUsize<Option<usize>>,
+    "NodeStateOptionUsize",
+    "Optional[int]"
+); // usize gets converted to int in python
+impl_node_state_group_by_ops!(NodeStateOptionUsize, Option<usize>);
 
 impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
 
-// type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
-// impl_lazy_node_state_ord_result!(
-//     EarliestDateTimeView<EarliestDateTime<DynamicGraph>>,
-//     "NodeStateOptionDateTime",
-//     "Optional[datetime]"
-// );
-// impl_one_hop!(
-//     EarliestDateTimeView<EarliestDateTime>,
-//     "EarliestDateTimeView"
-// );
-// impl_node_state_group_by_ops!(EarliestDateTimeView, Option<DateTime<Utc>>);
-
-// type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
-// impl_lazy_node_state_ord!(
-//     LatestDateTimeView<LatestDateTime<DynamicGraph>>,
-//     "NodeStateOptionDateTime",
-//     "Optional[datetime]"
-// );
-// impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");
-// impl_node_state_group_by_ops!(LatestDateTimeView, Option<DateTime<Utc>>);
 // impl_node_state_ord!(
 //     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
 //     "NodeStateOptionDateTime",

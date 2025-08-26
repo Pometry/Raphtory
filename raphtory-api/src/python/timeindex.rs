@@ -10,6 +10,7 @@ use pyo3::{
     types::{PyDateTime, PyList, PyTuple},
 };
 use serde::Serialize;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 impl<'py> IntoPyObject<'py> for TimeIndexEntry {
     type Target = PyTimeIndexEntry;
@@ -240,6 +241,17 @@ impl PyTimeIndexEntry {
 
     pub fn __repr__(&self) -> String {
         format!("TimeIndexEntry[{}, {}]", self.time.0, self.time.1)
+    }
+
+    // Used for plotting
+    pub fn __hash__(&self) -> isize {
+        let mut hasher = DefaultHasher::new();
+        self.time.hash(&mut hasher);
+        hasher.finish() as isize
+    }
+
+    pub fn __int__(&self) -> i64 {
+        self.t()
     }
 
     #[staticmethod]

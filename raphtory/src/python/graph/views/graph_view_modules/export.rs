@@ -175,7 +175,8 @@ impl PyGraphView {
                         metadata_py.set_item(key, value)?;
                     }
                     properties.set_item("metadata", metadata_py)?;
-                    properties.set_item("temporal", v.properties().temporal().histories())?;
+                    properties
+                        .set_item("temporal", v.properties().temporal().histories_timestamps())?;
                 } else {
                     for (key, value) in v.metadata().as_map() {
                         properties.set_item(key, value)?;

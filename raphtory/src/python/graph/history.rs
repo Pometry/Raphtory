@@ -10,10 +10,13 @@ use crate::{
         utils::{PyGenericIterator, PyNestedGenericIterator},
     },
 };
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
+use raphtory_api::{
+    core::storage::timeindex::{TimeError, TimeIndexEntry},
+    iter::{BoxedLIter, IntoDynBoxed},
+};
 use std::{
     any::Any,
     collections::hash_map::DefaultHasher,
@@ -156,15 +159,22 @@ impl PyHistory {
         hasher.finish()
     }
 
-    // implement contains function. might need to downcast general python object, can use enum to downcast to handle all AsTime objects.
-
-    // Might need to downcast to handle all AsTime objects.
-    fn __eq__(&self, other: &PyHistory) -> bool {
-        self.history.eq(&other.history)
+    fn __contains__(&self, item: TimeIndexEntry) -> bool {
+        self.history.iter().any(|x| x == item)
     }
 
-    fn __ne__(&self, other: &PyHistory) -> bool {
-        self.history.ne(&other.history)
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        if let Ok(py_hist) = other.downcast::<PyHistory>() {
+            return self.history.eq(&py_hist.get().history);
+        }
+        if let Ok(list) = other.extract::<Vec<TimeIndexEntry>>() {
+            return self.history.iter().eq(list.into_iter());
+        }
+        false
+    }
+
+    fn __ne__(&self, other: &Bound<PyAny>) -> bool {
+        !self.__eq__(other)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -248,6 +258,24 @@ impl PyHistoryTimestamp {
         )
     }
 
+    fn __contains__(&self, item: i64) -> bool {
+        self.history_t.iter().any(|x| x == item)
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        if let Ok(py_hist) = other.downcast::<PyHistoryTimestamp>() {
+            return self.history_t.iter().eq(py_hist.get().history_t.iter());
+        }
+        if let Ok(list) = other.extract::<Vec<i64>>() {
+            return self.history_t.iter().eq(list.into_iter());
+        }
+        false
+    }
+
+    fn __ne__(&self, other: &Bound<PyAny>) -> bool {
+        !self.__eq__(other)
+    }
+
     pub fn __repr__(&self) -> String {
         self.history_t.repr()
     }
@@ -311,6 +339,52 @@ impl PyHistoryDateTime {
             HistoryDateTime<Arc<dyn InternalHistoryOps>>,
             |history_dt| history_dt.iter_rev()
         )
+    }
+
+    fn __contains__(&self, item: &Bound<PyAny>) -> bool {
+        let dt_opt: Option<DateTime<Utc>> = {
+            if let Ok(dt) = item.extract::<DateTime<FixedOffset>>() {
+                Some(dt.with_timezone(&Utc));
+            }
+            if let Ok(ndt) = item.extract::<NaiveDateTime>() {
+                Some(ndt.and_utc());
+            }
+            None
+        };
+        if let Some(target) = dt_opt {
+            return self
+                .history_dt
+                .iter()
+                .any(|res| res.map(|dt| dt == target).unwrap_or(false));
+        }
+        false
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        let dt_iter_opt: Option<BoxedLIter<DateTime<Utc>>> = {
+            if let Ok(list) = other.extract::<Vec<DateTime<FixedOffset>>>() {
+                Some(
+                    list.into_iter()
+                        .map(|d| d.with_timezone(&Utc))
+                        .into_dyn_boxed(),
+                );
+            }
+            if let Ok(list) = other.extract::<Vec<NaiveDateTime>>() {
+                Some(list.into_iter().map(|d| d.and_utc()).into_dyn_boxed());
+            }
+            None
+        };
+        if let Ok(py_hist) = other.downcast::<PyHistoryDateTime>() {
+            return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
+        }
+        if let Some(iterator) = dt_iter_opt {
+            return self.history_dt.iter().eq(iterator.map(|dt| Ok(dt)));
+        }
+        false
+    }
+
+    fn __ne__(&self, other: &Bound<PyAny>) -> bool {
+        !self.__eq__(other)
     }
 
     pub fn __repr__(&self) -> String {
@@ -380,6 +454,24 @@ impl PyHistorySecondaryIndex {
         )
     }
 
+    fn __contains__(&self, item: usize) -> bool {
+        self.history_s.iter().any(|x| x == item)
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        if let Ok(py_hist) = other.downcast::<PyHistorySecondaryIndex>() {
+            return self.history_s.iter().eq(py_hist.get().history_s.iter());
+        }
+        if let Ok(list) = other.extract::<Vec<usize>>() {
+            return self.history_s.iter().eq(list.into_iter());
+        }
+        false
+    }
+
+    fn __ne__(&self, other: &Bound<PyAny>) -> bool {
+        !self.__eq__(other)
+    }
+
     pub fn __repr__(&self) -> String {
         self.history_s.repr()
     }
@@ -445,6 +537,24 @@ impl PyIntervals {
             Intervals<Arc<dyn InternalHistoryOps>>,
             |intervals| intervals.iter_rev()
         )
+    }
+
+    fn __contains__(&self, item: i64) -> bool {
+        self.intervals.iter().any(|x| x == item)
+    }
+
+    fn __eq__(&self, other: &Bound<PyAny>) -> bool {
+        if let Ok(py_hist) = other.downcast::<PyIntervals>() {
+            return self.intervals.iter().eq(py_hist.get().intervals.iter());
+        }
+        if let Ok(list) = other.extract::<Vec<i64>>() {
+            return self.intervals.iter().eq(list.into_iter());
+        }
+        false
+    }
+
+    fn __ne__(&self, other: &Bound<PyAny>) -> bool {
+        !self.__eq__(other)
     }
 
     pub fn __repr__(&self) -> String {

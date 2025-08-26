@@ -5,11 +5,14 @@ use crate::{
             internal::InternalPropertiesOps,
             TemporalProperties, TemporalPropertyView,
         },
-        view::internal::{DynamicGraph, Static},
+        view::{
+            history::History,
+            internal::{DynamicGraph, Static},
+        },
     },
     python::{
         graph::{
-            history::PyHistory,
+            history::{HistoryIterable, PyHistory},
             properties::{PyPropValueList, PyPropValueListList},
         },
         types::{
@@ -603,9 +606,15 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropList {
     #[getter]
-    pub fn history(&self) -> I64VecIterable {
+    pub fn history(&self) -> HistoryIterable {
         let builder = self.builder.clone();
-        (move || builder().map(|p| p.map(|v| v.history().t().collect()).unwrap_or_default())).into()
+        (move || {
+            builder().map(|p| {
+                p.map(|v| v.history().into_arc_static())
+                    .unwrap_or(History::create_empty().into_arc_static())
+            })
+        })
+        .into()
     }
 
     pub fn values(&self) -> PyPropHistValueList {

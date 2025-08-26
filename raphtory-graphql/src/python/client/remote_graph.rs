@@ -72,7 +72,7 @@ impl PyRemoteGraph {
                         updates: [
                             {% for tprop in node.updates %}
                             {
-                                time: {{ tprop.time }},
+                                time: {{ tprop.time[0] }},
                                 {% if tprop.properties%}
                                 properties: [
                                     {% for prop in tprop.properties%}
@@ -143,7 +143,7 @@ impl PyRemoteGraph {
                                 updates: [
                                     {% for tprop in edge.updates %}
                                     {
-                                        time: {{ tprop.time }},
+                                        time: {{ tprop.time[0] }},
                                         {% if tprop.properties%}
                                         properties: [
                                             {% for prop in tprop.properties%}

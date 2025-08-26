@@ -75,10 +75,6 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
         History::new(self.clone())
     }
 
-    pub fn history_rev(&self) -> History<ReversedHistoryOps<Self>> {
-        History::new(ReversedHistoryOps::new(self.clone()))
-    }
-
     pub fn values(&self) -> BoxedLIter<Prop> {
         self.props.temporal_values_iter(self.id)
     }
@@ -92,7 +88,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + '_ {
-        self.history_rev().into_iter().zip(self.values_rev())
+        self.history().reverse().into_iter().zip(self.values_rev())
     }
 
     pub fn iter_indexed(&self) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + use<'_, P> {

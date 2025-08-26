@@ -4,7 +4,12 @@ use crate::{
         BoxedIter,
     },
     prelude::Prop,
-    python::types::repr::Repr,
+    python::types::{
+        repr::Repr,
+        result_option_iterable::{
+            NestedResultOptionUtcDateTimeIterable, ResultOptionUtcDateTimeIterable,
+        },
+    },
 };
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
@@ -12,7 +17,10 @@ use pyo3::prelude::*;
 use raphtory_api::{
     core::{
         entities::GID,
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, TimeIndexEntry},
+        },
     },
     inherit::Base,
     iter::IntoDynBoxed,
@@ -111,6 +119,27 @@ py_iterable_comp!(
     Option<TimeIndexEntry>,
     OptionTimeIndexEntryIterableCmp
 );
+// Implement custom TimeIndexEntry operations on iterables as well
+#[pymethods]
+impl OptionTimeIndexEntryIterable {
+    #[getter]
+    fn t(&self) -> OptionI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.t()))).into()
+    }
+
+    #[getter]
+    fn dt(&self) -> ResultOptionUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.dt()).transpose())).into()
+    }
+
+    #[getter]
+    fn secondary_index(&self) -> OptionUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_opt| t_opt.map(|t| t.i()))).into()
+    }
+}
 py_ordered_iterable!(
     OptionOptionTimeIndexEntryIterable,
     Option<Option<TimeIndexEntry>>
@@ -130,6 +159,28 @@ py_iterable_comp!(
     OptionTimeIndexEntryIterableCmp,
     NestedOptionTimeIndexEntryIterableCmp
 );
+// Implement custom TimeIndexEntry operations on nested iterables as well
+#[pymethods]
+impl NestedOptionTimeIndexEntryIterable {
+    #[getter]
+    fn t(&self) -> NestedOptionI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.t())))).into()
+    }
+
+    #[getter]
+    fn dt(&self) -> NestedResultOptionUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.dt()).transpose())))
+            .into()
+    }
+
+    #[getter]
+    fn secondary_index(&self) -> NestedOptionUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t_opt| t_opt.map(|t| t.i())))).into()
+    }
+}
 
 py_numeric_iterable!(UsizeIterable, usize);
 py_iterable_comp!(UsizeIterable, usize, UsizeIterableCmp);
@@ -146,6 +197,23 @@ py_iterable_comp!(
     NestedUsizeIterable,
     UsizeIterableCmp,
     NestedUsizeIterableCmp
+);
+py_iterable!(OptionOptionUsizeIterable, Option<Option<usize>>);
+_py_ord_max_min_methods!(OptionOptionUsizeIterable, Option<Option<usize>>);
+py_iterable_comp!(
+    OptionOptionUsizeIterable,
+    Option<Option<usize>>,
+    OptionOptionUsizeIterableCmp
+);
+py_nested_ordered_iterable!(
+    NestedOptionUsizeIterable,
+    Option<usize>,
+    OptionOptionUsizeIterable
+);
+py_iterable_comp!(
+    NestedOptionUsizeIterable,
+    OptionUsizeIterableCmp,
+    NestedOptionUsizeIterableCmp
 );
 
 py_iterable!(BoolIterable, bool);

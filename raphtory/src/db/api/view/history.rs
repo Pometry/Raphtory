@@ -119,6 +119,12 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
     }
 }
 
+impl History<'_, EmptyHistory> {
+    pub fn create_empty() -> Self {
+        History::new(EmptyHistory)
+    }
+}
+
 impl<T: InternalHistoryOps + 'static> History<'_, T> {
     pub fn into_arc_static(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
         History::new(Arc::new(self.0))
@@ -298,6 +304,31 @@ impl<'a> InternalHistoryOps for CompositeHistory<'a> {
             .iter()
             .filter_map(|history| history.latest_time())
             .max()
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EmptyHistory;
+
+impl InternalHistoryOps for EmptyHistory {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        iter::empty().into_dyn_boxed()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        iter::empty().into_dyn_boxed()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        None
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        None
+    }
+
+    fn len(&self) -> usize {
+        0
     }
 }
 

@@ -1,17 +1,20 @@
 mod group_by;
-// mod lazy_node_state_earliest_date_time;
-// mod lazy_node_state_latest_date_time;
+mod lazy_node_state_earliest_date_time;
 mod lazy_node_state_history;
+mod lazy_node_state_latest_date_time;
 mod node_state;
 mod node_state_history;
-// mod node_state_result_option_datetime;
+mod node_state_result_option_datetime;
 
 use crate::{
     add_classes,
     python::{
         graph::node_state::{
-            group_by::PyNodeGroups, lazy_node_state_history::HistoryView,
+            group_by::PyNodeGroups, lazy_node_state_earliest_date_time::EarliestDateTimeView,
+            lazy_node_state_history::HistoryView,
+            lazy_node_state_latest_date_time::LatestDateTimeView,
             node_state_history::NodeStateHistory,
+            node_state_result_option_datetime::NodeStateResultOptionDateTime,
         },
         types::wrappers::iterables::UsizeIterable,
     },
@@ -26,18 +29,22 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         PyNodeGroups,
         DegreeView,
         NodeStateUsize,
+        NodeStateOptionUsize,
         NodeStateU64,
         NodeStateOptionI64,
         NodeStateOptionTimeIndexEntry,
         IdView,
         NodeStateGID,
         EarliestTimeView,
+        EarliestTimestampView,
+        EarliestSecondaryIndexView,
+        EarliestDateTimeView,
         LatestTimeView,
+        LatestTimestampView,
+        LatestSecondaryIndexView,
+        LatestDateTimeView,
         NameView,
         NodeStateString,
-        // EarliestDateTimeView,
-        // LatestDateTimeView,
-        // NodeStateOptionDateTime,
         HistoryView,
         EdgeHistoryCountView,
         // NodeStateListI64,
@@ -47,6 +54,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeTypeView,
         NodeStateOptionStr,
         NodeStateListDateTime,
+        NodeStateResultOptionDateTime,
         NodeStateWeightedSP,
         NodeStateF64,
         NodeStateNodes,

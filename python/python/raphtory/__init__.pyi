@@ -5531,6 +5531,12 @@ class TimeIndexEntry(object):
     def __gt__(self, value):
         """Return self>value."""
 
+    def __hash__(self):
+        """Return hash(self)."""
+
+    def __int__(self):
+        """int(self)"""
+
     def __le__(self, value):
         """Return self<=value."""
 
@@ -5560,6 +5566,9 @@ class TimeIndexEntry(object):
         """Get the epoch timestamp of the time"""
 
 class History(object): 
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
 
     def __eq__(self, value):
         """Return self==value."""
