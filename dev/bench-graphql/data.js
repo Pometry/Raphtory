@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756056847773,
+  "lastUpdate": 1756222042303,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -269,6 +269,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 890,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5086c5ae9aef1bba0407148822917dac319bdc03",
+          "message": "add docker retag action (#2245)\n\n* add docker retag action\n\n* add permissions\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-08-26T15:52:15+01:00",
+          "tree_id": "cac9e34994f0b0b265b1744605f03124c7cb4418",
+          "url": "https://github.com/Pometry/Raphtory/commit/5086c5ae9aef1bba0407148822917dac319bdc03"
+        },
+        "date": 1756222039749,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1502,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 278,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 204,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1274,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1060,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1660,
             "unit": "req/s"
           }
         ]
