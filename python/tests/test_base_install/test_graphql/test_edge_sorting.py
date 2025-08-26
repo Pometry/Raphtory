@@ -231,7 +231,9 @@ def test_graph_edge_sort_by_earliest_time(graph):
               dst {
                 id
               }
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -243,11 +245,11 @@ def test_graph_edge_sort_by_earliest_time(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "c"}, "dst": {"id": "d"}, "earliestTime": 1},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}, "earliestTime": 1},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}, "earliestTime": 2},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}, "earliestTime": 3},
-                        {"src": {"id": "b"}, "dst": {"id": "c"}, "earliestTime": 4},
+                        {"src": {"id": "c"}, "dst": {"id": "d"}, "earliestTime": {"timestamp": 1}},
+                        {"src": {"id": "a"}, "dst": {"id": "b"}, "earliestTime": {"timestamp": 1}},
+                        {"src": {"id": "b"}, "dst": {"id": "d"}, "earliestTime": {"timestamp": 2}},
+                        {"src": {"id": "a"}, "dst": {"id": "d"}, "earliestTime": {"timestamp": 3}},
+                        {"src": {"id": "b"}, "dst": {"id": "c"}, "earliestTime": {"timestamp": 4}},
                     ]
                 }
             }
@@ -285,8 +287,8 @@ def test_graph_edge_sort_by_earliest_time_reversed(graph):
                         {"src": {"id": "a"}, "dst": {"id": "d"}},
                         {"src": {"id": "b"}, "dst": {"id": "d"}},
                         # C->D and A->B have the same time so will maintain their relative order
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
                         {"src": {"id": "a"}, "dst": {"id": "b"}},
+                        {"src": {"id": "c"}, "dst": {"id": "d"}},
                     ]
                 }
             }

@@ -49,8 +49,12 @@ def test_graph_date():
       }
       count
       list{
-        start
-        end
+        start {
+          timestamp
+        }
+        end {
+          timestamp
+        }
       }
     }
   }
@@ -67,15 +71,15 @@ def test_graph_date():
                 ],
                 "count": 9,
                 "list": [
-                    {"start": 1735646400000, "end": 1735732800000},
-                    {"start": 1735689600000, "end": 1735776000000},
-                    {"start": 1735732800000, "end": 1735819200000},
-                    {"start": 1735776000000, "end": 1735862400000},
-                    {"start": 1735819200000, "end": 1735905600000},
-                    {"start": 1735862400000, "end": 1735948800000},
-                    {"start": 1735905600000, "end": 1735992000000},
-                    {"start": 1735948800000, "end": 1736035200000},
-                    {"start": 1735992000000, "end": 1736078400000},
+                    {"start": {"timestamp": 1735646400000}, "end": {"timestamp": 1735732800000}},
+                    {"start": {"timestamp": 1735689600000}, "end": {"timestamp": 1735776000000}},
+                    {"start": {"timestamp": 1735732800000}, "end": {"timestamp": 1735819200000}},
+                    {"start": {"timestamp": 1735776000000}, "end": {"timestamp": 1735862400000}},
+                    {"start": {"timestamp": 1735819200000}, "end": {"timestamp": 1735905600000}},
+                    {"start": {"timestamp": 1735862400000}, "end": {"timestamp": 1735948800000}},
+                    {"start": {"timestamp": 1735905600000}, "end": {"timestamp": 1735992000000}},
+                    {"start": {"timestamp": 1735948800000}, "end": {"timestamp": 1736035200000}},
+                    {"start": {"timestamp": 1735992000000}, "end": {"timestamp": 1736078400000}},
                 ],
             }
         }
@@ -87,8 +91,12 @@ def test_graph_date():
   graph(path: "g") {
     expanding(step: {duration: "3 days"}) {
       list{
-        start
-        end
+        start {
+          timestamp
+        }
+        end {
+          timestamp
+        }
       }
     }
   }
@@ -98,8 +106,8 @@ def test_graph_date():
         "graph": {
             "expanding": {
                 "list": [
-                    {"start": None, "end": 1735948800000},
-                    {"start": None, "end": 1736208000000},
+                    {"start": None, "end": {"timestamp": 1735948800000}},
+                    {"start": None, "end": {"timestamp": 1736208000000}},
                 ]
             }
         }
@@ -115,8 +123,12 @@ def test_graph_epoch():
       graph(path: "g") {
         rolling(window: {epoch: 1}) {
           list {
-            earliestTime
-            latestTime
+            earliestTime {
+              timestamp
+            }
+            latestTime {
+              timestamp
+            }
           }
         }
       }
@@ -126,11 +138,11 @@ def test_graph_epoch():
         "graph": {
             "rolling": {
                 "list": [
-                    {"earliestTime": 1, "latestTime": 1},
-                    {"earliestTime": 2, "latestTime": 2},
-                    {"earliestTime": 3, "latestTime": 3},
-                    {"earliestTime": 4, "latestTime": 4},
-                    {"earliestTime": 5, "latestTime": 5},
+                    {"earliestTime": {"timestamp": 1}, "latestTime": {"timestamp": 1}},
+                    {"earliestTime": {"timestamp": 2}, "latestTime": {"timestamp": 2}},
+                    {"earliestTime": {"timestamp": 3}, "latestTime": {"timestamp": 3}},
+                    {"earliestTime": {"timestamp": 4}, "latestTime": {"timestamp": 4}},
+                    {"earliestTime": {"timestamp": 5}, "latestTime": {"timestamp": 5}},
                 ]
             }
         }
@@ -142,8 +154,12 @@ def test_graph_epoch():
       graph(path: "g") {
         rolling(window: {epoch: 1},step:{epoch:2}) {
           list {
-            earliestTime
-            latestTime
+            earliestTime {
+              timestamp
+            }
+            latestTime {
+              timestamp
+            }
           }
         }
       }
@@ -153,8 +169,8 @@ def test_graph_epoch():
         "graph": {
             "rolling": {
                 "list": [
-                    {"earliestTime": 2, "latestTime": 2},
-                    {"earliestTime": 4, "latestTime": 4},
+                    {"earliestTime": {"timestamp": 2}, "latestTime": {"timestamp": 2}},
+                    {"earliestTime": {"timestamp": 4}, "latestTime": {"timestamp": 4}},
                 ]
             }
         }
@@ -167,8 +183,12 @@ def test_graph_epoch():
     window(start: 2, end: 5) {
       rolling(window: {epoch: 2}, step: {epoch: 1}) {
         list {
-          start
-          end
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
         }
       }
     }
@@ -180,9 +200,9 @@ def test_graph_epoch():
             "window": {
                 "rolling": {
                     "list": [
-                        {"start": 2, "end": 3},
-                        {"start": 2, "end": 4},
-                        {"start": 3, "end": 5},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 3}},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 4}},
+                        {"start": {"timestamp": 3}, "end": {"timestamp": 5}},
                     ]
                 }
             }
@@ -196,7 +216,9 @@ def test_graph_epoch():
     window(start: 2, end: 7) {
       expanding(step: {epoch: 3}) {
         list {
-          end
+          end {
+            timestamp
+          }
           nodes {
             list {
               name
@@ -214,13 +236,13 @@ def test_graph_epoch():
                 "expanding": {
                     "list": [
                         {
-                            "end": 5,
+                            "end": {"timestamp": 5},
                             "nodes": {
                                 "list": [{"name": "1"}, {"name": "2"}, {"name": "3"}]
                             },
                         },
                         {
-                            "end": 7,
+                            "end": {"timestamp": 7},
                             "nodes": {
                                 "list": [
                                     {"name": "1"},
@@ -244,8 +266,12 @@ def test_graph_epoch():
         window(start: 2, end: 5) {
           expanding(step: {epoch: 1}) {
             list {
-              start
-              end
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
             }
           }
         }
@@ -257,9 +283,9 @@ def test_graph_epoch():
             "window": {
                 "expanding": {
                     "list": [
-                        {"start": 2, "end": 3},
-                        {"start": 2, "end": 4},
-                        {"start": 2, "end": 5},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 3}},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 4}},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 5}},
                     ]
                 }
             }
@@ -272,10 +298,18 @@ def test_graph_epoch():
   graph(path: "g") {
     rolling(window: {epoch: 3}, step: {epoch: 4}) {
       list {
-        start
-        end
-        earliestTime
-        latestTime
+        start {
+          timestamp
+        }
+        end {
+          timestamp
+        }
+        earliestTime {
+          timestamp
+        }
+        latestTime {
+          timestamp
+        }
       }
     }
   }
@@ -284,7 +318,12 @@ def test_graph_epoch():
     correct = {
         "graph": {
             "rolling": {
-                "list": [{"start": 2, "end": 5, "earliestTime": 2, "latestTime": 4}]
+                "list": [{
+                    "start": {"timestamp": 2},
+                    "end": {"timestamp": 5},
+                    "earliestTime": {"timestamp": 2},
+                    "latestTime": {"timestamp": 4}
+                }]
             }
         }
     }
@@ -296,10 +335,18 @@ def test_graph_epoch():
   graph(path: "g") {
     rolling(window: {epoch: 3}, step: {epoch:1000}) {
       list {
-        start
-        end
-        earliestTime
-        latestTime
+        start {
+          timestamp
+        }
+        end {
+          timestamp
+        }
+        earliestTime {
+          timestamp
+        }
+        latestTime {
+          timestamp
+        }
       }
     }
   }
@@ -325,14 +372,18 @@ def test_graph_epoch():
   graph(path: "g") {
     rolling(window: {epoch: 1}, step: {epoch: 1}) {
       page(limit: 2, pageIndex: 1, offset: 2) {
-        earliestTime
-        latestTime
+        earliestTime {
+          timestamp
+        }
+        latestTime {
+          timestamp
+        }
       }
     }
   }
 }
         """
-    correct = {"graph": {"rolling": {"page": [{"earliestTime": 5, "latestTime": 5}]}}}
+    correct = {"graph": {"rolling": {"page": [{"earliestTime": {"timestamp": 5}, "latestTime": {"timestamp": 5}}]}}}
     run_graphql_test(query, correct, graph)
 
 
@@ -345,26 +396,38 @@ def test_node():
     node(name:"1"){
       rolling(window:{epoch:1},step:{epoch:1}){
         list{
-          start
-          end
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
           degree
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
         count
         page(limit:3,offset:3){
-          start
+          start {
+            timestamp
+          }
           degree
         }
       }
       before(time:4){
         expanding(step:{epoch:1}){
         list{
-          end
+          end {
+            timestamp
+          }
           degree
         }
         count
         page(limit:1,offset:2){
-          end
+          end {
+            timestamp
+          }
           degree
         }
       }
@@ -379,24 +442,24 @@ def test_node():
             "node": {
                 "rolling": {
                     "list": [
-                        {"start": 1, "end": 2, "degree": 1, "earliestTime": 1},
-                        {"start": 2, "end": 3, "degree": 2, "earliestTime": 2},
-                        {"start": 3, "end": 4, "degree": 2, "earliestTime": 3},
-                        {"start": 4, "end": 5, "degree": 1, "earliestTime": 4},
-                        {"start": 5, "end": 6, "degree": 0, "earliestTime": None},
+                        {"start": {"timestamp": 1}, "end": {"timestamp": 2}, "degree": 1, "earliestTime": {"timestamp": 1}},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 3}, "degree": 2, "earliestTime": {"timestamp": 2}},
+                        {"start": {"timestamp": 3}, "end": {"timestamp": 4}, "degree": 2, "earliestTime": {"timestamp": 3}},
+                        {"start": {"timestamp": 4}, "end": {"timestamp": 5}, "degree": 1, "earliestTime": {"timestamp": 4}},
+                        {"start": {"timestamp": 5}, "end": {"timestamp": 6}, "degree": 0, "earliestTime": None},
                     ],
                     "count": 5,
-                    "page": [{"start": 4, "degree": 1}, {"start": 5, "degree": 0}],
+                    "page": [{"start": {"timestamp": 4}, "degree": 1}, {"start": {"timestamp": 5}, "degree": 0}],
                 },
                 "before": {
                     "expanding": {
                         "list": [
-                            {"end": 2, "degree": 1},
-                            {"end": 3, "degree": 2},
-                            {"end": 4, "degree": 2},
+                            {"end": {"timestamp": 2}, "degree": 1},
+                            {"end": {"timestamp": 3}, "degree": 2},
+                            {"end": {"timestamp": 4}, "degree": 2},
                         ],
                         "count": 3,
-                        "page": [{"end": 4, "degree": 2}],
+                        "page": [{"end": {"timestamp": 4}, "degree": 2}],
                     }
                 },
             }
@@ -418,9 +481,15 @@ def test_nodes():
           page(limit: 1, offset: 0) {
             id
             degree
-            start
-            end
-            earliestTime
+            start {
+              timestamp
+            }
+            end {
+              timestamp
+            }
+            earliestTime {
+              timestamp
+            }
           }
         }
         count
@@ -428,9 +497,15 @@ def test_nodes():
           page(limit: 1, offset: 0) {
             id
             degree
-            start
-            end
-            earliestTime
+            start {
+              timestamp
+            }
+            end {
+              timestamp
+            }
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -440,10 +515,18 @@ def test_nodes():
             page(limit: 1, offset: 0) {
               id
               degree
-              start
-              end
-              earliestTime
-              latestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
+              latestTime {
+                timestamp
+              }
             }
           }
           count
@@ -451,10 +534,18 @@ def test_nodes():
             page(limit: 1, offset: 0) {
               id
               degree
-              start
-              end
-              earliestTime
-              latestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
+              latestTime {
+                timestamp
+              }
             }
           }
         }
@@ -473,9 +564,15 @@ def test_nodes():
                                 {
                                     "id": "1",
                                     "degree": 1,
-                                    "start": 1,
-                                    "end": 2,
-                                    "earliestTime": 1,
+                                    "start": {
+                                        "timestamp": 1
+                                    },
+                                    "end": {
+                                        "timestamp": 2
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 1
+                                    }
                                 }
                             ]
                         },
@@ -484,9 +581,15 @@ def test_nodes():
                                 {
                                     "id": "1",
                                     "degree": 2,
-                                    "start": 2,
-                                    "end": 3,
-                                    "earliestTime": 2,
+                                    "start": {
+                                        "timestamp": 2
+                                    },
+                                    "end": {
+                                        "timestamp": 3
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 2
+                                    }
                                 }
                             ]
                         },
@@ -495,9 +598,15 @@ def test_nodes():
                                 {
                                     "id": "1",
                                     "degree": 2,
-                                    "start": 3,
-                                    "end": 4,
-                                    "earliestTime": 3,
+                                    "start": {
+                                        "timestamp": 3
+                                    },
+                                    "end": {
+                                        "timestamp": 4
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 3
+                                    }
                                 }
                             ]
                         },
@@ -506,9 +615,15 @@ def test_nodes():
                                 {
                                     "id": "1",
                                     "degree": 1,
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": 4,
+                                    "start": {
+                                        "timestamp": 4
+                                    },
+                                    "end": {
+                                        "timestamp": 5
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 4
+                                    }
                                 }
                             ]
                         },
@@ -517,12 +632,18 @@ def test_nodes():
                                 {
                                     "id": "6",
                                     "degree": 1,
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": 5,
+                                    "start": {
+                                        "timestamp": 5
+                                    },
+                                    "end": {
+                                        "timestamp": 6
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 5
+                                    }
                                 }
                             ]
-                        },
+                        }
                     ],
                     "count": 5,
                     "page": [
@@ -531,9 +652,15 @@ def test_nodes():
                                 {
                                     "id": "1",
                                     "degree": 1,
-                                    "start": 4,
-                                    "end": 5,
-                                    "earliestTime": 4,
+                                    "start": {
+                                        "timestamp": 4
+                                    },
+                                    "end": {
+                                        "timestamp": 5
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 4
+                                    }
                                 }
                             ]
                         },
@@ -542,13 +669,19 @@ def test_nodes():
                                 {
                                     "id": "6",
                                     "degree": 1,
-                                    "start": 5,
-                                    "end": 6,
-                                    "earliestTime": 5,
+                                    "start": {
+                                        "timestamp": 5
+                                    },
+                                    "end": {
+                                        "timestamp": 6
+                                    },
+                                    "earliestTime": {
+                                        "timestamp": 5
+                                    }
                                 }
                             ]
-                        },
-                    ],
+                        }
+                    ]
                 },
                 "after": {
                     "expanding": {
@@ -559,9 +692,15 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 3,
-                                        "earliestTime": 2,
-                                        "latestTime": 2,
+                                        "end": {
+                                            "timestamp": 3
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 2
+                                        }
                                     }
                                 ]
                             },
@@ -571,9 +710,15 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 4,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {
+                                            "timestamp": 4
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 3
+                                        }
                                     }
                                 ]
                             },
@@ -583,9 +728,15 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 5,
-                                        "earliestTime": 2,
-                                        "latestTime": 4,
+                                        "end": {
+                                            "timestamp": 5
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 4
+                                        }
                                     }
                                 ]
                             },
@@ -595,12 +746,18 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 6,
-                                        "earliestTime": 2,
-                                        "latestTime": 4,
+                                        "end": {
+                                            "timestamp": 6
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 4
+                                        }
                                     }
                                 ]
-                            },
+                            }
                         ],
                         "count": 4,
                         "page": [
@@ -610,9 +767,15 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 5,
-                                        "earliestTime": 2,
-                                        "latestTime": 4,
+                                        "end": {
+                                            "timestamp": 5
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 4
+                                        }
                                     }
                                 ]
                             },
@@ -622,15 +785,21 @@ def test_nodes():
                                         "id": "1",
                                         "degree": 2,
                                         "start": None,
-                                        "end": 6,
-                                        "earliestTime": 2,
-                                        "latestTime": 4,
+                                        "end": {
+                                            "timestamp": 6
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        },
+                                        "latestTime": {
+                                            "timestamp": 4
+                                        }
                                     }
                                 ]
-                            },
-                        ],
+                            }
+                        ]
                     }
-                },
+                }
             }
         }
     }
@@ -651,9 +820,15 @@ def test_path():
             page(limit: 1, offset: 0) {
               id
               degree
-              start
-              end
-              earliestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
             }
           }
           count
@@ -661,9 +836,15 @@ def test_path():
             page(limit: 1, offset: 0) {
               id
               degree
-              start
-              end
-              earliestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -673,10 +854,18 @@ def test_path():
               page(limit: 1, offset: 0) {
                 id
                 degree
-                start
-                end
-                earliestTime
-                latestTime
+                start {
+                  timestamp
+                }
+                end {
+                  timestamp
+                }
+                earliestTime {
+                  timestamp
+                }
+                latestTime {
+                  timestamp
+                }
               }
             }
             count
@@ -684,10 +873,18 @@ def test_path():
               page(limit: 1, offset: 0) {
                 id
                 degree
-                start
-                end
-                earliestTime
-                latestTime
+                start {
+                  timestamp
+                }
+                end {
+                  timestamp
+                }
+                earliestTime {
+                  timestamp
+                }
+                latestTime {
+                  timestamp
+                }
               }
             }
           }
@@ -708,9 +905,15 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 1,
-                                        "start": 1,
-                                        "end": 2,
-                                        "earliestTime": 1,
+                                        "start": {
+                                            "timestamp": 1
+                                        },
+                                        "end": {
+                                            "timestamp": 2
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 1
+                                        }
                                     }
                                 ]
                             },
@@ -719,9 +922,15 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 1,
-                                        "start": 2,
-                                        "end": 3,
-                                        "earliestTime": 2,
+                                        "start": {
+                                            "timestamp": 2
+                                        },
+                                        "end": {
+                                            "timestamp": 3
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 2
+                                        }
                                     }
                                 ]
                             },
@@ -730,9 +939,15 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 1,
-                                        "start": 3,
-                                        "end": 4,
-                                        "earliestTime": 3,
+                                        "start": {
+                                            "timestamp": 3
+                                        },
+                                        "end": {
+                                            "timestamp": 4
+                                        },
+                                        "earliestTime": {
+                                            "timestamp": 3
+                                        }
                                     }
                                 ]
                             },
@@ -741,9 +956,13 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 0,
-                                        "start": 4,
-                                        "end": 5,
-                                        "earliestTime": None,
+                                        "start": {
+                                            "timestamp": 4
+                                        },
+                                        "end": {
+                                            "timestamp": 5
+                                        },
+                                        "earliestTime": None
                                     }
                                 ]
                             },
@@ -752,12 +971,16 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 0,
-                                        "start": 5,
-                                        "end": 6,
-                                        "earliestTime": None,
+                                        "start": {
+                                            "timestamp": 5
+                                        },
+                                        "end": {
+                                            "timestamp": 6
+                                        },
+                                        "earliestTime": None
                                     }
                                 ]
-                            },
+                            }
                         ],
                         "count": 5,
                         "page": [
@@ -766,9 +989,13 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 0,
-                                        "start": 4,
-                                        "end": 5,
-                                        "earliestTime": None,
+                                        "start": {
+                                            "timestamp": 4
+                                        },
+                                        "end": {
+                                            "timestamp": 5
+                                        },
+                                        "earliestTime": None
                                     }
                                 ]
                             },
@@ -777,13 +1004,17 @@ def test_path():
                                     {
                                         "id": "2",
                                         "degree": 0,
-                                        "start": 5,
-                                        "end": 6,
-                                        "earliestTime": None,
+                                        "start": {
+                                            "timestamp": 5
+                                        },
+                                        "end": {
+                                            "timestamp": 6
+                                        },
+                                        "earliestTime": None
                                     }
                                 ]
-                            },
-                        ],
+                            }
+                        ]
                     },
                     "after": {
                         "expanding": {
@@ -793,10 +1024,18 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 3,
-                                            "earliestTime": 2,
-                                            "latestTime": 2,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 3
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 2
+                                            }
                                         }
                                     ]
                                 },
@@ -805,10 +1044,18 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 4,
-                                            "earliestTime": 2,
-                                            "latestTime": 3,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 4
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 3
+                                            }
                                         }
                                     ]
                                 },
@@ -817,10 +1064,18 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 5,
-                                            "earliestTime": 2,
-                                            "latestTime": 3,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 5
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 3
+                                            }
                                         }
                                     ]
                                 },
@@ -829,13 +1084,21 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 6,
-                                            "earliestTime": 2,
-                                            "latestTime": 3,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 6
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 3
+                                            }
                                         }
                                     ]
-                                },
+                                }
                             ],
                             "count": 4,
                             "page": [
@@ -844,10 +1107,18 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 5,
-                                            "earliestTime": 2,
-                                            "latestTime": 3,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 5
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 3
+                                            }
                                         }
                                     ]
                                 },
@@ -856,16 +1127,24 @@ def test_path():
                                         {
                                             "id": "2",
                                             "degree": 1,
-                                            "start": 2,
-                                            "end": 6,
-                                            "earliestTime": 2,
-                                            "latestTime": 3,
+                                            "start": {
+                                                "timestamp": 2
+                                            },
+                                            "end": {
+                                                "timestamp": 6
+                                            },
+                                            "earliestTime": {
+                                                "timestamp": 2
+                                            },
+                                            "latestTime": {
+                                                "timestamp": 3
+                                            }
                                         }
                                     ]
-                                },
-                            ],
+                                }
+                            ]
                         }
-                    },
+                    }
                 }
             }
         }
@@ -883,31 +1162,59 @@ def test_edge():
     edge(src:"1",dst:"2"){
       rolling(window:{epoch:1},step:{epoch:1}){
         list{
-          start
-          end
-          earliestTime
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
+          earliestTime {
+            timestamp
+          }
         }
         count
         page(limit:3,offset:3){
-          start
-          end
-          earliestTime
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
+          earliestTime {
+            timestamp
+          }
         }
       }
       after(time:1){
         expanding(step:{epoch:1}){
         list{
-          start
-          end
-          earliestTime
-          latestTime
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
+          earliestTime {
+            timestamp
+          }
+          latestTime {
+            timestamp
+          }
         }
         count
         page(limit:2,offset:2){
-          start
-          end
-          earliestTime
-          latestTime
+          start {
+            timestamp
+          }
+          end {
+            timestamp
+          }
+          earliestTime {
+            timestamp
+          }
+          latestTime {
+            timestamp
+          }
         }
       }
       }
@@ -921,16 +1228,16 @@ def test_edge():
             "edge": {
                 "rolling": {
                     "list": [
-                        {"start": 1, "end": 2, "earliestTime": 1},
-                        {"start": 2, "end": 3, "earliestTime": 2},
-                        {"start": 3, "end": 4, "earliestTime": 3},
-                        {"start": 4, "end": 5, "earliestTime": None},
-                        {"start": 5, "end": 6, "earliestTime": None},
+                        {"start": {"timestamp": 1}, "end": {"timestamp": 2}, "earliestTime": {"timestamp": 1}},
+                        {"start": {"timestamp": 2}, "end": {"timestamp": 3}, "earliestTime": {"timestamp": 2}},
+                        {"start": {"timestamp": 3}, "end": {"timestamp": 4}, "earliestTime": {"timestamp": 3}},
+                        {"start": {"timestamp": 4}, "end": {"timestamp": 5}, "earliestTime": None},
+                        {"start": {"timestamp": 5}, "end": {"timestamp": 6}, "earliestTime": None},
                     ],
                     "count": 5,
                     "page": [
-                        {"start": 4, "end": 5, "earliestTime": None},
-                        {"start": 5, "end": 6, "earliestTime": None},
+                        {"start": {"timestamp": 4}, "end": {"timestamp": 5}, "earliestTime": None},
+                        {"start": {"timestamp": 5}, "end": {"timestamp": 6}, "earliestTime": None},
                     ],
                 },
                 "after": {
@@ -938,42 +1245,42 @@ def test_edge():
                         "list": [
                             {
                                 "start": None,
-                                "end": 3,
-                                "earliestTime": 2,
-                                "latestTime": 2,
+                                "end": {"timestamp": 3},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 2},
                             },
                             {
                                 "start": None,
-                                "end": 4,
-                                "earliestTime": 2,
-                                "latestTime": 3,
+                                "end": {"timestamp": 4},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 3},
                             },
                             {
                                 "start": None,
-                                "end": 5,
-                                "earliestTime": 2,
-                                "latestTime": 3,
+                                "end": {"timestamp": 5},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 3},
                             },
                             {
                                 "start": None,
-                                "end": 6,
-                                "earliestTime": 2,
-                                "latestTime": 3,
+                                "end": {"timestamp": 6},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 3},
                             },
                         ],
                         "count": 4,
                         "page": [
                             {
                                 "start": None,
-                                "end": 5,
-                                "earliestTime": 2,
-                                "latestTime": 3,
+                                "end": {"timestamp": 5},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 3},
                             },
                             {
                                 "start": None,
-                                "end": 6,
-                                "earliestTime": 2,
-                                "latestTime": 3,
+                                "end": {"timestamp": 6},
+                                "earliestTime": {"timestamp": 2},
+                                "latestTime": {"timestamp": 3},
                             },
                         ],
                     }
@@ -996,18 +1303,30 @@ def test_edges():
         list {
           page(limit: 1, offset: 0) {
             id
-            start
-            end
-            earliestTime
+            start {
+              timestamp
+            }
+            end {
+              timestamp
+            }
+            earliestTime {
+              timestamp
+            }
           }
         }
         count
         page(limit: 3, pageIndex: 1) {
           page(limit: 1, offset: 0) {
             id
-            start
-            end
-            earliestTime
+            start {
+              timestamp
+            }
+            end {
+              timestamp
+            }
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1016,20 +1335,36 @@ def test_edges():
           list {
             page(limit: 1, offset: 0) {
               id
-              start
-              end
-              earliestTime
-              latestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
+              latestTime {
+                timestamp
+              }
             }
           }
           count
           page(limit: 2, pageIndex: 1) {
             page(limit: 1, offset: 0) {
               id
-              start
-              end
-              earliestTime
-              latestTime
+              start {
+                timestamp
+              }
+              end {
+                timestamp
+              }
+              earliestTime {
+                timestamp
+              }
+              latestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1047,9 +1382,9 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 1,
-                                    "end": 2,
-                                    "earliestTime": 1,
+                                    "start": {"timestamp": 1},
+                                    "end": {"timestamp": 2},
+                                    "earliestTime": {"timestamp": 1},
                                 }
                             ]
                         },
@@ -1057,9 +1392,9 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 2,
-                                    "end": 3,
-                                    "earliestTime": 2,
+                                    "start": {"timestamp": 2},
+                                    "end": {"timestamp": 3},
+                                    "earliestTime": {"timestamp": 2},
                                 }
                             ]
                         },
@@ -1067,9 +1402,9 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 3,
-                                    "end": 4,
-                                    "earliestTime": 3,
+                                    "start": {"timestamp": 3},
+                                    "end": {"timestamp": 4},
+                                    "earliestTime": {"timestamp": 3},
                                 }
                             ]
                         },
@@ -1077,8 +1412,8 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 4,
-                                    "end": 5,
+                                    "start": {"timestamp": 4},
+                                    "end": {"timestamp": 5},
                                     "earliestTime": None,
                                 }
                             ]
@@ -1087,8 +1422,8 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 5,
-                                    "end": 6,
+                                    "start": {"timestamp": 5},
+                                    "end": {"timestamp": 6},
                                     "earliestTime": None,
                                 }
                             ]
@@ -1100,8 +1435,8 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 4,
-                                    "end": 5,
+                                    "start": {"timestamp": 4},
+                                    "end": {"timestamp": 5},
                                     "earliestTime": None,
                                 }
                             ]
@@ -1110,8 +1445,8 @@ def test_edges():
                             "page": [
                                 {
                                     "id": ["1", "2"],
-                                    "start": 5,
-                                    "end": 6,
+                                    "start": {"timestamp": 5},
+                                    "end": {"timestamp": 6},
                                     "earliestTime": None,
                                 }
                             ]
@@ -1126,9 +1461,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 3,
-                                        "earliestTime": 2,
-                                        "latestTime": 2,
+                                        "end": {"timestamp": 3},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 2},
                                     }
                                 ]
                             },
@@ -1137,9 +1472,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 4,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {"timestamp": 4},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 3},
                                     }
                                 ]
                             },
@@ -1148,9 +1483,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 5,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {"timestamp": 5},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 3},
                                     }
                                 ]
                             },
@@ -1159,9 +1494,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 6,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {"timestamp": 6},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 3},
                                     }
                                 ]
                             },
@@ -1173,9 +1508,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 5,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {"timestamp": 5},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 3},
                                     }
                                 ]
                             },
@@ -1184,9 +1519,9 @@ def test_edges():
                                     {
                                         "id": ["1", "2"],
                                         "start": None,
-                                        "end": 6,
-                                        "earliestTime": 2,
-                                        "latestTime": 3,
+                                        "end": {"timestamp": 6},
+                                        "earliestTime": {"timestamp": 2},
+                                        "latestTime": {"timestamp": 3},
                                     }
                                 ]
                             },
@@ -1210,7 +1545,9 @@ def test_zero_step():
       graph(path: "g") {
         rolling(window:{duration:"1 day"},step:{duration:"0 day"}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1223,7 +1560,9 @@ def test_zero_step():
       graph(path: "g") {
         rolling(window:{epoch:100},step:{epoch:0}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1236,7 +1575,9 @@ def test_zero_step():
       graph(path: "g") {
         rolling(window:{duration:"0 day"}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1249,7 +1590,9 @@ def test_zero_step():
       graph(path: "g") {
         rolling(window:{epoch:0}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1262,7 +1605,9 @@ def test_zero_step():
       graph(path: "g") {
         expanding(step:{duration:"0 day"}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1275,7 +1620,9 @@ def test_zero_step():
       graph(path: "g") {
         expanding(step:{epoch:0}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1290,7 +1637,9 @@ def test_zero_step():
         node(name: "1") {
             rolling(window:{duration:"1 day"},step:{duration:"0 year"}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1305,7 +1654,9 @@ def test_zero_step():
         node(name: "1") {
             rolling(window:{epoch:100},step:{epoch:0}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1320,7 +1671,9 @@ def test_zero_step():
         node(name: "1") {
             rolling(window:{duration:"0 day"}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1335,7 +1688,9 @@ def test_zero_step():
         node(name: "1") {
             rolling(window:{epoch:0}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1350,7 +1705,9 @@ def test_zero_step():
         node(name: "1") {
             expanding(step:{duration:"0 day"}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1365,7 +1722,9 @@ def test_zero_step():
         node(name: "1") {
             expanding(step:{epoch:0}){
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1382,7 +1741,9 @@ def test_zero_step():
       list {
         rolling(window:{duration:"1 day"},step:{duration:"0 year"}){
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1399,7 +1760,9 @@ def test_zero_step():
       list {
         rolling(window:{epoch:100},step:{epoch:0}){
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1416,7 +1779,9 @@ def test_zero_step():
       list {
         rolling(window:{duration:"0 day"}){
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1433,7 +1798,9 @@ def test_zero_step():
       list {
         rolling(window:{epoch:0}){
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1450,7 +1817,9 @@ def test_zero_step():
       list {
         expanding(step:{duration:"0 day"}){
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1467,7 +1836,9 @@ def test_zero_step():
           list {
             expanding(step:{epoch:0}){
               list {
-                earliestTime
+                earliestTime {
+                  timestamp
+                }
               }
             }
           }
@@ -1486,7 +1857,9 @@ def test_zero_step():
         rolling(window:{duration:"1 day"},step:{duration:"0 year"}){
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1505,7 +1878,9 @@ def test_zero_step():
         rolling(window:{epoch:100},step:{epoch:0}){
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1524,7 +1899,9 @@ def test_zero_step():
         rolling(window:{duration:"0 year"}){
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1543,7 +1920,9 @@ def test_zero_step():
         rolling(window:{epoch:0}){
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1562,7 +1941,9 @@ def test_zero_step():
         expanding(step:{duration:"0 year"}){
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1581,7 +1962,9 @@ def test_zero_step():
             expanding(step:{epoch:0}){
               list {
                 list {
-                  earliestTime
+                  earliestTime {
+                    timestamp
+                  }
                 }
               }
             }
@@ -1599,7 +1982,9 @@ def test_zero_step():
     edge(src: "1", dst: "2") {
     rolling(window:{duration:"1 day"},step:{duration:"0 year"}){
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1614,7 +1999,9 @@ def test_zero_step():
     edge(src: "1", dst: "2") {
         rolling(window:{epoch:100},step:{epoch:0}){
             list {
-                earliestTime
+                earliestTime {
+                  timestamp
+                }
             }
       }
     }
@@ -1629,7 +2016,9 @@ def test_zero_step():
     edge(src: "1", dst: "2") {
     rolling(window:{duration:"0 year"}){
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1644,7 +2033,9 @@ def test_zero_step():
     edge(src: "1", dst: "2") {
         rolling(window:{epoch:0}){
             list {
-                earliestTime
+                earliestTime {
+                  timestamp
+                }
             }
       }
     }
@@ -1659,7 +2050,9 @@ def test_zero_step():
     edge(src: "1", dst: "2") {
     expanding(step:{duration:"0 year"}){
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1674,7 +2067,9 @@ def test_zero_step():
         edge(src: "1", dst: "2") {
             expanding(step:{epoch:0}){
                 list {
-                    earliestTime
+                    earliestTime {
+                      timestamp
+                    }
                 }
           }
         }
@@ -1691,9 +2086,10 @@ def test_zero_step():
     rolling(window:{duration:"1 day"},step:{duration:"0 year"}){
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-
         }
       }
     }
@@ -1709,9 +2105,10 @@ def test_zero_step():
     rolling(window:{epoch:100},step:{epoch:0}){
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-
         }
       }
     }
@@ -1727,9 +2124,10 @@ def test_zero_step():
     rolling(window:{duration:"0 year"}){
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-
         }
       }
     }
@@ -1745,9 +2143,10 @@ def test_zero_step():
     rolling(window:{epoch:0}){
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-
         }
       }
     }
@@ -1763,9 +2162,10 @@ def test_zero_step():
     expanding(step:{duration:"0 year"}){
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-
         }
       }
     }
@@ -1781,9 +2181,10 @@ def test_zero_step():
         expanding(step:{epoch:0}){
             list {
               list{
-                earliestTime
+                earliestTime {
+                  timestamp
+                }
               }
-    
             }
           }
         }
@@ -1808,7 +2209,9 @@ def test_wrong_window():
       graph(path: "g") {
         rolling(window:{duration:"1 day"},step:{epoch:100}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1821,7 +2224,9 @@ def test_wrong_window():
       graph(path: "g") {
         rolling(window:{epoch:100},step:{duration:"1 day"}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1834,7 +2239,9 @@ def test_wrong_window():
       graph(path: "g") {
         rolling(window:{duration:"1dasdas day"}){
                 list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1847,7 +2254,9 @@ def test_wrong_window():
   graph(path: "g") {
     rolling(window:{duration:"1 day"},step:{duration:"1 monthdas"}){
 			list{
-        earliestTime
+        earliestTime {
+          timestamp
+        }
       }
     }
   }
@@ -1860,7 +2269,9 @@ def test_wrong_window():
   graph(path: "g") {
     rolling(window:{duration:"1 day",epoch:11}){
 			list{
-        earliestTime
+        earliestTime {
+          timestamp
+        }
       }
     }
   }
@@ -1875,7 +2286,9 @@ def test_wrong_window():
     node(name: "1") {
       rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1890,7 +2303,9 @@ def test_wrong_window():
     node(name: "1") {
       rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1907,7 +2322,9 @@ def test_wrong_window():
       list {
       rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1924,7 +2341,9 @@ def test_wrong_window():
       list {
         rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
           list {
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
         }
       }
@@ -1943,7 +2362,9 @@ def test_wrong_window():
       rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1962,7 +2383,9 @@ def test_wrong_window():
         rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
           list {
             list {
-              earliestTime
+              earliestTime {
+                timestamp
+              }
             }
           }
         }
@@ -1980,7 +2403,9 @@ def test_wrong_window():
     edge(src: "1", dst: "2") {
       rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -1995,7 +2420,9 @@ def test_wrong_window():
     edge(src: "1", dst: "2") {
       rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
-          earliestTime
+          earliestTime {
+            timestamp
+          }
         }
       }
     }
@@ -2012,9 +2439,10 @@ def test_wrong_window():
       rolling(window: {duration: "1 day"}, step: {epoch: 11}) {
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-          
         }
       }
     }
@@ -2030,9 +2458,10 @@ def test_wrong_window():
       rolling(window: {epoch: 100}, step: {duration: "1 day"}) {
         list {
           list{
-            earliestTime
+            earliestTime {
+              timestamp
+            }
           }
-          
         }
       }
     }

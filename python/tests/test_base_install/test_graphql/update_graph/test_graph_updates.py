@@ -82,13 +82,15 @@ def test_add_properties():
         assert_has_properties(g, props)
 
         localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
-        timestamps = [
+        timestamps = sorted([
             1,
             int(current_datetime.timestamp() * 1000),
             int(localized_datetime.timestamp() * 1000),
-        ]
+        ])
 
-        check_arr(g.properties.temporal.get("prop_map").history(), timestamps)
+        print(g.properties.temporal.get("prop_map").history)
+
+        check_arr(g.properties.temporal.get("prop_map").history.t.collect(), timestamps)
 
 
 def test_add_node():
@@ -139,7 +141,7 @@ def test_delete_edge():
         rg.add_edge(1, "ben", "hamza")
         rg.delete_edge(2, "ben", "hamza")
         g = client.receive_graph("path/to/event_graph")
-        assert g.edge("ben", "hamza").history() == [1]
+        assert g.edge("ben", "hamza").history.t.collect() == [1]
         assert g.edge("ben", "hamza").deletions() == [2]
 
         client.new_graph("path/to/persistent_graph", "PERSISTENT")

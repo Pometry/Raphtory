@@ -427,11 +427,11 @@ def test_entity_history_date_time():
     ]
 
     check_arr(g.nodes.earliest_time.collect(), expected_earliest_dt_1)
-    # assert g.nodes.earliest_time == [
-    #     datetime(1970, 1, 1, tzinfo=utc),
-    #     datetime(1970, 1, 1, tzinfo=utc),
-    #     datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
-    # ]
+    assert g.nodes.earliest_time.dt == [
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+    ]
 
     expected_latest_dt_1 = [
         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
@@ -439,31 +439,30 @@ def test_entity_history_date_time():
         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
     ]
     check_arr(g.nodes.latest_time.collect(), expected_latest_dt_1)
-    # assert g.nodes.latest_date_time == [
-    #     datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
-    #     datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
-    #     datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
-    # ]
+    assert g.nodes.latest_time.dt == [
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+        datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+    ]
 
     expected_latest_neighbours_dt_1 = [
-        # [
-        #     datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
-        #     datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
-        # ],
-        [],
+        [
+            datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        ],
         [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
         [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
     ]
-    check_arr(g.nodes.in_neighbours.latest_time.collect(), expected_latest_neighbours_dt_1)
+    check_arr(g.nodes.neighbours.latest_time.collect(), expected_latest_neighbours_dt_1)
 
-    # assert g.nodes.neighbours.latest_date_time.collect() == [
-    #     [
-    #         datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
-    #         datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
-    #     ],
-    #     [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
-    #     [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
-    # ]
+    assert g.nodes.neighbours.latest_time.dt.collect() == [
+        [
+            datetime(1970, 1, 1, 0, 0, 0, 3000, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+        [datetime(1970, 1, 1, 0, 0, 0, 7000, tzinfo=utc)],
+    ]
 
     expected_earliest_neighbours_dt_1 = [
         [
@@ -475,14 +474,14 @@ def test_entity_history_date_time():
     ]
     check_arr(g.nodes.neighbours.earliest_time.collect(), expected_earliest_neighbours_dt_1)
 
-    # assert g.nodes.neighbours.earliest_date_time.collect() == [
-    #     [
-    #         datetime(1970, 1, 1, tzinfo=utc),
-    #         datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
-    #     ],
-    #     [datetime(1970, 1, 1, tzinfo=utc)],
-    #     [datetime(1970, 1, 1, tzinfo=utc)],
-    # ]
+    assert g.nodes.neighbours.earliest_time.dt.collect() == [
+        [
+            datetime(1970, 1, 1, tzinfo=utc),
+            datetime(1970, 1, 1, 0, 0, 0, 4000, tzinfo=utc),
+        ],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+        [datetime(1970, 1, 1, tzinfo=utc)],
+    ]
 
 
 def test_graph_properties():

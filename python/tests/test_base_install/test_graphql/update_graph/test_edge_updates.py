@@ -68,9 +68,9 @@ def test_add_updates():
         g = client.receive_graph("path/to/event_graph")
         e = g.edge("ben", "hamza")
         assert_has_properties(e, props)
-        check_arr(e.properties.temporal.get("prop_float").history(), [2, 3])
-        check_arr(e.layer("test").properties.temporal.get("prop_float").history(), [2])
-        check_arr(e.history(), [1, 2, 3, 4, 5, 6])
+        check_arr(e.properties.temporal.get("prop_float").history.t.collect(), [2, 3])
+        check_arr(e.layer("test").properties.temporal.get("prop_float").history.t.collect(), [2])
+        check_arr(e.history.t.collect(), [1, 2, 3, 4, 5, 6])
 
 
 def test_add_metadata():
