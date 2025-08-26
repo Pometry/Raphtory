@@ -87,7 +87,7 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<P
 /// Returns the raphtory graphql server schema
 ///
 /// Returns
-///     str: Graphql schema
+/// str: Graphql schema
 #[pyfunction]
 pub fn schema() -> String {
     let schema = App::create_schema().finish().unwrap(); //will only fail if something wrong with the build
@@ -97,10 +97,10 @@ pub fn schema() -> String {
 /// Encode a graph using Base64 encoding
 ///
 /// Arguments:
-///     graph (Graph | PersistentGraph): the graph
+/// graph (Graph | PersistentGraph): the graph
 ///
 /// Returns:
-///     str: the encoded graph
+/// str: the encoded graph
 #[pyfunction]
 pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
@@ -113,10 +113,10 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
 /// Decode a Base64-encoded graph
 ///
 /// Arguments:
-///     graph (str): the encoded graph
+/// graph (str): the encoded graph
 ///
 /// Returns:
-///     Union[Graph, PersistentGraph]: the decoded graph
+/// Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
     let result = url_decode_graph(graph);

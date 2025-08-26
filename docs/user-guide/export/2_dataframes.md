@@ -124,7 +124,7 @@ export the property history for each edge, split by edge layer. This is because 
 explode the edges and view each update individually (which will then ignore the `include_property_history` flag).
 
 In the below example we first create a subgraph of the monkey interactions, selecting `ANGELE` and `FELIPE` as the
-monkeys we are interested in. This isn't a required step, but helps to demonstrate the export of graph views.
+monkeys we are interested in. This isn't a required step, but helps to demonstrate the export of GraphViews.
 
 Then we call `to_df()` on the subgraph edges, setting no flags. In the output you can see the property history for each
 interaction type (layer) between `ANGELE` and `FELIPE`.

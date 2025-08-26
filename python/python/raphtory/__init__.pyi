@@ -26,40 +26,8 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = [
-    "GraphView",
-    "Graph",
-    "PersistentGraph",
-    "Node",
-    "Nodes",
-    "PathFromNode",
-    "PathFromGraph",
-    "MutableNode",
-    "Edge",
-    "Edges",
-    "NestedEdges",
-    "MutableEdge",
-    "Properties",
-    "Metadata",
-    "TemporalProperties",
-    "PropertiesView",
-    "TemporalProp",
-    "WindowSet",
-    "IndexSpecBuilder",
-    "IndexSpec",
-    "version",
-    "graphql",
-    "algorithms",
-    "graph_loader",
-    "graph_gen",
-    "vectors",
-    "node_state",
-    "filter",
-    "nullmodels",
-    "plottingutils",
-]
-
-class GraphView(object):
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
     def __eq__(self, value):
@@ -6186,6 +6154,8 @@ class IndexSpec(object):
     @property
     def node_metadata(self): ...
     @property
-    def node_properties(self): ...
+    def node_properties(self):
+        ...
 
-def version(): ...
+def version():
+    ...

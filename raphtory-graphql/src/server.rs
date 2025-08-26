@@ -148,7 +148,7 @@ impl GraphServer {
     ///   * template - the template to use for creating documents.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    /// A new server object containing the vectorised graphs.
     pub fn with_vectorised_graphs(
         mut self,
         graph_names: Vec<String>,
