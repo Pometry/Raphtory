@@ -396,7 +396,7 @@ pub fn check_graph_with_props_support<
         }
 
         edge_groups.iter_mut().for_each(|(_, props)| {
-            props.sort_unstable_by_key(|(t, _)| *t);
+            props.sort_by_key(|(t, _)| *t);
         });
 
         // Group node additions and their timestamps
@@ -418,7 +418,7 @@ pub fn check_graph_with_props_support<
         }
 
         node_groups.iter_mut().for_each(|(_, ts)| {
-            ts.sort_unstable();
+            ts.sort();
         });
 
         for ((src, dst, prop_name), props) in edge_groups {
