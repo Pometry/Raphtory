@@ -35,7 +35,9 @@ jobs:
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      tag: nightly-${{ needs.get_date.outputs.date }},nightly
+      tag: |
+        nightly-${{ needs.get_date.outputs.date }}
+        nightly
       python: false
   release-python-docker:
     name: Release python docker image
@@ -45,5 +47,7 @@ jobs:
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      tag: nightly-${{ needs.get_date.outputs.date }}-python,nightly-python
+      tag: |
+        nightly-${{ needs.get_date.outputs.date }}-python
+        nightly-python
       python: true
