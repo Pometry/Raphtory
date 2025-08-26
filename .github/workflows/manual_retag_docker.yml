@@ -1,5 +1,8 @@
 name: Retag Docker Image
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:
