@@ -20,23 +20,34 @@ jobs:
           continue-on-error: true
           name: Check latest commit is less than a day
           run: test -z $(git rev-list  --after="24 hours"  ${{ github.sha }}) && echo "::set-output name=should_run::false"
+  get_date:
+      runs-on: ubuntu-latest
+      outputs:
+        date: ${{ steps.date.outputs.date }}
+      steps:
+        - id: date
+          run: echo "date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
   release-rust-docker:
     name: Release rust docker image
-    needs: check_date
+    needs: [check_date, get_date]
     if: ${{ needs.check_date.outputs.should_run != 'false' }}
     uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      tag: nightly-${{ date +%Y-%m-%d }},nightly
+      tag: |
+        nightly-${{ needs.get_date.outputs.date }}
+        nightly
       python: false
   release-python-docker:
     name: Release python docker image
-    needs: check_date
+    needs: [check_date, get_date]
     if: ${{ needs.check_date.outputs.should_run != 'false' }}
     uses: ./.github/workflows/_release_docker.yml
     secrets: inherit
     with:
       base: ${{ inputs.base }}
-      tag: nightly-${{ date +%Y-%m-%d }}-python,nightly-python
+      tag: |
+        nightly-${{ needs.get_date.outputs.date }}-python
+        nightly-python
       python: true
