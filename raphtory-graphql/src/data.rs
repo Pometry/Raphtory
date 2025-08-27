@@ -56,7 +56,7 @@ pub(crate) fn get_relative_path(
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    loaded_graphs: FxDashMap<PathBuf, GraphWithVectors>,
+    graphs: FxDashMap<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
@@ -70,7 +70,7 @@ impl Data {
 
         Self {
             work_dir: work_dir.to_path_buf(),
-            loaded_graphs: FxDashMap::default(),
+            graphs: FxDashMap::default(),
             create_index,
             embedding_conf: Default::default(),
         }
@@ -82,7 +82,7 @@ impl Data {
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         let graph_folder_clone = graph_folder.clone();
-        let entry = self.loaded_graphs.entry(path.into());
+        let entry = self.graphs.entry(path.into());
 
         match entry {
             Entry::Occupied(entry) => Ok((entry.get().clone(), graph_folder)),
@@ -116,7 +116,7 @@ impl Data {
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-                self.loaded_graphs.insert(path.into(), graph);
+                self.graphs.insert(path.into(), graph);
                 Ok(())
             }
         }
@@ -125,7 +125,7 @@ impl Data {
     pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         fs::remove_dir_all(graph_folder.get_base_path()).await?;
-        self.loaded_graphs.remove(&PathBuf::from(path));
+        self.graphs.remove(&PathBuf::from(path));
         Ok(())
     }
 
