@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             state::{
+                ops,
                 ops::{node::NodeOp, EarliestTime, HistoryOp, LatestTime, NodeOpFilter},
                 Index, NodeState, NodeStateOps,
             },
@@ -226,28 +227,48 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         self.compute().into_iter_values()
     }
 
-    pub fn intervals(&self) -> impl Iterator<Item = Intervals<NodeView<'graph, GH, GH>>> {
-        self.compute()
-            .into_iter_values()
-            .map(|history| history.intervals())
+    pub fn intervals(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<HistoryOp<'graph, GH>, Intervals<NodeView<GH, GH>>>, G, GH>
+    {
+        let op = self.op.clone().map(|hist| hist.intervals());
+        LazyNodeState::new(op, self.nodes.clone())
     }
 
-    pub fn t(&self) -> impl Iterator<Item = HistoryTimestamp<NodeView<'graph, GH, GH>>> {
-        self.compute().into_iter_values().map(|history| history.t())
+    pub fn t(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<GH, GH>>>,
+        G,
+        GH,
+    > {
+        let op = self.op.clone().map(|hist| hist.t());
+        LazyNodeState::new(op, self.nodes.clone())
     }
 
-    pub fn dt(&self) -> impl Iterator<Item = HistoryDateTime<NodeView<'graph, GH, GH>>> {
-        self.compute()
-            .into_iter_values()
-            .map(|history| history.dt())
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<GH, GH>>>,
+        G,
+        GH,
+    > {
+        let op = self.op.clone().map(|hist| hist.dt());
+        LazyNodeState::new(op, self.nodes.clone())
     }
 
     pub fn secondary_index(
         &self,
-    ) -> impl Iterator<Item = HistorySecondaryIndex<NodeView<'graph, GH, GH>>> {
-        self.compute()
-            .into_iter_values()
-            .map(|history| history.secondary_index())
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<HistoryOp<'graph, GH>, HistorySecondaryIndex<NodeView<GH, GH>>>,
+        G,
+        GH,
+    > {
+        let op = self.op.clone().map(|hist| hist.secondary_index());
+        LazyNodeState::new(op, self.nodes.clone())
     }
 
     pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
