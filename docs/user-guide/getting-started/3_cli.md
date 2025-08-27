@@ -23,8 +23,6 @@ raphtory server --port 1736
 | Command                     | Parameter(s)              | Description                                                         |
 |-----------------------------|---------------------------|---------------------------------------------------------------------|
 | -h, --help                  |                           | Show the help message and exit                                      |
-| --cache-capacity            | CACHE_CAPACITY            | Cache capacity                                                      |
-| --cache-tti-seconds         | CACHE_TTI_SECONDS         | Cache time-to-idle in seconds                                       |
 | --log-level                 | LOG_LEVEL                 | Log level                                                           |
 | --tracing                   |                           | Enable tracing                                                      |
 | --otlp-agent-host           | OTLP_AGENT_HOST           | OTLP agent host                                                     |

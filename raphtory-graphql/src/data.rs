@@ -316,10 +316,7 @@ pub(crate) mod data_tests {
         fs::create_dir_all(&g6_path).unwrap();
         fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().build();
 
         let data = Data::new(work_dir, &configs);
 

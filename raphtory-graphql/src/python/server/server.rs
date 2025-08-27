@@ -23,8 +23,6 @@ use std::{path::PathBuf, sync::Arc, thread};
 ///
 /// Arguments:
 ///     work_dir (str | PathLike): the working directory for the server
-///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
 ///     log_level (str, optional): the log level for the server
 ///     tracing (bool, optional): whether tracing should be enabled
 ///     otlp_agent_host (str, optional): OTLP agent host for tracing
@@ -79,12 +77,10 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
+        signature = (work_dir, log_level = None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
     )]
     fn py_new(
         work_dir: PathBuf,
-        cache_capacity: Option<u64>,
-        cache_tti_seconds: Option<u64>,
         log_level: Option<String>,
         tracing: Option<bool>,
         otlp_agent_host: Option<String>,
@@ -112,12 +108,7 @@ impl PyGraphServer {
             app_config_builder =
                 app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
         }
-        if let Some(cache_capacity) = cache_capacity {
-            app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-        }
-        if let Some(cache_tti_seconds) = cache_tti_seconds {
-            app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
-        }
+
         app_config_builder = app_config_builder
             .with_auth_public_key(auth_public_key)
             .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;

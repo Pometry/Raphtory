@@ -54,7 +54,7 @@ rust-fmt:
 rust-build:
 	cargo build -q
 
-rust-build-docs: 
+rust-build-docs:
 	cargo doc --no-deps -p raphtory -q
 
 run-graphql:
@@ -195,8 +195,6 @@ docker-run-pyraphtory-amd64:
 		$(PY_IMAGE_NAME_AMD64) \
 		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
 		$(if $(PORT),--port=$(PORT)) \
-		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
-		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
 		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
 		$(if $(TRACING),--tracing) \
 		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
@@ -209,8 +207,6 @@ docker-run-pyraphtory-arm64:
 		$(PY_IMAGE_NAME_ARM64) \
 		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
 		$(if $(PORT),--port=$(PORT)) \
-		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
-		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
 		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
 		$(if $(TRACING),--tracing) \
 		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
@@ -224,8 +220,6 @@ docker-run-raphtory-amd64:
 		$(IMAGE_NAME_AMD64) \
 		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
 		$(if $(PORT),--port=$(PORT)) \
-		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
-		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
 		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
 		$(if $(TRACING),--tracing) \
 		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
@@ -238,8 +232,6 @@ docker-run-raphtory-arm64:
 		$(IMAGE_NAME_ARM64) \
 		$(if $(WORKING_DIR),--working-dir=$(WORKING_DIR)) \
 		$(if $(PORT),--port=$(PORT)) \
-		$(if $(CACHE_CAPACITY),--cache-capacity=$(CACHE_CAPACITY)) \
-		$(if $(CACHE_TTI_SECONDS),--cache-tti-seconds=$(CACHE_TTI_SECONDS)) \
 		$(if $(LOG_LEVEL),--log-level=$(LOG_LEVEL)) \
 		$(if $(TRACING),--tracing) \
 		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \

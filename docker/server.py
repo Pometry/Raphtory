@@ -48,18 +48,7 @@ parser.add_argument(
     default="Raphtory",
     help="The name this service will be known by for open telemetry, default to Raphtory",
 )
-parser.add_argument(
-    "--cache-capacity",
-    type=int,
-    default=30,
-    help="The maximum amount of graphs to keep in memory at any given time, defaults to 30",
-)
-parser.add_argument(
-    "--cache-tti-seconds",
-    type=int,
-    default=900,
-    help="The amount of time a graph will be kept in memory before being dropped, defaults to 900 seconds",
-)
+
 args = parser.parse_args()
 
 server = graphql.GraphServer(
@@ -69,7 +58,5 @@ server = graphql.GraphServer(
     otlp_agent_host=args.otlp_agent_host,
     otlp_agent_port=args.otlp_agent_port,
     otlp_tracing_service_name=args.otlp_tracing_service_name,
-    cache_capacity=args.cache_capacity,
-    cache_tti_seconds=args.cache_tti_seconds,
 )
 server.run(port=args.port)

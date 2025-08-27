@@ -8,8 +8,6 @@ from raphtory.graphql import GraphServer, schema
 def run_server(args):
     server = GraphServer(
         work_dir=args.work_dir,
-        cache_capacity=args.cache_capacity,
-        cache_tti_seconds=args.cache_tti_seconds,
         log_level=args.log_level,
         tracing=args.tracing,
         otlp_agent_host=args.otlp_agent_host,
@@ -38,10 +36,7 @@ def main():
     server_parser.add_argument(
         "--work-dir", type=Path, default=".", help="Working directory"
     )
-    server_parser.add_argument("--cache-capacity", type=int, help="Cache capacity")
-    server_parser.add_argument(
-        "--cache-tti-seconds", type=int, help="Cache time-to-idle in seconds"
-    )
+
     server_parser.add_argument("--log-level", type=str, help="Log level")
     server_parser.add_argument("--tracing", action="store_true", help="Enable tracing")
     server_parser.add_argument("--otlp-agent-host", type=str, help="OTLP agent host")

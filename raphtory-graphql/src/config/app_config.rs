@@ -1,6 +1,6 @@
 use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 use crate::config::{
-    cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
+    log_config::LoggingConfig, otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,6 @@ use crate::config::index_config::IndexConfig;
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
 pub struct AppConfig {
     pub logging: LoggingConfig,
-    pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
     #[cfg(feature = "search")]
@@ -21,7 +20,6 @@ pub struct AppConfig {
 
 pub struct AppConfigBuilder {
     logging: LoggingConfig,
-    cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
     #[cfg(feature = "search")]
@@ -32,7 +30,6 @@ impl From<AppConfig> for AppConfigBuilder {
     fn from(config: AppConfig) -> Self {
         Self {
             logging: config.logging,
-            cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
             #[cfg(feature = "search")]
@@ -71,15 +68,7 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_cache_capacity(mut self, cache_capacity: u64) -> Self {
-        self.cache.capacity = cache_capacity;
-        self
-    }
 
-    pub fn with_cache_tti_seconds(mut self, tti_seconds: u64) -> Self {
-        self.cache.tti_seconds = tti_seconds;
-        self
-    }
 
     pub fn with_auth_public_key(
         mut self,
@@ -105,7 +94,6 @@ impl AppConfigBuilder {
     pub fn build(self) -> AppConfig {
         AppConfig {
             logging: self.logging,
-            cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
             #[cfg(feature = "search")]
@@ -159,12 +147,7 @@ pub fn load_config(
             app_config_builder.with_otlp_tracing_service_name(otlp_tracing_service_name);
     }
 
-    if let Some(cache_capacity) = settings.get::<u64>("cache.capacity").ok() {
-        app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-    }
-    if let Some(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds").ok() {
-        app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
-    }
+
 
     if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
         app_config_builder = app_config_builder

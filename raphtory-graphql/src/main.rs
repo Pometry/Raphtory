@@ -5,7 +5,6 @@ use raphtory_graphql::{
     config::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
-        cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
             DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT, DEFAULT_OTLP_TRACING_SERVICE_NAME,
@@ -28,12 +27,6 @@ struct Args {
     // #[arg(long, env, default_value_t = DEFAULT_PORT)]
     #[clap(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT)]
     port: u16,
-
-    #[arg(long, default_value_t = DEFAULT_CAPACITY)]
-    cache_capacity: u64,
-
-    #[arg(long, default_value_t = DEFAULT_TTI_SECONDS)]
-    cache_tti_seconds: u64,
 
     #[arg(long, default_value = DEFAULT_LOG_LEVEL)]
     log_level: String,
@@ -79,8 +72,6 @@ async fn main() -> IoResult<()> {
         println!("{}", schema.sdl());
     } else {
         let mut builder = AppConfigBuilder::new()
-            .with_cache_capacity(args.cache_capacity)
-            .with_cache_tti_seconds(args.cache_tti_seconds)
             .with_log_level(args.log_level)
             .with_tracing(args.tracing)
             .with_otlp_agent_host(args.otlp_agent_host)
