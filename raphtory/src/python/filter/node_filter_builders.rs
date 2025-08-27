@@ -24,34 +24,62 @@ impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder 
 }
 
 #[pymethods]
+/// Implements various filter builder methods for node filtering.
 impl PyNodeFilterBuilder {
-    /// Returns true if ids are equal or false otherwise.
+    /// Returns a filter expression that checks if a given value is equal to a specified string.
+    /// 
+    /// Returns:
+    ///     filter expression
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.0.eq(value)
     }
 
-    /// Returns true if ids are not equal or false otherwise.
+    /// Returns a filter expression that checks if a given value is not equal to a specified string.
+    ///
+    /// Returns:
+    ///     filter expression
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.0.ne(value)
     }
 
-    /// Returns true if X is in Y or false otherwise.
+    /// Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
+    ///
+    /// Returns:
+    ///     filter expression
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         self.0.is_in(values.into())
     }
 
+    /// Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
+    /// 
+    /// Returns:
+    ///     filter expression
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         self.0.is_not_in(values.into())
     }
 
+    /// Returns a filter expression that checks if the specified iterable of strings contains a given value.
+    /// 
+    /// Returns:
+    ///     filter expression
     fn contains(&self, value: String) -> PyFilterExpr {
         self.0.contains(value)
     }
 
+    /// Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
+    /// 
+    /// Returns:
+    ///     filter expression
     fn not_contains(&self, value: String) -> PyFilterExpr {
         self.0.not_contains(value)
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    /// 
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    /// 
+    /// Returns:
+    ///     filter expression
     fn fuzzy_search(
         &self,
         value: String,

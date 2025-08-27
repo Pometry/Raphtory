@@ -22,38 +22,66 @@ impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
 
 #[pymethods]
 impl PyEdgeFilterOp {
-    /// Returns true if ids are equal or false otherwise.
+    /// Returns a filter expression that checks if a specified string is equal to a given value.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn __eq__(&self, value: String) -> PyFilterExpr {
         let field = self.0.eq(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    /// Returns true if ids are not equal or false otherwise.
+    /// Returns a filter expression that checks if a specified string is not equal to a given value.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn __ne__(&self, value: String) -> PyFilterExpr {
         let field = self.0.ne(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let field = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns a filter expression that checks if a given value contains the specified string.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn contains(&self, value: String) -> PyFilterExpr {
         let field = self.0.contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns a filter expression that checks if a given value does not contain the specified string.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn not_contains(&self, value: String) -> PyFilterExpr {
         let field = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
+    /// Returns a filter expression that checks if a given value approximately matches the specified string.
+    ///  
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///  
+    /// Returns:
+    ///     filter expression
     fn fuzzy_search(
         &self,
         value: String,
