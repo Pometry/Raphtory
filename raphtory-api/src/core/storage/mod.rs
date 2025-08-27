@@ -8,6 +8,9 @@ pub mod locked_vec;
 pub mod sorted_vec_map;
 pub mod timeindex;
 
+// Make dashmap also available when using FxDashMap
+pub use dashmap;
+
 pub type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 pub type ArcRwLockReadGuard<T> = lock_api::ArcRwLockReadGuard<parking_lot::RawRwLock, T>;
