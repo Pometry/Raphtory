@@ -187,6 +187,7 @@ impl PyEdges {
         (move || edges.history().map(NumpyArray::I64)).into()
     }
 
+    /// Returns the number of times any edge was added or change to an edge was been made.
     fn history_counts(&self) -> U64Iterable {
         let edges = self.edges.clone();
         (move || edges.history_counts().map(|count| count as u64)).into()

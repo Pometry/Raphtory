@@ -40,31 +40,37 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Less than.
     fn __lt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.lt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Less than or equal to.
     fn __le__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.le(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Greater than.
     fn __gt__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.gt(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Greater than or equal to.
     fn __ge__(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.ge(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    
     fn is_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    
     fn is_not_in(&self, values: FromIterable<Prop>) -> PyFilterExpr {
         let property = self.0.is_not_in(values);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
@@ -80,11 +86,13 @@ impl PyPropertyFilterOps {
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Contains specified property.
     fn contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))
     }
 
+    /// Does not contains specified property.
     fn not_contains(&self, value: Prop) -> PyFilterExpr {
         let property = self.0.not_contains(value);
         PyFilterExpr(PyInnerFilterExpr::Property(Arc::new(property)))

@@ -322,6 +322,7 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
     }
 }
 
+/// Property filter operators.
 pub trait PropertyFilterOps {
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter;
 

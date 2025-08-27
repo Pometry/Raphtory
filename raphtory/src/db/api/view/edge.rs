@@ -145,6 +145,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// List the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
+    /// Returns the number of times a change to the history was made.
     fn history_counts(&self) -> Self::ValueType<usize>;
 
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
@@ -255,6 +256,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    /// Returns the number of times a change to the history was made.
     fn history_counts(&self) -> Self::ValueType<usize> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {

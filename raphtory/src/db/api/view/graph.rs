@@ -618,6 +618,7 @@ pub struct IndexSpec {
     pub(crate) edge_properties: HashSet<usize>,
 }
 
+/// (Experimental) IndexSpec data structure.
 impl IndexSpec {
     pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
         fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
@@ -706,6 +707,7 @@ impl ResolvedIndexSpec {
 }
 
 #[derive(Clone)]
+/// (Experimental) Creates a IndexSpec data structure containing the specified properties and metadata.
 pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
     pub graph: G,
     node_metadata: Option<HashSet<usize>>,
@@ -715,6 +717,7 @@ pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
 }
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
+    /// Create a new IndexSpecBuilder.
     pub fn new(graph: G) -> Self {
         Self {
             graph,
@@ -725,6 +728,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         }
     }
 
+    /// Include all node properties and metadata in the IndexSpec.
     pub fn with_all_node_properties_and_metadata(mut self) -> Self {
         self.node_metadata = Some(Self::extract_props(
             self.graph.node_meta().metadata_mapper(),
@@ -735,6 +739,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all node metadata in the IndexSpec.
     pub fn with_all_node_metadata(mut self) -> Self {
         self.node_metadata = Some(Self::extract_props(
             self.graph.node_meta().metadata_mapper(),
@@ -742,6 +747,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all node properties in the IndexSpec.
     pub fn with_all_node_properties(mut self) -> Self {
         self.node_properties = Some(Self::extract_props(
             self.graph.node_meta().temporal_prop_mapper(),
@@ -749,6 +755,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include the specified node metadata in the IndexSpec.
+    /// 
+    /// Specified node metadata is gathered using the extract_named_props function.
     pub fn with_node_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -760,6 +769,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include the specified node properties in the IndexSpec.
+    /// 
+    /// Specified node properties is gathered using the extract_named_props function.
     pub fn with_node_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -771,6 +783,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include all edge properties and metadata in the IndexSpec.
     pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
         self.edge_metadata = Some(Self::extract_props(
             self.graph.edge_meta().metadata_mapper(),
@@ -781,6 +794,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all edge metadata in the IndexSpec.
     pub fn with_all_edge_metadata(mut self) -> Self {
         self.edge_metadata = Some(Self::extract_props(
             self.graph.edge_meta().metadata_mapper(),
@@ -788,6 +802,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include all edge properties in the IndexSpec.
     pub fn with_all_edge_properties(mut self) -> Self {
         self.edge_properties = Some(Self::extract_props(
             self.graph.edge_meta().temporal_prop_mapper(),
@@ -795,6 +810,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         self
     }
 
+    /// Include the specified edge metadata in the IndexSpec.
+    /// 
+    /// Specified edge metadata is gathered using the extract_named_props function.
     pub fn with_edge_metadata<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -806,6 +824,9 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Include the specified edge properties in the IndexSpec.
+    /// 
+    /// Specified edge properties is gathered using the extract_named_props function.
     pub fn with_edge_properties<S: AsRef<str>>(
         mut self,
         props: impl IntoIterator<Item = S>,
@@ -817,10 +838,12 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
         Ok(self)
     }
 
+    /// Extract properties or metadata.
     fn extract_props(meta: &PropMapper) -> HashSet<usize> {
         (0..meta.len()).collect()
     }
 
+    /// Extract specified named properties or metadata.
     fn extract_named_props<S: AsRef<str>>(
         meta: &PropMapper,
         keys: impl IntoIterator<Item = S>,
@@ -836,6 +859,7 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
             .collect()
     }
 
+    /// Create a new IndexSpec.
     pub fn build(self) -> IndexSpec {
         IndexSpec {
             node_metadata: self.node_metadata.unwrap_or_default(),
