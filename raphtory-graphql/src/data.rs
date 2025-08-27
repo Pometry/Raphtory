@@ -15,6 +15,7 @@ use raphtory::{
         vectorised_graph::VectorisedGraph,
     },
 };
+use raphtory_api::core::storage::{FxDashMap, dashmap::mapref::entry::Entry};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -55,26 +56,13 @@ pub(crate) fn get_relative_path(
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    cache: Cache<PathBuf, GraphWithVectors>,
+    cache: FxDashMap<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
 
 impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
-        let cache_configs = &configs.cache;
-
-        let cache = Cache::<PathBuf, GraphWithVectors>::builder()
-            .max_capacity(cache_configs.capacity)
-            .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .eviction_listener(|_, graph, _| {
-                graph
-                    .write_updates()
-                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
-                // FIXME: don't have currently a way to know which embedding updates are pending
-            })
-            .build();
-
         #[cfg(feature = "search")]
         let create_index = configs.index.create_index;
         #[cfg(not(feature = "search"))]
@@ -82,7 +70,7 @@ impl Data {
 
         Self {
             work_dir: work_dir.to_path_buf(),
-            cache,
+            cache: FxDashMap::default(),
             create_index,
             embedding_conf: Default::default(),
         }
@@ -94,10 +82,17 @@ impl Data {
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         let graph_folder_clone = graph_folder.clone();
-        self.cache
-            .try_get_with(path.into(), self.read_graph_from_folder(graph_folder_clone))
-            .await
-            .map(|graph| (graph, graph_folder))
+        let entry = self.cache.entry(path.into());
+
+        match entry {
+            Entry::Occupied(entry) => Ok((entry.get().clone(), graph_folder)),
+            Entry::Vacant(entry) => {
+                let graph = self.read_graph_from_folder(graph_folder_clone).await?;
+
+                entry.insert(graph.clone());
+                Ok((graph, graph_folder))
+            }
+        }
     }
 
     pub async fn insert_graph(
@@ -121,7 +116,7 @@ impl Data {
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-                self.cache.insert(path.into(), graph).await;
+                self.cache.insert(path.into(), graph);
                 Ok(())
             }
         }
@@ -130,7 +125,7 @@ impl Data {
     pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         fs::remove_dir_all(graph_folder.get_base_path()).await?;
-        self.cache.remove(&PathBuf::from(path)).await;
+        self.cache.remove(&PathBuf::from(path));
         Ok(())
     }
 
@@ -294,45 +289,6 @@ pub(crate) mod data_tests {
         for graph in graphs.keys() {
             assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
         }
-    }
-
-    #[tokio::test]
-    async fn test_eviction() {
-        let tmp_work_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-
-        graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
-        graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
-
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
-
-        let data = Data::new(tmp_work_dir.path(), &configs);
-
-        assert!(!data.cache.contains_key(Path::new("test_g")));
-        assert!(!data.cache.contains_key(Path::new("test_g2")));
-
-        // Test size based eviction
-        data.get_graph("test_g2").await.unwrap();
-        assert!(data.cache.contains_key(Path::new("test_g2")));
-        assert!(!data.cache.contains_key(Path::new("test_g")));
-
-        data.get_graph("test_g").await.unwrap(); // wait for any eviction
-        data.cache.run_pending_tasks().await;
-        assert_eq!(data.cache.iter().count(), 1);
-
-        sleep(Duration::from_secs(3)).await;
-        assert!(!data.cache.contains_key(Path::new("test_g")));
-        assert!(!data.cache.contains_key(Path::new("test_g2")));
     }
 
     #[tokio::test]
