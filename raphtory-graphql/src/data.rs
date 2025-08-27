@@ -56,7 +56,7 @@ pub(crate) fn get_relative_path(
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    cache: FxDashMap<PathBuf, GraphWithVectors>,
+    loaded_graphs: FxDashMap<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
@@ -70,7 +70,7 @@ impl Data {
 
         Self {
             work_dir: work_dir.to_path_buf(),
-            cache: FxDashMap::default(),
+            loaded_graphs: FxDashMap::default(),
             create_index,
             embedding_conf: Default::default(),
         }
@@ -82,7 +82,7 @@ impl Data {
     ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         let graph_folder_clone = graph_folder.clone();
-        let entry = self.cache.entry(path.into());
+        let entry = self.loaded_graphs.entry(path.into());
 
         match entry {
             Entry::Occupied(entry) => Ok((entry.get().clone(), graph_folder)),
@@ -116,7 +116,7 @@ impl Data {
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-                self.cache.insert(path.into(), graph);
+                self.loaded_graphs.insert(path.into(), graph);
                 Ok(())
             }
         }
@@ -125,7 +125,7 @@ impl Data {
     pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
         let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
         fs::remove_dir_all(graph_folder.get_base_path()).await?;
-        self.cache.remove(&PathBuf::from(path));
+        self.loaded_graphs.remove(&PathBuf::from(path));
         Ok(())
     }
 
@@ -226,8 +226,7 @@ pub(crate) mod data_tests {
     };
     use itertools::Itertools;
     use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
-    use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
-    use tokio::time::sleep;
+    use std::{collections::HashMap, fs, fs::File, io, path::Path};
 
     // This function creates files that mimic disk graph for tests
     fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
