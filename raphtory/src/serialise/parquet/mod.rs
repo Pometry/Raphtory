@@ -450,9 +450,15 @@ impl ParquetDecoder for MaterializedGraph {
     where
         Self: Sized,
     {
-        let gs = decode_graph_storage(path.as_ref(), GraphType::EventGraph)
-            .or_else(|_| decode_graph_storage(path.as_ref(), GraphType::PersistentGraph))?;
-        Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs)))
+        // Try to decode as EventGraph first
+        match decode_graph_storage(path.as_ref(), GraphType::EventGraph) {
+            Ok(gs) => Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs))),
+            Err(_) => {
+                // If that fails, try PersistentGraph
+                let gs = decode_graph_storage(path.as_ref(), GraphType::PersistentGraph)?;
+                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(gs)))
+            }
+        }
     }
 }
 

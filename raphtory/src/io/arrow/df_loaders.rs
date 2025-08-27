@@ -340,9 +340,11 @@ pub(crate) fn load_edges_from_df<
                     .graph()
                     .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
+
                 if vid.is_new() {
                     num_nodes.fetch_add(1, Ordering::Relaxed);
                 }
+
                 *resolved = vid.inner();
                 Ok::<(), LoadError>(())
             })?;
@@ -356,9 +358,11 @@ pub(crate) fn load_edges_from_df<
                     .graph()
                     .resolve_node(gid.as_node_ref())
                     .map_err(|_| LoadError::FatalError)?;
+
                 if vid.is_new() {
                     num_nodes.fetch_add(1, Ordering::Relaxed);
                 }
+
                 *resolved = vid.inner();
                 Ok::<(), LoadError>(())
             })?;
@@ -670,12 +674,11 @@ pub(crate) fn load_node_props_from_df<
         node_type_col_resolved.resize_with(df.len(), Default::default);
 
         node_col
-            .par_iter()
-            .zip(node_col_resolved.par_iter_mut())
-            .zip(node_type_col.par_iter())
-            .zip(node_type_col_resolved.par_iter_mut())
+            .iter()
+            .zip(node_col_resolved.iter_mut())
+            .zip(node_type_col.iter())
+            .zip(node_type_col_resolved.iter_mut())
             .try_for_each(|(((gid, resolved), node_type), node_type_resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
                 let (vid, res_node_type) = write_locked_graph
                     .graph()
                     .resolve_node_and_type(gid.as_node_ref(), node_type)
@@ -690,7 +693,7 @@ pub(crate) fn load_node_props_from_df<
 
         write_locked_graph
             .nodes
-            .par_iter_mut()
+            .iter_mut()
             .try_for_each(|shard| {
                 let mut c_props = vec![];
 
