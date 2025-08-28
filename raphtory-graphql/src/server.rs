@@ -110,7 +110,7 @@ pub fn register_mutation_plugin<
 }
 
 impl GraphServer {
-    pub async fn new(
+    pub fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
