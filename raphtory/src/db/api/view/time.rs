@@ -212,7 +212,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         let start = time.into_time();
         self.internal_window(
             Some(start),
-            Some(TimeIndexEntry::new(start.t().saturating_add(1), start.i())),
+            Some(TimeIndexEntry::new(start.t().saturating_add(1), 0)),
         )
     }
 
@@ -226,7 +226,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn snapshot_at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         match self.current_filter().graph_type() {
-            GraphType::EventGraph => self.before(time.into_time().t() + 1),
+            GraphType::EventGraph => self.before(time.into_time().t().saturating_add(1)),
             GraphType::PersistentGraph => self.at(time),
         }
     }
@@ -240,7 +240,7 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start_time = start.into_time();
-        let start = TimeIndexEntry::new(start_time.t().saturating_add(1), start_time.i());
+        let start = TimeIndexEntry::new(start_time.t().saturating_add(1), 0);
         self.internal_window(Some(start), None)
     }
 

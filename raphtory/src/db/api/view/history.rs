@@ -203,6 +203,28 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
     }
 }
 
+impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for &T {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        T::iter(self)
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        T::iter_rev(self)
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        T::earliest_time(self)
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        T::latest_time(self)
+    }
+
+    fn len(&self) -> usize {
+        T::len(self)
+    }
+}
+
 /// Separate from CompositeHistory in that it can only hold two items. They can be nested.
 /// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
 /// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
@@ -1141,9 +1163,6 @@ mod tests {
             broom_dumbledore_magical_history.collect(),
             [TimeIndexEntry::new(4, 5)]
         );
-
-        // Edge retrieved from LayeredGraphView using one layer, layer_name() returns "Err(LayerNameAPIError)"
-        println!("{:?}", broom_dumbledore_magical_edge_retrieved.layer_name());
 
         Ok(())
     }

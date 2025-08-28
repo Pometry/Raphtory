@@ -462,7 +462,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history().iter().next())
+                .flat_map(|prop| prop.history().earliest_time())
                 .min()
                 .into_iter()
                 .chain(
@@ -484,7 +484,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history().reverse().iter().next())
+                .flat_map(|prop| prop.history().latest_time())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())
