@@ -88,8 +88,6 @@ def test_add_properties():
             int(localized_datetime.timestamp() * 1000),
         ])
 
-        print(g.properties.temporal.get("prop_map").history)
-
         check_arr(g.properties.temporal.get("prop_map").history.t.collect(), timestamps)
 
 

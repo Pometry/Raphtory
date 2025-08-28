@@ -37,8 +37,8 @@ def test_graph(GraphClass):
 
     # assert e2.layer_names == ["red"] returning red blue for PersistentGraph which feels wrong?
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.create(3, 2), 3)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.create(3, 5), 3)]
+    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((3, 2)), 3)]
+    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((3, 5)), 3)]
 
     f_g = g.filter_exploded_edges(filter=weight_lt3 & name_bob)
     e1 = f_g.edge(1, 2)
@@ -56,8 +56,8 @@ def test_graph(GraphClass):
 
     # assert e2.layer_names == ["blue"] returning red blue for PersistentGraph which feels wrong?
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 0), 1)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 3), 1)]
+    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1)]
+    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1)]
 
     f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
@@ -75,8 +75,8 @@ def test_graph(GraphClass):
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 0), 1), (TimeIndex.create(3, 2), 3)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 3), 1), (TimeIndex.create(3, 5), 3)]
+    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1), (TimeIndex.new((3, 2)), 3)]
+    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1), (TimeIndex.new((3, 5)), 3)]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
@@ -110,8 +110,8 @@ def test_same_time_event(GraphClass):
 
     # assert e2.layer_names == ["blue"] returning red blue which seems wrong
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 0), 1)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 3), 1)]
+    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1)]
+    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1)]
 
     f_g = g.filter_exploded_edges(filter=weight_e3 | name_bob)
     e1 = f_g.edge(1, 2)
@@ -129,8 +129,8 @@ def test_same_time_event(GraphClass):
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 0), 1), (TimeIndex.create(1, 2), 3)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.create(1, 3), 1), (TimeIndex.create(1, 5), 3)]
+    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1), (TimeIndex.new((1, 2)), 3)]
+    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1), (TimeIndex.new((1, 5)), 3)]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

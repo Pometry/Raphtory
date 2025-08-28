@@ -65,7 +65,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         props: PI,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self, Self>, GraphError> {
-        let time: i64 = t.parse_time(fmt)?.t();
+        let time: i64 = t.parse_time(fmt)?;
         self.add_node(time, v, props, node_type)
     }
 
@@ -107,7 +107,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         props: PI,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self, Self>, GraphError> {
-        let time: i64 = t.parse_time(fmt)?.t();
+        let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
 }

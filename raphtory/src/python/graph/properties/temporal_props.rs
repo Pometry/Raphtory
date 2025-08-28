@@ -12,7 +12,7 @@ use crate::{
     },
     python::{
         graph::{
-            history::{HistoryIterable, PyHistory},
+            history::{HistoryIterable, NestedHistoryIterable, PyHistory},
             properties::{PyPropValueList, PyPropValueListList},
         },
         types::{
@@ -790,10 +790,15 @@ py_iterable_comp!(
 #[pymethods]
 impl PyTemporalPropListList {
     #[getter]
-    pub fn history(&self) -> NestedI64VecIterable {
+    pub fn history(&self) -> NestedHistoryIterable {
         let builder = self.builder.clone();
         (move || {
-            builder().map(|it| it.map(|p| p.map(|v| v.history().t().collect()).unwrap_or_default()))
+            builder().map(|it| {
+                it.map(|p| {
+                    p.map(|v| v.history().into_arc_static())
+                        .unwrap_or(History::create_empty().into_arc_static())
+                })
+            })
         })
         .into()
     }

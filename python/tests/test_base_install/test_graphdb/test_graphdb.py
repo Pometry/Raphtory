@@ -614,7 +614,6 @@ def create_graph_history_1():
 
 
 def test_node_properties():
-    from raphtory import TimeIndexEntry as TimeIndex
     g = create_graph_history_1()
 
     @with_disk_graph

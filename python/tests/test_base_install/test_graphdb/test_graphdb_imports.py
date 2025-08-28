@@ -11,11 +11,11 @@ def test_import_into_graph():
     gg = Graph()
     res = gg.import_node(g_a)
     assert res.name == g_a.name
-    assert res.history.collect() == g_a.history.collect()
+    assert res.history == g_a.history
 
     res = gg.import_node(g_b)
     assert res.name == g_b.name
-    assert res.history.collect() == g_b.history.collect()
+    assert res.history == g_b.history
     assert res.properties.get("temp") == True
     assert res.metadata.get("con") == 11
 

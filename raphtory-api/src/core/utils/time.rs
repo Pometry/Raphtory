@@ -196,14 +196,14 @@ impl<T: AsTimeInput> TryIntoInputTime for (T, usize) {
 }
 
 pub trait IntoTimeWithFormat {
-    fn parse_time(&self, fmt: &str) -> Result<TimeIndexEntry, ParseTimeError>;
+    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError>;
 }
 
 impl IntoTimeWithFormat for &str {
-    fn parse_time(&self, fmt: &str) -> Result<TimeIndexEntry, ParseTimeError> {
+    fn parse_time(&self, fmt: &str) -> Result<i64, ParseTimeError> {
         let timestamp = NaiveDateTime::parse_from_str(self, fmt)?
             .and_utc()
             .timestamp_millis();
-        Ok(TimeIndexEntry::from(timestamp))
+        Ok(timestamp)
     }
 }

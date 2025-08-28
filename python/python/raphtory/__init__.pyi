@@ -5549,13 +5549,16 @@ class TimeIndexEntry(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    @staticmethod
-    def create(t, s):
-        ...
-
     @property
     def dt(self):
         """Get the datetime representation of the time"""
+
+    @staticmethod
+    def new(time):
+        """
+        Creates a new TimeIndexEntry.
+        Valid inputs are: int, float, datetime, string (formatted datetime), or a list/tuple with two elements to specify the secondary index.
+        """
 
     @property
     def secondary_index(self):
@@ -5578,9 +5581,6 @@ class History(object):
 
     def __gt__(self, value):
         """Return self>value."""
-
-    def __hash__(self):
-        """Return hash(self)."""
 
     def __iter__(self):
         """Implement iter(self)."""

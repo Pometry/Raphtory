@@ -178,10 +178,6 @@ pub struct PyTimeIndexEntry {
 }
 
 impl PyTimeIndexEntry {
-    pub fn new(time: TimeIndexEntry) -> Self {
-        Self { time }
-    }
-
     pub fn inner(&self) -> TimeIndexEntry {
         self.time
     }
@@ -254,11 +250,11 @@ impl PyTimeIndexEntry {
         self.t()
     }
 
+    /// Creates a new TimeIndexEntry.
+    /// Valid inputs are: int, float, datetime, string (formatted datetime), or a list/tuple with two elements to specify the secondary index.
     #[staticmethod]
-    pub fn create(t: i64, s: usize) -> Self {
-        Self {
-            time: TimeIndexEntry::new(t, s),
-        }
+    pub fn new(time: TimeIndexEntry) -> Self {
+        Self { time }
     }
 }
 

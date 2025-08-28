@@ -21,6 +21,7 @@ use std::{
     any::Any,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    ops::Deref,
     sync::Arc,
 };
 
@@ -151,12 +152,6 @@ impl PyHistory {
 
     pub fn __repr__(&self) -> String {
         self.history.repr()
-    }
-
-    fn __hash__(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.history.hash(&mut hasher);
-        hasher.finish()
     }
 
     fn __contains__(&self, item: TimeIndexEntry) -> bool {
@@ -606,7 +601,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for Intervals<T> {
     }
 }
 
-// Iterable types used by Edges
+// Iterable types used by Edges, temporal props, ...
 py_iterable_base!(
     HistoryIterable,
     History<'static, Arc<dyn InternalHistoryOps>>

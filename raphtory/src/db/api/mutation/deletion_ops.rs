@@ -54,7 +54,7 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let time: TimeIndexEntry = t.parse_time(fmt)?;
+        let time: i64 = t.parse_time(fmt)?;
         self.delete_edge(time, src, dst, layer)
     }
 }

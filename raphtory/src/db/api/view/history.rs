@@ -28,6 +28,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
+use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, sync::Arc};
 
 pub trait InternalHistoryOps: Send + Sync {
@@ -158,14 +159,6 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for History<'a, T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for History<'a, T> {}
 
-impl<'a, T: InternalHistoryOps + 'a> std::hash::Hash for History<'a, T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for item in self.iter() {
-            item.hash(state);
-        }
-    }
-}
-
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         T::iter(self)
@@ -251,6 +244,7 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
 #[derive(Clone)]
 pub struct CompositeHistory<'a> {
     history_objects: Vec<Arc<dyn InternalHistoryOps + 'a>>,
+    // history_objects: Arc<[Box<dyn InternalHistoryOps + 'a>]>,
 }
 
 impl<'a> CompositeHistory<'a> {
@@ -493,13 +487,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
-        NodeStateOps::iter_values(self)
+        NodeStateOps::par_iter_values(self)
             .filter_map(|history| history.earliest_time())
             .min()
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
-        NodeStateOps::iter_values(self)
+        NodeStateOps::par_iter_values(self)
             .filter_map(|history| history.latest_time())
             .max()
     }
@@ -1290,7 +1284,11 @@ mod tests {
         assert_eq!(individual_histories.len(), 3); // We have 3 nodes
 
         // Test timestamp conversion
-        let timestamps: Vec<_> = all_nodes_history.t().flat_map(|ts| ts.collect()).collect();
+        let timestamps: Vec<_> = all_nodes_history
+            .t()
+            .iter_values()
+            .flat_map(|ts| ts.collect())
+            .collect();
         assert!(!timestamps.is_empty());
         assert_eq!(timestamps, expected_history_all_unordered.map(|t| t.t()));
 
@@ -1399,6 +1397,7 @@ mod tests {
         // Test secondary time access
         let secondary_times_lazy: Vec<_> = all_nodes_history
             .secondary_index()
+            .iter_values()
             .flat_map(|s| s.collect())
             .collect();
         let secondary_times_normal: Vec<_> = nodes_history_as_history.secondary_index().collect();

@@ -224,7 +224,8 @@ def test_graph_windows_and_layers_query():
                 after(time: 500) {
                   history {
                     list {
-                      display
+                      timestamp
+                      secondaryIndex
                     }
                   }
                   neighbours {
@@ -233,7 +234,8 @@ def test_graph_windows_and_layers_query():
                         before(time: 300) { 
                         history {
                           list {
-                            display
+                            timestamp
+                            secondaryIndex
                           }
                         }
                       }
@@ -247,96 +249,113 @@ def test_graph_windows_and_layers_query():
         """
         ra = """
         {
-            "graph": {
-              "window": {
-                "node": {
-                  "after": {
-                    "history": {
-                      "list": [
-                        {
-                          "display": "TimeIndexEntry[555, 93]"
-                        },
-                        {
-                          "display": "TimeIndexEntry[555, 95]"
-                        },
-                        {
-                          "display": "TimeIndexEntry[555, 96]"
-                        },
-                        {
-                          "display": "TimeIndexEntry[555, 98]"
-                        },
-                        {
-                          "display": "TimeIndexEntry[562, 102]"
-                        },
-                        {
-                          "display": "TimeIndexEntry[562, 104]"
-                        }
-                      ]
-                    },
-                    "neighbours": {
-                      "list": [
-                        {
-                          "name": "Gandalf",
-                          "before": {
-                            "history": {
-                              "list": [
-                                {
-                                  "display": "TimeIndexEntry[270, 13]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 14]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 18]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 20]"
-                                }
-                              ]
-                            }
-                          }
-                        },
-                        {
-                          "name": "Bilbo",
-                          "before": {
-                            "history": {
-                              "list": [
-                                {
-                                  "display": "TimeIndexEntry[205, 10]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[205, 11]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 16]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 17]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 19]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[270, 20]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[286, 22]"
-                                },
-                                {
-                                  "display": "TimeIndexEntry[286, 23]"
-                                }
-                              ]
-                            }
+          "graph": {
+            "window": {
+              "node": {
+                "after": {
+                  "history": {
+                    "list": [
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 93
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 95
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 96
+                      },
+                      {
+                        "timestamp": 555,
+                        "secondaryIndex": 98
+                      },
+                      {
+                        "timestamp": 562,
+                        "secondaryIndex": 102
+                      },
+                      {
+                        "timestamp": 562,
+                        "secondaryIndex": 104
+                      }
+                    ]
+                  },
+                  "neighbours": {
+                    "list": [
+                      {
+                        "name": "Gandalf",
+                        "before": {
+                          "history": {
+                            "list": [
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 13
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 14
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 18
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 20
+                              }
+                            ]
                           }
                         }
-                      ]
-                    }
+                      },
+                      {
+                        "name": "Bilbo",
+                        "before": {
+                          "history": {
+                            "list": [
+                              {
+                                "timestamp": 205,
+                                "secondaryIndex": 10
+                              },
+                              {
+                                "timestamp": 205,
+                                "secondaryIndex": 11
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 16
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 17
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 19
+                              },
+                              {
+                                "timestamp": 270,
+                                "secondaryIndex": 20
+                              },
+                              {
+                                "timestamp": 286,
+                                "secondaryIndex": 22
+                              },
+                              {
+                                "timestamp": 286,
+                                "secondaryIndex": 23
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               }
             }
-        }
-        """
+          }
+        }"""
         a = json.dumps(client.query(q))
         json_a = json.loads(a)
         json_ra = json.loads(ra)
