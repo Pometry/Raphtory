@@ -131,8 +131,9 @@ impl PyGraphServer {
         // nodes: TemplateConfig,
         // edges: TemplateConfig,
     ) -> PyResult<()> {
+        let cache = PathBuf::from(cache);
         let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(slf.0.enable_embeddings(embedding, cache))?)
+        Ok(rt.block_on(slf.0.enable_embeddings(embedding, &cache))?)
     }
 
     /// Vectorise the graph name in the server working directory.
