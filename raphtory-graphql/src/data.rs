@@ -11,8 +11,8 @@ use raphtory::{
     errors::{GraphError, GraphResult, InvalidPathReason},
     prelude::CacheOps,
     vectors::{
-        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -56,11 +56,11 @@ pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
-    pub(crate) vector_cache: VectorCache, // FIXME: set openai by default instead of having an option?
+    pub(crate) vector_cache: Option<VectorCache>,
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig, vector_cache: VectorCache) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = Cache::<PathBuf, GraphWithVectors>::builder()
@@ -83,7 +83,7 @@ impl Data {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
-            vector_cache,
+            vector_cache: None,
         }
     }
 
@@ -148,7 +148,7 @@ impl Data {
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
         let vectors = graph
             .vectorise(
-                self.vector_cache.clone(),
+                self.vector_cache.as_ref()?.clone(),
                 template.clone(),
                 Some(&folder.get_vectors_path()),
                 true, // verbose
@@ -182,17 +182,6 @@ impl Data {
         self.vectorise_with_template(graph, folder, template).await;
         Ok(())
     }
-
-    // TODO: do this directly on the calling side
-    // pub(crate) async fn vectorise_all_graphs(
-    //     &self,
-    //     template: &DocumentTemplate,
-    // ) -> Result<(), GraphError> {
-    //     for folder in self.get_all_graph_folders() {
-    //         self.vectorise_folder(&folder, template).await?;
-    //     }
-    //     Ok(())
-    // }
 
     // TODO: return iter
     pub fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {

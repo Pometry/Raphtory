@@ -124,15 +124,15 @@ impl PyGraphServer {
     ///
     /// Arguments:
     /// embedding (Callable, optional): the embedding function to translate documents to embeddings.
-    fn set_embeddings(
+    fn enable_embeddings(
         mut slf: PyRefMut<Self>,
-        // cache: String,
+        cache: String,
         embedding: PyOpenAIEmbeddings,
         // nodes: TemplateConfig,
         // edges: TemplateConfig,
     ) -> PyResult<()> {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(slf.0.set_embeddings(embedding))?)
+        Ok(rt.block_on(slf.0.enable_embeddings(embedding, cache))?)
     }
 
     /// Vectorise the graph name in the server working directory.

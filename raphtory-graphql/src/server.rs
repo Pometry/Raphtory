@@ -30,7 +30,10 @@ use raphtory::{
     },
 };
 use serde_json::json;
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{
+    fs::create_dir_all,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 use tokio::{
     io,
@@ -106,10 +109,6 @@ pub fn register_mutation_plugin<
     E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
 }
 
-fn default_vector_cache_path() -> PathBuf {
-    PathBuf::from("/tmp/raphtory-vector-cache")
-}
-
 impl GraphServer {
     pub async fn new(
         work_dir: PathBuf,
@@ -121,9 +120,7 @@ impl GraphServer {
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
-        let vector_cache =
-            VectorCache::on_disk(&default_vector_cache_path(), default_openai_embeddings()).await?;
-        let data = Data::new(work_dir.as_path(), &config, vector_cache);
+        let data = Data::new(work_dir.as_path(), &config);
         Ok(Self { data, config })
     }
 
@@ -133,18 +130,19 @@ impl GraphServer {
     }
 
     // TODO: add docs
-    pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
+    pub async fn enable_embeddings<F: EmbeddingFunction + Clone + 'static>(
         &mut self,
         embedding: F,
-        // cache: &Path,
+        cache: &Path,
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
         // global_template: Option<DocumentTemplate>,
     ) -> GraphResult<()> {
-        self.data.vector_cache =
-            VectorCache::on_disk(&default_vector_cache_path(), embedding).await?;
+        self.data.vector_cache = Some(VectorCache::on_disk(cache, embedding).await?);
         Ok(())
     }
 
+    // FIXME: this function should fails if embeddings were not enabled,
+    // and if they were it should grab the vector cache and pass it down
     /// Vectorise all the graphs in the server working directory.
     ///
     /// Arguments:
@@ -163,6 +161,8 @@ impl GraphServer {
         Ok(())
     }
 
+    // FIXME: this function should fails if embeddings were not enabled,
+    // and if they were it should grab the vector cache and pass it down
     /// Vectorise the graph 'name'in the server working directory.
     ///
     /// Arguments:
