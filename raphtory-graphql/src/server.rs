@@ -1,12 +1,13 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
     config::app_config::{load_config, AppConfig},
-    data::{Data, EmbeddingConf},
+    data::Data,
     model::{
         plugins::{entry_point::EntryPoint, operation::Operation},
         App,
     },
     observability::open_telemetry::OpenTelemetry,
+    paths::ExistingGraphFolder,
     routes::{health, ui, version},
     server::ServerError::SchemaError,
 };
@@ -22,13 +23,14 @@ use poem::{
 };
 use raphtory::{
     errors::GraphResult,
-    vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
+    vectors::{
+        cache::VectorCache,
+        embeddings::{default_openai_embeddings, EmbeddingFunction},
+        template::DocumentTemplate,
+    },
 };
 use serde_json::json;
-use std::{
-    fs::create_dir_all,
-    path::{Path, PathBuf},
-};
+use std::{fs::create_dir_all, path::PathBuf};
 use thiserror::Error;
 use tokio::{
     io,
@@ -78,6 +80,7 @@ impl From<ServerError> for io::Error {
 }
 
 /// A struct for defining and running a Raphtory GraphQL server
+#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     config: AppConfig,
@@ -103,8 +106,12 @@ pub fn register_mutation_plugin<
     E::lock_plugins().insert(name.to_string(), Box::new(A::register_operation));
 }
 
+fn default_vector_cache_path() -> PathBuf {
+    PathBuf::from("/tmp/raphtory-vector-cache")
+}
+
 impl GraphServer {
-    pub fn new(
+    pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
@@ -114,63 +121,65 @@ impl GraphServer {
         }
         let config =
             load_config(app_config, config_path).map_err(|err| ServerError::ConfigError(err))?;
-        let data = Data::new(work_dir.as_path(), &config);
+        let vector_cache =
+            VectorCache::on_disk(&default_vector_cache_path(), default_openai_embeddings()).await?;
+        let data = Data::new(work_dir.as_path(), &config, vector_cache);
         Ok(Self { data, config })
     }
 
     /// Turn off index for all graphs
-    pub fn turn_off_index(mut self) -> Self {
+    pub fn turn_off_index(&mut self) {
         self.data.create_index = false;
-        self
     }
 
+    // TODO: add docs
     pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
-        mut self,
+        &mut self,
         embedding: F,
-        cache: &Path,
+        // cache: &Path,
         // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
-        global_template: Option<DocumentTemplate>,
-    ) -> GraphResult<Self> {
-        self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding).await?, // TODO: better do this lazily, actually do it when running the server
-            global_template,
-            individual_templates: Default::default(),
-        });
-        Ok(self)
+        // global_template: Option<DocumentTemplate>,
+    ) -> GraphResult<()> {
+        self.data.vector_cache =
+            VectorCache::on_disk(&default_vector_cache_path(), embedding).await?;
+        Ok(())
     }
 
-    /// Vectorise a subset of the graphs of the server.
+    /// Vectorise all the graphs in the server working directory.
     ///
     /// Arguments:
-    ///   * graph_names - the names of the graphs to vectorise. All if None is provided.
-    ///   * embedding - the embedding function to translate documents to embeddings.
-    ///   * cache - the directory to use as cache for the embeddings.
+    ///   * name - the name of the graph to vectorise.
     ///   * template - the template to use for creating documents.
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
-    pub fn with_vectorised_graphs(
-        mut self,
-        graph_names: Vec<String>,
-        template: DocumentTemplate,
-    ) -> Self {
-        if let Some(embedding_conf) = &mut self.data.embedding_conf {
-            for graph_name in graph_names {
-                embedding_conf
-                    .individual_templates
-                    .insert(graph_name.into(), template.clone());
-            }
+    pub async fn vectorise_all_graphs<F: EmbeddingFunction + Clone + 'static>(
+        &self,
+        template: &DocumentTemplate,
+    ) -> GraphResult<()> {
+        for folder in self.data.get_all_graph_folders() {
+            self.data.vectorise_folder(&folder, template).await?;
         }
-        self
+        Ok(())
+    }
+
+    /// Vectorise the graph 'name'in the server working directory.
+    ///
+    /// Arguments:
+    ///   * name - the name of the graph to vectorise.
+    ///   * template - the template to use for creating documents.
+    pub async fn vectorise_graph(&self, name: &str, template: DocumentTemplate) -> GraphResult<()> {
+        let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
+        self.data.vectorise_folder(&folder, &template).await
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub async fn start(self) -> IoResult<RunningGraphServer> {
+    pub async fn start(&self) -> IoResult<RunningGraphServer> {
         self.start_with_port(DEFAULT_PORT).await
     }
 
     /// Start the server on the port port and return a handle to it.
-    pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
+    pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
@@ -195,7 +204,7 @@ impl GraphServer {
             }
         };
 
-        self.data.vectorise_all_graphs_that_are_not().await?;
+        // self.data.vectorise_all_graphs_that_are_not().await?;
         let work_dir = self.data.work_dir.clone();
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
@@ -225,11 +234,11 @@ impl GraphServer {
     }
 
     async fn generate_endpoint(
-        self,
+        &self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
         let schema_builder = App::create_schema();
-        let schema_builder = schema_builder.data(self.data);
+        let schema_builder = schema_builder.data(self.data.clone());
         let schema_builder = schema_builder.extension(MutationAuth);
         let schema = if let Some(t) = tracer {
             schema_builder.extension(OpenTelemetry::new(t)).finish()
@@ -241,7 +250,7 @@ impl GraphServer {
         let app = Route::new()
             .at(
                 "/",
-                get(ui).post(AuthenticatedGraphQL::new(schema, self.config.auth)),
+                get(ui).post(AuthenticatedGraphQL::new(schema, self.config.auth.clone())),
             )
             .at("/graph", get(ui))
             .at("/search", get(ui))

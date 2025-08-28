@@ -8,15 +8,14 @@ use itertools::Itertools;
 use moka::future::Cache;
 use raphtory::{
     db::api::view::MaterializedGraph,
-    errors::{GraphError, InvalidPathReason},
+    errors::{GraphError, GraphResult, InvalidPathReason},
     prelude::CacheOps,
     vectors::{
-        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::VectorCache, embeddings::openai_embedding, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
-    collections::HashMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -24,12 +23,12 @@ use tokio::fs;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
-#[derive(Clone)]
-pub struct EmbeddingConf {
-    pub(crate) cache: VectorCache,
-    pub(crate) global_template: Option<DocumentTemplate>,
-    pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
-}
+// #[derive(Clone)]
+// pub struct EmbeddingConf {
+//     pub(crate) cache: VectorCache,
+//     // pub(crate) global_template: Option<DocumentTemplate>,
+//     // pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
+// }
 
 pub(crate) fn get_relative_path(
     work_dir: PathBuf,
@@ -57,11 +56,11 @@ pub struct Data {
     pub(crate) work_dir: PathBuf,
     cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
-    pub(crate) embedding_conf: Option<EmbeddingConf>,
+    pub(crate) vector_cache: VectorCache, // FIXME: set openai by default instead of having an option?
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, vector_cache: VectorCache) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = Cache::<PathBuf, GraphWithVectors>::builder()
@@ -84,7 +83,7 @@ impl Data {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
-            embedding_conf: Default::default(),
+            vector_cache,
         }
     }
 
@@ -116,8 +115,8 @@ impl Data {
                 let folder_clone = folder.clone();
                 let graph_clone = graph.clone();
                 blocking_io(move || graph_clone.cache(folder_clone)).await?;
-                let vectors = self.vectorise(graph.clone(), &folder).await;
-                let graph = GraphWithVectors::new(graph, vectors);
+                // let vectors = self.vectorise(graph.clone(), &folder).await;
+                let graph = GraphWithVectors::new(graph, None);
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
@@ -134,12 +133,12 @@ impl Data {
         Ok(())
     }
 
-    fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
-        let conf = self.embedding_conf.as_ref()?;
-        conf.individual_templates
-            .get(graph)
-            .or(conf.global_template.as_ref())
-    }
+    // fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
+    //     let conf = self.embedding_conf.as_ref()?;
+    //     conf.individual_templates
+    //         .get(graph)
+    //         .or(conf.global_template.as_ref())
+    // }
 
     async fn vectorise_with_template(
         &self,
@@ -147,10 +146,9 @@ impl Data {
         folder: &ValidGraphFolder,
         template: &DocumentTemplate,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let conf = self.embedding_conf.as_ref()?;
         let vectors = graph
             .vectorise(
-                conf.cache.clone(),
+                self.vector_cache.clone(),
                 template.clone(),
                 Some(&folder.get_vectors_path()),
                 true, // verbose
@@ -166,36 +164,35 @@ impl Data {
         }
     }
 
-    async fn vectorise(
+    // async fn vectorise(
+    //     &self,
+    //     graph: MaterializedGraph,
+    //     folder: &ValidGraphFolder,
+    // ) -> Option<VectorisedGraph<MaterializedGraph>> {
+    //     let template = self.resolve_template(folder.get_original_path())?;
+    //     self.vectorise_with_template(graph, folder, template).await
+    // }
+
+    pub(crate) async fn vectorise_folder(
         &self,
-        graph: MaterializedGraph,
-        folder: &ValidGraphFolder,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let template = self.resolve_template(folder.get_original_path())?;
-        self.vectorise_with_template(graph, folder, template).await
-    }
-
-    async fn vectorise_folder(&self, folder: &ExistingGraphFolder) -> Option<()> {
-        // it's important that we check if there is a valid template set for this graph path
-        // before actually loading the graph, otherwise we are loading the graph for no reason
-        let template = self.resolve_template(folder.get_original_path())?;
-        let graph = self
-            .read_graph_from_folder(folder.clone())
-            .await
-            .ok()?
-            .graph;
+        folder: &ExistingGraphFolder,
+        template: &DocumentTemplate,
+    ) -> GraphResult<()> {
+        let graph = self.read_graph_from_folder(folder.clone()).await?.graph;
         self.vectorise_with_template(graph, folder, template).await;
-        Some(())
-    }
-
-    pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
-        for folder in self.get_all_graph_folders() {
-            if !folder.get_vectors_path().exists() {
-                self.vectorise_folder(&folder).await;
-            }
-        }
         Ok(())
     }
+
+    // TODO: do this directly on the calling side
+    // pub(crate) async fn vectorise_all_graphs(
+    //     &self,
+    //     template: &DocumentTemplate,
+    // ) -> Result<(), GraphError> {
+    //     for folder in self.get_all_graph_folders() {
+    //         self.vectorise_folder(&folder, template).await?;
+    //     }
+    //     Ok(())
+    // }
 
     // TODO: return iter
     pub fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
@@ -216,7 +213,7 @@ impl Data {
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
+        let cache = self.vector_cache.clone();
         let create_index = self.create_index;
         blocking_io(move || GraphWithVectors::read_from_folder(&folder, cache, create_index)).await
     }

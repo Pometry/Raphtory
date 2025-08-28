@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub(super) struct VectorMeta {
     pub(super) template: DocumentTemplate,
 }
@@ -31,6 +31,8 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
         let meta_string = std::fs::read_to_string(meta_path(path))?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
+
+        dbg!(&meta);
 
         let node_db = NodeDb::from_path(&node_vectors_path(path))?;
         let edge_db = EdgeDb::from_path(&edge_vectors_path(path))?;

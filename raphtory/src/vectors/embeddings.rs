@@ -1,6 +1,7 @@
 use super::cache::VectorCache;
 use crate::{errors::GraphResult, vectors::Embedding};
 use async_openai::{
+    config::OpenAIConfig,
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
@@ -33,23 +34,38 @@ impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
     }
 }
 
-pub async fn openai_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-    info!("computing embeddings for {} texts", texts.len());
-    let client = Client::new();
-    let request = CreateEmbeddingRequest {
-        model: "text-embedding-ada-002".to_owned(),
-        input: EmbeddingInput::StringArray(texts),
-        user: None,
-        encoding_format: None,
-        dimensions: None,
-    };
-    let response = client.embeddings().create(request).await?;
-    info!("Generated embeddings successfully");
-    Ok(response
-        .data
-        .into_iter()
-        .map(|e| e.embedding.into())
-        .collect())
+pub struct OpenAIEmbeddings {
+    pub model: String,
+    pub config: OpenAIConfig,
+}
+
+impl EmbeddingFunction for OpenAIEmbeddings {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+        let client = Client::with_config(self.config.clone());
+        let request = CreateEmbeddingRequest {
+            model: self.model.clone(),
+            input: EmbeddingInput::StringArray(texts),
+            user: None,
+            encoding_format: None,
+            dimensions: None,
+        };
+
+        Box::pin(async move {
+            let response = client.embeddings().create(request).await?;
+            Ok(response
+                .data
+                .into_iter()
+                .map(|e| e.embedding.into())
+                .collect())
+        })
+    }
+}
+
+pub fn default_openai_embeddings() -> OpenAIEmbeddings {
+    OpenAIEmbeddings {
+        model: "text-embedding-3-small".to_owned(),
+        config: Default::default(),
+    }
 }
 
 pub(super) fn compute_embeddings<'a, I>(

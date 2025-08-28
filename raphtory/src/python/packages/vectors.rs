@@ -8,7 +8,7 @@ use crate::{
     },
     vectors::{
         cache::VectorCache,
-        embeddings::{EmbeddingFunction, EmbeddingResult},
+        embeddings::{EmbeddingFunction, EmbeddingResult, OpenAIEmbeddings},
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
@@ -16,16 +16,45 @@ use crate::{
         Document, DocumentEntity, Embedding,
     },
 };
+use async_openai::config::OpenAIConfig;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-use pyo3::{
-    exceptions::PyTypeError,
-    prelude::*,
-    types::{PyFunction, PyList},
-};
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
+
+#[pyclass(name = "OpenAIEmbeddings")]
+#[derive(Clone)]
+pub struct PyOpenAIEmbeddings {
+    model: String,
+    api_base: Option<String>,
+    api_key: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+impl EmbeddingFunction for PyOpenAIEmbeddings {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+        let mut config = OpenAIConfig::default();
+        if let Some(api_base) = &self.api_base {
+            config = config.with_api_base(api_base)
+        }
+        if let Some(api_key) = &self.api_key {
+            config = config.with_api_key(api_key)
+        }
+        if let Some(org_id) = &self.org_id {
+            config = config.with_org_id(org_id)
+        }
+        if let Some(project_id) = &self.project_id {
+            config = config.with_project_id(project_id)
+        }
+
+        let model = self.model.clone();
+        let embeddings = OpenAIEmbeddings { model, config };
+        embeddings.call(texts)
+    }
+}
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -150,7 +179,7 @@ impl PyGraphView {
     #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), cache = None, verbose = false))]
     fn vectorise(
         &self,
-        embedding: Bound<PyFunction>,
+        embedding: PyOpenAIEmbeddings,
         nodes: TemplateConfig,
         edges: TemplateConfig,
         cache: Option<String>,
@@ -160,7 +189,6 @@ impl PyGraphView {
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
-        let embedding = embedding.unbind();
         let graph = self.graph.clone();
         execute_async_task(move || async move {
             let cache = if let Some(cache) = cache {
@@ -466,38 +494,5 @@ impl PyVectorSelection {
             .0
             .expand_edges_by_similarity(&embedding, limit, translate_window(window))?;
         Ok(())
-    }
-}
-
-impl EmbeddingFunction for Py<PyFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embedding_function = Python::with_gil(|py| self.clone_ref(py));
-        Box::pin(async move {
-            Python::with_gil(|py| {
-                let embedding_function = embedding_function.bind(py);
-                let python_texts = PyList::new(py, texts)?;
-                let result = embedding_function.call1((python_texts,))?;
-                let embeddings = result.downcast::<PyList>().map_err(|_| {
-                    PyTypeError::new_err(
-                        "value returned by the embedding function was not a python list",
-                    )
-                })?;
-
-                let embeddings: EmbeddingResult<Vec<_>> = embeddings
-                    .iter()
-                    .map(|embedding| {
-                        let pylist = embedding.downcast::<PyList>().map_err(|_| {
-                            PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
-                        })?;
-                        let embedding: EmbeddingResult<Embedding> = pylist
-                            .iter()
-                            .map(|element| Ok(element.extract::<f32>()?))
-                            .collect();
-                        embedding
-                    })
-                    .collect();
-                embeddings
-            })
-        })
     }
 }
