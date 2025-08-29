@@ -315,6 +315,7 @@ impl GqlNodes {
     //// List ///////
     /////////////////
 
+    /// Returns number of nodes in the collection.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await

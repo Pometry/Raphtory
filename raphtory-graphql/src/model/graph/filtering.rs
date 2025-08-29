@@ -449,9 +449,9 @@ impl TemporalPropertyFilterExpr {
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum TemporalType {
-    /// Any.
+    /// Applies operator to each value in history. Returns true if any value passes and false otherwise.
     Any,
-    /// Latest.
+    /// Applies operator to the latest value in the window.
     Latest,
 }
 

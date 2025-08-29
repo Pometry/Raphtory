@@ -604,7 +604,7 @@ impl GqlGraph {
         }
     }
 
-    /// Returns the specified graph view or if none is specified returns the default view.
+    /// Returns the specified graph view if none is specified returns the current view.
     /// This allows you to specify multiple operations together.
     async fn apply_views(&self, views: Vec<GraphViewCollection>) -> Result<GqlGraph, GraphError> {
         let mut return_view: GqlGraph = GqlGraph::new(self.path.clone(), self.graph.clone());

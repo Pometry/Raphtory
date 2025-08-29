@@ -156,13 +156,15 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         Namespace::new(data.work_dir.clone(), data.work_dir.clone())
     }
-    /// Returns a plugin.
+    /// Returns any custom plugins you have added.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
-    /// Encodes graph and returns as string
+    /// Encodes graph and returns as string.
     ///
-    /// Returns:: Base64 url safe encoded string
+    /// Returns:: Base64 url safe encoded string.
+    /// 
+    /// From the python client this can be decoded using the receive graph function.
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String, Arc<GraphError>> {
         let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
@@ -184,7 +186,7 @@ pub(crate) struct Mut(MutRoot);
 
 #[MutationFields]
 impl Mut {
-    /// Returns a collection of mutation plugins.
+    /// Returns any custom mutation plugins you have added.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
     }
