@@ -21,7 +21,10 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::{document::PyDocument, iterables::NestedUtcDateTimeIterable, iterables::GqlIndexSpec},
+        types::wrappers::{
+            document::PyDocument,
+            iterables::{NestedGIDIterable, NestedUtcDateTimeIterable},
+        },
         utils::PyWindowSet,
     },
 };
@@ -69,7 +72,11 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
 pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
     let iterables_module = PyModule::new(py, "iterables")?;
-    add_classes!(iterables_module, NestedUtcDateTimeIterable, GqlIndexSpec,);
+    add_classes!(
+        iterables_module,
+        NestedUtcDateTimeIterable,
+        NestedGIDIterable,
+    );
     Ok(iterables_module)
 }
 

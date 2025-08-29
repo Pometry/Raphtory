@@ -4060,8 +4060,13 @@ class PathFromGraph(object):
         """Returns all timestamps of nodes, when an node is added or change to an node is made."""
 
     @property
-    def id(self):
-        """the node ids"""
+    def id(self) -> NestedGIDIterable:
+        """
+        The node ids
+
+        Returns:
+            NestedGIDIterable:
+        """
 
     def in_degree(self):
         """the node in-degrees"""

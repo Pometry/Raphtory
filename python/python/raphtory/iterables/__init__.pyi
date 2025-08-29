@@ -23,7 +23,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ["NestedUtcDateTimeIterable"]
+__all__ = ["NestedUtcDateTimeIterable", "NestedGIDIterable"]
 
 class NestedUtcDateTimeIterable(object):
     def __eq__(self, value):
@@ -54,3 +54,35 @@ class NestedUtcDateTimeIterable(object):
         """Return repr(self)."""
 
     def collect(self): ...
+
+class NestedGIDIterable(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self): ...
+    def max(self): ...
+    def min(self): ...

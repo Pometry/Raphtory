@@ -853,7 +853,10 @@ impl_edge_property_filter_ops!(
 
 #[pymethods]
 impl PyPathFromGraph {
-    /// the node ids
+    /// The node ids
+    ///
+    /// Returns:
+    ///     NestedGIDIterable:
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
