@@ -461,6 +461,16 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
     }
 
     #[inline]
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_deletion_history_rev(e, view, layer_ids))
+    }
+
+    #[inline]
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -469,6 +479,17 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.edge_deletion_history_window(e, view, layer_ids, w))
+    }
+
+    #[inline]
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.edge_deletion_history_window_rev(e, view, layer_ids, w))
     }
 
     #[inline]

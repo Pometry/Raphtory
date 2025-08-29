@@ -1,7 +1,6 @@
 use crate::{
     db::api::view::history::*,
     python::{
-        graph::{edge::PyEdge, node::PyNode},
         types::{
             iterable::{FromIterable, Iterable},
             repr::{iterator_repr, Repr},
@@ -17,13 +16,7 @@ use raphtory_api::{
     core::storage::timeindex::{TimeError, TimeIndexEntry},
     iter::{BoxedLIter, IntoDynBoxed},
 };
-use std::{
-    any::Any,
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-    ops::Deref,
-    sync::Arc,
-};
+use std::{any::Any, ops::Deref, sync::Arc};
 
 impl Repr for TimeIndexEntry {
     fn repr(&self) -> String {

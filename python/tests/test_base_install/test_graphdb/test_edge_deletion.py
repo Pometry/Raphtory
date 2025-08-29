@@ -8,4 +8,4 @@ def test_edge_deletions():
     e.delete(5)
     e.add_updates(10)
     check_arr(e.history.t.collect(), [1, 10])
-    check_arr(e.deletions(), [5])
+    check_arr(e.deletions, [5])

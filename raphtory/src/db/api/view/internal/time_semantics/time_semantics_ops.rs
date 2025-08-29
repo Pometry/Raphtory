@@ -334,8 +334,25 @@ pub trait EdgeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph;
 
+    /// Get the edge deletions in reverse order for use with materialize
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph;
+
     /// Get the edge deletions for use with materialize restricted to window `w`
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph;
+
+    /// Get the edge deletions in reverse order for use with materialize restricted to window `w`
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeStorageRef<'graph>,
         view: G,

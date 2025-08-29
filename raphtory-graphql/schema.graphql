@@ -92,7 +92,7 @@ type Edge {
 	explode: Edges!
 	explodeLayers: Edges!
 	history: History!
-	deletions: [Int!]!
+	deletions: History!
 	isValid: Boolean!
 	isActive: Boolean!
 	isDeleted: Boolean!
@@ -344,8 +344,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -643,7 +643,7 @@ type Intervals {
 	The median interval between consecutive timestamps.
 	Returns `null` if there are fewer than 2 timestamps.
 	"""
-	median: Float
+	median: Int
 	"""
 	The maximum interval between consecutive timestamps.
 	Returns `null` if there are fewer than 2 timestamps.

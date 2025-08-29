@@ -841,6 +841,22 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
             .kmerge()
     }
 
+    fn edge_deletion_history_rev<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        e.filtered_updates_iter(view, layer_ids)
+            .map(|(layer, additions, deletions)| {
+                deletions
+                    .merge(additions.invert())
+                    .iter_rev()
+                    .map(move |t| (t, layer))
+            })
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
+    }
+
     fn edge_deletion_history_window<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
@@ -859,6 +875,26 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                     .map(move |t| (t, layer))
             })
             .kmerge()
+    }
+
+    fn edge_deletion_history_window_rev<'graph, G: GraphViewOps<'graph>>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        // window for deletions has exclusive start as deletions at the start are not considered part of the window
+        let w = w.start.saturating_add(1)..w.end;
+        e.filtered_updates_iter(view, layer_ids)
+            .map(|(layer, additions, deletions)| {
+                deletions
+                    .merge(additions.invert())
+                    .range_t(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer))
+            })
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     fn edge_is_valid<'graph, G: GraphViewOps<'graph>>(

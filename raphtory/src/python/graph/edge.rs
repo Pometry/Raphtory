@@ -213,15 +213,16 @@ impl PyEdge {
     ///    History:  A history object containing temporal information about the edge
     #[getter]
     pub fn history(&self) -> PyHistory {
-        PyHistory::new(History::new(Arc::new(self.edge.clone())))
+        self.edge.history().into_arc_static().into()
     }
 
-    /// Returns a list of timestamps of when an edge is deleted
+    /// Returns a history object with information on an edge's deletion times.
     ///
     /// Returns:
-    ///     List[int]: A list of unix timestamps
-    pub fn deletions(&self) -> Vec<i64> {
-        self.edge.deletions()
+    ///    History:  A history object containing temporal information about the edge's deletions
+    #[getter]
+    pub fn deletions(&self) -> PyHistory {
+        self.edge.deletions().into_arc_static().into()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)

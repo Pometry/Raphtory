@@ -48,7 +48,6 @@ pub trait InternalHistoryOps: Send + Sync {
     }
 }
 
-// TODO: Doesn't support deletions of edges yet
 #[derive(Debug, Clone, Copy)]
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
 
@@ -660,7 +659,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
 }
 
 // reverses the order of items returned by iter() and iter_rev()
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ReversedHistoryOps<T>(T);
 
 impl<T: InternalHistoryOps> ReversedHistoryOps<T> {
@@ -822,9 +821,9 @@ impl<T: InternalHistoryOps> Intervals<T> {
             return None;
         }
         // count and sum in one pass of the iterator
-        let (len, sum) = self
-            .iter()
-            .fold((0i64, 0f64), |(count, sum), item| (count + 1, sum + (item as f64)));
+        let (len, sum) = self.iter().fold((0i64, 0f64), |(count, sum), item| {
+            (count + 1, sum + (item as f64))
+        });
         Some(sum / len as f64)
     }
 
@@ -854,6 +853,150 @@ impl<T: InternalHistoryOps> Intervals<T> {
 
     pub fn min(&self) -> Option<i64> {
         self.iter().min()
+    }
+}
+
+// Operations to access deletion history of some type
+pub trait InternalDeletionOps: Send + Sync {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
+    fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    fn latest_time(&self) -> Option<TimeIndexEntry>;
+    fn first(&self) -> Option<TimeIndexEntry> {
+        self.iter().next()
+    }
+    fn last(&self) -> Option<TimeIndexEntry> {
+        self.iter_rev().next()
+    }
+    // override if we want more efficient implementation
+    fn len(&self) -> usize {
+        self.iter().count()
+    }
+}
+
+/// Gives access to deletion information of an object when used as:
+/// History<DeletionHistory<SomeItem>>
+#[derive(Debug, Clone, Copy)]
+pub struct DeletionHistory<T>(T);
+
+impl<T: InternalDeletionOps> DeletionHistory<T> {
+    pub fn new(item: T) -> Self {
+        DeletionHistory(item)
+    }
+}
+
+// this way, we can use all the History object functionality (converting to timestamps, dt, intervals)
+impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter()
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        self.0.iter_rev()
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.earliest_time()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.0.latest_time()
+    }
+}
+
+impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
+    fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
+        let g = &self.graph;
+        let e = self.edge;
+        if edge_valid_layer(g, e) {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics
+                        .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
+                None => match e.layer() {
+                    None => GenLockedIter::from(edge, move |edge| {
+                        time_semantics
+                            .edge_deletion_history(edge.as_ref(), g, g.layer_ids())
+                            .map(|(t, _)| t)
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed(),
+                    Some(layer) => {
+                        if self.graph.layer_ids().contains(&layer) {
+                            let layer_ids = LayerIds::One(layer);
+                            GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                                time_semantics
+                                    .edge_deletion_history(edge.as_ref(), g, layer_ids)
+                                    .map(|(t, _)| t)
+                                    .into_dyn_boxed()
+                            })
+                            .into_dyn_boxed()
+                        } else {
+                            iter::empty().into_dyn_boxed()
+                        }
+                    }
+                },
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
+    }
+
+    fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
+        let g = &self.graph;
+        let e = self.edge;
+        if edge_valid_layer(g, e) {
+            let time_semantics = g.edge_time_semantics();
+            let edge = g.core_edge(e.pid());
+            match e.time() {
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics
+                        .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
+                None => match e.layer() {
+                    None => GenLockedIter::from(edge, move |edge| {
+                        time_semantics
+                            .edge_deletion_history_rev(edge.as_ref(), g, g.layer_ids())
+                            .map(|(t, _)| t)
+                            .into_dyn_boxed()
+                    })
+                    .into_dyn_boxed(),
+                    Some(layer) => {
+                        if self.graph.layer_ids().contains(&layer) {
+                            let layer_ids = LayerIds::One(layer);
+                            GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
+                                time_semantics
+                                    .edge_deletion_history_rev(edge.as_ref(), g, layer_ids)
+                                    .map(|(t, _)| t)
+                                    .into_dyn_boxed()
+                            })
+                            .into_dyn_boxed()
+                        } else {
+                            iter::empty().into_dyn_boxed()
+                        }
+                    }
+                },
+            }
+        } else {
+            iter::empty().into_dyn_boxed()
+        }
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        InternalDeletionOps::iter(self).next()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        InternalDeletionOps::iter_rev(self).next()
     }
 }
 

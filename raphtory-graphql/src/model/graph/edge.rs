@@ -287,9 +287,9 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.history().into()).await
     }
 
-    async fn deletions(&self) -> Vec<i64> {
+    async fn deletions(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.ee.deletions()).await
+        blocking_compute(move || self_clone.ee.deletions().into()).await
     }
 
     async fn is_valid(&self) -> bool {

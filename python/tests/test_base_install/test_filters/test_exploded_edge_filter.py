@@ -26,11 +26,13 @@ def test_graph(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1, 2]
-        assert e2.deletions() == [1, 2]
+        assert e1.deletions.t == [1, 2]
+        assert e2.deletions.t == [1, 2]
+        assert e1.deletions == [(1, 0), (2, 1)]
+        assert e2.deletions == [(1, 3), (2, 4)]
 
     assert e1.history.t.collect() == [3]
     assert e2.history.t.collect() == [3]
@@ -45,11 +47,11 @@ def test_graph(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [2, 3]
-        assert e2.deletions() == [2, 3]
+        assert e1.deletions.t == [2, 3]
+        assert e2.deletions.t == [2, 3]
 
     assert e1.history.t.collect() == [1]
     assert e2.history.t.collect() == [1]
@@ -64,11 +66,11 @@ def test_graph(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [2]
-        assert e2.deletions() == [2]
+        assert e1.deletions == [(2, 1)]
+        assert e2.deletions == [(2, 4)]
 
     assert list(e1.history.t) == [1, 3]
     assert list(e2.history.t) == [1, 3]
@@ -99,11 +101,11 @@ def test_same_time_event(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1, 1]
-        assert e2.deletions() == [1, 1]
+        assert e1.deletions == [(1, 1), (1, 2)]
+        assert e2.deletions == [(1, 4), (1, 5)]
 
     assert list(e1.history.t) == [1]
     assert list(e2.history.t) == [1]
@@ -118,11 +120,11 @@ def test_same_time_event(GraphClass):
     e2 = f_g.edge(1, 3)
 
     if type(g) == Graph:
-        assert e1.deletions() == []
-        assert e2.deletions() == []
+        assert e1.deletions == []
+        assert e2.deletions == []
     else:
-        assert e1.deletions() == [1]
-        assert e2.deletions() == [1]
+        assert e1.deletions.t == [1]
+        assert e2.deletions.t == [1]
 
     assert list(e1.history.t) == [1, 1]
     assert list(e2.history.t) == [1, 1]

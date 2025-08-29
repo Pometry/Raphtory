@@ -164,7 +164,7 @@ impl PyEdges {
         (move || edges.id()).into()
     }
 
-    /// Returns history objects for edges containing their timestamps, when an edge is added or change to an edge is made.
+    /// Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
     ///
     /// Returns:
     ///    An iterable of history objects, one for each edge.
@@ -175,22 +175,15 @@ impl PyEdges {
         (move || edges.history().map(|history| history.into_arc_static())).into()
     }
 
-    /// Returns all timestamps of edges where an edge is deleted
+    /// Returns history objects for edges containing their deletion times.
     ///
     /// Returns:
-    ///     A list of lists of unix timestamps
-    fn deletions(&self) -> PyGenericIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions().map(NumpyArray::I64)).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
+    ///    An iterable of history objects, one for each edge.
     ///
-    /// Returns:
-    ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> ResultVecUtcDateTimeIterable {
+    #[getter]
+    fn deletions(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
+        (move || edges.deletions().map(|history| history.into_arc_static())).into()
     }
 
     /// Check if the edges are valid (i.e. not deleted)
@@ -486,22 +479,16 @@ impl PyNestedEdges {
         .into()
     }
 
-    /// Returns all timestamps of edges, where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of lists of unix timestamps
-    fn deletions(&self) -> NestedI64VecIterable {
+    /// Returns history objects for edges, containing information about their deletion times.
+    #[getter]
+    fn deletions(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions()).into()
-    }
-
-    /// Returns all timestamps of edges, where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of lists of DateTime objects
-    fn deletions_date_time(&self) -> NestedResultVecUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
+        (move || {
+            edges
+                .deletions()
+                .map(|history_iter| history_iter.map(|history| history.into_arc_static()))
+        })
+        .into()
     }
 
     /// Check if edges are valid (i.e., not deleted)

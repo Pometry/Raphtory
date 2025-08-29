@@ -3933,12 +3933,13 @@ class Edge(object):
              Edge: The layered view
         """
 
-    def deletions(self) -> List[int]:
+    @property
+    def deletions(self) -> History:
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a history object with information on an edge's deletion times.
 
         Returns:
-            List[int]: A list of unix timestamps
+           History:  A history object containing temporal information about the edge's deletions
         """
 
     @property
@@ -4360,20 +4361,14 @@ class Edges(object):
              Edges: The layered view
         """
 
+    @property
     def deletions(self):
         """
-        Returns all timestamps of edges where an edge is deleted
+        Returns history objects for edges containing their deletion times.
 
         Returns:
-            A list of lists of unix timestamps
-        """
+           An iterable of history objects, one for each edge.
 
-    def deletions_date_time(self):
-        """
-        Returns all timestamps of edges where an edge is deleted
-
-        Returns:
-            A list of lists of DateTime objects
         """
 
     @property
@@ -4475,7 +4470,7 @@ class Edges(object):
     @property
     def history(self):
         """
-        Returns history objects for edges containing their timestamps, when an edge is added or change to an edge is made.
+        Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
 
         Returns:
            An iterable of history objects, one for each edge.
@@ -4791,21 +4786,9 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
+    @property
     def deletions(self):
-        """
-        Returns all timestamps of edges, where an edge is deleted
-
-        Returns:
-            A list of lists of lists of unix timestamps
-        """
-
-    def deletions_date_time(self):
-        """
-        Returns all timestamps of edges, where an edge is deleted
-
-        Returns:
-            A list of lists of lists of DateTime objects
-        """
+        """Returns history objects for edges, containing information about their deletion times."""
 
     @property
     def dst(self):

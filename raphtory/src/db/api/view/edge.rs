@@ -7,7 +7,7 @@ use crate::{
         api::{
             properties::{internal::InternalPropertiesOps, Metadata, Properties},
             view::{
-                history::History,
+                history::{DeletionHistory, History},
                 internal::{EdgeTimeSemanticsOps, GraphTimeSemanticsOps},
                 BoxableGraphView, IntoDynBoxed,
             },
@@ -147,10 +147,8 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn history(&self) -> Self::ValueType<History<'graph, EdgeView<Self::Graph>>>;
 
     /// List the deletion timestamps for the edge
-    fn deletions(&self) -> Self::ValueType<Vec<i64>>;
-
-    /// List the deletion timestamps for the edge as NaiveDateTime objects if parseable
-    fn deletions_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>>;
+    fn deletions(&self)
+        -> Self::ValueType<History<'graph, DeletionHistory<EdgeView<Self::Graph>>>>;
 
     /// Check that the latest status of the edge is valid (i.e., not deleted)
     fn is_valid(&self) -> Self::ValueType<bool>;
@@ -225,22 +223,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| History::new(EdgeView::new(g.clone(), e)))
     }
 
-    fn deletions(&self) -> Self::ValueType<Vec<i64>> {
-        self.map(|g, e| {
-            EdgeView::new(g, e)
-                .deletions_hist()
-                .map(|(t, _)| t.t())
-                .collect()
-        })
-    }
-
-    fn deletions_date_time(&self) -> Self::ValueType<Result<Vec<DateTime<Utc>>, TimeError>> {
-        self.map(|g, e| {
-            EdgeView::new(g, e)
-                .deletions_hist()
-                .map(|(t, _)| t.dt())
-                .collect::<Result<Vec<_>, TimeError>>()
-        })
+    fn deletions(
+        &self,
+    ) -> Self::ValueType<History<'graph, DeletionHistory<EdgeView<Self::Graph>>>> {
+        self.map(|g, e| History::new(DeletionHistory::new(EdgeView::new(g.clone(), e))))
     }
 
     fn is_valid(&self) -> Self::ValueType<bool> {

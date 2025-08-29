@@ -502,6 +502,17 @@ impl EdgeTimeSemanticsOps for EventSemantics {
             .kmerge()
     }
 
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        e.filtered_deletions_iter(view, layer_ids)
+            .map(|(layer_id, t)| t.iter_rev().map(move |t| (t, layer_id)))
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
+    }
+
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
         self,
         edge: EdgeStorageRef<'graph>,
@@ -517,6 +528,23 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .map(move |t| (t, layer_id))
             })
             .kmerge()
+    }
+
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
+        edge.filtered_deletions_iter(view, layer_ids)
+            .map(move |(layer_id, additions)| {
+                additions
+                    .range_t(w.clone())
+                    .iter_rev()
+                    .map(move |t| (t, layer_id))
+            })
+            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     /// An edge is valid with event semantics if it has at least one addition event in the current view
