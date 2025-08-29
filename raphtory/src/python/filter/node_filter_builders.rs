@@ -27,7 +27,7 @@ impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder 
 /// Implements various filter builder methods for node filtering.
 impl PyNodeFilterBuilder {
     /// Returns a filter expression that checks if a given value is equal to a specified string.
-    /// 
+    ///
     /// Returns:
     ///     filter expression
     fn __eq__(&self, value: String) -> PyFilterExpr {
@@ -51,7 +51,7 @@ impl PyNodeFilterBuilder {
     }
 
     /// Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
-    /// 
+    ///
     /// Returns:
     ///     filter expression
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
@@ -59,7 +59,7 @@ impl PyNodeFilterBuilder {
     }
 
     /// Returns a filter expression that checks if the specified iterable of strings contains a given value.
-    /// 
+    ///
     /// Returns:
     ///     filter expression
     fn contains(&self, value: String) -> PyFilterExpr {
@@ -67,7 +67,7 @@ impl PyNodeFilterBuilder {
     }
 
     /// Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
-    /// 
+    ///
     /// Returns:
     ///     filter expression
     fn not_contains(&self, value: String) -> PyFilterExpr {
@@ -75,9 +75,9 @@ impl PyNodeFilterBuilder {
     }
 
     /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    /// 
+    ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
-    /// 
+    ///
     /// Returns:
     ///     filter expression
     fn fuzzy_search(

@@ -183,7 +183,7 @@ impl PyGraph {
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
     ///
     ///  Returns:
-    ///     None
+    ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
         self.graph.encode_parquet(graph_dir)
     }
@@ -976,15 +976,19 @@ impl PyGraph {
     /// Create graph index
     ///
     /// Returns:
-    ///     None
+    ///     None:
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
 
     /// Create graph index with the provided index spec.
     ///
+    /// Arguments:
+    ///     index_spec: - The specification for the in-memory index to be created (Rust).
+    ///     py_spec: - The specification for the in-memory index to be created.
+    ///
     /// Returns:
-    ///     None
+    ///     None:
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -995,7 +999,7 @@ impl PyGraph {
     /// as the index will not be persisted to disk.
     ///
     /// Returns:
-    ///     None
+    ///     None:
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1005,8 +1009,13 @@ impl PyGraph {
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
     ///
+    /// Arguments:
+    ///     index_spec: - The specification for the in-memory index to be created (Rust).
+    ///     py_spec: - The specification for the in-memory index to be created.
+    ///
     /// Returns:
-    ///     None
+    ///     Ok(()) if the in-memory index was created successfully.
+    ///     Err(GraphError) if the operation fails.
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

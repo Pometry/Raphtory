@@ -22,9 +22,20 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['FilterExpr', 'PropertyFilterOps', 'NodeFilterBuilder', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "PropertyFilterOps",
+    "NodeFilterBuilder",
+    "Node",
+    "EdgeFilterOp",
+    "EdgeEndpoint",
+    "Edge",
+    "Property",
+    "Metadata",
+    "TemporalPropertyFilterBuilder",
+]
 
+class FilterExpr(object):
     def __and__(self, value):
         """Return self&value."""
 
@@ -40,8 +51,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class PropertyFilterOps(object): 
-
+class PropertyFilterOps(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -61,27 +71,64 @@ class PropertyFilterOps(object):
         """Return self!=value."""
 
     def contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if this object contains a specified property.
+
+        Returns:
+            filter expression
+        """
 
     def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match):
-        ...
+        """
+        Returns a filter expression that checks if the specified properties approximately match the specified string.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Returns:
+            filter expression
+        """
 
     def is_in(self, values):
-        ...
+        """
+        Returns a filter expression that checks if a given value is in a specified iterable of properties.
+
+        Returns:
+            filter expression
+        """
 
     def is_none(self):
-        ...
+        """
+        Returns a filter expression that checks if a given value is none.
+
+        Returns:
+            filter expression
+        """
 
     def is_not_in(self, values):
-        ...
+        """
+        Returns a filter expression that checks if a given value is not in a specified iterable of properties.
+
+        Returns:
+            filter expression
+        """
 
     def is_some(self):
-        ...
+        """
+        Returns a filter expression that checks if a given value is some.
+
+        Returns:
+            filter expression
+        """
 
     def not_contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if this object does not contain a specified property.
 
-class NodeFilterBuilder(object): 
+        Returns:
+            filter expression
+        """
+
+class NodeFilterBuilder(object):
     """
     A builder for constructing node filters
 
@@ -107,22 +154,48 @@ class NodeFilterBuilder(object):
         """Return self!=value."""
 
     def contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if the specified iterable of strings contains a given value.
+
+        Returns:
+            filter expression
+        """
 
     def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
+        """
+        Returns a filter expression that checks if the specified properties approximately match the specified string.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Returns:
+            filter expression
+        """
 
     def is_in(self, values):
-        """Returns true if X is in Y or false otherwise."""
+        """
+        Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
+
+        Returns:
+            filter expression
+        """
 
     def is_not_in(self, values):
-        ...
+        """
+        Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
+
+        Returns:
+            filter expression
+        """
 
     def not_contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
 
-class Node(object): 
+        Returns:
+            filter expression
+        """
 
+class Node(object):
     @staticmethod
     def name():
         """
@@ -141,8 +214,7 @@ class Node(object):
             NodeFilterBuilder: A filter builder for filtering by node type
         """
 
-class EdgeFilterOp(object): 
-
+class EdgeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -162,36 +234,57 @@ class EdgeFilterOp(object):
         """Return self!=value."""
 
     def contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if a given value contains the specified string.
+
+        Returns:
+            filter expression
+        """
 
     def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
+        """
+        Returns a filter expression that checks if a given value approximately matches the specified string.
+
+        Uses a specified Levenshtein distance and optional prefix matching.
+
+        Returns:
+            filter expression
+        """
 
     def is_in(self, values):
-        ...
+        """
+        Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
+
+        Returns:
+            filter expression
+        """
 
     def is_not_in(self, values):
-        ...
+        """
+        Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
+
+        Returns:
+            filter expression
+        """
 
     def not_contains(self, value):
-        ...
+        """
+        Returns a filter expression that checks if a given value does not contain the specified string.
 
-class EdgeEndpoint(object): 
+        Returns:
+            filter expression
+        """
 
-    def name(self):
-        ...
+class EdgeEndpoint(object):
+    def name(self): ...
 
-class Edge(object): 
-
+class Edge(object):
     @staticmethod
-    def dst():
-        ...
-
+    def dst(): ...
     @staticmethod
-    def src():
-        ...
+    def src(): ...
 
-class Property(PropertyFilterOps): 
+class Property(PropertyFilterOps):
     """
     Construct a property filter
 
@@ -202,10 +295,9 @@ class Property(PropertyFilterOps):
     def __new__(cls, name: str) -> Property:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def temporal(self):
-        ...
+    def temporal(self): ...
 
-class Metadata(PropertyFilterOps): 
+class Metadata(PropertyFilterOps):
     """
     Construct a metadata filter
 
@@ -216,10 +308,6 @@ class Metadata(PropertyFilterOps):
     def __new__(cls, name: str) -> Metadata:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class TemporalPropertyFilterBuilder(object): 
-
-    def any(self):
-        ...
-
-    def latest(self):
-        ...
+class TemporalPropertyFilterBuilder(object):
+    def any(self): ...
+    def latest(self): ...

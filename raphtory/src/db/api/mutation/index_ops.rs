@@ -19,7 +19,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Creates a new index using the provided index specification.
     ///
     /// Arguments:
-    ///     index_spec - The specification for the index to be created.
+    ///     index_spec: - The specification for the index to be created.
     ///
     /// Returns:
     ///     Ok(()) if the index was created successfully.
@@ -36,7 +36,7 @@ pub trait IndexMutationOps: Sized + AdditionOps {
     /// Creates a new index in RAM using the provided index specification.
     ///
     /// Arguments:
-    ///     index_spec - The specification for the in-memory index to be created.
+    ///     index_spec: - The specification for the in-memory index to be created.
     ///
     /// Returns:
     ///     Ok(()) if the in-memory index was created successfully.

@@ -137,7 +137,7 @@ impl PyPropertyFilterOps {
     }
 
     /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    /// 
+    ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///  
     /// Returns:
