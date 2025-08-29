@@ -429,7 +429,8 @@ def test_graph_properties_query():
                         key
                         history {
                           list {
-                            display
+                            timestamp
+                            secondaryIndex
                           }
                         }
                       }
@@ -460,13 +461,16 @@ def test_graph_properties_query():
                                             "history": {
                                                 "list": [
                                                     {
-                                                        "display": "TimeIndexEntry[1, 0]"
+                                                        "timestamp": 1,
+                                                        "secondaryIndex": 0
                                                     },
                                                     {
-                                                        "display": "TimeIndexEntry[2, 1]"
+                                                        "timestamp": 2,
+                                                        "secondaryIndex": 1
                                                     },
                                                     {
-                                                        "display": "TimeIndexEntry[3, 2]"
+                                                        "timestamp": 3,
+                                                        "secondaryIndex": 2
                                                     }
                                                 ]
                                             }

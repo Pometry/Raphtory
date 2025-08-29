@@ -37,9 +37,4 @@ impl GqlTimeIndexEntry {
             Err(e) => format!("Time conversion error: {}", e.to_string()),
         }
     }
-
-    /// String representation showing both timestamp and secondary index
-    async fn display(&self) -> String {
-        format!("TimeIndexEntry[{}, {}]", self.entry.0, self.entry.1)
-    }
 }

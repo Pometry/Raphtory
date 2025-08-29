@@ -1295,10 +1295,6 @@ type TimeIndexEntry {
 	Refer to chrono::format::strftime for formatting specifiers and escape sequences.
 	"""
 	datetime(formatString: String): String!
-	"""
-	String representation showing both timestamp and secondary index
-	"""
-	display: String!
 }
 
 scalar Upload

@@ -562,7 +562,7 @@ impl PyIntervals {
     }
 
     /// Calculate the median interval between values
-    pub fn median(&self) -> Option<f64> {
+    pub fn median(&self) -> Option<i64> {
         self.intervals.median()
     }
 

@@ -567,7 +567,7 @@ impl GqlIntervals {
 
     /// The median interval between consecutive timestamps.
     /// Returns `null` if there are fewer than 2 timestamps.
-    async fn median(&self) -> Option<f64> {
+    async fn median(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.median()).await
     }

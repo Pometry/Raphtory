@@ -36,6 +36,12 @@ pub trait InternalHistoryOps: Send + Sync {
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
     fn latest_time(&self) -> Option<TimeIndexEntry>;
+    fn first(&self) -> Option<TimeIndexEntry> {
+        self.iter().next()
+    }
+    fn last(&self) -> Option<TimeIndexEntry> {
+        self.iter_rev().next()
+    }
     // override if we want more efficient implementation
     fn len(&self) -> usize {
         self.iter().count()
@@ -115,6 +121,14 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         self.0.latest_time()
     }
 
+    pub fn first(&self) -> Option<TimeIndexEntry> {
+        self.0.first()
+    }
+
+    pub fn last(&self) -> Option<TimeIndexEntry> {
+        self.0.last()
+    }
+
     pub fn print(&self, prelude: &str) {
         println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
     }
@@ -176,6 +190,14 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
         T::latest_time(self)
     }
 
+    fn first(&self) -> Option<TimeIndexEntry> {
+        T::first(self)
+    }
+
+    fn last(&self) -> Option<TimeIndexEntry> {
+        T::last(self)
+    }
+
     fn len(&self) -> usize {
         T::len(self)
     }
@@ -198,6 +220,14 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
         T::latest_time(self)
     }
 
+    fn first(&self) -> Option<TimeIndexEntry> {
+        T::first(self)
+    }
+
+    fn last(&self) -> Option<TimeIndexEntry> {
+        T::last(self)
+    }
+
     fn len(&self) -> usize {
         T::len(self)
     }
@@ -218,6 +248,14 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for &T {
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         T::latest_time(self)
+    }
+
+    fn first(&self) -> Option<TimeIndexEntry> {
+        T::first(self)
+    }
+
+    fn last(&self) -> Option<TimeIndexEntry> {
+        T::last(self)
     }
 
     fn len(&self) -> usize {
@@ -258,6 +296,10 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.left.latest_time().max(self.right.latest_time())
+    }
+
+    fn len(&self) -> usize {
+        self.left.len() + self.right.len()
     }
 }
 
@@ -340,6 +382,14 @@ impl InternalHistoryOps for EmptyHistory {
     }
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
+        None
+    }
+
+    fn first(&self) -> Option<TimeIndexEntry> {
+        None
+    }
+
+    fn last(&self) -> Option<TimeIndexEntry> {
         None
     }
 
@@ -627,6 +677,7 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter()
     }
+    // no need to override first() and last() because the iterators are reversed
 
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.0.earliest_time()
@@ -723,11 +774,11 @@ impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
     }
 
     pub fn collect(&self) -> Vec<usize> {
-        self.0.iter().map(|x| x.1).collect()
+        self.0.iter().map(|t| t.1).collect()
     }
 
     pub fn collect_rev(&self) -> Vec<usize> {
-        self.0.iter_rev().map(|x| x.1).collect()
+        self.0.iter_rev().map(|t| t.1).collect()
     }
 }
 
@@ -773,11 +824,11 @@ impl<T: InternalHistoryOps> Intervals<T> {
         // count and sum in one pass of the iterator
         let (len, sum) = self
             .iter()
-            .fold((0i64, 0i64), |(count, sum), item| (count + 1, sum + item));
-        Some(sum as f64 / len as f64)
+            .fold((0i64, 0f64), |(count, sum), item| (count + 1, sum + (item as f64)));
+        Some(sum / len as f64)
     }
 
-    pub fn median(&self) -> Option<f64> {
+    pub fn median(&self) -> Option<i64> {
         if self.iter().next().is_none() {
             return None;
         }
@@ -786,9 +837,14 @@ impl<T: InternalHistoryOps> Intervals<T> {
 
         let mid = intervals.len() / 2;
         if intervals.len() % 2 == 0 {
-            Some((intervals[mid - 1] as f64 + intervals[mid] as f64) / 2.0)
+            let mid_sum = intervals[mid - 1] + intervals[mid];
+            if mid_sum % 2 == 0 {
+                Some(mid_sum / 2)
+            } else {
+                Some((mid_sum / 2) + 1) //round up if there's a decimal because it will always be .5
+            }
         } else {
-            Some(intervals[mid] as f64)
+            Some(intervals[mid])
         }
     }
 
@@ -831,20 +887,6 @@ mod tests {
         Ok(())
     }
 
-    // History vs HistoryRef, both have the same lifetime on History object even though History owns a clone of temporal property
-    // #[test]
-    // fn test_history_vs_historyref() -> Result<(), Box<dyn std::error::Error>> {
-    //     let graph = Graph::new();
-    //     let node = graph.add_node(0, 1, [("cool", Prop::Bool(true))], None).unwrap();
-    //     graph.add_node(3, 1, [("cool", Prop::Bool(false))], None).unwrap();
-    //
-    //     let temp_prop = node.properties().temporal().get("cool").unwrap();
-    //     let history = temp_prop.history();
-    //     drop(temp_prop);
-    //     println!("{:?}", history.iter().collect::<Vec<_>>());
-    //
-    //     Ok(())
-    // }
     #[test]
     fn test_intervals() -> Result<(), Box<dyn std::error::Error>> {
         let graph = Graph::new();
@@ -900,7 +942,7 @@ mod tests {
         graph.add_node(31, "node", NO_PROPS, None).unwrap();
         graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
         let interval = Intervals(&node);
-        assert_eq!(interval.median(), Some(9.0));
+        assert_eq!(interval.median(), Some(9));
 
         // make sure median is None if there is no interval to be calculated (1 time entry)
         let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();

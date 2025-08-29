@@ -15,7 +15,8 @@ def test_latest_and_active():
               latest {
                 history {
                   list {
-                    display
+                    timestamp
+                    secondaryIndex
                   }
                 }
               }
@@ -25,7 +26,8 @@ def test_latest_and_active():
               latest {
                 history {
                   list {
-                    display
+                    timestamp
+                    secondaryIndex
                   }
                 }
               }
@@ -35,7 +37,8 @@ def test_latest_and_active():
                 isActive
                 history {
                   list {
-                    display
+                    timestamp
+                    secondaryIndex
                   }
                 }
               }
@@ -48,7 +51,8 @@ def test_latest_and_active():
                     list {
                       history {
                         list {
-                          display
+                          timestamp
+                          secondaryIndex
                         }
                       }
                     }
@@ -60,7 +64,8 @@ def test_latest_and_active():
                   name
                   history {
                     list {
-                      display
+                      timestamp
+                      secondaryIndex
                     }
                   }
                 }
@@ -71,7 +76,8 @@ def test_latest_and_active():
                 list {
                   history {
                     list {
-                      display
+                      timestamp
+                      secondaryIndex
                     }
                   }
                 }
@@ -88,7 +94,7 @@ def test_latest_and_active():
                 "isActive": True,
                 "latest": {
                     "history": {
-                        "list": [{"display": "TimeIndexEntry[3, 2]" }, {"display": "TimeIndexEntry[3, 5]"}
+                        "list": [{"timestamp": 3, "secondaryIndex": 2}, {"timestamp": 3, "secondaryIndex": 5}
                         ]
                     }
                 }
@@ -97,7 +103,7 @@ def test_latest_and_active():
                 "isActive": True,
                 "latest": {
                     "history": {
-                        "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                        "list": [{"timestamp": 3, "secondaryIndex": 2}]
                     }
                 }
             },
@@ -118,7 +124,7 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                                            "list": [{"timestamp": 3, "secondaryIndex": 2}]
                                         }
                                     },
                                     {
@@ -128,7 +134,7 @@ def test_latest_and_active():
                                     },
                                     {
                                         "history": {
-                                            "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                            "list": [{"timestamp": 3, "secondaryIndex": 5}]
                                         }
                                     }
                                 ]
@@ -142,7 +148,7 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"display": "TimeIndexEntry[3, 2]"}
+                                            "list": [{"timestamp": 3, "secondaryIndex": 2}
                                             ]
                                         }
                                     }
@@ -171,7 +177,7 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                            "list": [{"timestamp": 3, "secondaryIndex": 5}]
                                         }
                                     }
                                 ]
@@ -184,19 +190,19 @@ def test_latest_and_active():
                         {
                             "name": "1",
                             "history": {
-                                "list": [{"display": "TimeIndexEntry[3, 2]"}, {"display": "TimeIndexEntry[3, 5]"}]
+                                "list": [{"timestamp": 3, "secondaryIndex": 2}, {"timestamp": 3, "secondaryIndex": 5}]
                             }
                         },
                         {
                             "name": "2",
                             "history": {
-                                "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                                "list": [{"timestamp": 3, "secondaryIndex": 2}]
                             }
                         },
                         {
                             "name": "4",
                             "history": {
-                                "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                "list": [{"timestamp": 3, "secondaryIndex": 5}]
                             }
                         }
                     ]
@@ -207,7 +213,7 @@ def test_latest_and_active():
                     "list": [
                         {
                             "history": {
-                                "list": [{"display": "TimeIndexEntry[3, 2]"}]
+                                "list": [{"timestamp": 3, "secondaryIndex": 2}]
                             }
                         },
                         {
@@ -217,7 +223,7 @@ def test_latest_and_active():
                         },
                         {
                             "history": {
-                                "list": [{"display": "TimeIndexEntry[3, 5]"}]
+                                "list": [{"timestamp": 3, "secondaryIndex": 5}]
                             }
                         }
                     ]
