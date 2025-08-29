@@ -16,6 +16,7 @@ imports = [
     "from os import PathLike",
     "import networkx as nx  # type: ignore",
     "import pyvis  # type: ignore",
+    "from raphtory.iterables import *",
 ]
 
 

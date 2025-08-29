@@ -882,6 +882,9 @@ impl PyPathFromGraph {
     }
 
     /// Returns the earliest date time of the nodes.
+    ///
+    /// Returns:
+    ///     NestedUtcDateTimeIterable:
     #[getter]
     fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
         let path = self.path.clone();

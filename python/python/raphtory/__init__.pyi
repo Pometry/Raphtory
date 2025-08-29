@@ -25,6 +25,7 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
+from raphtory.iterables import *
 
 __all__ = [
     "GraphView",
@@ -55,6 +56,7 @@ __all__ = [
     "vectors",
     "node_state",
     "filter",
+    "iterables",
     "nullmodels",
     "plottingutils",
 ]
@@ -3907,8 +3909,13 @@ class PathFromGraph(object):
         """the node degrees"""
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the nodes."""
+    def earliest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the earliest date time of the nodes.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
     def earliest_time(self):

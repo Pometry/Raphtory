@@ -21,7 +21,7 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::document::PyDocument,
+        types::wrappers::{document::PyDocument, iterables::NestedUtcDateTimeIterable},
         utils::PyWindowSet,
     },
 };
@@ -65,6 +65,12 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     #[cfg(feature = "storage")]
     add_classes!(m, PyDiskGraph);
     Ok(())
+}
+
+pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
+    let iterables_module = PyModule::new(py, "iterables")?;
+    add_classes!(iterables_module, NestedUtcDateTimeIterable,);
+    Ok(iterables_module)
 }
 
 pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
