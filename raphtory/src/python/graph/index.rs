@@ -176,6 +176,9 @@ impl PyIndexSpecBuilder {
 #[pymethods]
 impl PyGraphView {
     /// Get index spec
+    /// 
+    /// Return:
+    ///     IndexSpec:
     fn get_index_spec(&self) -> Result<PyIndexSpec, GraphError> {
         let spec = self.graph.get_index_spec()?;
         Ok(PyIndexSpec {

@@ -24,10 +24,10 @@ use crate::{
         types::wrappers::{
             document::PyDocument,
             iterables::{
-                GIDIterable, NestedGIDIterable, NestedI64VecIterable,
-                NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedStringIterable,
-                NestedUsizeIterable, NestedUtcDateTimeIterable, OptionArcStringIterable,
-                OptionI64Iterable, StringIterable, UsizeIterable,
+                ArcStringIterable, BoolIterable, GIDIterable, NestedGIDIterable,
+                NestedI64VecIterable, NestedOptionArcStringIterable, NestedOptionI64Iterable,
+                NestedStringIterable, NestedUsizeIterable, NestedUtcDateTimeIterable,
+                OptionArcStringIterable, OptionI64Iterable, StringIterable, UsizeIterable,
             },
         },
         utils::PyWindowSet,
@@ -91,6 +91,8 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         NestedOptionI64Iterable,
         NestedI64VecIterable,
         NestedUsizeIterable,
+        BoolIterable,
+        ArcStringIterable,
     );
     Ok(iterables_module)
 }

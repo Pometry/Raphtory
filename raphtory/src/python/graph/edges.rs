@@ -233,13 +233,19 @@ impl PyEdges {
         (move || edges.is_active()).into()
     }
 
-    /// Check if the edges are on the same node
+    /// Check if the edges are on the same node.
+    ///
+    /// Return:
+    ///     BoolIterable:
     fn is_self_loop(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_self_loop()).into()
     }
 
-    /// Check if the edges are deleted
+    /// Check if the edges are deleted.
+    ///
+    /// Return:
+    ///     BoolIterable:
     fn is_deleted(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_deleted()).into()
@@ -248,7 +254,7 @@ impl PyEdges {
     /// Get the layer name that all edges belong to - assuming they only belong to one layer
     ///
     /// Returns:
-    ///  The name of the layer
+    ///  ArcStringIterable:
     #[getter]
     fn layer_name(&self) -> Result<ArcStringIterable, GraphError> {
         match self.edges.layer_name().next() {

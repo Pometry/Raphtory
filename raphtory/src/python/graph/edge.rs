@@ -231,7 +231,7 @@ impl PyEdge {
         self.edge.history_date_time()
     }
 
-    /// Returns a list of timestamps of when an edge is deleted
+    /// Returns a list of timestamps of when an edge is deleted.
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps
@@ -239,7 +239,7 @@ impl PyEdge {
         self.edge.deletions()
     }
 
-    /// Returns a list of timestamps of when an edge is deleted
+    /// Returns a list of timestamps of when an edge is deleted.
     ///
     /// Returns:
     ///     List[datetime]

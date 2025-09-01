@@ -36,6 +36,8 @@ __all__ = [
     "NestedOptionI64Iterable",
     "NestedI64VecIterable",
     "NestedUsizeIterable",
+    "BoolIterable",
+    "ArcStringIterable",
 ]
 
 class NestedUtcDateTimeIterable(object):
@@ -413,3 +415,45 @@ class NestedUsizeIterable(object):
     def mean(self): ...
     def min(self): ...
     def sum(self): ...
+
+class BoolIterable(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self): ...
+
+class ArcStringIterable(object):
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self): ...

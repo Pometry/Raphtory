@@ -4570,7 +4570,7 @@ class Edge(object):
 
     def deletions(self) -> List[int]:
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a list of timestamps of when an edge is deleted.
 
         Returns:
             List[int]: A list of unix timestamps
@@ -4578,7 +4578,7 @@ class Edge(object):
 
     def deletions_data_time(self):
         """
-        Returns a list of timestamps of when an edge is deleted
+        Returns a list of timestamps of when an edge is deleted.
 
         Returns:
             List[datetime]
@@ -5216,10 +5216,20 @@ class Edges(object):
         """Check if the edges are active (there is at least one update during this time)."""
 
     def is_deleted(self):
-        """Check if the edges are deleted"""
+        """
+        Check if the edges are deleted.
+
+        Return:
+            BoolIterable:
+        """
 
     def is_self_loop(self):
-        """Check if the edges are on the same node"""
+        """
+        Check if the edges are on the same node.
+
+        Return:
+            BoolIterable:
+        """
 
     def is_valid(self):
         """Check if the edges are valid (i.e. not deleted)"""
@@ -5263,12 +5273,12 @@ class Edges(object):
         """
 
     @property
-    def layer_name(self):
+    def layer_name(self) -> ArcStringIterable:
         """
         Get the layer name that all edges belong to - assuming they only belong to one layer
 
         Returns:
-         The name of the layer
+         ArcStringIterable:
         """
 
     @property
