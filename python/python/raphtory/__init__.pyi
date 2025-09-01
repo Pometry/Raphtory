@@ -2902,10 +2902,10 @@ class Nodes(object):
 
     def degree(self) -> DegreeView:
         """
-        Returns the number of edges of the nodes
+        Returns the number of edges of the nodes.
 
         Returns:
-            DegreeView: a view of the undirected node degrees
+            DegreeView: a view of the undirected node degrees.
         """
 
     @property
@@ -3092,10 +3092,10 @@ class Nodes(object):
 
     def in_degree(self) -> DegreeView:
         """
-        Returns the number of in edges of the nodes
+        Returns the number of in edges of the nodes.
 
         Returns:
-            DegreeView: a view of the in-degrees of the nodes
+            DegreeView: a view of the in-degrees of the nodes.
         """
 
     @property
@@ -3171,10 +3171,10 @@ class Nodes(object):
     @property
     def metadata(self):
         """
-        The metadata of the node
+        The metadata of the nodes.
 
         Returns:
-            MetadataView: A view of the node properties
+            MetadataView: A view of the node properties.
         """
 
     @property
@@ -3207,10 +3207,10 @@ class Nodes(object):
 
     def out_degree(self) -> DegreeView:
         """
-        Returns the number of out edges of the nodes
+        Returns the number of out edges of the nodes.
 
         Returns:
-            DegreeView: a view of the out-degrees of the nodes
+            DegreeView: a view of the out-degrees of the nodes.
         """
 
     @property
@@ -3236,10 +3236,10 @@ class Nodes(object):
     @property
     def properties(self) -> PropertiesView:
         """
-        The properties of the node
+        The properties of the node.
 
         Returns:
-            PropertiesView: A view of the node properties
+            PropertiesView: A view of the node properties.
         """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
@@ -3347,18 +3347,18 @@ class Nodes(object):
             convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
 
         Returns:
-            DataFrame: the view of the node data as a pandas Dataframe
+            DataFrame: the view of the node data as a pandas Dataframe.
         """
 
     def type_filter(self, node_types: list[str]) -> Nodes:
         """
-        Filter nodes by node type
+        Filter nodes by node type.
 
         Arguments:
-            node_types (list[str]): the list of node types to keep
+            node_types (list[str]): the list of node types to keep.
 
         Returns:
-            Nodes: the filtered view of the nodes
+            Nodes: the filtered view of the nodes.
         """
 
     def valid_layers(self, names: list[str]) -> Nodes:
@@ -3955,8 +3955,13 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self):
-        """the node degrees"""
+    def degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def earliest_date_time(self) -> NestedUtcDateTimeIterable:
@@ -3968,11 +3973,21 @@ class PathFromGraph(object):
         """
 
     @property
-    def earliest_time(self):
-        """the node earliest times"""
+    def earliest_time(self) -> NestedOptionI64Iterable:
+        """
+        The node earliest times.
 
-    def edge_history_count(self):
-        """Returns the number of edge updates for each node"""
+        Returns:
+            NestedOptionI64Iterable:
+        """
+
+    def edge_history_count(self) -> NestedUsizeIterable:
+        """
+        Returns the number of edge updates for each node.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def edges(self) -> NestedEdges:
@@ -4103,11 +4118,21 @@ class PathFromGraph(object):
             bool:
         """
 
-    def history(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+    def history(self) -> NestedI64VecIterable:
+        """
+        Returns all timestamps of nodes, when an node is added or change to an node is made.
+
+        Returns:
+            NestedI64VecIterable:
+        """
 
     def history_date_time(self):
-        """Returns all timestamps of nodes, when an node is added or change to an node is made."""
+        """
+        Returns all timestamps of nodes, when an node is added or change to an node is made.
+
+        Returns:
+            NestedVecUtcDateTimeIterable:
+        """
 
     @property
     def id(self) -> NestedGIDIterable:
@@ -4118,8 +4143,13 @@ class PathFromGraph(object):
             NestedGIDIterable:
         """
 
-    def in_degree(self):
-        """the node in-degrees"""
+    def in_degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node in-degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def in_edges(self) -> NestedEdges:
@@ -4150,12 +4180,22 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_date_time(self):
-        """Returns the latest date time of the nodes."""
+    def latest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the latest date time of the nodes.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def latest_time(self):
-        """the node latest times"""
+    def latest_time(self) -> NestedOptionI64Iterable:
+        """
+        The node latest times.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def layer(self, name: str) -> PathFromGraph:
         """
@@ -4183,11 +4223,21 @@ class PathFromGraph(object):
 
     @property
     def metadata(self):
-        """the node metadata"""
+        """
+        Returns the node metadata.
+
+        Returns:
+            PyMetadataListList:
+        """
 
     @property
-    def name(self):
-        """the node names"""
+    def name(self) -> NestedStringIterable:
+        """
+        The node names.
+
+        Returns:
+            NestedStringIterable:
+        """
 
     @property
     def neighbours(self) -> PathFromGraph:
@@ -4200,11 +4250,21 @@ class PathFromGraph(object):
         """
 
     @property
-    def node_type(self):
-        """the node types"""
+    def node_type(self) -> NestedOptionArcStringIterable:
+        """
+        The node types.
 
-    def out_degree(self):
-        """the node out-degrees"""
+        Returns:
+            NestedOptionArcStringIterable:
+        """
+
+    def out_degree(self) -> NestedUsizeIterable:
+        """
+        Returns the node out-degrees.
+
+        Returns:
+            NestedUsizeIterable:
+        """
 
     @property
     def out_edges(self) -> NestedEdges:
@@ -4228,7 +4288,12 @@ class PathFromGraph(object):
 
     @property
     def properties(self):
-        """the node properties"""
+        """
+        Returns the node properties.
+
+        Returns:
+            PyNestedPropsIterable:
+        """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """

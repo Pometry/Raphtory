@@ -681,46 +681,46 @@ impl PyNodes {
         self.nodes.history_date_time()
     }
 
-    /// The properties of the node
+    /// The properties of the node.
     ///
     /// Returns:
-    ///     PropertiesView: A view of the node properties
+    ///     PropertiesView: A view of the node properties.
     #[getter]
     fn properties(&self) -> PropertiesView {
         let nodes = self.nodes.clone();
         (move || nodes.properties().into_iter_values()).into()
     }
 
-    /// The metadata of the node
+    /// The metadata of the nodes.
     ///
     /// Returns:
-    ///     MetadataView: A view of the node properties
+    ///     MetadataView: A view of the node properties.
     #[getter]
     fn metadata(&self) -> MetadataView {
         let nodes = self.nodes.clone();
         (move || nodes.metadata().into_iter_values()).into()
     }
 
-    /// Returns the number of edges of the nodes
+    /// Returns the number of edges of the nodes.
     ///
     /// Returns:
-    ///     DegreeView: a view of the undirected node degrees
+    ///     DegreeView: a view of the undirected node degrees.
     fn degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.degree()
     }
 
-    /// Returns the number of in edges of the nodes
+    /// Returns the number of in edges of the nodes.
     ///
     /// Returns:
-    ///     DegreeView: a view of the in-degrees of the nodes
+    ///     DegreeView: a view of the in-degrees of the nodes.
     fn in_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.in_degree()
     }
 
-    /// Returns the number of out edges of the nodes
+    /// Returns the number of out edges of the nodes.
     ///
     /// Returns:
-    ///     DegreeView: a view of the out-degrees of the nodes
+    ///     DegreeView: a view of the out-degrees of the nodes.
     fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.out_degree()
     }
@@ -746,7 +746,7 @@ impl PyNodes {
     ///     convert_datetime (bool): A boolean, if set to `True` will convert the timestamp to python datetimes. Defaults to False.
     ///
     /// Returns:
-    ///     DataFrame: the view of the node data as a pandas Dataframe
+    ///     DataFrame: the view of the node data as a pandas Dataframe.
     #[pyo3(signature = (include_property_history = false, convert_datetime = false))]
     pub fn to_df(
         &self,
@@ -807,13 +807,13 @@ impl PyNodes {
         })
     }
 
-    /// Filter nodes by node type
+    /// Filter nodes by node type.
     ///
     /// Arguments:
-    ///     node_types (list[str]): the list of node types to keep
+    ///     node_types (list[str]): the list of node types to keep.
     ///
     /// Returns:
-    ///     Nodes: the filtered view of the nodes
+    ///     Nodes: the filtered view of the nodes.
     pub fn type_filter(&self, node_types: Vec<PyBackedStr>) -> Nodes<'static, DynamicGraph> {
         self.nodes.type_filter(&node_types)
     }
@@ -863,21 +863,30 @@ impl PyPathFromGraph {
         (move || path.id()).into()
     }
 
-    /// the node names
+    /// The node names.
+    ///
+    /// Returns:
+    ///     NestedStringIterable:
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
-    /// the node types
+    /// The node types.
+    ///
+    /// Returns:
+    ///     NestedOptionArcStringIterable:
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
-    /// the node earliest times
+    /// The node earliest times.
+    ///
+    /// Returns:
+    ///     NestedOptionI64Iterable:
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -894,7 +903,10 @@ impl PyPathFromGraph {
         (move || path.earliest_date_time()).into()
     }
 
-    /// the node latest times
+    /// The node latest times.
+    ///
+    /// Returns:
+    ///     NestedOptionI64Iterable:
     #[getter]
     fn latest_time(&self) -> NestedOptionI64Iterable {
         let path = self.path.clone();
@@ -902,6 +914,9 @@ impl PyPathFromGraph {
     }
 
     /// Returns the latest date time of the nodes.
+    ///
+    /// Returns:
+    ///     NestedUtcDateTimeIterable:
     #[getter]
     fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
         let path = self.path.clone();
@@ -909,50 +924,74 @@ impl PyPathFromGraph {
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    ///
+    /// Returns:
+    ///     NestedI64VecIterable:
     fn history(&self) -> NestedI64VecIterable {
         let path = self.path.clone();
         (move || path.history()).into()
     }
 
-    /// Returns the number of edge updates for each node
+    /// Returns the number of edge updates for each node.
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable:
     fn edge_history_count(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.edge_history_count()).into()
     }
 
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
+    ///
+    /// Returns:
+    ///     NestedVecUtcDateTimeIterable:
     fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let path = self.path.clone();
         (move || path.history_date_time()).into()
     }
 
-    /// the node properties
+    /// Returns the node properties.
+    ///
+    /// Returns:
+    ///     PyNestedPropsIterable:
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
-    /// the node metadata
+    /// Returns the node metadata.
+    ///
+    /// Returns:
+    ///     PyMetadataListList:
     #[getter]
     fn metadata(&self) -> PyMetadataListList {
         let path = self.path.clone();
         (move || path.metadata()).into()
     }
 
-    /// the node degrees
+    /// Returns the node degrees.
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable:
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
     }
 
-    /// the node in-degrees
+    /// Returns the node in-degrees.
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable:
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
-    /// the node out-degrees
+    /// Returns the node out-degrees.
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable:
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
