@@ -22,7 +22,7 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
-    resolver::GIDResolverError,
+    resolver::StorageError,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, ES, NS,
 };
@@ -66,11 +66,11 @@ pub enum MutationError {
     StorageError(#[from] StorageError),
 }
 
-impl From<GIDResolverError> for MutationError {
-    fn from(error: GIDResolverError) -> Self {
+impl From<StorageError> for MutationError {
+    fn from(error: StorageError) -> Self {
         match error {
-            GIDResolverError::StorageError(e) => MutationError::StorageError(e),
-            GIDResolverError::InvalidNodeId(e) => MutationError::InvalidNodeId(e),
+            StorageError::StorageError(e) => MutationError::StorageError(e),
+            StorageError::InvalidNodeId(e) => MutationError::InvalidNodeId(e),
         }
     }
 }

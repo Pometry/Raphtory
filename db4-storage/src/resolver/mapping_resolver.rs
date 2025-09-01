@@ -1,4 +1,4 @@
-use crate::resolver::{GIDResolverError, GIDResolverOps};
+use crate::resolver::{GIDResolverOps, StorageError};
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
     storage::dict_mapper::MaybeNew,
@@ -18,10 +18,17 @@ impl MappingResolver {
 }
 
 impl GIDResolverOps for MappingResolver {
-    fn new(_path: impl AsRef<Path>) -> Result<Self, GIDResolverError> {
+    fn new() -> Result<Self, StorageError>
+    where
+        Self: Sized,
+    {
         Ok(Self {
             mapping: Mapping::new(),
         })
+    }
+
+    fn new_with_path(_path: impl AsRef<Path>) -> Result<Self, StorageError> {
+        Self::new()
     }
 
     fn len(&self) -> usize {
@@ -32,7 +39,7 @@ impl GIDResolverOps for MappingResolver {
         self.mapping.dtype()
     }
 
-    fn set(&self, gid: GidRef, vid: VID) -> Result<(), GIDResolverError> {
+    fn set(&self, gid: GidRef, vid: VID) -> Result<(), StorageError> {
         self.mapping.set(gid, vid)?;
         Ok(())
     }
@@ -41,7 +48,7 @@ impl GIDResolverOps for MappingResolver {
         &self,
         gid: GidRef,
         next_id: NFN,
-    ) -> Result<MaybeNew<VID>, GIDResolverError> {
+    ) -> Result<MaybeNew<VID>, StorageError> {
         let result = self.mapping.get_or_init(gid, next_id)?;
         Ok(result)
     }
@@ -49,7 +56,7 @@ impl GIDResolverOps for MappingResolver {
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), GIDResolverError> {
+    ) -> Result<(), StorageError> {
         Ok(self.mapping.validate_gids(gids)?)
     }
 
@@ -64,17 +71,14 @@ impl GIDResolverOps for MappingResolver {
     fn bulk_set_str<S: AsRef<str>>(
         &self,
         gids: impl IntoIterator<Item = (S, VID)>,
-    ) -> Result<(), GIDResolverError> {
+    ) -> Result<(), StorageError> {
         for (gid, vid) in gids {
             self.set(gid.as_ref().into(), vid)?;
         }
         Ok(())
     }
 
-    fn bulk_set_u64(
-        &self,
-        gids: impl IntoIterator<Item = (u64, VID)>,
-    ) -> Result<(), GIDResolverError> {
+    fn bulk_set_u64(&self, gids: impl IntoIterator<Item = (u64, VID)>) -> Result<(), StorageError> {
         for (gid, vid) in gids {
             self.set(gid.into(), vid)?;
         }

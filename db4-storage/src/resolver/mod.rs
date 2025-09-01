@@ -9,16 +9,11 @@ use raphtory_core::entities::graph::logical_to_physical::InvalidNodeId;
 
 pub mod mapping_resolver;
 
-#[derive(thiserror::Error, Debug)]
-pub enum GIDResolverError {
-    #[error(transparent)]
-    StorageError(#[from] StorageError),
-    #[error(transparent)]
-    InvalidNodeId(#[from] InvalidNodeId),
-}
-
 pub trait GIDResolverOps {
-    fn new(path: impl AsRef<Path>) -> Result<Self, GIDResolverError>
+    fn new() -> Result<Self, StorageError>
+    where
+        Self: Sized;
+    fn new_with_path(path: impl AsRef<Path>) -> Result<Self, StorageError>
     where
         Self: Sized;
     fn len(&self) -> usize;
@@ -26,28 +21,25 @@ pub trait GIDResolverOps {
         self.len() == 0
     }
     fn dtype(&self) -> Option<GidType>;
-    fn set(&self, gid: GidRef, vid: VID) -> Result<(), GIDResolverError>;
+    fn set(&self, gid: GidRef, vid: VID) -> Result<(), StorageError>;
     fn get_or_init<NFN: FnMut() -> VID>(
         &self,
         gid: GidRef,
         next_id: NFN,
-    ) -> Result<MaybeNew<VID>, GIDResolverError>;
+    ) -> Result<MaybeNew<VID>, StorageError>;
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
-    ) -> Result<(), GIDResolverError>;
+    ) -> Result<(), StorageError>;
     fn get_str(&self, gid: &str) -> Option<VID>;
     fn get_u64(&self, gid: u64) -> Option<VID>;
 
     fn bulk_set_str<S: AsRef<str>>(
         &self,
         gids: impl IntoIterator<Item = (S, VID)>,
-    ) -> Result<(), GIDResolverError>;
+    ) -> Result<(), StorageError>;
 
-    fn bulk_set_u64(
-        &self,
-        gids: impl IntoIterator<Item = (u64, VID)>,
-    ) -> Result<(), GIDResolverError>;
+    fn bulk_set_u64(&self, gids: impl IntoIterator<Item = (u64, VID)>) -> Result<(), StorageError>;
 
     fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_;
 
