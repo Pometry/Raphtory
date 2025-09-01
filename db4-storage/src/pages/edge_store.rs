@@ -30,7 +30,7 @@ pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
     free_pages: Box<[RwLock<usize>; N]>,
-    edges_path: PathBuf,
+    edges_path: Option<PathBuf>,
     max_page_len: usize,
     prop_meta: Arc<Meta>,
     ext: EXT,
@@ -118,7 +118,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     }
 
     pub fn new_with_meta(
-        edges_path: impl AsRef<Path>,
+        edges_path: Option<PathBuf>,
         max_page_len: usize,
         edge_meta: Arc<Meta>,
         ext: EXT,
@@ -128,14 +128,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
             free_pages: free_pages.try_into().unwrap(),
-            edges_path: edges_path.as_ref().to_path_buf(),
+            edges_path,
             max_page_len,
             prop_meta: edge_meta,
             ext,
         }
     }
 
-    pub fn new(edges_path: impl AsRef<Path>, max_page_len: usize, ext: EXT) -> Self {
+    pub fn new(edges_path: Option<PathBuf>, max_page_len: usize, ext: EXT) -> Self {
         Self::new_with_meta(edges_path, max_page_len, Meta::new_for_edges().into(), ext)
     }
 
@@ -143,8 +143,8 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         &self.segments
     }
 
-    pub fn edges_path(&self) -> &Path {
-        &self.edges_path
+    pub fn edges_path(&self) -> Option<&Path> {
+        self.edges_path.as_ref().map(|path| path.as_path())
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
@@ -178,7 +178,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
         let meta = Arc::new(Meta::new_for_edges());
         if !edges_path.exists() {
-            return Ok(Self::new(edges_path, max_page_len, ext.clone()));
+            return Ok(Self::new(
+                Some(edges_path.to_path_buf()),
+                max_page_len,
+                ext.clone(),
+            ));
         }
         let mut pages = std::fs::read_dir(edges_path)?
             .filter(|entry| {
@@ -209,7 +213,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         let pages: boxcar::Vec<Arc<ES>> = (0..=max_page)
             .map(|page_id| {
                 let np = pages.remove(&page_id).unwrap_or_else(|| {
-                    ES::new(page_id, max_page_len, meta.clone(), edges_path, ext.clone())
+                    ES::new(
+                        page_id,
+                        max_page_len,
+                        meta.clone(),
+                        Some(edges_path.to_path_buf()),
+                        ext.clone(),
+                    )
                 });
                 Arc::new(np)
             })
@@ -260,7 +270,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
         Ok(Self {
             segments: pages,
-            edges_path: edges_path.to_path_buf(),
+            edges_path: Some(edges_path.to_path_buf()),
             max_page_len,
             layer_counter: GraphStats::from(layer_counts).into(),
             free_pages: free_pages.try_into().unwrap(),

@@ -1,3 +1,4 @@
+use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
@@ -19,13 +20,12 @@ use raphtory_core::{
 use rayon::prelude::*;
 use std::{
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::{
         Arc,
         atomic::{self, AtomicUsize},
     },
 };
-
-use super::{HasRow, SegmentContainer, edge_entry::MemEdgeEntry};
 
 #[derive(Debug, Default)]
 pub struct MemPageEntry {
@@ -443,7 +443,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         page_id: usize,
         max_page_len: usize,
         meta: Arc<Meta>,
-        _path: impl AsRef<std::path::Path>,
+        _path: Option<PathBuf>,
         _ext: Self::Extension,
     ) -> Self {
         Self {

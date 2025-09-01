@@ -25,7 +25,7 @@ use std::{
 pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
-    nodes_path: PathBuf,
+    nodes_path: Option<PathBuf>,
     max_page_len: usize,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
@@ -89,7 +89,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
     }
 
     pub fn new_with_meta(
-        nodes_path: impl AsRef<Path>,
+        nodes_path: Option<PathBuf>,
         max_page_len: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
@@ -98,7 +98,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         Self {
             pages: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
-            nodes_path: nodes_path.as_ref().to_path_buf(),
+            nodes_path,
             max_page_len,
             node_meta,
             edge_meta,
@@ -170,8 +170,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         &self.pages
     }
 
-    pub fn nodes_path(&self) -> &Path {
-        &self.nodes_path
+    pub fn nodes_path(&self) -> Option<&Path> {
+        self.nodes_path.as_ref().map(|path| path.as_path())
     }
 
     pub fn load(
@@ -224,7 +224,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
                         max_page_len,
                         node_meta.clone(),
                         edge_meta.clone(),
-                        nodes_path,
+                        Some(nodes_path.to_path_buf()),
                         ext.clone(),
                     )
                 });
@@ -255,7 +255,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
         Ok(Self {
             pages,
-            nodes_path: nodes_path.to_path_buf(),
+            nodes_path: Some(nodes_path.to_path_buf()),
             max_page_len,
             stats: GraphStats::from(layer_counts).into(),
             node_meta,

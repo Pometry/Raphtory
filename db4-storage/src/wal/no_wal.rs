@@ -8,19 +8,11 @@ use crate::{
 /// NoWAL is a no-op WAL implementation that discards all writes.
 /// Used for in-memory only graphs.
 #[derive(Debug)]
-pub struct NoWal {
-    dir: PathBuf,
-}
+pub struct NoWal;
 
 impl Wal for NoWal {
-    fn new(dir: impl AsRef<Path>) -> Result<Self, StorageError> {
-        Ok(Self {
-            dir: dir.as_ref().to_path_buf(),
-        })
-    }
-
-    fn dir(&self) -> &Path {
-        &self.dir
+    fn new(_dir: Option<PathBuf>) -> Result<Self, StorageError> {
+        Ok(Self)
     }
 
     fn append(&self, _data: &[u8]) -> Result<LSN, StorageError> {

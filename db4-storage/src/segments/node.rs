@@ -1,3 +1,11 @@
+use super::{HasRow, SegmentContainer};
+use crate::{
+    LocalPOS,
+    api::nodes::{LockedNSSegment, NodeSegmentOps},
+    error::StorageError,
+    persist::strategy::PersistentStrategy,
+    segments::node_entry::{MemNodeEntry, MemNodeRef},
+};
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
@@ -13,19 +21,11 @@ use raphtory_core::{
 };
 use std::{
     ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::{
         Arc,
         atomic::{AtomicI64, AtomicUsize, Ordering},
     },
-};
-
-use super::{HasRow, SegmentContainer};
-use crate::{
-    LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::StorageError,
-    persist::strategy::PersistentStrategy,
-    segments::node_entry::{MemNodeEntry, MemNodeRef},
 };
 
 #[derive(Debug, serde::Serialize)]
@@ -455,7 +455,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         max_page_len: usize,
         meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
-        _path: impl AsRef<std::path::Path>,
+        _path: Option<PathBuf>,
         _ext: Self::Extension,
     ) -> Self {
         Self {

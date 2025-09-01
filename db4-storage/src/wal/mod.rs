@@ -4,7 +4,7 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::TimeIndexEntry,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub mod entry;
 pub mod no_wal;
@@ -20,12 +20,9 @@ pub struct WalRecord {
 
 /// Core Wal methods.
 pub trait Wal {
-    fn new(dir: impl AsRef<Path>) -> Result<Self, StorageError>
+    fn new(dir: Option<PathBuf>) -> Result<Self, StorageError>
     where
         Self: Sized;
-
-    /// Returns the directory the WAL is stored in.
-    fn dir(&self) -> &Path;
 
     /// Appends data to the WAL and returns the assigned LSN.
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;

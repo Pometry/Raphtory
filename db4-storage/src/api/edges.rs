@@ -1,9 +1,3 @@
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-    sync::Arc,
-};
-
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use raphtory_core::{
@@ -11,6 +5,11 @@ use raphtory_core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use rayon::iter::ParallelIterator;
+use std::{
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::{LocalPOS, error::StorageError, segments::edge::MemEdgeSegment};
 
@@ -44,7 +43,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         page_id: usize,
         max_page_len: usize,
         meta: Arc<Meta>,
-        path: impl AsRef<Path>,
+        path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self;
 

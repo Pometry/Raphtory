@@ -149,14 +149,14 @@ impl<
     }
 
     pub fn new_with_meta(
-        graph_dir: impl AsRef<Path>,
+        graph_dir: Option<&Path>,
         max_page_len_nodes: usize,
         max_page_len_edges: usize,
         node_meta: Meta,
         edge_meta: Meta,
     ) -> Self {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
+        let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
+        let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
         let ext = EXT::default();
 
         let node_meta = Arc::new(node_meta);
@@ -176,13 +176,15 @@ impl<
             ext.clone(),
         ));
 
-        let graph_meta = GraphMeta {
-            max_page_len_nodes,
-            max_page_len_edges,
-        };
+        if let Some(graph_dir) = graph_dir {
+            let graph_meta = GraphMeta {
+                max_page_len_nodes,
+                max_page_len_edges,
+            };
 
-        write_graph_meta(&graph_dir, graph_meta)
-            .expect("Unrecoverable! Failed to write graph meta");
+            write_graph_meta(&graph_dir, graph_meta)
+                .expect("Unrecoverable! Failed to write graph meta");
+        }
 
         Self {
             // node_flush_thread: FlushThread::new::<_, ES, _>(nodes.clone()),
@@ -194,7 +196,7 @@ impl<
     }
 
     pub fn new(
-        graph_dir: impl AsRef<Path>,
+        graph_dir: Option<&Path>,
         max_page_len_nodes: usize,
         max_page_len_edges: usize,
     ) -> Self {
@@ -435,7 +437,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::<crate::Extension>::new(graph_dir, chunk_size, chunk_size)
+            Layer::<crate::Extension>::new(Some(graph_dir), chunk_size, chunk_size)
         })
     }
 
@@ -445,7 +447,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::<crate::Extension>::new(graph_dir, chunk_size, chunk_size)
+            Layer::<crate::Extension>::new(Some(graph_dir), chunk_size, chunk_size)
         })
     }
 
@@ -517,7 +519,7 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::<Extension>::new(graph_dir.path(), 32, 32);
+        let g = Layer::<Extension>::new(Some(graph_dir.path()), 32, 32);
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -525,7 +527,7 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = GraphStore::new(graph_dir.path(), 32, 32);
+        let g = GraphStore::new(Some(graph_dir.path()), 32, 32);
         g.add_edge(4, 7, 3).unwrap();
 
         let check = |g: &Layer<()>| {

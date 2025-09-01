@@ -62,7 +62,10 @@ pub mod error {
     use std::{path::PathBuf, sync::Arc};
 
     use raphtory_api::core::entities::properties::prop::PropError;
-    use raphtory_core::{entities::properties::props::MetadataError, utils::time::ParseTimeError};
+    use raphtory_core::{
+        entities::{graph::logical_to_physical::InvalidNodeId, properties::props::MetadataError},
+        utils::time::ParseTimeError,
+    };
 
     #[derive(thiserror::Error, Debug)]
     pub enum StorageError {
@@ -91,6 +94,8 @@ pub mod error {
         // MutationError(#[from] MutationError),
         #[error("Unnamed Failure: {0}")]
         GenericFailure(String),
+        #[error(transparent)]
+        InvalidNodeId(#[from] InvalidNodeId),
     }
 }
 

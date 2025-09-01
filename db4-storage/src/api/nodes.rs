@@ -1,10 +1,3 @@
-use std::{
-    borrow::Cow,
-    ops::{Deref, DerefMut, Range},
-    path::Path,
-    sync::Arc,
-};
-
 use itertools::Itertools;
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::{
@@ -22,6 +15,12 @@ use raphtory_core::{
     entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     utils::iter::GenLockedIter,
+};
+use std::{
+    borrow::Cow,
+    ops::{Deref, DerefMut, Range},
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use crate::{
@@ -65,7 +64,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         max_page_len: usize,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
-        path: impl AsRef<Path>,
+        path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self;
 

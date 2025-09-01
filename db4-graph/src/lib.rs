@@ -1,4 +1,5 @@
 use std::{
+    io,
     path::{Path, PathBuf},
     sync::{
         atomic::{self, AtomicU64, AtomicUsize},
@@ -18,6 +19,7 @@ use raphtory_core::{
     storage::timeindex::TimeIndexEntry,
 };
 use storage::{
+    error::StorageError,
     pages::{
         layer_counter::GraphStats,
         locked::{edges::WriteLockedEdgePages, nodes::WriteLockedNodePages},
@@ -42,7 +44,7 @@ pub struct TemporalGraph<EXT = Extension> {
     pub node_count: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     pub graph_meta: Arc<GraphMeta>,
-    graph_dir: GraphDir,
+    graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
     pub wal: Arc<WalImpl>,
 }
@@ -53,24 +55,38 @@ pub enum GraphDir {
     Path(PathBuf),
 }
 
-impl<'a> From<&'a Path> for GraphDir {
-    fn from(path: &'a Path) -> Self {
-        GraphDir::Path(path.to_path_buf())
+impl GraphDir {
+    pub fn path(&self) -> &Path {
+        match self {
+            GraphDir::Temp(dir) => dir.path(),
+            GraphDir::Path(path) => path,
+        }
     }
-}
+    pub fn gid_resolver_dir(&self) -> PathBuf {
+        self.path().join("gid_resolver")
+    }
 
-impl Default for GraphDir {
-    fn default() -> Self {
-        GraphDir::Temp(tempfile::tempdir().expect("Failed to create temporary directory"))
+    pub fn wal_dir(&self) -> PathBuf {
+        self.path().join("wal")
+    }
+
+    pub fn create_dir(&self) -> Result<(), io::Error> {
+        if let GraphDir::Path(path) = self {
+            std::fs::create_dir_all(path)?;
+        }
+        Ok(())
     }
 }
 
 impl AsRef<Path> for GraphDir {
     fn as_ref(&self) -> &Path {
-        match self {
-            GraphDir::Temp(temp_dir) => temp_dir.path(),
-            GraphDir::Path(path) => path,
-        }
+        self.path()
+    }
+}
+
+impl<'a> From<&'a Path> for GraphDir {
+    fn from(path: &'a Path) -> Self {
+        GraphDir::Path(path.to_path_buf())
     }
 }
 
@@ -118,45 +134,51 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
     pub fn new() -> Self {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(GraphDir::default(), node_meta, edge_meta)
+        Self::new_with_meta(None, node_meta, edge_meta)
     }
 
     pub fn new_with_path(path: impl AsRef<Path>) -> Self {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
-        Self::new_with_meta(path.as_ref().into(), node_meta, edge_meta)
+        Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta)
     }
 
-    pub fn load_from_path(path: impl AsRef<Path>) -> Self {
-        let graph_dir: GraphDir = path.as_ref().into();
-        let storage = Layer::load(graph_dir.as_ref())
-            .unwrap_or_else(|_| panic!("Failed to load graph from path: {graph_dir:?}"));
+    pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
+        let path = path.as_ref();
+        let storage = Layer::load(path)?;
 
-        let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
-        let resolver = GIDResolver::new(&gid_resolver_dir).unwrap_or_else(|err| {
-            panic!("Failed to load GID resolver from path: {gid_resolver_dir:?} {err}")
-        });
-
+        let gid_resolver_dir = path.join("gid_resolver");
+        let resolver = GIDResolver::new_with_path(&gid_resolver_dir)?;
         let node_count = AtomicUsize::new(storage.nodes().num_nodes());
-        let wal_dir = graph_dir.as_ref().join("wal");
-        let wal = Arc::new(WalImpl::new(&wal_dir).unwrap());
+        let wal_dir = path.join("wal");
+        let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
 
-        Self {
-            graph_dir,
+        Ok(Self {
+            graph_dir: path.into(),
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
-        }
+        })
     }
 
-    pub fn new_with_meta(graph_dir: GraphDir, node_meta: Meta, edge_meta: Meta) -> Self {
-        std::fs::create_dir_all(&graph_dir)
-            .unwrap_or_else(|_| panic!("Failed to create graph directory at {graph_dir:?}"));
+    pub fn new_with_meta(
+        graph_dir: Option<GraphDir>,
+        node_meta: Meta,
+        edge_meta: Meta,
+    ) -> Result<Self, StorageError> {
+        if let Some(dir) = graph_dir.as_ref() {
+            std::fs::create_dir_all(dir)?
+        }
+        let gid_resolver_dir = graph_dir.as_ref().map(|dir| dir.gid_resolver_dir());
+        let logical_to_physical = match gid_resolver_dir {
+            Some(gid_resolver_dir) => GIDResolver::new_with_path(gid_resolver_dir)?,
+            None => GIDResolver::new()?,
+        }
+        .into();
 
-        let gid_resolver_dir = graph_dir.as_ref().join("gid_resolver");
         let storage: Layer<EXT> = Layer::new_with_meta(
             graph_dir.as_ref(),
             DEFAULT_MAX_PAGE_LEN_NODES,
@@ -165,18 +187,18 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
             edge_meta,
         );
 
-        let wal_dir = graph_dir.as_ref().join("wal");
-        let wal = Arc::new(WalImpl::new(&wal_dir).unwrap());
+        let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
+        let wal = Arc::new(WalImpl::new(wal_dir)?);
 
-        Self {
+        Ok(Self {
             graph_dir,
-            logical_to_physical: GIDResolver::new(gid_resolver_dir).unwrap().into(),
+            logical_to_physical,
             node_count: AtomicUsize::new(0),
             storage: Arc::new(storage),
             graph_meta: Arc::new(GraphMeta::default()),
             transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
             wal,
-        }
+        })
     }
 
     pub fn read_event_counter(&self) -> usize {
