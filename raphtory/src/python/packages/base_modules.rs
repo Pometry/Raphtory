@@ -23,7 +23,10 @@ use crate::{
         },
         types::wrappers::{
             document::PyDocument,
-            iterables::{NestedGIDIterable, NestedUtcDateTimeIterable},
+            iterables::{
+                GIDIterable, NestedGIDIterable, NestedUtcDateTimeIterable, OptionArcStringIterable,
+                OptionI64Iterable, StringIterable, UsizeIterable,
+            },
         },
         utils::PyWindowSet,
     },
@@ -76,6 +79,11 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         iterables_module,
         NestedUtcDateTimeIterable,
         NestedGIDIterable,
+        GIDIterable,
+        StringIterable,
+        OptionArcStringIterable,
+        UsizeIterable,
+        OptionI64Iterable,
     );
     Ok(iterables_module)
 }

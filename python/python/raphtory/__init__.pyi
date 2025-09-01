@@ -3455,16 +3455,26 @@ class PathFromNode(object):
              PathFromNode: The layered view
         """
 
-    def degree(self):
-        """the node degrees"""
+    def degree(self) -> UsizeIterable:
+        """
+        The node degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
-    def earliest_time(self):
-        """the node earliest times"""
-
-    def edge_history_count(self):
+    def earliest_time(self) -> OptionI64Iterable:
         """
-        Get the number of edge updates for each node
+        The node earliest time.
+
+        Returns:
+            OptionI64Iterable:
+        """
+
+    def edge_history_count(self) -> UsizeIterable:
+        """
+        Get the number of edge updates for each node.
 
         Returns:
             UsizeIterable:
@@ -3600,11 +3610,21 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self):
-        """the node ids"""
+    def id(self) -> GIDIterable:
+        """
+        The node IDs.
 
-    def in_degree(self):
-        """the node in-degrees"""
+        Returns:
+            GIDIterable:
+        """
+
+    def in_degree(self) -> UsizeIterable:
+        """
+        The node in-degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
     def in_edges(self) -> Edges:
@@ -3635,8 +3655,13 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self):
-        """the node latest times"""
+    def latest_time(self) -> OptionI64Iterable:
+        """
+        The node latest time.
+
+        Returns:
+            OptionI64Iterable:
+        """
 
     def layer(self, name: str) -> PathFromNode:
         """
@@ -3664,11 +3689,21 @@ class PathFromNode(object):
 
     @property
     def metadata(self):
-        """the node metadata"""
+        """
+        The node metadata.
+
+        Returns:
+            MetadataView:
+        """
 
     @property
-    def name(self):
-        """the node names"""
+    def name(self) -> StringIterable:
+        """
+        The node names.
+
+        Returns:
+            StringIterable:
+        """
 
     @property
     def neighbours(self) -> PathFromNode:
@@ -3681,11 +3716,21 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self):
-        """the node types"""
+    def node_type(self) -> OptionArcStringIterable:
+        """
+        The node types.
 
-    def out_degree(self):
-        """the node out-degrees"""
+        Returns:
+            OptionArcStringIterable:
+        """
+
+    def out_degree(self) -> UsizeIterable:
+        """
+        The node out-degrees.
+
+        Returns:
+            UsizeIterable:
+        """
 
     @property
     def out_edges(self) -> Edges:
@@ -3708,8 +3753,13 @@ class PathFromNode(object):
         """
 
     @property
-    def properties(self):
-        """the node properties"""
+    def properties(self) -> PropertiesView:
+        """
+        The node properties.
+
+        Returns:
+            PropertiesView:
+        """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """

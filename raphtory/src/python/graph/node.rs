@@ -1062,28 +1062,37 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
 
 #[pymethods]
 impl PyPathFromNode {
-    /// the node ids
+    /// The node IDs.
+    ///
+    /// Returns:
+    ///     GIDIterable:
     #[getter]
     fn id(&self) -> GIDIterable {
         let path = self.path.clone();
         (move || path.id()).into()
     }
 
-    /// the node names
+    /// The node names.
+    ///
+    /// Returns:
+    ///     StringIterable:
     #[getter]
     fn name(&self) -> StringIterable {
         let path = self.path.clone();
         (move || path.name()).into()
     }
 
-    /// the node types
+    /// The node types.
+    ///
+    /// Returns:
+    ///     OptionArcStringIterable:
     #[getter]
     fn node_type(&self) -> OptionArcStringIterable {
         let path = self.path.clone();
         (move || path.node_type()).into()
     }
 
-    /// Get the number of edge updates for each node
+    /// Get the number of edge updates for each node.
     ///
     /// Returns:
     ///     UsizeIterable:
@@ -1092,47 +1101,68 @@ impl PyPathFromNode {
         (move || path.edge_history_count()).into()
     }
 
-    /// the node earliest times
+    /// The node earliest time.
+    ///
+    /// Returns:
+    ///     OptionI64Iterable:
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.earliest_time()).into()
     }
 
-    /// the node latest times
+    /// The node latest time.
+    ///
+    /// Returns:
+    ///     OptionI64Iterable:
     #[getter]
     fn latest_time(&self) -> OptionI64Iterable {
         let path = self.path.clone();
         (move || path.latest_time()).into()
     }
 
-    /// the node properties
+    /// The node properties.
+    ///
+    /// Returns:
+    ///     PropertiesView:
     #[getter]
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
     }
 
-    /// the node metadata
+    /// The node metadata.
+    ///
+    /// Returns:
+    ///     MetadataView:
     #[getter]
     fn metadata(&self) -> MetadataView {
         let path = self.path.clone();
         (move || path.metadata()).into()
     }
 
-    /// the node in-degrees
+    /// The node in-degrees.
+    ///
+    /// Returns:
+    ///     UsizeIterable:
     fn in_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.in_degree()).into()
     }
 
-    /// the node out-degrees
+    /// The node out-degrees.
+    ///
+    /// Returns:
+    ///     UsizeIterable:
     fn out_degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.out_degree()).into()
     }
 
-    /// the node degrees
+    /// The node degrees.
+    ///
+    /// Returns:
+    ///     UsizeIterable:
     fn degree(&self) -> UsizeIterable {
         let path = self.path.clone();
         (move || path.degree()).into()
