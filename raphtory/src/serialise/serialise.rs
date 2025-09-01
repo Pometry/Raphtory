@@ -53,12 +53,13 @@ macro_rules! zip_tprop_updates {
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     fn encode_to_proto(&self) -> proto::Graph;
+
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let folder = path.into();
+        let folder: GraphFolder = path.into();
         folder.write_graph(self)
     }
 }

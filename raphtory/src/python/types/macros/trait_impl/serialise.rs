@@ -46,7 +46,7 @@ macro_rules! impl_serialise {
                 <$base_type as $crate::serialise::CacheOps>::load_cached(path)
             }
 
-            #[doc = concat!(" Load ", $name, " from a file.")]
+            #[doc = concat!(" Load ", $name, " from a parquet file.")]
             ///
             /// Arguments:
             ///   path (str): The path to the file.
@@ -58,7 +58,7 @@ macro_rules! impl_serialise {
                 <$base_type as $crate::serialise::StableDecode>::decode(path)
             }
 
-            #[doc = concat!(" Saves the ", $name, " to the given path.")]
+            #[doc = concat!(" Saves the ", $name, " to the given path in parquet format.")]
             ///
             /// Arguments:
             ///     path (str): The path to the file.
