@@ -336,7 +336,12 @@ class GraphView(object):
         """
 
     def get_index_spec(self):
-        """Get index spec"""
+        """
+        Get index spec
+
+        Return:
+            IndexSpec:
+        """
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
