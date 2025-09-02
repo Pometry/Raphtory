@@ -11,7 +11,9 @@ use raphtory_api::core::{
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
     Direction,
 };
-use raphtory_core::storage::timeindex::TimeIndexWindow;
+use raphtory_core::{
+    entities::nodes::node_store::NodeTimestamps, storage::timeindex::TimeIndexWindow,
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
@@ -112,6 +114,40 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.additions.prop_events_rev()
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        match &self.additions {
+            NodeAdditions::Mem(additions) => additions.props_ts().first(),
+            NodeAdditions::Range(additions) => match additions {
+                TimeIndexWindow::Empty => None,
+                TimeIndexWindow::Range { timeindex, range } => {
+                    timeindex.props_ts().range(range.clone()).first()
+                }
+                TimeIndexWindow::All(timeindex) => timeindex.props_ts().first(),
+            },
+            NodeAdditions::Col(additions) => additions
+                .clone()
+                .prop_events()
+                .flat_map(|t| t.first())
+                .min(),
+        }
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        match &self.additions {
+            NodeAdditions::Mem(additions) => additions.props_ts().last(),
+            NodeAdditions::Range(additions) => match additions {
+                TimeIndexWindow::Empty => None,
+                TimeIndexWindow::Range { timeindex, range } => {
+                    timeindex.props_ts().range(range.clone()).last()
+                }
+                TimeIndexWindow::All(timeindex) => timeindex.props_ts().last(),
+            },
+            NodeAdditions::Col(additions) => {
+                additions.clone().prop_events().flat_map(|t| t.last()).max()
+            }
+        }
     }
 
     fn len(&self) -> usize {
