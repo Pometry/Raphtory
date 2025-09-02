@@ -953,7 +953,7 @@ impl PyPathFromGraph {
     /// Returns the node properties.
     ///
     /// Returns:
-    ///     PyNestedPropsIterable:
+    ///     NestedPropsIterable:
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
@@ -963,7 +963,7 @@ impl PyPathFromGraph {
     /// Returns the node metadata.
     ///
     /// Returns:
-    ///     PyMetadataListList:
+    ///     MetadataListList:
     #[getter]
     fn metadata(&self) -> PyMetadataListList {
         let path = self.path.clone();

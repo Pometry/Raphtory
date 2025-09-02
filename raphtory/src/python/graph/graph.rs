@@ -177,12 +177,12 @@ impl PyGraph {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 
-    /// Persist graph to parquet files
+    /// Persist graph to parquet files.
     ///
     /// Arguments:
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
     ///
-    ///  Returns:
+    /// Returns:
     ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
         self.graph.encode_parquet(graph_dir)
@@ -984,7 +984,6 @@ impl PyGraph {
     /// Create graph index with the provided index spec.
     ///
     /// Arguments:
-    ///     index_spec: - The specification for the in-memory index to be created (Rust).
     ///     py_spec: - The specification for the in-memory index to be created.
     ///
     /// Returns:
@@ -1009,13 +1008,14 @@ impl PyGraph {
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
     ///
+    /// Parameters:
+    ///     py_spec: The specification for the in-memory index to be created.
+    ///
     /// Arguments:
-    ///     index_spec: - The specification for the in-memory index to be created (Rust).
-    ///     py_spec: - The specification for the in-memory index to be created.
+    ///     IndexSpec: - The specification for the in-memory index to be created.
     ///
     /// Returns:
-    ///     Ok(()) if the in-memory index was created successfully.
-    ///     Err(GraphError) if the operation fails.
+    ///     None:
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

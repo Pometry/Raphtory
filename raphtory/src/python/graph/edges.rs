@@ -509,6 +509,9 @@ impl PyNestedEdges {
     }
 
     /// Get a view of the metadata only.
+    ///
+    /// Returns:
+    ///     MetadataListList:
     #[getter]
     pub fn metadata(&self) -> PyMetadataListList {
         let edges = self.edges.clone();

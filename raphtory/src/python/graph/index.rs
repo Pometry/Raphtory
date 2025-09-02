@@ -165,6 +165,10 @@ impl PyIndexSpecBuilder {
         })
     }
 
+    /// Return a spec
+    ///
+    /// Returns:
+    ///     IndexSpec:
     pub fn build(&self) -> PyIndexSpec {
         PyIndexSpec {
             graph: self.builder.graph.clone().into_dynamic(),
@@ -177,7 +181,7 @@ impl PyIndexSpecBuilder {
 impl PyGraphView {
     /// Get index spec
     ///
-    /// Return:
+    /// Returns:
     ///     IndexSpec:
     fn get_index_spec(&self) -> Result<PyIndexSpec, GraphError> {
         let spec = self.graph.get_index_spec()?;

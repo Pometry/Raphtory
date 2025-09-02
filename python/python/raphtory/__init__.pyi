@@ -335,11 +335,11 @@ class GraphView(object):
            list[Node]: the nodes that match the properties name and value
         """
 
-    def get_index_spec(self):
+    def get_index_spec(self) -> IndexSpec:
         """
         Get index spec
 
-        Return:
+        Returns:
             IndexSpec:
         """
 
@@ -886,20 +886,21 @@ class Graph(GraphView):
             None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec: Any):
+    def create_index_in_ram_with_spec(self, py_spec: Any) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
 
+        Parameters:
+            py_spec: The specification for the in-memory index to be created.
+
         Arguments:
-            index_spec: - The specification for the in-memory index to be created (Rust).
-            py_spec: - The specification for the in-memory index to be created.
+            IndexSpec: - The specification for the in-memory index to be created.
 
         Returns:
-            Ok(()) if the in-memory index was created successfully.
-            Err(GraphError) if the operation fails.
+            None:
         """
 
     def create_index_with_spec(self, py_spec: Any) -> None:
@@ -907,7 +908,6 @@ class Graph(GraphView):
         Create graph index with the provided index spec.
 
         Arguments:
-            index_spec: - The specification for the in-memory index to be created (Rust).
             py_spec: - The specification for the in-memory index to be created.
 
         Returns:
@@ -1465,14 +1465,14 @@ class Graph(GraphView):
           bytes:
         """
 
-    def to_parquet(self, graph_dir: str | PathLike):
+    def to_parquet(self, graph_dir: str | PathLike) -> None:
         """
-        Persist graph to parquet files
+        Persist graph to parquet files.
 
         Arguments:
             graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
 
-         Returns:
+        Returns:
             None:
         """
 
@@ -1606,42 +1606,50 @@ class PersistentGraph(GraphView):
             None:
         """
 
-    def create_index(self):
-        """Create graph index"""
+    def create_index(self) -> None:
+        """
+        Create graph index
 
-    def create_index_in_ram(self):
+        Returns:
+            None:
+        """
+
+    def create_index_in_ram(self) -> None:
         """
         Creates a graph index in memory (RAM).
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Returns:
+            None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec):
+    def create_index_in_ram_with_spec(self, py_spec: Any) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Parameters:
+            py_spec: The specification for the in-memory index to be created.
+
          Arguments:
-            index_spec: - The specification for the in-memory index to be created (Rust).
-            py_spec: - The specification for the in-memory index to be created.
+            IndexSpec: The specification for the in-memory index to be created.
 
         Returns:
-            Ok(()) if the in-memory index was created successfully.
-            Err(GraphError) if the operation fails.
+            None:
         """
 
-    def create_index_with_spec(self, py_spec: Any):
+    def create_index_with_spec(self, py_spec: Any) -> None:
         """
         Create graph index with the provided index spec.
         Arguments:
-            index_spec: - The specification for the in-memory index to be created (Rust).
             py_spec: - The specification for the in-memory index to be created.
 
         Returns:
-            Ok(()) if the in-memory index was created successfully.
-            Err(GraphError) if the operation fails.
+            None:
         """
 
     def create_node(
@@ -4232,7 +4240,7 @@ class PathFromGraph(object):
         Returns the node metadata.
 
         Returns:
-            PyMetadataListList:
+            MetadataListList:
         """
 
     @property
@@ -5746,7 +5754,12 @@ class NestedEdges(object):
 
     @property
     def metadata(self):
-        """Get a view of the metadata only."""
+        """
+        Get a view of the metadata only.
+
+        Returns:
+            MetadataListList:
+        """
 
     @property
     def nbr(self):
@@ -6350,7 +6363,14 @@ class IndexSpecBuilder(object):
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self): ...
+    def build(self) -> IndexSpec:
+        """
+        Return a spec
+
+        Returns:
+            IndexSpec:
+        """
+
     def with_all_edge_metadata(self): ...
     def with_all_edge_properties(self): ...
     def with_all_edge_properties_and_metadata(self): ...
