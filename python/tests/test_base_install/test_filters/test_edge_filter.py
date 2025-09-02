@@ -152,6 +152,11 @@ def test_filter_edges_for_src_dst_starts_with():
         expected_ids = sorted([("John Mayer", "Jimmy Page")])
         assert result_ids == expected_ids
 
+        filter_expr = filter.Edge.src().name().starts_with("John")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer")])
+        assert result_ids == expected_ids
+
         filter_expr = filter.Edge.src().name().starts_with("Jimmy Page")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted([])
@@ -171,6 +176,11 @@ def test_filter_edges_for_src_dst_ends_with():
         filter_expr = filter.Edge.src().name().ends_with("John Mayer")
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted([("John Mayer", "Jimmy Page")])
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Edge.src().name().ends_with("Mayer")
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([("John Mayer")])
         assert result_ids == expected_ids
 
         filter_expr = filter.Edge.src().name().ends_with("Jimmy Page")
