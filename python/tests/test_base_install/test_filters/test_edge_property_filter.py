@@ -993,7 +993,7 @@ def test_edge_overflow_max_values():
             ).edges
         ) == {("b", "c")}
 
-        # overflow SUM for u64: if your engine returns None when sum overflows,
+        # overflow SUM for u64: your engine returns None when sum overflows
         pairs = _pairs(
             graph.filter(filter.Edge.property("p_u64s").sum() > Prop.u64(0)).edges
         )
