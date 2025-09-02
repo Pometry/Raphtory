@@ -34,7 +34,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-    utils::time::{AsTimeInput, TryIntoInputTime},
+    utils::time::{AsSingleTimeInput, TryIntoInputTime},
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
@@ -179,7 +179,7 @@ impl<
             + InternalDeletionOps<Error = GraphError>,
     > EdgeView<G, G>
 {
-    pub fn delete<T: AsTimeInput>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+    pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph

@@ -80,7 +80,7 @@ pub trait TryIntoTime {
 
 impl<T: IntoTime> TryIntoTime for T {
     fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
-        Ok(TimeIndexEntry::from(self.into_time()))
+        Ok(self.into_time())
     }
 }
 
@@ -155,19 +155,22 @@ impl InputTime {
             InputTime::Indexed(time, _) => InputTime::Indexed(time, index),
         }
     }
-}
 
-pub trait AsTimeInput {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
-}
-
-impl AsTimeInput for TimeIndexEntry {
-    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
-        Ok(InputTime::Indexed(self.t(), self.i()))
+    pub fn as_time(&self) -> TimeIndexEntry {
+        match self {
+            InputTime::Simple(t) => TimeIndexEntry::new(*t, 0),
+            InputTime::Indexed(t, s) => TimeIndexEntry::new(*t, *s),
+        }
     }
 }
 
-impl<T: TryIntoTimeNeedsSecondaryIndex> AsTimeInput for T {
+// Single time input refers to the i64 component of a TimeIndexEntry.
+// Essentially it is the timestamp without the secondary index of a TimeIndexEntry
+pub trait AsSingleTimeInput {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
+}
+
+impl<T: TryIntoTimeNeedsSecondaryIndex> AsSingleTimeInput for T {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(InputTime::Simple(self.try_into_time()?.t()))
     }
@@ -183,13 +186,19 @@ impl TryIntoInputTime for InputTime {
     }
 }
 
-impl<T: AsTimeInput> TryIntoInputTime for T {
+impl<T: AsSingleTimeInput> TryIntoInputTime for T {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         self.try_into_input_time()
     }
 }
 
-impl<T: AsTimeInput> TryIntoInputTime for (T, usize) {
+impl TryIntoInputTime for TimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.i()))
+    }
+}
+
+impl<T: AsSingleTimeInput> TryIntoInputTime for (T, usize) {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
         Ok(self.0.try_into_input_time()?.set_index(self.1))
     }

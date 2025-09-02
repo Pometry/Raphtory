@@ -1,6 +1,9 @@
 use crate::core::{
     storage::timeindex::{AsTime, TimeError, TimeIndexEntry},
-    utils::time::{IntoTime, ParseTimeError, TryIntoTime, TryIntoTimeNeedsSecondaryIndex},
+    utils::time::{
+        InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime,
+        TryIntoTimeNeedsSecondaryIndex,
+    },
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use pyo3::{
@@ -24,51 +27,7 @@ impl<'py> IntoPyObject<'py> for TimeIndexEntry {
 
 impl<'source> FromPyObject<'source> for TimeIndexEntry {
     fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(py_time) = time.downcast::<PyTimeIndexEntry>() {
-            return Ok(py_time.get().inner());
-        }
-        // Handle list/tuple case: [timestamp, secondary_index]
-        if time.downcast::<PyTuple>().is_ok() || time.downcast::<PyList>().is_ok() {
-            let py = time.py();
-            if let Ok(items) = time.extract::<Vec<PyObject>>() {
-                let len = items.len();
-                if len != 2 {
-                    return Err(PyTypeError::new_err(format!(
-                        "list/tuple for TimeIndexEntry must have exactly 2 elements [timestamp, secondary_index], got {} elements",
-                        len
-                    )));
-                }
-                let first = items[0].bind(py);
-                let second = items[1].bind(py);
-                let first_entry = extract_time_index_component(first).map_err(|e| match e {
-                    ParsingError::Matched(err) => err,
-                    ParsingError::Unmatched => {
-                        let message = format!("time component '{first}' must be a str, datetime, float, or an integer");
-                        PyTypeError::new_err(message)
-                    }
-                })?;
-                let second_entry = extract_time_index_component(second).map_err(|e| match e {
-                    ParsingError::Matched(err) => err,
-                    ParsingError::Unmatched => {
-                        let message = format!("time component '{second}' must be a str, datetime, float, or an integer");
-                        PyTypeError::new_err(message)
-                    }
-                })?;
-                return Ok(TimeIndexEntry::new(
-                    first_entry.t(),
-                    second_entry.t() as usize,
-                ));
-            }
-        }
-        // allow errors from TimeIndexComponent extraction to pass through (except if no type has matched at all)
-        match extract_time_index_component(time) {
-            Ok(component) => Ok(TimeIndexEntry::from(component.t())),
-            Err(ParsingError::Matched(err)) => Err(err),
-            Err(ParsingError::Unmatched) => {
-                let message = format!("time '{time}' must be a str, datetime, float, integer, or a tuple/list of two of those types");
-                Err(PyTypeError::new_err(message))
-            }
-        }
+        InputTime::extract_bound(time).map(|input_time| input_time.as_time())
     }
 }
 
@@ -79,9 +38,9 @@ pub struct TimeIndexComponent {
     component: i64,
 }
 
-impl TryIntoTime for TimeIndexComponent {
-    fn try_into_time(self) -> Result<TimeIndexEntry, ParseTimeError> {
-        Ok(TimeIndexEntry::from(self.component))
+impl IntoTime for TimeIndexComponent {
+    fn into_time(self) -> TimeIndexEntry {
+        TimeIndexEntry::from(self.component)
     }
 }
 
@@ -172,7 +131,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
 }
 
 #[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen)]
-#[derive(Debug, Clone, Serialize, PartialEq, Ord, PartialOrd, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyTimeIndexEntry {
     time: TimeIndexEntry,
 }
@@ -264,7 +223,11 @@ impl IntoTime for PyTimeIndexEntry {
     }
 }
 
-impl TryIntoTimeNeedsSecondaryIndex for PyTimeIndexEntry {}
+impl TryIntoInputTime for PyTimeIndexEntry {
+    fn try_into_input_time(self) -> Result<InputTime, ParseTimeError> {
+        Ok(InputTime::Indexed(self.t(), self.secondary_index()))
+    }
+}
 
 impl From<TimeIndexEntry> for PyTimeIndexEntry {
     fn from(time: TimeIndexEntry) -> Self {
@@ -275,6 +238,56 @@ impl From<TimeIndexEntry> for PyTimeIndexEntry {
 impl From<PyTimeIndexEntry> for TimeIndexEntry {
     fn from(value: PyTimeIndexEntry) -> Self {
         value.inner()
+    }
+}
+
+impl<'source> FromPyObject<'source> for InputTime {
+    fn extract_bound(input: &Bound<'source, PyAny>) -> PyResult<Self> {
+        if let Ok(py_time) = input.downcast::<PyTimeIndexEntry>() {
+            return Ok(py_time.get().try_into_input_time()?);
+        }
+        // Handle list/tuple case: [timestamp, secondary_index]
+        if input.downcast::<PyTuple>().is_ok() || input.downcast::<PyList>().is_ok() {
+            let py = input.py();
+            if let Ok(items) = input.extract::<Vec<PyObject>>() {
+                let len = items.len();
+                if len != 2 {
+                    return Err(PyTypeError::new_err(format!(
+                        "list/tuple for InputTime must have exactly 2 elements [timestamp, secondary_index], got {} elements",
+                        len
+                    )));
+                }
+                let first = items[0].bind(py);
+                let second = items[1].bind(py);
+                let first_entry = extract_time_index_component(first).map_err(|e| match e {
+                    ParsingError::Matched(err) => err,
+                    ParsingError::Unmatched => {
+                        let message = format!("time component '{first}' must be a str, datetime, float, or an integer");
+                        PyTypeError::new_err(message)
+                    }
+                })?;
+                let second_entry = extract_time_index_component(second).map_err(|e| match e {
+                    ParsingError::Matched(err) => err,
+                    ParsingError::Unmatched => {
+                        let message = format!("time component '{second}' must be a str, datetime, float, or an integer");
+                        PyTypeError::new_err(message)
+                    }
+                })?;
+                return Ok(InputTime::Indexed(
+                    first_entry.t(),
+                    second_entry.t() as usize,
+                ));
+            }
+        }
+        // allow errors from TimeIndexComponent extraction to pass through (except if no type has matched at all)
+        match extract_time_index_component(input) {
+            Ok(component) => Ok(InputTime::Simple(component.t())),
+            Err(ParsingError::Matched(err)) => Err(err),
+            Err(ParsingError::Unmatched) => {
+                let message = format!("time '{input}' must be a str, datetime, float, integer, or a tuple/list of two of those types");
+                Err(PyTypeError::new_err(message))
+            }
+        }
     }
 }
 
