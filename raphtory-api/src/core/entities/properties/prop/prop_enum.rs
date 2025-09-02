@@ -146,7 +146,7 @@ impl Prop {
         }
     }
 
-    /// Losslessly widen float variants to i64.
+    /// Losslessly widen float variants to f64.
     #[inline]
     pub fn as_f64_lossless(&self) -> Option<f64> {
         match self {
