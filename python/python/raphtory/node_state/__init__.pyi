@@ -3257,6 +3257,14 @@ class EarliestDateTimeView(object):
             list[Optional[datetime]]: all values as a list
         """
 
+    def collect_valid(self) -> list[datetime]:
+        """
+        Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+
+        Returns:
+            list[datetime]: all values as a list
+        """
+
     def compute(self) -> NodeStateResultOptionDateTime:
         """
         Compute all values and return the result as a node view
@@ -3371,6 +3379,9 @@ class EarliestDateTimeView(object):
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
+    def iter_valid(self):
+        """Returns an iterator over all valid values. Conversion errors and empty values are ignored"""
 
     def latest(self) -> EarliestDateTimeView:
         """
@@ -5084,6 +5095,14 @@ class LatestDateTimeView(object):
             list[Optional[datetime]]: all values as a list
         """
 
+    def collect_valid(self) -> list[datetime]:
+        """
+        Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+
+        Returns:
+            list[datetime]: all values as a list
+        """
+
     def compute(self) -> NodeStateResultOptionDateTime:
         """
         Compute all values and return the result as a node view
@@ -5198,6 +5217,9 @@ class LatestDateTimeView(object):
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
+    def iter_valid(self):
+        """Returns an iterator over all valid values. Conversion errors and empty values are ignored"""
 
     def latest(self) -> LatestDateTimeView:
         """
@@ -5908,6 +5930,13 @@ class HistoryView(object):
         """
 
     @property
+    def dt(self):
+        ...
+
+    def earliest_time(self):
+        ...
+
+    @property
     def end(self) -> Optional[TimeIndexEntry]:
         """
          Gets the latest time that this HistoryView is valid.
@@ -5996,6 +6025,10 @@ class HistoryView(object):
             bool:
         """
 
+    @property
+    def intervals(self):
+        ...
+
     def items(self) -> Iterator[Tuple[Node, History]]:
         """
         Iterate over items
@@ -6011,6 +6044,9 @@ class HistoryView(object):
         Returns:
              HistoryView:
         """
+
+    def latest_time(self):
+        ...
 
     def layer(self, name: str) -> HistoryView:
         """
@@ -6058,6 +6094,10 @@ class HistoryView(object):
         Returns:
             WindowSet: A `WindowSet` object.
         """
+
+    @property
+    def secondary_index(self):
+        ...
 
     def shrink_end(self, end: TimeIndexEntry) -> HistoryView:
         """
@@ -6131,6 +6171,10 @@ class HistoryView(object):
         Returns:
             Optional[TimeIndexEntry]: The earliest time that this HistoryView is valid or None if the HistoryView is valid for all times.
         """
+
+    @property
+    def t(self):
+        ...
 
     def to_df(self) -> DataFrame:
         """
@@ -8299,6 +8343,13 @@ class NodeStateHistory(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    @property
+    def dt(self):
+        ...
+
+    def earliest_time(self):
+        ...
+
     def get(self, node: NodeInput, default=...) -> Optional[History]:
         """
         Get value for node
@@ -8311,6 +8362,10 @@ class NodeStateHistory(object):
            Optional[History]: the value for the node or the default value
         """
 
+    @property
+    def intervals(self):
+        ...
+
     def items(self) -> Iterator[Tuple[Node, History]]:
         """
         Iterate over items
@@ -8318,6 +8373,9 @@ class NodeStateHistory(object):
         Returns:
             Iterator[Tuple[Node, History]]: Iterator over items
         """
+
+    def latest_time(self):
+        ...
 
     def nodes(self) -> Nodes:
         """
@@ -8327,6 +8385,10 @@ class NodeStateHistory(object):
             Nodes: The nodes
         """
 
+    @property
+    def secondary_index(self):
+        ...
+
     def sorted_by_id(self) -> NodeStateHistory:
         """
         Sort results by node id
@@ -8334,6 +8396,10 @@ class NodeStateHistory(object):
         Returns:
             NodeStateHistory: The sorted node state
         """
+
+    @property
+    def t(self):
+        ...
 
     def to_df(self) -> DataFrame:
         """

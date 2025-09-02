@@ -73,9 +73,20 @@ impl EarliestDateTimeView {
     #[doc = "     list[Optional[datetime]]: all values as a list"]
     fn collect(&self) -> PyResult<Vec<Option<DateTime<Utc>>>> {
         self.inner
-            .par_iter_values()
+            .iter_values()
             .map(|v| v.map_err(PyErr::from))
             .collect::<PyResult<Vec<_>>>()
+    }
+
+    /// Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+    ///
+    /// Returns:
+    #[doc = "     list[datetime]: all values as a list"]
+    fn collect_valid(&self) -> Vec<DateTime<Utc>> {
+        self.inner
+            .iter_values()
+            .filter_map(|r| r.ok().flatten())
+            .collect::<Vec<_>>()
     }
 
     // impl_node_state_ops
@@ -143,6 +154,15 @@ impl EarliestDateTimeView {
             self.inner.clone(),
             LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
             |inner| inner.iter_values()
+        )
+    }
+
+    /// Returns an iterator over all valid values. Conversion errors and empty values are ignored
+    fn iter_valid(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            |inner| inner.iter_values().filter_map(|r| r.ok().flatten())
         )
     }
 

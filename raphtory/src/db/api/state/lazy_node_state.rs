@@ -19,8 +19,9 @@ use crate::{
     },
     prelude::*,
 };
+use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
-use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+use raphtory_api::core::storage::timeindex::{AsTime, TimeError, TimeIndexEntry};
 use rayon::prelude::*;
 use std::{
     borrow::Borrow,
@@ -215,11 +216,11 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
 {
-    pub fn earliest_time(&self) -> LazyNodeState<EarliestTime<GH>, G, GH> {
+    pub fn earliest_time(&self) -> LazyNodeState<'graph, EarliestTime<GH>, G, GH> {
         self.nodes.earliest_time()
     }
 
-    pub fn latest_time(&self) -> LazyNodeState<LatestTime<GH>, G, GH> {
+    pub fn latest_time(&self) -> LazyNodeState<'graph, LatestTime<GH>, G, GH> {
         self.nodes.latest_time()
     }
 
@@ -275,6 +276,68 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         self.flatten()
             .flat_map(|history| history.collect())
             .collect()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    LazyNodeState<'graph, EarliestTime<GH>, G, GH>
+{
+    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<i64>>, G, GH> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<EarliestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        G,
+        GH,
+    > {
+        let op = self
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn secondary_index(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<usize>>, G, GH> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.nodes())
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
+    LazyNodeState<'graph, LatestTime<GH>, G, GH>
+{
+    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<i64>>, G, GH> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ops::Map<LatestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        G,
+        GH,
+    > {
+        let op = self
+            .op
+            .clone()
+            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
+        LazyNodeState::new(op, self.nodes())
+    }
+
+    pub fn secondary_index(
+        &self,
+    ) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<usize>>, G, GH> {
+        let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
+        LazyNodeState::new(op, self.nodes())
     }
 }
 

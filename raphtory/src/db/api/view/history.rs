@@ -717,6 +717,24 @@ impl<T: InternalHistoryOps> HistoryTimestamp<T> {
     }
 }
 
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryTimestamp<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    i64: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryTimestamp<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryTimestamp<T> {}
+
 // converts operations to return date times instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryDateTime<T>(pub(crate) T);
@@ -748,6 +766,24 @@ impl<T: InternalHistoryOps> HistoryDateTime<T> {
             .collect::<Result<Vec<_>, TimeError>>()
     }
 }
+
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistoryDateTime<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    Result<DateTime<Utc>, TimeError>: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryDateTime<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryDateTime<T> {}
 
 impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
     pub fn into_arc_static(self) -> HistoryDateTime<Arc<dyn InternalHistoryOps>> {
@@ -781,7 +817,24 @@ impl<T: InternalHistoryOps> HistorySecondaryIndex<T> {
     }
 }
 
-// Holds a reference to the inner item in history object
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for HistorySecondaryIndex<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    usize: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistorySecondaryIndex<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> Eq for HistorySecondaryIndex<T> {}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Intervals<T>(pub T);
 
@@ -855,6 +908,24 @@ impl<T: InternalHistoryOps> Intervals<T> {
         self.iter().min()
     }
 }
+
+impl<'b, T: InternalHistoryOps + 'b, L, I: Copy> PartialEq<L> for Intervals<T>
+where
+    for<'a> &'a L: IntoIterator<Item = &'a I>,
+    i64: PartialEq<I>,
+{
+    fn eq(&self, other: &L) -> bool {
+        self.iter().eq(other.into_iter().copied())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> PartialEq for Intervals<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<'a, T: InternalHistoryOps + 'a> Eq for Intervals<T> {}
 
 // Operations to access deletion history of some type
 pub trait InternalDeletionOps: Send + Sync {

@@ -5,8 +5,8 @@ use crate::{
     db::{
         api::{
             state::{
-                ops, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateGroupBy, NodeStateOps,
-                OrderedNodeStateOps,
+                ops, ops::HistoryOp, LazyNodeState, NodeGroups, NodeOp, NodeState,
+                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
             },
             view::{
                 internal::Static, DynamicGraph, GraphViewOps, IntoDynHop, IntoDynamic,
@@ -18,6 +18,9 @@ use crate::{
     prelude::*,
     py_borrowing_iter,
     python::{
+        graph::history::{
+            PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+        },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -524,8 +527,7 @@ impl EarliestTimeView {
     fn t(
         &self,
     ) -> LazyNodeState<'static, EarliestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.t()
     }
 
     #[getter]
@@ -537,12 +539,7 @@ impl EarliestTimeView {
         DynamicGraph,
         DynamicGraph,
     > {
-        let op = self
-            .inner
-            .op
-            .clone()
-            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.dt()
     }
 
     #[getter]
@@ -550,8 +547,7 @@ impl EarliestTimeView {
         &self,
     ) -> LazyNodeState<'static, EarliestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
     {
-        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.secondary_index()
     }
 }
 type EarliestTimestamp<G> = ops::Map<ops::EarliestTime<G>, Option<i64>>;
@@ -598,8 +594,7 @@ impl LatestTimeView {
     fn t(
         &self,
     ) -> LazyNodeState<'static, LatestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
-        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.t()
     }
 
     #[getter]
@@ -611,12 +606,7 @@ impl LatestTimeView {
         DynamicGraph,
         DynamicGraph,
     > {
-        let op = self
-            .inner
-            .op
-            .clone()
-            .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.dt()
     }
 
     #[getter]
@@ -624,8 +614,7 @@ impl LatestTimeView {
         &self,
     ) -> LazyNodeState<'static, LatestSecondaryIndex<DynamicGraph>, DynamicGraph, DynamicGraph>
     {
-        let op = self.inner.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
-        LazyNodeState::new(op, self.inner.nodes())
+        self.inner.secondary_index()
     }
 }
 type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
@@ -665,6 +654,54 @@ impl_lazy_node_state_ord!(NameView<ops::Name>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NameView, String);
 impl_node_state_ord!(NodeStateString<String>, "NodeStateString", "str");
 impl_node_state_group_by_ops!(NodeStateString, String);
+
+type HistoryI64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryTimestamp>;
+impl_lazy_node_state!(
+    HistoryTimestampView<HistoryI64<DynamicGraph>>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+impl_node_state!(
+    NodeStateHistoryTimestamp<PyHistoryTimestamp>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+
+type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistorySecondaryIndex>;
+impl_lazy_node_state!(
+    HistorySecondaryIndexView<HistoryU64<DynamicGraph>>,
+    "NodeStateHistorySecondaryIndex",
+    "HistorySecondaryIndex"
+);
+impl_node_state!(
+    NodeStateHistorySecondaryIndex<PyHistorySecondaryIndex>,
+    "NodeStateHistorySecondaryIndex",
+    "HistorySecondaryIndex"
+);
+
+type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;
+impl_lazy_node_state!(
+    HistoryDateTimeView<HistoryDT<DynamicGraph>>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);
+impl_node_state!(
+    NodeStateHistoryDateTime<PyHistoryDateTime>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);
+
+type HistoryIntervals<G> = ops::Map<HistoryOp<'static, G>, PyIntervals>;
+impl_lazy_node_state!(
+    IntervalsView<HistoryIntervals<DynamicGraph>>,
+    "NodeStateIntervals",
+    "Intervals"
+);
+impl_node_state!(
+    NodeStateIntervals<PyIntervals>,
+    "NodeStateIntervals",
+    "Intervals"
+);
 
 // impl_node_state_ord!(
 //     NodeStateOptionDateTime<Option<DateTime<Utc>>>,

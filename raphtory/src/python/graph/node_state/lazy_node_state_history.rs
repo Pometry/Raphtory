@@ -1,7 +1,11 @@
 use crate::{
     db::{
         api::{
-            state::{ops::HistoryOp, LazyNodeState, NodeState},
+            state::{
+                ops,
+                ops::{node::NodeOp, HistoryOp},
+                LazyNodeState, NodeState,
+            },
             view::{
                 history::{History, InternalHistoryOps},
                 internal::Static,
@@ -13,7 +17,9 @@ use crate::{
     impl_one_hop,
     prelude::{GraphViewOps, LayerOps, NodeStateOps, NodeViewOps, TimeOps},
     python::{
-        graph::history::PyHistory,
+        graph::history::{
+            PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+        },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -52,6 +58,75 @@ impl HistoryView {
 
 #[pymethods]
 impl HistoryView {
+    // can't simply call self.inner.t() because we need LazyNodeState<PyHistoryTimestamp> so it matches the node_state macro impls
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.t().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.dt().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn secondary_index(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistorySecondaryIndex>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self
+            .inner
+            .op
+            .clone()
+            .map(|hist| hist.secondary_index().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    #[getter]
+    fn intervals(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyIntervals>,
+        DynamicGraph,
+        DynamicGraph,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.intervals().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    fn earliest_time(
+        &self,
+    ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.earliest_time()
+    }
+
+    fn latest_time(
+        &self,
+    ) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+        self.inner.latest_time()
+    }
+
     /// Compute all values and return the result as a node view
     ///
     /// Returns:

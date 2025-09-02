@@ -11,7 +11,9 @@ use crate::{
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
     python::{
-        graph::history::PyHistory,
+        graph::history::{
+            PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+        },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -22,6 +24,7 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
+use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
@@ -58,6 +61,82 @@ impl NodeStateHistory {
 // impl_node_state_ops
 #[pymethods]
 impl NodeStateHistory {
+    // can't simply call self.inner.t() because we need NodeState<PyHistoryTimestamp>
+    // instead of NodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
+    #[getter]
+    fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().t().into())
+            .collect::<Vec<PyHistoryTimestamp>>()
+            .into();
+        NodeState::new(
+            self.inner.base_graph().clone(),
+            self.inner.graph().clone(),
+            values,
+            self.inner.keys().clone(),
+        )
+    }
+
+    #[getter]
+    fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().dt().into())
+            .collect::<Vec<PyHistoryDateTime>>()
+            .into();
+        NodeState::new(
+            self.inner.base_graph().clone(),
+            self.inner.graph().clone(),
+            values,
+            self.inner.keys().clone(),
+        )
+    }
+
+    #[getter]
+    fn secondary_index(
+        &self,
+    ) -> NodeState<'static, PyHistorySecondaryIndex, DynamicGraph, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().secondary_index().into())
+            .collect::<Vec<PyHistorySecondaryIndex>>()
+            .into();
+        NodeState::new(
+            self.inner.base_graph().clone(),
+            self.inner.graph().clone(),
+            values,
+            self.inner.keys().clone(),
+        )
+    }
+
+    #[getter]
+    fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().intervals().into())
+            .collect::<Vec<PyIntervals>>()
+            .into();
+        NodeState::new(
+            self.inner.base_graph().clone(),
+            self.inner.graph().clone(),
+            values,
+            self.inner.keys().clone(),
+        )
+    }
+
+    fn earliest_time(&self) -> Option<TimeIndexEntry> {
+        self.inner.earliest_time()
+    }
+
+    fn latest_time(&self) -> Option<TimeIndexEntry> {
+        self.inner.latest_time()
+    }
+
     fn __len__(&self) -> usize {
         self.inner.len()
     }

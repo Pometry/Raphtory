@@ -14,8 +14,9 @@ use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
 use raphtory_api::{
     core::storage::timeindex::{TimeError, TimeIndexEntry},
-    iter::{BoxedLIter, IntoDynBoxed},
+    iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use std::{any::Any, ops::Deref, sync::Arc};
 
 impl Repr for TimeIndexEntry {
@@ -209,7 +210,7 @@ impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
 }
 
 #[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryTimestamp {
     history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
 }
@@ -269,9 +270,24 @@ impl PyHistoryTimestamp {
     }
 }
 
+impl IntoIterator for PyHistoryTimestamp {
+    type Item = i64;
+    type IntoIter = BoxedIter<i64>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self.history_t, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<T: InternalHistoryOps> Repr for HistoryTimestamp<T> {
     fn repr(&self) -> String {
         format!("HistoryTimestamp({})", iterator_repr(self.iter()))
+    }
+}
+
+impl Repr for PyHistoryTimestamp {
+    fn repr(&self) -> String {
+        self.history_t.repr()
     }
 }
 
@@ -294,7 +310,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryTimestam
 }
 
 #[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryDateTime {
     history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
 }
@@ -380,9 +396,24 @@ impl PyHistoryDateTime {
     }
 }
 
+impl IntoIterator for PyHistoryDateTime {
+    type Item = Result<DateTime<Utc>, TimeError>;
+    type IntoIter = BoxedIter<Result<DateTime<Utc>, TimeError>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self.history_dt, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<T: InternalHistoryOps> Repr for HistoryDateTime<T> {
     fn repr(&self) -> String {
         format!("HistoryDateTime({})", iterator_repr(self.iter()))
+    }
+}
+
+impl Repr for PyHistoryDateTime {
+    fn repr(&self) -> String {
+        self.history_dt.repr()
     }
 }
 
@@ -405,7 +436,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
 }
 
 #[pyclass(name = "HistorySecondaryIndex", module = "raphtory", frozen)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PyHistorySecondaryIndex {
     history_s: HistorySecondaryIndex<Arc<dyn InternalHistoryOps>>,
 }
@@ -465,9 +496,24 @@ impl PyHistorySecondaryIndex {
     }
 }
 
+impl IntoIterator for PyHistorySecondaryIndex {
+    type Item = usize;
+    type IntoIter = BoxedIter<usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self.history_s, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<T: InternalHistoryOps> Repr for HistorySecondaryIndex<T> {
     fn repr(&self) -> String {
         format!("HistorySecondaryIndex({})", iterator_repr(self.iter()))
+    }
+}
+
+impl Repr for PyHistorySecondaryIndex {
+    fn repr(&self) -> String {
+        self.history_s.repr()
     }
 }
 
@@ -490,7 +536,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistorySecondar
 }
 
 #[pyclass(name = "Intervals", module = "raphtory", frozen)]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PyIntervals {
     intervals: Intervals<Arc<dyn InternalHistoryOps>>,
 }
@@ -570,9 +616,24 @@ impl PyIntervals {
     }
 }
 
+impl IntoIterator for PyIntervals {
+    type Item = i64;
+    type IntoIter = BoxedIter<i64>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        GenLockedIter::from(self.intervals, |item| item.iter()).into_dyn_boxed()
+    }
+}
+
 impl<T: InternalHistoryOps> Repr for Intervals<T> {
     fn repr(&self) -> String {
         format!("Intervals({})", iterator_repr(self.iter()))
+    }
+}
+
+impl Repr for PyIntervals {
+    fn repr(&self) -> String {
+        self.intervals.repr()
     }
 }
 
