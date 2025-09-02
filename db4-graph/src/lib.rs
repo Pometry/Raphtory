@@ -126,18 +126,18 @@ impl TransactionManager {
 
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        Self::new()
+        Self::new().unwrap()
     }
 }
 
 impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         Self::new_with_meta(None, node_meta, edge_meta)
     }
 
-    pub fn new_with_path(path: impl AsRef<Path>) -> Self {
+    pub fn new_with_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         Self::new_with_meta(Some(path.as_ref().into()), node_meta, edge_meta)
@@ -154,7 +154,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
 
         Ok(Self {
-            graph_dir: path.into(),
+            graph_dir: Some(path.into()),
             logical_to_physical: resolver.into(),
             node_count,
             storage: Arc::new(storage),
@@ -180,7 +180,7 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         .into();
 
         let storage: Layer<EXT> = Layer::new_with_meta(
-            graph_dir.as_ref(),
+            graph_dir.as_ref().map(|p| p.path()),
             DEFAULT_MAX_PAGE_LEN_NODES,
             DEFAULT_MAX_PAGE_LEN_EDGES,
             node_meta,
@@ -255,8 +255,8 @@ impl<EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>>> TemporalGraph<EXT> {
         self.storage().node_meta()
     }
 
-    pub fn graph_dir(&self) -> &Path {
-        self.graph_dir.as_ref()
+    pub fn graph_dir(&self) -> Option<&Path> {
+        self.graph_dir.as_ref().map(|p| p.path())
     }
 
     #[inline]

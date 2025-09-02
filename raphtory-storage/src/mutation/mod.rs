@@ -22,7 +22,6 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
-    resolver::StorageError,
     segments::{edge::MemEdgeSegment, node::MemNodeSegment},
     Extension, ES, NS,
 };
@@ -64,15 +63,6 @@ pub enum MutationError {
     },
     #[error("Storage error: {0}")]
     StorageError(#[from] StorageError),
-}
-
-impl From<StorageError> for MutationError {
-    fn from(error: StorageError) -> Self {
-        match error {
-            StorageError::StorageError(e) => MutationError::StorageError(e),
-            StorageError::InvalidNodeId(e) => MutationError::InvalidNodeId(e),
-        }
-    }
 }
 
 pub trait InheritMutationOps: Base {}

@@ -37,6 +37,7 @@ use std::{
 };
 use storage::{Extension, WalImpl};
 
+use crate::prelude::Graph;
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -91,14 +92,14 @@ impl Storage {
 
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Self {
         Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path))),
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path).unwrap())),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         }
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Self {
-        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)));
+        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path).unwrap()));
         Self {
             graph,
             #[cfg(feature = "search")]
