@@ -3485,15 +3485,12 @@ pub(crate) mod test_filters {
             Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
         }
 
-        use crate::prelude::StableEncode;
-
         pub fn init_nodes_graph<
             G: StaticGraphViewOps
                 + AdditionOps
                 + InternalAdditionOps
                 + InternalPropertyAdditionOps
                 + PropertyAdditionOps
-                + StableEncode,
         >(
             graph: G,
         ) -> G {
