@@ -207,11 +207,8 @@ def assert_has_metadata(entity, props):
 
 
 def expect_unify_error(fn):
-    try:
+    with pytest.raises(BaseException, match="Cannot unify"):
         fn()
-        pytest.fail("Expected a unification error but none was raised")
-    except BaseException as e:
-        assert "Cannot unify" in str(e)
 
 
 def assert_in_all(haystack: str, needles):
