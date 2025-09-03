@@ -92,37 +92,37 @@ type Edge {
 	defaultLayer: Edge!
 	"""
 	Returns a view of Edge containing all layers in the list of  names .
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	layers(names: [String!]!): Edge!
 	"""
 	Returns a view of Edge containing all layers except the excluded list of  names .
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	excludeLayers(names: [String!]!): Edge!
 	"""
 	Returns a view of Edge containing the specified layer.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	layer(name: String!): Edge!
 	"""
 	Returns a view of Edge containing all layers except the excluded layer specified.
-
+	
 	Errors if any of the layers do not exist.
 	"""
 	excludeLayer(name: String!): Edge!
 	"""
 	Creates a WindowSet with the given window duration and optional step using a rolling window.
-
+	
 	A rolling window is a window that moves forward by step size at each iteration.
 	"""
 	rolling(window: WindowDuration!, step: WindowDuration): EdgeWindowSet!
 	"""
 	Creates a WindowSet with the given step size using an expanding window.
-
+	
 	An expanding window is a window that grows by step size at each iteration.
 	"""
 	expanding(step: WindowDuration!): EdgeWindowSet!
@@ -140,13 +140,13 @@ type Edge {
 	latest: Edge!
 	"""
 	Creates a view of the Edge including all events that have not been explicitly deleted at time.
-
+	
 	This is equivalent to before(time + 1) for Graph and at(time) for PersistentGraph.
 	"""
 	snapshotAt(time: Int!): Edge!
 	"""
 	Creates a view of the Edge including all events that have not been explicitly deleted at the latest time.
-
+	
 	This is equivalent to a no-op for Graph and latest() for PersistentGraph.
 	"""
 	snapshotLatest: Edge!
@@ -234,7 +234,7 @@ type Edge {
 	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
-
+	
 	Each new edge object contains only updates from the respective layers.
 	"""
 	explodeLayers: Edges!
@@ -248,25 +248,25 @@ type Edge {
 	deletions: [Int!]!
 	"""
 	Checks if the edge is currently valid and exists at the current time.
-
+	
 	Returns: boolean
 	"""
 	isValid: Boolean!
 	"""
 	Checks if the edge is currently active and has at least one update within the current period.
-
+	
 	Returns: boolean
 	"""
 	isActive: Boolean!
 	"""
 	Checks if the edge is deleted at the current time.
-
+	
 	Returns: boolean
 	"""
 	isDeleted: Boolean!
 	"""
 	Checks if the edge is on the same node.
-
+	
 	Returns: boolean
 	"""
 	isSelfLoop: Boolean!
@@ -521,7 +521,7 @@ type Edges {
 	explode: Edges!
 	"""
 	Returns an edge object for each layer within the original edge.
-
+	
 	Each new edge object contains only updates from the respective layers.
 	"""
 	explodeLayers: Edges!
@@ -682,19 +682,19 @@ type GqlVectorSelection {
 	getDocuments: [GqlDocument!]!
 	"""
 	Adds all the documents associated with the specified nodes to the current selection.
-
+	
 	Documents added by this call are assumed to have a score of 0.
 	"""
 	addNodes(nodes: [String!]!): GqlVectorSelection!
 	"""
 	Adds all the documents associated with the specified edges to the current selection.
-
+	
 	Documents added by this call are assumed to have a score of 0.
 	"""
 	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
 	"""
 	Add all the documents a specified number of hops away to the selection.
-
+	
 	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
 	"""
 	expand(hops: Int!, window: Window): GqlVectorSelection!
@@ -911,13 +911,13 @@ type Graph {
 	getIndexSpec: GqlIndexSpec!
 	"""
 	Searches for nodes which match the given filter expression.
-
+	
 	Uses Tantivy's exact search.
 	"""
 	searchNodes(filter: NodeFilter!, limit: Int!, offset: Int!): [Node!]!
 	"""
 	Searches for edges which match the given filter expression.
-
+	
 	Uses Tantivy's exact search.
 	"""
 	searchEdges(filter: EdgeFilter!, limit: Int!, offset: Int!): [Edge!]!
@@ -1167,14 +1167,14 @@ type MutRoot {
 	newGraph(path: String!, graphType: GraphType!): Boolean!
 	"""
 	Move graph from a path path on the server to a new_path on the server.
-
+	
 	If namespace is not provided, it will be set to the current working directory.
 	This applies to both the graph namespace and new graph namespace.
 	"""
 	moveGraph(path: String!, newPath: String!): Boolean!
 	"""
 	Copy graph from a path path on the server to a new_path on the server.
-
+	
 	If namespace is not provided, it will be set to the current working directory.
 	This applies to both the graph namespace and new graph namespace.
 	"""
@@ -1925,6 +1925,9 @@ enum Operator {
 	IS_NOT_IN
 	STARTS_WITH
 	ENDS_WITH
+	"""
+	Contains operator.
+	"""
 	CONTAINS
 	"""
 	Not Contains operator.
@@ -2198,31 +2201,31 @@ type QueryRoot {
 	graph(path: String!): Graph!
 	"""
 	Update graph query, has side effects to update graph state
-
+	
 	Returns:: GqlMutableGraph
 	"""
 	updateGraph(path: String!): MutableGraph!
 	"""
 	Create vectorised graph in the format used for queries
-
+	
 	Returns:: GqlVectorisedGraph
 	"""
 	vectorisedGraph(path: String!): VectorisedGraph
 	"""
 	Returns all namespaces using recursive search
-
+	
 	Returns::  List of namespaces on root
 	"""
 	namespaces: CollectionOfNamespace!
 	"""
 	Returns a specific namespace at a given path
-
+	
 	Returns:: Namespace or error if no namespace found
 	"""
 	namespace(path: String!): Namespace!
 	"""
 	Returns root namespace
-
+	
 	Returns::  Root namespace
 	"""
 	root: Namespace!
@@ -2232,7 +2235,7 @@ type QueryRoot {
 	plugins: QueryPlugin!
 	"""
 	Encodes graph and returns as string
-
+	
 	Returns:: Base64 url safe encoded string
 	"""
 	receiveGraph(path: String!): String!
