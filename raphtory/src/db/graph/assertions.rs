@@ -1,3 +1,4 @@
+use std::ops::Range;
 use crate::{
     db::{
         api::view::{filter_ops::BaseFilterOps, StaticGraphViewOps},
@@ -17,6 +18,8 @@ use {
     crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
     raphtory_storage::disk::DiskGraphStorage, tempfile::TempDir,
 };
+use crate::db::graph::views::window_graph::WindowedGraph;
+use crate::prelude::TimeOps;
 
 pub enum TestGraphVariants {
     Graph,
@@ -51,6 +54,15 @@ impl From<TestVariants> for Vec<TestGraphVariants> {
 pub trait GraphTransformer {
     type Return<G: StaticGraphViewOps>: StaticGraphViewOps;
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G>;
+}
+
+pub struct WindowGraphTransformer(pub Range<i64>);
+
+impl GraphTransformer for WindowGraphTransformer {
+    type Return<G: StaticGraphViewOps> = WindowedGraph<G>;
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+        graph.window(self.0.start, self.0.end)
+    }
 }
 
 pub trait ApplyFilter {

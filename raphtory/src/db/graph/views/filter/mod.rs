@@ -854,6 +854,7 @@ pub(crate) mod test_filters {
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
             };
+            use crate::db::graph::assertions::WindowGraphTransformer;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -941,6 +942,126 @@ pub(crate) mod test_filters {
                 }
 
                 graph
+            }
+
+            #[test]
+            fn test_persistent_graph_first_window() {
+                fn init_graph<
+                    G: StaticGraphViewOps
+                    + AdditionOps
+                    + InternalAdditionOps
+                    + InternalPropertyAdditionOps
+                    + PropertyAdditionOps,
+                >(
+                    graph: G,
+                ) -> G {
+                    graph.add_edge(0, 1, 2, [("p1", Prop::U64(1u64))], None).unwrap();
+                    graph.add_edge(2, 1, 2, [("p1", Prop::U64(2u64))], None).unwrap();
+                    graph.add_edge(5, 1, 2, [("p1", Prop::U64(5u64))], None).unwrap();
+                    graph.add_edge(10, 1, 2, [("p1", Prop::U64(10u64))], None).unwrap();
+                    graph
+                }
+
+                let filter = EdgeFilter::property("p1").temporal().first().eq(2u64);
+
+                // No window; means the first update is at time 0 and the value of p1 is expected to be 1u64.
+                let expected_empty = [];
+                let expected_found = ["1->2"];
+
+                assert_filter_edges_results(
+                    init_graph,
+                    IdentityGraphTransformer,
+                    filter.clone(),
+                    &expected_empty,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    IdentityGraphTransformer,
+                    filter.clone(),
+                    &expected_empty,
+                    TestVariants::PersistentOnly,
+                );
+
+                // Window(1,10); Expected emtpy because the first update is at time 0 and the value of p1 is expected to be 1u64.
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(1..10),
+                    filter.clone(),
+                    &expected_empty,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(1..10),
+                    filter.clone(),
+                    &expected_empty,
+                    TestVariants::PersistentOnly,
+                );
+
+                // Window(2,10); Expected update at time 2 and the value of p1 is expected to be 2u64.
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(2..10),
+                    filter.clone(),
+                    &expected_found,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(2..10),
+                    filter.clone(),
+                    &expected_found,
+                    TestVariants::PersistentOnly,
+                );
+
+                // Window(3,10); Expected update at time 2 (even if it is outside the window) and the value of p1 is expected to be 2u64.
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(3..10),
+                    filter.clone(),
+                    &expected_found,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(3..10),
+                    filter.clone(),
+                    &expected_found,
+                    TestVariants::PersistentOnly,
+                );
+                
+                // Window(4,10); Expected update at time 2 (even if it is outside the window) and the value of p1 is expected to be 2u64.
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(4..10),
+                    filter.clone(),
+                    &expected_found,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(4..10),
+                    filter.clone(),
+                    &expected_found,
+                    TestVariants::PersistentOnly,
+                );
+                
+                // Window(5,10); Expected update at time 5 (even if it is outside the window) and the value of p1 is expected to be 5u64.
+                assert_filter_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(5..10),
+                    filter.clone(),
+                    &expected_empty,
+                    vec![TestGraphVariants::PersistentGraph],
+                );
+                assert_search_edges_results(
+                    init_graph,
+                    WindowGraphTransformer(5..10),
+                    filter.clone(),
+                    &expected_empty,
+                    TestVariants::PersistentOnly,
+                );
             }
 
             #[test]
@@ -3490,7 +3611,7 @@ pub(crate) mod test_filters {
                 + AdditionOps
                 + InternalAdditionOps
                 + InternalPropertyAdditionOps
-                + PropertyAdditionOps
+                + PropertyAdditionOps,
         >(
             graph: G,
         ) -> G {

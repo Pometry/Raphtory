@@ -14,11 +14,9 @@ use crate::{
     search::{
         collectors::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
-            first_exploded_edge_property_filter_collector::FirstExplodedEdgePropertyFilterCollector,
-            latest_exploded_edge_property_filter_collector::LatestExplodedEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_exploded_edges, fallback_filter_nodes, fields, get_reader,
+        fallback_filter_exploded_edges, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -204,7 +202,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             PropertyRef::Metadata(prop_name) => {
                 self.apply_metadata_filter(graph, prop_name, filter, limit, offset)
             }
-            PropertyRef::TemporalProperty(prop_name, Temporal::Any) => self
+            PropertyRef::TemporalProperty(prop_name, _) | PropertyRef::Property(prop_name) => self
                 .apply_temporal_property_filter(
                     graph,
                     prop_name,
@@ -213,27 +211,6 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                     offset,
                     ExplodedEdgePropertyFilterCollector::new,
                 ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::Latest)
-            | PropertyRef::Property(prop_name) => self.apply_temporal_property_filter(
-                graph,
-                prop_name,
-                filter,
-                limit,
-                offset,
-                LatestExplodedEdgePropertyFilterCollector::new,
-            ),
-            PropertyRef::TemporalProperty(prop_name, Temporal::First) => self
-                .apply_temporal_property_filter(
-                    graph,
-                    prop_name,
-                    filter,
-                    limit,
-                    offset,
-                    FirstExplodedEdgePropertyFilterCollector::new,
-                ),
-            PropertyRef::TemporalProperty(_, Temporal::All) => {
-                fallback_filter_exploded_edges(graph, filter, limit, offset)
-            }
         }
     }
 

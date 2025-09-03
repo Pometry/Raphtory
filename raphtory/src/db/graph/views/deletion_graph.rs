@@ -429,19 +429,25 @@ impl EdgeHistoryFilter for PersistentGraph {
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
-        time.t() < w.end && {
-            let ese = self.core_edge(edge_id);
-            if layer_ids.contains(&layer_id) {
-                // Check if any layer has an active update beyond `time`
+        time.t() < w.end
+            && layer_ids.contains(&layer_id) // Check if any layer has an active update beyond `time`
+            && if time.t() < w.start {
+                let ese = self.core_edge(edge_id);
+                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
+                    ese.temporal_prop_layer(layer_id, prop_id)
+                        .active(time.next()..TimeIndexEntry::start(w.start.saturating_add(1)))
+                });
+                // If no layer has a future update, return true
+                !has_future_update
+            } else {
+                let ese = self.core_edge(edge_id);
                 let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
                     ese.temporal_prop_layer(layer_id, prop_id)
                         .active(TimeIndexEntry::start(w.start)..time)
                 });
                 // If no layer has a future update, return true
-                return !has_future_update;
-            };
-            false
-        }
+                !has_future_update
+            }
     }
 }
 

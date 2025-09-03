@@ -1295,16 +1295,7 @@ mod views_test {
             prelude::TimeOps,
         };
         use std::ops::Range;
-
-        struct WindowGraphTransformer(Range<i64>);
-
-        impl GraphTransformer for WindowGraphTransformer {
-            type Return<G: StaticGraphViewOps> = WindowedGraph<G>;
-            fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
-                graph.window(self.0.start, self.0.end)
-            }
-        }
-
+        
         mod test_nodes_filters_window_graph {
             use crate::{
                 db::{
@@ -1333,10 +1324,10 @@ mod views_test {
                         property_filter::PropertyFilterOps,
                         PropertyFilterFactory,
                     },
-                    window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
                 },
                 prelude::GraphViewOps,
             };
+            use crate::db::graph::assertions::WindowGraphTransformer;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,
@@ -3526,7 +3517,6 @@ mod views_test {
                                 property_filter::PropertyFilterOps,
                                 ComposableFilter, PropertyFilterFactory,
                             },
-                            window_graph::views_test::test_filters_window_graph::WindowGraphTransformer,
                         },
                     },
                 },
@@ -3534,6 +3524,7 @@ mod views_test {
             };
             use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
             use std::sync::Arc;
+            use crate::db::graph::assertions::WindowGraphTransformer;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(
                 graph: G,

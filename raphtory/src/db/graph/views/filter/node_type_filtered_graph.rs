@@ -474,7 +474,10 @@ mod tests_node_type_filtered_subgraph {
                 },
                 prelude::{AdditionOps, NO_PROPS},
             };
-            use raphtory_api::core::entities::properties::prop::Prop;
+            use raphtory_api::core::entities::properties::prop::{Prop, PropUnwrap};
+            use raphtory_storage::core_ops::CoreGraphOps;
+            use crate::db::api::view::BaseFilterOps;
+            use crate::db::api::view::internal::FilterOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -581,7 +584,8 @@ mod tests_node_type_filtered_subgraph {
             use crate::db::graph::assertions::{assert_filter_edges_results, assert_search_edges_results, TestVariants};
             use crate::db::graph::views::filter::model::{PropertyFilterFactory};
             use crate::db::graph::views::filter::model::edge_filter::EdgeFilter;
-            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
+            use crate::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{get_all_node_types, LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer, NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
+            use crate::prelude::{EdgeViewOps, Graph, GraphViewOps, PropertiesOps, TimeOps};
 
             #[test]
             fn test_edges_filters() {
@@ -703,6 +707,15 @@ mod tests_node_type_filtered_subgraph {
             fn test_edges_filters_pg_w() {
                 let filter = EdgeFilter::property("p1").eq(1u64);
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
+                let graph = init_graph(Graph::new()).persistent_graph();
+                let edge = graph.edge("N8", "N1").unwrap();
+                let graph = graph
+                    .window(6, 9);
+                let p = graph.edge("N8", "N1").unwrap().properties().get("p1").unwrap_u64();
+                println!("prop = {}", p);
+                assert_eq!(p, 2);
+                let r = graph.filter(filter.clone()).unwrap().filter_edge(graph.core_edge(edge.edge.pid()).as_ref());
+                assert!(!r);
                 assert_filter_edges_results(
                     init_graph,
                     WindowedNodeTypeGraphTransformer(None, 6..9),
