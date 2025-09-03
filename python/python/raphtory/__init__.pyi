@@ -4305,7 +4305,7 @@ class PathFromGraph(object):
         Returns the node properties.
 
         Returns:
-            PyNestedPropsIterable:
+            NestedPropsIterable:
         """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
@@ -4445,7 +4445,7 @@ class MutableNode(Node):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, metadata: PropInput):
+    def add_metadata(self, metadata: PropInput) -> None:
         """
         Add metadata to a node in the graph.
         This function is used to add properties to a node that do not
@@ -4453,6 +4453,9 @@ class MutableNode(Node):
 
         Parameters:
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+
+        Returns:
+            None:
         """
 
     def add_updates(
@@ -4480,16 +4483,19 @@ class MutableNode(Node):
             GraphError: If the operation fails.
         """
 
-    def set_node_type(self, new_type: str):
+    def set_node_type(self, new_type: str) -> None:
         """
         Set the type on the node. This only works if the type has not been previously set, otherwise will
         throw an error
 
         Parameters:
             new_type (str): The new type to be set
+
+        Returns:
+            None:
         """
 
-    def update_metadata(self, metadata: PropInput):
+    def update_metadata(self, metadata: PropInput) -> None:
         """
         Update metadata of a node in the graph overwriting existing values.
         This function is used to add properties to a node that do not
@@ -4497,6 +4503,9 @@ class MutableNode(Node):
 
         Parameters:
             metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+
+        Returns:
+            None:
         """
 
 class Edge(object):
@@ -4589,17 +4598,22 @@ class Edge(object):
             List[int]: A list of unix timestamps
         """
 
-    def deletions_data_time(self):
+    def deletions_data_time(self) -> List[datetime]:
         """
         Returns a list of timestamps of when an edge is deleted.
 
         Returns:
-            List[datetime]
+            List[datetime]:
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
     def earliest_date_time(self) -> datetime:
@@ -4695,10 +4709,20 @@ class Edge(object):
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -4717,7 +4741,6 @@ class Edge(object):
 
         Returns:
            List[int]:  A list of unix timestamps.
-
         """
 
     def history_counts(self) -> int:
@@ -4811,19 +4834,19 @@ class Edge(object):
     @property
     def layer_name(self) -> str:
         """
-        Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
+        Gets the name of the layer this edge belongs to - assuming it only belongs to one layer.
 
         Returns:
             str: The name of the layer
         """
 
     @property
-    def layer_names(self):
+    def layer_names(self) -> List[str]:
         """
-        Gets the names of the layers this edge belongs to
+        Gets the names of the layers this edge belongs to.
 
         Returns:
-            List[str]-  The name of the layer
+            List[str]:  The name of the layer
         """
 
     def layers(self, names: list[str]) -> Edge:
@@ -5087,8 +5110,13 @@ class Edges(object):
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
     def earliest_date_time(self):
@@ -5184,10 +5212,20 @@ class Edges(object):
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -5579,8 +5617,13 @@ class NestedEdges(object):
         """
 
     @property
-    def dst(self):
-        """Returns the destination node of the edge."""
+    def dst(self) -> Node:
+        """
+        Returns the destination node of the edge.
+
+        Returns:
+            Node:
+        """
 
     @property
     def earliest_date_time(self):
@@ -5666,10 +5709,20 @@ class NestedEdges(object):
         """
 
     def explode(self):
-        """Explodes returns an edge object for each update within the original edge."""
+        """
+        Explodes returns an edge object for each update within the original edge.
+
+        Returns:
+            Exploded:
+        """
 
     def explode_layers(self):
-        """Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers."""
+        """
+        Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+
+        Returns:
+            Exploded:
+        """
 
     def has_layer(self, name: str) -> bool:
         """

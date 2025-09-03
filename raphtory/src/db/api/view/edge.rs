@@ -176,6 +176,9 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn src(&self) -> Self::Nodes;
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     fn dst(&self) -> Self::Nodes;
 
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
@@ -185,26 +188,49 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
+    ///
+    /// Returns:
+    ///     GID:
     fn id(&self) -> Self::ValueType<(GID, GID)>;
 
-    /// Explodes an edge and returns all instances it had been updated as seperate edges
+    /// Explodes an edge and returns all instances it had been updated as separate edges
+    ///
+    /// Returns:
+    ///     Exploded:
     fn explode(&self) -> Self::Exploded;
 
+    /// Returns:
+    ///     Exploded:
     fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
+    ///
+    /// Returns:
+    ///     int:
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
+    /// Returns:
+    ///     DateTime:
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
+    /// Returns:
+    ///     DateTime:
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the latest time an edge was updated
+    ///
+    /// Returns:
+    ///     int:
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
+    ///
+    /// Returns:
+    ///     int:
     fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
+    /// Returns:
+    ///     DateTime:
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
@@ -389,6 +415,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Returns the destination node of the edge.
+    ///
+    /// Returns:
+    ///     Node:
     fn dst(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.dst())
     }

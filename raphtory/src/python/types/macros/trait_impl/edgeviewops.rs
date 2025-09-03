@@ -21,6 +21,9 @@ macro_rules! impl_edgeviewops {
             }
 
             /// Returns the destination node of the edge.
+            ///
+            /// Returns:
+            ///     Node:
             #[getter]
             fn dst(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.dst()
@@ -33,6 +36,9 @@ macro_rules! impl_edgeviewops {
             }
 
             /// Explodes returns an edge object for each update within the original edge.
+            ///
+            /// Returns:
+            ///     Exploded:
             fn explode(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
@@ -40,6 +46,9 @@ macro_rules! impl_edgeviewops {
             }
 
             /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+            ///
+            /// Returns:
+            ///     Exploded:
             fn explode_layers(
                 &self,
             ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {

@@ -528,16 +528,16 @@ class RemoteNode(object):
         None:
         """
 
-    def set_node_type(self, new_type):
+    def set_node_type(self, new_type: str) -> None:
         """
         Set the type on the node. This only works if the type has not been previously set, otherwise will
         throw an error
 
         Parameters:
-        new_type (str): The new type to be set
+          new_type (str): The new type to be set
 
         Returns:
-        None:
+          None:
         """
 
     def update_metadata(self, properties):

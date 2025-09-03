@@ -207,7 +207,6 @@ impl PyEdge {
     ///
     /// Returns:
     ///    List[int]:  A list of unix timestamps.
-    ///
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
         history.into_pyarray(py)
@@ -242,7 +241,7 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is deleted.
     ///
     /// Returns:
-    ///     List[datetime]
+    ///     List[datetime]:
     pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.deletions_date_time()
     }
@@ -338,16 +337,16 @@ impl PyEdge {
         self.edge.time()
     }
 
-    /// Gets the names of the layers this edge belongs to
+    /// Gets the names of the layers this edge belongs to.
     ///
     /// Returns:
-    ///     List[str]-  The name of the layer
+    ///     List[str]:  The name of the layer
     #[getter]
     pub fn layer_names(&self) -> Vec<ArcStr> {
         self.edge.layer_names()
     }
 
-    /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
+    /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer.
     ///
     /// Returns:
     ///     str: The name of the layer

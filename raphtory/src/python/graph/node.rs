@@ -398,6 +398,9 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     new_type (str): The new type to be set
+    ///
+    /// Returns:
+    ///     None:
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.node.set_node_type(new_type)
     }
@@ -439,6 +442,9 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///
+    /// Returns:
+    ///     None:
     pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
         self.node.add_metadata(metadata)
     }
@@ -449,6 +455,9 @@ impl PyMutableNode {
     ///
     /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    ///
+    /// Returns:
+    ///     None:
     pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
         self.node.update_metadata(metadata)
     }
