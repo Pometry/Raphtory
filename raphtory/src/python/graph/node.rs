@@ -27,7 +27,7 @@ use crate::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
-            properties::{MetadataView, PropertiesView, MetadataListList, PyNestedPropsIterable},
+            properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},

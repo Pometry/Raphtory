@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
     python::{
         graph::properties::{
-            MetadataView, PropertiesView, MetadataListList, PyNestedPropsIterable,
+            MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable,
         },
         types::{
             repr::{iterator_repr, Repr},

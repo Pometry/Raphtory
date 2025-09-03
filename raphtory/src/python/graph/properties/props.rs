@@ -10,7 +10,7 @@ use crate::{
     prelude::PropertiesOps,
     python::{
         graph::properties::{
-            MetadataView, PyMetadata, MetadataListList, PyTemporalPropsList,
+            MetadataListList, MetadataView, PyMetadata, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
