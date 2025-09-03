@@ -220,12 +220,35 @@ impl EarliestDateTimeView {
         )
     }
 
+    /// Iterate over valid items only. Ignore error and None values.
+    ///
+    /// Returns:
+    #[doc = "     Iterator[Tuple[Node, datetime]]: Iterator over items"]
+    fn items_valid(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            |inner| inner
+                .iter()
+                .filter(|(_, v)| v.as_ref().is_ok_and(|opt| opt.is_some()))
+                .map(|(n, v)| (n.cloned(), v.unwrap().unwrap()))
+        )
+    }
+
     /// Iterate over values
     ///
     /// Returns:
     #[doc = "     Iterator[Optional[datetime]]: Iterator over values"]
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
+    }
+
+    /// Iterate over valid values only. Ignore error and None values.
+    ///
+    /// Returns:
+    #[doc = "     Iterator[datetime]: Iterator over values"]
+    fn values_valid(&self) -> PyBorrowingIterator {
+        self.iter_valid()
     }
 
     /// Sort results by node id
@@ -259,7 +282,7 @@ impl EarliestDateTimeView {
 // impl_node_state_ord_ops
 #[pymethods]
 impl EarliestDateTimeView {
-    /// Sort by value
+    /// Sort by value. Note that 'None' values will always come after valid DateTime values
     ///
     /// Arguments:
     ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
@@ -270,22 +293,23 @@ impl EarliestDateTimeView {
     fn sorted(
         &self,
         reverse: bool,
-    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
-        if reverse {
-            self.inner.sort_by_values_by(|a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b).reverse(),
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Ok(_), Err(_)) => Ordering::Less,
-                _ => Ordering::Equal,
-            })
-        } else {
-            self.inner.sort_by_values_by(|a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b),
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Ok(_), Err(_)) => Ordering::Less,
-                _ => Ordering::Equal,
-            })
+    ) -> PyResult<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>> {
+        if let Some(err) = self.inner.iter_values().find_map(|r| r.err()) {
+            return Err(PyErr::from(err));
         }
+        // make the Result be on the outside, not inside the NodeState
+        let op = self.inner.op.clone().map(|r| r.unwrap());
+        let lazy_node_state = LazyNodeState::new(op, self.inner.nodes());
+        Ok(if reverse {
+            lazy_node_state.sort_by_values_by(|a, b| a.cmp(b).reverse())
+        } else {
+            lazy_node_state.sort_by_values_by(|a, b| match (a, b) {
+                (Some(a), Some(b)) => a.cmp(b),
+                (None, Some(_)) => Ordering::Greater,
+                (Some(_), None) => Ordering::Less,
+                (None, None) => Ordering::Equal,
+            })
+        })
     }
 
     /// Compute the k largest values
@@ -420,11 +444,18 @@ impl EarliestDateTimeView {
     }
 
     // impl_node_state_group_by_ops
-    fn groups(&self) -> NodeGroups<Option<DateTime<Utc>>, DynamicGraph> {
-        self.inner.group_by(|result| match result {
-            Ok(Some(dt)) => Some(dt.clone()),
-            _ => None,
-        })
+    /// Group by value
+    ///
+    /// Returns:
+    ///     NodeGroups: The grouped nodes
+    fn groups(&self) -> PyResult<NodeGroups<Option<DateTime<Utc>>, DynamicGraph>> {
+        if let Some(err) = self.inner.iter_values().find_map(|r| r.err()) {
+            return Err(PyErr::from(err));
+        }
+        Ok(self.inner.group_by(|result| match result {
+            Ok(Some(dt)) => Some(*dt),
+            _ => None, // can't be an error because we already checked for those
+        }))
     }
 }
 

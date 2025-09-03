@@ -703,12 +703,12 @@ impl_node_state!(
     "Intervals"
 );
 
-// impl_node_state_ord!(
-//     NodeStateOptionDateTime<Option<DateTime<Utc>>>,
-//     "NodeStateOptionDateTime",
-//     "Optional[datetime]"
-// );
-// impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
+impl_node_state_ord!(
+    NodeStateOptionDateTime<Option<DateTime<Utc>>>,
+    "NodeStateOptionDateTime",
+    "Optional[datetime]"
+);
+impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
 // type History<G> = ops::HistoryOp<'static, G>;
 // impl_lazy_node_state_ord!(

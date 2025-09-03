@@ -19,7 +19,7 @@ use pyo3::{
     types::{PyDict, PyNotImplemented},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::timeindex::TimeError;
+use raphtory_api::{core::storage::timeindex::TimeError};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::{iter::ParallelIterator, prelude::ParallelSliceMut};
 use std::{cmp::Ordering, collections::HashMap};
@@ -32,7 +32,8 @@ use std::{cmp::Ordering, collections::HashMap};
 
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct NodeStateResultOptionDateTime {
-    inner: NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph, DynamicGraph>,
+    pub(crate) inner:
+        NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph, DynamicGraph>,
 }
 
 impl NodeStateResultOptionDateTime {
@@ -126,6 +127,23 @@ impl NodeStateResultOptionDateTime {
         )
     }
 
+    fn iter_valid(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            NodeState<
+                'static,
+                Result<Option<DateTime<Utc>>, TimeError>,
+                DynamicGraph,
+                DynamicGraph,
+            >,
+            |inner| inner.iter_values().filter_map(|v| v
+                .as_ref()
+                .ok()
+                .map(|o| o.clone())
+                .flatten())
+        )
+    }
+
     /// Get value for node
     ///
     /// Arguments:
@@ -185,12 +203,40 @@ impl NodeStateResultOptionDateTime {
         )
     }
 
+    /// Iterate over valid items only. Ignore error and None values.
+    ///
+    /// Returns:
+    #[doc = "     Iterator[Tuple[Node, datetime]]: Iterator over items"]
+    fn items_valid(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            NodeState<
+                'static,
+                Result<Option<DateTime<Utc>>, TimeError>,
+                DynamicGraph,
+                DynamicGraph,
+            >,
+            |inner| inner
+                .iter()
+                .filter(|(_, v)| v.as_ref().is_ok_and(|opt| opt.is_some()))
+                .map(|(n, v)| (n.cloned(), v.clone().unwrap().unwrap()))
+        )
+    }
+
     /// Iterate over values
     ///
     /// Returns:
     #[doc = "     Iterator[Optional[datetime]]: Iterator over values"]
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
+    }
+
+    /// Iterate over valid values only. Ignore error and None values.
+    ///
+    /// Returns:
+    #[doc = "     Iterator[datetime]: Iterator over values"]
+    fn values_valid(&self) -> PyBorrowingIterator {
+        self.iter_valid()
     }
 
     /// Sort results by node id
@@ -237,22 +283,29 @@ impl NodeStateResultOptionDateTime {
     fn sorted(
         &self,
         reverse: bool,
-    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
-        if reverse {
-            self.inner.sort_by_values_by(|a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b).reverse(),
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Ok(_), Err(_)) => Ordering::Less,
-                _ => Ordering::Equal,
-            })
+    ) -> PyResult<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|x| x.clone().map_err(PyErr::from))
+            .collect::<Result<Vec<_>, PyErr>>()?
+            .into();
+        let node_state = NodeState::new(
+            self.inner.base_graph().clone(),
+            self.inner.graph().clone(),
+            values,
+            self.inner.keys().clone(),
+        );
+        Ok(if reverse {
+            node_state.sort_by_values_by(|a, b| a.cmp(b).reverse())
         } else {
-            self.inner.sort_by_values_by(|a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b),
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Ok(_), Err(_)) => Ordering::Less,
-                _ => Ordering::Equal,
+            node_state.sort_by_values_by(|a, b| match (a, b) {
+                (Some(a), Some(b)) => a.cmp(b),
+                (None, Some(_)) => Ordering::Greater,
+                (Some(_), None) => Ordering::Less,
+                (None, None) => Ordering::Equal,
             })
-        }
+        })
     }
 
     /// Compute the k largest values
@@ -387,11 +440,18 @@ impl NodeStateResultOptionDateTime {
     }
 
     // impl_node_state_group_by_ops
-    fn groups(&self) -> NodeGroups<Option<DateTime<Utc>>, DynamicGraph> {
-        self.inner.group_by(|result| match result {
-            Ok(Some(dt)) => Some(dt.clone()),
-            _ => None,
-        })
+    /// Group by value
+    ///
+    /// Returns:
+    ///     NodeGroups: The grouped nodes
+    fn groups(&self) -> PyResult<NodeGroups<Option<DateTime<Utc>>, DynamicGraph>> {
+        if let Some(err) = self.inner.iter_values().find_map(|r| r.as_ref().err()) {
+            return Err(PyErr::from(err.clone()));
+        }
+        Ok(self.inner.group_by(|result| match result {
+            Ok(Some(dt)) => Some(*dt),
+            _ => None, // can't be an error because we already checked for those
+        }))
     }
 }
 
