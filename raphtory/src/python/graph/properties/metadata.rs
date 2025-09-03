@@ -196,11 +196,11 @@ impl MetadataView {
     }
 }
 
-py_nested_iterable_base!(PyMetadataListList, DynMetadata, PyMetadata);
-py_eq!(PyMetadataListList, PyMetadataListListCmp);
+py_nested_iterable_base!(MetadataListList, DynMetadata, PyMetadata);
+py_eq!(MetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
-impl PyMetadataListList {
+impl MetadataListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|mut it| it.next().map(|p| p.keys().collect()))

@@ -10,7 +10,7 @@ use crate::{
     prelude::*,
     python::{
         graph::properties::{
-            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+            MetadataView, PropertiesView, MetadataListList, PyNestedPropsIterable,
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -513,7 +513,7 @@ impl PyNestedEdges {
     /// Returns:
     ///     MetadataListList:
     #[getter]
-    pub fn metadata(&self) -> PyMetadataListList {
+    pub fn metadata(&self) -> MetadataListList {
         let edges = self.edges.clone();
         (move || edges.metadata()).into()
     }

@@ -27,7 +27,7 @@ use crate::{
         filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
-            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
+            properties::{MetadataView, PropertiesView, MetadataListList, PyNestedPropsIterable},
         },
         types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
@@ -974,7 +974,7 @@ impl PyPathFromGraph {
     /// Returns:
     ///     MetadataListList:
     #[getter]
-    fn metadata(&self) -> PyMetadataListList {
+    fn metadata(&self) -> MetadataListList {
         let path = self.path.clone();
         (move || path.metadata()).into()
     }

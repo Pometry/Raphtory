@@ -10,7 +10,7 @@ use crate::{
     prelude::PropertiesOps,
     python::{
         graph::properties::{
-            MetadataView, PyMetadata, PyMetadataListList, PyTemporalPropsList,
+            MetadataView, PyMetadata, MetadataListList, PyTemporalPropsList,
             PyTemporalPropsListList,
         },
         types::{
@@ -338,7 +338,7 @@ pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
 impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(sp) = ob.extract::<PyRef<PyMetadataListList>>() {
+        if let Ok(sp) = ob.extract::<PyRef<MetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
             Ok(p.deref().into())
@@ -350,8 +350,8 @@ impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
     }
 }
 
-impl From<&PyMetadataListList> for PyMetadataListListCmp {
-    fn from(value: &PyMetadataListList) -> Self {
+impl From<&MetadataListList> for PyMetadataListListCmp {
+    fn from(value: &MetadataListList) -> Self {
         Self(
             value
                 .items()
