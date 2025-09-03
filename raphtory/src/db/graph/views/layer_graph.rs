@@ -566,6 +566,8 @@ mod test_layers {
                 prelude::AdditionOps,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
+            use crate::db::api::view::MaterializedGraph::PersistentGraph;
+            use crate::db::graph::assertions::TestGraphVariants;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -778,14 +780,14 @@ mod test_layers {
                     LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 assert_search_edges_results(
                     init_graph,
                     LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
                     &expected_results,
-                    TestVariants::PersistentOnly,
+                    vec![TestGraphVariants::PersistentGraph],
                 );
 
                 let layers: Vec<String> = vec!["layer1".into()];
@@ -797,14 +799,14 @@ mod test_layers {
                     LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 assert_search_edges_results(
                     init_graph,
                     LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
                     &expected_results,
-                    TestVariants::PersistentOnly,
+                    vec![TestGraphVariants::PersistentGraph],
                 );
 
                 let layers: Vec<String> = vec!["layer2".into()];
@@ -815,14 +817,14 @@ mod test_layers {
                     LayeredGraphWindowTransformer(layers.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    vec![TestGraphVariants::PersistentGraph],
                 );
                 assert_search_edges_results(
                     init_graph,
                     LayeredGraphWindowTransformer(layers, 6..9),
                     filter,
                     &expected_results,
-                    TestVariants::PersistentOnly,
+                    vec![TestGraphVariants::PersistentGraph],
                 );
             }
         }
