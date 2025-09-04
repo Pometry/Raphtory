@@ -4139,7 +4139,7 @@ class PathFromGraph(object):
             NestedI64VecIterable:
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> NestedVecUtcDateTimeIterable:
         """
         Returns all timestamps of nodes, when an node is added or change to an node is made.
 
@@ -4735,12 +4735,12 @@ class Edge(object):
             bool:
         """
 
-    def history(self) -> List[int]:
+    def history(self):
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-           List[int]:  A list of unix timestamps.
+            PyArray:
         """
 
     def history_counts(self) -> int:
@@ -4762,8 +4762,13 @@ class Edge(object):
         """
 
     @property
-    def id(self):
-        """The id of the edge."""
+    def id(self) -> GID:
+        """
+        The id of the edge.
+
+        Returns:
+            GID:
+        """
 
     def is_active(self) -> bool:
         """
@@ -4871,8 +4876,13 @@ class Edge(object):
         """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self) -> Properties:
@@ -5075,7 +5085,12 @@ class Edges(object):
         """
 
     def count(self):
-        """Returns the number of edges"""
+        """
+        Returns the number of edges.
+
+        Returns:
+            usize:
+        """
 
     @property
     def date_time(self):
@@ -5083,7 +5098,7 @@ class Edges(object):
         Returns the date times of exploded edges
 
         Returns:
-           A list of date times.
+           OptionUtcDateTimeIterable:
         """
 
     def default_layer(self) -> Edges:
@@ -5098,15 +5113,15 @@ class Edges(object):
         Returns all timestamps of edges where an edge is deleted
 
         Returns:
-            A list of lists of unix timestamps
+            PyGenericIterable:
         """
 
-    def deletions_date_time(self):
+    def deletions_date_time(self) -> OptionVecUtcDateTimeIterable:
         """
         Returns all timestamps of edges where an edge is deleted
 
         Returns:
-            A list of lists of DateTime objects
+            OptionVecUtcDateTimeIterable:
         """
 
     @property
@@ -5124,16 +5139,16 @@ class Edges(object):
         Returns the earliest date time of the edges.
 
         Returns:
-         Earliest date time of the edges.
+            OptionUtcDateTimeIterable:
         """
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> OptionI64Iterable:
         """
         Returns the earliest time of the edges.
 
         Returns:
-        Earliest time of the edges.
+            OptionI64Iterable:
         """
 
     @property
@@ -5243,28 +5258,42 @@ class Edges(object):
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists unix timestamps.
+            PyGenericIterable:
 
         """
 
     def history_counts(self):
-        """Returns the number of times any edge was added or change to an edge was been made."""
+        """
+        Returns the number of times any edge was added or change to an edge was been made.
 
-    def history_date_time(self):
+        Returns:
+            U64Iterable:
+        """
+
+    def history_date_time(self) -> OptionVecUtcDateTimeIterable:
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
         Returns:
-           A list of lists of timestamps.
-
+            OptionVecUtcDateTimeIterable:
         """
 
     @property
     def id(self):
-        """Returns all ids of the edges."""
+        """
+        Returns all ids of the edges.
+
+        Return:
+            GIDGIDIterable:
+        """
 
     def is_active(self):
-        """Check if the edges are active (there is at least one update during this time)."""
+        """
+        Check if the edges are active (there is at least one update during this time).
+
+        Return:
+            BoolIterable:
+        """
 
     def is_deleted(self):
         """
@@ -5363,8 +5392,13 @@ class Edges(object):
         """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self) -> PropertiesView:
@@ -5590,8 +5624,13 @@ class NestedEdges(object):
         """
 
     @property
-    def date_time(self):
-        """Get the date times of exploded edges"""
+    def date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Get the date times of exploded edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     def default_layer(self) -> NestedEdges:
         """
@@ -5600,20 +5639,20 @@ class NestedEdges(object):
              NestedEdges: The layered view
         """
 
-    def deletions(self):
+    def deletions(self) -> NestedI64VecIterable:
         """
-        Returns all timestamps of edges, where an edge is deleted
+        Returns all timestamps of edges, where an edge is deleted.
 
         Returns:
-            A list of lists of lists of unix timestamps
+            NestedI64VecIterable: A list of lists of lists of unix timestamps
         """
 
-    def deletions_date_time(self):
+    def deletions_date_time(self) -> NestedVecUtcDateTimeIterable:
         """
-        Returns all timestamps of edges, where an edge is deleted
+        Returns all timestamps of edges, where an edge is deleted.
 
         Returns:
-            A list of lists of lists of DateTime objects
+            NestedVecUtcDateTimeIterable: A list of lists of lists of DateTime objects
         """
 
     @property
@@ -5626,12 +5665,22 @@ class NestedEdges(object):
         """
 
     @property
-    def earliest_date_time(self):
-        """Returns the earliest date time of the edges."""
+    def earliest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the earliest date time of the edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def earliest_time(self):
-        """Returns the earliest time of the edges."""
+    def earliest_time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the earliest time of the edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     @property
     def end(self) -> Optional[int]:
@@ -5736,26 +5785,61 @@ class NestedEdges(object):
         """
 
     def history(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        """
+        Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
-    def history_date_time(self):
-        """Returns all timestamps of edges, when an edge is added or change to an edge is made."""
+        Return:
+            NestedI64VecIterable:
+        """
+
+    def history_date_time(self) -> NestedVecUtcDateTimeIterable:
+        """
+        Returns all timestamps of edges, when an edge is added or change to an edge is made.
+
+        Returns:
+            NestedVecUtcDateTimeIterable:
+        """
 
     @property
-    def id(self):
-        """Returns all ids of the edges."""
+    def id(self) -> NestedGIDGIDIterable:
+        """
+        Returns all ids of the edges.
 
-    def is_active(self):
-        """Check if the edges are active (there is at least one update during this time)."""
+        Returns:
+            NestedGIDGIDIterable:
+        """
 
-    def is_deleted(self):
-        """Check if edges are deleted"""
+    def is_active(self) -> NestedBoolIterable:
+        """
+        Check if the edges are active (there is at least one update during this time).
 
-    def is_self_loop(self):
-        """Check if the edges are on the same node"""
+        Returns:
+            NestedBoolIterable:
+        """
 
-    def is_valid(self):
-        """Check if edges are valid (i.e., not deleted)"""
+    def is_deleted(self) -> NestedBoolIterable:
+        """
+        Check if edges are deleted.
+
+        Returns:
+            NestedBoolIterable:
+        """
+
+    def is_self_loop(self) -> NestedBoolIterable:
+        """
+        Check if the edges are on the same node.
+
+        Returns:
+            NestedBoolIterable:
+        """
+
+    def is_valid(self) -> NestedBoolIterable:
+        """
+        Check if edges are valid (i.e., not deleted).
+
+        Returns:
+            NestedBoolIterable:
+        """
 
     def latest(self) -> NestedEdges:
         """
@@ -5791,7 +5875,7 @@ class NestedEdges(object):
 
     @property
     def layer_names(self):
-        """Returns the names of the layers the edges belong to"""
+        """Returns the names of the layers the edges belong to."""
 
     def layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5815,8 +5899,13 @@ class NestedEdges(object):
         """
 
     @property
-    def nbr(self):
-        """Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)"""
+    def nbr(self) -> Nodes:
+        """
+        Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def properties(self):
@@ -5916,8 +6005,13 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self):
-        """Returns the times of exploded edges"""
+    def time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the times of exploded edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def valid_layers(self, names: list[str]) -> NestedEdges:
         """

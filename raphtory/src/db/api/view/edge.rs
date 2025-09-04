@@ -173,15 +173,21 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn src(&self) -> Self::Nodes;
 
     /// Returns the destination node of the edge.
     ///
     /// Returns:
-    ///     Node:
+    ///     Nodes:
     fn dst(&self) -> Self::Nodes;
 
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+    ///
+    /// Returns:
+    ///     Nodes:
     fn nbr(&self) -> Self::Nodes;
 
     /// Check if the edge is active (has some update within the current bound) at a given time point.
@@ -410,6 +416,9 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     Nodes:
     fn src(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.src())
     }
@@ -417,16 +426,21 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     /// Returns the destination node of the edge.
     ///
     /// Returns:
-    ///     Node:
+    ///     Nodes:
     fn dst(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.dst())
     }
 
+    /// Returns:
+    ///     Nodes:
     fn nbr(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.remote())
     }
 
     /// Check if an edge is active is active (has some update within the current bound) at a given time point.
+    ///
+    /// Returns:
+    ///     bool:
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
             if edge_valid_layer(g, e) {

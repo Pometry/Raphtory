@@ -30,6 +30,9 @@ macro_rules! impl_edgeviewops {
             }
 
             /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
+            ///
+            /// Returns:
+            ///     Nodes:
             #[getter]
             fn nbr(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.nbr()

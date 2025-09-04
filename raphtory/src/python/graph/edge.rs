@@ -194,6 +194,9 @@ impl PyEdge {
     }
 
     /// The id of the edge.
+    ///
+    /// Returns:
+    ///     GID:
     #[getter]
     pub fn id(&self) -> (GID, GID) {
         self.edge.id()
@@ -206,7 +209,7 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    List[int]:  A list of unix timestamps.
+    ///     PyArray:
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
         history.into_pyarray(py)
