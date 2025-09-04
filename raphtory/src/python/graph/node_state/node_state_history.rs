@@ -3,7 +3,7 @@ use crate::{
         api::{
             state::NodeState,
             view::{
-                history::{compose_multiple_histories, History, InternalHistoryOps},
+                history::{History, InternalHistoryOps},
                 DynamicGraph,
             },
         },

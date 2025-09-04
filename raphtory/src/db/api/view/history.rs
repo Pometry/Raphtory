@@ -339,39 +339,30 @@ impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDy
 }
 
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
-/// TODO: Write benchmark to see performance hit of Arcs
-#[derive(Clone)]
+/// TODO: Write benchmark to see performance hit of Arc and Boxes
+// #[derive(Clone)]
 pub struct CompositeHistory<'a> {
-    history_objects: Vec<Arc<dyn InternalHistoryOps + 'a>>,
-    // history_objects: Arc<[Box<dyn InternalHistoryOps + 'a>]>,
+    history_objects: Box<[Box<dyn InternalHistoryOps + 'a>]>,
 }
 
 impl<'a> CompositeHistory<'a> {
-    pub fn new(history_objects: Vec<Arc<dyn InternalHistoryOps + 'a>>) -> Self {
-        Self { history_objects }
+    pub fn new(history_objects: Vec<Box<dyn InternalHistoryOps + 'a>>) -> Self {
+        Self {
+            history_objects: history_objects.into_boxed_slice(),
+        }
     }
 }
 
-// Note: All the items held by their respective History objects must already be of type Arc<T>
 pub fn compose_multiple_histories<'a>(
-    objects: impl IntoIterator<Item = History<'a, Arc<dyn InternalHistoryOps + 'a>>>,
+    objects: impl IntoIterator<Item = History<'a, Box<dyn InternalHistoryOps + 'a>>>,
 ) -> History<'a, CompositeHistory<'a>> {
     History::new(CompositeHistory::new(
         objects.into_iter().map(|h| h.0).collect(),
     ))
 }
 
-// pub fn compose_multiple_histories_2<'a>(
-//     objects: impl IntoIterator<Item = History<'a, impl InternalHistoryOps + 'a>>,
-// ) -> History<'a, CompositeHistory<'a>> {
-//     History::new(CompositeHistory::new(
-//         objects.into_iter().map(|h| h.0).collect(),
-//     ))
-// }
-
-// Note: Items supplied by the iterator must already be of type Arc<T>
 pub fn compose_history_from_items<'a>(
-    objects: impl IntoIterator<Item = Arc<dyn InternalHistoryOps + 'a>>,
+    objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps + 'a>>,
 ) -> History<'a, CompositeHistory<'a>> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
@@ -1296,10 +1287,10 @@ mod tests {
         );
 
         // create Composite History Object
-        let tmp_vector: Vec<Arc<dyn InternalHistoryOps>> = vec![
-            Arc::new(dumbledore_node),
-            Arc::new(harry_node),
-            Arc::new(character_edge),
+        let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![
+            Box::new(dumbledore_node),
+            Box::new(harry_node),
+            Box::new(character_edge),
         ];
         let composite_history_object = compose_history_from_items(tmp_vector);
         assert_eq!(

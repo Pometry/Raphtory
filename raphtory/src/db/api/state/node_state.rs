@@ -555,7 +555,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     pub fn flatten(&self) -> History<'graph, CompositeHistory<'graph>> {
         let histories: Vec<_> = self
             .par_iter_values()
-            .map(|hist| Arc::new(hist.0.clone()) as Arc<dyn InternalHistoryOps>)
+            .map(|hist| Box::new(hist.0.clone()) as Box<dyn InternalHistoryOps>)
             .collect();
         compose_history_from_items(histories)
     }
