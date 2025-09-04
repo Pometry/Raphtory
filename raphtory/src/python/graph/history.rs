@@ -175,24 +175,16 @@ impl PyHistory {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for PyHistory {
+impl<T: IntoArcDynHistoryOps> From<History<'_, T>> for PyHistory {
     fn from(history: History<T>) -> Self {
-        let arc_ops: Arc<dyn InternalHistoryOps> = {
-            // Check if T is already Arc<dyn InternalHistoryOps> to avoid nesting them
-            let any_ref: &dyn Any = &history.0;
-            if let Some(arc_obj) = any_ref.downcast_ref::<Arc<dyn InternalHistoryOps>>() {
-                Arc::clone(arc_obj)
-            } else {
-                Arc::new(history.0)
-            }
-        };
+        let arc_ops: Arc<dyn InternalHistoryOps> = history.0.into_arc_dyn();
         Self {
             history: History::new(arc_ops),
         }
     }
 }
 
-impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for History<'_, T> {
+impl<'py, T: IntoArcDynHistoryOps> IntoPyObject<'py> for History<'_, T> {
     type Target = PyHistory;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;

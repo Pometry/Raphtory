@@ -610,8 +610,8 @@ impl PyTemporalPropList {
         let builder = self.builder.clone();
         (move || {
             builder().map(|p| {
-                p.map(|v| v.history().into_arc_static())
-                    .unwrap_or(History::create_empty().into_arc_static())
+                p.map(|v| v.history().into_arc_dyn())
+                    .unwrap_or(History::create_empty().into_arc_dyn())
             })
         })
         .into()
@@ -795,8 +795,8 @@ impl PyTemporalPropListList {
         (move || {
             builder().map(|it| {
                 it.map(|p| {
-                    p.map(|v| v.history().into_arc_static())
-                        .unwrap_or(History::create_empty().into_arc_static())
+                    p.map(|v| v.history().into_arc_dyn())
+                        .unwrap_or(History::create_empty().into_arc_dyn())
                 })
             })
         })

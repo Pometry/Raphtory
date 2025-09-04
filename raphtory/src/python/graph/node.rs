@@ -831,7 +831,7 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || {
             path.history()
-                .map(|h_iter| h_iter.map(|h| h.into_arc_static()))
+                .map(|h_iter| h_iter.map(|h| h.into_arc_dyn()))
         })
         .into()
     }

@@ -48,6 +48,13 @@ pub trait InternalHistoryOps: Send + Sync {
     }
 }
 
+pub trait IntoArcDynHistoryOps: InternalHistoryOps + Sized + 'static {
+    // override to avoid creating a new Arc
+    fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
+        Arc::new(self)
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
 
@@ -139,9 +146,9 @@ impl History<'_, EmptyHistory> {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> History<'_, T> {
-    pub fn into_arc_static(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
-        History::new(Arc::new(self.0))
+impl<T: IntoArcDynHistoryOps> History<'_, T> {
+    pub fn into_arc_dyn(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
+        History::new(self.0.into_arc_dyn())
     }
 }
 
@@ -202,6 +209,18 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     }
 }
 
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for Box<T>{
+    fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
+        Arc::from(self as Box<dyn InternalHistoryOps>)
+    }
+}
+
+impl IntoArcDynHistoryOps for Box<dyn InternalHistoryOps>{
+    fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
+        Arc::from(self)
+    }
+}
+
 impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         T::iter(self)
@@ -229,6 +248,18 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Arc<T> {
 
     fn len(&self) -> usize {
         T::len(self)
+    }
+}
+
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for Arc<T> {
+    fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
+        self
+    }
+}
+
+impl IntoArcDynHistoryOps for Arc<dyn InternalHistoryOps> {
+    fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
+        self
     }
 }
 
@@ -302,6 +333,8 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
     }
 }
 
+impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDynHistoryOps for MergedHistory<L, R> {}
+
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Arcs
 #[derive(Clone)]
@@ -364,6 +397,8 @@ impl<'a> InternalHistoryOps for CompositeHistory<'a> {
     }
 }
 
+impl IntoArcDynHistoryOps for CompositeHistory<'static>{}
+
 #[derive(Debug, Clone, Copy)]
 pub struct EmptyHistory;
 
@@ -396,6 +431,8 @@ impl InternalHistoryOps for EmptyHistory {
         0
     }
 }
+
+impl IntoArcDynHistoryOps for EmptyHistory{}
 
 impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
     InternalHistoryOps for NodeView<'graph, G, GH>
@@ -436,6 +473,9 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
         .apply(self.graph.core_graph(), self.node)
     }
 }
+
+impl<G: GraphViewOps<'static> + Send + Sync, GH: GraphViewOps<'static> + Send + Sync>
+IntoArcDynHistoryOps for NodeView<'static, G, GH>{}
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -538,6 +578,8 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     }
 }
 
+impl<G: BoxableGraphView + Clone + 'static> IntoArcDynHistoryOps for EdgeView<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
 {
@@ -570,6 +612,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
+impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
+for LazyNodeState<'static, HistoryOp<'static, GH>, G, GH>{}
+
 impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.props
@@ -593,6 +638,8 @@ impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
         InternalHistoryOps::iter_rev(self).next()
     }
 }
+
+impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalPropertyView<P>{}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromNode<'graph, G, GH>
@@ -623,6 +670,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
             .max()
     }
 }
+
+impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
+for PathFromNode<'static, G, GH>{}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromGraph<'graph, G, GH>
@@ -658,6 +708,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
+impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
+for PathFromGraph<'static, G, GH>{}
+
 // reverses the order of items returned by iter() and iter_rev()
 #[derive(Debug, Clone, Copy)]
 pub struct ReversedHistoryOps<T>(T);
@@ -690,6 +743,8 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
         self.0.len()
     }
 }
+
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for ReversedHistoryOps<T>{}
 
 // converts operations to return timestamps instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
@@ -784,12 +839,6 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryDateTime<T> {
 }
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryDateTime<T> {}
-
-impl<T: InternalHistoryOps + 'static> HistoryDateTime<T> {
-    pub fn into_arc_static(self) -> HistoryDateTime<Arc<dyn InternalHistoryOps>> {
-        HistoryDateTime::new(Arc::new(self.0))
-    }
-}
 
 // converts operations to return secondary time information inside TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
@@ -974,6 +1023,8 @@ impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
         self.0.latest_time()
     }
 }
+
+impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T>{}
 
 impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {

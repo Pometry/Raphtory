@@ -213,7 +213,7 @@ impl PyEdge {
     ///    History:  A history object containing temporal information about the edge
     #[getter]
     pub fn history(&self) -> PyHistory {
-        self.edge.history().into_arc_static().into()
+        self.edge.history().into_arc_dyn().into()
     }
 
     /// Returns a history object with information on an edge's deletion times.
@@ -222,7 +222,7 @@ impl PyEdge {
     ///    History:  A history object containing temporal information about the edge's deletions
     #[getter]
     pub fn deletions(&self) -> PyHistory {
-        self.edge.deletions().into_arc_static().into()
+        self.edge.deletions().into_arc_dyn().into()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)

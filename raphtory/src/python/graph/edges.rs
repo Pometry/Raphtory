@@ -172,7 +172,7 @@ impl PyEdges {
     #[getter]
     fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history().map(|history| history.into_arc_static())).into()
+        (move || edges.history().map(|history| history.into_arc_dyn())).into()
     }
 
     /// Returns history objects for edges containing their deletion times.
@@ -183,7 +183,7 @@ impl PyEdges {
     #[getter]
     fn deletions(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions().map(|history| history.into_arc_static())).into()
+        (move || edges.deletions().map(|history| history.into_arc_dyn())).into()
     }
 
     /// Check if the edges are valid (i.e. not deleted)
@@ -474,7 +474,7 @@ impl PyNestedEdges {
         (move || {
             edges
                 .history()
-                .map(|history_iter| history_iter.map(|history| history.into_arc_static()))
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
         })
         .into()
     }
@@ -486,7 +486,7 @@ impl PyNestedEdges {
         (move || {
             edges
                 .deletions()
-                .map(|history_iter| history_iter.map(|history| history.into_arc_static()))
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
         })
         .into()
     }
