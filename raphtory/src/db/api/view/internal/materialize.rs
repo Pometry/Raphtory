@@ -127,11 +127,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.latest_time_global())
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         for_all!(self, g => g.earliest_time_window(start, end))
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         for_all!(self, g => g.latest_time_window(start, end))
     }
 

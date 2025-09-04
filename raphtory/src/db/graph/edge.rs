@@ -604,12 +604,9 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
 
             match self.edge.time() {
                 None => match self.edge.layer() {
-                    None => time_semantics.temporal_edge_prop_last_at(
-                        edge.as_ref(),
-                        &self.graph,
-                        id,
-                        t,
-                    ),
+                    None => {
+                        time_semantics.temporal_edge_prop_last_at(edge.as_ref(), &self.graph, id, t)
+                    }
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),

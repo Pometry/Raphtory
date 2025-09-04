@@ -209,13 +209,13 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for Box<T> {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for Box<T>{
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for Box<T> {
     fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
         Arc::from(self as Box<dyn InternalHistoryOps>)
     }
 }
 
-impl IntoArcDynHistoryOps for Box<dyn InternalHistoryOps>{
+impl IntoArcDynHistoryOps for Box<dyn InternalHistoryOps> {
     fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
         Arc::from(self)
     }
@@ -333,7 +333,10 @@ impl<L: InternalHistoryOps, R: InternalHistoryOps> InternalHistoryOps for Merged
     }
 }
 
-impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDynHistoryOps for MergedHistory<L, R> {}
+impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDynHistoryOps
+    for MergedHistory<L, R>
+{
+}
 
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Arcs
@@ -357,6 +360,14 @@ pub fn compose_multiple_histories<'a>(
         objects.into_iter().map(|h| h.0).collect(),
     ))
 }
+
+// pub fn compose_multiple_histories_2<'a>(
+//     objects: impl IntoIterator<Item = History<'a, impl InternalHistoryOps + 'a>>,
+// ) -> History<'a, CompositeHistory<'a>> {
+//     History::new(CompositeHistory::new(
+//         objects.into_iter().map(|h| h.0).collect(),
+//     ))
+// }
 
 // Note: Items supplied by the iterator must already be of type Arc<T>
 pub fn compose_history_from_items<'a>(
@@ -397,7 +408,7 @@ impl<'a> InternalHistoryOps for CompositeHistory<'a> {
     }
 }
 
-impl IntoArcDynHistoryOps for CompositeHistory<'static>{}
+impl IntoArcDynHistoryOps for CompositeHistory<'static> {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct EmptyHistory;
@@ -432,7 +443,7 @@ impl InternalHistoryOps for EmptyHistory {
     }
 }
 
-impl IntoArcDynHistoryOps for EmptyHistory{}
+impl IntoArcDynHistoryOps for EmptyHistory {}
 
 impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
     InternalHistoryOps for NodeView<'graph, G, GH>
@@ -475,7 +486,9 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
 }
 
 impl<G: GraphViewOps<'static> + Send + Sync, GH: GraphViewOps<'static> + Send + Sync>
-IntoArcDynHistoryOps for NodeView<'static, G, GH>{}
+    IntoArcDynHistoryOps for NodeView<'static, G, GH>
+{
+}
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -613,7 +626,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
 }
 
 impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-for LazyNodeState<'static, HistoryOp<'static, GH>, G, GH>{}
+    for LazyNodeState<'static, HistoryOp<'static, GH>, G, GH>
+{
+}
 
 impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -639,7 +654,7 @@ impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
     }
 }
 
-impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalPropertyView<P>{}
+impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalPropertyView<P> {}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromNode<'graph, G, GH>
@@ -672,7 +687,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
 }
 
 impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-for PathFromNode<'static, G, GH>{}
+    for PathFromNode<'static, G, GH>
+{
+}
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
     for PathFromGraph<'graph, G, GH>
@@ -709,7 +726,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
 }
 
 impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-for PathFromGraph<'static, G, GH>{}
+    for PathFromGraph<'static, G, GH>
+{
+}
 
 // reverses the order of items returned by iter() and iter_rev()
 #[derive(Debug, Clone, Copy)]
@@ -744,7 +763,7 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
     }
 }
 
-impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for ReversedHistoryOps<T>{}
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for ReversedHistoryOps<T> {}
 
 // converts operations to return timestamps instead of TimeIndexEntry
 #[derive(Debug, Clone, Copy)]
@@ -1024,7 +1043,7 @@ impl<T: InternalDeletionOps> InternalHistoryOps for DeletionHistory<T> {
     }
 }
 
-impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T>{}
+impl<T: InternalDeletionOps + 'static> IntoArcDynHistoryOps for DeletionHistory<T> {}
 
 impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
@@ -1601,13 +1620,13 @@ mod tests {
         );
 
         // Test collect_items method on LazyNodeState<HistoryOp>
-        let full_collected = all_nodes_history.collect_items();
+        let full_collected = all_nodes_history.collect_time_entries();
         assert!(!full_collected.is_empty());
-        assert_eq!(full_collected, expected_history_all_unordered);
+        assert_eq!(full_collected, expected_history_all_ordered);
 
         // Test individual node history access via flatten()
-        let individual_histories: Vec<_> = all_nodes_history.flatten().collect();
-        assert_eq!(individual_histories.len(), 3); // We have 3 nodes
+        let individual_histories = all_nodes_history.flatten().collect();
+        assert_eq!(individual_histories, nodes_history_as_history.collect());
 
         // Test timestamp conversion
         let timestamps: Vec<_> = all_nodes_history
@@ -1632,15 +1651,15 @@ mod tests {
         let windowed_history_as_history = History::new(&windowed_nodes_history);
 
         // Window should filter the timestamps
-        let windowed_collected = windowed_nodes_history.collect_items();
+        let windowed_collected = windowed_nodes_history.collect_time_entries();
 
         // Windowed should have fewer or equal timestamps
         assert!(windowed_collected.len() <= full_collected.len());
         assert_eq!(
             windowed_collected,
             [
-                TimeIndexEntry::new(3, 2),
                 TimeIndexEntry::new(2, 1),
+                TimeIndexEntry::new(3, 2),
                 TimeIndexEntry::new(3, 2)
             ]
         ); // unordered
@@ -1659,16 +1678,16 @@ mod tests {
         let magical_history_as_history = History::new(&magical_nodes_history);
 
         // Should have different history than the full graph
-        let magical_collected = magical_nodes_history.collect_items();
+        let magical_collected = magical_nodes_history.collect_time_entries();
         assert_eq!(
             magical_collected,
             [
                 TimeIndexEntry::new(1, 0),
-                TimeIndexEntry::new(4, 5),
                 TimeIndexEntry::new(2, 1),
-                TimeIndexEntry::new(4, 4),
                 TimeIndexEntry::new(4, 3),
                 TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
                 TimeIndexEntry::new(4, 5),
             ]
         ); // unordered
@@ -1740,16 +1759,16 @@ mod tests {
         let windowed_layered_graph = graph.window(3, 6).layers("Magical Object Uses").unwrap();
         let windowed_layered_history = windowed_layered_graph.nodes().history();
         let windowed_layered_history_as_history = History::new(&windowed_layered_history);
-        let windowed_layered_collected = windowed_layered_history.collect_items();
+        let windowed_layered_collected = windowed_layered_history.collect_time_entries();
 
         // Should be even more filtered
         assert_eq!(
             windowed_layered_collected,
             [
-                TimeIndexEntry::new(4, 5),
-                TimeIndexEntry::new(4, 4),
                 TimeIndexEntry::new(4, 3),
                 TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 4),
+                TimeIndexEntry::new(4, 5),
                 TimeIndexEntry::new(4, 5)
             ]
         ); // unordered

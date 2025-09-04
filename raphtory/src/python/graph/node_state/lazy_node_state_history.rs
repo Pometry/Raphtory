@@ -150,6 +150,22 @@ impl HistoryView {
         self.inner.collect()
     }
 
+    /// Compute all values and return the contained time entries as a sorted list
+    ///
+    /// Returns:
+    #[doc = "     list[TimeIndexEntry]: all time entries as a list"]
+    fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+        self.inner.collect_time_entries()
+    }
+
+    /// Flattens all history objects into a single history object with all time information ordered.
+    ///
+    /// Returns:
+    #[doc = "     History: a history object containing all time information"]
+    fn flatten(&self) -> PyHistory {
+        self.inner.flatten().into_arc_dyn().into()
+    }
+
     // impl_node_state_ops
     fn __len__(&self) -> usize {
         NodeStateOps::len(&self.inner)

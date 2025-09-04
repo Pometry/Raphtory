@@ -36,10 +36,10 @@ pub trait GraphTimeSemanticsOps {
     /// Returns the timestamp for the latest activity
     fn latest_time_global(&self) -> Option<i64>;
     /// Returns the timestamp for the earliest activity in the window
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64>;
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64>;
 
     /// Returns the timestamp for the latest activity in the window
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64>;
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64>;
 
     /// Check if graph has temporal property with the given id
     ///
@@ -150,12 +150,12 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         self.graph().latest_time_global()
     }
     #[inline]
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph().earliest_time_window(start, end)
     }
 
     #[inline]
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph().latest_time_window(start, end)
     }
 

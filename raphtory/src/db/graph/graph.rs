@@ -861,7 +861,9 @@ mod db_tests {
             assert!(!graph.internal_edge_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
-            assert!(graph.latest_time_window(1, 2).is_none());
+            assert!(graph
+                .latest_time_window(TimeIndexEntry::start(1), TimeIndexEntry::start(2))
+                .is_none());
             assert!(graph.latest_time().is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.earliest_time_global().is_none());

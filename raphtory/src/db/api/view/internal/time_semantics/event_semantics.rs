@@ -130,15 +130,14 @@ impl NodeTimeSemanticsOps for EventSemantics {
         _view: G,
         w: Range<TimeIndexEntry>,
     ) -> impl Iterator<Item = (TimeIndexEntry, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_window(w)
-            .map(|(t, row)| {
-                (
-                    t,
-                    row.into_iter()
-                        .filter_map(|(id, prop)| Some((id, prop?)))
-                        .collect(),
-                )
-            })
+        node.temp_prop_rows_window(w).map(|(t, row)| {
+            (
+                t,
+                row.into_iter()
+                    .filter_map(|(id, prop)| Some((id, prop?)))
+                    .collect(),
+            )
+        })
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(
@@ -747,10 +746,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> Option<Prop> {
         if w.contains(&t) {
             e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
-                .filter_map(|(_, prop)| {
-                    prop.last_before(t.next())
-                        .filter(|(t, _)| w.contains(&t))
-                })
+                .filter_map(|(_, prop)| prop.last_before(t.next()).filter(|(t, _)| w.contains(&t)))
                 .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
                 .map(|(_, v)| v)
         } else {

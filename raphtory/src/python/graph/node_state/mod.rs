@@ -4,7 +4,6 @@ mod lazy_node_state_history;
 mod lazy_node_state_latest_date_time;
 mod node_state;
 mod node_state_history;
-mod node_state_result_option_datetime;
 
 use crate::{
     add_classes,
@@ -14,7 +13,6 @@ use crate::{
             lazy_node_state_history::HistoryView,
             lazy_node_state_latest_date_time::LatestDateTimeView,
             node_state_history::NodeStateHistory,
-            node_state_result_option_datetime::NodeStateResultOptionDateTime,
         },
         types::wrappers::iterables::UsizeIterable,
     },
@@ -33,6 +31,7 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateU64,
         NodeStateOptionI64,
         NodeStateOptionTimeIndexEntry,
+        NodeStateOptionDateTime,
         IdView,
         NodeStateGID,
         EarliestTimeView,
@@ -46,15 +45,15 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NameView,
         NodeStateString,
         HistoryView,
+        HistoryTimestampView,
+        HistoryDateTimeView,
+        HistorySecondaryIndexView,
+        IntervalsView,
         EdgeHistoryCountView,
-        // NodeStateListI64,
-        // HistoryDateTimeView,
-        // NodeStateOptionListDateTime,
         UsizeIterable,
         NodeTypeView,
         NodeStateOptionStr,
         NodeStateListDateTime,
-        NodeStateResultOptionDateTime,
         NodeStateWeightedSP,
         NodeStateF64,
         NodeStateNodes,
@@ -63,6 +62,10 @@ pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<PyModule>> {
         NodeStateMotifs,
         NodeStateHits,
         NodeStateHistory,
+        NodeStateHistoryTimestamp,
+        NodeStateHistoryDateTime,
+        NodeStateHistorySecondaryIndex,
+        NodeStateIntervals,
         NodeStateSEIR,
         NodeLayout,
         NodeStateF64String,

@@ -710,20 +710,6 @@ impl_node_state_ord!(
 );
 impl_node_state_group_by_ops!(NodeStateOptionDateTime, Option<DateTime<Utc>>);
 
-// type History<G> = ops::HistoryOp<'static, G>;
-// impl_lazy_node_state_ord!(
-//     HistoryView<ops::HistoryOp<'static, DynamicGraph>>,
-//     "NodeStateHistory",
-//     "History"
-// );
-// impl_one_hop!(HistoryView<History>, "HistoryView");
-// impl_node_state_ord!(
-//     NodeStateHistory<PyHistory>,
-//     "NodeStateHistory",
-//     "History"
-// );
-// impl_node_state_group_by_ops!(NodeStateHistory, PyHistory);
-
 impl_lazy_node_state_num!(
     EdgeHistoryCountView<ops::EdgeHistoryCount<DynamicGraph>>,
     "EdgeHistoryCountView",
@@ -733,32 +719,6 @@ impl_one_hop!(
     EdgeHistoryCountView<ops::EdgeHistoryCount>,
     "EdgeHistoryCountView"
 );
-
-// type HistoryDateTime<G> = ops::Map<ops::HistoryOp<'static, G>, Option<Vec<DateTime<Utc>>>>;
-// impl_lazy_node_state_ord!(
-//     HistoryDateTimeView<HistoryDateTime<DynamicGraph>>,
-//     "NodeStateOptionListDateTime",
-//     "Optional[list[datetime]]"
-// );
-// impl_one_hop!(HistoryDateTimeView<HistoryDateTime>, "HistoryDateTimeView");
-// impl_node_state_ord!(
-//     NodeStateOptionListDateTime<Option<Vec<DateTime<Utc>>>>,
-//     "NodeStateOptionListDateTime",
-//     "Optional[list[datetime]]"
-// );
-//
-// type HistoryDateTimeResult<G> = ops::Map<ops::HistoryOp<G>, Result<Vec<DateTime<Utc>>, TimeError>>;
-// impl_lazy_node_state_ord!(
-//     HistoryDateTimeResultView<HistoryDateTimeResult<DynamicGraph>>,
-//     "NodeStateResultListDateTime",
-//     "Result[list[datetime], TimeError]"
-// );
-// impl_one_hop!(HistoryDateTimeResultView<HistoryDateTimeResult>, "HistoryDateTimeResultView");
-// impl_node_state_ord!(
-//     NodeStateResultListDateTime<Result<Vec<DateTime<Utc>>, TimeError>>,
-//     "NodeStateResultListDateTime",
-//     "Result[list[datetime], TimeError]"
-// );
 
 impl_lazy_node_state_ord!(
     NodeTypeView<ops::Type>,

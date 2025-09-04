@@ -4,7 +4,10 @@ use crate::{
         api::{
             state::node_state_ops::NodeStateOps,
             view::{
-                history::{History, HistoryDateTime, HistorySecondaryIndex, HistoryTimestamp},
+                history::{
+                    compose_history_from_items, CompositeHistory, History, HistoryDateTime,
+                    HistorySecondaryIndex, HistoryTimestamp, InternalHistoryOps,
+                },
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -536,6 +539,25 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
 
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.values.iter().filter_map(|h| h.latest_time()).max()
+    }
+
+    /// Collect and return all the contained time entries as a sorted list
+    pub fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+        let mut entries: Vec<TimeIndexEntry> = self
+            .par_iter_values()
+            .flat_map_iter(|hist| hist.iter())
+            .collect();
+        entries.par_sort_unstable();
+        entries
+    }
+
+    /// Flattens all history objects into a single history object with all time information ordered.
+    pub fn flatten(&self) -> History<'graph, CompositeHistory<'graph>> {
+        let histories: Vec<_> = self
+            .par_iter_values()
+            .map(|hist| Arc::new(hist.0.clone()) as Arc<dyn InternalHistoryOps>)
+            .collect();
+        compose_history_from_items(histories)
     }
 }
 

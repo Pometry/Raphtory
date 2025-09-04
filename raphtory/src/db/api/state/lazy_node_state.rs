@@ -211,6 +211,64 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             )
         }
     }
+
+    /// Computes a NodeState where the output values are results. Instead of keeping error values,
+    /// the function fails if an error is encountered, and only Ok values are kept in the NodeState
+    pub fn compute_result_type<T: Send, E: Send>(&self) -> Result<NodeState<'graph, T, G, GH>, E>
+    where
+        Op: NodeOp<Output = Result<T, E>>,
+    {
+        if self.nodes.is_filtered() {
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Result<Vec<T>, E>) = self
+                .par_iter()
+                .map(|(node, value)| (node.node, value))
+                .collect();
+            Ok(NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values?.into(),
+                Some(Index::new(keys)),
+            ))
+        } else {
+            let values: Result<Vec<T>, E> = self.collect::<Result<Vec<T>, E>>();
+            Ok(NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values?.into(),
+                None,
+            ))
+        }
+    }
+
+    /// Computes a NodeState where only the Ok values of the Results are kept. Errors are discarded.
+    pub fn compute_valid_results<T: Send, E: Send>(&self) -> NodeState<'graph, T, G, GH>
+    where
+        Op: NodeOp<Output = Result<T, E>>,
+    {
+        if self.nodes.is_filtered() {
+            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
+                .par_iter()
+                .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
+                .unzip();
+            NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values.into(),
+                Some(Index::new(keys)),
+            )
+        } else {
+            let values: Vec<T> = self
+                .par_iter_values()
+                .filter_map(|value| value.ok())
+                .collect();
+            NodeState::new(
+                self.nodes.base_graph.clone(),
+                self.nodes.graph.clone(),
+                values.into(),
+                None,
+            )
+        }
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
@@ -224,8 +282,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         self.nodes.latest_time()
     }
 
-    pub fn flatten(&self) -> impl Iterator<Item = History<'graph, NodeView<'graph, GH, GH>>> {
-        self.compute().into_iter_values()
+    pub fn flatten(&self) -> History<'graph, LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>> {
+        History::new(self.clone())
     }
 
     pub fn intervals(
@@ -272,10 +330,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         LazyNodeState::new(op, self.nodes.clone())
     }
 
-    pub fn collect_items(&self) -> Vec<TimeIndexEntry> {
-        self.flatten()
-            .flat_map(|history| history.collect())
-            .collect()
+    pub fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+        self.flatten().collect()
     }
 }
 

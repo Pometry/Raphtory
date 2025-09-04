@@ -3,7 +3,7 @@ use crate::{
         api::{
             state::NodeState,
             view::{
-                history::{History, InternalHistoryOps},
+                history::{compose_multiple_histories, History, InternalHistoryOps},
                 DynamicGraph,
             },
         },
@@ -26,6 +26,7 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
+use rayon::prelude::{ParallelIterator, ParallelSliceMut};
 use std::{collections::HashMap, sync::Arc};
 
 #[pyclass(module = "raphtory.node_state", frozen)]
@@ -135,6 +136,22 @@ impl NodeStateHistory {
 
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.inner.latest_time()
+    }
+
+    /// Collect and return all the contained time entries as a sorted list
+    ///
+    /// Returns:
+    #[doc = "     list[TimeIndexEntry]: all time entries as a list"]
+    fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
+        self.inner.collect_time_entries()
+    }
+
+    /// Flattens all history objects into a single history object with all time information ordered.
+    ///
+    /// Returns:
+    #[doc = "     History: a history object containing all time information"]
+    fn flatten(&self) -> PyHistory {
+        self.inner.flatten().into_arc_dyn().into()
     }
 
     fn __len__(&self) -> usize {

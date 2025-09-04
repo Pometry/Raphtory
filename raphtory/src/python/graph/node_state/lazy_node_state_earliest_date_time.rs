@@ -59,12 +59,25 @@ impl EarliestDateTimeView {
 
 #[pymethods]
 impl EarliestDateTimeView {
-    /// Compute all values and return the result as a node view
+    /// Compute all values and return the result as a NodeState. Fails if any DateTime error is encountered.
     ///
     /// Returns:
-    #[doc = "     NodeStateResultOptionDateTime: the computed `NodeState`"]
-    fn compute(&self) -> NodeState<'static, EarliestDateTimeOutput, DynamicGraph, DynamicGraph> {
-        self.inner.compute()
+    #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
+    fn compute(
+        &self,
+    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph>, TimeError>
+    {
+        self.inner.compute_result_type()
+    }
+
+    /// Compute all values and only return the valid results as a NodeState. DateTime errors are ignored.
+    ///
+    /// Returns:
+    #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
+    fn compute_valid(
+        &self,
+    ) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph> {
+        self.inner.compute_valid_results()
     }
 
     /// Compute all values and return the result as a list
@@ -251,12 +264,22 @@ impl EarliestDateTimeView {
         self.iter_valid()
     }
 
-    /// Sort results by node id
+    /// Sort results by node id. Fails if any DateTime error is encountered.
     ///
     /// Returns:
-    #[doc = "     NodeStateResultOptionDateTime: The sorted node state"]
-    fn sorted_by_id(&self) -> NodeState<'static, EarliestDateTimeOutput, DynamicGraph> {
-        self.inner.sort_by_id()
+    #[doc = "     NodeStateOptionDateTime: The sorted node state"]
+    fn sorted_by_id(
+        &self,
+    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>, TimeError> {
+        self.compute().map(|ns| ns.sort_by_id())
+    }
+
+    /// Sort only valid results by node id. DateTime errors are ignored.
+    ///
+    /// Returns:
+    #[doc = "     NodeStateOptionDateTime: The sorted node state"]
+    fn sorted_by_id_valid(&self) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
+        self.compute_valid().sort_by_id()
     }
 
     fn __repr__(&self) -> String {
@@ -288,7 +311,7 @@ impl EarliestDateTimeView {
     ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
     ///
     /// Returns:
-    #[doc = "     NodeStateResultOptionDateTime: Sorted node state"]
+    #[doc = "     NodeStateOptionDateTime: Sorted node state"]
     #[pyo3(signature = (reverse = false))]
     fn sorted(
         &self,
@@ -318,20 +341,17 @@ impl EarliestDateTimeView {
     ///     k (int): The number of values to return
     ///
     /// Returns:
-    #[doc = "     NodeStateResultOptionDateTime: The k largest values as a node state"]
+    #[doc = "     NodeStateOptionDateTime: The k largest values as a node state"]
     fn top_k(
         &self,
         k: usize,
-    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
-        self.inner.top_k_by(
-            |a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b),
-                (Err(_), Ok(_)) => Ordering::Less,
-                (Ok(_), Err(_)) => Ordering::Greater,
-                _ => Ordering::Equal,
-            },
-            k,
-        )
+    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>, TimeError> {
+        self.compute().map(|ns| {
+            ns.top_k_by(
+                |a, b| a.cmp(b), // None values are always Less than Some(_)
+                k,
+            )
+        })
     }
 
     /// Compute the k smallest values
@@ -340,20 +360,22 @@ impl EarliestDateTimeView {
     ///     k (int): The number of values to return
     ///
     /// Returns:
-    #[doc = "     NodeStateResultOptionDateTime: The k smallest values as a node state"]
+    #[doc = "     NodeStateOptionDateTime: The k smallest values as a node state"]
     fn bottom_k(
         &self,
         k: usize,
-    ) -> NodeState<'static, Result<Option<DateTime<Utc>>, TimeError>, DynamicGraph> {
-        self.inner.bottom_k_by(
-            |a, b| match (a, b) {
-                (Ok(a), Ok(b)) => a.cmp(b),
-                (Err(_), Ok(_)) => Ordering::Greater,
-                (Ok(_), Err(_)) => Ordering::Less,
-                _ => Ordering::Equal,
-            },
-            k,
-        )
+    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>, TimeError> {
+        self.compute().map(|ns| {
+            ns.bottom_k_by(
+                |a, b| match (a, b) {
+                    (Some(a), Some(b)) => a.cmp(b),
+                    (None, Some(_)) => Ordering::Greater,
+                    (Some(_), None) => Ordering::Less,
+                    (None, None) => Ordering::Equal,
+                },
+                k,
+            )
+        })
     }
 
     /// Return smallest value and corresponding node

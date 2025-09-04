@@ -374,11 +374,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
 
     fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         self.graph
-            .temporal_prop_last_at_window(
-                id,
-                t,
-                self.window_bound(),
-            )
+            .temporal_prop_last_at_window(id, t, self.window_bound())
             .map(|(_, p)| p)
     }
 }
@@ -405,15 +401,11 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for Windowed
 
 impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G> {
     fn node_time_semantics(&self) -> TimeSemantics {
-        self.graph
-            .node_time_semantics()
-            .window(self.window_bound())
+        self.graph.node_time_semantics().window(self.window_bound())
     }
 
     fn edge_time_semantics(&self) -> TimeSemantics {
-        self.graph
-            .edge_time_semantics()
-            .window(self.window_bound())
+        self.graph.edge_time_semantics().window(self.window_bound())
     }
     fn view_start(&self) -> Option<TimeIndexEntry> {
         self.start
@@ -429,7 +421,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return None;
         }
         self.graph
-            .earliest_time_window(self.start_bound().t(), self.end_bound().t())
+            .earliest_time_window(self.start_bound(), self.end_bound())
     }
 
     #[inline]
@@ -438,16 +430,16 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
             return None;
         }
         self.graph
-            .latest_time_window(self.start_bound().t(), self.end_bound().t())
+            .latest_time_window(self.start_bound(), self.end_bound())
     }
 
     #[inline]
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph.earliest_time_window(start, end)
     }
 
     #[inline]
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.graph.latest_time_window(start, end)
     }
 
@@ -485,11 +477,8 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         prop_id: usize,
         t: TimeIndexEntry,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        self.graph.temporal_prop_last_at_window(
-            prop_id,
-            t,
-            self.window_bound(),
-        )
+        self.graph
+            .temporal_prop_last_at_window(prop_id, t, self.window_bound())
     }
 
     fn temporal_prop_last_at_window(

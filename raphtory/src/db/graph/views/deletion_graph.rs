@@ -176,18 +176,18 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.latest_time_global()
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
         self.earliest_time_global()
-            .map(|t| t.max(start))
-            .filter(|&t| t < end)
+            .map(|t| t.max(start.t()))
+            .filter(|&t| t < end.t())
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        if self.0.earliest_time_global()? >= end {
+    fn latest_time_window(&self, start: TimeIndexEntry, end: TimeIndexEntry) -> Option<i64> {
+        if self.0.earliest_time_global()? >= end.t() {
             return None;
         }
         self.latest_time_global()
-            .map(|t| t.min(end.saturating_sub(1)).max(start))
+            .map(|t| t.min(end.t().saturating_sub(1)).max(start.t()))
     }
 
     #[inline]
