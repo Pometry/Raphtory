@@ -512,21 +512,16 @@ impl<M> PropertyFilter<M> {
         }
     }
 
-    fn reduce_unsigned(vals: &[Prop], ret_minmax: fn(u64) -> Prop, agg: ListAgg) -> Option<Prop> {
+    fn scan_u64_sum(vals: &[Prop]) -> Option<(bool, u64, u128)> {
         let mut sum64: u64 = 0;
         let mut sum128: u128 = 0;
         let mut promoted = false;
 
-        let mut min_v: u64 = vals[0].as_u64_lossless()?;
-        let mut max_v: u64 = min_v;
-        let mut count: u64 = 0;
-
         for p in vals {
             let x = p.as_u64_lossless()?;
-
             if !promoted {
                 if let Some(s) = sum64.checked_add(x) {
-                    sum64 = s
+                    sum64 = s;
                 } else {
                     promoted = true;
                     sum128 = (sum64 as u128) + (x as u128);
@@ -534,53 +529,20 @@ impl<M> PropertyFilter<M> {
             } else {
                 sum128 += x as u128;
             }
-
-            if x < min_v {
-                min_v = x;
-            }
-            if x > max_v {
-                max_v = x;
-            }
-            count += 1;
         }
-
-        Some(match agg {
-            ListAgg::Sum => {
-                if promoted {
-                    Prop::U64(u64::try_from(sum128).ok()?) // overflow -> None
-                } else {
-                    Prop::U64(sum64)
-                }
-            }
-            ListAgg::Avg => {
-                let s = if promoted {
-                    sum128 as f64
-                } else {
-                    sum64 as f64
-                };
-                Prop::F64(s / (count as f64))
-            }
-            ListAgg::Min => ret_minmax(min_v),
-            ListAgg::Max => ret_minmax(max_v),
-            ListAgg::Len => unreachable!(),
-        })
+        Some((promoted, sum64, sum128))
     }
 
-    fn reduce_signed(vals: &[Prop], ret_minmax: fn(i64) -> Prop, agg: ListAgg) -> Option<Prop> {
+    fn scan_i64_sum(vals: &[Prop]) -> Option<(bool, i64, i128)> {
         let mut sum64: i64 = 0;
         let mut sum128: i128 = 0;
         let mut promoted = false;
 
-        let mut min_v: i64 = vals[0].as_i64_lossless()?;
-        let mut max_v: i64 = min_v;
-        let mut count: u64 = 0;
-
         for p in vals {
             let x = p.as_i64_lossless()?;
-
             if !promoted {
                 if let Some(s) = sum64.checked_add(x) {
-                    sum64 = s
+                    sum64 = s;
                 } else {
                     promoted = true;
                     sum128 = (sum64 as i128) + (x as i128);
@@ -588,66 +550,136 @@ impl<M> PropertyFilter<M> {
             } else {
                 sum128 += x as i128;
             }
+        }
+        Some((promoted, sum64, sum128))
+    }
 
+    fn scan_u64_min_max(vals: &[Prop]) -> Option<(u64, u64)> {
+        let mut it = vals.iter();
+        let first = it.next()?.as_u64_lossless()?;
+        let mut min_v = first;
+        let mut max_v = first;
+        for p in it {
+            let x = p.as_u64_lossless()?;
             if x < min_v {
                 min_v = x;
             }
             if x > max_v {
                 max_v = x;
             }
-            count += 1;
         }
-
-        Some(match agg {
-            ListAgg::Sum => {
-                if promoted {
-                    Prop::I64(i64::try_from(sum128).ok()?) // overflow -> None
-                } else {
-                    Prop::I64(sum64)
-                }
-            }
-            ListAgg::Avg => {
-                let s = if promoted {
-                    sum128 as f64
-                } else {
-                    sum64 as f64
-                };
-                Prop::F64(s / (count as f64))
-            }
-            ListAgg::Min => ret_minmax(min_v),
-            ListAgg::Max => ret_minmax(max_v),
-            ListAgg::Len => unreachable!(),
-        })
+        Some((min_v, max_v))
     }
 
-    fn reduce_float(vals: &[Prop], ret_minmax: fn(f64) -> Prop, agg: ListAgg) -> Option<Prop> {
-        let mut sum: f64 = 0.0;
-        let mut min_v: f64 = vals[0].as_f64_lossless()?;
-        let mut max_v: f64 = min_v;
-        let mut count: u64 = 0;
+    fn scan_i64_min_max(vals: &[Prop]) -> Option<(i64, i64)> {
+        let mut it = vals.iter();
+        let first = it.next()?.as_i64_lossless()?;
+        let mut min_v = first;
+        let mut max_v = first;
+        for p in it {
+            let x = p.as_i64_lossless()?;
+            if x < min_v {
+                min_v = x;
+            }
+            if x > max_v {
+                max_v = x;
+            }
+        }
+        Some((min_v, max_v))
+    }
 
+    fn scan_f64_sum_count(vals: &[Prop]) -> Option<(f64, u64)> {
+        let mut sum = 0.0f64;
+        let mut count = 0u64;
         for p in vals {
             let x = p.as_f64_lossless()?;
             if !x.is_finite() {
                 return None;
             }
             sum += x;
+            count += 1;
+        }
+        Some((sum, count))
+    }
+
+    fn scan_f64_min_max(vals: &[Prop]) -> Option<(f64, f64)> {
+        let mut it = vals.iter();
+        let first = it.next()?.as_f64_lossless()?;
+        if !first.is_finite() {
+            return None;
+        }
+        let mut min_v = first;
+        let mut max_v = first;
+        for p in it {
+            let x = p.as_f64_lossless()?;
+            if !x.is_finite() {
+                return None;
+            }
             if x < min_v {
                 min_v = x;
             }
             if x > max_v {
                 max_v = x;
             }
-            count += 1;
         }
+        Some((min_v, max_v))
+    }
 
-        Some(match agg {
-            ListAgg::Sum => Prop::F64(sum),
-            ListAgg::Avg => Prop::F64(sum / (count as f64)),
-            ListAgg::Min => ret_minmax(min_v),
-            ListAgg::Max => ret_minmax(max_v),
+    fn reduce_unsigned(vals: &[Prop], ret_minmax: fn(u64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        match agg {
+            ListAgg::Sum => {
+                let (promoted, s64, s128) = Self::scan_u64_sum(vals)?;
+                Some(if promoted {
+                    Prop::U64(u64::try_from(s128).ok()?)
+                } else {
+                    Prop::U64(s64)
+                })
+            }
+            ListAgg::Avg => {
+                let (promoted, s64, s128) = Self::scan_u64_sum(vals)?;
+                let count = vals.len() as u64;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+            ListAgg::Min => Self::scan_u64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
+            ListAgg::Max => Self::scan_u64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
             ListAgg::Len => unreachable!(),
-        })
+        }
+    }
+
+    fn reduce_signed(vals: &[Prop], ret_minmax: fn(i64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        match agg {
+            ListAgg::Sum => {
+                let (promoted, s64, s128) = Self::scan_i64_sum(vals)?;
+                Some(if promoted {
+                    Prop::I64(i64::try_from(s128).ok()?)
+                } else {
+                    Prop::I64(s64)
+                })
+            }
+            ListAgg::Avg => {
+                let (promoted, s64, s128) = Self::scan_i64_sum(vals)?;
+                let count = vals.len() as u64;
+                let s = if promoted { s128 as f64 } else { s64 as f64 };
+                Some(Prop::F64(s / (count as f64)))
+            }
+            ListAgg::Min => Self::scan_i64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
+            ListAgg::Max => Self::scan_i64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
+            ListAgg::Len => unreachable!(),
+        }
+    }
+
+    fn reduce_float(vals: &[Prop], ret_minmax: fn(f64) -> Prop, agg: ListAgg) -> Option<Prop> {
+        match agg {
+            ListAgg::Sum => Self::scan_f64_sum_count(vals).map(|(sum, _)| Prop::F64(sum)),
+            ListAgg::Avg => {
+                let (sum, count) = Self::scan_f64_sum_count(vals)?;
+                Some(Prop::F64(sum / (count as f64)))
+            }
+            ListAgg::Min => Self::scan_f64_min_max(vals).map(|(mn, _)| ret_minmax(mn)),
+            ListAgg::Max => Self::scan_f64_min_max(vals).map(|(_, mx)| ret_minmax(mx)),
+            ListAgg::Len => unreachable!(),
+        }
     }
 
     fn aggregate_list_value(&self, list_prop: &Prop, agg: ListAgg) -> Option<Prop> {
@@ -655,7 +687,6 @@ impl<M> PropertyFilter<M> {
             Prop::List(v) => v.as_slice(),
             _ => return None,
         };
-
         if vals.is_empty() {
             return match agg {
                 ListAgg::Len => Some(Prop::U64(0)),
@@ -671,7 +702,6 @@ impl<M> PropertyFilter<M> {
             PropType::List(inner) => *inner,
             _ => unreachable!(),
         };
-
         match inner_ty {
             PropType::U8 => Self::reduce_unsigned(vals, |x| Prop::U8(x as u8), agg),
             PropType::U16 => Self::reduce_unsigned(vals, |x| Prop::U16(x as u16), agg),
@@ -684,7 +714,6 @@ impl<M> PropertyFilter<M> {
             PropType::F32 => Self::reduce_float(vals, |x| Prop::F32(x as f32), agg),
             PropType::F64 => Self::reduce_float(vals, |x| Prop::F64(x), agg),
 
-            // non-numeric lists aren’t valid for agg functions
             _ => None,
         }
     }
