@@ -8,7 +8,6 @@ use tantivy::{
 };
 
 pub struct ExplodedEdgePropertyFilterCollector<G> {
-    prop_id: usize,
     field: String,
     graph: G,
 }
@@ -17,12 +16,8 @@ impl<G> ExplodedEdgePropertyFilterCollector<G>
 where
     G: StaticGraphViewOps,
 {
-    pub fn new(field: String, prop_id: usize, graph: G) -> Self {
-        Self {
-            field,
-            prop_id,
-            graph,
-        }
+    pub fn new(field: String, graph: G) -> Self {
+        Self { field, graph }
     }
 }
 
@@ -46,7 +41,6 @@ where
             .column_opt(fields::SECONDARY_TIME)?;
 
         Ok(ExplodedEdgePropertyFilterSegmentCollector {
-            prop_id: self.prop_id,
             column_opt_time,
             column_opt_entity_id,
             column_opt_layer_id,
@@ -75,7 +69,6 @@ where
 }
 
 pub struct ExplodedEdgePropertyFilterSegmentCollector<G> {
-    prop_id: usize,
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
     column_opt_layer_id: Option<Column<u64>>,
@@ -115,15 +108,7 @@ where
             let eid = EID(entity_id as usize);
             let layer_id = layer_id as usize;
 
-            // If is_node_prop_update_latest check is true for a doc, we can ignore validating all other docs
-            // against expensive is_node_prop_update_latest check for a given node id.
-            if !self.unique_entity_ids.contains(&(tie, eid, layer_id))
-                && self
-                    .graph
-                    .is_edge_prop_update_available(layer_id, self.prop_id, eid, tie)
-            {
-                self.unique_entity_ids.insert((tie, eid, layer_id));
-            }
+            self.unique_entity_ids.insert((tie, eid, layer_id));
         }
     }
 

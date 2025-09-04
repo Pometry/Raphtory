@@ -469,15 +469,13 @@ mod tests_node_type_filtered_subgraph {
         mod test_edges_filters_node_type_filtered_subgraph {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps,
+                    api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
                     graph::views::filter::model::property_filter::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, NO_PROPS},
             };
             use raphtory_api::core::entities::properties::prop::{Prop, PropUnwrap};
             use raphtory_storage::core_ops::CoreGraphOps;
-            use crate::db::api::view::BaseFilterOps;
-            use crate::db::api::view::internal::FilterOps;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![
@@ -709,12 +707,19 @@ mod tests_node_type_filtered_subgraph {
                 let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
                 let graph = init_graph(Graph::new()).persistent_graph();
                 let edge = graph.edge("N8", "N1").unwrap();
-                let graph = graph
-                    .window(6, 9);
-                let p = graph.edge("N8", "N1").unwrap().properties().get("p1").unwrap_u64();
+                let graph = graph.window(6, 9);
+                let p = graph
+                    .edge("N8", "N1")
+                    .unwrap()
+                    .properties()
+                    .get("p1")
+                    .unwrap_u64();
                 println!("prop = {}", p);
                 assert_eq!(p, 2);
-                let r = graph.filter(filter.clone()).unwrap().filter_edge(graph.core_edge(edge.edge.pid()).as_ref());
+                let r = graph
+                    .filter(filter.clone())
+                    .unwrap()
+                    .filter_edge(graph.core_edge(edge.edge.pid()).as_ref());
                 assert!(!r);
                 assert_filter_edges_results(
                     init_graph,

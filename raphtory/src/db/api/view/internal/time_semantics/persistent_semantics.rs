@@ -1138,13 +1138,8 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         e.filtered_temporal_prop_iter(prop_id, view.clone(), layer_ids)
             .map(|(layer, props)| {
                 let deletions = merged_deletions(e, &view, layer);
-                let first_prop = persisted_prop_value_at(w.start, props.clone(), &deletions)
-                    .map(|(t, v)| {
-                    let r =    (TimeIndexEntry(w.start, t.i()), layer, v);
-                        println!("src = {}, dst = {}, r = {:?}", view.node_name(e.src()), view.node_name(e.dst()), r);
-                        r
-                    });
-                first_prop
+                persisted_prop_value_at(w.start, props.clone(), &deletions)
+                    .map(|(t, v)| (TimeIndexEntry(w.start, t.i()), layer, v))
                     .into_iter()
                     .chain(
                         props

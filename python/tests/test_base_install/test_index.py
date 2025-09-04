@@ -729,6 +729,17 @@ def search_edges(graph, filter_expr, limit=20, offset=0):
     )
 
 
+def search_edges_layer(layer, graph, filter_expr, limit=20, offset=0):
+    graph.create_index_in_ram()
+    graph = graph.layer(layer)
+    return sorted(
+        [
+            (edge.src.name, edge.dst.name)
+            for edge in graph.search_edges(filter_expr, limit, offset)
+        ]
+    )
+
+
 def test_search_edges_for_src_eq():
     g = Graph()
     g = init_edges_graph(g)
@@ -1031,17 +1042,14 @@ def test_search_edges_for_metadata_eq():
     g = Graph()
     g = init_edges_graph(g)
 
+    # filter_expr = filter.Edge.metadata("p1") == {"fire_nation": 1} Should be supported by search or fallback
     filter_expr = filter.Edge.metadata("p1") == 1
-    results = search_edges(g, filter_expr)
+
+    results = search_edges_layer("fire_nation", g, filter_expr)
     assert [
         ("N1", "N2"),
         ("N10", "N11"),
         ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
-        ("N9", "N10"),
     ] == results
 
 
@@ -1050,16 +1058,10 @@ def test_search_edges_for_metadata_ne():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1") != 2
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [
-        ("N1", "N2"),
-        ("N10", "N11"),
-        ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
         ("N14", "N15"),
         ("N15", "N1"),
-        ("N9", "N10"),
     ] == results
 
 
@@ -1068,16 +1070,10 @@ def test_search_edges_for_metadata_lt():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1") < 2
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [
-        ("N1", "N2"),
-        ("N10", "N11"),
-        ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
         ("N14", "N15"),
         ("N15", "N1"),
-        ("N9", "N10"),
     ] == results
 
 
@@ -1086,18 +1082,8 @@ def test_search_edges_for_metadata_le():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1") <= 3
-    results = search_edges(g, filter_expr)
-    assert [
-        ("N1", "N2"),
-        ("N10", "N11"),
-        ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
-        ("N14", "N15"),
-        ("N15", "N1"),
-        ("N4", "N5"),
-        ("N9", "N10"),
-    ] == results
+    results = search_edges_layer("fire_nation", g, filter_expr)
+    assert [("N1", "N2"), ("N10", "N11"), ("N11", "N12")] == results
 
 
 def test_search_edges_for_metadata_gt():
@@ -1105,7 +1091,7 @@ def test_search_edges_for_metadata_gt():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1") > 1
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [("N4", "N5")] == results
 
 
@@ -1114,7 +1100,7 @@ def test_search_edges_for_metadata_ge():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1") >= 2
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [("N4", "N5")] == results
 
 
@@ -1123,7 +1109,7 @@ def test_search_edges_for_metadata_is_in():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1").is_in([2])
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [("N4", "N5")] == results
 
 
@@ -1132,16 +1118,10 @@ def test_search_edges_for_metadata_is_not_in():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1").is_not_in([2])
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [
-        ("N1", "N2"),
-        ("N10", "N11"),
-        ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
         ("N14", "N15"),
         ("N15", "N1"),
-        ("N9", "N10"),
     ] == results
 
 
@@ -1150,28 +1130,28 @@ def test_search_edges_for_metadata_is_some():
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1").is_some()
-    results = search_edges(g, filter_expr)
+    results = search_edges_layer("water_tribe", g, filter_expr)
     assert [
-        ("N1", "N2"),
-        ("N10", "N11"),
-        ("N11", "N12"),
-        ("N12", "N13"),
-        ("N13", "N14"),
         ("N14", "N15"),
         ("N15", "N1"),
         ("N4", "N5"),
-        ("N9", "N10"),
     ] == results
 
 
-@pytest.mark.skip(reason="Ignoring this test temporarily")
 def test_search_edges_for_metadata_is_none():
     g = Graph()
     g = init_edges_graph(g)
 
     filter_expr = filter.Edge.metadata("p1").is_none()
     results = search_edges(g, filter_expr)
-    assert [] == results
+    assert [
+        ("N2", "N3"),
+        ("N3", "N4"),
+        ("N5", "N6"),
+        ("N6", "N7"),
+        ("N7", "N8"),
+        ("N8", "N9"),
+    ] == results
 
 
 def test_search_edges_for_property_temporal_any_eq():

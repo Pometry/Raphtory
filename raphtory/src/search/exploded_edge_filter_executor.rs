@@ -1,11 +1,14 @@
 use crate::{
     db::{
-        api::view::{internal::FilterOps, StaticGraphViewOps},
+        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::filter::model::{
-                edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-                property_filter::{PropertyRef, Temporal},
+            views::filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
+                    property_filter::{PropertyRef, Temporal},
+                },
             },
         },
     },
@@ -44,6 +47,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
 
     fn execute_filter_query<G: StaticGraphViewOps>(
         &self,
+        filter: impl CreateFilter,
         graph: &G,
         query: Box<dyn Query>,
         reader: &IndexReader,
@@ -53,7 +57,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let searcher = reader.searcher();
         let collector = UniqueEntityFilterCollector::new(fields::EDGE_ID.to_string());
         let edge_ids = searcher.search(&query, &collector)?;
-        let edges = self.resolve_exploded_edges_from_edge_ids(graph, edge_ids)?;
+        let edges = self.resolve_exploded_edges_from_edge_ids(filter, graph, edge_ids)?;
 
         if offset == 0 && limit >= edges.len() {
             Ok(edges)
@@ -64,22 +68,22 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
 
     fn execute_filter_property_query<G, C>(
         &self,
+        filter: impl CreateFilter,
         graph: &G,
         query: Box<dyn Query>,
-        prop_id: usize,
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, G) -> C,
+        collector_fn: impl Fn(String, G) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
     {
         let searcher = reader.searcher();
-        let collector = collector_fn(fields::EDGE_ID.to_string(), prop_id, graph.clone());
+        let collector = collector_fn(fields::EDGE_ID.to_string(), graph.clone());
         let edge_ids = searcher.search(&query, &collector)?;
-        let edges = self.resolve_exploded_edges_from_exploded_edge_ids(graph, edge_ids)?;
+        let edges = self.resolve_exploded_edges_from_exploded_edge_ids(filter, graph, edge_ids)?;
 
         if offset == 0 && limit >= edges.len() {
             Ok(edges)
@@ -99,7 +103,9 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let query = self.query_builder.build_property_query(pi, filter)?;
         let reader = get_reader(&pi.index)?;
         match query {
-            Some(query) => self.execute_filter_query(graph, query, &reader, limit, offset),
+            Some(query) => {
+                self.execute_filter_query(filter.clone(), graph, query, &reader, limit, offset)
+            }
             // Fallback to raphtory apis
             None => fallback_filter_exploded_edges(graph, filter, limit, offset),
         }
@@ -108,12 +114,11 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
     fn execute_or_fallback_temporal<G: StaticGraphViewOps, C>(
         &self,
         graph: &G,
-        prop_id: usize,
         pi: &Arc<PropertyIndex>,
         filter: &PropertyFilter<ExplodedEdgeFilter>,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, G) -> C,
+        collector_fn: impl Fn(String, G) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
@@ -122,9 +127,9 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let reader = get_reader(&pi.index)?;
         match query {
             Some(query) => self.execute_filter_property_query(
+                filter.clone(),
                 graph,
                 query,
-                prop_id,
                 &reader,
                 limit,
                 offset,
@@ -162,26 +167,18 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         filter: &PropertyFilter<ExplodedEdgeFilter>,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, usize, G) -> C,
+        collector_fn: impl Fn(String, G) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
     {
-        if let Some((tpi, prop_id)) = self
+        if let Some((tpi, _)) = self
             .index
             .edge_index
             .entity_index
             .get_temporal_property_index(graph.edge_meta(), prop_name)?
         {
-            self.execute_or_fallback_temporal(
-                graph,
-                prop_id,
-                &tpi,
-                filter,
-                limit,
-                offset,
-                collector_fn,
-            )
+            self.execute_or_fallback_temporal(graph, &tpi, filter, limit, offset, collector_fn)
         } else {
             fallback_filter_exploded_edges(graph, filter, limit, offset)
         }
@@ -267,13 +264,15 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
 
     fn resolve_exploded_edges_from_exploded_edge_ids<G: StaticGraphViewOps>(
         &self,
+        filter: impl CreateFilter,
         graph: &G,
         exploded_edge_ids: HashSet<(TimeIndexEntry, EID, usize)>,
-    ) -> tantivy::Result<Vec<EdgeView<G>>> {
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let filtered_graph = graph.filter(filter)?;
         let edges = exploded_edge_ids
             .into_iter()
             .filter_map(|(tie, eid, layer_id)| {
-                if graph.filter_exploded_edge(eid.with_layer(layer_id), tie) {
+                if filtered_graph.filter_exploded_edge(eid.with_layer(layer_id), tie) {
                     let e_ref = graph.core_edge(eid).out_ref().at(tie).at_layer(layer_id);
                     Some(EdgeView::new(graph.clone(), e_ref))
                 } else {
@@ -286,14 +285,18 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
 
     fn resolve_exploded_edges_from_edge_ids<G: StaticGraphViewOps>(
         &self,
+        filter: impl CreateFilter,
         graph: &G,
-        exploded_edge_ids: HashSet<u64>,
-    ) -> tantivy::Result<Vec<EdgeView<G>>> {
-        let edges = exploded_edge_ids
+        edge_ids: HashSet<u64>,
+    ) -> Result<Vec<EdgeView<G>>, GraphError> {
+        let filtered_graph = graph.filter(filter)?;
+        let edges = edge_ids
             .into_iter()
             .filter_map(|id| {
                 let e_ref = graph.core_edge(EID(id as usize));
-                graph.edge(e_ref.src(), e_ref.dst())
+                filtered_graph
+                    .filter_edge(e_ref.as_ref())
+                    .then(|| EdgeView::new(graph.clone(), e_ref.out_ref()))
             })
             .flat_map(|e| e.explode())
             .collect_vec();

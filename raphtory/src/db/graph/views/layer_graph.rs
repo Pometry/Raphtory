@@ -547,10 +547,11 @@ mod test_layers {
         mod test_edges_filters_layer_graph {
             use crate::{
                 db::{
-                    api::view::StaticGraphViewOps,
+                    api::view::{MaterializedGraph::PersistentGraph, StaticGraphViewOps},
                     graph::{
                         assertions::{
-                            assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                            assert_filter_edges_results, assert_search_edges_results,
+                            TestGraphVariants, TestVariants,
                         },
                         views::{
                             filter::model::{
@@ -566,8 +567,6 @@ mod test_layers {
                 prelude::AdditionOps,
             };
             use raphtory_api::core::entities::properties::prop::Prop;
-            use crate::db::api::view::MaterializedGraph::PersistentGraph;
-            use crate::db::graph::assertions::TestGraphVariants;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

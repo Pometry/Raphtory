@@ -3236,7 +3236,7 @@ mod db_tests {
         );
         correct
     }
-    
+
     #[test]
     fn can_apply_algorithm_on_filtered_graph() {
         let graph = Graph::new();

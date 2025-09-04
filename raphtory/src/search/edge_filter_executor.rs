@@ -1,31 +1,24 @@
-use crate::db::api::view::internal::FilterOps;
-use crate::db::api::view::BaseFilterOps;
-use crate::db::graph::views::filter::internal::CreateFilter;
 use crate::{
     db::{
-        api::view::StaticGraphViewOps,
+        api::view::{internal::FilterOps, BaseFilterOps, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
-            views::filter::model::{
-                edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
-                property_filter::{PropertyRef, Temporal},
-                Filter,
+            views::filter::{
+                internal::CreateFilter,
+                model::{
+                    edge_filter::{CompositeEdgeFilter, EdgeFieldFilter, EdgeFilter},
+                    property_filter::PropertyRef,
+                    Filter,
+                },
             },
         },
     },
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
     search::{
-        collectors::{
-            edge_property_filter_collector::EdgePropertyFilterCollector,
-            first_edge_property_filter_collector::FirstEdgePropertyFilterCollector,
-            latest_edge_property_filter_collector::LatestEdgePropertyFilterCollector,
-            unique_entity_filter_collector::UniqueEntityFilterCollector,
-        },
-        fallback_filter_edges, fields, get_reader,
-        graph_index::Index,
-        property_index::PropertyIndex,
-        query_builder::QueryBuilder,
+        collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
+        fallback_filter_edges, fields, get_reader, graph_index::Index,
+        property_index::PropertyIndex, query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;

@@ -835,7 +835,7 @@ pub(crate) mod test_filters {
                     graph::{
                         assertions::{
                             assert_filter_edges_results, assert_search_edges_results,
-                            TestGraphVariants, TestVariants,
+                            TestGraphVariants, TestVariants, WindowGraphTransformer,
                         },
                         views::filter::{
                             internal::CreateFilter,
@@ -854,7 +854,6 @@ pub(crate) mod test_filters {
                 addition_ops::InternalAdditionOps,
                 property_addition_ops::InternalPropertyAdditionOps,
             };
-            use crate::db::graph::assertions::WindowGraphTransformer;
 
             fn init_graph<
                 G: StaticGraphViewOps
@@ -948,17 +947,25 @@ pub(crate) mod test_filters {
             fn test_persistent_graph_first_window() {
                 fn init_graph<
                     G: StaticGraphViewOps
-                    + AdditionOps
-                    + InternalAdditionOps
-                    + InternalPropertyAdditionOps
-                    + PropertyAdditionOps,
+                        + AdditionOps
+                        + InternalAdditionOps
+                        + InternalPropertyAdditionOps
+                        + PropertyAdditionOps,
                 >(
                     graph: G,
                 ) -> G {
-                    graph.add_edge(0, 1, 2, [("p1", Prop::U64(1u64))], None).unwrap();
-                    graph.add_edge(2, 1, 2, [("p1", Prop::U64(2u64))], None).unwrap();
-                    graph.add_edge(5, 1, 2, [("p1", Prop::U64(5u64))], None).unwrap();
-                    graph.add_edge(10, 1, 2, [("p1", Prop::U64(10u64))], None).unwrap();
+                    graph
+                        .add_edge(0, 1, 2, [("p1", Prop::U64(1u64))], None)
+                        .unwrap();
+                    graph
+                        .add_edge(2, 1, 2, [("p1", Prop::U64(2u64))], None)
+                        .unwrap();
+                    graph
+                        .add_edge(5, 1, 2, [("p1", Prop::U64(5u64))], None)
+                        .unwrap();
+                    graph
+                        .add_edge(10, 1, 2, [("p1", Prop::U64(10u64))], None)
+                        .unwrap();
                     graph
                 }
 
@@ -1030,7 +1037,7 @@ pub(crate) mod test_filters {
                     &expected_found,
                     TestVariants::PersistentOnly,
                 );
-                
+
                 // Window(4,10); Expected update at time 2 (even if it is outside the window) and the value of p1 is expected to be 2u64.
                 assert_filter_edges_results(
                     init_graph,
@@ -1046,7 +1053,7 @@ pub(crate) mod test_filters {
                     &expected_found,
                     TestVariants::PersistentOnly,
                 );
-                
+
                 // Window(5,10); Expected update at time 5 (even if it is outside the window) and the value of p1 is expected to be 5u64.
                 assert_filter_edges_results(
                     init_graph,
