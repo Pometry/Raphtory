@@ -353,7 +353,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
     }
 
     fn temporal_value(&self, id: usize) -> Option<Prop> {
-        self.graph.temporal_value_at(id, self.end_bound().t())
+        self.graph.temporal_value_at(id, self.end_bound())
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<(TimeIndexEntry, Prop)> {
@@ -372,12 +372,12 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for Window
             .into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         self.graph
             .temporal_prop_last_at_window(
                 id,
-                TimeIndexEntry::end(t),
-                self.start_bound().t()..self.end_bound().t(),
+                t,
+                self.window_bound(),
             )
             .map(|(_, p)| p)
     }
@@ -407,13 +407,13 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     fn node_time_semantics(&self) -> TimeSemantics {
         self.graph
             .node_time_semantics()
-            .window(self.start_bound().t()..self.end_bound().t())
+            .window(self.window_bound())
     }
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         self.graph
             .edge_time_semantics()
-            .window(self.start_bound().t()..self.end_bound().t())
+            .window(self.window_bound())
     }
     fn view_start(&self) -> Option<TimeIndexEntry> {
         self.start
@@ -488,7 +488,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         self.graph.temporal_prop_last_at_window(
             prop_id,
             t,
-            self.start_bound().t()..self.end_bound().t(),
+            self.window_bound(),
         )
     }
 
@@ -496,7 +496,7 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
         self.graph.temporal_prop_last_at_window(prop_id, t, w)
     }

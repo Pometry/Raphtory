@@ -123,9 +123,8 @@ impl GraphTimeSemanticsOps for GraphStorage {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
         if w.contains(&t) {
             self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
                 p.deref()

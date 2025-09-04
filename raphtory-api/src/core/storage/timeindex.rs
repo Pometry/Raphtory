@@ -219,6 +219,8 @@ impl TimeIndexEntry {
         Self(t, s)
     }
 
+    /// Sets the secondary index of the TimeIndexEntry.
+    /// Note that this mutates the TimeIndexEntry in place rather than create and return a new one.
     pub fn set_index(mut self, i: usize) -> Self {
         self.1 = i;
         self

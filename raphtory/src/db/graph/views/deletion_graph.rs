@@ -238,9 +238,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
-        let w = TimeIndexEntry::range(w);
         if w.contains(&t) {
             self.0
                 .temporal_prop_last_at(prop_id, t)

@@ -31,7 +31,7 @@ pub trait InternalTemporalPropertyViewOps {
         self.temporal_iter_rev(id).map(|(_, v)| v).into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop>;
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesRowView {
@@ -127,7 +127,7 @@ where
     }
 
     #[inline]
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         self.base().temporal_value_at(id, t)
     }
 }

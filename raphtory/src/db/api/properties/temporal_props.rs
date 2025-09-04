@@ -100,7 +100,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn at(&self, t: i64) -> Option<Prop> {
-        self.props.temporal_value_at(self.id, t)
+        self.props.temporal_value_at(self.id, TimeIndexEntry::end(t))
     }
     pub fn latest(&self) -> Option<Prop> {
         self.props.temporal_value(self.id)

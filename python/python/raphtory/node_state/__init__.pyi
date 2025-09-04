@@ -3358,8 +3358,13 @@ class EarliestDateTimeView(object):
            Optional[datetime]: the value for the node or the default value
         """
 
-    def groups(self):
-        ...
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -3378,6 +3383,14 @@ class EarliestDateTimeView(object):
 
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
+        """
+
+    def items_valid(self) -> Iterator[Tuple[Node, datetime]]:
+        """
+        Iterate over valid items only. Ignore error and None values.
+
+        Returns:
+            Iterator[Tuple[Node, datetime]]: Iterator over items
         """
 
     def iter_valid(self):
@@ -3544,7 +3557,7 @@ class EarliestDateTimeView(object):
 
     def sorted(self, reverse: bool = False) -> NodeStateResultOptionDateTime:
         """
-        Sort by value
+        Sort by value. Note that 'None' values will always come after valid DateTime values
 
         Arguments:
             reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
@@ -3610,6 +3623,14 @@ class EarliestDateTimeView(object):
 
         Returns:
             Iterator[Optional[datetime]]: Iterator over values
+        """
+
+    def values_valid(self) -> Iterator[datetime]:
+        """
+        Iterate over valid values only. Ignore error and None values.
+
+        Returns:
+            Iterator[datetime]: Iterator over values
         """
 
     def window(self, start: TimeInput | None, end: TimeInput | None) -> EarliestDateTimeView:
@@ -5196,8 +5217,13 @@ class LatestDateTimeView(object):
            Optional[datetime]: the value for the node or the default value
         """
 
-    def groups(self):
-        ...
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def has_layer(self, name: str) -> bool:
         """
@@ -5216,6 +5242,14 @@ class LatestDateTimeView(object):
 
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
+        """
+
+    def items_valid(self) -> Iterator[Tuple[Node, datetime]]:
+        """
+        Iterate over valid items only. Ignore error and None values.
+
+        Returns:
+            Iterator[Tuple[Node, datetime]]: Iterator over items
         """
 
     def iter_valid(self):
@@ -5382,7 +5416,7 @@ class LatestDateTimeView(object):
 
     def sorted(self, reverse: bool = False) -> NodeStateResultOptionDateTime:
         """
-        Sort by value
+        Sort by value. Note that 'None' values will always come after valid DateTime values
 
         Arguments:
             reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
@@ -5448,6 +5482,14 @@ class LatestDateTimeView(object):
 
         Returns:
             Iterator[Optional[datetime]]: Iterator over values
+        """
+
+    def values_valid(self) -> Iterator[datetime]:
+        """
+        Iterate over valid values only. Ignore error and None values.
+
+        Returns:
+            Iterator[datetime]: Iterator over values
         """
 
     def window(self, start: TimeInput | None, end: TimeInput | None) -> LatestDateTimeView:
@@ -7327,8 +7369,13 @@ class NodeStateResultOptionDateTime(object):
            Optional[datetime]: the value for the node or the default value
         """
 
-    def groups(self):
-        ...
+    def groups(self) -> NodeGroups:
+        """
+        Group by value
+
+        Returns:
+            NodeGroups: The grouped nodes
+        """
 
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
@@ -7337,6 +7384,17 @@ class NodeStateResultOptionDateTime(object):
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
         """
+
+    def items_valid(self) -> Iterator[Tuple[Node, datetime]]:
+        """
+        Iterate over valid items only. Ignore error and None values.
+
+        Returns:
+            Iterator[Tuple[Node, datetime]]: Iterator over items
+        """
+
+    def iter_valid(self):
+        ...
 
     def max(self) -> Optional[datetime]:
         """
@@ -7441,6 +7499,14 @@ class NodeStateResultOptionDateTime(object):
 
         Returns:
             Iterator[Optional[datetime]]: Iterator over values
+        """
+
+    def values_valid(self) -> Iterator[datetime]:
+        """
+        Iterate over valid values only. Ignore error and None values.
+
+        Returns:
+            Iterator[datetime]: Iterator over values
         """
 
 class NodeStateWeightedSP(object): 

@@ -168,7 +168,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
     }

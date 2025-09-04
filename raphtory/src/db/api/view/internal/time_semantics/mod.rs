@@ -100,7 +100,7 @@ pub trait GraphTimeSemanticsOps {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)>;
 }
 
@@ -198,7 +198,7 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
         &self,
         prop_id: usize,
         t: TimeIndexEntry,
-        w: Range<i64>,
+        w: Range<TimeIndexEntry>,
     ) -> Option<(TimeIndexEntry, Prop)> {
         self.graph().temporal_prop_last_at_window(prop_id, t, w)
     }

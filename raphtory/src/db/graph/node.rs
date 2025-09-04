@@ -293,11 +293,11 @@ impl<'graph, G, GH: GraphViewOps<'graph>> InternalTemporalPropertyViewOps
         .into_dyn_boxed()
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         semantics
-            .node_tprop_last_at(node.as_ref(), &self.graph, id, TimeIndexEntry::end(t))
+            .node_tprop_last_at(node.as_ref(), &self.graph, id, t)
             .map(|(_, v)| v)
     }
 }

@@ -597,7 +597,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: TimeIndexEntry) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
@@ -608,13 +608,13 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         edge.as_ref(),
                         &self.graph,
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     ),
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     ),
                 },
                 Some(ti) => {
@@ -625,7 +625,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         ti,
                         layer,
                         id,
-                        TimeIndexEntry::start(t),
+                        t,
                     )
                 }
             }
