@@ -714,7 +714,6 @@ mod tests_node_type_filtered_subgraph {
                     .properties()
                     .get("p1")
                     .unwrap_u64();
-                println!("prop = {}", p);
                 assert_eq!(p, 2);
                 let r = graph
                     .filter(filter.clone())
@@ -726,7 +725,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(None, 6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -745,7 +744,7 @@ mod tests_node_type_filtered_subgraph {
                     WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
@@ -766,7 +765,7 @@ mod tests_node_type_filtered_subgraph {
                     ),
                     filter.clone(),
                     &expected_results,
-                    vec![],
+                    TestVariants::PersistentOnly,
                 );
                 assert_search_edges_results(
                     init_graph,
