@@ -348,7 +348,13 @@ impl ArcLockedSegmentView {
             .layers
             .get(layer_id)
             .into_iter()
-            .flat_map(|layer| layer.items().iter_ones())
+            .flat_map(|layer| {
+                layer
+                    .items()
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, check)| check.then_some(index))
+            })
             .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
     }
 
@@ -360,7 +366,13 @@ impl ArcLockedSegmentView {
             .layers
             .get(layer_id)
             .into_par_iter()
-            .flat_map(|layer| layer.items().iter_ones().par_bridge())
+            .flat_map(|layer| {
+                layer
+                    .items()
+                    .par_iter()
+                    .enumerate()
+                    .filter_map(|(index, check)| check.then_some(index))
+            })
             .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
     }
 }

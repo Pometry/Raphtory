@@ -26,7 +26,7 @@ pub mod node_entry;
 #[derive(serde::Serialize)]
 pub struct SegmentContainer<T> {
     segment_id: usize,
-    items: BitVec<u8, Msb0>,
+    items: Vec<bool>,
     data: FxHashMap<LocalPOS, T>,
     max_page_len: usize,
     properties: Properties,
@@ -64,7 +64,7 @@ impl<T: HasRow> SegmentContainer<T> {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
         Self {
             segment_id,
-            items: BitVec::repeat(false, max_page_len),
+            items: vec![false; max_page_len],
             data: Default::default(),
             max_page_len,
             properties: Default::default(),
@@ -89,7 +89,7 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn set_item(&mut self, item_pos: LocalPOS) {
-        self.items.set(item_pos.0, true);
+        self.items[item_pos.0] = true;
     }
 
     pub fn max_page_len(&self) -> usize {
@@ -160,7 +160,7 @@ impl<T: HasRow> SegmentContainer<T> {
         &self.meta
     }
 
-    pub fn items(&self) -> &BitVec<u8, Msb0> {
+    pub fn items(&self) -> &Vec<bool> {
         &self.items
     }
 
@@ -188,14 +188,18 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
-        self.items.iter_ones().filter_map(move |l_pos| {
-            let entry = self.data.get(&LocalPOS(l_pos))?;
-            Some((
-                LocalPOS(l_pos),
-                entry,
-                self.properties().get_entry(entry.row()),
-            ))
-        })
+        self.items
+            .iter()
+            .enumerate()
+            .filter_map(|(index, check)| check.then_some(index))
+            .filter_map(move |l_pos| {
+                let entry = self.data.get(&LocalPOS(l_pos))?;
+                Some((
+                    LocalPOS(l_pos),
+                    entry,
+                    self.properties().get_entry(entry.row()),
+                ))
+            })
     }
 
     pub fn all_entries(
