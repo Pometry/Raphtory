@@ -69,7 +69,10 @@ impl PyMetadata {
         self.props.as_vec()
     }
 
-    /// get property value by key
+    /// get property value by key.
+    ///
+    /// Returns:
+    ///     PropValue:
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -85,7 +88,7 @@ impl PyMetadata {
     ///     key (str): the name of the property
     ///
     /// Returns:
-    ///     PropValue | None: the property value or `None` if value for `key` does not exist
+    ///     PropValue: the property value or `None` if value for `key` does not exist
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)

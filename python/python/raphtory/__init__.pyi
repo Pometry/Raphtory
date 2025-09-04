@@ -41,6 +41,7 @@ __all__ = [
     "NestedEdges",
     "MutableEdge",
     "Properties",
+    "PyPropValueList",
     "Metadata",
     "TemporalProperties",
     "PropertiesView",
@@ -4749,16 +4750,14 @@ class Edge(object):
 
         Returns:
            int: The number of times an edge was added or change to an edge was made.
-
         """
 
-    def history_date_time(self):
+    def history_date_time(self) -> Optional[List[datetime]]:
         """
         Returns a list of timestamps of when an edge is added or change to an edge is made.
 
         Returns:
-            List[datetime]
-
+            Optional[List[datetime]]:
         """
 
     @property
@@ -4965,8 +4964,13 @@ class Edge(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -5093,7 +5097,7 @@ class Edges(object):
         """
 
     @property
-    def date_time(self):
+    def date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the date times of exploded edges
 
@@ -5134,7 +5138,7 @@ class Edges(object):
         """
 
     @property
-    def earliest_date_time(self):
+    def earliest_date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the earliest date time of the edges.
 
@@ -5262,7 +5266,7 @@ class Edges(object):
 
         """
 
-    def history_counts(self):
+    def history_counts(self) -> U64Iterable:
         """
         Returns the number of times any edge was added or change to an edge was been made.
 
@@ -5279,40 +5283,45 @@ class Edges(object):
         """
 
     @property
-    def id(self):
+    def id(self) -> GIDGIDIterable:
         """
         Returns all ids of the edges.
 
-        Return:
+        Returns:
             GIDGIDIterable:
         """
 
-    def is_active(self):
+    def is_active(self) -> BoolIterable:
         """
         Check if the edges are active (there is at least one update during this time).
 
-        Return:
+        Returns:
             BoolIterable:
         """
 
-    def is_deleted(self):
+    def is_deleted(self) -> BoolIterable:
         """
         Check if the edges are deleted.
 
-        Return:
+        Returns:
             BoolIterable:
         """
 
-    def is_self_loop(self):
+    def is_self_loop(self) -> BoolIterable:
         """
         Check if the edges are on the same node.
 
-        Return:
+        Returns:
             BoolIterable:
         """
 
-    def is_valid(self):
-        """Check if the edges are valid (i.e. not deleted)"""
+    def is_valid(self) -> BoolIterable:
+        """
+        Check if the edges are valid (i.e. not deleted).
+
+        Returns:
+            BoolIterable:
+        """
 
     def latest(self) -> Edges:
         """
@@ -5323,21 +5332,21 @@ class Edges(object):
         """
 
     @property
-    def latest_date_time(self):
+    def latest_date_time(self) -> OptionUtcDateTimeIterable:
         """
         Returns the latest date time of the edges.
 
         Returns:
-          Latest date time of the edges.
+            OptionUtcDateTimeIterable:
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> OptionI64Iterable:
         """
         Returns the latest time of the edges.
 
         Returns:
-         Latest time of the edges.
+            OptionI64Iterable:
         """
 
     def layer(self, name: str) -> Edges:
@@ -5362,12 +5371,12 @@ class Edges(object):
         """
 
     @property
-    def layer_names(self):
+    def layer_names(self) -> ArcStringVecIterable:
         """
-        Get the layer names that all edges belong to - assuming they only belong to one layer
+        Get the layer names that all edges belong to - assuming they only belong to one layer.
 
         Returns:
-          A list of layer names
+          ArcStringVecIterable:
         """
 
     def layers(self, names: list[str]) -> Edges:
@@ -5481,8 +5490,13 @@ class Edges(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -5505,10 +5519,10 @@ class Edges(object):
     @property
     def time(self):
         """
-        Returns the times of exploded edges
+        Returns the times of exploded edges.
 
         Returns:
-          Time of edge
+            I64Iterable:
         """
 
     def to_df(
@@ -5784,11 +5798,11 @@ class NestedEdges(object):
             bool:
         """
 
-    def history(self):
+    def history(self) -> NestedI64VecIterable:
         """
         Returns all timestamps of edges, when an edge is added or change to an edge is made.
 
-        Return:
+        Returns:
             NestedI64VecIterable:
         """
 
@@ -5850,12 +5864,22 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_date_time(self):
-        """Returns the latest date time of the edges."""
+    def latest_date_time(self) -> NestedUtcDateTimeIterable:
+        """
+        Returns the latest date time of the edges.
+
+        Returns:
+            NestedUtcDateTimeIterable:
+        """
 
     @property
-    def latest_time(self):
-        """Returns the latest time of the edges."""
+    def latest_time(self) -> NestedOptionI64Iterable:
+        """
+        Returns the latest time of the edges.
+
+        Returns:
+            NestedOptionI64Iterable:
+        """
 
     def layer(self, name: str) -> NestedEdges:
         """
@@ -5871,11 +5895,21 @@ class NestedEdges(object):
 
     @property
     def layer_name(self):
-        """Returns the name of the layer the edges belong to - assuming they only belong to one layer"""
+        """
+        Returns the name of the layer the edges belong to - assuming they only belong to one layer.
+
+        Returns:
+            NestedArcStringIterable:
+        """
 
     @property
-    def layer_names(self):
-        """Returns the names of the layers the edges belong to."""
+    def layer_names(self) -> NestedArcStringVecIterable:
+        """
+        Returns the names of the layers the edges belong to.
+
+        Returns:
+            NestedArcStringVecIterable:
+        """
 
     def layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5909,7 +5943,12 @@ class NestedEdges(object):
 
     @property
     def properties(self):
-        """Returns all properties of the edges"""
+        """
+        Returns all properties of the edges
+
+        Returns:
+            PyNestedPropsIterable:
+        """
 
     def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
         """
@@ -5983,8 +6022,13 @@ class NestedEdges(object):
         """
 
     @property
-    def src(self):
-        """Returns the source node of the edge."""
+    def src(self) -> Nodes:
+        """
+        Returns the source node of the edge.
+
+        Returns:
+            Nodes:
+        """
 
     @property
     def start(self) -> Optional[int]:
@@ -6050,7 +6094,7 @@ class MutableEdge(Edge):
     def __repr__(self):
         """Return repr(self)."""
 
-    def add_metadata(self, metadata: PropInput, layer: Optional[str] = None):
+    def add_metadata(self, metadata: PropInput, layer: Optional[str] = None) -> None:
         """
         Add metadata to an edge in the graph.
         This function is used to add properties to an edge that do not
@@ -6059,6 +6103,9 @@ class MutableEdge(Edge):
         Parameters:
             metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
+
+        Returns:
+            None:
         """
 
     def add_updates(
@@ -6085,16 +6132,22 @@ class MutableEdge(Edge):
             GraphError: If the operation fails.
         """
 
-    def delete(self, t: TimeInput, layer: Optional[str] = None):
+    def delete(self, t: TimeInput, layer: Optional[str] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
             t (TimeInput): The timestamp at which the deletion should be applied.
-            layer (str, optional): The layer you want the deletion applied to .
+            layer (str, optional): The layer you want the deletion applied to.
+
+        Returns:
+            None:
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
-    def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
+    def update_metadata(self, metadata: PropInput, layer: Optional[str] = None) -> None:
         """
         Update metadata of an edge in the graph overwriting existing values.
         This function is used to add properties to an edge that does not
@@ -6103,6 +6156,9 @@ class MutableEdge(Edge):
         Parameters:
             metadata (PropInput): A dictionary of properties to be added to the edge.
             layer (str, optional): The layer you want these properties to be added on to.
+
+        Returns:
+            None:
         """
 
 class Properties(object):
@@ -6141,22 +6197,40 @@ class Properties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def as_dict(self):
-        """Convert properties view to a dict"""
+    def as_dict(self) -> dict[str, PropValue]:
+        """
+        Convert properties view to a dict.
 
-    def get(self, key):
+        Returns:
+            dict[str, PropValue]:
+        """
+
+    def get(self, key) -> PropValue:
         """
         Get property value.
 
         First searches temporal properties and returns latest value if it exists.
         If not, it falls back to static properties.
+
+        Returns:
+            PropValue:
         """
 
-    def items(self):
-        """Get a list of key-value pairs"""
+    def items(self) -> list[Tuple[str, PropValue]]:
+        """
+        Get a list of key-value pairs
+
+        Returns:
+            list[Tuple[str, PropValue]]:
+        """
 
     def keys(self):
-        """Get the names for all properties (includes temporal and static properties)"""
+        """
+        Get the names for all properties (includes temporal and static properties)
+
+        Returns:
+            List[Str]:
+        """
 
     @property
     def temporal(self):
@@ -6164,6 +6238,44 @@ class Properties(object):
 
     def values(self):
         """Get the values of the properties"""
+
+class PyPropValueList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def average(self): ...
+    def collect(self): ...
+    def count(self): ...
+    def drop_none(self): ...
+    def max(self): ...
+    def mean(self): ...
+    def median(self): ...
+    def min(self): ...
+    def sum(self): ...
 
 class Metadata(object):
     """A view of metadata of an entity"""
@@ -6211,7 +6323,7 @@ class Metadata(object):
             dict[str, PropValue]:
         """
 
-    def get(self, key: str):
+    def get(self, key: str) -> PropValue:
         """
         get property value by key
 
@@ -6219,7 +6331,7 @@ class Metadata(object):
             key (str): the name of the property
 
         Returns:
-            PropValue | None: the property value or `None` if value for `key` does not exist
+            PropValue: the property value or `None` if value for `key` does not exist
         """
 
     def items(self) -> list[Tuple[str, PropValue]]:
@@ -6306,11 +6418,21 @@ class TemporalProperties(object):
             dict[str, list[Tuple[datetime, PropValue]]]: the mapping of property keys to histories
         """
 
-    def items(self):
-        """List the property keys together with the corresponding values"""
+    def items(self) -> List[Tuple[str, TemporalProp]]:
+        """
+        List the property keys together with the corresponding values
+
+        Returns:
+            List[Tuple[str, TemporalProp]]:
+        """
 
     def keys(self):
-        """List the available property keys"""
+        """
+        List the available property keys.
+
+        Returns:
+            List[Str]:
+        """
 
     def latest(self) -> dict[str, PropValue]:
         """
@@ -6359,17 +6481,37 @@ class PropertiesView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def as_dict(self):
-        """Convert properties view to a dict"""
+    def as_dict(self) -> dict[str, List[PropValue]]:
+        """
+        Convert properties view to a dict.
 
-    def get(self, key):
-        """Get property value."""
+        Returns:
+            dict[str, List[PropValue]]:
+        """
 
-    def items(self):
-        """Get a list of key-value pairs"""
+    def get(self, key) -> PyPropValueList:
+        """
+        Get property value.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def items(self) -> list[Tuple[str, List[PropValue]]]:
+        """
+        Get a list of key-value pairs.
+
+        Returns:
+            list[Tuple[str, List[PropValue]]]:
+        """
 
     def keys(self):
-        """Get the names for all properties"""
+        """
+        Get the names for all properties.
+
+        Returns:
+            List[Str]:
+        """
 
     @property
     def temporal(self):
@@ -6406,7 +6548,12 @@ class TemporalProp(object):
         """Return repr(self)."""
 
     def at(self, t):
-        """Get the value of the property at time `t`"""
+        """
+        Get the value of the property at a specified time.
+
+        Returns:
+            Optional[Prop]:
+        """
 
     def average(self) -> PropValue:
         """
@@ -6425,16 +6572,36 @@ class TemporalProp(object):
         """
 
     def history(self):
-        """Get the timestamps at which the property was updated"""
+        """
+        Get the timestamps at which the property was updated.
 
-    def history_date_time(self):
-        """Get the timestamps at which the property was updated"""
+        Returns:
+            NumpyArray:
+        """
 
-    def items(self):
-        """List update timestamps and corresponding property values"""
+    def history_date_time(self) -> Optional[List[datetime]]:
+        """
+        Get the timestamps at which the property was updated.
 
-    def items_date_time(self):
-        """List update timestamps and corresponding property values"""
+        Returns:
+            Optional[List[datetime]]:
+        """
+
+    def items(self) -> List[Tuple[int, PropValue]]:
+        """
+        List update timestamps and corresponding property values.
+
+        Returns:
+            List[Tuple[int, PropValue]]:
+        """
+
+    def items_date_time(self) -> list[Tuple[datetime, PropValue]]:
+        """
+        List update timestamps and corresponding property values.
+
+        Returns:
+            list[Tuple[datetime, PropValue]]:
+        """
 
     def max(self) -> Tuple[int, PropValue]:
         """
@@ -6468,8 +6635,13 @@ class TemporalProp(object):
             Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time):
-        """List of ordered deduplicated property values"""
+    def ordered_dedupe(self, latest_time) -> List[int]:
+        """
+        List of ordered deduplicated property values.
+
+        Returns:
+            List[int]:
+        """
 
     def sum(self) -> PropValue:
         """
@@ -6480,13 +6652,28 @@ class TemporalProp(object):
         """
 
     def unique(self):
-        """List of unique property values"""
+        """
+        List of unique property values.
+
+        Returns:
+            List[Prop]:
+        """
 
     def value(self):
-        """Get the latest value of the property"""
+        """
+        Get the latest value of the property.
+
+        Returns:
+            Optional[Prop]:
+        """
 
     def values(self):
-        """Get the property values for each update"""
+        """
+        Get the property values for each update.
+
+        Returns:
+            NumpyArray:
+        """
 
 class WindowSet(object):
     def __iter__(self):

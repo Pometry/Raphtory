@@ -12,7 +12,9 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                PyMetadata, PyPropValueList, PyProperties, PyTemporalProp, PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -24,15 +26,16 @@ use crate::{
         types::wrappers::{
             document::PyDocument,
             iterables::{
-                ArcStringIterable, BoolIterable, GIDGIDIterable, GIDIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedGIDIterable, NestedI64VecIterable,
-                NestedOptionArcStringIterable, NestedOptionI64Iterable, NestedStringIterable,
-                NestedUsizeIterable, NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
-                OptionArcStringIterable, OptionI64Iterable, OptionVecUtcDateTimeIterable,
-                StringIterable, UsizeIterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, GIDIterable,
+                NestedArcStringVecIterable, NestedBoolIterable, NestedGIDGIDIterable,
+                NestedGIDIterable, NestedI64VecIterable, NestedOptionArcStringIterable,
+                NestedOptionI64Iterable, NestedStringIterable, NestedUsizeIterable,
+                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionArcStringIterable,
+                OptionI64Iterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
+                StringIterable, U64Iterable, UsizeIterable,
             },
         },
-        utils::PyWindowSet,
+        utils::{PyGenericIterable, PyWindowSet},
     },
 };
 use pyo3::prelude::*;
@@ -55,6 +58,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyNestedEdges,
         PyMutableEdge,
         PyProperties,
+        PyPropValueList,
         PyMetadata,
         PyTemporalProperties,
         PropertiesView,
@@ -100,6 +104,10 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         GIDGIDIterable,
         NestedGIDGIDIterable,
         NestedBoolIterable,
+        U64Iterable,
+        OptionUtcDateTimeIterable,
+        ArcStringVecIterable,
+        NestedArcStringVecIterable,
     );
     Ok(iterables_module)
 }

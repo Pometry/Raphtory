@@ -219,7 +219,6 @@ impl PyEdge {
     ///
     /// Returns:
     ///    int: The number of times an edge was added or change to an edge was made.
-    ///
     pub fn history_counts(&self) -> usize {
         self.edge.history_counts()
     }
@@ -227,8 +226,7 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     List[datetime]
-    ///
+    ///     Optional[List[datetime]]:
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.history_date_time()
     }
@@ -460,7 +458,13 @@ impl PyMutableEdge {
     ///
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
-    ///     layer (str, optional): The layer you want the deletion applied to .
+    ///     layer (str, optional): The layer you want the deletion applied to.
+    ///
+    /// Returns:
+    ///     None:
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
@@ -473,6 +477,9 @@ impl PyMutableEdge {
     /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
@@ -489,6 +496,9 @@ impl PyMutableEdge {
     /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,

@@ -85,7 +85,10 @@ impl PyRemoteEdge {
     /// layer (str, optional): The layer you want the deletion applied to.
     ///
     /// Returns:
-    /// None:
+    ///   None:
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"

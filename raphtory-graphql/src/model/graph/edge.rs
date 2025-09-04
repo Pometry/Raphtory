@@ -281,6 +281,9 @@ impl GqlEdge {
     }
 
     /// Returns the source node of the edge.
+    ///
+    /// Returns:
+    ///     GqlNode:
     async fn src(&self) -> GqlNode {
         self.ee.src().into()
     }

@@ -88,6 +88,9 @@ impl PyProperties {
     ///
     /// First searches temporal properties and returns latest value if it exists.
     /// If not, it falls back to static properties.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn get(&self, key: &str) -> Option<Prop> {
         self.props.get(key)
     }
@@ -115,6 +118,9 @@ impl PyProperties {
     }
 
     /// Get the names for all properties (includes temporal and static properties)
+    ///
+    /// Returns:
+    ///     List[Str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.props.iter_filtered().map(|(key, _)| key).collect()
     }
@@ -125,6 +131,9 @@ impl PyProperties {
     }
 
     /// Get a list of key-value pairs
+    ///
+    /// Returns:
+    ///     list[Tuple[str, PropValue]]:
     pub fn items(&self) -> Vec<(ArcStr, Prop)> {
         self.props.as_vec()
     }
@@ -135,7 +144,10 @@ impl PyProperties {
         self.props.temporal()
     }
 
-    /// Convert properties view to a dict
+    /// Convert properties view to a dict.
+    ///
+    /// Returns:
+    ///     dict[str, PropValue]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Prop> {
         self.props.as_map()
     }
@@ -247,6 +259,9 @@ py_eq!(PropertiesView, PyPropsListCmp);
 #[pymethods]
 impl PropertiesView {
     /// Get property value.
+    ///
+    /// Returns:
+    ///     PyPropValueList:
     pub fn get(&self, key: &str) -> Option<PyPropValueList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -272,7 +287,10 @@ impl PropertiesView {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties
+    /// Get the names for all properties.
+    ///
+    /// Returns:
+    ///     List[Str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .next()
@@ -299,7 +317,10 @@ impl PropertiesView {
         .into()
     }
 
-    /// Get a list of key-value pairs
+    /// Get a list of key-value pairs.
+    ///
+    /// Returns:
+    ///     list[Tuple[str, List[PropValue]]]:
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueList)> {
         self.keys()
             .into_iter()
@@ -314,7 +335,10 @@ impl PropertiesView {
         (move || builder().map(|p| p.temporal())).into()
     }
 
-    /// Convert properties view to a dict
+    /// Convert properties view to a dict.
+    ///
+    /// Returns:
+    ///     dict[str, List[PropValue]]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
@@ -377,6 +401,9 @@ impl From<&PyNestedPropsIterable> for PyMetadataListListCmp {
 #[pymethods]
 impl PyNestedPropsIterable {
     /// Get property value.
+    ///
+    /// Returns:
+    ///     PyPropValueListList:
     pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -404,7 +431,10 @@ impl PyNestedPropsIterable {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get the names for all properties
+    /// Get the names for all properties.
+    ///
+    /// Returns:
+    ///     List[Str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .filter_map(|mut it| it.next())
@@ -425,7 +455,10 @@ impl PyNestedPropsIterable {
             .collect()
     }
 
-    /// Get a list of key-value pairs
+    /// Get a list of key-value pairs.
+    ///
+    /// Returns:
+    ///     list[Tuple[str, List[PropValue]]]:
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
@@ -437,7 +470,10 @@ impl PyNestedPropsIterable {
         (move || builder().map(|it| it.map(|p| p.temporal()))).into()
     }
 
-    /// Convert properties view to a dict
+    /// Convert properties view to a dict.
+    ///
+    /// Returns:
+    ///     dict[str, List[List[PropValue]]]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
         self.items()
             .into_iter()

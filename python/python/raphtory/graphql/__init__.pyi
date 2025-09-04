@@ -484,7 +484,10 @@ class RemoteEdge(object):
         layer (str, optional): The layer you want the deletion applied to.
 
         Returns:
-        None:
+          None:
+
+        Raises:
+            GraphError: If the operation fails.
         """
 
     def update_metadata(self, properties, layer=None):

@@ -87,7 +87,10 @@ py_eq!(PyTemporalProperties, PyTemporalPropsCmp);
 
 #[pymethods]
 impl PyTemporalProperties {
-    /// List the available property keys
+    /// List the available property keys.
+    ///
+    /// Returns:
+    ///     List[Str]:
     fn keys(&self) -> Vec<ArcStr> {
         self.props.iter_filtered().map(|(key, _)| key).collect()
     }
@@ -101,6 +104,9 @@ impl PyTemporalProperties {
     }
 
     /// List the property keys together with the corresponding values
+    ///
+    /// Returns:
+    ///     List[Tuple[str, TemporalProp]]:
     fn items(&self) -> Vec<(ArcStr, DynTemporalProperty)> {
         self.props.iter_filtered().collect()
     }
@@ -218,51 +224,81 @@ py_eq!(PyTemporalProp, PyTemporalPropCmp);
 
 #[pymethods]
 impl PyTemporalProp {
-    /// Get the timestamps at which the property was updated
+    /// Get the timestamps at which the property was updated.
+    ///
+    /// Returns:
+    ///     NumpyArray:
     pub fn history(&self) -> NumpyArray {
         self.prop.history().collect::<Vec<_>>().into()
     }
 
-    /// Get the timestamps at which the property was updated
+    /// Get the timestamps at which the property was updated.
+    ///
+    /// Returns:
+    ///     Optional[List[datetime]]:
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.prop.history_date_time()
     }
 
-    /// Get the property values for each update
+    /// Get the property values for each update.
+    ///
+    /// Returns:
+    ///     NumpyArray:
     pub fn values(&self) -> NumpyArray {
         self.prop.values().collect()
     }
 
-    /// List update timestamps and corresponding property values
+    /// List update timestamps and corresponding property values.
+    ///
+    /// Returns:
+    ///     List[Tuple[int, PropValue]]:
     pub fn items(&self) -> Vec<(i64, Prop)> {
         self.prop.iter().collect()
     }
 
-    /// List of unique property values
+    /// List of unique property values.
+    ///
+    /// Returns:
+    ///     List[Prop]:
     pub fn unique(&self) -> Vec<Prop> {
         self.prop.unique()
     }
 
-    /// List of ordered deduplicated property values
+    /// List of ordered deduplicated property values.
+    ///
+    /// Returns:
+    ///     List[int]:
     pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(i64, Prop)> {
         self.prop.ordered_dedupe(latest_time)
     }
 
-    /// List update timestamps and corresponding property values
+    /// List update timestamps and corresponding property values.
+    ///
+    /// Returns:
+    ///     list[Tuple[datetime, PropValue]]:
     pub fn items_date_time(&self) -> Option<Vec<(DateTime<Utc>, Prop)>> {
         Some(self.prop.histories_date_time()?.collect())
     }
 
-    /// Iterate over `items`
+    /// Iterate over items.
+    ///
+    /// Returns:
+    ///     PyBorrowingIterator:
     pub fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(self.prop.clone(), DynTemporalProperty, |inner| inner
             .histories())
     }
-    /// Get the value of the property at time `t`
+    /// Get the value of the property at a specified time.
+    ///
+    /// Returns:
+    ///     Optional[Prop]:
     pub fn at(&self, t: PyTime) -> Option<Prop> {
         self.prop.at(t.into_time())
     }
-    /// Get the latest value of the property
+    /// Get the latest value of the property.
+    ///
+    /// Returns:
+    ///     Optional[Prop]:
     pub fn value(&self) -> Option<Prop> {
         self.prop.latest()
     }

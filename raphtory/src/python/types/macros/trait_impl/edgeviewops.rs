@@ -15,6 +15,9 @@ macro_rules! impl_edgeviewops {
         #[pymethods]
         impl $obj {
             /// Returns the source node of the edge.
+            ///
+            /// Returns:
+            ///     Nodes:
             #[getter]
             fn src(&self) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Nodes {
                 self.$field.src()
