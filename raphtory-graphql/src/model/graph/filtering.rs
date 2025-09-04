@@ -48,23 +48,23 @@ pub enum GraphViewCollection {
     Valid(bool),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Latest time.
+    /// View at the latest time.
     Latest(bool),
     /// Snapshot at specified time.
     SnapshotAt(i64),
     /// Snapshot at latest time.
     SnapshotLatest(bool),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
     NodeFilter(NodeFilter),
@@ -76,7 +76,7 @@ pub enum GraphViewCollection {
 pub enum NodesViewCollection {
     /// Contains only the default layer.
     DefaultLayer(bool),
-    /// Latest time.
+    /// View at the latest time.
     Latest(bool),
     /// Snapshot at latest time.
     SnapshotLatest(bool),
@@ -90,19 +90,19 @@ pub enum NodesViewCollection {
     ExcludeLayer(String),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Time.
+    /// Snapshot at specified time.
     SnapshotAt(i64),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
     NodeFilter(NodeFilter),
@@ -114,7 +114,7 @@ pub enum NodesViewCollection {
 pub enum NodeViewCollection {
     /// Contains only the default layer.
     DefaultLayer(bool),
-    /// Latest time.
+    /// View at the latest time.
     Latest(bool),
     /// Snapshot at latest time.
     SnapshotLatest(bool),
@@ -130,17 +130,17 @@ pub enum NodeViewCollection {
     ExcludeLayer(String),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
     /// Node filter.
     NodeFilter(NodeFilter),
@@ -166,17 +166,17 @@ pub enum EdgesViewCollection {
     ExcludeLayer(String),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
 }
 
@@ -200,17 +200,17 @@ pub enum EdgeViewCollection {
     ExcludeLayer(String),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
 }
 
@@ -232,25 +232,25 @@ pub enum PathFromNodeViewCollection {
     ExcludeLayer(String),
     /// Window between a start and end time.
     Window(Window),
-    /// Time.
+    /// View at a specified time.
     At(i64),
-    /// Time.
+    /// View before a specified time (end exclusive).
     Before(i64),
-    /// Time.
+    /// View after a specified time (start exclusive).
     After(i64),
-    /// Window between a start and end time.
+    /// Shrink a Window to a specified start and end time.
     ShrinkWindow(Window),
-    /// Time.
+    /// Set the window start to a specified time.
     ShrinkStart(i64),
-    /// Time.
+    /// Set the window end to a specified time.
     ShrinkEnd(i64),
 }
 
 #[derive(InputObject, Clone, Debug)]
 pub struct Window {
-    /// Time.
+    /// Window start time.
     pub start: i64,
-    /// Time.
+    /// Window end time.
     pub end: i64,
 }
 
@@ -360,7 +360,7 @@ impl<T: InputTypeName + 'static> InputTypeName for Wrapped<T> {}
 
 #[derive(InputObject, Clone, Debug)]
 pub struct NodeFieldFilter {
-    /// Node Field filter.
+    /// Node component to compare against.
     pub field: NodeField,
     /// Operator filter.
     pub operator: Operator,
@@ -404,7 +404,7 @@ pub enum EdgeFilter {
 
 #[derive(InputObject, Clone, Debug)]
 pub struct PropertyFilterExpr {
-    /// Name.
+    /// Node property to compare against.
     pub name: String,
     /// Operator.
     pub operator: Operator,
@@ -420,7 +420,7 @@ impl PropertyFilterExpr {
 
 #[derive(InputObject, Clone, Debug)]
 pub struct MetadataFilterExpr {
-    /// Name.
+    /// Node metadata to compare against.
     pub name: String,
     /// Operator.
     pub operator: Operator,
@@ -438,7 +438,7 @@ impl MetadataFilterExpr {
 pub struct TemporalPropertyFilterExpr {
     /// Name.
     pub name: String,
-    /// Temporal property type.
+    /// Type of temporal property. Choose from: any, latest.
     pub temporal: TemporalType,
     /// Operator.
     pub operator: Operator,

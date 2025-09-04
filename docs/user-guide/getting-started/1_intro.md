@@ -113,6 +113,9 @@ client.send_graph("OBS-graph", g, overwrite=True)
 
 This will start the UI locally on the default port `1736`, you should see **Search** page by default.
 
+!!! Note
+    You can also start a standalone server using the Raphtory CLI tool or Docker image.
+
 ![UI Search page](../../assets/images/raphtory_ui_search_empty.png)
 
 You can use the **Query Builder** to select the graph you created and identify which baboons attacked each other in the last month.

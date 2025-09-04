@@ -29,7 +29,7 @@ pub struct OpenTelemetry<T> {
 }
 
 impl<T> OpenTelemetry<T> {
-    /// Use  tracer  to create an OpenTelemetry extension.
+    /// Use tracer to create an OpenTelemetry extension.
     pub fn new(tracer: T) -> OpenTelemetry<T>
     where
         T: Tracer + Send + Sync + 'static,

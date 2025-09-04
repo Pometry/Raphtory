@@ -138,12 +138,12 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
     }
 
-    /// Create a view of the nodes including all events that have not been explicitly deleted at the specified time.
+    /// Create a view of the nodes including all events that are valid at the specified time.
     async fn snapshot_at(&self, time: i64) -> Self {
         self.update(self.nn.snapshot_at(time))
     }
 
-    /// Create a view of the nodes including all events that have not been explicitly deleted at the latest time.
+    /// Create a view of the nodes including all events that are valid at the latest time.
     async fn snapshot_latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
@@ -164,7 +164,7 @@ impl GqlNodes {
         self.update(self.nn.shrink_window(start, end))
     }
 
-    /// Set the start of the window to the larger of a specified start time  and self.start().
+    /// Set the start of the window to the larger of a specified start time and self.start().
     async fn shrink_start(&self, start: i64) -> Self {
         self.update(self.nn.shrink_start(start))
     }
@@ -326,7 +326,7 @@ impl GqlNodes {
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount.
     /// The page_index sets the number of pages to skip (defaults to 0).
     ///
-    /// For example,  if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
     async fn page(
         &self,
