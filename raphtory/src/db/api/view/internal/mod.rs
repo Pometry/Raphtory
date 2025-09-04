@@ -55,8 +55,6 @@ pub trait BoxableGraphView:
     + InternalPropertiesOps
     + InternalMetadataOps
     + InternalStorageOps
-    + NodeHistoryFilter
-    + EdgeHistoryFilter
     + Send
     + Sync
 {
@@ -75,8 +73,6 @@ impl<
             + InternalPropertiesOps
             + InternalMetadataOps
             + InternalStorageOps
-            + NodeHistoryFilter
-            + EdgeHistoryFilter
             + Send
             + Sync,
     > BoxableGraphView for G
