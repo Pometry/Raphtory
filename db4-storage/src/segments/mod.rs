@@ -88,6 +88,10 @@ impl<T: HasRow> SegmentContainer<T> {
         self.data.get(item_pos)
     }
 
+    pub fn has_item(&self, item_pos: LocalPOS) -> bool {
+        self.items[item_pos.0]
+    }
+
     pub fn set_item(&mut self, item_pos: LocalPOS) {
         self.items[item_pos.0] = true;
     }
