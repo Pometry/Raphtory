@@ -571,7 +571,14 @@ mod test {
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
         let ext = ();
-        let segment = NodeSegmentView::new(0, 10, node_meta.clone(), edge_meta, path.path(), ext);
+        let segment = NodeSegmentView::new(
+            0,
+            10,
+            node_meta.clone(),
+            edge_meta,
+            Some(path.path().to_path_buf()),
+            ext,
+        );
         let stats = GraphStats::default();
 
         let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());

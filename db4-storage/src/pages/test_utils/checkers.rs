@@ -221,7 +221,7 @@ pub fn check_graph_with_nodes_support<
 
     let graph_dir = tempfile::tempdir().unwrap();
     let graph = make_graph(graph_dir.path());
-    let layer_id = graph.edge_meta().get_default_layer_id().unwrap();
+    let layer_id = 0;
 
     for (node, t, t_props) in temp_props {
         let err = graph.add_node_props(*t, *node, layer_id, t_props.clone());

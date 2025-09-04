@@ -569,7 +569,7 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::<Extension>::new(graph_dir.path(), 32, 32);
+        let g = Layer::<Extension>::new(Some(graph_dir.path()), 32, 32);
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])
@@ -1375,13 +1375,13 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: usize, edge_page_len: usize, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            Layer::<()>::new(path, node_page_len, edge_page_len)
+            Layer::<()>::new(Some(path), node_page_len, edge_page_len)
         });
     }
 
     fn check_graph_with_props(node_page_len: usize, edge_page_len: usize, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            Layer::<()>::new(path, node_page_len, edge_page_len)
+            Layer::<()>::new(Some(path), node_page_len, edge_page_len)
         });
     }
 }
