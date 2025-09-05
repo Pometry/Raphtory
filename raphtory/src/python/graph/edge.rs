@@ -294,7 +294,7 @@ impl PyEdge {
     /// Returns:
     ///     int: The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Result<i64, GraphError> {
+    pub fn time(&self) -> Result<TimeIndexEntry, GraphError> {
         self.edge.time()
     }
 
@@ -314,15 +314,6 @@ impl PyEdge {
     #[getter]
     pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
         self.edge.layer_name()
-    }
-
-    /// Gets the datetime of an exploded edge.
-    ///
-    /// Returns:
-    ///     datetime: the datetime of an exploded edge
-    #[getter]
-    pub fn date_time(&self) -> Result<Option<DateTime<Utc>>, TimeError> {
-        self.edge.date_time()
     }
 }
 

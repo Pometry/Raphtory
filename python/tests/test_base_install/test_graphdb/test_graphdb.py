@@ -2033,7 +2033,7 @@ def test_date_time():
         e = g.edge(1, 3)
         exploded_edges = []
         for edge in e.explode():
-            exploded_edges.append(edge.date_time)
+            exploded_edges.append(edge.time.dt)
         assert exploded_edges == [datetime(2014, 2, 3, tzinfo=utc)]
         assert g.edge(1, 2).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
         assert g.edge(1, 2).latest_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
@@ -2091,7 +2091,7 @@ def test_date_time_window():
         e = view.edge(1, 2)
         exploded_edges = []
         for edge in e.explode():
-            exploded_edges.append(edge.date_time)
+            exploded_edges.append(edge.time.dt)
         assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
 
     check(g)
@@ -2464,12 +2464,12 @@ def test_date_time_edges():
     @with_disk_graph
     def check(g):
         old_date_way = []
-        for edges in g.nodes.edges:
+        for edges in g.nodes.edges.explode():
             for edge in edges:
-                old_date_way.append(edge.date_time)
+                old_date_way.append(edge.time.dt)
 
         assert old_date_way == [
-            item for sublist in g.nodes.edges.date_time.collect() for item in sublist
+            item for sublist in g.nodes.edges.explode().time.dt.collect() for item in sublist
         ]
         gw = g.window("2014-02-02", "2014-02-05")
         assert gw.edges.start == gw.start
@@ -2786,8 +2786,8 @@ def test_time_exploded_edges():
 
         date_time = []
         for e in g.edges.explode():
-            date_time.append(e.date_time)
-        assert list(g.edges.explode().date_time) == date_time
+            date_time.append(e.time.dt)
+        assert list(g.edges.explode().time.dt) == date_time
 
         time_nested = []
         for edges in g.nodes.edges.explode():
@@ -2802,10 +2802,10 @@ def test_time_exploded_edges():
         date_time_nested = []
         for edges in g.nodes.edges.explode():
             for edge in edges:
-                date_time_nested.append(edge.date_time)
+                date_time_nested.append(edge.time.dt)
         assert [
             item
-            for sublist in g.nodes.edges.explode().date_time.collect()
+            for sublist in g.nodes.edges.explode().time.dt.collect()
             for item in sublist
         ] == date_time_nested
 

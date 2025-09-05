@@ -1,5 +1,7 @@
 use itertools::Itertools;
 use num_integer::average_floor;
+use raphtory_api::core::storage::timeindex::AsTime;
+
 extern crate num_integer;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
@@ -51,7 +53,7 @@ fn populate_edges<G: StaticGraphViewOps, V: AsNodeRef>(g: &G, new_graph: &Graph,
             .iter()
             .map(|e| Visitor {
                 name: e.nbr().name(),
-                time: e.time().unwrap(),
+                time: e.time().unwrap().t(),
             })
             .collect_vec();
         visitors.sort_by_key(|vis| vis.time);

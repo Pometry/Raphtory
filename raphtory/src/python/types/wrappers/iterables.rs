@@ -6,8 +6,9 @@ use crate::{
     prelude::Prop,
     python::types::{
         repr::Repr,
-        result_option_iterable::{
-            NestedResultOptionUtcDateTimeIterable, ResultOptionUtcDateTimeIterable,
+        result_iterable::{
+            NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
+            ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
         },
     },
 };
@@ -112,6 +113,65 @@ py_iterable_comp!(
     OptionI64IterableCmp,
     NestedOptionI64IterableCmp
 );
+
+py_ordered_iterable!(TimeIndexEntryIterable, TimeIndexEntry);
+py_iterable_comp!(
+    TimeIndexEntryIterable,
+    TimeIndexEntry,
+    TimeIndexEntryIterableCmp
+);
+// Implement custom TimeIndexEntry operations on iterables as well
+#[pymethods]
+impl TimeIndexEntryIterable {
+    #[getter]
+    fn t(&self) -> I64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.t())).into()
+    }
+
+    #[getter]
+    fn dt(&self) -> ResultUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.dt())).into()
+    }
+
+    #[getter]
+    fn secondary_index(&self) -> UsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t| t.i())).into()
+    }
+}
+py_nested_ordered_iterable!(
+    NestedTimeIndexEntryIterable,
+    TimeIndexEntry,
+    OptionTimeIndexEntryIterable
+);
+py_iterable_comp!(
+    NestedTimeIndexEntryIterable,
+    TimeIndexEntryIterableCmp,
+    NestedTimeIndexEntryIterableCmp
+);
+// Implement custom TimeIndexEntry operations on nested iterables as well
+#[pymethods]
+impl NestedTimeIndexEntryIterable {
+    #[getter]
+    fn t(&self) -> NestedI64Iterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.t()))).into()
+    }
+
+    #[getter]
+    fn dt(&self) -> NestedResultUtcDateTimeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.dt()))).into()
+    }
+
+    #[getter]
+    fn secondary_index(&self) -> NestedUsizeIterable {
+        let builder = self.builder.clone();
+        (move || builder().map(|t_iter| t_iter.map(|t| t.i()))).into()
+    }
+}
 
 py_ordered_iterable!(OptionTimeIndexEntryIterable, Option<TimeIndexEntry>);
 py_iterable_comp!(

@@ -1,5 +1,8 @@
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory_api::core::storage::timeindex::{AsTime, TimeIndexEntry};
+use raphtory_api::core::{
+    storage::timeindex::{AsTime, TimeIndexEntry},
+    utils::time::IntoTime,
+};
 
 /// Represents a time index entry with timestamp and secondary index for ordering
 #[derive(ResolvedObject, Clone)]
@@ -11,6 +14,18 @@ pub struct GqlTimeIndexEntry {
 impl From<TimeIndexEntry> for GqlTimeIndexEntry {
     fn from(entry: TimeIndexEntry) -> Self {
         Self { entry }
+    }
+}
+
+impl From<GqlTimeIndexEntry> for TimeIndexEntry {
+    fn from(entry: GqlTimeIndexEntry) -> Self {
+        entry.entry
+    }
+}
+
+impl IntoTime for GqlTimeIndexEntry {
+    fn into_time(self) -> TimeIndexEntry {
+        self.entry
     }
 }
 

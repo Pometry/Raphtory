@@ -234,7 +234,7 @@ where
                         if infection_dist.sample(rng) {
                             event_queue.push(Reverse(Infection {
                                 node: neighbour,
-                                time: ee.time().unwrap(),
+                                time: ee.time().unwrap().t(),
                             }));
                             break;
                         }

@@ -48,7 +48,7 @@ impl PyHistory {
     #[staticmethod]
     pub fn compose_histories(objects: FromIterable<PyHistory>) -> Self {
         // the only way to get History objects from python is if they are already Arc<...>
-        // FIXME: We end up with Box<Arc<dyn InternalHistoryOps>>. Not ideal
+        // FIXME: We end up with History<Arc<Box<[Box<Arc<dyn InternalHistoryOps>>]>>>. Not ideal
         let underlying_objects: Vec<Box<dyn InternalHistoryOps>> = objects
             .into_iter()
             .map(|obj| Box::new(obj.history.0.clone()) as Box<dyn InternalHistoryOps>)

@@ -18,7 +18,7 @@ use crate::{
 };
 use itertools::Itertools;
 use num_traits::Zero;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
@@ -110,9 +110,9 @@ where
         .kmerge_by(|e1, e2| e1.time_and_index().unwrap() < e2.time_and_index().unwrap())
         .map(|edge| {
             if edge.src().node == evv.node {
-                star_event(neigh_map[&edge.dst().node], 1, edge.time().unwrap())
+                star_event(neigh_map[&edge.dst().node], 1, edge.time().unwrap().t())
             } else {
-                star_event(neigh_map[&edge.src().node], 0, edge.time().unwrap())
+                star_event(neigh_map[&edge.src().node], 0, edge.time().unwrap().t())
             }
         })
         .collect::<Vec<StarEvent>>();
@@ -154,7 +154,7 @@ where
                 if e.src().node != e.dst().node {
                     Some(two_node_event(
                         if e.src().node == evv.node { 1 } else { 0 },
-                        e.time().unwrap(),
+                        e.time().unwrap().t(),
                     ))
                 } else {
                     None
@@ -259,7 +259,7 @@ where
                                         if dst_id == uid { 0 } else { 1 },
                                         0,
                                         0,
-                                        e.time().unwrap(),
+                                        e.time().unwrap().t(),
                                     )
                                 } else if dst_id == *w {
                                     new_triangle_edge(
@@ -267,12 +267,12 @@ where
                                         if src_id == uid { 0 } else { 1 },
                                         0,
                                         1,
-                                        e.time().unwrap(),
+                                        e.time().unwrap().t(),
                                     )
                                 } else if src_id == uid {
-                                    new_triangle_edge(true, 1, 0, 1, e.time().unwrap())
+                                    new_triangle_edge(true, 1, 0, 1, e.time().unwrap().t())
                                 } else {
-                                    new_triangle_edge(true, 0, 0, 0, e.time().unwrap())
+                                    new_triangle_edge(true, 0, 0, 0, e.time().unwrap().t())
                                 }
                             })
                             .collect::<Vec<TriangleEdge>>();

@@ -168,6 +168,12 @@ impl PyTimeIndexEntry {
         self.time.t()
     }
 
+    /// Return the TimeIndexEntry as a tuple
+    #[getter]
+    pub fn as_tuple(&self) -> (i64, usize) {
+        self.time.as_tuple()
+    }
+
     pub fn __richcmp__(&self, other: &Bound<PyAny>, op: CompareOp) -> PyResult<bool> {
         // extract TimeIndexComponent first. If we're dealing with a single i64 (or something that can be converted to an i64), we only compare timestamps
         if let Ok(component) = other.extract::<TimeIndexComponent>() {

@@ -328,7 +328,7 @@ pub fn run_analysis_benchmarks<F, G>(
         let mut rng = rand::thread_rng();
         let (edge, active_t) = edges_t
             .choose(&mut rng)
-            .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, *t)))
+            .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, t.t())))
             .expect("active edge");
         b.iter(|| {
             edge.window(active_t.saturating_sub(5), active_t + 5)

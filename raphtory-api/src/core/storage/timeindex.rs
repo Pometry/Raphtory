@@ -226,6 +226,10 @@ impl TimeIndexEntry {
         self
     }
 
+    pub fn as_tuple(&self) -> (i64, usize) {
+        (self.0, self.1)
+    }
+
     pub fn start(t: i64) -> Self {
         Self(t, 0)
     }

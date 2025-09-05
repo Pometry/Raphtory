@@ -4,7 +4,10 @@ use pyo3::{
     types::{PyDict, PyTuple},
     IntoPyObjectExt,
 };
-use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::{arc_str::ArcStr, timeindex::AsTime},
+};
 use std::collections::HashMap;
 
 #[pymethods]
@@ -175,8 +178,17 @@ impl PyGraphView {
                         metadata_py.set_item(key, value)?;
                     }
                     properties.set_item("metadata", metadata_py)?;
-                    properties
-                        .set_item("temporal", v.properties().temporal().histories_timestamps())?;
+                    properties.set_item(
+                        "temporal",
+                        v.properties()
+                            .temporal()
+                            .iter()
+                            .flat_map(|(k, v)| {
+                                v.into_iter()
+                                    .map(move |(t, p)| (k.clone(), (t.as_tuple(), p.clone())))
+                            })
+                            .collect::<Vec<_>>(),
+                    )?;
                 } else {
                     for (key, value) in v.metadata().as_map() {
                         properties.set_item(key, value)?;
@@ -187,7 +199,10 @@ impl PyGraphView {
                 }
             }
             if include_update_history.unwrap_or(true) {
-                properties.set_item("update_history", v.history().t().collect())?;
+                properties.set_item(
+                    "update_history",
+                    v.history().iter().map(|t| t.as_tuple()).collect::<Vec<_>>(),
+                )?;
             }
             match v.node_type() {
                 None => {}
@@ -227,12 +242,21 @@ impl PyGraphView {
                         metadata_py.set_item(key, value)?;
                     }
                     properties.set_item("metadata", metadata_py)?;
-                    let prop_hist = e.properties().temporal().histories_timestamps();
-                    let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
+                    let prop_hist: Vec<_> = e
+                        .properties()
+                        .temporal()
+                        .iter()
+                        .flat_map(|(k, v)| {
+                            v.into_iter()
+                                .map(move |(t, p)| (k.clone(), (t.as_tuple(), p.clone())))
+                        })
+                        .collect();
+                    let mut prop_hist_map: HashMap<ArcStr, Vec<((i64, usize), Prop)>> =
+                        HashMap::new();
                     for (key, value) in prop_hist {
                         prop_hist_map.entry(key).or_default().push(value);
                     }
-                    let output: Vec<(ArcStr, Vec<(i64, Prop)>)> =
+                    let output: Vec<(ArcStr, Vec<((i64, usize), Prop)>)> =
                         prop_hist_map.into_iter().collect();
                     properties.set_item("temporal", output)?;
                 } else {
@@ -248,9 +272,12 @@ impl PyGraphView {
             properties.set_item("layer", layer)?;
             if include_update_history.unwrap_or(true) {
                 if explode_edges.unwrap_or(true) {
-                    properties.set_item("update_history", e.time()?)?;
+                    properties.set_item("update_history", e.time()?.as_tuple())?;
                 } else {
-                    properties.set_item("update_history", e.history().t().collect())?;
+                    properties.set_item(
+                        "update_history",
+                        e.history().iter().map(|t| t.as_tuple()).collect::<Vec<_>>(),
+                    )?;
                 }
             }
             let edge_tuple = PyTuple::new(

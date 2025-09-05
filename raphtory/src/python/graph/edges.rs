@@ -16,23 +16,14 @@ use crate::{
         },
         types::{
             repr::{iterator_repr, Repr},
-            result_option_iterable::{
-                NestedResultOptionUtcDateTimeIterable, ResultOptionUtcDateTimeIterable,
-            },
-            result_vec_iterable::{
-                NestedResultVecUtcDateTimeIterable, ResultVecUtcDateTimeIterable,
-            },
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable,
                 NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
-                NestedOptionTimeIndexEntryIterable, OptionTimeIndexEntryIterable,
+                NestedGIDGIDIterable, NestedOptionTimeIndexEntryIterable,
+                NestedTimeIndexEntryIterable, OptionTimeIndexEntryIterable, TimeIndexEntryIterable,
             },
         },
-        utils::{
-            export::{create_row, extract_properties, get_column_names_from_props},
-            NumpyArray, PyGenericIterable,
-        },
+        utils::export::{create_row, extract_properties, get_column_names_from_props},
     },
 };
 use pyo3::{prelude::*, types::PyDict};
@@ -112,22 +103,12 @@ impl PyEdges {
         (move || edges.latest_time()).into()
     }
 
-    /// Returns the date times of exploded edges
-    ///
-    /// Returns:
-    ///    A list of date times.
-    #[getter]
-    fn date_time(&self) -> ResultOptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
-    }
-
     /// Returns the times of exploded edges
     ///
     /// Returns:
     ///   Time of edge
     #[getter]
-    fn time(&self) -> Result<I64Iterable, GraphError> {
+    fn time(&self) -> Result<TimeIndexEntryIterable, GraphError> {
         match self.edges.time().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -400,7 +381,7 @@ impl PyNestedEdges {
 
     /// Returns the times of exploded edges
     #[getter]
-    fn time(&self) -> Result<NestedOptionI64Iterable, GraphError> {
+    fn time(&self) -> Result<NestedTimeIndexEntryIterable, GraphError> {
         match self.edges.time().flatten().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -513,12 +494,5 @@ impl PyNestedEdges {
     fn is_deleted(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_deleted()).into()
-    }
-
-    /// Get the date times of exploded edges
-    #[getter]
-    fn date_time(&self) -> NestedResultOptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
     }
 }

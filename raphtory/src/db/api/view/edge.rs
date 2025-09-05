@@ -192,9 +192,7 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     fn latest_time(&self) -> Self::ValueType<Option<TimeIndexEntry>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
-
-    fn date_time(&self) -> Self::ValueType<Result<Option<DateTime<Utc>>, TimeError>>;
+    fn time(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
@@ -428,12 +426,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     }
 
     /// Gets the time stamp of the edge if it is exploded
-    fn time(&self) -> Self::ValueType<Result<i64, GraphError>> {
-        self.map(|_, e| e.time_t().ok_or_else(|| GraphError::TimeAPIError))
-    }
-
-    fn date_time(&self) -> Self::ValueType<Result<Option<DateTime<Utc>>, TimeError>> {
-        self.map(|_, e| e.time_t().map(|t| t.dt()).transpose())
+    fn time(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>> {
+        self.map(|_, e| e.time().ok_or_else(|| GraphError::TimeAPIError))
     }
 
     /// Gets the layer name for the edge if it is restricted to a single layer

@@ -78,7 +78,7 @@ type Edge {
 	firstUpdate: TimeIndexEntry
 	latestTime: TimeIndexEntry
 	lastUpdate: TimeIndexEntry
-	time: Int!
+	time: TimeIndexEntry!
 	start: TimeIndexEntry
 	end: TimeIndexEntry
 	src: Node!

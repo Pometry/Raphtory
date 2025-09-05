@@ -434,11 +434,51 @@ pub fn assert_edges_equal_layer<
                 "mismatched temporal properties for edge {:?}{layer_tag}",
                 e1.id(),
             );
+
+            let mut e1_updates: Vec<_> = e1
+                .explode()
+                .iter()
+                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                .collect();
+            e1_updates.sort();
+
+            let mut e2_updates: Vec<_> = e2
+                .explode()
+                .iter()
+                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                .collect();
+            e2_updates.sort();
+            assert_eq!(
+                e1_updates,
+                e2_updates,
+                "mismatched updates for edge {:?}{layer_tag}",
+                e1.id(),
+            );
         } else {
             assert_eq!(
                 e1.properties().temporal().as_map(),
                 e2.properties().temporal().as_map(),
                 "mismatched temporal properties for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+
+            let mut e1_updates: Vec<_> = e1
+                .explode()
+                .iter()
+                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                .collect();
+            e1_updates.sort();
+
+            let mut e2_updates: Vec<_> = e2
+                .explode()
+                .iter()
+                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                .collect();
+            e2_updates.sort();
+            assert_eq!(
+                e1_updates,
+                e2_updates,
+                "mismatched updates for edge {:?}{layer_tag}",
                 e1.id(),
             );
         }
@@ -483,26 +523,6 @@ pub fn assert_edges_equal_layer<
         );
 
         // FIXME: DiskGraph does not currently preserve secondary index
-
-        let mut e1_updates: Vec<_> = e1
-            .explode()
-            .iter()
-            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-            .collect();
-        e1_updates.sort();
-
-        let mut e2_updates: Vec<_> = e2
-            .explode()
-            .iter()
-            .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-            .collect();
-        e2_updates.sort();
-        assert_eq!(
-            e1_updates,
-            e2_updates,
-            "mismatched updates for edge {:?}{layer_tag}",
-            e1.id(),
-        );
     }
 }
 
@@ -3151,7 +3171,7 @@ mod db_tests {
                     e.explode().into_iter().filter_map(|e| {
                         e.layer_name()
                             .ok()
-                            .zip(e.time().ok())
+                            .zip(e.time().ok().map(|t| t.t()))
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
@@ -3191,7 +3211,7 @@ mod db_tests {
                     e.explode().into_iter().filter_map(|e| {
                         e.layer_name()
                             .ok()
-                            .zip(e.time().ok())
+                            .zip(e.time().ok().map(|t| t.t()))
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })

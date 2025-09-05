@@ -3917,15 +3917,6 @@ class Edge(object):
              Edge:
         """
 
-    @property
-    def date_time(self) -> datetime:
-        """
-        Gets the datetime of an exploded edge.
-
-        Returns:
-            datetime: the datetime of an exploded edge
-        """
-
     def default_layer(self) -> Edge:
         """
          Return a view of Edge containing only the default edge layer
@@ -4344,15 +4335,6 @@ class Edges(object):
 
     def count(self):
         """Returns the number of edges"""
-
-    @property
-    def date_time(self):
-        """
-        Returns the date times of exploded edges
-
-        Returns:
-           A list of date times.
-        """
 
     def default_layer(self) -> Edges:
         """
@@ -4774,10 +4756,6 @@ class NestedEdges(object):
         Returns:
              list[list[Edges]]: the list of edges
         """
-
-    @property
-    def date_time(self):
-        """Get the date times of exploded edges"""
 
     def default_layer(self) -> NestedEdges:
         """

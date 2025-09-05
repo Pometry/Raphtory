@@ -227,8 +227,8 @@ impl GqlEdge {
         blocking_compute(move || self_clone.ee.history().latest_time().map(|t| t.into())).await
     }
 
-    async fn time(&self) -> Result<i64, GraphError> {
-        self.ee.time()
+    async fn time(&self) -> Result<GqlTimeIndexEntry, GraphError> {
+        self.ee.time().map(|t| t.into())
     }
 
     async fn start(&self) -> Option<GqlTimeIndexEntry> {
