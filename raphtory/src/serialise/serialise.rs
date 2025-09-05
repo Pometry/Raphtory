@@ -1,4 +1,4 @@
-use super::{proto_ext::PropTypeExt, GraphFolder};
+use super::{graph_folder::GraphFolder, proto_ext::PropTypeExt};
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{

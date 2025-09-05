@@ -1,4 +1,4 @@
-use super::GraphFolder;
+use super::graph_folder::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
@@ -317,7 +317,7 @@ impl<G: InternalCache + StableDecode + StableEncode + AdditionOps> CacheOps for 
 
 #[cfg(test)]
 mod test {
-    use crate::serialise::{incremental::GraphWriter, GraphFolder};
+    use crate::serialise::{graph_folder::GraphFolder, incremental::GraphWriter};
     use raphtory_api::core::{
         entities::{GidRef, VID},
         storage::dict_mapper::MaybeNew,
