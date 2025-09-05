@@ -6205,12 +6205,15 @@ class Properties(object):
             dict[str, PropValue]:
         """
 
-    def get(self, key) -> PropValue:
+    def get(self, key: str) -> PropValue:
         """
         Get property value.
 
         First searches temporal properties and returns latest value if it exists.
         If not, it falls back to static properties.
+
+        Arguments:
+            key (str): the name of the property.
 
         Returns:
             PropValue:
@@ -6224,20 +6227,30 @@ class Properties(object):
             list[Tuple[str, PropValue]]:
         """
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """
-        Get the names for all properties (includes temporal and static properties)
+        Get the names for all properties (includes temporal and static properties).
 
         Returns:
-            List[Str]:
+            list[str]:
         """
 
     @property
-    def temporal(self):
-        """Get a view of the temporal properties only."""
+    def temporal(self) -> TemporalProp:
+        """
+        Get a view of the temporal properties only.
 
-    def values(self):
-        """Get the values of the properties"""
+        Returns:
+            TemporalProp:
+        """
+
+    def values(self) -> list[PropValue]:
+        """
+        Get the values of the properties.
+
+        Returns:
+            list[PropValue]:
+        """
 
 class PyPropValueList(object):
     def __eq__(self, value):
@@ -6267,12 +6280,38 @@ class PyPropValueList(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def average(self): ...
+    def average(self) -> PropValue:
+        """
+        Compute the average of all property values. Alias for mean().
+
+        Returns:
+            PropValue: The average of each property values, or None if count is zero.
+        """
+
     def collect(self): ...
     def count(self): ...
-    def drop_none(self): ...
-    def max(self): ...
-    def mean(self): ...
+    def drop_none(self):
+        """
+        Returns:
+            list[PropValue]:
+        """
+
+    def max(self) -> list[PropValue]:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def mean(self) -> PropValue:
+        """
+        Compute the mean of all property values.
+
+        Returns:
+            PropValue: The mean of each property values, or None if count is zero.
+        """
+
     def median(self): ...
     def min(self): ...
     def sum(self): ...
@@ -6394,9 +6433,12 @@ class TemporalProperties(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, key) -> TemporalProp:
+    def get(self, key: str) -> TemporalProp:
         """
-        Get property value for `key` if it exists
+        Get property value for `key` if it exists.
+
+        Arguments:
+            key (str): the name of the property.
 
         Returns:
             TemporalProp: the property view if it exists, otherwise `None`
@@ -6426,12 +6468,12 @@ class TemporalProperties(object):
             List[Tuple[str, TemporalProp]]:
         """
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """
         List the available property keys.
 
         Returns:
-            List[Str]:
+            list[str]:
         """
 
     def latest(self) -> dict[str, PropValue]:
@@ -6489,9 +6531,12 @@ class PropertiesView(object):
             dict[str, List[PropValue]]:
         """
 
-    def get(self, key) -> PyPropValueList:
+    def get(self, key: str) -> PyPropValueList:
         """
         Get property value.
+
+        Arguments:
+            key (str): the name of the property.
 
         Returns:
             PyPropValueList:
@@ -6505,20 +6550,30 @@ class PropertiesView(object):
             list[Tuple[str, List[PropValue]]]:
         """
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """
         Get the names for all properties.
 
         Returns:
-            List[Str]:
+            list[str]:
         """
 
     @property
-    def temporal(self):
-        """Get a view of the temporal properties only."""
+    def temporal(self) -> List[TemporalProp]:
+        """
+        Get a view of the temporal properties only.
 
-    def values(self):
-        """Get the values of the properties"""
+        Returns:
+            List[TemporalProp]:
+        """
+
+    def values(self) -> list[list[PropValue]]:
+        """
+        Get the values of the properties.
+
+        Returns:
+            list[list[PropValue]]:
+        """
 
 class TemporalProp(object):
     """A view of a temporal property"""

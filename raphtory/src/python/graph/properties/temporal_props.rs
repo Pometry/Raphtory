@@ -90,7 +90,7 @@ impl PyTemporalProperties {
     /// List the available property keys.
     ///
     /// Returns:
-    ///     List[Str]:
+    ///     list[str]:
     fn keys(&self) -> Vec<ArcStr> {
         self.props.iter_filtered().map(|(key, _)| key).collect()
     }
@@ -152,7 +152,10 @@ impl PyTemporalProperties {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
-    /// Get property value for `key` if it exists
+    /// Get property value for `key` if it exists.
+    ///
+    /// Arguments:
+    ///     key (str): the name of the property.
     ///
     /// Returns:
     ///     TemporalProp: the property view if it exists, otherwise `None`
@@ -885,6 +888,10 @@ impl PyPropHistValueListList {
         (move || builder().map(|it| it.map(compute_median))).into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn max(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -945,10 +952,18 @@ impl PropIterable {
         compute_generalised_sum(self.iter(), |a, b| a.min(b), |d| d.dtype().has_cmp())
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     PropValue:
     pub fn max(&self) -> PropValue {
         compute_generalised_sum(self.iter(), |a, b| a.max(b), |d| d.dtype().has_cmp())
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> PropValue {
         self.mean()
     }
@@ -978,6 +993,10 @@ impl PyPropHistValueList {
         .into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -992,10 +1011,18 @@ impl PyPropHistValueList {
         (move || builder().map(compute_median)).into()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn average(&self) -> PyPropValueList {
         self.mean()
     }
 
+    /// Compute the mean of all property values.
+    ///
+    /// Returns:
+    ///     list[PropValue]: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(compute_mean)).into()
@@ -1034,6 +1061,10 @@ impl PyPropValueList {
         )
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn max(&self) -> PropValue {
         compute_generalised_sum(
             self.iter().flatten(),
@@ -1042,6 +1073,8 @@ impl PyPropValueList {
         )
     }
 
+    /// Returns:
+    ///     list[PropValue]:
     pub fn drop_none(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
@@ -1051,10 +1084,18 @@ impl PyPropValueList {
         compute_median(self.iter().flatten().collect())
     }
 
+    /// Compute the mean of all property values.
+    ///
+    /// Returns:
+    ///     PropValue: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> PropValue {
         compute_mean(self.iter().flatten())
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> PropValue {
         self.mean()
     }
@@ -1082,6 +1123,10 @@ impl PyPropValueListList {
         .into()
     }
 
+    /// Find the maximum property value and its associated time.
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn max(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || {
@@ -1092,6 +1137,10 @@ impl PyPropValueListList {
         .into()
     }
 
+    /// Compute the average of all property values. Alias for mean().
+    ///
+    /// Returns:
+    ///     list[PropValue]:
     pub fn average(&self) -> PyPropValueList {
         self.mean()
     }
@@ -1117,6 +1166,8 @@ impl PyPropValueListList {
         (move || builder().map(|it| it.count())).into()
     }
 
+    /// Returns:
+    ///     list[list[PropValue]]:
     pub fn drop_none(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
