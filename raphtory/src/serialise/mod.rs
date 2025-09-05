@@ -123,7 +123,7 @@ impl GraphFolder {
     }
 
     fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {
-        let bytes = graph.encode_to_vec();
+        let bytes = graph.encode_to_bytes();
         if self.write_as_zip_format {
             let file = File::create_new(&self.root_folder)?;
             let mut zip = ZipWriter::new(file);

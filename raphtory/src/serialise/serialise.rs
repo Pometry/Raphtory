@@ -54,7 +54,7 @@ macro_rules! zip_tprop_updates {
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     fn encode_to_proto(&self) -> proto::Graph;
 
-    fn encode_to_vec(&self) -> Vec<u8> {
+    fn encode_to_bytes(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
 
@@ -1384,7 +1384,7 @@ mod proto_test {
     fn encode_decode_prop_test() {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
-            let bytes = g.encode_to_vec();
+            let bytes = g.encode_to_bytes();
             let g2 = Graph::decode_from_bytes(&bytes).unwrap();
             assert_graph_equal(&g, &g2);
         })

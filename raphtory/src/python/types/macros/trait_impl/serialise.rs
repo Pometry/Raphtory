@@ -97,7 +97,7 @@ macro_rules! impl_serialise {
             /// Returns:
             ///   bytes:
             fn serialise<'py>(&self, py: Python<'py>) -> Bound<'py, pyo3::types::PyBytes> {
-                let bytes = $crate::serialise::StableEncode::encode_to_vec(&self.$field);
+                let bytes = $crate::serialise::StableEncode::encode_to_bytes(&self.$field);
                 pyo3::types::PyBytes::new(py, &bytes)
             }
         }
