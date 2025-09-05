@@ -7,9 +7,9 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::{GraphError, WriteError},
-    prelude::{AdditionOps, Graph, StableDecode},
+    prelude::{AdditionOps, Graph},
     serialise::{
-        serialise::{CacheOps, InternalStableDecode, StableEncode},
+        serialise::{CacheOps, StableDecode, StableEncode},
         ProtoGraph,
     },
 };
@@ -287,7 +287,7 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> CacheOps for G {
+impl<G: InternalCache + StableDecode + StableEncode + AdditionOps> CacheOps for G {
     fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder = path.into();
         self.encode(&folder)?;

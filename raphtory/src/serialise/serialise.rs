@@ -64,21 +64,7 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     }
 }
 
-pub trait StableDecode: InternalStableDecode + StaticGraphViewOps + AdditionOps {
-    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let folder = path.into();
-        let graph = Self::decode_from_path(&folder)?;
-
-        #[cfg(feature = "search")]
-        graph.load_index(&folder)?;
-
-        Ok(graph)
-    }
-}
-
-impl<T: InternalStableDecode + StaticGraphViewOps + AdditionOps> StableDecode for T {}
-
-pub trait InternalStableDecode: Sized {
+pub trait StableDecode: StaticGraphViewOps + AdditionOps + Sized {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError>;
 
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
@@ -89,6 +75,16 @@ pub trait InternalStableDecode: Sized {
     fn decode_from_path(path: &GraphFolder) -> Result<Self, GraphError> {
         let bytes = path.read_graph()?;
         let graph = Self::decode_from_bytes(bytes.as_ref())?;
+        Ok(graph)
+    }
+
+    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
+        let folder = path.into();
+        let graph = Self::decode_from_path(&folder)?;
+
+        #[cfg(feature = "search")]
+        graph.load_index(&folder)?;
+
         Ok(graph)
     }
 }
@@ -277,7 +273,7 @@ impl StableEncode for MaterializedGraph {
 //     Ok((const_pt, temp_pt))
 // }
 
-impl InternalStableDecode for GraphStorage {
+impl StableDecode for GraphStorage {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         // let storage = Self::default();
         // graph.metas.par_iter().for_each(|meta| {
@@ -594,19 +590,19 @@ impl InternalStableDecode for GraphStorage {
     }
 }
 
-impl InternalStableDecode for MaterializedGraph {
+impl StableDecode for MaterializedGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         todo!("remove this stuff!")
     }
 }
 
-impl InternalStableDecode for Graph {
+impl StableDecode for Graph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         todo!("remove this stuff!")
     }
 }
 
-impl InternalStableDecode for PersistentGraph {
+impl StableDecode for PersistentGraph {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         match graph.graph_type() {
             proto::GraphType::Event => Err(GraphError::GraphLoadError),
