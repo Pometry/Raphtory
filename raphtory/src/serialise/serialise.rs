@@ -241,7 +241,43 @@ impl StableEncode for MaterializedGraph {
     }
 }
 
-impl InternalStableDecode for TemporalGraph {
+// fn update_meta(
+//     metadata_types: Vec<PropType>,
+//     temp_prop_types: Vec<PropType>,
+//     const_meta: &PropMapper,
+//     temp_meta: &PropMapper,
+// ) {
+//     let keys = { const_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
+//     for ((id, prop_type), key) in metadata_types.into_iter().enumerate().zip(keys) {
+//         const_meta.set_id_and_dtype(key, id, prop_type);
+//     }
+//     let keys = { temp_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
+//
+//     for ((id, prop_type), key) in temp_prop_types.into_iter().enumerate().zip(keys) {
+//         temp_meta.set_id_and_dtype(key, id, prop_type);
+//     }
+// }
+//
+// fn unify_property_types(
+//     l_const: &[PropType],
+//     r_const: &[PropType],
+//     l_temp: &[PropType],
+//     r_temp: &[PropType],
+// ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
+//     let const_pt = l_const
+//         .iter()
+//         .zip(r_const)
+//         .map(|(l, r)| unify_types(l, r, &mut false))
+//         .collect::<Result<Vec<PropType>, _>>()?;
+//     let temp_pt = l_temp
+//         .iter()
+//         .zip(r_temp)
+//         .map(|(l, r)| unify_types(l, r, &mut false))
+//         .collect::<Result<Vec<PropType>, _>>()?;
+//     Ok((const_pt, temp_pt))
+// }
+
+impl InternalStableDecode for GraphStorage {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
         // let storage = Self::default();
         // graph.metas.par_iter().for_each(|meta| {
@@ -554,49 +590,7 @@ impl InternalStableDecode for TemporalGraph {
         //     );
         // }
         // Ok(storage)
-        todo!("fix this")
-    }
-}
-
-// fn update_meta(
-//     metadata_types: Vec<PropType>,
-//     temp_prop_types: Vec<PropType>,
-//     const_meta: &PropMapper,
-//     temp_meta: &PropMapper,
-// ) {
-//     let keys = { const_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
-//     for ((id, prop_type), key) in metadata_types.into_iter().enumerate().zip(keys) {
-//         const_meta.set_id_and_dtype(key, id, prop_type);
-//     }
-//     let keys = { temp_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
-//
-//     for ((id, prop_type), key) in temp_prop_types.into_iter().enumerate().zip(keys) {
-//         temp_meta.set_id_and_dtype(key, id, prop_type);
-//     }
-// }
-//
-// fn unify_property_types(
-//     l_const: &[PropType],
-//     r_const: &[PropType],
-//     l_temp: &[PropType],
-//     r_temp: &[PropType],
-// ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
-//     let const_pt = l_const
-//         .iter()
-//         .zip(r_const)
-//         .map(|(l, r)| unify_types(l, r, &mut false))
-//         .collect::<Result<Vec<PropType>, _>>()?;
-//     let temp_pt = l_temp
-//         .iter()
-//         .zip(r_temp)
-//         .map(|(l, r)| unify_types(l, r, &mut false))
-//         .collect::<Result<Vec<PropType>, _>>()?;
-//     Ok((const_pt, temp_pt))
-// }
-
-impl InternalStableDecode for GraphStorage {
-    fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError> {
-        todo!("remove this stuff!")
+        todo!("fix this");
     }
 }
 
