@@ -1,6 +1,6 @@
 use super::{
     cache::VectorCache,
-    db::{EdgeDb, NodeDb},
+    entity_db::{EdgeDb, NodeDb},
     storage::{edge_vectors_path, node_vectors_path, VectorMeta},
 };
 use crate::{
@@ -8,7 +8,10 @@ use crate::{
     errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
-        db::EntityDb, embeddings::compute_embeddings, template::DocumentTemplate,
+        embeddings::compute_embeddings,
+        entity_db::EntityDb,
+        template::DocumentTemplate,
+        vector_db::{Milvus, VectorDb, VectorDbFactory},
         vectorised_graph::VectorisedGraph,
     },
 };
@@ -47,6 +50,8 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
+        let factory = Milvus::new("http://localhost:19530".to_owned());
+        let dim = cache.get_vector_sample().len();
         if verbose {
             info!("computing embeddings for nodes");
         }
@@ -54,9 +59,11 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let node_docs = nodes
             .iter()
             .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
-        let node_path = path.map(node_vectors_path);
+        // let node_path = path.map(node_vectors_path);
         let node_vectors = compute_embeddings(node_docs, &cache);
-        let node_db = NodeDb::from_vectors(node_vectors, node_path).await?;
+        let node_db = NodeDb(factory.new_db(dim).await); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        node_db.insert_vector_stream(node_vectors).await.unwrap();
+        node_db.create_index().await;
 
         if verbose {
             info!("computing embeddings for edges");
@@ -67,13 +74,16 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
                 .edge(edge)
                 .map(|doc| (edge.edge.pid().0 as u32, doc))
         });
-        let edge_path = path.map(edge_vectors_path);
+        // let edge_path = path.map(edge_vectors_path);
         let edge_vectors = compute_embeddings(edge_docs, &cache);
-        let edge_db = EdgeDb::from_vectors(edge_vectors, edge_path).await?;
+        let edge_db = EdgeDb(factory.new_db(dim).await); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        edge_db.insert_vector_stream(edge_vectors).await.unwrap();
+        edge_db.create_index().await;
 
         if let Some(path) = path {
             let meta = VectorMeta {
                 template: template.clone(),
+                sample: cache.get_vector_sample(),
             };
             meta.write_to_path(path)?;
         }

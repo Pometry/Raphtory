@@ -54,7 +54,7 @@ rust-fmt:
 rust-build:
 	cargo build -q
 
-rust-build-docs: 
+rust-build-docs:
 	cargo doc --no-deps -p raphtory -q
 
 run-graphql:

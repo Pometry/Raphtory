@@ -48,6 +48,7 @@ kdam = { workspace = true, optional = true }
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 ahash = { workspace = true }
+milvus-sdk-rust = "0.1.0"                                               # TODO: move somewhere else
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

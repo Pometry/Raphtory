@@ -567,10 +567,7 @@ impl GqlMutableEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        config::app_config::AppConfig,
-        data::{Data, EmbeddingConf},
-    };
+    use crate::{config::app_config::AppConfig, data::Data};
     use itertools::Itertools;
     use raphtory::{
         db::api::view::MaterializedGraph,

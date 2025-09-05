@@ -6,13 +6,14 @@ use std::sync::Arc;
 
 pub mod cache;
 pub mod datetimeformat;
-mod db;
 pub mod embeddings;
+mod entity_db;
 mod entity_ref;
 pub mod splitting;
 mod storage;
 pub mod template;
 mod utils;
+mod vector_db;
 pub mod vector_selection;
 pub mod vectorisable;
 pub mod vectorised_graph;
@@ -37,8 +38,9 @@ mod vector_tests {
     use super::{embeddings::EmbeddingResult, *};
     use crate::{
         prelude::*,
-        vectors::{cache::VectorCache, embeddings::openai_embedding, vectorisable::Vectorisable},
+        vectors::{cache::VectorCache, embeddings::OpenAIEmbeddings, vectorisable::Vectorisable},
     };
+    use async_openai::config::OpenAIConfig;
     use itertools::Itertools;
     use raphtory_api::core::entities::properties::prop::Prop;
     use std::{fs::remove_dir_all, path::PathBuf};
@@ -71,6 +73,29 @@ mod vector_tests {
     }
 
     #[tokio::test]
+    async fn test_search() {
+        let g = Graph::new();
+        g.add_node(0, "1", NO_PROPS, None).unwrap();
+        g.add_node(0, "2", NO_PROPS, None).unwrap();
+        g.add_node(0, "3", NO_PROPS, None).unwrap();
+
+        let cache = VectorCache::in_memory(fake_embedding).await.unwrap();
+        let embedding = cache.get_single("3".to_owned()).await.unwrap();
+        let template = custom_template();
+        let v = g.vectorise(cache, template, None, false).await.unwrap();
+        let docs = v
+            .nodes_by_similarity(&embedding, 2, None)
+            .await
+            .unwrap()
+            .get_documents()
+            .await
+            .unwrap();
+
+        dbg!(docs);
+        panic!("here")
+    }
+
+    #[tokio::test]
     async fn test_embedding_cache() {
         let template = custom_template();
         let g = Graph::new();
@@ -99,7 +124,7 @@ mod vector_tests {
     async fn test_empty_graph() {
         let template = custom_template();
         let g = Graph::new();
-        let cache = VectorCache::in_memory(fake_embedding);
+        let cache = VectorCache::in_memory(fake_embedding).await.unwrap();
         let vectors = g.vectorise(cache, template, None, false).await.unwrap();
         let embedding: Embedding = fake_embedding(vec!["whatever".to_owned()])
             .await
@@ -107,12 +132,14 @@ mod vector_tests {
             .remove(0);
         let mut selection = vectors
             .entities_by_similarity(&embedding, 10, None)
+            .await
             .unwrap();
         selection
             .expand_entities_by_similarity(&embedding, 10, None)
+            .await
             .unwrap();
         selection.expand(2, None);
-        let docs = selection.get_documents().unwrap();
+        let docs = selection.get_documents().await.unwrap();
         assert!(docs.is_empty())
     }
 
@@ -186,7 +213,12 @@ mod vector_tests {
         .unwrap();
 
         dotenv::dotenv().ok();
-        let cache = VectorCache::in_memory(openai_embedding);
+        let cache = VectorCache::in_memory(OpenAIEmbeddings {
+            model: "text-embedding-3-small".to_owned(),
+            config: OpenAIConfig::default(),
+        })
+        .await
+        .unwrap();
         let vectors = g
             .vectorise(cache.clone(), template, None, false)
             .await
@@ -196,8 +228,10 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
+            .await
             .unwrap()
             .get_documents()
+            .await
             .unwrap();
         // TODO: use the ids instead in all of these cases
         assert!(docs[0].content.contains("Gandalf is a wizard"));
@@ -206,8 +240,10 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
+            .await
             .unwrap()
             .get_documents()
+            .await
             .unwrap();
         assert!(docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -216,8 +252,10 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
+            .await
             .unwrap()
             .get_documents()
+            .await
             .unwrap();
         assert!(!docs[0].content.contains("Frodo is a hobbit")); // this fails when using gte-small
 
@@ -225,8 +263,10 @@ mod vector_tests {
         let embedding = cache.get_single(query).await.unwrap();
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
+            .await
             .unwrap()
             .get_documents()
+            .await
             .unwrap();
         assert!(docs[0].content.contains("Frodo appeared with Gandalf"));
     }

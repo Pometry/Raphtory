@@ -1,6 +1,6 @@
 use super::{
     cache::VectorCache,
-    db::{EdgeDb, EntityDb, NodeDb},
+    entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
 };
@@ -9,7 +9,12 @@ use crate::{
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     errors::GraphResult,
     prelude::GraphViewOps,
-    vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
+    vectors::{
+        template::DocumentTemplate,
+        utils::find_top_k,
+        vector_db::{MilvusDb, VectorDb},
+        Embedding,
+    },
 };
 
 #[derive(Clone)]
@@ -17,8 +22,8 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
     pub(crate) cache: VectorCache,
-    pub(super) node_db: NodeDb,
-    pub(super) edge_db: EdgeDb,
+    pub(super) node_db: NodeDb<MilvusDb>,
+    pub(super) edge_db: EdgeDb<MilvusDb>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
@@ -49,12 +54,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        self.node_db.insert_vectors(
-            ids.iter()
-                .zip(vectors)
-                .map(|(id, vector)| (*id, vector))
-                .collect(),
-        )?;
+        self.node_db
+            .insert_vectors(
+                ids.iter()
+                    .zip(vectors)
+                    .map(|(id, vector)| (*id, vector))
+                    .collect(),
+            )
+            .await?;
 
         Ok(())
     }
@@ -74,12 +81,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let vectors = self.cache.get_embeddings(docs).await?;
 
-        self.edge_db.insert_vectors(
-            ids.iter()
-                .zip(vectors)
-                .map(|(id, vector)| (*id, vector))
-                .collect(),
-        )?;
+        self.edge_db
+            .insert_vectors(
+                ids.iter()
+                    .zip(vectors)
+                    .map(|(id, vector)| (*id, vector))
+                    .collect(),
+            )
+            .await?;
 
         Ok(())
     }
@@ -98,15 +107,15 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn entities_by_similarity(
+    pub async fn entities_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let nodes = self.node_db.top_k(query, limit, view.clone(), None)?;
-        let edges = self.edge_db.top_k(query, limit, view, None)?;
+        let nodes = self.node_db.top_k(query, limit, view.clone(), None).await?;
+        let edges = self.edge_db.top_k(query, limit, view, None).await?;
         let docs = find_top_k(nodes.chain(edges), limit).collect();
         Ok(VectorSelection::new(self.clone(), docs))
     }
@@ -120,14 +129,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn nodes_by_similarity(
+    pub async fn nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.node_db.top_k(query, limit, view, None)?;
+        let docs = self.node_db.top_k(query, limit, view, None).await?;
         Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 
@@ -140,14 +149,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn edges_by_similarity(
+    pub async fn edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.edge_db.top_k(query, limit, view, None)?;
+        let docs = self.edge_db.top_k(query, limit, view, None).await?;
         Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 }

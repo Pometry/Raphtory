@@ -34,6 +34,27 @@ pub struct PyOpenAIEmbeddings {
     project_id: Option<String>,
 }
 
+#[pymethods]
+impl PyOpenAIEmbeddings {
+    #[new]
+    #[pyo3(signature = (model, api_base=None, api_key=None, org_id=None, project_id=None))]
+    fn new(
+        model: String,
+        api_base: Option<String>,
+        api_key: Option<String>,
+        org_id: Option<String>,
+        project_id: Option<String>,
+    ) -> Self {
+        Self {
+            model,
+            api_base,
+            api_key,
+            org_id,
+            project_id,
+        }
+    }
+}
+
 impl EmbeddingFunction for PyOpenAIEmbeddings {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         let mut config = OpenAIConfig::default();

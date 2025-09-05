@@ -105,14 +105,8 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            // TODO this is async because theren might be already vectors in the saved
-            // in the on disk vector cache, but they shouldn't be read probably until
-            // the cache gets used for the firts time
-            let server = GraphServer::new(work_dir, app_config, config_path).await?;
-            Ok(PyGraphServer(server))
-        })
+        let server = GraphServer::new(work_dir, app_config, config_path)?;
+        Ok(PyGraphServer(server))
     }
 
     /// Turn off index for all graphs

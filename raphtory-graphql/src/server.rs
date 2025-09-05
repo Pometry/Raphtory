@@ -151,10 +151,7 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
-    pub async fn vectorise_all_graphs<F: EmbeddingFunction + Clone + 'static>(
-        &self,
-        template: &DocumentTemplate,
-    ) -> GraphResult<()> {
+    pub async fn vectorise_all_graphs(&self, template: &DocumentTemplate) -> GraphResult<()> {
         for folder in self.data.get_all_graph_folders() {
             self.data.vectorise_folder(&folder, template).await?;
         }
@@ -382,17 +379,18 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let mut server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
         let template = DocumentTemplate {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
         let cache_dir = tempdir().unwrap();
-        let handler = server
-            .set_embeddings(failing_embedding, cache_dir.path(), Some(template))
+        server
+            .enable_embeddings(failing_embedding, cache_dir.path())
             .await
-            .unwrap()
-            .start_with_port(0);
+            .unwrap();
+        server.vectorise_all_graphs(&template).await.unwrap();
+        let handler = server.start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
     }
