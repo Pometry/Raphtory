@@ -8,7 +8,7 @@ use raphtory::{
 };
 
 #[derive(InputObject)]
-pub(super) struct Window {
+pub(super) struct VectorisedGraphWindow {
     start: i64,
     end: i64,
 }
@@ -17,7 +17,7 @@ pub(super) trait IntoWindowTuple {
     fn into_window_tuple(self) -> Option<(i64, i64)>;
 }
 
-impl IntoWindowTuple for Option<Window> {
+impl IntoWindowTuple for Option<VectorisedGraphWindow> {
     fn into_window_tuple(self) -> Option<(i64, i64)> {
         self.map(|window| (window.start, window.end))
     }
@@ -44,7 +44,7 @@ impl GqlVectorisedGraph {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
@@ -57,7 +57,7 @@ impl GqlVectorisedGraph {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
@@ -70,7 +70,7 @@ impl GqlVectorisedGraph {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();

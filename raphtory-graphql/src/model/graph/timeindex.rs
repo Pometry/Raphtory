@@ -24,7 +24,7 @@ impl ScalarValue for GqlSimpleTimeInput {
                 .try_into_time()
                 .map(|t| GqlSimpleTimeInput(t.t()))
                 .map_err(|e| Error::new(e.to_string())),
-            _ => Err(Error::new("Expected Int or DateTime formatted String"))
+            _ => Err(Error::new("Expected Int or DateTime formatted String")),
         }
     }
 
@@ -68,10 +68,7 @@ impl TryIntoTime for GqlTimeInput {
             GqlTimeInput::IndexedTime(GqlIndexedTimeInput {
                 time,
                 secondary_index,
-            }) => Ok(TimeIndexEntry::new(
-                time.into_time().t(),
-                secondary_index,
-            )),
+            }) => Ok(TimeIndexEntry::new(time.into_time().t(), secondary_index)),
         }
     }
 }

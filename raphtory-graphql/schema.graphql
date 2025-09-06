@@ -270,10 +270,10 @@ type GqlVectorSelection {
 	getDocuments: [GqlDocument!]!
 	addNodes(nodes: [String!]!): GqlVectorSelection!
 	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
-	expand(hops: Int!, window: Window): GqlVectorSelection!
-	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	expand(hops: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+	expandEntitiesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+	expandNodesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+	expandEdgesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
 }
 
 type Graph {
@@ -1333,14 +1333,19 @@ input Value @oneOf {
 
 type VectorisedGraph {
 	emptySelection: GqlVectorSelection!
-	entitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	nodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
-	edgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	entitiesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+	nodesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+	edgesBySimilarity(query: String!, limit: Int!, window: VectorisedGraphWindow): GqlVectorSelection!
+}
+
+input VectorisedGraphWindow {
+	start: Int!
+	end: Int!
 }
 
 input Window {
-	start: Int!
-	end: Int!
+	start: TimeInput!
+	end: TimeInput!
 }
 
 input WindowDuration @oneOf {
@@ -1356,4 +1361,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

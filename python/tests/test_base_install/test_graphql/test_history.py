@@ -61,7 +61,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 0, end: 150) {
+        window(start: {simpleTime: 0}, end: {simpleTime: 150}) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -77,7 +77,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 150, end: 300) {
+        window(start: {simpleTime: 150}, end: {simpleTime: 300}) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -94,7 +94,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 300, end: 450) {
+        window(start: {simpleTime: 300}, end: {simpleTime: 450}) {
           node(name: "Dumbledore") {
             history {
               timestamps {
@@ -112,7 +112,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 0, end: 150) {
+        window(start: {simpleTime: 0}, end: {simpleTime: 150}) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -130,7 +130,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 150, end: 300) {
+        window(start: {simpleTime: 150}, end: {simpleTime: 300}) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {
@@ -148,7 +148,7 @@ def test_history():
     query = """
     {
       graph(path: "g") {
-        window(start: 300, end: 450) {
+        window(start: {simpleTime: 300}, end: {simpleTime: 450}) {
           edge(src: "Dumbledore", dst: "Harry") {
             history {
               timestamps {

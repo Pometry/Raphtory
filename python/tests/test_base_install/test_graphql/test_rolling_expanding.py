@@ -180,7 +180,7 @@ def test_graph_epoch():
     query = """
     {
   graph(path: "g") {
-    window(start: 2, end: 5) {
+    window(start: {simpleTime: 2}, end: {simpleTime: 5}) {
       rolling(window: {epoch: 2}, step: {epoch: 1}) {
         list {
           start {
@@ -213,7 +213,7 @@ def test_graph_epoch():
     query = """
    {
   graph(path: "g") {
-    window(start: 2, end: 7) {
+    window(start: {simpleTime: 2}, end: {simpleTime: 7}) {
       expanding(step: {epoch: 3}) {
         list {
           end {
@@ -263,7 +263,7 @@ def test_graph_epoch():
     query = """
        {
       graph(path: "g") {
-        window(start: 2, end: 5) {
+        window(start: {simpleTime: 2}, end: {simpleTime: 5}) {
           expanding(step: {epoch: 1}) {
             list {
               start {
@@ -415,7 +415,7 @@ def test_node():
           degree
         }
       }
-      before(time:4){
+      before(time: {simpleTime: 4}){
         expanding(step:{epoch:1}){
         list{
           end {
@@ -509,7 +509,7 @@ def test_nodes():
           }
         }
       }
-      after(time: 1) {
+      after(time: {simpleTime: 1}) {
         expanding(step: {epoch: 1}) {
           list {
             page(limit: 1, offset: 0) {
@@ -848,7 +848,7 @@ def test_path():
             }
           }
         }
-        after(time: 1) {
+        after(time: {simpleTime: 1}) {
           expanding(step: {epoch: 1}) {
             list {
               page(limit: 1, offset: 0) {
@@ -1185,7 +1185,7 @@ def test_edge():
           }
         }
       }
-      after(time:1){
+      after(time: {simpleTime: 1}){
         expanding(step:{epoch:1}){
         list{
           start {
@@ -1330,7 +1330,7 @@ def test_edges():
           }
         }
       }
-      after(time: 1) {
+      after(time: {simpleTime: 1}) {
         expanding(step: {epoch: 1}) {
           list {
             page(limit: 1, offset: 0) {

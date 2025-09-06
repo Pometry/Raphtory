@@ -40,7 +40,7 @@ def test_in_out_components():
                 }
               }
             }
-            window(start:1,end:6){
+            window(start: {simpleTime: 1}, end: {simpleTime: 6}){
               node(name:"3"){
                 inComponent{
                   list {
@@ -49,7 +49,7 @@ def test_in_out_components():
                 }
               }
             }
-            at(time:4){
+            at(time: {simpleTime: 4}){
               node(name:"4"){
                 outComponent{
                   list {
@@ -112,7 +112,7 @@ def test_in_out_component_hop_reset():
         {
           graph(path: "graph") {
             node(name: "1") {
-              window(start: 2, end: 4) {
+              window(start: {simpleTime: 2}, end: {simpleTime: 4}) {
                 outComponent {
                   list {
                     name
@@ -150,7 +150,7 @@ def test_in_out_component_hop_reset():
         {
           graph(path: "graph") {
             node(name: "3") {
-              window(start: 2, end: 4) {
+              window(start: {simpleTime: 2}, end: {simpleTime: 4}) {
                 inComponent {
                   list {
                     name

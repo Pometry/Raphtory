@@ -219,9 +219,9 @@ def test_graph_windows_and_layers_query():
         q = """
         query GetEdges {
           graph(path: "lotr") {
-            window(start: 200, end: 800) {
+            window(start: {simpleTime: 200}, end: {simpleTime: 800}) {
               node(name: "Frodo") {
-                after(time: 500) {
+                after(time: {simpleTime: 500}) {
                   history {
                     list {
                       timestamp
@@ -231,7 +231,7 @@ def test_graph_windows_and_layers_query():
                   neighbours {
                     list {
                       name
-                        before(time: 300) { 
+                        before(time: {simpleTime: 300}) { 
                         history {
                           list {
                             timestamp
