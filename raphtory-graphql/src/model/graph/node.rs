@@ -6,7 +6,7 @@ use crate::{
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::GqlTimeIndexEntry,
+        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
         windowset::GqlNodeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -23,6 +23,7 @@ use raphtory::{
     errors::GraphError,
     prelude::NodeStateOps,
 };
+use raphtory_api::core::utils::time::TryIntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Node")]
@@ -116,12 +117,15 @@ impl GqlNode {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> GqlNode {
-        self.vv.window(start, end).into()
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self
+            .vv
+            .window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
-    async fn at(&self, time: i64) -> GqlNode {
-        self.vv.at(time).into()
+    async fn at(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.at(time.try_into_time()?).into())
     }
 
     async fn latest(&self) -> GqlNode {
@@ -129,8 +133,8 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.latest().into()).await
     }
 
-    async fn snapshot_at(&self, time: i64) -> GqlNode {
-        self.vv.snapshot_at(time).into()
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.snapshot_at(time.try_into_time()?).into())
     }
 
     async fn snapshot_latest(&self) -> GqlNode {
@@ -138,24 +142,31 @@ impl GqlNode {
         blocking_compute(move || self_clone.vv.snapshot_latest().into()).await
     }
 
-    async fn before(&self, time: i64) -> GqlNode {
-        self.vv.before(time).into()
+    async fn before(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.before(time.try_into_time()?).into())
     }
 
-    async fn after(&self, time: i64) -> GqlNode {
-        self.vv.after(time).into()
+    async fn after(&self, time: GqlTimeInput) -> Result<GqlNode, GraphError> {
+        Ok(self.vv.after(time.try_into_time()?).into())
     }
 
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.vv.shrink_window(start, end).into()
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self
+            .vv
+            .shrink_window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.vv.shrink_start(start).into()
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.vv.shrink_start(start.try_into_time()?).into())
     }
 
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.vv.shrink_end(end).into()
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.vv.shrink_end(end.try_into_time()?).into())
     }
 
     async fn apply_views(&self, views: Vec<NodeViewCollection>) -> Result<GqlNode, GraphError> {
@@ -183,7 +194,7 @@ impl GqlNode {
                         return_view
                     }
                 }
-                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                NodeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 NodeViewCollection::Layers(layers) => return_view.layers(layers).await,
                 NodeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
@@ -191,16 +202,16 @@ impl GqlNode {
                 NodeViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodeViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                NodeViewCollection::At(at) => return_view.at(at).await,
-                NodeViewCollection::Before(time) => return_view.before(time).await,
-                NodeViewCollection::After(time) => return_view.after(time).await,
+                NodeViewCollection::At(at) => return_view.at(at).await?,
+                NodeViewCollection::Before(time) => return_view.before(time).await?,
+                NodeViewCollection::After(time) => return_view.after(time).await?,
                 NodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                NodeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                NodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
                 NodeViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
             }
         }

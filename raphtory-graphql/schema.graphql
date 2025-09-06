@@ -63,16 +63,16 @@ type Edge {
 	excludeLayer(name: String!): Edge!
 	rolling(window: WindowDuration!, step: WindowDuration): EdgeWindowSet!
 	expanding(step: WindowDuration!): EdgeWindowSet!
-	window(start: Int!, end: Int!): Edge!
-	at(time: Int!): Edge!
+	window(start: TimeInput!, end: TimeInput!): Edge!
+	at(time: TimeInput!): Edge!
 	latest: Edge!
-	snapshotAt(time: Int!): Edge!
+	snapshotAt(time: TimeInput!): Edge!
 	snapshotLatest: Edge!
-	before(time: Int!): Edge!
-	after(time: Int!): Edge!
-	shrinkWindow(start: Int!, end: Int!): Edge!
-	shrinkStart(start: Int!): Edge!
-	shrinkEnd(end: Int!): Edge!
+	before(time: TimeInput!): Edge!
+	after(time: TimeInput!): Edge!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): Edge!
+	shrinkStart(start: TimeInput!): Edge!
+	shrinkEnd(end: TimeInput!): Edge!
 	applyViews(views: [EdgeViewCollection!]!): Edge!
 	earliestTime: TimeIndexEntry
 	firstUpdate: TimeIndexEntry
@@ -146,18 +146,18 @@ input EdgeViewCollection @oneOf {
 	defaultLayer: Boolean
 	latest: Boolean
 	snapshotLatest: Boolean
-	snapshotAt: Int
+	snapshotAt: TimeInput
 	layers: [String!]
 	excludeLayers: [String!]
 	layer: String
 	excludeLayer: String
 	window: Window
-	at: Int
-	before: Int
-	after: Int
+	at: TimeInput
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 }
 
 type EdgeWindowSet {
@@ -184,16 +184,16 @@ type Edges {
 	excludeLayer(name: String!): Edges!
 	rolling(window: WindowDuration!, step: WindowDuration): EdgesWindowSet!
 	expanding(step: WindowDuration!): EdgesWindowSet!
-	window(start: Int!, end: Int!): Edges!
-	at(time: Int!): Edges!
+	window(start: TimeInput!, end: TimeInput!): Edges!
+	at(time: TimeInput!): Edges!
 	latest: Edges!
-	snapshotAt(time: Int!): Edges!
+	snapshotAt(time: TimeInput!): Edges!
 	snapshotLatest: Edges!
-	before(time: Int!): Edges!
-	after(time: Int!): Edges!
-	shrinkWindow(start: Int!, end: Int!): Edges!
-	shrinkStart(start: Int!): Edges!
-	shrinkEnd(end: Int!): Edges!
+	before(time: TimeInput!): Edges!
+	after(time: TimeInput!): Edges!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): Edges!
+	shrinkStart(start: TimeInput!): Edges!
+	shrinkEnd(end: TimeInput!): Edges!
 	applyViews(views: [EdgesViewCollection!]!): Edges!
 	explode: Edges!
 	explodeLayers: Edges!
@@ -219,18 +219,18 @@ input EdgesViewCollection @oneOf {
 	defaultLayer: Boolean
 	latest: Boolean
 	snapshotLatest: Boolean
-	snapshotAt: Int
+	snapshotAt: TimeInput
 	layers: [String!]
 	excludeLayers: [String!]
 	layer: String
 	excludeLayer: String
 	window: Window
-	at: Int
-	before: Int
-	after: Int
+	at: TimeInput
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 }
 
 type EdgesWindowSet {
@@ -292,16 +292,16 @@ type Graph {
 	"""
 	Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
 	"""
-	window(start: Int!, end: Int!): Graph!
-	at(time: Int!): Graph!
+	window(start: TimeInput!, end: TimeInput!): Graph!
+	at(time: TimeInput!): Graph!
 	latest: Graph!
-	snapshotAt(time: Int!): Graph!
+	snapshotAt(time: TimeInput!): Graph!
 	snapshotLatest: Graph!
-	before(time: Int!): Graph!
-	after(time: Int!): Graph!
-	shrinkWindow(start: Int!, end: Int!): Graph!
-	shrinkStart(start: Int!): Graph!
-	shrinkEnd(end: Int!): Graph!
+	before(time: TimeInput!): Graph!
+	after(time: TimeInput!): Graph!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): Graph!
+	shrinkStart(start: TimeInput!): Graph!
+	shrinkEnd(end: TimeInput!): Graph!
 	created: Int!
 	lastOpened: Int!
 	lastUpdated: Int!
@@ -344,8 +344,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
+	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
 }
 
 type GraphSchema {
@@ -369,15 +369,15 @@ input GraphViewCollection @oneOf {
 	excludeNodes: [String!]
 	valid: Boolean
 	window: Window
-	at: Int
+	at: TimeInput
 	latest: Boolean
-	snapshotAt: Int
+	snapshotAt: TimeInput
 	snapshotLatest: Boolean
-	before: Int
-	after: Int
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 	nodeFilter: NodeFilter
 	edgeFilter: EdgeFilter
 }
@@ -592,6 +592,14 @@ type HistoryTimestamp {
 input IndexSpecInput {
 	nodeProps: PropsInput!
 	edgeProps: PropsInput!
+}
+
+"""
+Input for indexed time entries.
+"""
+input IndexedTimeInput {
+	time: SimpleTimeInput!
+	secondaryIndex: Int!
 }
 
 input InputEdge {
@@ -867,16 +875,16 @@ type Node {
 	excludeLayer(name: String!): Node!
 	rolling(window: WindowDuration!, step: WindowDuration): NodeWindowSet!
 	expanding(step: WindowDuration!): NodeWindowSet!
-	window(start: Int!, end: Int!): Node!
-	at(time: Int!): Node!
+	window(start: TimeInput!, end: TimeInput!): Node!
+	at(time: TimeInput!): Node!
 	latest: Node!
-	snapshotAt(time: Int!): Node!
+	snapshotAt(time: TimeInput!): Node!
 	snapshotLatest: Node!
-	before(time: Int!): Node!
-	after(time: Int!): Node!
-	shrinkWindow(start: Int!, end: Int!): Node!
-	shrinkStart(start: Int!): Node!
-	shrinkEnd(end: Int!): Node!
+	before(time: TimeInput!): Node!
+	after(time: TimeInput!): Node!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): Node!
+	shrinkStart(start: TimeInput!): Node!
+	shrinkEnd(end: TimeInput!): Node!
 	applyViews(views: [NodeViewCollection!]!): Node!
 	earliestTime: TimeIndexEntry
 	firstUpdate: TimeIndexEntry
@@ -961,18 +969,18 @@ input NodeViewCollection @oneOf {
 	defaultLayer: Boolean
 	latest: Boolean
 	snapshotLatest: Boolean
-	snapshotAt: Int
+	snapshotAt: TimeInput
 	layers: [String!]
 	excludeLayers: [String!]
 	layer: String
 	excludeLayer: String
 	window: Window
-	at: Int
-	before: Int
-	after: Int
+	at: TimeInput
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 	nodeFilter: NodeFilter
 }
 
@@ -1000,16 +1008,16 @@ type Nodes {
 	excludeLayer(name: String!): Nodes!
 	rolling(window: WindowDuration!, step: WindowDuration): NodesWindowSet!
 	expanding(step: WindowDuration!): NodesWindowSet!
-	window(start: Int!, end: Int!): Nodes!
-	at(time: Int!): Nodes!
+	window(start: TimeInput!, end: TimeInput!): Nodes!
+	at(time: TimeInput!): Nodes!
 	latest: Nodes!
-	snapshotAt(time: Int!): Nodes!
+	snapshotAt(time: TimeInput!): Nodes!
 	snapshotLatest: Nodes!
-	before(time: Int!): Nodes!
-	after(time: Int!): Nodes!
-	shrinkWindow(start: Int!, end: Int!): Nodes!
-	shrinkStart(start: Int!): Nodes!
-	shrinkEnd(end: Int!): Nodes!
+	before(time: TimeInput!): Nodes!
+	after(time: TimeInput!): Nodes!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): Nodes!
+	shrinkStart(start: TimeInput!): Nodes!
+	shrinkEnd(end: TimeInput!): Nodes!
 	typeFilter(nodeTypes: [String!]!): Nodes!
 	nodeFilter(filter: NodeFilter!): Nodes!
 	applyViews(views: [NodesViewCollection!]!): Nodes!
@@ -1041,13 +1049,13 @@ input NodesViewCollection @oneOf {
 	layer: String
 	excludeLayer: String
 	window: Window
-	at: Int
-	snapshotAt: Int
-	before: Int
-	after: Int
+	at: TimeInput
+	snapshotAt: TimeInput
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 	nodeFilter: NodeFilter
 	typeFilter: [String!]
 }
@@ -1100,16 +1108,16 @@ type PathFromNode {
 	excludeLayer(name: String!): PathFromNode!
 	rolling(window: WindowDuration!, step: WindowDuration): PathFromNodeWindowSet!
 	expanding(step: WindowDuration!): PathFromNodeWindowSet!
-	window(start: Int!, end: Int!): PathFromNode!
-	at(time: Int!): PathFromNode!
+	window(start: TimeInput!, end: TimeInput!): PathFromNode!
+	at(time: TimeInput!): PathFromNode!
 	snapshotLatest: PathFromNode!
-	snapshotAt(time: Int!): PathFromNode!
+	snapshotAt(time: TimeInput!): PathFromNode!
 	latest: PathFromNode!
-	before(time: Int!): PathFromNode!
-	after(time: Int!): PathFromNode!
-	shrinkWindow(start: Int!, end: Int!): PathFromNode!
-	shrinkStart(start: Int!): PathFromNode!
-	shrinkEnd(end: Int!): PathFromNode!
+	before(time: TimeInput!): PathFromNode!
+	after(time: TimeInput!): PathFromNode!
+	shrinkWindow(start: TimeInput!, end: TimeInput!): PathFromNode!
+	shrinkStart(start: TimeInput!): PathFromNode!
+	shrinkEnd(end: TimeInput!): PathFromNode!
 	typeFilter(nodeTypes: [String!]!): PathFromNode!
 	start: TimeIndexEntry
 	end: TimeIndexEntry
@@ -1133,18 +1141,18 @@ type PathFromNode {
 input PathFromNodeViewCollection @oneOf {
 	latest: Boolean
 	snapshotLatest: Boolean
-	snapshotAt: Int
+	snapshotAt: TimeInput
 	layers: [String!]
 	excludeLayers: [String!]
 	layer: String
 	excludeLayer: String
 	window: Window
-	at: Int
-	before: Int
-	after: Int
+	at: TimeInput
+	before: TimeInput
+	after: TimeInput
 	shrinkWindow: Window
-	shrinkStart: Int
-	shrinkEnd: Int
+	shrinkStart: TimeInput
+	shrinkEnd: TimeInput
 }
 
 type PathFromNodeWindowSet {
@@ -1231,6 +1239,12 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
+"""
+Input for primary time component. Int or DateTime formatted String.
+Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%
+"""
+scalar SimpleTimeInput
+
 input SomePropertySpec {
 	metadata: [String!]!
 	properties: [String!]!
@@ -1297,6 +1311,14 @@ type TimeIndexEntry {
 	datetime(formatString: String): String!
 }
 
+"""
+Input for simple or indexed time entries.
+"""
+input TimeInput @oneOf {
+	simpleTime: SimpleTimeInput
+	indexedTime: IndexedTimeInput
+}
+
 scalar Upload
 
 input Value @oneOf {
@@ -1334,3 +1356,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

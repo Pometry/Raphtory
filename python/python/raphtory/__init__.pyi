@@ -5090,13 +5090,14 @@ class MutableEdge(Edge):
             GraphError: If the operation fails.
         """
 
-    def delete(self, t: TimeInput, layer: Optional[str] = None):
+    def delete(self, t: TimeInput, layer: Optional[str] = None, secondary_index: Optional[int] = None):
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
             t (TimeInput): The timestamp at which the deletion should be applied.
             layer (str, optional): The layer you want the deletion applied to .
+            secondary_index (int, optional): The secondary index for the time entry to delete at.
         """
 
     def update_metadata(self, metadata: PropInput, layer: Optional[str] = None):
@@ -5509,6 +5510,10 @@ class TimeIndexEntry(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    @property
+    def as_tuple(self):
+        """Return the TimeIndexEntry as a tuple"""
 
     @property
     def dt(self):

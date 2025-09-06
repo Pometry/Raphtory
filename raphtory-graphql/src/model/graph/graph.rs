@@ -9,7 +9,7 @@ use crate::{
             node::GqlNode,
             nodes::GqlNodes,
             property::{GqlMetadata, GqlProperties},
-            timeindex::GqlTimeIndexEntry,
+            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
             windowset::GqlGraphWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -43,7 +43,7 @@ use raphtory::{
     errors::{GraphError, InvalidPathReason},
     prelude::*,
 };
-use raphtory_api::core::storage::timeindex::AsTime;
+use raphtory_api::core::{storage::timeindex::AsTime, utils::time::TryIntoTime};
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
@@ -183,12 +183,15 @@ impl GqlGraph {
     }
 
     /// Return a graph containing only the activity between `start` and `end` measured as milliseconds from epoch
-    async fn window(&self, start: i64, end: i64) -> GqlGraph {
-        self.apply(|g| g.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<GqlGraph, GraphError> {
+        let start = start.try_into_time()?;
+        let end = end.try_into_time()?;
+        Ok(self.apply(|g| g.window(start, end)))
     }
 
-    async fn at(&self, time: i64) -> GqlGraph {
-        self.apply(|g| g.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Result<GqlGraph, GraphError> {
+        let time = time.try_into_time()?;
+        Ok(self.apply(|g| g.at(time)))
     }
 
     async fn latest(&self) -> GqlGraph {
@@ -196,32 +199,43 @@ impl GqlGraph {
         blocking_compute(move || self_clone.apply(|g| g.latest())).await
     }
 
-    async fn snapshot_at(&self, time: i64) -> GqlGraph {
-        self.apply(|g| g.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<GqlGraph, GraphError> {
+        let time = time.try_into_time()?;
+        Ok(self.apply(|g| g.snapshot_at(time)))
     }
 
     async fn snapshot_latest(&self) -> GqlGraph {
         self.apply(|g| g.snapshot_latest())
     }
 
-    async fn before(&self, time: i64) -> GqlGraph {
-        self.apply(|g| g.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Result<GqlGraph, GraphError> {
+        let time = time.try_into_time()?;
+        Ok(self.apply(|g| g.before(time)))
     }
 
-    async fn after(&self, time: i64) -> GqlGraph {
-        self.apply(|g| g.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Result<GqlGraph, GraphError> {
+        let time = time.try_into_time()?;
+        Ok(self.apply(|g| g.after(time)))
     }
 
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.apply(|g| g.shrink_window(start, end))
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        let start = start.try_into_time()?;
+        let end = end.try_into_time()?;
+        Ok(self.apply(|g| g.shrink_window(start, end)))
     }
 
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.apply(|g| g.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        let start = start.try_into_time()?;
+        Ok(self.apply(|g| g.shrink_start(start)))
     }
 
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.apply(|g| g.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        let end = end.try_into_time()?;
+        Ok(self.apply(|g| g.shrink_end(end)))
     }
 
     ////////////////////////
@@ -587,9 +601,9 @@ impl GqlGraph {
                     }
                 }
                 GraphViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                GraphViewCollection::At(at) => return_view.at(at).await,
+                GraphViewCollection::At(at) => return_view.at(at).await?,
                 GraphViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
@@ -597,7 +611,7 @@ impl GqlGraph {
                         return_view
                     }
                 }
-                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                GraphViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 GraphViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
@@ -605,13 +619,13 @@ impl GqlGraph {
                         return_view
                     }
                 }
-                GraphViewCollection::Before(before) => return_view.before(before).await,
-                GraphViewCollection::After(after) => return_view.after(after).await,
+                GraphViewCollection::Before(before) => return_view.before(before).await?,
+                GraphViewCollection::After(after) => return_view.after(after).await?,
                 GraphViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
-                GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
+                GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await?,
+                GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await?,
                 GraphViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
                 GraphViewCollection::EdgeFilter(filter) => return_view.edge_filter(filter).await?,
             };

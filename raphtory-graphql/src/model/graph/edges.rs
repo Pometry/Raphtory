@@ -3,7 +3,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             filtering::EdgesViewCollection,
-            timeindex::GqlTimeIndexEntry,
+            timeindex::{GqlTimeIndexEntry, GqlTimeInput},
             windowset::GqlEdgesWindowSet,
             WindowDuration,
             WindowDuration::{Duration, Epoch},
@@ -13,6 +13,7 @@ use crate::{
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
+use futures_util::StreamExt;
 use itertools::Itertools;
 use raphtory::{
     db::{
@@ -22,7 +23,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::iter::IntoDynBoxed;
+use raphtory_api::{core::utils::time::TryIntoTime, iter::IntoDynBoxed};
 use std::{cmp::Ordering, sync::Arc};
 
 #[derive(ResolvedObject, Clone)]
@@ -113,42 +114,49 @@ impl GqlEdges {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.ee.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.window(start.try_into_time()?, end.try_into_time()?)))
     }
 
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.ee.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.at(time.try_into_time()?)))
     }
     async fn latest(&self) -> Self {
         self.update(self.ee.latest())
     }
 
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.ee.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.snapshot_at(time.try_into_time()?)))
     }
     async fn snapshot_latest(&self) -> Self {
         self.update(self.ee.snapshot_latest())
     }
 
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.ee.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.before(time.try_into_time()?)))
     }
 
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.ee.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.after(time.try_into_time()?)))
     }
 
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.ee.shrink_window(start, end))
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self.update(
+            self.ee
+                .shrink_window(start.try_into_time()?, end.try_into_time()?),
+        ))
     }
 
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.ee.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.shrink_start(start.try_into_time()?)))
     }
 
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.ee.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.ee.shrink_end(end.try_into_time()?)))
     }
 
     async fn apply_views(&self, views: Vec<EdgesViewCollection>) -> Result<GqlEdges, GraphError> {
@@ -176,7 +184,7 @@ impl GqlEdges {
                         return_view
                     }
                 }
-                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgesViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 EdgesViewCollection::Layers(layers) => return_view.layers(layers).await,
                 EdgesViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
@@ -184,16 +192,16 @@ impl GqlEdges {
                 EdgesViewCollection::Layer(layer) => return_view.layer(layer).await,
                 EdgesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 EdgesViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                EdgesViewCollection::At(at) => return_view.at(at).await,
-                EdgesViewCollection::Before(time) => return_view.before(time).await,
-                EdgesViewCollection::After(time) => return_view.after(time).await,
+                EdgesViewCollection::At(at) => return_view.at(at).await?,
+                EdgesViewCollection::Before(time) => return_view.before(time).await?,
+                EdgesViewCollection::After(time) => return_view.after(time).await?,
                 EdgesViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                EdgesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
             }
         }
 

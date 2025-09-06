@@ -5,7 +5,7 @@ use crate::{
         history::GqlHistory,
         node::GqlNode,
         property::{GqlMetadata, GqlProperties},
-        timeindex::GqlTimeIndexEntry,
+        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
         windowset::GqlEdgeWindowSet,
         WindowDuration,
         WindowDuration::{Duration, Epoch},
@@ -21,6 +21,7 @@ use raphtory::{
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
+use raphtory_api::core::utils::time::TryIntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Edge")]
@@ -118,44 +119,54 @@ impl GqlEdge {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> GqlEdge {
-        self.ee.window(start, end).into()
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self
+            .ee
+            .window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
-    async fn at(&self, time: i64) -> GqlEdge {
-        self.ee.at(time).into()
+    async fn at(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.at(time.try_into_time()?).into())
     }
 
     async fn latest(&self) -> GqlEdge {
         self.ee.latest().into()
     }
 
-    async fn snapshot_at(&self, time: i64) -> GqlEdge {
-        self.ee.snapshot_at(time).into()
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.snapshot_at(time.try_into_time()?).into())
     }
 
     async fn snapshot_latest(&self) -> GqlEdge {
         self.ee.snapshot_latest().into()
     }
 
-    async fn before(&self, time: i64) -> GqlEdge {
-        self.ee.before(time).into()
+    async fn before(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.before(time.try_into_time()?).into())
     }
 
-    async fn after(&self, time: i64) -> GqlEdge {
-        self.ee.after(time).into()
+    async fn after(&self, time: GqlTimeInput) -> Result<GqlEdge, GraphError> {
+        Ok(self.ee.after(time.try_into_time()?).into())
     }
 
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.ee.shrink_window(start, end).into()
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self
+            .ee
+            .shrink_window(start.try_into_time()?, end.try_into_time()?)
+            .into())
     }
 
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.ee.shrink_start(start).into()
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.ee.shrink_start(start.try_into_time()?).into())
     }
 
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.ee.shrink_end(end).into()
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.ee.shrink_end(end.try_into_time()?).into())
     }
 
     async fn apply_views(&self, views: Vec<EdgeViewCollection>) -> Result<GqlEdge, GraphError> {
@@ -192,18 +203,18 @@ impl GqlEdge {
                         return_view
                     }
                 }
-                EdgeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await,
+                EdgeViewCollection::SnapshotAt(at) => return_view.snapshot_at(at).await?,
                 EdgeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
-                EdgeViewCollection::At(at) => return_view.at(at).await,
-                EdgeViewCollection::Before(time) => return_view.before(time).await,
-                EdgeViewCollection::After(time) => return_view.after(time).await,
+                EdgeViewCollection::At(at) => return_view.at(at).await?,
+                EdgeViewCollection::Before(time) => return_view.before(time).await?,
+                EdgeViewCollection::After(time) => return_view.after(time).await?,
                 EdgeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
-                EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
-                EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
+                EdgeViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await?,
+                EdgeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
             }
         }
         Ok(return_view)

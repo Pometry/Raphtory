@@ -211,8 +211,8 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
     fn at<T: IntoTime>(&self, time: T) -> Self::WindowedViewType {
         let start = time.into_time();
         self.internal_window(
-            Some(start),
-            Some(TimeIndexEntry::new(start.t().saturating_add(1), 0)),
+            Some(TimeIndexEntry::start(start.t())),
+            Some(TimeIndexEntry::start(start.t().saturating_add(1))),
         )
     }
 
@@ -240,12 +240,12 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
 
     fn after<T: IntoTime>(&self, start: T) -> Self::WindowedViewType {
         let start_time = start.into_time();
-        let start = TimeIndexEntry::new(start_time.t().saturating_add(1), 0);
+        let start = TimeIndexEntry::start(start_time.t().saturating_add(1));
         self.internal_window(Some(start), None)
     }
 
     fn before<T: IntoTime>(&self, end: T) -> Self::WindowedViewType {
-        let end = end.into_time();
+        let end = TimeIndexEntry::start(end.into_time().t());
         self.internal_window(None, Some(end))
     }
 

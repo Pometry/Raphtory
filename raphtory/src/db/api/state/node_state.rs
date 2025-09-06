@@ -552,11 +552,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     }
 
     /// Flattens all history objects into a single history object with all time information ordered.
-    pub fn flatten(&self) -> History<'graph, CompositeHistory<'graph>> {
-        let histories: Vec<_> = self
-            .par_iter_values()
-            .map(|hist| Box::new(hist.0.clone()) as Box<dyn InternalHistoryOps>)
-            .collect();
+    pub fn flatten(
+        &self,
+    ) -> History<'graph, CompositeHistory<'graph, NodeView<'graph, DynamicGraph>>> {
+        let histories: Vec<_> = self.par_iter_values().map(|hist| hist.0.clone()).collect();
         compose_history_from_items(histories)
     }
 }

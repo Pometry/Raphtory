@@ -2,7 +2,7 @@ use crate::{
     model::graph::{
         filtering::PathFromNodeViewCollection,
         node::GqlNode,
-        timeindex::GqlTimeIndexEntry,
+        timeindex::{GqlTimeIndexEntry, GqlTimeInput},
         windowset::GqlPathFromNodeWindowSet,
         WindowDuration::{self, Duration, Epoch},
     },
@@ -14,6 +14,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::utils::time::TryIntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
@@ -105,12 +106,12 @@ impl GqlPathFromNode {
         }
     }
 
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.window(start.try_into_time()?, end.try_into_time()?)))
     }
 
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.at(time.try_into_time()?)))
     }
 
     async fn snapshot_latest(&self) -> Self {
@@ -118,31 +119,38 @@ impl GqlPathFromNode {
         blocking_compute(move || self_clone.update(self_clone.nn.snapshot_latest())).await
     }
 
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.nn.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.snapshot_at(time.try_into_time()?)))
     }
     async fn latest(&self) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.latest())).await
     }
 
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.before(time.try_into_time()?)))
     }
 
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.after(time.try_into_time()?)))
     }
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+    async fn shrink_window(
+        &self,
+        start: GqlTimeInput,
+        end: GqlTimeInput,
+    ) -> Result<Self, GraphError> {
+        Ok(self.update(
+            self.nn
+                .shrink_window(start.try_into_time()?, end.try_into_time()?),
+        ))
     }
 
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.shrink_start(start.try_into_time()?)))
     }
 
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Result<Self, GraphError> {
+        Ok(self.update(self.nn.shrink_end(end.try_into_time()?)))
     }
 
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
@@ -220,16 +228,16 @@ impl GqlPathFromNode {
                     return_view.exclude_layer(layer).await
                 }
                 PathFromNodeViewCollection::Window(window) => {
-                    return_view.window(window.start, window.end).await
+                    return_view.window(window.start, window.end).await?
                 }
                 PathFromNodeViewCollection::ShrinkWindow(window) => {
-                    return_view.shrink_window(window.start, window.end).await
+                    return_view.shrink_window(window.start, window.end).await?
                 }
                 PathFromNodeViewCollection::ShrinkStart(time) => {
-                    return_view.shrink_start(time).await
+                    return_view.shrink_start(time).await?
                 }
-                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
-                PathFromNodeViewCollection::At(time) => return_view.at(time).await,
+                PathFromNodeViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await?,
+                PathFromNodeViewCollection::At(time) => return_view.at(time).await?,
                 PathFromNodeViewCollection::SnapshotLatest(apply) => {
                     if apply {
                         return_view.snapshot_latest().await
@@ -237,7 +245,9 @@ impl GqlPathFromNode {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::SnapshotAt(time) => return_view.snapshot_at(time).await,
+                PathFromNodeViewCollection::SnapshotAt(time) => {
+                    return_view.snapshot_at(time).await?
+                }
                 PathFromNodeViewCollection::Latest(apply) => {
                     if apply {
                         return_view.latest().await
@@ -245,8 +255,8 @@ impl GqlPathFromNode {
                         return_view
                     }
                 }
-                PathFromNodeViewCollection::Before(time) => return_view.before(time).await,
-                PathFromNodeViewCollection::After(time) => return_view.after(time).await,
+                PathFromNodeViewCollection::Before(time) => return_view.before(time).await?,
+                PathFromNodeViewCollection::After(time) => return_view.after(time).await?,
             }
         }
         Ok(return_view)

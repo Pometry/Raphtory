@@ -410,9 +410,18 @@ impl PyMutableEdge {
     /// Parameters:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to .
-    #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, t: TimeIndexEntry, layer: Option<&str>) -> Result<(), GraphError> {
-        self.edge.delete(t, layer)
+    ///     secondary_index (int, optional): The secondary index for the time entry to delete at.
+    #[pyo3(signature = (t, layer=None, secondary_index=None))]
+    fn delete(
+        &self,
+        t: TimeIndexComponent,
+        layer: Option<&str>,
+        secondary_index: Option<usize>,
+    ) -> Result<(), GraphError> {
+        match secondary_index {
+            None => self.edge.delete(t, layer),
+            Some(index) => self.edge.delete((t, index), layer),
+        }
     }
 
     /// Add metadata to an edge in the graph.

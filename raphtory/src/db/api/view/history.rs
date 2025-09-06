@@ -135,8 +135,18 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         self.0.last()
     }
 
+    pub fn as_ref(&self) -> History<&T> {
+        History::new(&self.0)
+    }
+
     pub fn print(&self, prelude: &str) {
         println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
+    }
+}
+
+impl<'a, 'b, T: InternalHistoryOps + Clone + 'b> History<'a, &'a T> {
+    pub fn cloned(&self) -> History<'b, T> {
+        History::new(self.0.clone())
     }
 }
 
@@ -341,33 +351,35 @@ impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDy
 /// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
 /// TODO: Write benchmark to see performance hit of Arc and Boxes
 // #[derive(Clone)]
-pub struct CompositeHistory<'a> {
-    history_objects: Box<[Box<dyn InternalHistoryOps + 'a>]>,
+pub struct CompositeHistory<'a, T> {
+    history_objects: Box<[T]>,
+    phantom: PhantomData<&'a T>,
 }
 
-impl<'a> CompositeHistory<'a> {
-    pub fn new(history_objects: Vec<Box<dyn InternalHistoryOps + 'a>>) -> Self {
+impl<'a, T: InternalHistoryOps + 'a> CompositeHistory<'a, T> {
+    pub fn new(history_objects: Vec<T>) -> Self {
         Self {
             history_objects: history_objects.into_boxed_slice(),
+            phantom: PhantomData,
         }
     }
 }
 
-pub fn compose_multiple_histories<'a>(
-    objects: impl IntoIterator<Item = History<'a, Box<dyn InternalHistoryOps + 'a>>>,
-) -> History<'a, CompositeHistory<'a>> {
+pub fn compose_multiple_histories<'a, T: InternalHistoryOps + 'a>(
+    objects: impl IntoIterator<Item = History<'a, T>>,
+) -> History<'a, CompositeHistory<'a, T>> {
     History::new(CompositeHistory::new(
         objects.into_iter().map(|h| h.0).collect(),
     ))
 }
 
-pub fn compose_history_from_items<'a>(
-    objects: impl IntoIterator<Item = Box<dyn InternalHistoryOps + 'a>>,
-) -> History<'a, CompositeHistory<'a>> {
+pub fn compose_history_from_items<'a, T: InternalHistoryOps + 'a>(
+    objects: impl IntoIterator<Item = T>,
+) -> History<'a, CompositeHistory<'a, T>> {
     History::new(CompositeHistory::new(objects.into_iter().collect()))
 }
 
-impl<'a> InternalHistoryOps for CompositeHistory<'a> {
+impl<'a, T: InternalHistoryOps + 'a> InternalHistoryOps for CompositeHistory<'a, T> {
     fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.history_objects
             .iter()
@@ -399,7 +411,7 @@ impl<'a> InternalHistoryOps for CompositeHistory<'a> {
     }
 }
 
-impl IntoArcDynHistoryOps for CompositeHistory<'static> {}
+impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for CompositeHistory<'static, T> {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct EmptyHistory;
