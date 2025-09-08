@@ -24,86 +24,31 @@ impl<T: InternalNodeFilterBuilderOps + 'static> From<T> for PyNodeFilterBuilder 
 }
 
 #[pymethods]
-/// Implements various filter builder methods for node filtering.
 impl PyNodeFilterBuilder {
-    /// Returns a filter expression that checks if a given value is equal to a specified string.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn __eq__(&self, value: String) -> PyFilterExpr {
         self.0.eq(value)
     }
 
-    /// Returns a filter expression that checks if a given value is not equal to a specified string.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn __ne__(&self, value: String) -> PyFilterExpr {
         self.0.ne(value)
     }
 
-    /// Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
-    ///
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         self.0.is_in(values.into())
     }
 
-    /// Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
-    ///
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         self.0.is_not_in(values.into())
     }
 
-    /// Returns a filter expression that checks if the specified iterable of strings contains a given value.
-    ///
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         self.0.contains(value)
     }
 
-    /// Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
-    ///
-    ///  
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         self.0.not_contains(value)
     }
 
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,
@@ -141,59 +86,18 @@ impl PyNodeFilter {
 }
 
 pub trait DynNodeFilterBuilderOps: Send + Sync {
-    /// Arguments:
-    ///     str:
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn eq(&self, value: String) -> PyFilterExpr;
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn ne(&self, value: String) -> PyFilterExpr;
 
-    /// Arguments:
-    ///     vales (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_in(&self, values: Vec<String>) -> PyFilterExpr;
 
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr;
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr;
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr;
 
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    /// Returns:
-    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,
@@ -206,83 +110,42 @@ impl<T> DynNodeFilterBuilderOps for T
 where
     T: InternalNodeFilterBuilderOps,
 {
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn eq(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::eq(
             self, value,
         ))))
     }
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn ne(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(NodeFilterBuilderOps::ne(
             self, value,
         ))))
     }
 
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
             NodeFilterBuilderOps::is_in(self, values),
         )))
     }
 
-    /// Arguments:
-    ///     values (list[str]):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn is_not_in(&self, values: Vec<String>) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
             NodeFilterBuilderOps::is_not_in(self, values),
         )))
     }
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn contains(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
             NodeFilterBuilderOps::contains(self, value),
         )))
     }
 
-    /// Arguments:
-    ///     value (str):
-    ///
-    /// Returns:
-    ///     filter.FilterExpr:
     fn not_contains(&self, value: String) -> PyFilterExpr {
         PyFilterExpr(PyInnerFilterExpr::Node(Arc::new(
             NodeFilterBuilderOps::not_contains(self, value),
         )))
     }
 
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
-    ///
-    /// Uses a specified Levenshtein distance and optional prefix matching.
-    ///
-    /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
-    /// Returns:
-    ///     filter.FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,

@@ -80,9 +80,6 @@ impl MetaGraph {
     }
 
     /// Returns the number of edges in the graph.
-    ///
-    /// Returns:
-    ///     int:
     async fn edge_count(&self) -> Result<usize, GraphError> {
         Ok(self.meta().await?.edge_count)
     }

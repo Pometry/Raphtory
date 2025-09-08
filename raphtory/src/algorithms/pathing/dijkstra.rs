@@ -200,3 +200,304 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         Some(Index::new(index)),
     ))
 }
+
+#[cfg(test)]
+mod dijkstra_tests {
+    use super::*;
+    use crate::{
+        db::{api::mutation::AdditionOps, graph::graph::Graph},
+        test_storage,
+    };
+
+    fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+        graph
+    }
+
+    fn basic_graph() -> Graph {
+        load_graph(vec![
+            (0, "A", "B", vec![("weight", 4.0f32)]),
+            (1, "A", "C", vec![("weight", 4.0f32)]),
+            (2, "B", "C", vec![("weight", 2.0f32)]),
+            (3, "C", "D", vec![("weight", 3.0f32)]),
+            (4, "C", "E", vec![("weight", 1.0f32)]),
+            (5, "C", "F", vec![("weight", 6.0f32)]),
+            (6, "D", "F", vec![("weight", 2.0f32)]),
+            (7, "E", "F", vec![("weight", 3.0f32)]),
+        ])
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets() {
+        let graph = basic_graph();
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+
+            let results = results.unwrap();
+
+            assert_eq!(results.get_by_node("D").unwrap().0, 7.0f64);
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["A", "C", "D"]
+            );
+
+            assert_eq!(results.get_by_node("F").unwrap().0, 8.0f64);
+            assert_eq!(
+                results.get_by_node("F").unwrap().1.name(),
+                vec!["A", "C", "E", "F"]
+            );
+
+            let targets: Vec<&str> = vec!["D", "E", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "B",
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("D").unwrap().0, 5.0f64);
+            assert_eq!(results.get_by_node("E").unwrap().0, 3.0f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 6.0f64);
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["B", "C", "D"]
+            );
+            assert_eq!(
+                results.get_by_node("E").unwrap().1.name(),
+                vec!["B", "C", "E"]
+            );
+            assert_eq!(
+                results.get_by_node("F").unwrap().1.name(),
+                vec!["B", "C", "E", "F"]
+            );
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_no_weight() {
+        let graph = basic_graph();
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["C", "E", "F"];
+            let results =
+                dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::OUT)
+                    .unwrap();
+            assert_eq!(results.get_by_node("C").unwrap().1.name(), vec!["A", "C"]);
+            assert_eq!(
+                results.get_by_node("E").unwrap().1.name(),
+                vec!["A", "C", "E"]
+            );
+            assert_eq!(
+                results.get_by_node("F").unwrap().1.name(),
+                vec!["A", "C", "F"]
+            );
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_node_ids() {
+        let edges = vec![
+            (0, 1, 2, vec![("weight", 4u64)]),
+            (1, 1, 3, vec![("weight", 4u64)]),
+            (2, 2, 3, vec![("weight", 2u64)]),
+            (3, 3, 4, vec![("weight", 3u64)]),
+            (4, 3, 5, vec![("weight", 1u64)]),
+            (5, 3, 6, vec![("weight", 6u64)]),
+            (6, 4, 6, vec![("weight", 2u64)]),
+            (7, 5, 6, vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets = vec![4, 6];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                1,
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("4").unwrap().0, 7f64);
+            assert_eq!(
+                results.get_by_node("4").unwrap().1.name(),
+                vec!["1", "3", "4"]
+            );
+
+            assert_eq!(results.get_by_node("6").unwrap().0, 8f64);
+            assert_eq!(
+                results.get_by_node("6").unwrap().1.name(),
+                vec!["1", "3", "5", "6"]
+            );
+
+            let targets = vec![4, 5, 6];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                2,
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("4").unwrap().0, 5f64);
+            assert_eq!(results.get_by_node("5").unwrap().0, 3f64);
+            assert_eq!(results.get_by_node("6").unwrap().0, 6f64);
+            assert_eq!(
+                results.get_by_node("4").unwrap().1.name(),
+                vec!["2", "3", "4"]
+            );
+            assert_eq!(
+                results.get_by_node("5").unwrap().1.name(),
+                vec!["2", "3", "5"]
+            );
+            assert_eq!(
+                results.get_by_node("6").unwrap().1.name(),
+                vec!["2", "3", "5", "6"]
+            );
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_multiple_targets_u64() {
+        let edges = vec![
+            (0, "A", "B", vec![("weight", 4u64)]),
+            (1, "A", "C", vec![("weight", 4u64)]),
+            (2, "B", "C", vec![("weight", 2u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+            (4, "C", "E", vec![("weight", 1u64)]),
+            (5, "C", "F", vec![("weight", 6u64)]),
+            (6, "D", "F", vec![("weight", 2u64)]),
+            (7, "E", "F", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("D").unwrap().0, 7f64);
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["A", "C", "D"]
+            );
+
+            assert_eq!(results.get_by_node("F").unwrap().0, 8f64);
+            assert_eq!(
+                results.get_by_node("F").unwrap().1.name(),
+                vec!["A", "C", "E", "F"]
+            );
+
+            let targets: Vec<&str> = vec!["D", "E", "F"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "B",
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("D").unwrap().0, 5f64);
+            assert_eq!(results.get_by_node("E").unwrap().0, 3f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 6f64);
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["B", "C", "D"]
+            );
+            assert_eq!(
+                results.get_by_node("E").unwrap().1.name(),
+                vec!["B", "C", "E"]
+            );
+            assert_eq!(
+                results.get_by_node("F").unwrap().1.name(),
+                vec!["B", "C", "E", "F"]
+            );
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_undirected() {
+        let edges = vec![
+            (0, "C", "A", vec![("weight", 4u64)]),
+            (1, "A", "B", vec![("weight", 4u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D"];
+            let results = dijkstra_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight"),
+                Direction::BOTH,
+            );
+
+            let results = results.unwrap();
+            assert_eq!(results.get_by_node("D").unwrap().0, 7f64);
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["A", "C", "D"]
+            );
+        });
+    }
+
+    #[test]
+    fn test_dijkstra_no_weight_undirected() {
+        let edges = vec![
+            (0, "C", "A", vec![("weight", 4u64)]),
+            (1, "A", "B", vec![("weight", 4u64)]),
+            (3, "C", "D", vec![("weight", 3u64)]),
+        ];
+
+        let graph = Graph::new();
+
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["D"];
+            let results =
+                dijkstra_single_source_shortest_paths(graph, "A", targets, None, Direction::BOTH)
+                    .unwrap();
+            assert_eq!(
+                results.get_by_node("D").unwrap().1.name(),
+                vec!["A", "C", "D"]
+            );
+        });
+    }
+}

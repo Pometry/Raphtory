@@ -153,32 +153,26 @@ impl_edgeviewops!(PyEdge, edge, EdgeView<DynamicGraph>, "Edge");
 /// An edge is a directed connection between two nodes.
 #[pymethods]
 impl PyEdge {
-    /// Returns true if the value of this edge is equal to the value of the specified edge or false otherwise.
     fn __eq__(&self, other: Bound<PyEdge>) -> bool {
         self.edge == other.get().edge
     }
 
-    /// Returns true if the value of this edge is not equal to the value of the specified edge or false otherwise.
     fn __ne__(&self, other: Bound<PyEdge>) -> bool {
         self.edge != other.get().edge
     }
 
-    /// Returns true if the value of this edge is less than the value of the specified edge or false otherwise.
     fn __lt__(&self, other: Bound<PyEdge>) -> bool {
         self.edge < other.get().edge
     }
 
-    /// Returns true if the value of this edge is less than or equal to the value of the specified edge or false otherwise.
     fn __le__(&self, other: Bound<PyEdge>) -> bool {
         self.edge <= other.get().edge
     }
 
-    /// Returns true if the value of this edge is greater than the value of the specified edge or false otherwise.
     fn __gt__(&self, other: Bound<PyEdge>) -> bool {
         self.edge > other.get().edge
     }
 
-    /// Returns true if the value of this edge is greater than or equal to the value of the specified edge or false otherwise.
     fn __ge__(&self, other: Bound<PyEdge>) -> bool {
         self.edge >= other.get().edge
     }
@@ -194,9 +188,6 @@ impl PyEdge {
     }
 
     /// The id of the edge.
-    ///
-    /// Returns:
-    ///     GID:
     #[getter]
     pub fn id(&self) -> (GID, GID) {
         self.edge.id()
@@ -209,16 +200,18 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     List[int]:
+    ///    List[int]:  A list of unix timestamps.
+    ///
     pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let history = self.edge.history();
         history.into_pyarray(py)
     }
 
-    /// Returns the number of times an edge was added or change to an edge was made.
+    /// Returns the number of times an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    int: The number of times an edge was added or change to an edge was made.
+    ///    int: The number of times an edge is added or change to an edge is made.
+    ///
     pub fn history_counts(&self) -> usize {
         self.edge.history_counts()
     }
@@ -226,12 +219,13 @@ impl PyEdge {
     /// Returns a list of timestamps of when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     Optional[List[datetime]]:
+    ///     List[datetime]
+    ///
     pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.history_date_time()
     }
 
-    /// Returns a list of timestamps of when an edge is deleted.
+    /// Returns a list of timestamps of when an edge is deleted
     ///
     /// Returns:
     ///     List[int]: A list of unix timestamps
@@ -239,10 +233,10 @@ impl PyEdge {
         self.edge.deletions()
     }
 
-    /// Returns a list of timestamps of when an edge is deleted.
+    /// Returns a list of timestamps of when an edge is deleted
     ///
     /// Returns:
-    ///     List[datetime]:
+    ///     List[datetime]
     pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
         self.edge.deletions_date_time()
     }
@@ -254,7 +248,7 @@ impl PyEdge {
         self.edge.is_valid()
     }
 
-    /// Check if the edge is currently active (has at least one update within this period).
+    /// Check if the edge is currently active (i.e., has at least one update within this period)
     /// Returns:
     ///     bool:
     pub fn is_active(&self) -> bool {
@@ -338,16 +332,16 @@ impl PyEdge {
         self.edge.time()
     }
 
-    /// Gets the names of the layers this edge belongs to.
+    /// Gets the names of the layers this edge belongs to
     ///
     /// Returns:
-    ///     List[str]:  The name of the layer
+    ///     List[str]-  The name of the layer
     #[getter]
     pub fn layer_names(&self) -> Vec<ArcStr> {
         self.edge.layer_names()
     }
 
-    /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer.
+    /// Gets the name of the layer this edge belongs to - assuming it only belongs to one layer
     ///
     /// Returns:
     ///     str: The name of the layer
@@ -424,7 +418,7 @@ impl PyMutableEdge {
     /// Add updates to an edge in the graph at a specified time.
     /// This function allows for the addition of property updates to an edge within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Arguments:
+    /// Parameters:
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update.
     ///    layer (str, optional): The layer you want these properties to be added on to.
@@ -456,15 +450,9 @@ impl PyMutableEdge {
 
     /// Mark the edge as deleted at the specified time.
     ///
-    /// Arguments:
+    /// Parameters:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
-    ///     layer (str, optional): The layer you want the deletion applied to.
-    ///
-    /// Returns:
-    ///     None:
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
+    ///     layer (str, optional): The layer you want the deletion applied to .
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         self.edge.delete(t, layer)
@@ -474,12 +462,9 @@ impl PyMutableEdge {
     /// This function is used to add properties to an edge that do not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Arguments:
+    /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    ///
-    /// Returns:
-    ///     None:
     #[pyo3(signature = (metadata, layer=None))]
     fn add_metadata(
         &self,
@@ -493,12 +478,9 @@ impl PyMutableEdge {
     /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
-    /// Arguments:
+    /// Parameters:
     ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    ///
-    /// Returns:
-    ///     None:
     #[pyo3(signature = (metadata, layer=None))]
     pub fn update_metadata(
         &self,

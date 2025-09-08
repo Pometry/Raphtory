@@ -145,7 +145,6 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// List the activation timestamps for the edge
     fn history(&self) -> Self::ValueType<Vec<i64>>;
 
-    /// Returns the number of times a change to the history was made.
     fn history_counts(&self) -> Self::ValueType<usize>;
 
     /// List the activation timestamps for the edge as NaiveDateTime objects if parseable
@@ -169,89 +168,51 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>>;
 
-    /// Return a view of the metadata of the edge
+    /// Return a vview of the metadata of the edge
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>>;
 
     /// Returns the source node of the edge.
-    ///
-    /// Returns:
-    ///     Nodes:
     fn src(&self) -> Self::Nodes;
 
     /// Returns the destination node of the edge.
-    ///
-    /// Returns:
-    ///     Nodes:
     fn dst(&self) -> Self::Nodes;
 
     /// Returns the node at the other end of the edge (same as `dst()` for out-edges and `src()` for in-edges)
-    ///
-    /// Returns:
-    ///     Nodes:
     fn nbr(&self) -> Self::Nodes;
 
-    /// Check if the edge is active (has some update within the current bound) at a given time point.
+    /// Check if edge is active at a given time point
     fn is_active(&self) -> Self::ValueType<bool>;
 
     /// Returns the id of the edge.
-    ///
-    /// Returns:
-    ///     GID:
     fn id(&self) -> Self::ValueType<(GID, GID)>;
 
-    /// Explodes an edge and returns all instances it had been updated as separate edges
-    ///
-    /// Returns:
-    ///     Edges:
+    /// Explodes an edge and returns all instances it had been updated as seperate edges
     fn explode(&self) -> Self::Exploded;
 
-    /// Returns:
-    ///     Edges:
     fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
-    ///
-    /// Returns:
-    ///     int:
     fn earliest_time(&self) -> Self::ValueType<Option<i64>>;
 
-    /// Returns:
-    ///     DateTime:
     fn earliest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
-    /// Returns:
-    ///     DateTime:
     fn latest_date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the latest time an edge was updated
-    ///
-    /// Returns:
-    ///     int:
     fn latest_time(&self) -> Self::ValueType<Option<i64>>;
 
     /// Gets the time stamp of the edge if it is exploded
-    ///
-    /// Returns:
-    ///     int:
     fn time(&self) -> Self::ValueType<Result<i64, GraphError>>;
 
-    /// Returns:
-    ///     DateTime:
     fn date_time(&self) -> Self::ValueType<Option<DateTime<Utc>>>;
 
     /// Gets the layer name for the edge if it is restricted to a single layer
-    ///
-    /// Returns:
-    ///     str:
     fn layer_name(&self) -> Self::ValueType<Result<ArcStr, GraphError>>;
 
     /// Gets the TimeIndexEntry if the edge is exploded
     fn time_and_index(&self) -> Self::ValueType<Result<TimeIndexEntry, GraphError>>;
 
     /// Gets the name of the layer this edge belongs to
-    ///
-    /// Returns:
-    ///     str:
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>>;
 }
 
@@ -294,10 +255,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns the number of times a change to the history was made.
-    ///
-    /// Returns:
-    ///     int:
     fn history_counts(&self) -> Self::ValueType<usize> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -319,8 +276,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns:
-    ///     Optional[List[datetime]]:
     fn history_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -347,8 +302,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns:
-    ///     list[int]
     fn deletions(&self) -> Self::ValueType<Vec<i64>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -358,8 +311,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns:
-    ///     Optional[List[datetime]]:
     fn deletions_date_time(&self) -> Self::ValueType<Option<Vec<DateTime<Utc>>>> {
         self.map(|g, e| {
             EdgeView::new(g, e)
@@ -369,8 +320,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns:
-    ///     boolean:
     fn is_valid(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -395,8 +344,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns:
-    ///     boolean:
     fn is_deleted(&self) -> Self::ValueType<bool> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
@@ -421,54 +368,34 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
-    /// Returns true if the source and destination nodes are identical.
-    ///
-    ///  Returns:
-    ///     boolean:
     fn is_self_loop(&self) -> Self::ValueType<bool> {
         self.map(|_g, e| e.src() == e.dst())
     }
 
-    /// Returns a view of the properties of the edge
-    ///
-    /// Returns:
-    ///     properties:
+    /// Return a view of the properties of the edge
     fn properties(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.as_props()
     }
 
-    /// Returns:
-    ///     metadata:
     fn metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
         self.as_metadata()
     }
 
     /// Returns the source node of the edge.
-    ///
-    /// Returns:
-    ///     Nodes:
     fn src(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.src())
     }
 
     /// Returns the destination node of the edge.
-    ///
-    /// Returns:
-    ///     Nodes:
     fn dst(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.dst())
     }
 
-    /// Returns:
-    ///     Nodes:
     fn nbr(&self) -> Self::Nodes {
         self.map_nodes(|_, e| e.remote())
     }
 
-    /// Check if an edge is active is active (has some update within the current bound) at a given time point.
-    ///
-    /// Returns:
-    ///     bool:
+    /// Check if edge is active (i.e. has some update within the current bound)
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
             if edge_valid_layer(g, e) {
@@ -681,5 +608,170 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 vec![]
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod test_edge_view {
+    use crate::{prelude::*, test_storage, test_utils::test_graph};
+
+    #[test]
+    fn test_exploded_edge_properties() {
+        let graph = Graph::new();
+        let actual_prop_values = vec![0, 1, 2, 3];
+        for v in actual_prop_values.iter() {
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values)
+        });
+    }
+
+    #[test]
+    fn test_exploded_edge_properties_window() {
+        let graph = Graph::new();
+        let actual_prop_values_0 = vec![0, 1, 2, 3];
+        for v in actual_prop_values_0.iter() {
+            graph.add_edge(0, 1, 2, [("test", *v)], None).unwrap();
+        }
+        let actual_prop_values_1 = vec![4, 5, 6];
+        for v in actual_prop_values_1.iter() {
+            graph.add_edge(1, 1, 2, [("test", *v)], None).unwrap();
+        }
+        test_storage!(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .at(0)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_0);
+            let prop_values: Vec<_> = graph
+                .at(1)
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            assert_eq!(prop_values, actual_prop_values_1)
+        });
+    }
+
+    #[test]
+    fn test_exploded_edge_multilayer() {
+        let graph = Graph::new();
+        let expected_prop_values = vec![0, 1, 2, 3];
+        for v in expected_prop_values.iter() {
+            graph
+                .add_edge(0, 1, 2, [("test", *v)], Some((v % 2).to_string().as_str()))
+                .unwrap();
+        }
+        // FIXME: Needs support for secondary time index in disk storage (Issue #30)
+        test_graph(&graph, |graph| {
+            let prop_values: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .properties()
+                .flat_map(|p| p.get("test").into_i32())
+                .collect();
+            let actual_layers: Vec<_> = graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .flatten()
+                .collect();
+            let expected_layers: Vec<_> = expected_prop_values
+                .iter()
+                .map(|v| (v % 2).to_string())
+                .collect();
+            assert_eq!(prop_values, expected_prop_values);
+            assert_eq!(actual_layers, expected_layers);
+
+            assert!(graph.edge(1, 2).unwrap().layer_name().is_err());
+            assert!(graph.edges().layer_name().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+            assert!(graph.edges().explode().layer_name().all(|l| l.is_ok()));
+            assert!(graph
+                .edges()
+                .explode_layers()
+                .layer_name()
+                .all(|l| l.is_ok()));
+
+            assert!(graph.edge(1, 2).unwrap().time().is_err());
+            assert!(graph.edges().time().all(|l| l.is_err()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode()
+                .time()
+                .all(|l| l.is_ok()));
+            assert!(graph
+                .edge(1, 2)
+                .unwrap()
+                .explode_layers()
+                .time()
+                .all(|l| l.is_err()));
+            assert!(graph.edges().explode().time().all(|l| l.is_ok()));
+            assert!(graph.edges().explode_layers().time().all(|l| l.is_err()));
+        });
+    }
+
+    #[test]
+    fn test_sorting_by_secondary_index() {
+        let graph = Graph::new();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 2, [("second", true)], None).unwrap();
+        graph.add_edge(0, 2, 3, [("second", true)], None).unwrap();
+
+        //FIXME: DiskGraph does not preserve secondary index (see #1780)
+        test_graph(&graph, |graph| {
+            let mut exploded_edges: Vec<_> = graph.edges().explode().into_iter().collect();
+            exploded_edges.sort_by_key(|a| a.time_and_index().unwrap());
+
+            let res: Vec<_> = exploded_edges
+                .into_iter()
+                .filter_map(|e| {
+                    Some((
+                        e.src().id().as_u64()?,
+                        e.dst().id().as_u64()?,
+                        e.properties().get("second").into_bool(),
+                    ))
+                })
+                .collect();
+            assert_eq!(
+                res,
+                vec![
+                    (2, 3, None),
+                    (1, 2, None),
+                    (1, 2, Some(true)),
+                    (2, 3, Some(true))
+                ]
+            )
+        });
     }
 }

@@ -384,7 +384,12 @@ impl<
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>, Self::Value<'a>)> + 'a
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a
     where
         'graph: 'a,
     {

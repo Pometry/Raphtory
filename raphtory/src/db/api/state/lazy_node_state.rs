@@ -244,8 +244,12 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>, Self::Value)> + 'a
-    {
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter()
@@ -258,8 +262,12 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
 
     fn par_iter(
         &'a self,
-    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>, Self::Value)>
-    {
+    ) -> impl ParallelIterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .par_iter()
@@ -269,10 +277,7 @@ impl<'a, 'graph: 'a, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphView
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    ) -> Option<(NodeView<&Self::BaseGraph, &Self::Graph>, Self::Value)> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {

@@ -8,7 +8,7 @@ use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt,
-    fmt::{Display, Formatter},
+    fmt::{Display, Error, Formatter},
     hash::{Hash, Hasher},
     sync::Arc,
 };
@@ -26,6 +26,7 @@ pub struct InvalidBigDecimal(BigDecimal);
 
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -123,7 +124,164 @@ pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
     }
 }
 
+trait TryFromInt:
+    TryFrom<u8> + TryFrom<u16> + TryFrom<u32> + TryFrom<u64> + TryFrom<i32> + TryFrom<i64>
+{
+}
+impl<T: TryFrom<u8> + TryFrom<u16> + TryFrom<u32> + TryFrom<u64> + TryFrom<i32> + TryFrom<i64>>
+    TryFromInt for T
+{
+}
 impl Prop {
+    fn float_to_int<T: Into<f64> + Copy>(val: T) -> Result<i64, String> {
+        let val = val.into();
+
+        if val.is_nan() {
+            return Err("Cannot convert NaN to integer".into());
+        }
+
+        if val.is_infinite() {
+            return Err("Cannot convert infinite value to integer".into());
+        }
+
+        if val >= i64::MIN as f64 && val <= i64::MAX as f64 {
+            return Ok(val as i64);
+        }
+
+        if val >= 0.0 && val <= u64::MAX as f64 {
+            let uval = val as u64;
+            if uval <= i64::MAX as u64 {
+                return Ok(uval as i64); // still fits in i64
+            } else {
+                return Err(format!("Value fits in u64 but not i64: {}", uval));
+            }
+        }
+
+        Err(format!("Value is out of bounds for i64 and u64: {}", val))
+    }
+
+    fn try_into_int<T: TryFromInt>(self) -> Result<T, Error> {
+        match self {
+            Prop::U8(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::U16(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::I32(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::I64(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::U32(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::U64(v) => TryInto::<T>::try_into(v).map_err(|_| Error),
+            Prop::F32(v) => Prop::float_to_int(v)
+                .map_err(|_| Error)?
+                .try_into()
+                .map_err(|_| Error),
+            Prop::F64(v) => Prop::float_to_int(v)
+                .map_err(|_| Error)?
+                .try_into()
+                .map_err(|_| Error),
+            _ => Err(Error),
+        }
+    }
+
+    fn into_f64(self) -> Result<f64, Error> {
+        match self {
+            Prop::U8(v) => Ok(v as f64),
+            Prop::U16(v) => Ok(v as f64),
+            Prop::I32(v) => Ok(v as f64),
+            Prop::I64(v) => Ok(v as f64),
+            Prop::U32(v) => Ok(v as f64),
+            Prop::U64(v) => Ok(v as f64),
+            Prop::F32(v) => Ok(v as f64),
+            Prop::F64(v) => Ok(v as f64),
+            _ => Err(Error),
+        }
+    }
+
+    fn try_into_f32<T: Into<f64> + Copy>(value: T) -> Result<Prop, Error> {
+        let as_f64 = value.into();
+        if as_f64 >= f32::MIN as f64 && as_f64 <= f32::MAX as f64 {
+            Ok(Prop::F32(as_f64 as f32))
+        } else {
+            Err(Error)
+        }
+    }
+
+    pub fn try_cast(self, prop_type: PropType) -> Result<Prop, Error> {
+        match self {
+            Prop::Str(v) => match prop_type {
+                PropType::Str => Ok(Prop::Str(v)),
+                PropType::U8 => v.parse::<u8>().map(Prop::U8).map_err(|_| Error),
+                PropType::U16 => v.parse::<u16>().map(Prop::U16).map_err(|_| Error),
+                PropType::I32 => v.parse::<i32>().map(Prop::I32).map_err(|_| Error),
+                PropType::I64 => v.parse::<i64>().map(Prop::I64).map_err(|_| Error),
+                PropType::U32 => v.parse::<u32>().map(Prop::U32).map_err(|_| Error),
+                PropType::U64 => v.parse::<u64>().map(Prop::U64).map_err(|_| Error),
+                PropType::F32 => v.parse::<f32>().map(Prop::F32).map_err(|_| Error),
+                PropType::F64 => v.parse::<f64>().map(Prop::F64).map_err(|_| Error),
+                PropType::Bool => v.parse::<bool>().map(Prop::Bool).map_err(|_| Error),
+                PropType::NDTime => v
+                    .parse::<NaiveDateTime>()
+                    .map(Prop::NDTime)
+                    .map_err(|_| Error),
+                PropType::DTime => v
+                    .parse::<DateTime<Utc>>()
+                    .map(Prop::DTime)
+                    .map_err(|_| Error),
+                PropType::Decimal { scale } => v
+                    .parse::<BigDecimal>()
+                    .map(|v| Prop::Decimal(v.with_scale(scale)))
+                    .map_err(|_| Error),
+                _ => Err(Error),
+            },
+            // number check if zero, parse string as normal
+            Prop::Bool(v) => match prop_type {
+                PropType::Str => todo!(),
+                PropType::U8 => todo!(),
+                PropType::U16 => todo!(),
+                PropType::I32 => todo!(),
+                PropType::I64 => todo!(),
+                PropType::U32 => todo!(),
+                PropType::U64 => todo!(),
+                PropType::F32 => todo!(),
+                PropType::F64 => todo!(),
+                PropType::Bool => todo!(),
+                PropType::Decimal { scale } => todo!(),
+                _ => Err(Error),
+            },
+            // self
+            Prop::List(v) => todo!(),
+            // self
+            Prop::Map(v) => todo!(),
+            // use number as epoch, convert string as normal
+            Prop::NDTime(v) => todo!(),
+            // use number as epoch, convert string as normal
+            Prop::DTime(v) => todo!(),
+            // self
+            Prop::Array(v) => todo!(),
+            // convert number as normal, bool to zero or one
+            Prop::Decimal(v) => todo!(),
+            _ => match prop_type {
+                // we know the target and our self is a number
+                PropType::U8 => self.try_into_int::<u8>().map(Prop::U8),
+                PropType::U16 => self.try_into_int::<u16>().map(Prop::U16),
+                PropType::I32 => self.try_into_int::<i32>().map(Prop::I32),
+                PropType::I64 => self.try_into_int::<i64>().map(Prop::I64),
+                PropType::U32 => self.try_into_int::<u32>().map(Prop::U32),
+                PropType::U64 => self.try_into_int::<u64>().map(Prop::U64),
+                PropType::F32 => match self {
+                    Prop::U8(v) => Ok(Prop::F32(v as f32)),
+                    Prop::U16(v) => Ok(Prop::F32(v as f32)),
+                    Prop::I32(v) => Ok(Prop::F32(v as f32)),
+                    Prop::I64(v) => Prop::try_into_f32(v as f64),
+                    Prop::U32(v) => Prop::try_into_f32(v),
+                    Prop::U64(v) => Prop::try_into_f32(v as f64),
+                    Prop::F32(v) => Ok(Prop::F32(v)),
+                    Prop::F64(v) => Prop::try_into_f32(v),
+                    _ => Err(Error),
+                },
+                PropType::F64 => self.into_f64().map(Prop::F64),
+                _ => Err(Error),
+            },
+        }
+    }
+
     pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, InvalidBigDecimal> {
         let prop = Prop::Decimal(bd);
         validate_prop(prop)

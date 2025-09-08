@@ -48,13 +48,6 @@ impl From<TemporalGraph> for GraphStorage {
     }
 }
 
-#[cfg(feature = "storage")]
-impl From<DiskGraphStorage> for GraphStorage {
-    fn from(value: DiskGraphStorage) -> Self {
-        Self::Disk(Arc::new(value))
-    }
-}
-
 impl Default for GraphStorage {
     fn default() -> Self {
         GraphStorage::Unlocked(Arc::new(TemporalGraph::default()))

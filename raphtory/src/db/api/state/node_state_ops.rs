@@ -32,7 +32,14 @@ impl<'a, T: Clone> ToOwnedValue<T> for &'a T {
 }
 
 pub trait NodeStateOps<'a, 'graph: 'a>:
-    IntoIterator<Item = (NodeView<'graph, Self::BaseGraph, Self::Graph>, Self::OwnedValue)> + Send + Sync
+    IntoIterator<
+        Item = (
+            NodeView<'graph, Self::BaseGraph, Self::Graph>,
+            Self::OwnedValue,
+        ),
+    > + Send
+    + Sync
+    + 'graph
 {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
@@ -53,7 +60,12 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>, Self::Value<'a>)> + 'a;
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a;
 
     fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph>
     where
@@ -216,7 +228,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         values.into_iter().nth(median_index)
     }
 
-    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(Self::Value) -> V + Sync>(
+    fn group_by<V: Hash + Eq + Send + Sync + Clone + Debug, F: Fn(Self::Value) -> V + Sync>(
         &'a self,
         group_fn: F,
     ) -> NodeGroups<V, Self::Graph> {

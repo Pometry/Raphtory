@@ -56,7 +56,7 @@ impl PyMetadata {
     /// lists the property values
     ///
     /// Returns:
-    ///     list[PropValue]:
+    ///     list | Array: the property values
     pub fn values(&self) -> Vec<Prop> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }
@@ -69,10 +69,7 @@ impl PyMetadata {
         self.props.as_vec()
     }
 
-    /// get property value by key.
-    ///
-    /// Returns:
-    ///     PropValue:
+    /// get property value by key
     ///
     /// Raises:
     ///     KeyError: if property `key` does not exist
@@ -88,7 +85,7 @@ impl PyMetadata {
     ///     key (str): the name of the property
     ///
     /// Returns:
-    ///     PropValue: the property value or `None` if value for `key` does not exist
+    ///     PropValue | None: the property value or `None` if value for `key` does not exist
     pub fn get(&self, key: &str) -> Option<Prop> {
         // Fixme: Add option to specify default?
         self.props.get(key)
@@ -96,7 +93,7 @@ impl PyMetadata {
 
     /// as_dict() -> dict[str, Any]
     ///
-    /// Convert the properties view to a python dict
+    /// convert the properties view to a python dict
     ///
     /// Returns:
     ///     dict[str, PropValue]:
@@ -104,7 +101,7 @@ impl PyMetadata {
         self.props.as_map()
     }
 
-    /// Iterate over property keys
+    /// iterate over property keys
     ///
     /// Returns:
     ///     Iterator[str]: keys iterator
@@ -114,20 +111,14 @@ impl PyMetadata {
 
     /// __contains__(key: str) -> bool
     ///
-    /// Check if property `key` exists
-    ///
-    /// Returns:
-    ///     bool:
+    /// check if property `key` exists
     pub fn __contains__(&self, key: &str) -> bool {
         self.props.get(key).is_some()
     }
 
     /// __len__() -> int
     ///
-    /// The number of properties
-    ///
-    /// Returns:
-    ///     int:
+    /// the number of properties
     pub fn __len__(&self) -> usize {
         self.keys().len()
     }
@@ -205,11 +196,11 @@ impl MetadataView {
     }
 }
 
-py_nested_iterable_base!(MetadataListList, DynMetadata, PyMetadata);
-py_eq!(MetadataListList, PyMetadataListListCmp);
+py_nested_iterable_base!(PyMetadataListList, DynMetadata, PyMetadata);
+py_eq!(PyMetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
-impl MetadataListList {
+impl PyMetadataListList {
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|mut it| it.next().map(|p| p.keys().collect()))

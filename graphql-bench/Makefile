@@ -8,12 +8,10 @@ data/apache/master/graph:
 	@echo "Unzipping apache master graph"
 	@cd data/apache/master && tar -Jxf graph.tar.xz -C .
 
-build:
+bench-local: data/apache/master/graph
 	pnpm install --frozen-lockfile
 	pnpm build
-
-bench-local: data/apache/master/graph build
-	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
+	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 1 && k6 run --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
 
 # call this like: make bench-e2-standard-16
@@ -24,50 +22,6 @@ bench: deploy push-graphs build-raphtory
 	make run-raphtory > /tmp/raphtory-server-logs &
 	make run-bench
 	make destroy
-
-stress-test: build
-	K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run dist/stress-test.js
-
-stress-test-multiple: build # 12 x 10m = 2h
-	for _ in $(seq 1 12); do \
-		K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=10m dist/stress-test.js
-	done
-
-stress-test-long: build
-	for _ in $(seq 1 12); do \
-		K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=stress-test-report.html k6 run --duration=2h dist/stress-test.js
-	done
-
-build-docker-debug:
-	cd .. && docker build -t raphtory:debug-base --build-arg RAPHTORY_PROFILE=release-with-debug .
-	docker build -t raphtory:debug . -f debug.Dockerfile
-
-stress-until-error-with-docker-and-samply: build
-	date
-	@while true; do \
-		docker run --rm -itd --privileged -v ./profiles:/profiles -p 1736:1736 --name=debug raphtory:debug && \
-		if k6 run --duration='5m' dist/stress-test.js; then \
-			echo "stopping with SIGKILL" && docker stop --signal=9 debug; \
-		else \
-			echo "exiting normally" && break; \
-		fi; \
-	done
-	docker exec -it debug sh -c 'apt-get install -y lsof && kill $$(lsof -t -i :1736)'
-
-stress-until-error:
-	touch ./profiles/$$(date +"%Y-%m-%dT%H-%M-%S")-start
-	cargo build --profile=release-with-debug -p raphtory-graphql
-	pnpm install --frozen-lockfile
-	pnpm build
-	while true; do \
-		samply record --save-only --output ./profiles/$$(date +"%Y-%m-%dT%H-%M-%S").json.gz ../target/release-with-debug/raphtory-graphql & \
-		if k6 run --vus=1000 --duration='10m' dist/stress-test.js; then \
-		    echo ">>> successful stress test, keep going" && kill -9 $$(lsof -t -i :1736); \
-		else \
-			echo ">>> stress test failed, finishing loop" && break; \
-		fi; \
-	done
-	kill -9 $$(lsof -t -i :1736)
 
 project:
 	gcloud config set project $(PROJECT)

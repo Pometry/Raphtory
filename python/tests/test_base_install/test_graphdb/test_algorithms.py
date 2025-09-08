@@ -628,9 +628,14 @@ def test_nodestate_merge_test():
 
     print()
     print(
-        len(r2.merge(
-            r1, "left", "left", {"pagerank_score": "left", "degree_centrality": "right"}
-        ))
+        len(
+            r2.merge(
+                r1,
+                "left",
+                "left",
+                {"pagerank_score": "left", "degree_centrality": "right"},
+            )
+        )
     )
     print(f"finished right merge in: {time.time() - now}")
     now = time.time()
