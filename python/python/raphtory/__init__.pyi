@@ -2981,8 +2981,13 @@ class PathFromNode(object):
              list[Node]: the list of nodes
         """
 
-    def combined_history(self):
-        """Returns a single history object containing time entries for all nodes in the path"""
+    def combined_history(self) -> History:
+        """
+        Get a single history object containing time entries for all nodes in the path.
+
+        Returns:
+            History: History object with all time entries for the nodes.
+        """
 
     def default_layer(self) -> PathFromNode:
         """
@@ -3417,8 +3422,13 @@ class PathFromGraph(object):
              list[list[Node]]: the list of nodes
         """
 
-    def combined_history(self):
-        """Returns a single history object containing time entries for all nodes in the path"""
+    def combined_history(self) -> History:
+        """
+        Get a single history object containing time entries for all nodes in the path.
+
+        Returns:
+            History: A history object with all time entries associated with the nodes.
+        """
 
     def default_layer(self) -> PathFromGraph:
         """
@@ -3558,8 +3568,13 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self):
-        """Returns a history object for each node with time entries for when a node is added or change to a node is made."""
+    def history(self) -> Iterable[Iterable[History]]:
+        """
+        Returns a history object for each node with time entries for when a node is added or change to a node is made.
+
+        Returns:
+            Iterable[Iterable[History]]: A nested iterable of history objects, one for each node.
+        """
 
     @property
     def id(self):
@@ -4344,12 +4359,12 @@ class Edges(object):
         """
 
     @property
-    def deletions(self) -> Iterator[History]:
+    def deletions(self) -> Iterable[History]:
         """
         Returns history objects for edges containing their deletion times.
 
         Returns:
-           Iterator[History]: An iterator over history objects, one for each edge.
+           Iterable[History]: An iterable of history objects, one for each edge.
         """
 
     @property
@@ -4362,7 +4377,7 @@ class Edges(object):
         Returns the earliest time of the edges.
 
         Returns:
-            Iterator[Option[TimeIndexEntry]]: Iterator over the earliest times of the edges as TimeIndexEntry entries.
+            Iterable[Option[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
         """
 
     @property
@@ -4449,12 +4464,12 @@ class Edges(object):
         """
 
     @property
-    def history(self) -> Iterator[History]:
+    def history(self) -> Iterable[History]:
         """
         Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
 
         Returns:
-           Iterator[History]: An iterator over history objects, one for each edge.
+           Iterable[History]: An iterable of history objects, one for each edge.
         """
 
     @property
@@ -4487,7 +4502,7 @@ class Edges(object):
         Returns the latest times of the edges.
 
         Returns:
-            Iterator[Option[TimeIndexEntry]]: Iterator over the latest times of the edges as TimeIndexEntry entries.
+            Iterable[Option[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
         """
 
     def layer(self, name: str) -> Edges:
@@ -4763,12 +4778,12 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self) -> Iterator[Iterator[History]]:
+    def deletions(self) -> Iterable[Iterable[History]]:
         """
         Get history objects for edges containing their deletion times.
 
         Returns:
-            Iterator[Iterator[History]]: A nested iterator over history objects, one for each edge.
+            Iterable[Iterable[History]]: A nested iterable of history objects, one for each edge.
         """
 
     @property
@@ -4781,7 +4796,7 @@ class NestedEdges(object):
         Get the earliest time of the edges as TimeIndexEntry.
 
         Returns:
-            Iterator[Iterator[Option[TimeIndexEntry]]]: A nested iterator over the earliest times.
+            Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the earliest times.
         """
 
     @property
@@ -4868,12 +4883,12 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self) -> Iterator[Iterator[History]]:
+    def history(self) -> Iterable[Iterable[History]]:
         """
         Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
 
         Returns:
-            Iterator[Iterator[History]]: A nested iterator over history objects, one for each edge.
+            Iterable[Iterable[History]]: A nested iterable of history objects, one for each edge.
         """
 
     @property
@@ -4906,7 +4921,7 @@ class NestedEdges(object):
         Get the latest time of the edges as TimeIndexEntry.
 
         Returns:
-            Iterator[Iterator[Option[TimeIndexEntry]]]: A nested iterator over the latest times.
+            Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the latest times.
         """
 
     def layer(self, name: str) -> NestedEdges:
@@ -5038,12 +5053,12 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self) -> Iterator[Iterator[TimeIndexEntry]]:
+    def time(self) -> Iterable[Iterable[TimeIndexEntry]]:
         """
         Returns the times of exploded edges.
 
         Returns:
-            Iterator[Iterator[TimeIndexEntry]]: A nested iterator over the times of the exploded edges.
+            Iterable[Iterable[TimeIndexEntry]]: A nested iterable of the times of the exploded edges.
 
         Raises:
             GraphError: If a graph error occurs (e.g. the edges are not exploded).
