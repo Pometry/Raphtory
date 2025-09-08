@@ -42,7 +42,13 @@ impl fmt::Display for TimeIndexEntry {
 pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     fn t(&self) -> i64;
 
-    /// Converts the timestamp into a UTC DateTime. Returns TimestampError on out-of-range timestamps.
+    /// Converts the timestamp into a UTC DateTime.
+    ///
+    /// # Returns:
+    /// * `DateTime`
+    ///
+    /// # Raises:
+    /// * `TimeError`: Returns TimestampError on out-of-range timestamps.
     fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         let t = self.t();
         DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))

@@ -94,24 +94,8 @@ impl<'graph, G: GraphViewOps<'graph>> NodeOp for HistoryOp<'graph, G> {
     }
 }
 
-// impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for HistoryOp<'graph, G> {
-//     type Graph = G;
-//     type Filtered<GH: GraphViewOps<'graph> + 'graph> = HistoryOp<'graph, GH>;
-//
-//     fn graph(&self) -> &Self::Graph {
-//         &self.graph
-//     }
-//
-//     fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-//         &self,
-//         filtered_graph: GH,
-//     ) -> Self::Filtered<GH> {
-//         HistoryOp {
-//             graph: filtered_graph,
-//             _phantom: PhantomData,
-//         }
-//     }
-// }
+// Couldn't implement NodeOpFilter for HistoryOp because the output type changes from History<NodeView<G>> to History<NodeView<GH>>.
+// Instead, implemented OneHopFilter for LazyNodeState<HistoryOp> directly since the NodeOp<Output = Self::Output> bound isn't there.
 
 #[derive(Debug, Copy, Clone)]
 pub struct EdgeHistoryCount<G> {

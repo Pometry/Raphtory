@@ -24,21 +24,13 @@ use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
-// $name = EarliestDateTimeView
-// $value = EarliestDateTimeOutput
-// $op = EarliestDateTime<DynamicGraph>
-// $to_owned = |v| v
-// $inner_t = LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
-// $py_value = Optional[datetime]
-// $computed = NodeStateResultOptionDateTime
 
 type EarliestDateTime<G> = ops::Map<ops::EarliestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 
 /// Type: Result<Option<DateTime\<Utc>>, TimeError>
 type EarliestDateTimeOutput = <EarliestDateTime<DynamicGraph> as NodeOp>::Output;
 
-// impl_lazy_node_state
-/// A lazy view over EarliestDateTime values for node
+/// A lazy view over EarliestDateTime values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct EarliestDateTimeView {
     inner: LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
@@ -51,7 +43,6 @@ impl EarliestDateTimeView {
         &self.inner
     }
 
-    // impl_node_state_ops
     pub fn iter(&self) -> impl Iterator<Item = EarliestDateTimeOutput> + '_ {
         self.inner.iter_values()
     }
@@ -59,7 +50,7 @@ impl EarliestDateTimeView {
 
 #[pymethods]
 impl EarliestDateTimeView {
-    /// Compute all values and return the result as a NodeState. Fails if any DateTime error is encountered.
+    /// Compute all datetime values and return the result as a NodeState. Fails if any DateTime error is encountered.
     ///
     /// Returns:
     #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
@@ -80,7 +71,7 @@ impl EarliestDateTimeView {
         self.inner.compute_valid_results()
     }
 
-    /// Compute all values and return the result as a list
+    /// Compute all DateTime values and return the result as a list
     ///
     /// Returns:
     #[doc = "     list[Optional[datetime]]: all values as a list"]
@@ -91,7 +82,7 @@ impl EarliestDateTimeView {
             .collect::<PyResult<Vec<_>>>()
     }
 
-    /// Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+    /// Compute all DateTime values and return the valid results as a list. Conversion errors and empty values are ignored
     ///
     /// Returns:
     #[doc = "     list[datetime]: all values as a list"]
@@ -102,7 +93,7 @@ impl EarliestDateTimeView {
             .collect::<Vec<_>>()
     }
 
-    // impl_node_state_ops
+    /// Get the number of datetimes held by this LazyNodeState.
     fn __len__(&self) -> usize {
         self.inner.len()
     }
@@ -170,7 +161,10 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Returns an iterator over all valid values. Conversion errors and empty values are ignored
+    /// Returns an iterator over all valid datetime values. Conversion errors and empty values are ignored
+    /// 
+    /// Returns:
+    ///     Iterator[datetime]: Valid datetime values.
     fn iter_valid(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -221,7 +215,7 @@ impl EarliestDateTimeView {
         }
     }
 
-    /// Iterate over items
+    /// Iterate over datetimes
     ///
     /// Returns:
     #[doc = "     Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items"]
@@ -233,7 +227,7 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Iterate over valid items only. Ignore error and None values.
+    /// Iterate over valid datetimes only. Ignore error and None values.
     ///
     /// Returns:
     #[doc = "     Iterator[Tuple[Node, datetime]]: Iterator over items"]
@@ -248,15 +242,15 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Iterate over values
+    /// Iterate over datetimes
     ///
     /// Returns:
-    #[doc = "     Iterator[Optional[datetime]]: Iterator over values"]
+    #[doc = "     Iterator[Optional[datetime]]: Iterator over datetimes"]
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
     }
 
-    /// Iterate over valid values only. Ignore error and None values.
+    /// Iterate over valid datetime values only. Ignore error and None values.
     ///
     /// Returns:
     #[doc = "     Iterator[datetime]: Iterator over values"]
@@ -274,7 +268,7 @@ impl EarliestDateTimeView {
         self.compute().map(|ns| ns.sort_by_id())
     }
 
-    /// Sort only valid results by node id. DateTime errors are ignored.
+    /// Sort only non-error datetimes  by node id. DateTime errors are ignored.
     ///
     /// Returns:
     #[doc = "     NodeStateOptionDateTime: The sorted node state"]
@@ -292,7 +286,7 @@ impl EarliestDateTimeView {
     /// the corresponding values.
     ///
     /// Returns:
-    ///     DataFrame: the pandas DataFrame
+    ///     DataFrame: A Pandas DataFrame.
     fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let pandas = PyModule::import(py, "pandas")?;
         let columns = PyDict::new(py);
@@ -302,7 +296,6 @@ impl EarliestDateTimeView {
     }
 }
 
-// impl_node_state_ord_ops
 #[pymethods]
 impl EarliestDateTimeView {
     /// Sort by value. Note that 'None' values will always come after valid DateTime values
@@ -465,7 +458,6 @@ impl EarliestDateTimeView {
         values.into_iter().nth(median_index).map(|(n, o)| (n, o)) // nodeview and datetime have already been cloned
     }
 
-    // impl_node_state_group_by_ops
     /// Group by value
     ///
     /// Returns:

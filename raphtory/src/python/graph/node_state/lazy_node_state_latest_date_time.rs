@@ -24,21 +24,13 @@ use raphtory_api::core::storage::timeindex::{TimeError, TimeIndexEntry};
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
-// $name = EarliestDateTimeView
-// $value = EarliestDateTimeOutput
-// $op = EarliestDateTime<DynamicGraph>
-// $to_owned = |v| v
-// $inner_t = LazyNodeState<'static, EarliestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
-// $py_value = Optional[datetime]
-// $computed = NodeStateResultOptionDateTime
 
 type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
 
 /// Type: Result<Option<DateTime\<Utc>>, TimeError>
 type LatestDateTimeOutput = <LatestDateTime<DynamicGraph> as NodeOp>::Output;
 
-// impl_lazy_node_state
-/// A lazy view over EarliestDateTime values for node
+/// A lazy view over EarliestDateTime values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct LatestDateTimeView {
     inner: LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
@@ -51,7 +43,6 @@ impl LatestDateTimeView {
         &self.inner
     }
 
-    // impl_node_state_ops
     pub fn iter(&self) -> impl Iterator<Item = LatestDateTimeOutput> + '_ {
         self.inner.iter_values()
     }
@@ -59,7 +50,7 @@ impl LatestDateTimeView {
 
 #[pymethods]
 impl LatestDateTimeView {
-    /// Compute all values and return the result as a NodeState. Fails if any DateTime error is encountered.
+    /// Compute all DateTime values and return the result as a NodeState. Fails if any DateTime error is encountered.
     ///
     /// Returns:
     #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
@@ -70,7 +61,7 @@ impl LatestDateTimeView {
         self.inner.compute_result_type()
     }
 
-    /// Compute all values and only return the valid results as a NodeState. DateTime errors are ignored.
+    /// Compute all DateTime values and only return the valid results as a NodeState. DateTime errors are ignored.
     ///
     /// Returns:
     #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
@@ -80,7 +71,7 @@ impl LatestDateTimeView {
         self.inner.compute_valid_results()
     }
 
-    /// Compute all values and return the result as a list
+    /// Compute all DateTime values and return the result as a list
     ///
     /// Returns:
     #[doc = "     list[Optional[datetime]]: all values as a list"]
@@ -91,7 +82,7 @@ impl LatestDateTimeView {
             .collect::<PyResult<Vec<_>>>()
     }
 
-    /// Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+    /// Compute all DateTime values and return the valid results as a list. Conversion errors and empty values are ignored
     ///
     /// Returns:
     #[doc = "     list[datetime]: all values as a list"]
@@ -102,7 +93,7 @@ impl LatestDateTimeView {
             .collect::<Vec<_>>()
     }
 
-    // impl_node_state_ops
+    /// Get the number of datetimes held by this LazyNodeState.
     fn __len__(&self) -> usize {
         self.inner.len()
     }
@@ -170,7 +161,10 @@ impl LatestDateTimeView {
         )
     }
 
-    /// Returns an iterator over all valid values. Conversion errors and empty values are ignored
+    /// Returns an iterator over all valid DateTime values. Conversion errors and empty values are ignored
+    ///
+    /// Returns:
+    ///     Iterator[datetime]: Valid DateTime values.
     fn iter_valid(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -233,7 +227,7 @@ impl LatestDateTimeView {
         )
     }
 
-    /// Iterate over valid items only. Ignore error and None values.
+    /// Iterate over valid DateTime items only. Ignore error and None values.
     ///
     /// Returns:
     #[doc = "     Iterator[Tuple[Node, datetime]]: Iterator over items"]
@@ -248,7 +242,7 @@ impl LatestDateTimeView {
         )
     }
 
-    /// Iterate over values
+    /// Iterate over DateTime values
     ///
     /// Returns:
     #[doc = "     Iterator[Optional[datetime]]: Iterator over values"]
@@ -256,7 +250,7 @@ impl LatestDateTimeView {
         self.__iter__()
     }
 
-    /// Iterate over valid values only. Ignore error and None values.
+    /// Iterate over valid DateTime values only. Ignore error and None values.
     ///
     /// Returns:
     #[doc = "     Iterator[datetime]: Iterator over values"]
@@ -274,7 +268,7 @@ impl LatestDateTimeView {
         self.compute().map(|ns| ns.sort_by_id())
     }
 
-    /// Sort only valid results by node id. DateTime errors are ignored.
+    /// Sort only non-error DateTimes by node id. DateTime errors are ignored.
     ///
     /// Returns:
     #[doc = "     NodeStateOptionDateTime: The sorted node state"]
@@ -292,7 +286,7 @@ impl LatestDateTimeView {
     /// the corresponding values.
     ///
     /// Returns:
-    ///     DataFrame: the pandas DataFrame
+    ///     DataFrame: A Pandas DataFrame.
     fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let pandas = PyModule::import(py, "pandas")?;
         let columns = PyDict::new(py);
@@ -302,7 +296,6 @@ impl LatestDateTimeView {
     }
 }
 
-// impl_node_state_ord_ops
 #[pymethods]
 impl LatestDateTimeView {
     /// Sort by value. Note that 'None' values will always come after valid DateTime values
@@ -465,7 +458,6 @@ impl LatestDateTimeView {
         values.into_iter().nth(median_index).map(|(n, o)| (n, o)) // nodeview and datetime have already been cloned
     }
 
-    // impl_node_state_group_by_ops
     /// Group by value
     ///
     /// Returns:
@@ -480,14 +472,6 @@ impl LatestDateTimeView {
         }))
     }
 }
-
-// impl_timeops
-// #[pymethods]
-// impl EarliestDateTimeView {
-//     pub fn start(&self) -> Option<TimeIndexEntry> {
-//         self.inner.start().into()
-//     }
-// }
 
 impl From<LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>>
     for LatestDateTimeView
@@ -518,18 +502,5 @@ impl<'py> FromPyObject<'py>
         Ok(ob.downcast::<LatestDateTimeView>()?.get().inner().clone())
     }
 }
-
-// impl_one_hop
-// impl<'py, G: StaticGraphViewOps + IntoDynamic + Static> pyo3::IntoPyObject<'py>
-// for LazyNodeState<'static, EarliestDateTime<G>, DynamicGraph, DynamicGraph>
-// {
-//     type Target = EarliestDateTimeView;
-//     type Output = Bound<'py, Self::Target>;
-//     type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
-//
-//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-//         self.into_dyn_hop().into_pyobject(py)
-//     }
-// }
 
 impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");

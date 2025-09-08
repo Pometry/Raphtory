@@ -34,8 +34,7 @@ use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
-// impl_lazy_node_state
-/// A lazy view over History values for node
+/// A lazy view over History values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct HistoryView {
     inner: LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>,
@@ -48,7 +47,6 @@ impl HistoryView {
         &self.inner
     }
 
-    // impl_node_state_ops
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = History<'static, NodeView<'static, DynamicGraph>>> + '_ {
@@ -56,9 +54,14 @@ impl HistoryView {
     }
 }
 
+// can't simply call self.inner.t(), dt(), ... because we need LazyNodeState<PyHistoryTimestamp>
+// instead of LazyNodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
 #[pymethods]
 impl HistoryView {
-    // can't simply call self.inner.t() because we need LazyNodeState<PyHistoryTimestamp> so it matches the node_state macro impls
+    /// Access history events as timestamps (milliseconds since Unix epoch).
+    ///
+    /// Returns:
+    ///     A lazy view over HistoryTimestamp objects for each node.
     #[getter]
     fn t(
         &self,
@@ -72,6 +75,10 @@ impl HistoryView {
         LazyNodeState::new(op, self.inner.nodes())
     }
 
+    /// Access history events as UTC datetimes.
+    ///
+    /// Returns:
+    ///     A lazy view over HistoryDateTime objects for each node.
     #[getter]
     fn dt(
         &self,
@@ -85,6 +92,10 @@ impl HistoryView {
         LazyNodeState::new(op, self.inner.nodes())
     }
 
+    /// Access the unique secondary index of each time entry.
+    ///
+    /// Returns:
+    ///     A lazy view over HistorySecondaryIndex objects for each node.
     #[getter]
     fn secondary_index(
         &self,
@@ -102,6 +113,10 @@ impl HistoryView {
         LazyNodeState::new(op, self.inner.nodes())
     }
 
+    /// Access the intervals between consecutive timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     A lazy view over Intervals objects for each node.
     #[getter]
     fn intervals(
         &self,
@@ -115,12 +130,19 @@ impl HistoryView {
         LazyNodeState::new(op, self.inner.nodes())
     }
 
+    /// Get the earliest time entry.
+    ///
+    /// Returns:
+    ///     A lazy view over the earliest time of each node as a TimeIndexEntry.
     fn earliest_time(
         &self,
     ) -> LazyNodeState<'static, ops::EarliestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
         self.inner.earliest_time()
     }
 
+    /// Get the latest time entry.
+    /// Returns:
+    ///     A lazy view over the latest time of each node as a TimeIndexEntry.
     fn latest_time(
         &self,
     ) -> LazyNodeState<'static, ops::LatestTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
@@ -130,7 +152,7 @@ impl HistoryView {
     /// Compute all values and return the result as a node view
     ///
     /// Returns:
-    #[doc = "     NodeStateHistory: the computed `NodeState`"]
+    ///     NodeStateHistory: the computed `NodeState`
     fn compute(
         &self,
     ) -> NodeState<
@@ -142,31 +164,31 @@ impl HistoryView {
         self.inner.compute()
     }
 
-    /// Compute all values and return the result as a list
+    /// Compute all History objects and return the result as a list
     ///
     /// Returns:
-    #[doc = "     list[History]: all values as a list"]
+    ///     list[History]: all History objects as a list
     fn collect(&self) -> Vec<History<'static, NodeView<'static, DynamicGraph>>> {
         self.inner.collect()
     }
 
-    /// Compute all values and return the contained time entries as a sorted list
+    /// Compute all History objects and return the contained time entries as a sorted list
     ///
     /// Returns:
-    #[doc = "     list[TimeIndexEntry]: all time entries as a list"]
+    ///     list[TimeIndexEntry]: all time entries as a list
     fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
         self.inner.collect_time_entries()
     }
 
-    /// Flattens all history objects into a single history object with all time information ordered.
+    /// Flattens all history objects into a single history with all time entries ordered.
     ///
     /// Returns:
-    #[doc = "     History: a history object containing all time information"]
+    ///     History: a history object containing all time entries
     fn flatten(&self) -> PyHistory {
         self.inner.flatten().into_arc_dyn().into()
     }
 
-    // impl_node_state_ops
+    /// Get the number of History objects held by this LazyNodeState.
     fn __len__(&self) -> usize {
         NodeStateOps::len(&self.inner)
     }
@@ -243,10 +265,10 @@ impl HistoryView {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    #[doc = "    default (Optional[History]): the default value. Defaults to None."]
+    ///     default (Optional[History]): the default value. Defaults to None.
     ///
     /// Returns:
-    #[doc = "    Optional[History]: the value for the node or the default value"]
+    ///     Optional[History]: the History object for the node or the default value
     #[pyo3(signature = (node, default=None::<PyHistory>))]
     fn get(&self, node: PyNodeRef, default: Option<PyHistory>) -> Option<PyHistory> {
         self.inner.get_by_node(node).map(|v| v.into()).or(default)
@@ -271,10 +293,10 @@ impl HistoryView {
         })
     }
 
-    /// Iterate over items
+    /// Iterate over History objects
     ///
     /// Returns:
-    #[doc = "     Iterator[Tuple[Node, History]]: Iterator over items"]
+    ///     Iterator[Tuple[Node, History]]: Iterator over histories
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -283,10 +305,10 @@ impl HistoryView {
         )
     }
 
-    /// Iterate over values
+    /// Iterate over History objects
     ///
     /// Returns:
-    #[doc = "     Iterator[History]: Iterator over values"]
+    ///     Iterator[History]: Iterator over histories
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
     }
@@ -294,7 +316,7 @@ impl HistoryView {
     /// Sort results by node id
     ///
     /// Returns:
-    #[doc = "     NodeStateHistory: The sorted node state"]
+    ///     NodeStateHistory: The sorted node state
     fn sorted_by_id(
         &self,
     ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
@@ -311,7 +333,7 @@ impl HistoryView {
     /// the corresponding values.
     ///
     /// Returns:
-    ///     DataFrame: the pandas DataFrame
+    ///     DataFrame: A Pandas DataFrame.
     fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let pandas = PyModule::import(py, "pandas")?;
         let columns = PyDict::new(py);

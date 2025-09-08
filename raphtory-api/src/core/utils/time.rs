@@ -8,22 +8,22 @@ use std::{convert::Infallible, num::ParseIntError};
 
 #[derive(thiserror::Error, Debug, Clone, PartialEq)]
 pub enum ParseTimeError {
-    #[error("the interval string doesn't contain a complete number of number-unit pairs")]
+    #[error("The interval string doesn't contain a complete number of number-unit pairs.")]
     InvalidPairs,
-    #[error("one of the tokens in the interval string supposed to be a number couldn't be parsed")]
+    #[error("One of the tokens in the interval string supposed to be a number couldn't be parsed.")]
     ParseInt {
         #[from]
         source: ParseIntError,
     },
-    #[error("'{0}' is not a valid unit")]
+    #[error("'{0}' is not a valid unit.")]
     InvalidUnit(String),
     #[error(transparent)]
     ParseError(#[from] ParseError),
-    #[error("negative interval is not supported")]
+    #[error("Negative interval is not supported.")]
     NegativeInt,
-    #[error("0 size step is not supported")]
+    #[error("0 size step is not supported.")]
     ZeroSizeStep,
-    #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%")]
+    #[error("'{0}' is not a valid datetime, valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.")]
     InvalidDateTimeString(String),
 }
 
@@ -164,8 +164,7 @@ impl InputTime {
     }
 }
 
-// Single time input refers to the i64 component of a TimeIndexEntry.
-// Essentially it is the timestamp without the secondary index of a TimeIndexEntry
+// Single time input only refers to the i64 component of a TimeIndexEntry (without a secondary index).
 pub trait AsSingleTimeInput {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
 }

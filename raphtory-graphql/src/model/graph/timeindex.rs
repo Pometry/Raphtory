@@ -6,9 +6,10 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, TimeIndexEntry},
     utils::time::{IntoTime, ParseTimeError, TryIntoTime},
 };
+use raphtory_api::core::storage::timeindex::TimeError;
 
 /// Input for primary time component. Int or DateTime formatted String.
-/// Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%
+/// Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
 #[derive(Scalar, Clone, Debug)]
 #[graphql(name = "SimpleTimeInput")]
 pub struct GqlSimpleTimeInput(pub i64);
@@ -18,13 +19,13 @@ impl ScalarValue for GqlSimpleTimeInput {
         match value {
             GqlValue::Number(timestamp) => timestamp
                 .as_i64()
-                .ok_or(Error::new("Expected Int or DateTime formatted String"))
+                .ok_or(Error::new("Expected Int or DateTime formatted String."))
                 .map(|timestamp| GqlSimpleTimeInput(timestamp)),
             GqlValue::String(dt) => dt
                 .try_into_time()
                 .map(|t| GqlSimpleTimeInput(t.t()))
                 .map_err(|e| Error::new(e.to_string())),
-            _ => Err(Error::new("Expected Int or DateTime formatted String")),
+            _ => Err(Error::new("Expected Int or DateTime formatted String.")),
         }
     }
 
@@ -73,7 +74,7 @@ impl TryIntoTime for GqlTimeInput {
     }
 }
 
-/// Represents a time index entry with timestamp and secondary index for ordering
+/// Time index entry with timestamp and secondary index for ordering.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TimeIndexEntry")]
 pub struct GqlTimeIndexEntry {
@@ -100,25 +101,29 @@ impl IntoTime for GqlTimeIndexEntry {
 
 #[ResolvedObjectFields]
 impl GqlTimeIndexEntry {
-    /// The timestamp as milliseconds since Unix epoch
+    /// Get the timestamp.
+    /// Returns:
+    ///     int: Timestamp in milliseconds since Unix epoch.
     async fn timestamp(&self) -> i64 {
         self.entry.t()
     }
 
-    /// The secondary index of the TimeIndexEntry
+    /// Get the secondary index. Used for ordering within the same timestamp.
+    /// Returns:
+    ///     int: Secondary index for the time entry.
     async fn secondary_index(&self) -> u64 {
         self.entry.i() as u64
     }
 
-    /// Returns a datetime string representation if timestamp is valid, or else returns an error message string.
-    /// Uses RFC 3339 format by default (e.g., "2023-12-25T10:30:45.123Z").
-    /// Optionally takes a format string as argument to format the output of datetimes.
-    /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
-    async fn datetime(&self, format_string: Option<String>) -> String {
+    /// Access a datetime representation of the `TimeIndexEntry`. Useful for converting millisecond timestamps into easily readable datetime strings.
+    /// Args:
+    ///     format_string (Optional[str]): Format string for output datetimes. Refer to chrono::format::strftime for formatting specifiers and escape sequences. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+    /// Returns:
+    ///     str: String representation of the datetime.
+    /// Raises:
+    ///     TimeError: If a time conversion fails.
+    async fn datetime(&self, format_string: Option<String>) -> Result<String, TimeError> {
         let fmt_string = format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
-        match self.entry.dt() {
-            Ok(dt) => dt.format(fmt_string).to_string(),
-            Err(e) => format!("Time conversion error: {}", e.to_string()),
-        }
+        self.entry.dt().map(|dt| dt.format(fmt_string).to_string())
     }
 }

@@ -271,7 +271,6 @@ pub fn assert_node_equal_layer<
                         n1.id()
                     );
                 } else {
-                    // history objects aren't identical because the nodes use different generic graph types
                     assert_eq!(
                         n1.after(earliest.t()).history().collect(),
                         n2.after(earliest.t()).history().collect(),

@@ -5483,6 +5483,7 @@ class TemporalProperty(object):
         """Get the property values for each update"""
 
 class TimeIndexEntry(object): 
+    """Represents a time entry in Raphtory. Contains a primary timestamp and a secondary index for ordering within the same timestamp."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5512,27 +5513,48 @@ class TimeIndexEntry(object):
         """Return repr(self)."""
 
     @property
-    def as_tuple(self):
-        """Return the TimeIndexEntry as a tuple"""
+    def as_tuple(self) -> tuple[int, int]:
+        """
+        Return this entry as a tuple of `(timestamp_ms, secondary_index)`.
+        Returns:
+              tuple[int, int]: (timestamp, secondary_index)
+        """
 
     @property
-    def dt(self):
-        """Get the datetime representation of the time"""
+    def dt(self) -> datetime:
+        """
+        Return the UTC `datetime` representation of this time entry.
+        Returns:
+            datetime: The UTC datetime corresponding to this entry's timestamp.
+        Raises:
+            TimeError: Returns TimestampError on out-of-range timestamps.
+        """
 
     @staticmethod
-    def new(time):
+    def new(time: Any) -> TimeIndexEntry:
         """
-        Creates a new TimeIndexEntry.
-        Valid inputs are: int, float, datetime, string (formatted datetime), or a list/tuple with two elements to specify the secondary index.
+        Create a new `TimeIndexEntry`.
+        Arguments:
+           time (int | float | `datetime` | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well
+        Returns:
+            TimeIndexEntry: A new time index entry.
         """
 
     @property
-    def secondary_index(self):
-        ...
+    def secondary_index(self) -> int:
+        """
+        Return the secondary index associated with this time entry.
+        Returns:
+            int: The secondary index.
+        """
 
     @property
-    def t(self):
-        """Get the epoch timestamp of the time"""
+    def t(self) -> int:
+        """
+        Return the Unix timestamp in milliseconds.
+        Returns:
+            int: Milliseconds since the Unix epoch.
+        """
 
 class History(object): 
 

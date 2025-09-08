@@ -31,25 +31,32 @@ use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeError};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, sync::Arc};
 
+/// Trait declaring the operations needed so that a type's History can be accessed using the `History` object
 pub trait InternalHistoryOps: Send + Sync {
+    /// Iterate over temporal entries in chronological order.
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
+    /// Iterate over temporal entries in reverse chronological order.
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
+    /// Get the earliest time entry for this item.
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    /// Get the latest time entry for this item.
     fn latest_time(&self) -> Option<TimeIndexEntry>;
+    /// Get the first time entry produced by forward iteration.
     fn first(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
+    /// Get the first time entry produced by reverse iteration.
     fn last(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
-    // override if we want more efficient implementation
+    /// Get the number of time entries held by this item.
     fn len(&self) -> usize {
         self.iter().count()
     }
 }
 
 pub trait IntoArcDynHistoryOps: InternalHistoryOps + Sized + 'static {
-    // override to avoid creating a new Arc
+    /// Convert this `InternalHistoryOps` into an Arc<dyn InternalHistoryOps> to enable dynamic dispatch and sharing (through `Send` + `Sync`). Particularly useful for Python.
     fn into_arc_dyn(self) -> Arc<dyn InternalHistoryOps> {
         Arc::new(self)
     }
@@ -59,34 +66,37 @@ pub trait IntoArcDynHistoryOps: InternalHistoryOps + Sized + 'static {
 pub struct History<'a, T>(pub T, PhantomData<&'a T>);
 
 impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
+    /// Create a new `History` wrapper around an object implementing `InternalHistoryOps`.
     pub fn new(item: T) -> Self {
         Self(item, PhantomData)
     }
 
-    // reverses the order of items returned by iter() and iter_rev()
+    /// Reverse the iteration order of history items returned by iter and iter_rev.
     pub fn reverse(self) -> History<'a, ReversedHistoryOps<T>> {
         History(ReversedHistoryOps(self.0), PhantomData)
     }
 
-    // converts operations to return timestamps instead of TimeIndexEntry
+    /// Convert this `History` object to return timestamps (milliseconds since Unix epoch) instead of `TimeIndexEntry`.
     pub fn t(self) -> HistoryTimestamp<T> {
         HistoryTimestamp(self.0)
     }
 
-    // converts operations to return date times instead of TimeIndexEntry
+    /// Convert this `History` object to return datetimes instead of `TimeIndexEntry`.
     pub fn dt(self) -> HistoryDateTime<T> {
         HistoryDateTime(self.0)
     }
 
-    // converts operations to return secondary time information inside TimeIndexEntry
+    /// Convert this `History` object to return the secondary indices from `TimeIndexEntry` entries.
     pub fn secondary_index(self) -> HistorySecondaryIndex<T> {
         HistorySecondaryIndex(self.0)
     }
 
+    /// Access the intervals (differences in milliseconds) between consecutive timestamps in this `History` object.
     pub fn intervals(self) -> Intervals<T> {
         Intervals(self.0)
     }
 
+    /// Merge this `History` with another `History`.
     pub fn merge<R: InternalHistoryOps>(self, right: History<R>) -> History<MergedHistory<T, R>> {
         History::new(MergedHistory::new(self.0, right.0))
     }
@@ -95,68 +105,83 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
+    /// Iterate over `TimeIndexEntry` entries in chronological order.
     pub fn iter(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter()
     }
 
+    /// Iterate over `TimeIndexEntry` entries in reverse chronological order.
     pub fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry> {
         self.0.iter_rev()
     }
 
+    /// Collect all `TimeIndexEntry` entries in chronological order.
     pub fn collect(&self) -> Vec<TimeIndexEntry> {
         self.0.iter().collect_vec()
     }
 
+    /// Collect all `TimeIndexEntry` entries in reverse chronological order.
     pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
         self.0.iter_rev().collect_vec()
     }
 
+    /// Check whether this history has no entries.
     pub fn is_empty(&self) -> bool {
         self.iter().next().is_none()
     }
 
+    /// Get the number of entries in this history.
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    /// Get the earliest `TimeIndexEntry` entry in this `History`.
     pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.0.earliest_time()
     }
 
+    /// Get the latest `TimeIndexEntry` entry in this `History`.
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.0.latest_time()
     }
 
+    /// Get the first item produced by forward iteration in this `History`.
     pub fn first(&self) -> Option<TimeIndexEntry> {
         self.0.first()
     }
 
+    /// Get the first item produced by reverse iteration in this `History`.
     pub fn last(&self) -> Option<TimeIndexEntry> {
         self.0.last()
     }
 
+    /// Borrow this history as a `History` of a reference to the underlying item.
     pub fn as_ref(&self) -> History<&T> {
         History::new(&self.0)
     }
 
+    /// Print the collected entries with a prelude message.
     pub fn print(&self, prelude: &str) {
         println!("{}{:?}", prelude, self.0.iter().collect::<Vec<_>>());
     }
 }
 
 impl<'a, 'b, T: InternalHistoryOps + Clone + 'b> History<'a, &'a T> {
+    /// Clone the underlying item and return an owned `History`.
     pub fn cloned(&self) -> History<'b, T> {
         History::new(self.0.clone())
     }
 }
 
 impl History<'_, EmptyHistory> {
+    /// Create an empty history.
     pub fn create_empty() -> Self {
         History::new(EmptyHistory)
     }
 }
 
 impl<T: IntoArcDynHistoryOps> History<'_, T> {
+    /// Convert this history into an Arc<dyn InternalHistoryOps> to enable dynamic dispatch and sharing (through `Send` + `Sync`). Particularly useful for Python.
     pub fn into_arc_dyn(self) -> History<'static, Arc<dyn InternalHistoryOps>> {
         History::new(self.0.into_arc_dyn())
     }
@@ -303,9 +328,9 @@ impl<T: InternalHistoryOps + ?Sized> InternalHistoryOps for &T {
     }
 }
 
-/// Separate from CompositeHistory in that it can only hold two items. They can be nested.
-/// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
-/// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
+// More efficient because we are calling iter.merge() instead of iter.kmerge(). Efficiency benefits are lost if we nest these objects too much
+// TODO: Write benchmark to evaluate performance benefit tradeoff (ie when there are no more performance benefits)
+/// Merges two history objects together. They can be nested if we merge `MergedHistory` objects. Separate from `CompositeHistory` in that it can only hold two items.
 #[derive(Debug, Clone, Copy)]
 pub struct MergedHistory<L, R> {
     left: L,
@@ -348,9 +373,9 @@ impl<L: InternalHistoryOps + 'static, R: InternalHistoryOps + 'static> IntoArcDy
 {
 }
 
-/// Holds a vector of multiple items implementing InternalHistoryOps. If the composite will only hold 2 items, MergedHistory is more efficient.
-/// TODO: Write benchmark to see performance hit of Arc and Boxes
-// #[derive(Clone)]
+// TODO: Write benchmark to see performance hit of Arc and Boxes. If the composite will only hold 2 items, MergedHistory is more efficient.
+/// Combines multiple history objects together by holding a vector of items implementing `InternalHistoryOps`.
+#[derive(Clone)]
 pub struct CompositeHistory<'a, T> {
     history_objects: Box<[T]>,
     phantom: PhantomData<&'a T>,
@@ -365,6 +390,7 @@ impl<'a, T: InternalHistoryOps + 'a> CompositeHistory<'a, T> {
     }
 }
 
+/// Create a CompositeHistory object composed of multiple History objects
 pub fn compose_multiple_histories<'a, T: InternalHistoryOps + 'a>(
     objects: impl IntoIterator<Item = History<'a, T>>,
 ) -> History<'a, CompositeHistory<'a, T>> {
@@ -373,6 +399,7 @@ pub fn compose_multiple_histories<'a, T: InternalHistoryOps + 'a>(
     ))
 }
 
+/// Create a CompositeHistory object composed of multiple items implementing `InternalHistoryOps`
 pub fn compose_history_from_items<'a, T: InternalHistoryOps + 'a>(
     objects: impl IntoIterator<Item = T>,
 ) -> History<'a, CompositeHistory<'a, T>> {
@@ -733,7 +760,7 @@ impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
 {
 }
 
-// reverses the order of items returned by iter() and iter_rev()
+/// Reverses the order of items returned by iter() and iter_rev() (as such, also reverses first() and last()).
 #[derive(Debug, Clone, Copy)]
 pub struct ReversedHistoryOps<T>(T);
 
@@ -768,7 +795,7 @@ impl<T: InternalHistoryOps> InternalHistoryOps for ReversedHistoryOps<T> {
 
 impl<T: InternalHistoryOps + 'static> IntoArcDynHistoryOps for ReversedHistoryOps<T> {}
 
-// converts operations to return timestamps instead of TimeIndexEntry
+/// History view that exposes timestamps in milliseconds since Unix epoch.
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryTimestamp<T>(pub(crate) T);
 
@@ -812,7 +839,7 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryTimestamp<T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryTimestamp<T> {}
 
-// converts operations to return date times instead of TimeIndexEntry
+/// History view that exposes UTC datetimes.
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryDateTime<T>(pub(crate) T);
 
@@ -862,7 +889,7 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistoryDateTime<T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for HistoryDateTime<T> {}
 
-// converts operations to return secondary time information inside TimeIndexEntry
+/// History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp.
 #[derive(Debug, Clone, Copy)]
 pub struct HistorySecondaryIndex<T>(pub(crate) T);
 
@@ -906,6 +933,7 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for HistorySecondaryIndex<T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for HistorySecondaryIndex<T> {}
 
+/// View over the intervals between consecutive timestamps, expressed in milliseconds.
 #[derive(Debug, Clone, Copy)]
 pub struct Intervals<T>(pub T);
 
@@ -940,6 +968,7 @@ impl<T: InternalHistoryOps> Intervals<T> {
             .into_dyn_boxed()
     }
 
+    /// Compute the mean interval between consecutive timestamps.
     pub fn mean(&self) -> Option<f64> {
         if self.iter().next().is_none() {
             return None;
@@ -951,6 +980,8 @@ impl<T: InternalHistoryOps> Intervals<T> {
         Some(sum / len as f64)
     }
 
+    /// Compute the median interval between consecutive timestamps.
+    /// If the number of items is even (thus "2 middle elements") and their average isn't even, then the returned median is their average rounded up to the nearest integer.
     pub fn median(&self) -> Option<i64> {
         if self.iter().next().is_none() {
             return None;
@@ -971,10 +1002,12 @@ impl<T: InternalHistoryOps> Intervals<T> {
         }
     }
 
+    /// Compute the maximum interval between consecutive timestamps.
     pub fn max(&self) -> Option<i64> {
         self.iter().max()
     }
 
+    /// Compute the minimum interval between consecutive timestamps.
     pub fn min(&self) -> Option<i64> {
         self.iter().min()
     }
@@ -998,26 +1031,31 @@ impl<'a, T: InternalHistoryOps + 'a> PartialEq for Intervals<T> {
 
 impl<'a, T: InternalHistoryOps + 'a> Eq for Intervals<T> {}
 
-// Operations to access deletion history of some type
+/// Trait declaring the operations needed so that a type's deletion history can be accessed using the `History` object
 pub trait InternalDeletionOps: Send + Sync {
+    /// Iterate over deletion time entries in chronological order.
     fn iter(&self) -> BoxedLIter<TimeIndexEntry>;
+    /// Iterate over deletion time entries in reverse chronological order.
     fn iter_rev(&self) -> BoxedLIter<TimeIndexEntry>;
+    /// Get the earliest deletion's time entry for this item.
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
+    /// Get the latest deletion's time entry for this item.
     fn latest_time(&self) -> Option<TimeIndexEntry>;
+    /// Get the first deletion's time entry produced by forward iteration.
     fn first(&self) -> Option<TimeIndexEntry> {
         self.iter().next()
     }
+    /// Get the first deletion's time entry produced by reverse iteration.
     fn last(&self) -> Option<TimeIndexEntry> {
         self.iter_rev().next()
     }
-    // override if we want more efficient implementation
+    /// Get the number of deletion time entries held by this item.
     fn len(&self) -> usize {
         self.iter().count()
     }
 }
 
-/// Gives access to deletion information of an object when used as:
-/// History<DeletionHistory<SomeItem>>
+/// Gives access to deletion information of an object when used as `History<DeletionHistory<SomeItem>>`
 #[derive(Debug, Clone, Copy)]
 pub struct DeletionHistory<T>(T);
 
@@ -1277,28 +1315,24 @@ mod tests {
             )
             .unwrap();
 
-        // create dumbledore node history object
         let dumbledore_node_history_object = History::new(dumbledore_node.clone());
         assert_eq!(
             dumbledore_node_history_object.iter().collect_vec(),
             vec![TimeIndexEntry::new(1, 0), TimeIndexEntry::new(3, 2)]
         );
 
-        // create Harry node history object
         let harry_node_history_object = History::new(harry_node.clone());
         assert_eq!(
             harry_node_history_object.iter().collect_vec(),
             vec![TimeIndexEntry::new(2, 1), TimeIndexEntry::new(3, 2)]
         );
 
-        // create edge history object
         let edge_history_object = History::new(character_edge.clone());
         assert_eq!(
             edge_history_object.iter().collect_vec(),
             vec![TimeIndexEntry::new(3, 2)]
         );
 
-        // create Composite History Object
         let tmp_vector: Vec<Box<dyn InternalHistoryOps>> = vec![
             Box::new(dumbledore_node),
             Box::new(harry_node),
@@ -1322,7 +1356,6 @@ mod tests {
     // test a layer
     #[test]
     fn test_single_layer() -> Result<(), Box<dyn std::error::Error>> {
-        // generate graph
         let graph = Graph::new();
         let dumbledore_node = graph
             .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
@@ -1344,7 +1377,6 @@ mod tests {
             )
             .unwrap();
 
-        // add broom node
         let broom_node = graph
             .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
             .unwrap();
@@ -1396,7 +1428,6 @@ mod tests {
 
         let layer_id = graph.get_layer_id("Magical Object Uses").unwrap();
 
-        // node history objects
         let dumbledore_history = History::new(dumbledore_node);
         assert_eq!(
             dumbledore_history.iter().collect_vec(),
@@ -1431,14 +1462,13 @@ mod tests {
             ]
         );
 
-        // edge history objects
         let character_edge_history = History::new(character_edge);
         assert_eq!(
             character_edge_history.collect(),
             [TimeIndexEntry::new(3, 2)]
         );
 
-        //normal history differs from "Magical Object Uses" history
+        // normal history differs from "Magical Object Uses" history
         let broom_harry_normal_history = History::new(broom_harry_normal_edge);
         assert_eq!(
             broom_harry_normal_history.collect(),
@@ -1498,7 +1528,6 @@ mod tests {
 
     #[test]
     fn test_lazy_node_state() -> Result<(), Box<dyn std::error::Error>> {
-        // generate graph
         let graph = Graph::new();
         let dumbledore_node = graph
             .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
@@ -1520,7 +1549,6 @@ mod tests {
             )
             .unwrap();
 
-        // add broom node
         let broom_node = graph
             .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
             .unwrap();
@@ -1622,7 +1650,7 @@ mod tests {
             TimeIndexEntry::new(5, 7)
         );
 
-        // Test collect_items method on LazyNodeState<HistoryOp>
+        // Test collect_time_entries method on LazyNodeState<HistoryOp>
         let full_collected = all_nodes_history.collect_time_entries();
         assert!(!full_collected.is_empty());
         assert_eq!(full_collected, expected_history_all_ordered);

@@ -87,10 +87,14 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
-    /// TimeIndexEntry of earliest activity in the graph
+    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
+    /// Returns:
+    ///     TimeIndexEntry
     fn earliest_time(&self) -> Option<TimeIndexEntry>;
 
-    /// TimeIndexEntry of latest activity in the graph
+    /// Get the `TimeIndexEntry` of the latest activity in the graph.
+    /// Returns:
+    ///     TimeIndexEntry
     fn latest_time(&self) -> Option<TimeIndexEntry>;
 
     /// Return the number of nodes in the graph.
@@ -454,6 +458,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
+    /// Get the `TimeIndexEntry` of the earliest activity in the graph.
+    /// Returns:
+    ///     TimeIndexEntry
     #[inline]
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {
@@ -476,6 +483,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
+    /// Get the `TimeIndexEntry` of the latest activity in the graph.
+    /// Returns:
+    ///     TimeIndexEntry
     #[inline]
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         match self.filter_state() {

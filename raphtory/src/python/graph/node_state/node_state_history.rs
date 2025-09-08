@@ -26,9 +26,10 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::prelude::{ParallelIterator, ParallelSliceMut};
+use rayon::prelude::{ParallelIterator};
 use std::{collections::HashMap, sync::Arc};
 
+/// A NodeState of History objects for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct NodeStateHistory {
     inner: NodeState<
@@ -51,7 +52,6 @@ impl NodeStateHistory {
         &self.inner
     }
 
-    // impl_node_state_ops
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = History<'static, NodeView<'static, DynamicGraph>>> + '_ {
@@ -59,11 +59,14 @@ impl NodeStateHistory {
     }
 }
 
-// impl_node_state_ops
+// can't simply call self.inner.t() because we need NodeState<PyHistoryTimestamp>
+// instead of NodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
 #[pymethods]
 impl NodeStateHistory {
-    // can't simply call self.inner.t() because we need NodeState<PyHistoryTimestamp>
-    // instead of NodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
+    /// Access history events as timestamps (milliseconds since Unix epoch).
+    ///
+    /// Returns:
+    ///     A NodeState of HistoryTimestamp objects for each node.
     #[getter]
     fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph, DynamicGraph> {
         let values = self
@@ -80,6 +83,10 @@ impl NodeStateHistory {
         )
     }
 
+    /// Access history events as UTC datetimes.
+    ///
+    /// Returns:
+    ///     A NodeState of HistoryDateTime objects for each node.
     #[getter]
     fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph, DynamicGraph> {
         let values = self
@@ -96,6 +103,10 @@ impl NodeStateHistory {
         )
     }
 
+    /// Access the unique secondary index of each time entry.
+    ///
+    /// Returns:
+    ///     A NodeState of HistorySecondaryIndex objects for each node.
     #[getter]
     fn secondary_index(
         &self,
@@ -114,6 +125,10 @@ impl NodeStateHistory {
         )
     }
 
+    /// Access the intervals between consecutive timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     A NodeState of Intervals objects for each node.
     #[getter]
     fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph, DynamicGraph> {
         let values = self
@@ -130,18 +145,26 @@ impl NodeStateHistory {
         )
     }
 
+    /// Get the earliest time entry.
+    ///
+    /// Returns:
+    ///     A NodeState of the earliest time of each node as a TimeIndexEntry.
     fn earliest_time(&self) -> Option<TimeIndexEntry> {
         self.inner.earliest_time()
     }
 
+    /// Get the latest time entry.
+    ///
+    /// Returns:
+    ///     A NodeState of the latest time of each node as a TimeIndexEntry.
     fn latest_time(&self) -> Option<TimeIndexEntry> {
         self.inner.latest_time()
     }
 
-    /// Collect and return all the contained time entries as a sorted list
+    /// Collect and return all the contained time entries as a sorted list.
     ///
     /// Returns:
-    #[doc = "     list[TimeIndexEntry]: all time entries as a list"]
+    ///     list[TimeIndexEntry]: All time entries as a list.
     fn collect_time_entries(&self) -> Vec<TimeIndexEntry> {
         self.inner.collect_time_entries()
     }
@@ -149,19 +172,20 @@ impl NodeStateHistory {
     /// Flattens all history objects into a single history object with all time information ordered.
     ///
     /// Returns:
-    #[doc = "     History: a history object containing all time information"]
+    ///     History: A history object containing all time information.
     fn flatten(&self) -> PyHistory {
         self.inner.flatten().into_arc_dyn().into()
     }
 
+    /// Get the number of History objects held by this NodeState.
     fn __len__(&self) -> usize {
         self.inner.len()
     }
 
-    /// Iterate over nodes
+    /// Iterate over nodes.
     ///
     /// Returns:
-    ///     Nodes: The nodes
+    ///     Nodes: The nodes.
     fn nodes(&self) -> Nodes<'static, DynamicGraph> {
         self.inner.nodes()
     }
@@ -231,14 +255,14 @@ impl NodeStateHistory {
         )
     }
 
-    /// Get value for node
+    /// Get History object for the node.
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    #[doc = "    default (Optional[History]): the default value. Defaults to None."]
+    ///     default (Optional[History]): The default value. Defaults to None.
     ///
     /// Returns:
-    #[doc = "    Optional[History]: the value for the node or the default value"]
+    ///     Optional[History]: The value for the node or the default value.
     #[pyo3(signature = (node, default=None::<PyHistory>))]
     fn get(&self, node: PyNodeRef, default: Option<PyHistory>) -> Option<PyHistory> {
         self.inner
@@ -272,7 +296,7 @@ impl NodeStateHistory {
     /// Iterate over items
     ///
     /// Returns:
-    #[doc = "     Iterator[Tuple[Node, History]]: Iterator over items"]
+    ///     Iterator[Tuple[Node, History]]: Iterator over items.
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -286,10 +310,10 @@ impl NodeStateHistory {
         )
     }
 
-    /// Iterate over values
+    /// Iterate over History objects.
     ///
     /// Returns:
-    #[doc = "     Iterator[History]: Iterator over values"]
+    ///     Iterator[History]: Iterator over History objects.
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
     }
@@ -297,7 +321,7 @@ impl NodeStateHistory {
     /// Sort results by node id
     ///
     /// Returns:
-    #[doc = "     NodeStateHistory: The sorted node state"]
+    ///     NodeStateHistory: The sorted node state.
     fn sorted_by_id(
         &self,
     ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
@@ -314,7 +338,7 @@ impl NodeStateHistory {
     /// the corresponding values.
     ///
     /// Returns:
-    ///     DataFrame: the pandas DataFrame
+    ///     DataFrame: A Pandas DataFrame.
     fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let pandas = PyModule::import(py, "pandas")?;
         let columns = PyDict::new(py);

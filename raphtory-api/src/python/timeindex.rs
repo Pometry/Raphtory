@@ -31,8 +31,8 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
     }
 }
 
-/// Components that can make a TimeIndexEntry. Extract them from Python here so we can support tuples for TimeIndexEntry
-/// These can be used in the secondary index as well
+/// Components that can make a TimeIndexEntry. Extract them from Python as individual components so we can support tuples for TimeIndexEntry
+/// They can be used as the secondary index as well.
 #[derive(Debug, Clone, Copy)]
 pub struct TimeIndexComponent {
     component: i64,
@@ -62,7 +62,7 @@ impl<'source> FromPyObject<'source> for TimeIndexComponent {
             ParsingError::Matched(err) => err,
             ParsingError::Unmatched => {
                 let message = format!(
-                    "time component '{component}' must be a str, datetime, float, or an integer"
+                    "Time component '{component}' must be a str, datetime, float, or an integer."
                 );
                 PyTypeError::new_err(message)
             }
@@ -103,7 +103,8 @@ fn extract_time_index_component<'source>(
         return Ok(TimeIndexComponent::new(parsed_datetime.timestamp_millis()));
     }
     if let Ok(parsed_datetime) = component.extract::<NaiveDateTime>() {
-        // Important, this is needed to ensure that naive DateTime objects are treated as UTC and not local time
+        // Important, this is needed to prevent inconsistencies by ensuring that naive DateTime objects are always treated as UTC and not local time.
+        // TimeIndexEntry and History objects use UTC so everything should be extracted as UTC.
         return Ok(TimeIndexComponent::new(
             parsed_datetime.and_utc().timestamp_millis(),
         ));
@@ -130,6 +131,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<TimeIndexEntry> {
     })
 }
 
+/// Represents a time entry in Raphtory. Contains a primary timestamp and a secondary index for ordering within the same timestamp.
 #[pyclass(name = "TimeIndexEntry", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyTimeIndexEntry {
@@ -151,24 +153,35 @@ impl PyTimeIndexEntry {
 
 #[pymethods]
 impl PyTimeIndexEntry {
-    /// Get the datetime representation of the time
+    /// Return the UTC datetime representation of this time entry.
+    /// Returns:
+    ///     datetime: The UTC datetime corresponding to this entry's timestamp.
+    /// Raises:
+    ///     TimeError: Returns TimestampError on out-of-range timestamps.
     #[getter]
     pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         self.time.dt()
     }
 
+    /// Return the secondary index associated with this time entry.
+    /// Returns:
+    ///     int: The secondary index.
     #[getter]
     pub fn secondary_index(&self) -> usize {
         self.time.i()
     }
 
-    /// Get the epoch timestamp of the time
+    /// Return the Unix timestamp in milliseconds.
+    /// Returns:
+    ///     int: Milliseconds since the Unix epoch.
     #[getter]
     pub fn t(&self) -> i64 {
         self.time.t()
     }
 
-    /// Return the TimeIndexEntry as a tuple
+    /// Return this entry as a tuple of (timestamp_ms, secondary_index).
+    /// Returns:
+    /// tuple[int, int]: (timestamp, secondary_index).
     #[getter]
     pub fn as_tuple(&self) -> (i64, usize) {
         self.time.as_tuple()
@@ -196,7 +209,7 @@ impl PyTimeIndexEntry {
                 CompareOp::Le => Ok(self.time <= time_index),
             }
         } else {
-            Err(PyTypeError::new_err("unsupported comparison: TimeIndexEntry can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another TimeIndexEntry"))
+            Err(PyTypeError::new_err("Unsupported comparison: TimeIndexEntry can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another TimeIndexEntry."))
         }
     }
 
@@ -204,7 +217,6 @@ impl PyTimeIndexEntry {
         format!("TimeIndexEntry[{}, {}]", self.time.0, self.time.1)
     }
 
-    // Used for plotting
     pub fn __hash__(&self) -> isize {
         let mut hasher = DefaultHasher::new();
         self.time.hash(&mut hasher);
@@ -215,8 +227,11 @@ impl PyTimeIndexEntry {
         self.t()
     }
 
-    /// Creates a new TimeIndexEntry.
-    /// Valid inputs are: int, float, datetime, string (formatted datetime), or a list/tuple with two elements to specify the secondary index.
+    /// Create a new TimeIndexEntry.
+    /// Arguments:
+    ///    time (int | float | datetime | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well.
+    /// Returns:
+    ///     TimeIndexEntry: A new time index entry.
     #[staticmethod]
     pub fn new(time: TimeIndexEntry) -> Self {
         Self { time }
@@ -259,7 +274,7 @@ impl<'source> FromPyObject<'source> for InputTime {
                 let len = items.len();
                 if len != 2 {
                     return Err(PyTypeError::new_err(format!(
-                        "list/tuple for InputTime must have exactly 2 elements [timestamp, secondary_index], got {} elements",
+                        "List/tuple for InputTime must have exactly 2 elements [timestamp, secondary_index], got {} elements.",
                         len
                     )));
                 }
@@ -268,14 +283,14 @@ impl<'source> FromPyObject<'source> for InputTime {
                 let first_entry = extract_time_index_component(first).map_err(|e| match e {
                     ParsingError::Matched(err) => err,
                     ParsingError::Unmatched => {
-                        let message = format!("time component '{first}' must be a str, datetime, float, or an integer");
+                        let message = format!("Time component '{first}' must be a str, datetime, float, or an integer.");
                         PyTypeError::new_err(message)
                     }
                 })?;
                 let second_entry = extract_time_index_component(second).map_err(|e| match e {
                     ParsingError::Matched(err) => err,
                     ParsingError::Unmatched => {
-                        let message = format!("time component '{second}' must be a str, datetime, float, or an integer");
+                        let message = format!("Time component '{second}' must be a str, datetime, float, or an integer.");
                         PyTypeError::new_err(message)
                     }
                 })?;
@@ -290,7 +305,7 @@ impl<'source> FromPyObject<'source> for InputTime {
             Ok(component) => Ok(InputTime::Simple(component.t())),
             Err(ParsingError::Matched(err)) => Err(err),
             Err(ParsingError::Unmatched) => {
-                let message = format!("time '{input}' must be a str, datetime, float, integer, or a tuple/list of two of those types");
+                let message = format!("Time '{input}' must be a str, datetime, float, integer, or a tuple/list of two of those types.");
                 Err(PyTypeError::new_err(message))
             }
         }

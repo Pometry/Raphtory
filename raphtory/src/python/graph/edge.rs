@@ -207,19 +207,19 @@ impl PyEdge {
         self.edge.properties().get(name)
     }
 
-    /// Returns a history object with information on when an edge is added or change to an edge is made.
+    /// Returns a history object with TimeIndexEntry entries for when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    History:  A history object containing temporal information about the edge
+    ///    History:  A history object containing temporal entries about the edge
     #[getter]
     pub fn history(&self) -> PyHistory {
         self.edge.history().into_arc_dyn().into()
     }
 
-    /// Returns a history object with information on an edge's deletion times.
+    /// Returns a history object with TimeIndexEntry entries for an edge's deletion times.
     ///
     /// Returns:
-    ///    History:  A history object containing temporal information about the edge's deletions
+    ///    History:  A history object containing time entries about the edge's deletions
     #[getter]
     pub fn deletions(&self) -> PyHistory {
         self.edge.deletions().into_arc_dyn().into()
