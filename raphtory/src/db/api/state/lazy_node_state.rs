@@ -130,7 +130,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
                 .unzip();
             NodeState::new(
                 self.nodes.base_graph.clone(),
-                self.nodes.one_hop_graph.clone(),
+                self.nodes.iter_graph.clone(),
                 values.into(),
                 Some(Index::new(keys)),
             )
@@ -138,7 +138,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
             let values = self.collect_vec();
             NodeState::new(
                 self.nodes.base_graph.clone(),
-                self.nodes.one_hop_graph.clone(),
+                self.nodes.iter_graph.clone(),
                 values.into(),
                 None,
             )
@@ -159,7 +159,7 @@ impl<'graph, Op: NodeOp + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'gra
     type OwnedValue = Op::Output;
 
     fn graph(&self) -> &Self::Graph {
-        &self.nodes.one_hop_graph
+        &self.nodes.iter_graph
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {

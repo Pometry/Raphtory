@@ -467,12 +467,15 @@ impl PyNodes {
     fn __len__(&self) -> usize {
         self.nodes.len()
     }
+
     fn __bool__(&self) -> bool {
         !self.nodes.is_empty()
     }
+
     fn __iter__(&self) -> PyGenericIterator {
         self.nodes.iter_owned().into()
     }
+
     #[doc = concat!(" Collect all ","node","s into a list")]
     #[doc = r""]
     #[doc = r" Returns:"]
@@ -480,13 +483,18 @@ impl PyNodes {
     fn collect(&self) -> Vec<NodeView<'static, DynamicGraph>> {
         self.nodes.collect()
     }
+
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNodes> {
+        let r = self.nodes.filter_iter(filter)?;
+        Ok(PyNodes::from(r))
+    }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
 {
     fn from(value: Nodes<'static, G, GH>) -> Self {
-        let graph = value.one_hop_graph.into_dynamic();
+        let graph = value.iter_graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
             nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
@@ -694,12 +702,6 @@ impl PyNodes {
     ///     DegreeView: a view of the out-degrees of the nodes
     fn out_degree(&self) -> LazyNodeState<'static, ops::Degree<DynamicGraph>, DynamicGraph> {
         self.nodes.out_degree()
-    }
-
-    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<'static, DynamicGraph>> {
-        self.nodes
-            .get(node)
-            .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
     }
 
     /// Converts the graph's nodes into a Pandas DataFrame.

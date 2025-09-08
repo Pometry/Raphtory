@@ -4,7 +4,7 @@ use crate::{
         api::{
             state::NodeOp,
             view::{
-                internal::{BaseFilter, OneHopFilter, Static},
+                internal::{BaseFilter, IterFilter, Static},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
                 StaticGraphViewOps,
             },
@@ -244,22 +244,22 @@ where
     }
 }
 
-impl<'graph, Current, G> OneHopFilter<'graph> for PathFromGraph<'graph, G, Current>
+impl<'graph, Current, G> IterFilter<'graph> for PathFromGraph<'graph, G, Current>
 where
     G: GraphViewOps<'graph>,
     Current: GraphViewOps<'graph>,
 {
-    type OneHopGraph = Current;
-    type OneHopFiltered<Next: GraphViewOps<'graph> + 'graph> = PathFromGraph<'graph, G, Next>;
+    type IterGraph = Current;
+    type IterFiltered<Next: GraphViewOps<'graph> + 'graph> = PathFromGraph<'graph, G, Next>;
 
-    fn one_hop_graph(&self) -> &Self::OneHopGraph {
+    fn iter_graph(&self) -> &Self::IterGraph {
         &self.one_hop_graph
     }
 
-    fn apply_one_hop_filter<Next: GraphViewOps<'graph>>(
+    fn apply_iter_filter<Next: GraphViewOps<'graph>>(
         &self,
         filtered_graph: Next,
-    ) -> Self::OneHopFiltered<Next> {
+    ) -> Self::IterFiltered<Next> {
         PathFromGraph {
             base_graph: self.base_graph.clone(),
             one_hop_graph: filtered_graph,
@@ -466,22 +466,22 @@ where
     }
 }
 
-impl<'graph, Current, G> OneHopFilter<'graph> for PathFromNode<'graph, G, Current>
+impl<'graph, Current, G> IterFilter<'graph> for PathFromNode<'graph, G, Current>
 where
     G: GraphViewOps<'graph>,
     Current: GraphViewOps<'graph>,
 {
-    type OneHopGraph = Current;
-    type OneHopFiltered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, G, Next>;
+    type IterGraph = Current;
+    type IterFiltered<Next: GraphViewOps<'graph>> = PathFromNode<'graph, G, Next>;
 
-    fn one_hop_graph(&self) -> &Self::OneHopGraph {
+    fn iter_graph(&self) -> &Self::IterGraph {
         &self.one_hop_graph
     }
 
-    fn apply_one_hop_filter<Next: GraphViewOps<'graph>>(
+    fn apply_iter_filter<Next: GraphViewOps<'graph>>(
         &self,
         filtered_graph: Next,
-    ) -> Self::OneHopFiltered<Next> {
+    ) -> Self::IterFiltered<Next> {
         PathFromNode {
             base_graph: self.base_graph.clone(),
             one_hop_graph: filtered_graph,

@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, IterFilterOps, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -9,6 +9,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::properties::{
             MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
         },
