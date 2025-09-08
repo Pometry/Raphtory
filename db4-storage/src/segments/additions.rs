@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::{ELID, properties::tcell::TCell},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps, TimeIndexWindow},
@@ -28,6 +29,7 @@ impl<'a> From<&'a TCell<Option<usize>>> for MemAdditions<'a> {
 }
 
 impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
+    #[box_on_debug_lifetime]
     fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v))),
@@ -41,6 +43,7 @@ impl<'a> EdgeEventOps<'a> for MemAdditions<'a> {
         }
     }
 
+    #[box_on_debug_lifetime]
     fn edge_events_rev(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         match self {
             MemAdditions::Edges(edges) => Iter4::I(edges.iter().map(|(k, v)| (*k, *v)).rev()),
@@ -78,6 +81,7 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
         }
     }
 
+    #[box_on_debug_lifetime]
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
             MemAdditions::Props(props) => Iter4::I(props.iter().map(|(k, _)| *k)),
@@ -87,6 +91,7 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
         }
     }
 
+    #[box_on_debug_lifetime]
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         match self {
             MemAdditions::Props(props) => Iter4::I(props.iter_rev()),

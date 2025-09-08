@@ -27,11 +27,11 @@ impl<T: Iterator<Item = EdgeRef>> Iter4<T> {
     fn J(iter: T) -> Self {
         Iter4(iter)
     }
-    
+
     fn K(iter: T) -> Self {
         Iter4(iter)
     }
-    
+
     fn L(iter: T) -> Self {
         Iter4(iter)
     }
@@ -65,7 +65,7 @@ impl TestStruct {
 // Test trait with lifetime bounds
 trait TestTrait<'a> {
     type EntryRef;
-    
+
     fn edges_iter<'b>(
         self,
         layers_ids: &'b LayerIds,
@@ -97,11 +97,14 @@ impl<'a> TestTrait<'a> for &'a TestStruct {
 mod tests {
     use super::*;
 
+    fn can_send_and_sync<T: Send + Sync>(_t: &T) {}
+
     #[test]
     fn test_edge_iter() {
         let test_struct = TestStruct;
         let layer_ids = LayerIds;
         let iter = test_struct.edge_iter(&layer_ids);
+        can_send_and_sync(&iter);
         let collected: Vec<EdgeRef> = iter.collect();
         assert_eq!(collected.len(), 0); // Empty iterator as expected
     }
@@ -112,6 +115,7 @@ mod tests {
         let layer_ids = LayerIds;
         let direction = Direction;
         let iter = (&test_struct).edges_iter(&layer_ids, direction);
+        can_send_and_sync(&iter);
         let collected: Vec<EdgeRef> = iter.collect();
         assert_eq!(collected.len(), 0); // Empty iterator as expected
     }

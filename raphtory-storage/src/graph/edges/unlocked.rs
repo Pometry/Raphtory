@@ -25,7 +25,10 @@ impl<'a> UnlockedEdges<'a> {
     }
 
     #[box_on_debug_lifetime]
-    pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
+    pub fn iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
             LayerIds::All => Iter4::J(self.iter_layer(0)),

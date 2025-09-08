@@ -1,16 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, ToTokens};
-use syn::{
-    parse_macro_input, 
-    ItemFn, 
-    Path, 
-    ReturnType, 
-    Type, 
-    TypeParamBound,
-    Error,
-    Result,
-};
+use syn::{parse_macro_input, Error, ItemFn, Path, Result, ReturnType, Type, TypeParamBound};
 
 /// A procedural macro that boxes iterators in debug builds for better debugging experience.
 /// In release builds, the function remains unchanged for optimal performance.
@@ -31,7 +22,7 @@ use syn::{
 /// pub fn simple_iter(count: usize) -> impl Iterator<Item = i32> {
 ///     (0..count as i32).filter(|x| x % 2 == 0)
 /// }
-/// 
+///
 /// // Test the function works
 /// let result: Vec<i32> = simple_iter(10).collect();
 /// assert_eq!(result, vec![0, 2, 4, 6, 8]);
@@ -75,7 +66,7 @@ use syn::{
 #[proc_macro_attribute]
 pub fn box_on_debug(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
-    
+
     match generate_box_on_debug_impl(&input_fn) {
         Ok(output) => output.into(),
         Err(err) => err.to_compile_error().into(),
@@ -168,7 +159,7 @@ pub fn box_on_debug(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn box_on_debug_lifetime(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
-    
+
     match generate_box_on_debug_lifetime_impl(&input_fn) {
         Ok(output) => output.into(),
         Err(err) => err.to_compile_error().into(),
@@ -181,29 +172,29 @@ fn generate_box_on_debug_impl(input_fn: &ItemFn) -> Result<TokenStream2> {
     let sig = &input_fn.sig;
     let block = &input_fn.block;
     let fn_name = &sig.ident;
-    
+
     // Parse the return type to extract iterator information
     let (item_type, bounds) = parse_iterator_return_type(&sig.output)?;
-    
+
     // Generate the debug version (boxed)
     let debug_return_type = generate_boxed_return_type(&item_type, &bounds);
-    
+
     // Generate the release version (original)
     let release_return_type = &sig.output;
-    
+
     let generics = &sig.generics;
     let inputs = &sig.inputs;
     let where_clause = &sig.generics.where_clause;
-    
+
     Ok(quote! {
-        #[cfg(debug_assertions)]
+        #[cfg(has_debug_symbols)]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #debug_return_type #where_clause {
             let iter = #block;
             Box::new(iter)
         }
 
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(has_debug_symbols))]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #release_return_type #where_clause {
             #block
@@ -217,29 +208,29 @@ fn generate_box_on_debug_lifetime_impl(input_fn: &ItemFn) -> Result<TokenStream2
     let sig = &input_fn.sig;
     let block = &input_fn.block;
     let fn_name = &sig.ident;
-    
+
     // Parse the return type to extract iterator information
     let (item_type, bounds) = parse_iterator_return_type(&sig.output)?;
-    
+
     // For lifetime version, we preserve all bounds including lifetimes
     let debug_return_type = generate_boxed_return_type_with_lifetimes(&item_type, &bounds);
-    
+
     // Generate the release version (original)
     let release_return_type = &sig.output;
-    
+
     let generics = &sig.generics;
     let inputs = &sig.inputs;
     let where_clause = &sig.generics.where_clause;
-    
+
     Ok(quote! {
-        #[cfg(debug_assertions)]
+        #[cfg(has_debug_symbols)]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #debug_return_type #where_clause {
             let iter = #block;
             Box::new(iter)
         }
 
-        #[cfg(not(debug_assertions))]
+        #[cfg(not(has_debug_symbols))]
         #(#attrs)*
         #vis fn #fn_name #generics(#inputs) #release_return_type #where_clause {
             #block
@@ -247,23 +238,26 @@ fn generate_box_on_debug_lifetime_impl(input_fn: &ItemFn) -> Result<TokenStream2
     })
 }
 
-fn parse_iterator_return_type(return_type: &ReturnType) -> Result<(TokenStream2, Vec<TokenStream2>)> {
+fn parse_iterator_return_type(
+    return_type: &ReturnType,
+) -> Result<(TokenStream2, Vec<TokenStream2>)> {
     match return_type {
         ReturnType::Type(_, ty) => {
             if let Type::ImplTrait(impl_trait) = ty.as_ref() {
                 let mut item_type = None;
                 let mut bounds = Vec::new();
-                
+
                 for bound in &impl_trait.bounds {
                     match bound {
                         TypeParamBound::Trait(trait_bound) => {
                             let path = &trait_bound.path;
-                            
+
                             // Check if this is an Iterator trait
                             if is_iterator_trait(path) {
                                 // Extract the Item type from Iterator<Item = ...>
                                 if let Some(seg) = path.segments.last() {
-                                    if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                                    if let syn::PathArguments::AngleBracketed(args) = &seg.arguments
+                                    {
                                         for arg in &args.args {
                                             if let syn::GenericArgument::AssocType(binding) = arg {
                                                 if binding.ident == "Item" {
@@ -287,22 +281,32 @@ fn parse_iterator_return_type(return_type: &ReturnType) -> Result<(TokenStream2,
                         }
                     }
                 }
-                
+
                 if let Some(item) = item_type {
                     Ok((item, bounds))
                 } else {
-                    Err(Error::new_spanned(return_type, "Expected Iterator<Item = ...> in return type"))
+                    Err(Error::new_spanned(
+                        return_type,
+                        "Expected Iterator<Item = ...> in return type",
+                    ))
                 }
             } else {
-                Err(Error::new_spanned(return_type, "Expected impl Iterator<...> return type"))
+                Err(Error::new_spanned(
+                    return_type,
+                    "Expected impl Iterator<...> return type",
+                ))
             }
         }
-        _ => Err(Error::new_spanned(return_type, "Expected -> impl Iterator<...> return type")),
+        _ => Err(Error::new_spanned(
+            return_type,
+            "Expected -> impl Iterator<...> return type",
+        )),
     }
 }
 
 fn is_iterator_trait(path: &Path) -> bool {
-    path.segments.last()
+    path.segments
+        .last()
         .map(|seg| seg.ident == "Iterator")
         .unwrap_or(false)
 }
@@ -315,7 +319,10 @@ fn generate_boxed_return_type(item_type: &TokenStream2, bounds: &[TokenStream2])
     }
 }
 
-fn generate_boxed_return_type_with_lifetimes(item_type: &TokenStream2, bounds: &[TokenStream2]) -> TokenStream2 {
+fn generate_boxed_return_type_with_lifetimes(
+    item_type: &TokenStream2,
+    bounds: &[TokenStream2],
+) -> TokenStream2 {
     if bounds.is_empty() {
         quote! { -> Box<dyn Iterator<Item = #item_type>> }
     } else {
