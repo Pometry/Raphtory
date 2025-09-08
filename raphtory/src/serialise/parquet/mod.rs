@@ -41,6 +41,9 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use zip::write::FileOptions;
+use zip::ZipWriter;
+use walkdir::WalkDir;
 
 mod edges;
 mod model;
@@ -49,13 +52,68 @@ mod nodes;
 mod graph;
 
 pub trait ParquetEncoder {
+    fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
+        // Encode to a tmp dir using parquet and then zip it
+        let temp_dir = tempfile::tempdir()?;
+        self.encode_parquet(&temp_dir)?;
+
+        let mut zip_buffer = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut zip_buffer);
+        let mut zip_writer = ZipWriter::new(&mut cursor);
+
+        // Walk through the directory and add files to zip
+        for entry in WalkDir::new(temp_dir.path()) {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            let relative_path = path.strip_prefix(temp_dir.path()).unwrap();
+
+            if path.is_file() {
+                let file_name = relative_path.to_str().unwrap();
+                zip_writer.start_file(file_name, FileOptions::<()>::default())?;
+
+                let mut file = std::fs::File::open(path)?;
+                std::io::copy(&mut file, &mut zip_writer)?;
+            } else if path.is_dir() {
+                // Skip empty relative paths (for eg, the root directory)
+                if relative_path.to_str().unwrap().is_empty() {
+                    continue;
+                }
+
+                let dir_name = relative_path.to_str().unwrap();
+                zip_writer.add_directory(dir_name, FileOptions::<()>::default())?;
+            }
+        }
+
+        zip_writer.finish()?;
+        Ok(zip_buffer)
+    }
+
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
 }
 
-pub trait ParquetDecoder {
-    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized;
+pub trait ParquetDecoder: Sized {
+    fn decode_parquet_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
+        let reader = std::io::Cursor::new(bytes);
+        let mut zip = zip::ZipArchive::new(reader)?;
+        let temp_dir = tempfile::tempdir()?;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let out_path = temp_dir.path().join(file.enclosed_name().unwrap());
+
+            // Create directories if they don't exist
+            if let Some(path) = out_path.parent() {
+                std::fs::create_dir_all(path)?;
+            }
+
+            let mut out_file = std::fs::File::create(&out_path)?;
+            std::io::copy(&mut file, &mut out_file)?;
+        }
+
+        Self::decode_parquet(temp_dir.path())
+    }
+
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>;
 }
 
 const NODE_ID_COL: &str = "rap_node_id";
@@ -427,8 +485,6 @@ fn decode_graph_storage(
 }
 impl ParquetDecoder for Graph {
     fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
     {
         let gs = decode_graph_storage(path, GraphType::EventGraph)?;
         Ok(Graph::from_storage(gs))
@@ -437,8 +493,6 @@ impl ParquetDecoder for Graph {
 
 impl ParquetDecoder for PersistentGraph {
     fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
     {
         let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
         Ok(PersistentGraph(gs))
@@ -447,8 +501,6 @@ impl ParquetDecoder for PersistentGraph {
 
 impl ParquetDecoder for MaterializedGraph {
     fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
-    where
-        Self: Sized,
     {
         // Try to decode as EventGraph first
         match decode_graph_storage(path.as_ref(), GraphType::EventGraph) {
@@ -665,6 +717,7 @@ mod test {
         let dt = "2012-12-12 12:12:12+00:00"
             .parse::<DateTime<Utc>>()
             .unwrap();
+
         build_and_check_parquet_encoding(
             [
                 (0, 1, 12, vec![("one".to_string(), Prop::DTime(dt))], None),
@@ -1017,5 +1070,15 @@ mod test {
             .add_edge(0, 0, 1, [("test", Prop::map(NO_PROPS))], None)
             .unwrap();
         check_parquet_encoding(graph);
+    }
+
+    #[test]
+    fn test_parquet_bytes() {
+        proptest!(|(edges in build_graph_strat(10, 10, true))| {
+            let g = Graph::from(build_graph(&edges));
+            let bytes = g.encode_parquet_to_bytes().unwrap();
+            let g2 = Graph::decode_parquet_from_bytes(&bytes).unwrap();
+            assert_graph_equal(&g, &g2);
+        })
     }
 }
