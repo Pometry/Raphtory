@@ -1,5 +1,18 @@
-///
-/// A macro that boxes iterators in debug builds for better debugging experience.
+use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::{quote, ToTokens};
+use syn::{
+    parse_macro_input, 
+    ItemFn, 
+    Path, 
+    ReturnType, 
+    Type, 
+    TypeParamBound,
+    Error,
+    Result,
+};
+
+/// A procedural macro that boxes iterators in debug builds for better debugging experience.
 /// In release builds, the function remains unchanged for optimal performance.
 ///
 /// This macro transforms iterator-returning functions to return boxed iterators
@@ -9,330 +22,303 @@
 ///
 /// # Usage
 ///
-/// The macro supports functions with various combinations of:
-/// - Generic parameters and lifetimes
-/// - Where clauses
-/// - Lifetime bounds on return types
+/// Simply annotate your iterator-returning function with `#[box_on_debug]`:
 ///
-/// ## Examples
-///
-/// ### Simple function without lifetimes:
 /// ```rust
-/// use raphtory_api::box_on_debug;
+/// use raphtory_api_macros::box_on_debug;
 ///
-/// box_on_debug! {
-///     pub fn simple_iter(count: usize) -> impl Iterator<Item = i32> {
-///         (0..count as i32).filter(|x| x % 2 == 0)
-///     }
+/// #[box_on_debug]
+/// pub fn simple_iter(count: usize) -> impl Iterator<Item = i32> {
+///     (0..count as i32).filter(|x| x % 2 == 0)
 /// }
+/// 
+/// // Test the function works
+/// let result: Vec<i32> = simple_iter(10).collect();
+/// assert_eq!(result, vec![0, 2, 4, 6, 8]);
 /// ```
 ///
 /// ### Method with `&self` parameter:
 /// ```rust
-/// use raphtory_api::box_on_debug;
+/// use raphtory_api_macros::box_on_debug;
 ///
 /// struct Graph {
 ///     node_count: usize,
 /// }
 ///
 /// impl Graph {
-///     box_on_debug! {
-///         pub fn iter_node_ids(&self) -> impl Iterator<Item = usize> {
-///             0..self.node_count
-///         }
+///     #[box_on_debug]
+///     pub fn iter_node_ids(&self) -> impl Iterator<Item = usize> {
+///         0..self.node_count
 ///     }
 /// }
+///
+/// // Test the method works
+/// let graph = Graph { node_count: 5 };
+/// let ids: Vec<usize> = graph.iter_node_ids().collect();
+/// assert_eq!(ids, vec![0, 1, 2, 3, 4]);
 /// ```
 ///
-/// ### Note on Complex Lifetime Bounds:
+/// ### Function with additional bounds:
+/// ```rust
+/// use raphtory_api_macros::box_on_debug;
 ///
-/// For functions with complex lifetime bounds like:
-/// ```ignore
-/// fn edge_iter<'a, 'b: 'a>(
-///     &'a self,
-///     layer_ids: &'b LayerIds,
-/// ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a
-/// ```
-///
-/// You can manually apply the box_on_debug pattern:
-/// ```ignore
-/// #[cfg(debug_assertions)]
-/// fn edge_iter<'a, 'b: 'a>(
-///     &'a self,
-///     layer_ids: &'b LayerIds,
-/// ) -> Box<dyn Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a> {
-///     let iter = match layer_ids {
-///         LayerIds::None => Iter4::I(std::iter::empty()),
-///         LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
-///         LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
-///         LayerIds::Multiple(multiple) => Iter4::L(
-///             self.edge_iter_layer(0).filter(|pos| pos.has_layers(multiple)),
-///         ),
-///     };
-///     Box::new(iter)
+/// #[box_on_debug]
+/// pub fn concurrent_iter(count: usize) -> impl Iterator<Item = i32> + Send + Sync {
+///     (0..count as i32).filter(|x| x % 3 == 0)
 /// }
 ///
-/// #[cfg(not(debug_assertions))]
-/// fn edge_iter<'a, 'b: 'a>(
-///     &'a self,
-///     layer_ids: &'b LayerIds,
-/// ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
-///     match layer_ids {
-///         LayerIds::None => Iter4::I(std::iter::empty()),
-///         LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
-///         LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
-///         LayerIds::Multiple(multiple) => Iter4::L(
-///             self.edge_iter_layer(0).filter(|pos| pos.has_layers(multiple)),
-///         ),
-///     }
-/// }
+/// // Test the function works
+/// let result: Vec<i32> = concurrent_iter(10).collect();
+/// assert_eq!(result, vec![0, 3, 6, 9]);
 /// ```
 ///
-#[macro_export]
-macro_rules! box_on_debug {
-    // Function with Send + Sync + lifetime bounds (most specific pattern)
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $($generics:tt)* > ($($params:tt)+) -> impl Iterator<Item = $item:ty> + Send + Sync + $output_lifetime:lifetime
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $($generics)* > ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync + $output_lifetime>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $($generics)* > ($($params)+) -> impl Iterator<Item = $item> + Send + Sync + $output_lifetime
-        {
-            $($body)*
-        }
-    };
-
-    // General fallback pattern - no explicit generics in pattern to avoid ambiguity
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident ($($params:tt)+) -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name ($($params)+) -> impl Iterator<Item = $item> $(+ $($bounds)*)?
-        {
-            $($body)*
-        }
-    };
+#[proc_macro_attribute]
+pub fn box_on_debug(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+    
+    match generate_box_on_debug_impl(&input_fn) {
+        Ok(output) => output.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
 }
 
-///
-/// A specialized variant of box_on_debug for functions with complex lifetime parameters.
+/// A specialized procedural macro for functions with complex lifetime parameters.
 /// This macro handles functions that have explicit lifetime parameters and complex bounds.
 ///
 /// # Usage
 ///
-/// ## Function consuming self with lifetime parameter:
-/// ```rust
-/// use raphtory_api::box_on_debug_lifetime;
-///
-/// struct EdgeStorage;
-/// struct LayerIds;
-/// struct EdgeStorageEntry<'a>(&'a str);
-///
-/// impl EdgeStorage {
-///     box_on_debug_lifetime! {
-///         pub fn iter<'a>(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-///             std::iter::once(EdgeStorageEntry("test"))
-///         }
-///     }
-/// }
-/// ```
+/// Simply annotate your iterator-returning function with `#[box_on_debug_lifetime]`:
 ///
 /// ## Method with complex lifetime bounds:
 /// ```rust
-/// use raphtory_api::box_on_debug_lifetime;
+/// use raphtory_api_macros::box_on_debug_lifetime;
 ///
 /// struct Graph;
 /// struct LayerIds;
 /// struct EntryRef<'a>(&'a str);
 ///
 /// impl Graph {
-///     box_on_debug_lifetime! {
-///         fn edge_iter<'a, 'b: 'a>(
-///             &'a self,
-///             layer_ids: &'b LayerIds,
-///         ) -> impl Iterator<Item = EntryRef<'a>> + Send + Sync + 'a {
-///             std::iter::once(EntryRef("test"))
-///         }
+///     #[box_on_debug_lifetime]
+///     fn edge_iter<'a, 'b: 'a>(
+///         &'a self,
+///         layer_ids: &'b LayerIds,
+///     ) -> impl Iterator<Item = EntryRef<'a>> + Send + Sync + 'a {
+///         std::iter::once(EntryRef("test"))
 ///     }
 /// }
+///
+/// // Test the method works
+/// let graph = Graph;
+/// let layer_ids = LayerIds;
+/// let entries: Vec<EntryRef> = graph.edge_iter(&layer_ids).collect();
+/// assert_eq!(entries.len(), 1);
+/// assert_eq!(entries[0].0, "test");
 /// ```
 ///
-/// ## Usage with your specific functions:
+/// ## Function consuming self with lifetime parameter:
+/// ```rust
+/// use raphtory_api_macros::box_on_debug_lifetime;
 ///
-/// For a function like:
-/// ```ignore
-/// pub fn iter<'a>(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a
-/// ```
+/// struct EdgeStorage;
+/// struct LayerIds;
+/// struct EdgeStorageEntry<'a>(&'a str);
 ///
-/// Use:
-/// ```ignore
-/// box_on_debug_lifetime! {
+/// impl EdgeStorage {
+///     #[box_on_debug_lifetime]
 ///     pub fn iter<'a>(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-///         // your implementation
+///         std::iter::once(EdgeStorageEntry("test"))
 ///     }
 /// }
+///
+/// // Test the function works
+/// let storage = EdgeStorage;
+/// let layer_ids = LayerIds;
+/// let entries: Vec<EdgeStorageEntry> = storage.iter(&layer_ids).collect();
+/// assert_eq!(entries.len(), 1);
+/// assert_eq!(entries[0].0, "test");
 /// ```
 ///
-/// For a function like:
-/// ```ignore
-/// fn edge_iter<'a, 'b: 'a>(&'a self, layer_ids: &'b LayerIds) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a
-/// ```
+/// ## Function with where clause:
+/// ```rust
+/// use raphtory_api_macros::box_on_debug_lifetime;
 ///
-/// Use:
-/// ```ignore
-/// box_on_debug_lifetime! {
-///     fn edge_iter<'a, 'b: 'a>(&'a self, layer_ids: &'b LayerIds) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
-///         // your implementation
+/// struct Data<T> {
+///     items: Vec<T>,
+/// }
+///
+/// impl<T> Data<T>
+/// where
+///     T: Clone + Send + Sync,
+/// {
+///     #[box_on_debug_lifetime]
+///     pub fn iter_cloned<'a>(&'a self) -> impl Iterator<Item = T> + 'a
+///     where
+///         T: Clone,
+///     {
+///         self.items.iter().cloned()
 ///     }
 /// }
+///
+/// // Test the function works
+/// let data = Data { items: vec![1, 2, 3, 4, 5] };
+/// let cloned: Vec<i32> = data.iter_cloned().collect();
+/// assert_eq!(cloned, vec![1, 2, 3, 4, 5]);
 /// ```
 ///
-#[macro_export]
-macro_rules! box_on_debug_lifetime {
-    // Pattern for functions with single lifetime and bounds
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $lifetime:lifetime > (
-            $($params:tt)*
-        ) -> impl Iterator<Item = $item:ty> + $lifetime2:lifetime
-        {
-            $($body:tt)*
-        }
-    ) => {
+#[proc_macro_attribute]
+pub fn box_on_debug_lifetime(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input_fn = parse_macro_input!(item as ItemFn);
+    
+    match generate_box_on_debug_lifetime_impl(&input_fn) {
+        Ok(output) => output.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
+}
+
+fn generate_box_on_debug_impl(input_fn: &ItemFn) -> Result<TokenStream2> {
+    let attrs = &input_fn.attrs;
+    let vis = &input_fn.vis;
+    let sig = &input_fn.sig;
+    let block = &input_fn.block;
+    let fn_name = &sig.ident;
+    
+    // Parse the return type to extract iterator information
+    let (item_type, bounds) = parse_iterator_return_type(&sig.output)?;
+    
+    // Generate the debug version (boxed)
+    let debug_return_type = generate_boxed_return_type(&item_type, &bounds);
+    
+    // Generate the release version (original)
+    let release_return_type = &sig.output;
+    
+    let generics = &sig.generics;
+    let inputs = &sig.inputs;
+    let where_clause = &sig.generics.where_clause;
+    
+    Ok(quote! {
         #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $lifetime > (
-            $($params)*
-        ) -> Box<dyn Iterator<Item = $item> + $lifetime2>
-        {
-            let iter = { $($body)* };
+        #(#attrs)*
+        #vis fn #fn_name #generics(#inputs) #debug_return_type #where_clause {
+            let iter = #block;
             Box::new(iter)
         }
 
         #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $lifetime > (
-            $($params)*
-        ) -> impl Iterator<Item = $item> + $lifetime2
-        {
-            $($body)*
+        #(#attrs)*
+        #vis fn #fn_name #generics(#inputs) #release_return_type #where_clause {
+            #block
         }
-    };
+    })
+}
 
-    // Pattern for functions with multiple lifetimes and complex bounds like Send + Sync
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $lifetime1:lifetime , $lifetime2:lifetime : $lifetime3:lifetime > (
-            $($params:tt)*
-        ) -> impl Iterator<Item = $item:ty> + Send + Sync + $lifetime4:lifetime
-        {
-            $($body:tt)*
-        }
-    ) => {
+fn generate_box_on_debug_lifetime_impl(input_fn: &ItemFn) -> Result<TokenStream2> {
+    let attrs = &input_fn.attrs;
+    let vis = &input_fn.vis;
+    let sig = &input_fn.sig;
+    let block = &input_fn.block;
+    let fn_name = &sig.ident;
+    
+    // Parse the return type to extract iterator information
+    let (item_type, bounds) = parse_iterator_return_type(&sig.output)?;
+    
+    // For lifetime version, we preserve all bounds including lifetimes
+    let debug_return_type = generate_boxed_return_type_with_lifetimes(&item_type, &bounds);
+    
+    // Generate the release version (original)
+    let release_return_type = &sig.output;
+    
+    let generics = &sig.generics;
+    let inputs = &sig.inputs;
+    let where_clause = &sig.generics.where_clause;
+    
+    Ok(quote! {
         #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $lifetime1 , $lifetime2 : $lifetime3 > (
-            $($params)*
-        ) -> Box<dyn Iterator<Item = $item> + Send + Sync + $lifetime4>
-        {
-            let iter = { $($body)* };
+        #(#attrs)*
+        #vis fn #fn_name #generics(#inputs) #debug_return_type #where_clause {
+            let iter = #block;
             Box::new(iter)
         }
 
         #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $lifetime1 , $lifetime2 : $lifetime3 > (
-            $($params)*
-        ) -> impl Iterator<Item = $item> + Send + Sync + $lifetime4
-        {
-            $($body)*
+        #(#attrs)*
+        #vis fn #fn_name #generics(#inputs) #release_return_type #where_clause {
+            #block
         }
-    };
+    })
+}
 
-    // Pattern for functions with multiple lifetimes without Send + Sync
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $lifetime1:lifetime , $lifetime2:lifetime : $lifetime3:lifetime > (
-            $($params:tt)*
-        ) -> impl Iterator<Item = $item:ty> + $lifetime4:lifetime
-        {
-            $($body:tt)*
+fn parse_iterator_return_type(return_type: &ReturnType) -> Result<(TokenStream2, Vec<TokenStream2>)> {
+    match return_type {
+        ReturnType::Type(_, ty) => {
+            if let Type::ImplTrait(impl_trait) = ty.as_ref() {
+                let mut item_type = None;
+                let mut bounds = Vec::new();
+                
+                for bound in &impl_trait.bounds {
+                    match bound {
+                        TypeParamBound::Trait(trait_bound) => {
+                            let path = &trait_bound.path;
+                            
+                            // Check if this is an Iterator trait
+                            if is_iterator_trait(path) {
+                                // Extract the Item type from Iterator<Item = ...>
+                                if let Some(seg) = path.segments.last() {
+                                    if let syn::PathArguments::AngleBracketed(args) = &seg.arguments {
+                                        for arg in &args.args {
+                                            if let syn::GenericArgument::AssocType(binding) = arg {
+                                                if binding.ident == "Item" {
+                                                    item_type = Some(binding.ty.to_token_stream());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // This is another bound like Send, Sync, or lifetime
+                                bounds.push(bound.to_token_stream());
+                            }
+                        }
+                        TypeParamBound::Lifetime(_) => {
+                            bounds.push(bound.to_token_stream());
+                        }
+                        _ => {
+                            // Handle any other bounds (e.g. Verbatim)
+                            bounds.push(bound.to_token_stream());
+                        }
+                    }
+                }
+                
+                if let Some(item) = item_type {
+                    Ok((item, bounds))
+                } else {
+                    Err(Error::new_spanned(return_type, "Expected Iterator<Item = ...> in return type"))
+                }
+            } else {
+                Err(Error::new_spanned(return_type, "Expected impl Iterator<...> return type"))
+            }
         }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $lifetime1 , $lifetime2 : $lifetime3 > (
-            $($params)*
-        ) -> Box<dyn Iterator<Item = $item> + $lifetime4>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
+        _ => Err(Error::new_spanned(return_type, "Expected -> impl Iterator<...> return type")),
+    }
+}
 
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $lifetime1 , $lifetime2 : $lifetime3 > (
-            $($params)*
-        ) -> impl Iterator<Item = $item> + $lifetime4
-        {
-            $($body)*
-        }
-    };
+fn is_iterator_trait(path: &Path) -> bool {
+    path.segments.last()
+        .map(|seg| seg.ident == "Iterator")
+        .unwrap_or(false)
+}
 
-    // Pattern for functions that use lifetimes in parameters but don't declare them explicitly
-    // This handles cases like: pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a
-    // Note: In practice, you still need to declare the lifetime in the function signature
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident (
-            $($params:tt)*
-        ) -> impl Iterator<Item = $item:ty> + $lifetime:lifetime
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name (
-            $($params)*
-        ) -> Box<dyn Iterator<Item = $item> + $lifetime>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
+fn generate_boxed_return_type(item_type: &TokenStream2, bounds: &[TokenStream2]) -> TokenStream2 {
+    if bounds.is_empty() {
+        quote! { -> Box<dyn Iterator<Item = #item_type> + Send + Sync> }
+    } else {
+        quote! { -> Box<dyn Iterator<Item = #item_type> + #(#bounds)+*> }
+    }
+}
 
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name (
-            $($params)*
-        ) -> impl Iterator<Item = $item> + $lifetime
-        {
-            $($body)*
-        }
-    };
+fn generate_boxed_return_type_with_lifetimes(item_type: &TokenStream2, bounds: &[TokenStream2]) -> TokenStream2 {
+    if bounds.is_empty() {
+        quote! { -> Box<dyn Iterator<Item = #item_type>> }
+    } else {
+        quote! { -> Box<dyn Iterator<Item = #item_type> + #(#bounds)+*> }
+    }
 }

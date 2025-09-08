@@ -1,4 +1,4 @@
-use raphtory_api::box_on_debug_lifetime;
+use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;
 use storage::{pages::edge_store::EdgeStorageInner, utils::Iter4, Extension, Layer};
@@ -24,17 +24,16 @@ impl<'a> UnlockedEdges<'a> {
             .map(EdgeStorageEntry::Unlocked)
     }
 
-    box_on_debug_lifetime! {
-        pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-            match layer_ids {
-                LayerIds::None => Iter4::I(std::iter::empty()),
-                LayerIds::All => Iter4::J(self.iter_layer(0)),
-                LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
-                LayerIds::Multiple(multiple) => Iter4::L(
-                    self.iter_layer(0)
-                        .filter(|edge| edge.as_ref().has_layers(multiple)),
-                ),
-            }
+    #[box_on_debug_lifetime]
+    pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
+        match layer_ids {
+            LayerIds::None => Iter4::I(std::iter::empty()),
+            LayerIds::All => Iter4::J(self.iter_layer(0)),
+            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
+            LayerIds::Multiple(multiple) => Iter4::L(
+                self.iter_layer(0)
+                    .filter(|edge| edge.as_ref().has_layers(multiple)),
+            ),
         }
     }
 

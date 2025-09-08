@@ -1958,6 +1958,7 @@ dependencies = [
  "polars-arrow",
  "proptest",
  "raphtory-api",
+ "raphtory-api-macros",
  "raphtory-core",
  "rayon",
  "roaring",
@@ -5176,6 +5177,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory-api-macros"
+version = "0.16.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "raphtory-benchmark"
 version = "0.16.0"
 dependencies = [
@@ -5325,6 +5335,7 @@ dependencies = [
  "polars-arrow",
  "proptest",
  "raphtory-api",
+ "raphtory-api-macros",
  "raphtory-core",
  "rayon",
  "serde",
