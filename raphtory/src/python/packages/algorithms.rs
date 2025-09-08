@@ -247,7 +247,7 @@ pub fn pagerank(
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> NodeState<'static, f64, DynamicGraph> {
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
     unweighted_page_rank(
         &graph.graph,
         Some(iter_count),
@@ -649,7 +649,7 @@ pub fn balance(
 #[pyo3[signature = (graph)]]
 pub fn degree_centrality(
     graph: &PyGraphView,
-) -> TypedNodeState<'static, HashMap<String, Prop>, DynamicGraph> {
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
     degree_centrality_rs(&graph.graph)
 }
 

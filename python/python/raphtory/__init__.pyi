@@ -2947,6 +2947,7 @@ class Nodes(object):
             NodeTypeView: a view of the node types
         """
 
+    def nodestate_from_parquet(self, file_path, id_column=...): ...
     def out_degree(self) -> DegreeView:
         """
         Returns the number of out edges of the nodes.
