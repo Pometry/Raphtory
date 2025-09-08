@@ -59,19 +59,30 @@ pub enum GraphType {
 /// }
 /// ```
 ///
+/// ### Function with explicit lifetime parameter:
+/// ```rust
+/// use raphtory_api::box_on_debug;
+///
+/// box_on_debug! {
+///     pub fn generate_range<'a>(start: i32, count: &'a usize) -> impl Iterator<Item = i32> {
+///         (start..start + (*count as i32))
+///     }
+/// }
+/// ```
+///
 #[macro_export]
 macro_rules! box_on_debug {
-    // Function with parameters (including &self, &mut self, self, and regular parameters)
+    // Function with explicit lifetime parameters - must come first for specificity
     (
         $(#[$attr:meta])*
-        $vis:vis fn $name:ident $(<$($generics:tt)*>)? ($($params:tt)+) -> impl Iterator<Item = $item:ty>
+        $vis:vis fn $name:ident < $($lifetime:lifetime),+ > ($($params:tt)+) -> impl Iterator<Item = $item:ty>
         {
             $($body:tt)*
         }
     ) => {
         #[cfg(debug_assertions)]
         $(#[$attr])*
-        $vis fn $name $(<$($generics)*>)? ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
+        $vis fn $name < $($lifetime),+ > ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
         {
             let iter = { $($body)* };
             Box::new(iter)
@@ -79,7 +90,55 @@ macro_rules! box_on_debug {
 
         #[cfg(not(debug_assertions))]
         $(#[$attr])*
-        $vis fn $name $(<$($generics)*>)? ($($params)+) -> impl Iterator<Item = $item>
+        $vis fn $name < $($lifetime),+ > ($($params)+) -> impl Iterator<Item = $item>
+        {
+            $($body)*
+        }
+    };
+
+    // Function with other generics (type parameters, const generics)
+    (
+        $(#[$attr:meta])*
+        $vis:vis fn $name:ident < $($generics:ident),+ > ($($params:tt)+) -> impl Iterator<Item = $item:ty>
+        {
+            $($body:tt)*
+        }
+    ) => {
+        #[cfg(debug_assertions)]
+        $(#[$attr])*
+        $vis fn $name < $($generics),+ > ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
+        {
+            let iter = { $($body)* };
+            Box::new(iter)
+        }
+
+        #[cfg(not(debug_assertions))]
+        $(#[$attr])*
+        $vis fn $name < $($generics),+ > ($($params)+) -> impl Iterator<Item = $item>
+        {
+            $($body)*
+        }
+    };
+
+    // Function with no generics
+    (
+        $(#[$attr:meta])*
+        $vis:vis fn $name:ident ($($params:tt)+) -> impl Iterator<Item = $item:ty>
+        {
+            $($body:tt)*
+        }
+    ) => {
+        #[cfg(debug_assertions)]
+        $(#[$attr])*
+        $vis fn $name ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
+        {
+            let iter = { $($body)* };
+            Box::new(iter)
+        }
+
+        #[cfg(not(debug_assertions))]
+        $(#[$attr])*
+        $vis fn $name ($($params)+) -> impl Iterator<Item = $item>
         {
             $($body)*
         }
