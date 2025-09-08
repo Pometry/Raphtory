@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756222042303,
+  "lastUpdate": 1757371721083,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -323,6 +323,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1660,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ed.sherrington@pometry.com",
+            "name": "edsherrington",
+            "username": "edsherrington"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f14de7dcd7933e0c851989b04cf180ca96faf3b7",
+          "message": "update Slack invite link (#2252)",
+          "timestamp": "2025-09-08T23:13:08+01:00",
+          "tree_id": "cc9c7060ba34cfea04cb107d6499379b9d075d3e",
+          "url": "https://github.com/Pometry/Raphtory/commit/f14de7dcd7933e0c851989b04cf180ca96faf3b7"
+        },
+        "date": 1757371716743,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1460,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 279,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 215,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1273,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1020,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1538,
             "unit": "req/s"
           }
         ]
