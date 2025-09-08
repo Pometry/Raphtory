@@ -93,6 +93,7 @@ pub trait ParquetEncoder {
 
 pub trait ParquetDecoder: Sized {
     fn decode_parquet_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
+        // Unzip to a temp dir and decode parquet from there
         let reader = std::io::Cursor::new(bytes);
         let mut zip = zip::ZipArchive::new(reader)?;
         let temp_dir = tempfile::tempdir()?;
@@ -101,13 +102,12 @@ pub trait ParquetDecoder: Sized {
             let mut file = zip.by_index(i)?;
             let out_path = temp_dir.path().join(file.enclosed_name().unwrap());
 
-            // Create directories if they don't exist
-            if let Some(path) = out_path.parent() {
-                std::fs::create_dir_all(path)?;
+            if file.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                let mut out_file = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut file, &mut out_file)?;
             }
-
-            let mut out_file = std::fs::File::create(&out_path)?;
-            std::io::copy(&mut file, &mut out_file)?;
         }
 
         Self::decode_parquet(temp_dir.path())
