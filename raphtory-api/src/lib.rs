@@ -60,7 +60,7 @@ pub enum GraphType {
 /// ```
 ///
 /// ### Note on Complex Lifetime Bounds:
-/// 
+///
 /// For functions with complex lifetime bounds like:
 /// ```ignore
 /// fn edge_iter<'a, 'b: 'a>(
@@ -68,7 +68,7 @@ pub enum GraphType {
 ///     layer_ids: &'b LayerIds,
 /// ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a
 /// ```
-/// 
+///
 /// You can manually apply the box_on_debug pattern:
 /// ```ignore
 /// #[cfg(debug_assertions)]
@@ -86,7 +86,7 @@ pub enum GraphType {
 ///     };
 ///     Box::new(iter)
 /// }
-/// 
+///
 /// #[cfg(not(debug_assertions))]
 /// fn edge_iter<'a, 'b: 'a>(
 ///     &'a self,
@@ -196,14 +196,14 @@ macro_rules! box_on_debug {
 ///     }
 /// }
 /// ```
-/// 
+///
 /// ## Usage with your specific functions:
-/// 
+///
 /// For a function like:
 /// ```ignore
-/// pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a
+/// pub fn iter<'a>(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a
 /// ```
-/// 
+///
 /// Use:
 /// ```ignore
 /// box_on_debug_lifetime! {
@@ -212,12 +212,12 @@ macro_rules! box_on_debug {
 ///     }
 /// }
 /// ```
-/// 
+///
 /// For a function like:
 /// ```ignore
 /// fn edge_iter<'a, 'b: 'a>(&'a self, layer_ids: &'b LayerIds) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a
 /// ```
-/// 
+///
 /// Use:
 /// ```ignore
 /// box_on_debug_lifetime! {
@@ -314,6 +314,38 @@ macro_rules! box_on_debug_lifetime {
         $vis fn $name < $lifetime1 , $lifetime2 : $lifetime3 > (
             $($params)*
         ) -> impl Iterator<Item = $item> + $lifetime4
+        {
+            $($body)*
+        }
+    };
+
+    // Pattern for functions that use lifetimes in parameters but don't declare them explicitly
+    // This handles cases like: pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a
+    // Note: In practice, you still need to declare the lifetime in the function signature
+    (
+        $(#[$attr:meta])*
+        $vis:vis fn $name:ident (
+            $($params:tt)*
+        ) -> impl Iterator<Item = $item:ty> + $lifetime:lifetime
+        {
+            $($body:tt)*
+        }
+    ) => {
+        #[cfg(debug_assertions)]
+        $(#[$attr])*
+        $vis fn $name (
+            $($params)*
+        ) -> Box<dyn Iterator<Item = $item> + $lifetime>
+        {
+            let iter = { $($body)* };
+            Box::new(iter)
+        }
+
+        #[cfg(not(debug_assertions))]
+        $(#[$attr])*
+        $vis fn $name (
+            $($params)*
+        ) -> impl Iterator<Item = $item> + $lifetime
         {
             $($body)*
         }

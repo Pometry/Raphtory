@@ -25,17 +25,17 @@ impl<'a> UnlockedEdges<'a> {
     }
 
     box_on_debug_lifetime! {
-    pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-        match layer_ids {
-            LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::All => Iter4::J(self.iter_layer(0)),
-            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
-            LayerIds::Multiple(multiple) => Iter4::L(
-                self.iter_layer(0)
-                    .filter(|edge| edge.as_ref().has_layers(multiple)),
-            ),
+        pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
+            match layer_ids {
+                LayerIds::None => Iter4::I(std::iter::empty()),
+                LayerIds::All => Iter4::J(self.iter_layer(0)),
+                LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
+                LayerIds::Multiple(multiple) => Iter4::L(
+                    self.iter_layer(0)
+                        .filter(|edge| edge.as_ref().has_layers(multiple)),
+                ),
+            }
         }
-    }
     }
 
     pub fn par_iter_layer(
