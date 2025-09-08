@@ -42,20 +42,36 @@ pub enum GraphType {
 /// }
 /// ```
 ///
+/// ### Method with `&self` parameter:
+/// ```rust
+/// use raphtory_api::box_on_debug;
+///
+/// struct Graph {
+///     node_count: usize,
+/// }
+///
+/// impl Graph {
+///     box_on_debug! {
+///         pub fn iter_node_ids(&self) -> impl Iterator<Item = usize> {
+///             0..self.node_count
+///         }
+///     }
+/// }
+/// ```
 ///
 #[macro_export]
 macro_rules! box_on_debug {
-    // Function with at least one parameter and no where clause
+    // Function with parameters (including &self, &mut self, self, and regular parameters)
     (
         $(#[$attr:meta])*
-        $vis:vis fn $name:ident $(<$($generics:tt)*>)? ($($param:ident: $param_ty:ty),+ $(,)?) -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
+        $vis:vis fn $name:ident $(<$($generics:tt)*>)? ($($params:tt)+) -> impl Iterator<Item = $item:ty>
         {
             $($body:tt)*
         }
     ) => {
         #[cfg(debug_assertions)]
         $(#[$attr])*
-        $vis fn $name $(<$($generics)*>)? ($($param: $param_ty),+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
+        $vis fn $name $(<$($generics)*>)? ($($params)+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
         {
             let iter = { $($body)* };
             Box::new(iter)
@@ -63,7 +79,7 @@ macro_rules! box_on_debug {
 
         #[cfg(not(debug_assertions))]
         $(#[$attr])*
-        $vis fn $name $(<$($generics)*>)? ($($param: $param_ty),+) -> impl Iterator<Item = $item> $(+ $($bounds)*)?
+        $vis fn $name $(<$($generics)*>)? ($($params)+) -> impl Iterator<Item = $item>
         {
             $($body)*
         }
