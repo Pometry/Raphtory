@@ -36,12 +36,12 @@ use itertools::Itertools;
 pub mod ext;
 
 /// Trait for encoding a graph to protobuf format
-pub trait ProtoEncoder: StaticGraphViewOps + AdditionOps {
+pub trait ProtoEncoder {
     fn encode_to_proto(&self) -> proto_generated::Graph;
 }
 
 /// Trait for decoding a graph from protobuf format
-pub trait ProtoDecoder: StaticGraphViewOps + AdditionOps + Sized {
+pub trait ProtoDecoder: Sized {
     fn decode_from_proto(graph: &proto_generated::Graph) -> Result<Self, GraphError>;
 }
 

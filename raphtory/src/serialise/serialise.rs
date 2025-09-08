@@ -2,15 +2,19 @@ use super::graph_folder::GraphFolder;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
+    db::api::view::StaticGraphViewOps, db::api::mutation::AdditionOps,
     errors::GraphError,
-    serialise::{
-        proto::{ProtoDecoder, ProtoEncoder},
-        proto::proto_generated,
-    },
+    serialise::proto::{proto_generated, ProtoDecoder, ProtoEncoder}
 };
 use prost::Message;
 
-pub trait StableEncode: ProtoEncoder {
+pub trait StableEncode: StaticGraphViewOps + AdditionOps {
+    fn encode_to_bytes(&self) -> Vec<u8>;
+
+    fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
+}
+
+impl<T: ProtoEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
     fn encode_to_bytes(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
     }
@@ -21,9 +25,13 @@ pub trait StableEncode: ProtoEncoder {
     }
 }
 
-impl<T: ProtoEncoder> StableEncode for T {}
+pub trait StableDecode: StaticGraphViewOps + AdditionOps {
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
 
-pub trait StableDecode: ProtoDecoder {
+    fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
+}
+
+impl<T: ProtoDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         let graph = proto_generated::Graph::decode(bytes)?;
         Self::decode_from_proto(&graph)
@@ -40,8 +48,6 @@ pub trait StableDecode: ProtoDecoder {
         Ok(graph)
     }
 }
-
-impl<T: ProtoDecoder> StableDecode for T {}
 
 pub trait CacheOps: Sized {
     /// Write graph to file and append future updates to the same file.
