@@ -1,16 +1,17 @@
 use crate::{
     db::api::{
-        state::{GenericNodeState, NodeState, TypedNodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::*,
 };
 use rayon::prelude::*;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct CentralityScore {
+    #[serde(rename = "degree_centrality")]
     score: f64,
 }
 
@@ -27,7 +28,7 @@ pub struct CentralityScore {
 /// An [AlgorithmResult] containing the degree centrality of each node.
 pub fn degree_centrality<G: StaticGraphViewOps>(
     g: &G,
-) -> TypedNodeState<'static, HashMap<String, Prop>, G> {
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
     // NodeState<'static, f64, G> {
     let max_degree = match g.nodes().degree().max() {
         None => return GenericNodeState::new_empty(g.clone()).transform(),

@@ -3,6 +3,7 @@ mod node_state;
 mod output_node_state;
 use crate::{add_classes, python::graph::node_state::group_by::PyNodeGroups};
 pub use node_state::*;
+pub use output_node_state::*;
 use pyo3::prelude::*;
 
 pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {
