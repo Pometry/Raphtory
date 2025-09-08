@@ -1,3 +1,4 @@
+use raphtory_api::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;
 use storage::{pages::edge_store::EdgeStorageInner, utils::Iter4, Extension, Layer};
@@ -23,6 +24,7 @@ impl<'a> UnlockedEdges<'a> {
             .map(EdgeStorageEntry::Unlocked)
     }
 
+    box_on_debug_lifetime! {
     pub fn iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
@@ -33,6 +35,7 @@ impl<'a> UnlockedEdges<'a> {
                     .filter(|edge| edge.as_ref().has_layers(multiple)),
             ),
         }
+    }
     }
 
     pub fn par_iter_layer(

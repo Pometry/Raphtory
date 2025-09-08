@@ -9,9 +9,12 @@ use crate::{
     utils::Iter4,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    VID,
-    properties::{meta::Meta, prop::Prop},
+use raphtory_api::{
+    box_on_debug, box_on_debug_lifetime,
+    core::entities::{
+        VID,
+        properties::{meta::Meta, prop::Prop},
+    },
 };
 use raphtory_core::{
     entities::LayerIds,
@@ -363,25 +366,27 @@ impl LockedESegment for ArcLockedSegmentView {
         MemEdgeRef::new(edge_pos, &self.inner)
     }
 
-    fn edge_iter<'a, 'b: 'a>(
-        &'a self,
-        layer_ids: &'b LayerIds,
-    ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
-        match layer_ids {
-            LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
-            LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
-            LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_iter_layer(0)
-                    .filter(|pos| pos.has_layers(multiple)),
-            ),
+    box_on_debug_lifetime! {
+        fn edge_iter<'a, 'b: 'a>(
+            &'a self,
+            layer_ids: &'b LayerIds,
+        ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+            match layer_ids {
+                LayerIds::None => Iter4::I(std::iter::empty()),
+                LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
+                LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
+                LayerIds::Multiple(multiple) => Iter4::L(
+                    self.edge_iter_layer(0)
+                        .filter(|pos| pos.has_layers(multiple)),
+                ),
+            }
         }
     }
 
     fn edge_par_iter<'a, 'b: 'a>(
         &'a self,
         layer_ids: &'b LayerIds,
-    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
             LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),
