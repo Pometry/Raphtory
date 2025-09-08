@@ -1,14 +1,10 @@
-use crate::{
-    core::Prop,
-    prelude::{EdgeViewOps, GraphViewOps, NodeViewOps, PropUnwrap},
-    python::graph::views::graph_view::PyGraphView,
-};
+use crate::{prelude::*, python::graph::views::graph_view::PyGraphView};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyTuple},
     IntoPyObjectExt,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
 #[pymethods]
@@ -173,14 +169,17 @@ impl PyGraphView {
             let properties = PyDict::new(py);
             if include_node_properties.unwrap_or(true) {
                 if include_property_history.unwrap_or(true) {
-                    let const_props = v.properties().constant().as_map();
-                    let const_props_py = PyDict::new(py);
-                    for (key, value) in const_props {
-                        const_props_py.set_item(key, value)?;
+                    let metadata = v.metadata().as_map();
+                    let metadata_py = PyDict::new(py);
+                    for (key, value) in metadata {
+                        metadata_py.set_item(key, value)?;
                     }
-                    properties.set_item("constant", const_props_py)?;
+                    properties.set_item("metadata", metadata_py)?;
                     properties.set_item("temporal", v.properties().temporal().histories())?;
                 } else {
+                    for (key, value) in v.metadata().as_map() {
+                        properties.set_item(key, value)?;
+                    }
                     for (key, value) in v.properties().as_map() {
                         properties.set_item(key, value)?;
                     }
@@ -221,24 +220,24 @@ impl PyGraphView {
             let dst = e.dst().name();
             if include_edge_properties.unwrap_or(true) {
                 if include_property_history.unwrap_or(true) {
-                    let const_props = e.properties().constant().as_map();
-                    let const_props_py = PyDict::new(py);
-                    for (key, value) in const_props {
-                        const_props_py.set_item(key, value)?;
+                    let metadata = e.metadata().as_map();
+                    let metadata_py = PyDict::new(py);
+                    for (key, value) in metadata {
+                        metadata_py.set_item(key, value)?;
                     }
-                    properties.set_item("constant", const_props_py)?;
+                    properties.set_item("metadata", metadata_py)?;
                     let prop_hist = e.properties().temporal().histories();
                     let mut prop_hist_map: HashMap<ArcStr, Vec<(i64, Prop)>> = HashMap::new();
                     for (key, value) in prop_hist {
-                        prop_hist_map
-                            .entry(key)
-                            .or_insert_with(Vec::new)
-                            .push(value);
+                        prop_hist_map.entry(key).or_default().push(value);
                     }
                     let output: Vec<(ArcStr, Vec<(i64, Prop)>)> =
                         prop_hist_map.into_iter().collect();
                     properties.set_item("temporal", output)?;
                 } else {
+                    for (key, value) in e.metadata().as_map() {
+                        properties.set_item(key, value)?;
+                    }
                     for (key, value) in e.properties().as_map() {
                         properties.set_item(key, value)?;
                     }

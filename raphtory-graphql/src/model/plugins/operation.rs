@@ -6,6 +6,8 @@ use async_graphql::{
 use dynamic_graphql::internal::{Register, Registry};
 use futures_util::future::BoxFuture;
 
+use super::query_plugin::QueryPlugin;
+
 pub trait Operation<'a, A: Send + Sync + 'static> {
     type OutputType: Register + 'static;
 
@@ -50,6 +52,27 @@ impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {
 
     fn apply<'b>(
         _entry_point: &MutationPlugin,
+        _ctx: ResolverContext,
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
+    }
+}
+
+pub(crate) struct NoOpQuery;
+
+impl<'a> Operation<'a, QueryPlugin> for NoOpQuery {
+    type OutputType = String;
+
+    fn output_type() -> TypeRef {
+        TypeRef::named_nn(TypeRef::STRING)
+    }
+
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
+        vec![]
+    }
+
+    fn apply<'b>(
+        _entry_point: &QueryPlugin,
         _ctx: ResolverContext,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })

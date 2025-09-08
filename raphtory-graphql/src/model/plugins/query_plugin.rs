@@ -1,30 +1,26 @@
-use crate::model::{
-    algorithms::{global_search::GlobalSearch, RegisterFunction},
-    plugins::{entry_point::EntryPoint, operation::Operation},
-};
+use crate::model::plugins::{entry_point::EntryPoint, operation::Operation};
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
-use raphtory::{db::api::view::MaterializedGraph, vectors::vectorised_graph::VectorisedGraph};
 use std::{
     borrow::Cow,
     collections::HashMap,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard},
 };
+
+use super::{operation::NoOpQuery, RegisterFunction};
 
 pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-#[derive(Clone)]
-pub struct QueryPlugin {
-    pub graphs: Arc<HashMap<String, VectorisedGraph<MaterializedGraph>>>,
-}
+#[derive(Clone, Default)]
+pub struct QueryPlugin;
 
 impl<'a> EntryPoint<'a> for QueryPlugin {
     fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
         HashMap::from([(
-            "globalSearch",
-            Box::new(GlobalSearch::register_operation) as RegisterFunction,
+            "NoOps",
+            Box::new(NoOpQuery::register_operation) as RegisterFunction,
         )])
     }
 

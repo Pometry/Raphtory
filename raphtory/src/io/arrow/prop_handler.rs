@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, LoadError},
-        IntoPropList, PropType,
-    },
+    errors::{GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
     prelude::Prop,
 };
@@ -13,10 +10,14 @@ use polars_arrow::{
         Array, BooleanArray, FixedSizeListArray, ListArray, PrimitiveArray, StaticArray,
         StructArray, Utf8Array, Utf8ViewArray,
     },
+    bitmap::Bitmap,
     datatypes::{ArrowDataType as DataType, TimeUnit},
     offset::Offset,
 };
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::properties::prop::{IntoPropList, PropType},
+    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 
@@ -124,33 +125,21 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
         }
         DataType::List(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i32>>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::FixedSizeList(_, _) => {
             let arr = arr.as_any().downcast_ref::<FixedSizeListArray>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::LargeList(_) => {
             let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
-            arr.iter()
-                .flatten()
-                .map(|elem| arr_as_prop(elem))
-                .into_prop_list()
+            arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
         DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
             let arr = arr
                 .as_any()
                 .downcast_ref::<PrimitiveArray<i64>>()
-                .expect(&format!(
-                    "Expected TimestampMillisecondArray, got {:?}",
-                    arr
-                ));
+                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
             arr.iter()
                 .flatten()
                 .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(*elem).unwrap()))
@@ -160,10 +149,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
             let arr = arr
                 .as_any()
                 .downcast_ref::<PrimitiveArray<i64>>()
-                .expect(&format!(
-                    "Expected TimestampMillisecondArray, got {:?}",
-                    arr
-                ));
+                .unwrap_or_else(|| panic!("Expected TimestampMillisecondArray, got {:?}", arr));
             arr.iter()
                 .flatten()
                 .map(|elem| {
@@ -175,7 +161,7 @@ fn arr_as_prop(arr: Box<dyn Array>) -> Prop {
             let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
             let cols = arr
                 .values()
-                .into_iter()
+                .iter()
                 .map(|arr| lift_property_col(arr.as_ref()))
                 .collect::<Vec<_>>();
 
@@ -269,23 +255,6 @@ impl PropCol for Wrap<Utf8Array<i32>> {
     }
 }
 
-impl PropCol for Wrap<StructArray> {
-    fn get(&self, i: usize) -> Option<Prop> {
-        let fields = self
-            .0
-            .values()
-            .iter()
-            .zip(self.0.fields())
-            .filter_map(|(arr, field)| {
-                let prop = lift_property_col(arr.as_ref()).get(i)?;
-                Some((ArcStr::from(field.name.as_str()), prop))
-            })
-            .collect::<FxHashMap<_, _>>();
-
-        (!fields.is_empty()).then(|| Prop::Map(fields.into()))
-    }
-}
-
 impl<O: Offset> PropCol for Wrap<ListArray<O>> {
     fn get(&self, i: usize) -> Option<Prop> {
         if i >= self.0.len() {
@@ -331,6 +300,50 @@ impl PropCol for DecimalPropCol {
         StaticArray::get(&self.arr, i).map(|v| Prop::Decimal(BigDecimal::new(v.into(), self.scale)))
     }
 }
+
+struct EmptyCol;
+
+impl PropCol for EmptyCol {
+    fn get(&self, _i: usize) -> Option<Prop> {
+        None
+    }
+}
+
+struct MapCol {
+    validity: Option<Bitmap>,
+    values: Vec<(String, Box<dyn PropCol>)>,
+}
+
+impl MapCol {
+    fn new(arr: &dyn Array) -> Self {
+        let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
+        let validity = arr.validity().cloned();
+        let values = arr
+            .fields()
+            .iter()
+            .zip(arr.values())
+            .map(|(field, col)| (field.name.clone(), lift_property_col(col.as_ref())))
+            .collect();
+        Self { validity, values }
+    }
+}
+
+impl PropCol for MapCol {
+    fn get(&self, i: usize) -> Option<Prop> {
+        if self
+            .validity
+            .as_ref()
+            .is_none_or(|validity| validity.get_bit(i))
+        {
+            Some(Prop::map(self.values.iter().filter_map(|(field, col)| {
+                Some((field.as_str(), col.get(i)?))
+            })))
+        } else {
+            None
+        }
+    }
+}
+
 fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => {
@@ -389,10 +402,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
             let arr = arr.as_any().downcast_ref::<ListArray<i64>>().unwrap();
             Box::new(Wrap(arr.clone()))
         }
-        DataType::Struct(_) => {
-            let arr = arr.as_any().downcast_ref::<StructArray>().unwrap();
-            Box::new(Wrap(arr.clone()))
-        }
+        DataType::Struct(_) => Box::new(MapCol::new(arr)),
         DataType::Utf8View => {
             let arr = arr.as_any().downcast_ref::<Utf8ViewArray>().unwrap();
             Box::new(arr.clone())
@@ -482,6 +492,7 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 scale: *scale as i64,
             })
         }
+        DataType::Null => Box::new(EmptyCol),
         unsupported => panic!("Data type not supported: {:?}", unsupported),
     }
 }

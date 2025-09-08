@@ -105,15 +105,14 @@ where
                 .collect();
             new_edges
         })
-        .into_iter()
         .reduce(|acc_edges, item_edges| acc_edges.intersection(&item_edges).cloned().collect());
     // Compute the density with respect to the possible number of edges between those s_k nodes.
     match stable_edges {
         Some(edges) => {
             let poss_edges = (s_k.len() * (s_k.len() - 1)) / 2;
-            return (edges.len() as f64) / (poss_edges as f64);
+            (edges.len() as f64) / (poss_edges as f64)
         }
-        None => return 0f64,
+        None => 0f64,
     }
 }
 

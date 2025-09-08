@@ -112,7 +112,7 @@ pub fn lotr_graph_with_props() -> Graph {
     CsvLoader::new(lotr_properties_file().unwrap())
         .load_into_graph(&g, |char: Character, g: &Graph| {
             if let Some(node) = g.node(char.name) {
-                let _ = node.add_constant_properties(HashMap::from([
+                let _ = node.add_metadata(HashMap::from([
                     ("race", char.race),
                     ("gender", char.gender),
                 ]));

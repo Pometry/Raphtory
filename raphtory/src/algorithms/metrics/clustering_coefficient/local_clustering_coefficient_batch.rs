@@ -83,7 +83,7 @@ mod clustering_coefficient_tests {
         }
 
         test_storage!(&graph, |graph| {
-            let expected = vec![0.3333333333333333, 1.0, 1.0, 0.0, 0.0];
+            let expected = [0.3333333333333333, 1.0, 1.0, 0.0, 0.0];
             let expected: HashMap<String, f64> =
                 (1..=5).map(|v| (v.to_string(), expected[v - 1])).collect();
             let windowed_graph = graph.window(0, 7);

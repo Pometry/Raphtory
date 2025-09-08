@@ -1,10 +1,8 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
-    db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::view::StaticGraphViewOps,
+    errors::GraphError,
     io::arrow::{dataframe::*, df_loaders::*},
+    prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
     serialise::incremental::InternalCache,
 };
@@ -15,6 +13,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     types::{IntoPyDict, PyDict},
 };
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::{collections::HashMap, ops::Deref};
 use tracing::error;
 
@@ -24,7 +23,7 @@ pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option
 
 pub(crate) fn load_nodes_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -33,12 +32,12 @@ pub(crate) fn load_nodes_from_pandas<
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -49,9 +48,9 @@ pub(crate) fn load_nodes_from_pandas<
         df_view,
         time,
         id,
-        &properties,
-        &constant_properties,
-        shared_constant_properties,
+        properties,
+        metadata,
+        shared_metadata,
         node_type,
         node_type_col,
         graph,
@@ -60,7 +59,7 @@ pub(crate) fn load_nodes_from_pandas<
 
 pub(crate) fn load_edges_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -68,14 +67,14 @@ pub(crate) fn load_edges_from_pandas<
     src: &str,
     dst: &str,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     cols_to_check.extend_from_slice(properties);
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
@@ -88,8 +87,8 @@ pub(crate) fn load_edges_from_pandas<
         src,
         dst,
         properties,
-        constant_properties,
-        shared_constant_properties,
+        metadata,
+        shared_metadata,
         layer,
         layer_col,
         graph,
@@ -98,18 +97,18 @@ pub(crate) fn load_edges_from_pandas<
 
 pub(crate) fn load_node_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -120,22 +119,22 @@ pub(crate) fn load_node_props_from_pandas<
         id,
         node_type,
         node_type_col,
-        constant_properties,
-        shared_constant_properties,
+        metadata,
+        shared_metadata,
         graph,
     )
 }
 
 pub(crate) fn load_edge_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
     src: &str,
     dst: &str,
-    constant_properties: &[&str],
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
@@ -143,15 +142,15 @@ pub(crate) fn load_edge_props_from_pandas<
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
     }
-    cols_to_check.extend_from_slice(constant_properties);
+    cols_to_check.extend_from_slice(metadata);
     let df_view = process_pandas_py_df(df, cols_to_check.clone())?;
     df_view.check_cols_exist(&cols_to_check)?;
     load_edges_props_from_df(
         df_view,
         src,
         dst,
-        constant_properties,
-        shared_const_properties,
+        metadata,
+        shared_metadata,
         layer,
         layer_col,
         graph,
@@ -160,7 +159,7 @@ pub(crate) fn load_edge_props_from_pandas<
 
 pub fn load_edge_deletions_from_pandas<
     'py,
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -218,7 +217,7 @@ pub(crate) fn process_pandas_py_df<'a>(
     let rb = table
         .call_method("to_batches", (), Some(&kwargs))?
         .extract::<Vec<Bound<PyAny>>>()?;
-    let names: Vec<String> = if let Some(batch0) = rb.get(0) {
+    let names: Vec<String> = if let Some(batch0) = rb.first() {
         let schema = batch0.getattr("schema")?;
         schema.getattr("names")?.extract::<Vec<String>>()?
     } else {
@@ -232,10 +231,8 @@ pub(crate) fn process_pandas_py_df<'a>(
     let chunks = rb.into_iter().map(move |rb| {
         let chunk = (0..names_len)
             .map(|i| {
-                let array = rb
-                    .call_method1("column", (i,))
-                    .map_err(|e| GraphError::from(e))?;
-                let arr = array_to_rust(&array).map_err(|e| GraphError::from(e))?;
+                let array = rb.call_method1("column", (i,)).map_err(GraphError::from)?;
+                let arr = array_to_rust(&array).map_err(GraphError::from)?;
                 Ok::<Box<dyn Array>, GraphError>(arr)
             })
             .collect::<Result<Vec<_>, GraphError>>()?;

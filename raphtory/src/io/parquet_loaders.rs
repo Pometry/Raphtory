@@ -1,26 +1,16 @@
 use crate::{
-    core::{
-        utils::errors::{GraphError, InvalidPathReason::PathDoesNotExist},
-        Prop,
-    },
-    db::api::{
-        mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-        view::StaticGraphViewOps,
-    },
+    db::api::view::StaticGraphViewOps,
+    errors::InvalidPathReason::PathDoesNotExist,
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::DeletionOps,
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-#[cfg(feature = "storage")]
-use polars_arrow::array::StructArray;
-use polars_arrow::datatypes::{ArrowDataType, ArrowSchema, Field};
+use polars_arrow::datatypes::ArrowSchema;
 use polars_parquet::{
     read,
     read::{read_metadata, FileMetaData, FileReader},
 };
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
 use std::{
     collections::HashMap,
     fs,
@@ -28,8 +18,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::{
+    errors::GraphError,
+    prelude::{AdditionOps, PropertyAdditionOps},
+};
+#[cfg(feature = "storage")]
+use polars_arrow::{
+    array::StructArray,
+    datatypes::{ArrowDataType, Field},
+};
+#[cfg(feature = "storage")]
+use pometry_storage::RAError;
+use raphtory_api::core::entities::properties::prop::Prop;
+
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -38,12 +41,12 @@ pub fn load_nodes_from_parquet<
     node_type: Option<&str>,
     node_type_col: Option<&str>,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
     }
@@ -55,9 +58,9 @@ pub fn load_nodes_from_parquet<
             df_view,
             time,
             id,
-            &properties,
-            &constant_properties,
-            shared_constant_properties,
+            properties,
+            metadata,
+            shared_metadata,
             node_type,
             node_type_col,
             graph,
@@ -69,7 +72,7 @@ pub fn load_nodes_from_parquet<
 }
 
 pub fn load_edges_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
@@ -77,15 +80,15 @@ pub fn load_edges_from_parquet<
     src: &str,
     dst: &str,
     properties: &[&str],
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
 
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
@@ -99,9 +102,9 @@ pub fn load_edges_from_parquet<
             time,
             src,
             dst,
-            &properties,
-            &constant_properties,
-            shared_constant_properties,
+            properties,
+            metadata,
+            shared_metadata,
             layer,
             layer_col,
             graph,
@@ -113,18 +116,18 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
-    constant_properties: &[&str],
-    shared_constant_properties: Option<&HashMap<String, Prop>>,
+    metadata_properties: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(metadata_properties);
 
     if let Some(ref node_type_col) = node_type_col {
         cols_to_check.push(node_type_col.as_ref());
@@ -139,8 +142,8 @@ pub fn load_node_props_from_parquet<
             id,
             node_type,
             node_type_col,
-            &constant_properties,
-            shared_constant_properties,
+            metadata_properties,
+            shared_metadata,
             graph,
         )
         .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -150,14 +153,14 @@ pub fn load_node_props_from_parquet<
 }
 
 pub fn load_edge_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
 >(
     graph: &G,
     parquet_path: &Path,
     src: &str,
     dst: &str,
-    constant_properties: &[&str],
-    shared_const_properties: Option<&HashMap<String, Prop>>,
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
@@ -166,7 +169,7 @@ pub fn load_edge_props_from_parquet<
         cols_to_check.push(layer_col.as_ref());
     }
 
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
@@ -175,8 +178,8 @@ pub fn load_edge_props_from_parquet<
             df_view,
             src,
             dst,
-            &constant_properties,
-            shared_const_properties,
+            metadata,
+            shared_metadata,
             layer,
             layer_col,
             graph,
@@ -188,7 +191,7 @@ pub fn load_edge_props_from_parquet<
 }
 
 pub fn load_edge_deletions_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps + DeletionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -212,30 +215,22 @@ pub fn load_edge_deletions_from_parquet<
     Ok(())
 }
 
-pub fn load_graph_props_from_parquet<
-    G: StaticGraphViewOps + InternalPropertyAdditionOps + InternalAdditionOps,
->(
+pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     parquet_path: &Path,
     time: &str,
     properties: &[&str],
-    constant_properties: &[&str],
+    metadata: &[&str],
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![time];
-    cols_to_check.extend_from_slice(&properties);
-    cols_to_check.extend_from_slice(&constant_properties);
+    cols_to_check.extend_from_slice(properties);
+    cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
         let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_graph_props_from_df(
-            df_view,
-            time,
-            Some(&properties),
-            Some(&constant_properties),
-            graph,
-        )
-        .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
+        load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
     }
 
     Ok(())
@@ -253,13 +248,9 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = chunks.into_iter().map(move |result| {
-        result
-            .map(|r| DFChunk {
-                chunk: r.into_iter().map(|boxed| boxed.clone()).collect_vec(),
-            })
-            .map_err(|e| {
-                GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
-            })
+        result.map(|r| DFChunk { chunk: r.to_vec() }).map_err(|e| {
+            GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
+        })
     });
 
     Ok(DFView {
@@ -312,7 +303,7 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     } else if parquet_path.is_dir() {
         for entry in fs::read_dir(parquet_path)? {
             let path = entry?.path();
-            if path.extension().map_or(false, |ext| ext == "parquet") {
+            if path.extension().is_some_and(|ext| ext == "parquet") {
                 parquet_files.push(path);
             }
         }
@@ -331,11 +322,10 @@ pub fn read_struct_arrays(
     path: &Path,
     col_names: Option<&[&str]>,
 ) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
-    let readers = get_parquet_file_paths(&path)?
+    let readers = get_parquet_file_paths(path)?
         .into_iter()
         .map(|path| {
-            read_parquet_file(path, col_names.as_deref())
-                .map(|(col_names, reader, _)| (col_names, reader))
+            read_parquet_file(path, col_names).map(|(col_names, reader, _)| (col_names, reader))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -373,7 +363,7 @@ mod test {
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
         let df = process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names)).unwrap();
 
-        let expected_names: Vec<String> = vec!["src", "dst", "time", "weight", "marbles"]
+        let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
             .iter()
             .map(|s| s.to_string())
             .collect();

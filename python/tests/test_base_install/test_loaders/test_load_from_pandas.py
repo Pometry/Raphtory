@@ -284,7 +284,7 @@ def test_load_from_pandas_with_types():
             "Person",
             "Person",
         ]
-        assert g.nodes.properties.constant.get("tag").collect() == [
+        assert g.nodes.metadata.get("tag").collect() == [
             "test_tag",
             "test_tag",
             "test_tag",
@@ -300,7 +300,7 @@ def test_load_from_pandas_with_types():
         "id",
         node_type_col="node_type",
         properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
 
@@ -311,7 +311,7 @@ def test_load_from_pandas_with_types():
         "id",
         node_type_col="node_type",
         properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
 
@@ -321,8 +321,8 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         node_type_col="node_type",
-        constant_properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["name"],
+        shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
 
@@ -332,13 +332,13 @@ def test_load_from_pandas_with_types():
         nodes_df,
         "id",
         node_type_col="node_type",
-        constant_properties=["name"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["name"],
+        shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
 
     def assertions2(g):
-        assert dict(zip(g.nodes.id, g.nodes.properties.constant.get("type"))) == {
+        assert dict(zip(g.nodes.id, g.nodes.metadata.get("type"))) == {
             1: "Person 1",
             2: "Person 2",
             3: "Person 3",
@@ -354,7 +354,7 @@ def test_load_from_pandas_with_types():
         "id",
         node_type_col="node_type",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assertions2(g)
 
@@ -365,35 +365,33 @@ def test_load_from_pandas_with_types():
         "time",
         node_type_col="node_type",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assertions2(g)
 
     def assertions3(g):
-        assert g.unique_layers == ["_default", "test_layer"]
+        assert g.unique_layers == ["test_layer"]
         assert set(g.layers(["test_layer"]).edges.src.id) == {1, 2, 3, 4, 5}
-        assert g.edges.properties.constant.get("type").collect() == [
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
-            {"test_layer": "Edge"},
+        assert g.edges.metadata.get("type").collect() == [
+            "Edge",
+            "Edge",
+            "Edge",
+            "Edge",
+            "Edge",
         ]
-        assert g.edges.properties.constant.get("tag").collect() == [
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
-            {"test_layer": "test_tag"},
+        assert g.edges.metadata.get("tag").collect() == [
+            "test_tag",
+            "test_tag",
+            "test_tag",
+            "test_tag",
+            "test_tag",
         ]
-        assert dict(
-            zip(g.edges.id, g.edges.properties.constant.get("marbles_const"))
-        ) == {
-            (1, 2): {"test_layer": "red"},
-            (2, 3): {"test_layer": "blue"},
-            (3, 4): {"test_layer": "green"},
-            (4, 5): {"test_layer": "yellow"},
-            (5, 6): {"test_layer": "purple"},
+        assert dict(zip(g.edges.id, g.edges.metadata.get("marbles_const"))) == {
+            (1, 2): "red",
+            (2, 3): "blue",
+            (3, 4): "green",
+            (4, 5): "yellow",
+            (5, 6): "purple",
         }
 
     g = Graph()
@@ -403,8 +401,8 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         properties=["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
     )
     assertions3(g)
@@ -416,8 +414,8 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         properties=["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer="test_layer",
     )
     assertions3(g)
@@ -449,7 +447,7 @@ def test_load_from_pandas_with_types():
     assertions4(g)
 
     def assertions5(g):
-        assert g.nodes.properties.constant.get("type").collect() == [
+        assert g.nodes.metadata.get("type").collect() == [
             "Person",
             "Person",
             "Person",
@@ -478,7 +476,7 @@ def test_load_from_pandas_with_types():
         time="time",
         id="id",
         properties=["name"],
-        shared_constant_properties={"type": "Person"},
+        shared_metadata={"type": "Person"},
     )
     assertions5(g)
 
@@ -495,12 +493,12 @@ def test_load_from_pandas_with_types():
         time="time",
         id="id",
         properties=["name"],
-        shared_constant_properties={"type": "Person"},
+        shared_metadata={"type": "Person"},
     )
     assertions5(g)
 
     def assertions6(g):
-        assert dict(zip(g.nodes.id, g.nodes.properties.constant.get("type"))) == {
+        assert dict(zip(g.nodes.id, g.nodes.metadata.get("type"))) == {
             1: "Person 1",
             2: "Person 2",
             3: "Person 3",
@@ -528,7 +526,7 @@ def test_load_from_pandas_with_types():
         time="time",
         id="id",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assertions6(g)
 
@@ -539,12 +537,12 @@ def test_load_from_pandas_with_types():
         time="time",
         id="id",
         properties=["name"],
-        constant_properties=["type"],
+        metadata=["type"],
     )
     assertions6(g)
 
     def assertions7(g):
-        assert dict(zip(g.nodes.id, g.nodes.properties.constant.get("type"))) == {
+        assert dict(zip(g.nodes.id, g.nodes.metadata.get("type"))) == {
             1: "Person 1",
             2: "Person 2",
             3: "Person 3",
@@ -552,7 +550,7 @@ def test_load_from_pandas_with_types():
             5: "Person 5",
             6: "Person 6",
         }
-        assert g.nodes.properties.constant.get("tag").collect() == [
+        assert g.nodes.metadata.get("tag").collect() == [
             "test_tag",
             "test_tag",
             "test_tag",
@@ -574,8 +572,8 @@ def test_load_from_pandas_with_types():
     g.load_node_props_from_pandas(
         nodes_df,
         "id",
-        constant_properties=["type"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["type"],
+        shared_metadata={"tag": "test_tag"},
     )
     assertions7(g)
 
@@ -583,16 +581,16 @@ def test_load_from_pandas_with_types():
         assert dict(
             zip(
                 g.layers(["layer 1", "layer 2", "layer 3"]).edges.id,
-                g.layers(
-                    ["layer 1", "layer 2", "layer 3"]
-                ).edges.properties.constant.get("marbles_const"),
+                g.layers(["layer 1", "layer 2", "layer 3"]).edges.metadata.get(
+                    "marbles_const"
+                ),
             )
         ) == {
             (1, 2): {"layer 1": "red"},
             (2, 3): {"layer 2": "blue"},
             (3, 4): {"layer 3": "green"},
         }
-        assert dict(zip(g.edges.id, g.edges.properties.constant.get("tag"))) == {
+        assert dict(zip(g.edges.id, g.edges.metadata.get("tag"))) == {
             (1, 2): {"layer 1": "test_tag"},
             (2, 3): {"layer 2": "test_tag"},
             (3, 4): {"layer 3": "test_tag"},
@@ -604,8 +602,8 @@ def test_load_from_pandas_with_types():
         edges_df,
         "src",
         "dst",
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"tag": "test_tag"},
         layer_col="layers",
     )
     assertions8(g)
@@ -624,8 +622,8 @@ def test_load_from_pandas_with_types():
     g.load_node_props_from_pandas(
         nodes_df,
         "id",
-        constant_properties=["type"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["type"],
+        shared_metadata={"tag": "test_tag"},
     )
     assertions7(g)
 
@@ -633,15 +631,14 @@ def test_load_from_pandas_with_types():
         edges_df,
         "src",
         "dst",
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"tag": "test_tag"},
         layer_col="layers",
     )
     assertions8(g)
 
     def assertions_layers_in_df(g):
         assert set(g.unique_layers) == {
-            "_default",
             "layer 1",
             "layer 2",
             "layer 3",
@@ -663,8 +660,8 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         ["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer_col="layers",
     )
     assertions_layers_in_df(g)
@@ -676,8 +673,8 @@ def test_load_from_pandas_with_types():
         "src",
         "dst",
         ["weight", "marbles"],
-        constant_properties=["marbles_const"],
-        shared_constant_properties={"type": "Edge", "tag": "test_tag"},
+        metadata=["marbles_const"],
+        shared_metadata={"type": "Edge", "tag": "test_tag"},
         layer_col="layers",
     )
     assertions_layers_in_df(g)
@@ -743,7 +740,7 @@ def test_missing_columns():
             src="src",
             dst="dst",
             properties=["not_weight", "marbles"],
-            constant_properties=["bleep_bloop"],
+            metadata=["bleep_bloop"],
         )
         g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
 
@@ -760,7 +757,7 @@ def test_missing_columns():
             src="src",
             dst="dst",
             properties=["not_weight", "marbles"],
-            constant_properties=["bleep_bloop"],
+            metadata=["bleep_bloop"],
         )
         g.load_nodes_from_pandas(df=nodes_df, time="time", id="id", properties=["name"])
 
@@ -811,7 +808,7 @@ def test_missing_columns():
             edges_df,
             src="sauce",
             dst="dist",
-            constant_properties=["wait", "marples"],
+            metadata=["wait", "marples"],
         )
 
     with pytest.raises(
@@ -825,7 +822,7 @@ def test_missing_columns():
             edges_df,
             src="sauce",
             dst="dist",
-            constant_properties=["wait", "marples"],
+            metadata=["wait", "marples"],
         )
 
     with pytest.raises(
@@ -838,7 +835,7 @@ def test_missing_columns():
         g.load_node_props_from_pandas(
             nodes_df,
             id="sauce",
-            constant_properties=["wait", "marples"],
+            metadata=["wait", "marples"],
         )
 
     with pytest.raises(
@@ -851,7 +848,7 @@ def test_missing_columns():
         g.load_node_props_from_pandas(
             nodes_df,
             id="sauce",
-            constant_properties=["wait", "marples"],
+            metadata=["wait", "marples"],
         )
 
 
@@ -1117,12 +1114,12 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = Graph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
     g.load_edge_props_from_pandas(
-        edges_df, "src", "dst", layer="blah", constant_properties=["marbles"]
+        edges_df, "src", "dst", layer="blah", metadata=["marbles"]
     )
     assert g.edges.layer_names.collect() == [
         ["blah"],
@@ -1131,9 +1128,9 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -1153,7 +1150,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1164,7 +1160,7 @@ def test_edge_both_option_failures_pandas():
     g = Graph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
     g.load_edge_props_from_pandas(
-        edges_df, "src", "dst", layer_col="marbles", constant_properties=["marbles"]
+        edges_df, "src", "dst", layer_col="marbles", metadata=["marbles"]
     )
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
@@ -1174,14 +1170,13 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},
@@ -1224,12 +1219,12 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer="blah")
     g.load_edge_props_from_pandas(
-        edges_df, "src", "dst", layer="blah", constant_properties=["marbles"]
+        edges_df, "src", "dst", layer="blah", metadata=["marbles"]
     )
     assert g.edges.layer_names.collect() == [
         ["blah"],
@@ -1238,9 +1233,9 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
     assert dict(
-        zip(g.layer("blah").edges.id, g.layer("blah").edges.properties.get("marbles"))
+        zip(g.layer("blah").edges.id, g.layer("blah").edges.metadata.get("marbles"))
     ) == {
         (1, 2): "red",
         (2, 3): "blue",
@@ -1258,7 +1253,7 @@ def test_edge_both_option_failures_pandas():
         ["blah"],
         ["blah"],
     ]
-    assert g.unique_layers == ["_default", "blah"]
+    assert g.unique_layers == ["blah"]
 
     # CHECK IF JUST LAYER_COL WORKS
     g = PersistentGraph()
@@ -1271,7 +1266,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
@@ -1282,7 +1276,7 @@ def test_edge_both_option_failures_pandas():
     g = PersistentGraph()
     g.load_edges_from_pandas(edges_df, "time", "src", "dst", layer_col="marbles")
     g.load_edge_props_from_pandas(
-        edges_df, "src", "dst", layer_col="marbles", constant_properties=["marbles"]
+        edges_df, "src", "dst", layer_col="marbles", metadata=["marbles"]
     )
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
@@ -1292,14 +1286,13 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",
         "yellow",
         "purple",
     }
-    assert dict(zip(g.edges.id, g.edges.properties.get("marbles"))) == {
+    assert dict(zip(g.edges.id, g.edges.metadata.get("marbles"))) == {
         (1, 2): {"red": "red"},
         (2, 3): {"blue": "blue"},
         (3, 4): {"green": "green"},
@@ -1319,7 +1312,6 @@ def test_edge_both_option_failures_pandas():
         (5, 6): ["purple"],
     }
     assert set(g.unique_layers) == {
-        "_default",
         "red",
         "blue",
         "green",

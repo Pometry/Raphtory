@@ -3,11 +3,14 @@ use crate::{
     db::{
         api::{
             state::node_state_ops::NodeStateOps,
-            view::{internal::NodeList, DynamicGraph, IntoDynBoxed, IntoDynamic},
+            view::{
+                internal::{FilterOps, NodeList},
+                DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{node::NodeView, nodes::Nodes},
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
 use rayon::{iter::Either, prelude::*};
@@ -44,7 +47,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
 
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Option<Self> {
-        if graph.nodes_filtered() {
+        if graph.filtered() {
             if graph.node_list_trusted() {
                 match graph.node_list() {
                     NodeList::All { .. } => None,
@@ -94,6 +97,10 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         self.index.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.index.is_empty()
+    }
+
     #[inline]
     pub fn contains(&self, key: &K) -> bool {
         self.index.contains(key)
@@ -127,7 +134,9 @@ impl<
     > Debug for NodeState<'graph, V, G, GH>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_map().entries(self.iter()).finish()
+        f.debug_map()
+            .entries(self.iter().map(|(node, value)| (node.id(), value)))
+            .finish()
     }
 }
 
@@ -136,6 +145,14 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values.par_iter().eq(other)
+    }
+}
+
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
+    PartialEq<&[RHS]> for NodeState<'graph, V, G, GH>
+{
+    fn eq(&self, other: &&[RHS]) -> bool {
+        self.values.par_iter().eq(*other)
     }
 }
 
@@ -289,7 +306,7 @@ impl<
         GH: GraphViewOps<'graph>,
     > IntoIterator for NodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
+    type Item = (NodeView<'graph, G, GH>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -348,7 +365,12 @@ impl<
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<&'a Self::BaseGraph, &'a Self::Graph>, Self::Value)> + 'a
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a
     where
         'graph: 'a,
     {
@@ -391,6 +413,7 @@ impl<
     ) -> impl ParallelIterator<
         Item = (
             NodeView<
+                'a,
                 &'a <Self as NodeStateOps<'a, 'graph>>::BaseGraph,
                 &'a <Self as NodeStateOps<'a, 'graph>>::Graph,
             >,

@@ -1,19 +1,13 @@
+#[cfg(feature = "search")]
+use crate::search::{fallback_filter_edges, fallback_filter_nodes};
 use crate::{
     core::{
         entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
         storage::timeindex::AsTime,
-        utils::errors::GraphError,
     },
     db::{
         api::{
-            mutation::internal::InternalAdditionOps,
-            properties::{
-                internal::{ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertiesRowView},
-                Properties,
-            },
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-            },
+            properties::{internal::InternalMetadataOps, Metadata, Properties},
             view::{internal::*, *},
         },
         graph::{
@@ -29,28 +23,34 @@ use crate::{
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
             },
         },
     },
+    errors::GraphError,
+    prelude::*,
 };
+use ahash::HashSet;
 use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
-        entities::EID,
+        entities::{properties::meta::PropMapper, EID},
         storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
         Direction,
     },
 };
+use raphtory_core::utils::iter::GenLockedIter;
+use raphtory_storage::{
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
+    mutation::{addition_ops::InternalAdditionOps, MutationError},
+};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    fs::File,
-    path::{Path, PathBuf},
-    sync::{atomic::Ordering, Arc},
-};
-#[cfg(feature = "search")]
-use zip::ZipArchive;
+use std::sync::{atomic::Ordering, Arc};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -76,6 +76,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     fn cache_view(&self) -> CachedView<Self>;
 
+    fn valid(&self) -> ValidGraph<Self>;
+
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
@@ -88,6 +90,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
+
     /// Timestamp of earliest activity in the graph
     fn earliest_time(&self) -> Option<i64>;
 
@@ -123,7 +126,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
 
     /// Get an edge `(src, dst)`.
     fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
@@ -134,26 +137,21 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     ///
     /// A view of the properties of the graph
     fn properties(&self) -> Properties<Self>;
+
+    /// Get a view of the metadat for this graph
+    fn metadata(&self) -> Metadata<'graph, Self>;
 }
 
 #[cfg(feature = "search")]
 pub trait SearchableGraphOps: Sized {
-    fn create_index(&self) -> Result<(), GraphError>;
-
-    fn create_index_in_ram(&self) -> Result<(), GraphError>;
-
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError>;
-
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError>;
-
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError>;
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
 
     fn search_nodes<F: AsNodeFilter>(
         &self,
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError>;
+    ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
     fn search_edges<F: AsEdgeFilter>(
         &self,
@@ -165,13 +163,41 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> for G {
+impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn edges(&self) -> Edges<'graph, Self, Self> {
         let graph = self.clone();
-        let edges = Arc::new(move || {
-            let core_graph = graph.core_graph().lock();
-            core_graph.into_edges_iter(graph.clone()).into_dyn_boxed()
-        });
+        let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
+            match graph.node_list() {
+                NodeList::All { .. } => Arc::new(move || {
+                    let edges = graph.core_graph().owned_edges();
+                    let layer_ids = graph.layer_ids().clone();
+                    let graph = graph.clone();
+                    GenLockedIter::from(
+                        (edges, layer_ids, graph),
+                        move |(edges, layer_ids, graph)| {
+                            let iter = edges.iter(layer_ids);
+                            if graph.filtered() {
+                                iter.filter_map(|e| graph.filter_edge(e).then(|| e.out_ref()))
+                                    .into_dyn_boxed()
+                            } else {
+                                iter.map(|e| e.out_ref()).into_dyn_boxed()
+                            }
+                        },
+                    )
+                    .into_dyn_boxed()
+                }),
+                NodeList::List { elems } => Arc::new(move || {
+                    let cg = graph.core_graph().lock();
+                    let graph = graph.clone();
+                    elems
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |node| {
+                            node_edges(cg.clone(), graph.clone(), node, Direction::OUT)
+                        })
+                        .into_dyn_boxed()
+                }),
+            };
         Edges {
             base_graph: self.clone(),
             graph: self.clone(),
@@ -193,43 +219,48 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
         // preserve all property mappings
         g.node_meta
-            .set_const_prop_meta(self.node_meta().const_prop_meta().deep_clone());
+            .set_metadata_mapper(self.node_meta().metadata_mapper().deep_clone());
         g.node_meta
-            .set_temporal_prop_meta(self.node_meta().temporal_prop_meta().deep_clone());
+            .set_temporal_prop_meta(self.node_meta().temporal_prop_mapper().deep_clone());
         g.edge_meta
-            .set_const_prop_meta(self.edge_meta().const_prop_meta().deep_clone());
+            .set_metadata_mapper(self.edge_meta().metadata_mapper().deep_clone());
         g.edge_meta
-            .set_temporal_prop_meta(self.edge_meta().temporal_prop_meta().deep_clone());
+            .set_temporal_prop_meta(self.edge_meta().temporal_prop_mapper().deep_clone());
 
         let layer_map: Vec<_> = match self.layer_ids() {
             LayerIds::None => {
-                return Ok(self.new_base_graph(g.into()));
+                // no layers to map
+                vec![]
             }
             LayerIds::All => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
                 let layers = storage.edge_meta().layer_meta().get_keys();
-                for id in 1..layers.len() {
-                    let new_id = g.resolve_layer(Some(&layers[id]))?.inner();
+                for id in 0..layers.len() {
+                    let new_id = g
+                        .resolve_layer_inner(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
                     layer_map[id] = new_id;
                 }
                 layer_map
             }
             LayerIds::One(l_id) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                if *l_id > 0 {
-                    let new_id =
-                        g.resolve_layer(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))?;
-                    layer_map[*l_id] = new_id.inner();
-                }
+                let new_id = g
+                    .resolve_layer_inner(Some(&storage.edge_meta().get_layer_name_by_id(*l_id)))
+                    .map_err(MutationError::from)?;
+                layer_map[*l_id] = new_id.inner();
                 layer_map
             }
             LayerIds::Multiple(ids) => {
                 let mut layer_map = vec![0; self.unfiltered_num_layers()];
-                let ids = if ids.0[0] == 0 { &ids.0[1..] } else { &ids.0 };
                 let layers = storage.edge_meta().layer_meta().get_keys();
                 for id in ids {
-                    let new_id = g.resolve_layer(Some(&layers[*id]))?.inner();
-                    layer_map[*id] = new_id;
+                    let new_id = g
+                        .resolve_layer_inner(Some(&layers[id]))
+                        .map_err(MutationError::from)?
+                        .inner();
+                    layer_map[id] = new_id;
                 }
                 layer_map
             }
@@ -251,6 +282,8 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         g.event_counter
             .fetch_max(storage.read_event_id(), Ordering::Relaxed);
 
+        let g = GraphStorage::from(g);
+
         {
             // scope for the write lock
             let mut new_storage = g.write_lock()?;
@@ -268,29 +301,29 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         node_map_shared[node.node.index()].store(index, Ordering::Relaxed);
                         if let Some(node_type) = node.node_type() {
                             let new_type_id = g
-                                .node_meta
+                                .node_meta()
                                 .node_type_meta()
                                 .get_or_create_id(&node_type)
                                 .inner();
                             new_node.node_store_mut().node_type = new_type_id;
                         }
-                        g.logical_to_physical.set(gid.as_ref(), new_id)?;
+                        g.set_node(gid.as_ref(), new_id)?;
 
                         for (t, rows) in node.rows() {
                             let prop_offset = new_node.t_props_log_mut().push(rows)?;
                             new_node.node_store_mut().update_t_prop_time(t, prop_offset);
                         }
 
-                        for c_prop_id in node.const_prop_ids() {
-                            if let Some(prop_value) = node.get_const_prop(c_prop_id) {
+                        for metadata_id in node.metadata_ids() {
+                            if let Some(prop_value) = node.get_metadata(metadata_id) {
                                 new_node
                                     .node_store_mut()
-                                    .add_constant_prop(c_prop_id, prop_value)?;
+                                    .add_metadata(metadata_id, prop_value)?;
                             }
                         }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.edges.par_iter_mut().try_for_each(|mut shard| {
@@ -301,91 +334,93 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
                         edge_store.dst = node_map[edge.edge.dst().index()];
                         edge_store.eid = EID(eid);
                         for edge in edge.explode_layers() {
-                            let old_layer = LayerIds::All.constrain_from_edge(edge.edge);
                             let layer = layer_map[edge.edge.layer().unwrap()];
                             let additions = new_edge.additions_mut(layer);
                             for edge in edge.explode() {
                                 let t = edge.edge.time().unwrap();
                                 additions.insert(t);
                             }
-                            for t_prop in edge.temporal_prop_ids() {
-                                for (t, prop_value) in
-                                    self.temporal_edge_prop_hist(edge.edge, t_prop, &old_layer)
-                                {
-                                    new_edge.layer_mut(layer).add_prop(t, t_prop, prop_value)?;
+                            for t_prop in edge.properties().temporal().values() {
+                                let prop_id = t_prop.id();
+                                for (t, prop_value) in t_prop.iter_indexed() {
+                                    new_edge.layer_mut(layer).add_prop(t, prop_id, prop_value)?;
                                 }
                             }
-                            for c_prop in edge.const_prop_ids() {
-                                if let Some(prop_value) = edge.get_const_prop(c_prop) {
-                                    new_edge
-                                        .layer_mut(layer)
-                                        .add_constant_prop(c_prop, prop_value)?;
-                                }
-                            }
-                            if self.include_deletions() {
-                                let mut deletion_history =
-                                    self.edge_deletion_history(edge.edge, &old_layer).peekable();
-                                if deletion_history.peek().is_some() {
-                                    let edge_deletions = new_edge.deletions_mut(layer_map[layer]);
-                                    for t in deletion_history {
-                                        edge_deletions.insert(t);
-                                    }
+                            for c_prop in edge.metadata_ids() {
+                                if let Some(prop_value) = edge.get_metadata(c_prop) {
+                                    new_edge.layer_mut(layer).add_metadata(c_prop, prop_value)?;
                                 }
                             }
                         }
+
+                        let time_semantics = self.edge_time_semantics();
+                        let edge_entry = self.core_edge(edge.edge.pid());
+                        for (t, layer) in time_semantics.edge_deletion_history(
+                            edge_entry.as_ref(),
+                            self,
+                            self.layer_ids(),
+                        ) {
+                            new_edge.deletions_mut(layer_map[layer]).insert(t);
+                        }
                     }
                 }
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
 
             new_storage.nodes.par_iter_mut().try_for_each(|mut shard| {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            src_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            src_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             src_node.add_edge(
                                 node_map[edge.edge.dst().index()],
                                 Direction::OUT,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
-                        for t in self.edge_history(edge.edge, self.layer_ids()) {
-                            dst_node.update_time(t, EID(eid));
+                        for e in edge.explode() {
+                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            dst_node.update_time(t, EID(eid).with_layer(l));
                         }
                         for ee in edge.explode_layers() {
                             dst_node.add_edge(
                                 node_map[edge.edge.src().index()],
                                 Direction::IN,
-                                ee.edge.layer().unwrap(),
+                                layer_map[ee.edge.layer().unwrap()],
                                 EID(eid),
                             );
                         }
                     }
 
-                    if self.include_deletions() {
-                        for t in self.edge_deletion_history(edge.edge, self.layer_ids()) {
-                            if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()])
-                            {
-                                src_node.update_time(t, edge.edge.pid());
-                            }
-                            if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()])
-                            {
-                                dst_node.update_time(t, edge.edge.pid());
-                            }
+                    let edge_time_semantics = self.edge_time_semantics();
+                    let edge_entry = self.core_edge(edge.edge.pid());
+                    for (t, layer) in edge_time_semantics.edge_deletion_history(
+                        edge_entry.as_ref(),
+                        self,
+                        self.layer_ids(),
+                    ) {
+                        if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
+                            src_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
+                        }
+                        if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
+                            dst_node.update_time(t, EID(eid).with_layer_deletion(layer_map[layer]));
                         }
                     }
                 }
 
-                Ok::<(), GraphError>(())
+                Ok::<(), MutationError>(())
             })?;
         }
 
-        Ok(self.new_base_graph(g.into()))
+        Ok(self.new_base_graph(g))
     }
 
     fn subgraph<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -394,6 +429,10 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     fn cache_view(&self) -> CachedView<G> {
         CachedView::new(self.clone())
+    }
+
+    fn valid(&self) -> ValidGraph<Self> {
+        ValidGraph::new(self.clone())
     }
 
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
@@ -429,131 +468,87 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
 
     #[inline]
     fn earliest_time(&self) -> Option<i64> {
-        self.earliest_time_global()
-    }
-
-    #[inline]
-    fn latest_time(&self) -> Option<i64> {
-        self.latest_time_global()
-    }
-
-    #[inline]
-    fn count_nodes(&self) -> usize {
-        if !self.node_list_trusted() {
-            let node_list = self.node_list();
-            let core_nodes = self.core_nodes();
-            let layer_ids = self.layer_ids();
-            match node_list {
-                NodeList::All { .. } => core_nodes
-                    .as_ref()
-                    .par_iter()
-                    .filter(move |v| self.filter_node(*v, layer_ids))
-                    .count(),
-                NodeList::List { elems } => elems
-                    .par_iter()
-                    .filter(move |&id| self.filter_node(core_nodes.node_entry(id), layer_ids))
-                    .count(),
-            }
-        } else {
-            self.node_list().len()
+        match self.filter_state() {
+            FilterState::Neither => self.earliest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history().next())
+                .min()
+                .into_iter()
+                .chain(
+                    self.nodes()
+                        .earliest_time()
+                        .par_iter_values()
+                        .flatten()
+                        .min(),
+                )
+                .min(),
         }
     }
 
     #[inline]
-    fn count_edges(&self) -> usize {
+    fn latest_time(&self) -> Option<i64> {
         match self.filter_state() {
-            FilterState::Neither => {
-                if matches!(self.layer_ids(), LayerIds::All) {
-                    self.unfiltered_num_edges()
-                } else {
-                    self.core_edges().as_ref().count(self.layer_ids())
-                }
-            }
-            FilterState::Both => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
-                    })
-                    .count()
-            }
-            FilterState::Nodes => {
-                let edges = self.core_edges();
-                let nodes = self.core_nodes();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
-                    })
-                    .count()
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edges = self.core_edges();
-                edges
-                    .as_ref()
-                    .par_iter(self.layer_ids())
-                    .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                    .count()
-            }
+            FilterState::Neither => self.latest_time_global(),
+            _ => self
+                .properties()
+                .temporal()
+                .values()
+                .flat_map(|prop| prop.history_rev().next())
+                .max()
+                .into_iter()
+                .chain(self.nodes().latest_time().par_iter_values().flatten().max())
+                .max(),
+        }
+    }
+
+    #[inline]
+    fn count_nodes(&self) -> usize {
+        (&self).nodes().len()
+    }
+
+    #[inline]
+    fn count_edges(&self) -> usize {
+        if self.filtered() {
+            let edges = self.core_edges();
+            edges
+                .as_ref()
+                .par_iter(self.layer_ids())
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .count()
+        } else {
+            self.unfiltered_num_edges()
         }
     }
 
     fn count_temporal_edges(&self) -> usize {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
-        match self.filter_state() {
-            FilterState::Neither => core_edges
+        let edge_time_semantics = self.edge_time_semantics();
+        if self.filtered() {
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .map(move |edge| self.edge_exploded_count(edge.as_ref(), layer_ids))
-                .sum(),
-            FilterState::Both => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_edge(e.as_ref(), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
-                    })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
-                    .sum()
-            }
-            FilterState::Nodes => {
-                let nodes = self.core_nodes();
-                core_edges
-                    .as_ref()
-                    .par_iter(layer_ids)
-                    .filter(|e| {
-                        self.filter_node(nodes.node_entry(e.src()), self.layer_ids())
-                            && self.filter_node(nodes.node_entry(e.dst()), self.layer_ids())
-                    })
-                    .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
-                    .sum()
-            }
-            FilterState::Edges | FilterState::BothIndependent => core_edges
+                .filter(|e| self.filter_edge(e.as_ref()))
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .sum()
+        } else {
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
-                .filter(|e| self.filter_edge(e.as_ref(), self.layer_ids()))
-                .map(move |e| self.edge_exploded_count(e.as_ref(), layer_ids))
-                .sum(),
+                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .sum()
         }
     }
 
     #[inline]
     fn has_node<T: AsNodeRef>(&self, v: T) -> bool {
         if let Some(node_id) = self.internalise_node(v.as_node_ref()) {
-            if self.nodes_filtered() {
-                let node = self.core_node_entry(node_id);
-                self.filter_node(node.as_ref(), self.layer_ids())
+            if self.filtered() {
+                let node = self.core_node(node_id);
+                self.filter_node(node.as_ref())
             } else {
                 true
             }
@@ -567,12 +562,12 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
-        if self.nodes_filtered() {
-            let core_node = self.core_node_entry(vid);
-            if !self.filter_node(core_node.as_ref(), self.layer_ids()) {
+        if self.filtered() {
+            let core_node = self.core_node(vid);
+            if !self.filter_node(core_node.as_ref()) {
                 return None;
             }
         }
@@ -583,120 +578,280 @@ impl<'graph, G: BoxableGraphView + Sized + Clone + 'graph> GraphViewOps<'graph> 
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
-        let src_node = self.core_node_entry(src);
+        let src_node = self.core_node(src);
+        let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
-            FilterState::Neither => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Both => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+            FilterState::Neither => {}
+            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
+                let edge = self.core_edge(edge_ref.pid());
+                if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
             FilterState::Nodes => {
-                if !self.filter_node(src_node.as_ref(), self.layer_ids()) {
+                if !self.filter_node(src_node.as_ref()) {
                     return None;
                 }
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_node(self.core_node_entry(dst).as_ref(), layer_ids) {
+                let dst_node = self.core_node(dst);
+                if !self.filter_node(dst_node.as_ref()) {
                     return None;
                 }
-                Some(EdgeView::new(self.clone(), edge_ref))
-            }
-            FilterState::Edges | FilterState::BothIndependent => {
-                let edge_ref = src_node.find_edge(dst, layer_ids)?;
-                if !self.filter_edge(self.core_edge(edge_ref.pid()).as_ref(), layer_ids) {
-                    return None;
-                }
-                Some(EdgeView::new(self.clone(), edge_ref))
             }
         }
+        Some(EdgeView::new(self.clone(), edge_ref))
     }
 
     fn properties(&self) -> Properties<Self> {
         Properties::new(self.clone())
     }
+
+    fn metadata(&self) -> Metadata<'graph, Self> {
+        Metadata::new(self.clone())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct IndexSpec {
+    pub(crate) node_metadata: HashSet<usize>,
+    pub(crate) node_properties: HashSet<usize>,
+    pub(crate) edge_metadata: HashSet<usize>,
+    pub(crate) edge_properties: HashSet<usize>,
+}
+
+impl IndexSpec {
+    pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
+        fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
+            requested.difference(existing).copied().collect()
+        }
+
+        let node_metadata = diff_props(&existing.node_metadata, &requested.node_metadata);
+        let node_properties = diff_props(&existing.node_properties, &requested.node_properties);
+        let edge_metadata = diff_props(&existing.edge_metadata, &requested.edge_metadata);
+        let edge_properties = diff_props(&existing.edge_properties, &requested.edge_properties);
+
+        if node_metadata.is_empty()
+            && node_properties.is_empty()
+            && edge_metadata.is_empty()
+            && edge_properties.is_empty()
+        {
+            None
+        } else {
+            Some(IndexSpec {
+                node_metadata,
+                node_properties,
+                edge_metadata,
+                edge_properties,
+            })
+        }
+    }
+
+    pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
+        fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
+            a.union(b).copied().collect()
+        }
+
+        IndexSpec {
+            node_metadata: union_props(&existing.node_metadata, &other.node_metadata),
+            node_properties: union_props(&existing.node_properties, &other.node_properties),
+            edge_metadata: union_props(&existing.edge_metadata, &other.edge_metadata),
+            edge_properties: union_props(&existing.edge_properties, &other.edge_properties),
+        }
+    }
+
+    pub fn props<G: BoxableGraphView + Sized + Clone + 'static>(
+        &self,
+        graph: &G,
+    ) -> ResolvedIndexSpec {
+        let extract_names = |props: &HashSet<usize>, meta: &PropMapper| {
+            let mut names: Vec<String> = props
+                .iter()
+                .map(|prop_id| meta.get_name(*prop_id).to_string())
+                .collect();
+            names.sort();
+            names
+        };
+
+        ResolvedIndexSpec {
+            node_metadata: extract_names(&self.node_metadata, graph.node_meta().metadata_mapper()),
+            node_properties: extract_names(
+                &self.node_properties,
+                graph.node_meta().temporal_prop_mapper(),
+            ),
+            edge_metadata: extract_names(&self.edge_metadata, graph.edge_meta().metadata_mapper()),
+            edge_properties: extract_names(
+                &self.edge_properties,
+                graph.edge_meta().temporal_prop_mapper(),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ResolvedIndexSpec {
+    pub node_metadata: Vec<String>,
+    pub node_properties: Vec<String>,
+    pub edge_metadata: Vec<String>,
+    pub edge_properties: Vec<String>,
+}
+
+impl ResolvedIndexSpec {
+    pub fn to_vec(&self) -> Vec<Vec<String>> {
+        vec![
+            self.node_metadata.clone(),
+            self.node_properties.clone(),
+            self.edge_metadata.clone(),
+            self.edge_properties.clone(),
+        ]
+    }
+}
+
+#[derive(Clone)]
+pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
+    pub graph: G,
+    node_metadata: Option<HashSet<usize>>,
+    node_properties: Option<HashSet<usize>>,
+    edge_metadata: Option<HashSet<usize>>,
+    edge_properties: Option<HashSet<usize>>,
+}
+
+impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
+    pub fn new(graph: G) -> Self {
+        Self {
+            graph,
+            node_metadata: None,
+            node_properties: None,
+            edge_metadata: None,
+            edge_properties: None,
+        }
+    }
+
+    pub fn with_all_node_properties_and_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
+        ));
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_all_node_metadata(mut self) -> Self {
+        self.node_metadata = Some(Self::extract_props(
+            self.graph.node_meta().metadata_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_all_node_properties(mut self) -> Self {
+        self.node_properties = Some(Self::extract_props(
+            self.graph.node_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_node_metadata<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_metadata = Some(Self::extract_named_props(
+            self.graph.node_meta().metadata_mapper(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_node_properties<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.node_properties = Some(Self::extract_named_props(
+            self.graph.node_meta().temporal_prop_mapper(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_all_edge_properties_and_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
+        ));
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_all_edge_metadata(mut self) -> Self {
+        self.edge_metadata = Some(Self::extract_props(
+            self.graph.edge_meta().metadata_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_all_edge_properties(mut self) -> Self {
+        self.edge_properties = Some(Self::extract_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
+        ));
+        self
+    }
+
+    pub fn with_edge_metadata<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_metadata = Some(Self::extract_named_props(
+            self.graph.edge_meta().metadata_mapper(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    pub fn with_edge_properties<S: AsRef<str>>(
+        mut self,
+        props: impl IntoIterator<Item = S>,
+    ) -> Result<Self, GraphError> {
+        self.edge_properties = Some(Self::extract_named_props(
+            self.graph.edge_meta().temporal_prop_mapper(),
+            props,
+        )?);
+        Ok(self)
+    }
+
+    fn extract_props(meta: &PropMapper) -> HashSet<usize> {
+        (0..meta.len()).collect()
+    }
+
+    fn extract_named_props<S: AsRef<str>>(
+        meta: &PropMapper,
+        keys: impl IntoIterator<Item = S>,
+    ) -> Result<HashSet<usize>, GraphError> {
+        keys.into_iter()
+            .map(|k| {
+                let s = k.as_ref();
+                let id = meta
+                    .get_id(s)
+                    .ok_or_else(|| GraphError::PropertyMissingError(s.to_string()))?;
+                Ok(id)
+            })
+            .collect()
+    }
+
+    pub fn build(self) -> IndexSpec {
+        IndexSpec {
+            node_metadata: self.node_metadata.unwrap_or_default(),
+            node_properties: self.node_properties.unwrap_or_default(),
+            edge_metadata: self.edge_metadata.unwrap_or_default(),
+            edge_properties: self.edge_properties.unwrap_or_default(),
+        }
+    }
 }
 
 #[cfg(feature = "search")]
-impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
-    fn create_index(&self) -> Result<(), GraphError> {
+impl<G: StaticGraphViewOps> SearchableGraphOps for G {
+    fn get_index_spec(&self) -> Result<IndexSpec, GraphError> {
         self.get_storage()
             .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index(None)?;
-                Ok(())
-            })
-    }
-
-    fn create_index_in_ram(&self) -> Result<(), GraphError> {
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.get_or_create_index_in_ram()?;
-                Ok(())
-            })
-    }
-
-    fn load_index(&self, path: &PathBuf) -> Result<(), GraphError> {
-        fn has_index<P: AsRef<Path>>(zip_path: P) -> Result<bool, GraphError> {
-            let file = File::open(&zip_path)?;
-            let mut archive = ZipArchive::new(file)?;
-
-            for i in 0..archive.len() {
-                let entry = archive.by_index(i)?;
-                let entry_path = Path::new(entry.name());
-
-                if let Some(first_component) = entry_path.components().next() {
-                    if first_component.as_os_str() == "index" {
-                        return Ok(true);
-                    }
-                }
-            }
-
-            Ok(false)
-        }
-
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                if path.is_file() {
-                    if has_index(path)? {
-                        storage.get_or_create_index(Some(path.clone()))?;
-                    } else {
-                        return Ok(()); // Skip if no index in zip
-                    }
-                } else {
-                    let index_path = path.join("index");
-                    if index_path.exists() && index_path.read_dir()?.next().is_some() {
-                        storage.get_or_create_index(Some(index_path.clone()))?;
-                    }
-                }
-
-                Ok(())
-            })
-    }
-
-    fn persist_index_to_disk(&self, path: &PathBuf) -> Result<(), GraphError> {
-        let path = path.join("index");
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk(&path)?;
-                Ok(())
-            })
-    }
-
-    fn persist_index_to_disk_zip(&self, path: &PathBuf) -> Result<(), GraphError> {
-        self.get_storage()
-            .map_or(Err(GraphError::IndexingNotSupported), |storage| {
-                storage.persist_index_to_disk_zip(&path)?;
-                Ok(())
+                storage.get_index_spec()
             })
     }
 
@@ -705,12 +860,15 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         filter: F,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<NodeView<Self>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_nodes(self, filter, limit, offset)
+    ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_nodes(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
     }
 
     fn search_edges<F: AsEdgeFilter>(
@@ -719,22 +877,24 @@ impl<G: BoxableGraphView + Sized + Clone + 'static> SearchableGraphOps for G {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<EdgeView<Self>>, GraphError> {
-        let index = self
-            .get_storage()
-            .and_then(|s| s.get_index())
-            .ok_or(GraphError::IndexNotCreated)?;
-        index.searcher().search_edges(self, filter, limit, offset)
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
     }
 
     fn is_indexed(&self) -> bool {
-        self.get_storage()
-            .map_or(false, |s| s.get_index().is_some())
+        self.get_storage().map_or(false, |s| s.is_indexed())
     }
 }
 
-pub trait StaticGraphViewOps: for<'graph> GraphViewOps<'graph> + 'static {}
+pub trait StaticGraphViewOps: GraphView + 'static {}
 
-impl<G: for<'graph> GraphViewOps<'graph> + 'static> StaticGraphViewOps for G {}
+impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
 impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
     type BaseGraph = G;
@@ -1278,13 +1438,14 @@ mod test_exploded_edges {
 #[cfg(test)]
 mod test_materialize {
     use crate::{
-        db::{api::view::internal::CoreGraphOps, graph::graph::assert_graph_equal},
+        db::graph::graph::assert_graph_equal,
         prelude::*,
         test_storage,
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };
     use proptest::{arbitrary::any, proptest};
     use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_storage::core_ops::CoreGraphOps;
     use std::ops::Range;
 
     #[test]
@@ -1329,8 +1490,7 @@ mod test_materialize {
     fn test_graph_properties() {
         let g = Graph::new();
         g.add_properties(1, [("test", "test")]).unwrap();
-        g.add_constant_properties([("test_constant", "test2")])
-            .unwrap();
+        g.add_metadata([("test_metadata", "test2")]).unwrap();
 
         test_storage!(&g, |g| {
             let gm = g.materialize().unwrap();

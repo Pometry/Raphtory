@@ -1,16 +1,13 @@
 use crate::{
-    core::utils::errors::{GraphError, LoadError},
-    db::api::mutation::internal::InternalAdditionOps,
+    errors::{into_graph_err, GraphError, LoadError},
     io::arrow::dataframe::DFChunk,
+    prelude::AdditionOps,
+};
+use iter_enum::{
+    DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
 use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
-use rayon::{
-    iter::{
-        plumbing::{Consumer, ProducerCallback, UnindexedConsumer},
-        IndexedParallelIterator, IntoParallelIterator, ParallelIterator,
-    },
-    prelude::*,
-};
+use rayon::prelude::*;
 
 #[derive(Copy, Clone)]
 pub(crate) enum LayerCol<'a> {
@@ -20,65 +17,14 @@ pub(crate) enum LayerCol<'a> {
     Utf8View { col: &'a Utf8ViewArray },
 }
 
+#[derive(
+    Iterator, DoubleEndedIterator, ExactSizeIterator, ParallelIterator, IndexedParallelIterator,
+)]
 pub enum LayerColVariants<Name, Utf8, LargeUtf8, Utf8View> {
     Name(Name),
     Utf8(Utf8),
     LargeUtf8(LargeUtf8),
     Utf8View(Utf8View),
-}
-
-macro_rules! for_all {
-    ($value:expr, $pattern:pat => $result:expr) => {
-        match $value {
-            LayerColVariants::Name($pattern) => $result,
-            LayerColVariants::Utf8($pattern) => $result,
-            LayerColVariants::LargeUtf8($pattern) => $result,
-            LayerColVariants::Utf8View($pattern) => $result,
-        }
-    };
-}
-
-impl<
-        V: Send,
-        Name: ParallelIterator<Item = V>,
-        Utf8: ParallelIterator<Item = V>,
-        LargeUtf8: ParallelIterator<Item = V>,
-        Utf8View: ParallelIterator<Item = V>,
-    > ParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
-{
-    type Item = V;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: UnindexedConsumer<Self::Item>,
-    {
-        for_all!(self, iter => iter.drive_unindexed(consumer))
-    }
-
-    fn opt_len(&self) -> Option<usize> {
-        for_all!(self, iter => iter.opt_len())
-    }
-}
-
-impl<
-        V: Send,
-        Name: IndexedParallelIterator<Item = V>,
-        Utf8: IndexedParallelIterator<Item = V>,
-        LargeUtf8: IndexedParallelIterator<Item = V>,
-        Utf8View: IndexedParallelIterator<Item = V>,
-    > IndexedParallelIterator for LayerColVariants<Name, Utf8, LargeUtf8, Utf8View>
-{
-    fn len(&self) -> usize {
-        for_all!(self, iter => iter.len())
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        for_all!(self, iter => iter.drive(consumer))
-    }
-
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
-        for_all!(self, iter => iter.with_producer(callback))
-    }
 }
 
 impl<'a> LayerCol<'a> {
@@ -102,11 +48,11 @@ impl<'a> LayerCol<'a> {
 
     pub fn resolve(
         self,
-        graph: &(impl InternalAdditionOps + Send + Sync),
+        graph: &(impl AdditionOps + Send + Sync),
     ) -> Result<Vec<usize>, GraphError> {
         match self {
             LayerCol::Name { name, len } => {
-                let layer = graph.resolve_layer(name)?.inner();
+                let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
                 Ok(vec![layer; len])
             }
             col => {
@@ -114,7 +60,7 @@ impl<'a> LayerCol<'a> {
                 let mut res = vec![0usize; iter.len()];
                 iter.zip(res.par_iter_mut())
                     .try_for_each(|(layer, entry)| {
-                        let layer = graph.resolve_layer(layer)?.inner();
+                        let layer = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
                         *entry = layer;
                         Ok::<(), GraphError>(())
                     })?;

@@ -1,7 +1,7 @@
 use super::{Prop, DST_COL, LAYER_COL, NODE_ID, SRC_COL, TIME_COL, TYPE_COL};
 use crate::{
     db::{
-        api::{storage::graph::storage_ops::GraphStorage, view::StaticGraphViewOps},
+        api::view::StaticGraphViewOps,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -11,6 +11,7 @@ use raphtory_api::core::{
     entities::GidType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
     Serialize,
@@ -121,7 +122,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
         state.serialize_entry(DST_COL, &ParquetGID(edge.dst().id()))?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
-        for (name, prop) in edge.properties().constant().iter() {
+        for (name, prop) in edge.metadata().iter_filtered() {
             state.serialize_entry(&name, &ParquetProp(&prop))?;
         }
 
@@ -153,7 +154,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
 }
 
 pub(crate) struct ParquetTNode<'a> {
-    pub node: NodeView<&'a GraphStorage>,
+    pub node: NodeView<'a, &'a GraphStorage>,
     pub cols: &'a [ArcStr],
     pub t: TimeIndexEntry,
     pub props: Vec<(usize, Prop)>,
@@ -171,7 +172,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
         for (name, prop) in self.props.iter() {
-            state.serialize_entry(&self.cols[*name], &ParquetProp(&prop))?;
+            state.serialize_entry(&self.cols[*name], &ParquetProp(prop))?;
         }
 
         state.end()
@@ -179,7 +180,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
 }
 
 pub(crate) struct ParquetCNode<'a> {
-    pub node: NodeView<&'a GraphStorage>,
+    pub node: NodeView<'a, &'a GraphStorage>,
 }
 
 impl<'a> Serialize for ParquetCNode<'a> {
@@ -192,7 +193,7 @@ impl<'a> Serialize for ParquetCNode<'a> {
         state.serialize_entry(NODE_ID, &ParquetGID(self.node.id()))?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
 
-        for (name, prop) in self.node.properties().constant().iter() {
+        for (name, prop) in self.node.metadata().iter_filtered() {
             state.serialize_entry(&name, &ParquetProp(&prop))?;
         }
 

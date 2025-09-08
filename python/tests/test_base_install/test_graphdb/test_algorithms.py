@@ -52,10 +52,10 @@ def test_local_clustering_coefficient():
 
 def test_connected_components():
     g = gen_graph()
-    actual = algorithms.weakly_connected_components(g, 20)
-    expected = {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0}
+    actual = algorithms.weakly_connected_components(g)
+    c = actual[1]
+    expected = {1: c, 2: c, 3: c, 4: c, 5: c, 6: c, 7: c, 8: c}
     assert actual == expected
-    assert actual["1"] == 0
 
 
 def test_largest_connected_component():
@@ -138,7 +138,7 @@ def test_out_component():
 
 def test_empty_algo():
     g = Graph()
-    assert algorithms.weakly_connected_components(g, 20) == {}
+    assert algorithms.weakly_connected_components(g) == {}
     assert algorithms.pagerank(g, 20) == {}
 
 
@@ -150,7 +150,7 @@ def test_algo_result_windowed_graph():
     g.add_edge(3, 5, 6, {})
     g.add_edge(10, 10, 11, {})
 
-    res_full_graph = algorithms.weakly_connected_components(g, 20)
+    res_full_graph = algorithms.weakly_connected_components(g)
     c1 = res_full_graph[1]
     c3 = res_full_graph[3]
     c5 = res_full_graph[5]
@@ -169,11 +169,11 @@ def test_algo_result_windowed_graph():
     assert res_full_graph == expected_full_graph
 
     g_window = g.window(0, 2)
-    res_window = algorithms.weakly_connected_components(g_window, 20)
+    res_window = algorithms.weakly_connected_components(g_window)
     assert res_window == {1: res_window[1], 2: res_window[1]}
 
     g_window = g.window(2, 3)
-    res_window = algorithms.weakly_connected_components(g_window, 20)
+    res_window = algorithms.weakly_connected_components(g_window)
     assert res_window == {3: res_window[3], 4: res_window[3]}
 
 
@@ -188,13 +188,9 @@ def test_algo_result_layered_graph():
     g_layer_zero_two = g.layer("ZERO-TWO")
     g_layer_three_five = g.layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two)
     c1 = res_zero_two[1]
     c2 = res_zero_two[4]
-    c3 = res_zero_two[6]
-    c4 = res_zero_two[7]
-    c5 = res_zero_two[8]
-    c6 = res_zero_two[9]
 
     assert res_zero_two == {
         1: c1,
@@ -202,26 +198,12 @@ def test_algo_result_layered_graph():
         3: c1,
         4: c2,
         5: c2,
-        6: c3,
-        7: c4,
-        8: c5,
-        9: c6,
     }
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
-    c1 = res_three_five[1]
-    c2 = res_three_five[2]
-    c3 = res_three_five[3]
-    c4 = res_three_five[4]
-    c5 = res_three_five[5]
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five)
     c6 = res_three_five[6]
     c7 = res_three_five[8]
     assert res_three_five == {
-        1: c1,
-        2: c2,
-        3: c3,
-        4: c4,
-        5: c5,
         6: c6,
         7: c6,
         8: c7,
@@ -240,11 +222,11 @@ def test_algo_result_window_and_layered_graph():
     g_layer_zero_two = g.window(0, 1).layer("ZERO-TWO")
     g_layer_three_five = g.window(4, 5).layer("THREE-FIVE")
 
-    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two, 20)
+    res_zero_two = algorithms.weakly_connected_components(g_layer_zero_two)
     c = res_zero_two[1]
     assert res_zero_two == {1: c, 2: c}
 
-    res_three_five = algorithms.weakly_connected_components(g_layer_three_five, 20)
+    res_three_five = algorithms.weakly_connected_components(g_layer_three_five)
     c = res_three_five[8]
     assert res_three_five == {8: c, 9: c}
 
@@ -252,7 +234,7 @@ def test_algo_result_window_and_layered_graph():
 def test_algo_result():
     g = gen_graph()
 
-    actual = algorithms.weakly_connected_components(g, 20)
+    actual = algorithms.weakly_connected_components(g)
     c = actual[1]
     expected = {"1": c, "2": c, "3": c, "4": c, "5": c, "6": c, "7": c, "8": c}
     assert actual == expected
@@ -548,6 +530,46 @@ def test_label_propagation_algorithm():
         assert group in result
 
 
+def test_k_core():
+    graph = Graph()
+
+    edges = [
+        (1, 2, 1),
+        (1, 3, 2),
+        (1, 4, 3),
+        (3, 1, 4),
+        (3, 4, 5),
+        (3, 5, 6),
+        (4, 5, 7),
+        (5, 6, 8),
+        (5, 8, 9),
+        (7, 5, 10),
+        (8, 5, 11),
+        (1, 9, 12),
+        (9, 1, 13),
+        (6, 3, 14),
+        (4, 8, 15),
+        (8, 3, 16),
+        (5, 10, 17),
+        (10, 5, 18),
+        (10, 8, 19),
+        (1, 11, 20),
+        (11, 1, 21),
+        (9, 11, 22),
+        (11, 9, 23),
+    ]
+
+    for src, dst, ts in edges:
+        graph.add_edge(ts, src, dst)
+
+    result = algorithms.k_core(graph, 2, 100)
+    result = sorted([node.id for node in result])
+    result = [str(n_id) for n_id in result]
+    actual = ["1", "3", "4", "5", "6", "8", "9", "10", "11"]
+
+    assert result == actual
+
+
 def test_temporal_SEIR():
     g = Graph()
     g.add_edge(1, 1, 2)
@@ -606,9 +628,14 @@ def test_nodestate_merge_test():
 
     print()
     print(
-        len(r2.merge(
-            r1, "left", "left", {"pagerank_score": "left", "degree_centrality": "right"}
-        ))
+        len(
+            r2.merge(
+                r1,
+                "left",
+                "left",
+                {"pagerank_score": "left", "degree_centrality": "right"},
+            )
+        )
     )
     print(f"finished right merge in: {time.time() - now}")
     now = time.time()
@@ -661,150 +688,151 @@ def test_fast_rp():
 
     result = algorithms.fast_rp(g, 16, 1.0, [1.0, 1.0], 42)
     baseline = {
-        "7": [
+        5: [
             0.0,
-            3.3635856610148585,
+            1.9620916355920008,
             -1.6817928305074292,
             -1.6817928305074292,
+            0.2802988050845715,
+            -0.2802988050845715,
+            0.2802988050845715,
+            1.4014940254228576,
+            -0.2802988050845715,
+            0.0,
+            0.0,
+            -1.6817928305074292,
+            0.2802988050845715,
+            0.2802988050845715,
+            -0.2802988050845715,
+            1.121195220338286,
+        ],
+        1: [
+            1.6817928305074292,
+            0.4204482076268573,
+            -0.4204482076268573,
+            0.0,
+            0.0,
+            2.1022410381342866,
+            0.4204482076268573,
+            0.4204482076268573,
+            2.1022410381342866,
+            -0.8408964152537146,
+            0.0,
+            1.6817928305074292,
+            0.0,
+            -1.6817928305074292,
+            0.0,
+            -0.8408964152537146,
+        ],
+        4: [
+            -1.4014940254228576,
+            0.560597610169143,
+            1.121195220338286,
+            -0.2802988050845715,
+            0.2802988050845715,
+            -0.2802988050845715,
+            0.2802988050845715,
+            0.0,
+            -1.6817928305074292,
+            0.0,
+            0.0,
+            -0.2802988050845715,
+            0.2802988050845715,
+            0.2802988050845715,
+            -0.2802988050845715,
+            -1.6817928305074292,
+        ],
+        6: [
+            -0.21022410381342865,
+            0.6306723114402859,
+            -1.6817928305074292,
+            -1.4715687266940005,
             1.6817928305074292,
             -1.6817928305074292,
+            0.0,
+            -1.4715687266940005,
+            -0.21022410381342865,
+            0.0,
+            0.0,
+            -0.4204482076268573,
+            1.6817928305074292,
+            0.21022410381342865,
+            -0.21022410381342865,
+            -0.21022410381342865,
+        ],
+        7: [
+            1.4014940254228576,
+            1.9620916355920008,
+            -0.2802988050845715,
+            1.121195220338286,
+            0.2802988050845715,
+            -0.2802988050845715,
             1.6817928305074292,
             0.0,
-            -1.6817928305074292,
+            -0.2802988050845715,
             0.0,
             0.0,
-            -1.6817928305074292,
-            1.6817928305074292,
+            -0.2802988050845715,
+            0.2802988050845715,
             1.6817928305074292,
             -1.6817928305074292,
             -1.6817928305074292,
         ],
-        "6": [
-            -1.6817928305074292,
-            5.045378491522287,
-            -1.6817928305074292,
-            0.0,
+        2: [
+            0.4204482076268573,
             1.6817928305074292,
             -1.6817928305074292,
             0.0,
             0.0,
-            -1.6817928305074292,
-            0.0,
-            0.0,
-            -3.3635856610148585,
+            0.8408964152537146,
             1.6817928305074292,
             1.6817928305074292,
-            -1.6817928305074292,
-            -1.6817928305074292,
+            2.1022410381342866,
+            -2.1022410381342866,
+            0.0,
+            0.4204482076268573,
+            0.0,
+            -0.4204482076268573,
+            0.0,
+            -2.1022410381342866,
         ],
-        "5": [
-            0.0,
-            3.3635856610148585,
-            -1.6817928305074292,
+        8: [
             -1.6817928305074292,
             1.6817928305074292,
+            -0.8408964152537146,
+            0.8408964152537146,
+            0.8408964152537146,
+            -0.8408964152537146,
             -1.6817928305074292,
-            1.6817928305074292,
-            0.0,
-            -1.6817928305074292,
-            0.0,
-            0.0,
-            -1.6817928305074292,
-            1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            -1.6817928305074292,
-        ],
-        "2": [
-            1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            0.0,
-            0.0,
-            3.3635856610148585,
-            1.6817928305074292,
-            1.6817928305074292,
-            3.3635856610148585,
-            -3.3635856610148585,
-            0.0,
-            1.6817928305074292,
-            0.0,
-            -1.6817928305074292,
-            0.0,
-            -3.3635856610148585,
-        ],
-        "8": [
-            -1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            0.0,
-            1.6817928305074292,
-            -1.6817928305074292,
-            -1.6817928305074292,
-            -1.6817928305074292,
+            -0.8408964152537146,
             0.0,
             0.0,
             0.0,
             -1.6817928305074292,
-            1.6817928305074292,
+            0.8408964152537146,
             0.0,
             0.0,
             0.0,
         ],
-        "3": [
-            1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
+        3: [
+            0.4204482076268573,
+            0.4204482076268573,
+            -0.4204482076268573,
             0.0,
             0.0,
-            3.3635856610148585,
-            1.6817928305074292,
-            1.6817928305074292,
-            3.3635856610148585,
-            -3.3635856610148585,
+            2.1022410381342866,
+            0.4204482076268573,
+            0.4204482076268573,
+            0.8408964152537146,
+            -2.1022410381342866,
             0.0,
-            1.6817928305074292,
+            0.4204482076268573,
             0.0,
-            -1.6817928305074292,
+            -0.4204482076268573,
             0.0,
-            -3.3635856610148585,
-        ],
-        "1": [
-            1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            0.0,
-            0.0,
-            3.3635856610148585,
-            1.6817928305074292,
-            1.6817928305074292,
-            3.3635856610148585,
-            -3.3635856610148585,
-            0.0,
-            1.6817928305074292,
-            0.0,
-            -1.6817928305074292,
-            0.0,
-            -3.3635856610148585,
-        ],
-        "4": [
-            0.0,
-            3.3635856610148585,
-            -1.6817928305074292,
-            -1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            1.6817928305074292,
-            0.0,
-            -1.6817928305074292,
-            0.0,
-            0.0,
-            -1.6817928305074292,
-            1.6817928305074292,
-            1.6817928305074292,
-            -1.6817928305074292,
-            -1.6817928305074292,
+            -2.1022410381342866,
         ],
     }
 
+    result = {n.id: v for n, v in result.items()}
     assert result == baseline

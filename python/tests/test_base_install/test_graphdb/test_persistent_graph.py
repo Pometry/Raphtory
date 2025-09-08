@@ -1,4 +1,4 @@
-from raphtory import PersistentGraph, Graph
+from raphtory import PersistentGraph, Graph, filter
 
 
 def test_basics():
@@ -60,7 +60,7 @@ def test_same_time_op():
     exploded_2 = G2.edges.explode()
     assert list(zip(exploded_1.earliest_time, exploded_1.latest_time)) == [(1, 1)]
     assert list(zip(exploded_2.earliest_time, exploded_2.latest_time)) == [
-        (1, 9223372036854775807),
+        (1, 1),
     ]
     # added then deleted means edge does not exist at 1
     assert G1.at(1).count_temporal_edges() == 0
@@ -88,10 +88,12 @@ def test_at_boundaries():
     assert G.at(4).count_nodes() == 2
     assert G.at(4).count_edges() == 1
 
-    assert G.at(5).count_nodes() == 2
+    assert (
+        G.at(5).count_nodes() == 0
+    )  # nodes are deleted as they were only brought in by the edge
     assert G.at(5).count_edges() == 0
 
-    assert G.at(6).count_nodes() == 2
+    assert G.at(6).count_nodes() == 0
     assert G.at(6).count_edges() == 0
 
 
@@ -140,13 +142,13 @@ def test_after_boundaries():
     assert G.after(3).count_nodes() == 2
     assert G.after(3).count_edges() == 1
 
-    assert G.after(4).count_nodes() == 2
+    assert G.after(4).count_nodes() == 0
     assert G.after(4).count_edges() == 0
 
-    assert G.after(5).count_nodes() == 2
+    assert G.after(5).count_nodes() == 0
     assert G.after(5).count_edges() == 0
 
-    assert G.after(6).count_nodes() == 2
+    assert G.after(6).count_nodes() == 0
     assert G.after(6).count_edges() == 0
 
 
@@ -164,13 +166,13 @@ def test_window_boundaries():
     assert G.window(3, 4).count_nodes() == 2
     assert G.window(3, 4).count_edges() == 1
 
-    assert G.window(5, 8).count_nodes() == 2
+    assert G.window(5, 8).count_nodes() == 0
     assert G.window(5, 8).count_edges() == 0
 
     assert G.window(1, 8).count_nodes() == 2
     assert G.window(1, 8).count_edges() == 1
 
-    assert G.window(6, 10).count_nodes() == 2
+    assert G.window(6, 10).count_nodes() == 0
     assert G.window(6, 10).count_edges() == 0
 
 
@@ -193,6 +195,93 @@ def test_graph_type_swap():
     assert eg.persistent_graph().count_edges() == 3
     assert eg.persistent_graph().at(15).count_edges() == 2
     assert eg.event_graph().at(2).count_edges() == 1
+
+
+def test_basic_valid():
+    g = PersistentGraph()
+    g.add_edge(1, 1, 2)
+    g.add_edge(2, 1, 3)
+    g.delete_edge(10, 1, 3)
+
+    g.add_edge(30, 1, 4)
+
+    assert g.count_edges() == 3
+    assert g.valid().count_edges() == 2
+    assert g.at(9).valid().count_edges() == 2
+
+
+def test_properties_valid():
+    g = PersistentGraph()
+    g.add_edge(1, 1, 2, layer="red", properties={"weight": 1})
+    g.add_edge(2, 1, 2, layer="green", properties={"weight": 2})
+    g.add_edge(3, 1, 2, layer="blue", properties={"weight": 3})
+    g.delete_edge(4, 1, 2, layer="red")
+
+    g2 = PersistentGraph()
+    g2.add_edge(1, 1, 2, layer="red", properties={"weight": 1})
+    g2.delete_edge(4, 1, 2, layer="red")
+
+    assert (
+        g2.edge(1, 2).properties.get("weight")
+    ) == 1  # Need to think about if this is correct
+    assert (
+        g.edge(1, 2).properties.get("weight")
+    ) == 3  # Need to think about if this is correct
+
+    assert list(g.edge(1, 2).properties.temporal.get("weight").values()) == [1, 2, 3]
+    assert list(g.valid().edge(1, 2).properties.temporal.get("weight").values()) == [
+        2,
+        3,
+    ]
+
+    assert g.edge(1, 2).is_deleted() == False
+    assert g.valid().count_edges() == 1
+    assert g.layer("red").edge(1, 2).is_deleted() == True
+    assert g.layer("red").valid().count_edges() == 0
+    g.delete_edge(5, 1, 2, layer="green")
+    assert g.edge(1, 2).is_deleted() == False
+    assert g.valid().count_edges() == 1
+    g.delete_edge(6, 1, 2, layer="blue")
+    assert g.edge(1, 2).is_deleted() == True
+    assert g.valid().count_edges() == 0
+
+
+def test_filtering_valid():
+    g = PersistentGraph()
+    g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1})
+    g.add_edge(2, 1, 2, layer="blue", properties={"weight": 2})
+    g.add_edge(3, 1, 2, layer="blue", properties={"weight": 3})
+
+    g.add_edge(1, 1, 3, layer="blue", properties={"weight": 1})
+    g.add_edge(2, 1, 3, layer="blue", properties={"weight": 2})
+    g.add_edge(3, 1, 3, layer="red", properties={"weight": 3})
+
+    f = filter.Property("weight").temporal().latest() < 3
+    e = g.filter_edges(f).edge(1, 2)
+    assert e is None
+    # assert list(e.properties.temporal.get("weight").values) == [1,2] -- this would be the case for filter_edge_layer?
+
+    # f = filter.Property("weight") < 3
+    f = filter.Property("weight") < 3
+    e = g.valid().filter_exploded_edges(f).edge(1, 2)
+    assert e.is_valid() == False  # latest update is now a deletion
+    assert list(e.properties.temporal.get("weight").values()) == [
+        1,
+        2,
+    ]  # property value gone (makes sense)
+
+    e2 = g.valid().filter_exploded_edges(f).edge(1, 3)
+    assert e2.is_valid() == True  # dead in red but not blue
+    assert list(e.properties.temporal.get("weight").values()) == [
+        1,
+        2,
+    ]  # property values the same
+
+    f = filter.Property("weight") > 5
+    e = g.filter_exploded_edges(f).edge(
+        1, 2
+    )  # this should be probably be filtered out (along with edges that only have deletions) as we discussed
+    assert list(e.properties.temporal.get("weight").values()) == []
 
 
 # TODO this will not pass until we fix hanging edges

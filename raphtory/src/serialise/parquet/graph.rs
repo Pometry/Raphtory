@@ -1,7 +1,6 @@
 use crate::{
-    core::utils::errors::GraphError,
-    db::api::storage::graph::storage_ops::GraphStorage,
-    prelude::{GraphViewOps, Prop},
+    errors::GraphError,
+    prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
         model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
         PERSISTENT_GRAPH_TYPE, TIME_COL,
@@ -11,13 +10,14 @@ use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use parquet::format::KeyValue;
 use raphtory_api::{core::storage::arc_str::ArcStr, GraphType};
+use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
 
 pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().temporal_prop_meta(),
+        g.graph_meta().temporal_mapper(),
         1,
         path,
         GRAPH_T_PATH,
@@ -93,13 +93,13 @@ pub fn encode_graph_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().const_prop_meta(),
+        g.graph_meta().metadata_mapper(),
         1,
         path,
         GRAPH_C_PATH,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
         |_, g, decoder, writer| {
-            let row = g.properties().constant().as_map();
+            let row = g.metadata().as_map();
 
             let rows = vec![Row { t: 0, row }];
             decoder.serialize(&rows)?;

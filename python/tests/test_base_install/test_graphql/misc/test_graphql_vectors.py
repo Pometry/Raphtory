@@ -1,5 +1,4 @@
 import tempfile
-from time import sleep
 from raphtory.graphql import GraphServer, RaphtoryClient
 from raphtory import Graph
 
@@ -14,28 +13,17 @@ def test_embedding():
 
 
 def setup_graph(g):
-    g.update_constant_properties({"name": "abb"})
     g.add_node(1, "aab")
     g.add_edge(1, "aab", "bbb")
 
 
 def assert_correct_documents(client):
     query = """{
-    plugins {
-        globalSearch(query: "aab", limit: 1) {
-            entity {
-                __typename
-                ... on Graph {
-                    name
-                }
-            }
-            content
-            embedding
-        }
-    }
     vectorisedGraph(path: "abb") {
-        algorithms {
-            similaritySearch(query:"ab", limit: 1) {
+        entitiesBySimilarity(query: "aab", limit: 1) {
+            getDocuments {
+                content
+                embedding
                 entity {
                     __typename
                     ... on Node {
@@ -50,26 +38,15 @@ def assert_correct_documents(client):
                         }
                     }
                 }
-                content
-                embedding
             }
         }
     }
     }"""
     result = client.query(query)
     assert result == {
-        "plugins": {
-            "globalSearch": [
-                {
-                    "entity": {"__typename": "Graph", "name": "abb"},
-                    "content": "abb",
-                    "embedding": [1.0, 2.0],
-                },
-            ],
-        },
         "vectorisedGraph": {
-            "algorithms": {
-                "similaritySearch": [
+            "entitiesBySimilarity": {
+                "getDocuments": [
                     {
                         "entity": {"__typename": "Node", "name": "aab"},
                         "content": "aab",
@@ -87,7 +64,6 @@ def setup_server(work_dir):
         cache="/tmp/graph-cache",
         embedding=embedding,
         nodes="{{ name }}",
-        graphs="{{ properties.name }}",
         edges=False,
     )
     return server
@@ -95,8 +71,8 @@ def setup_server(work_dir):
 
 def test_new_graph():
     print("test_new_graph")
-    work_dir = tempfile.mkdtemp()
-    server = setup_server(work_dir)
+    work_dir = tempfile.TemporaryDirectory()
+    server = setup_server(work_dir.name)
     with server.start():
         client = RaphtoryClient("http://localhost:1736")
         client.new_graph("abb", "EVENT")
@@ -130,7 +106,3 @@ def test_include_graph():
     with server.start():
         client = RaphtoryClient("http://localhost:1736")
         assert_correct_documents(client)
-
-
-test_upload_graph()
-test_include_graph()

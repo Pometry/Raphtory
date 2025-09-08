@@ -35,7 +35,7 @@ mod cypher {
         logical_expr::{create_udf, ColumnarValue, LogicalPlan, Volatility},
         physical_plan::SendableRecordBatchStream,
     };
-    use raphtory::disk_graph::DiskGraphStorage;
+    use raphtory::prelude::DiskGraphStorage;
     use std::sync::Arc;
 
     pub use polars_arrow as arrow2;
@@ -175,7 +175,7 @@ mod cypher {
         use crate::run_cypher;
         use arrow::{compute::concat_batches, util::pretty::print_batches};
         use arrow_array::RecordBatch;
-        use raphtory::{disk_graph::DiskGraphStorage, prelude::*};
+        use raphtory::prelude::*;
         use std::path::Path;
         use tempfile::tempdir;
 
@@ -261,18 +261,17 @@ mod cypher {
         }
 
         mod arrow2_load {
-            use std::path::PathBuf;
-
-            use crate::arrow2::{
-                array::{PrimitiveArray, StructArray},
-                datatypes::*,
+            use crate::{
+                arrow2::{
+                    array::{PrimitiveArray, StructArray},
+                    datatypes::*,
+                },
+                run_cypher,
             };
             use arrow::util::pretty::print_batches;
+            use raphtory::prelude::{DiskGraphStorage, ParquetLayerCols};
+            use std::path::PathBuf;
             use tempfile::tempdir;
-
-            use raphtory::disk_graph::{graph_impl::ParquetLayerCols, DiskGraphStorage};
-
-            use crate::run_cypher;
 
             fn schema() -> ArrowSchema {
                 let srcs = Field::new("srcs", ArrowDataType::UInt64, false);
@@ -512,13 +511,13 @@ mod cypher {
         fn load_nodes(graph: &Graph) {
             for (id, name, age, city) in NODES.iter() {
                 let nv = graph.add_node(0, *id, NO_PROPS, None).unwrap();
-                nv.add_constant_properties(vec![
+                nv.add_metadata(vec![
                     ("name", Prop::str(name.as_ref())),
                     ("age", Prop::I64(*age)),
                 ])
                 .unwrap();
                 if let Some(city) = city {
-                    nv.add_constant_properties(vec![("city", Prop::str(city.as_ref()))])
+                    nv.add_metadata(vec![("city", Prop::str(city.as_ref()))])
                         .unwrap();
                 }
             }
@@ -672,7 +671,7 @@ mod cypher {
             let graph = DiskGraphStorage::from_graph(&g, graph_dir).unwrap();
 
             let df = run_cypher(
-                "match ()-[e:_default|LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
+                "match ()-[e:LAYER1|LAYER2]->() where (e.weight > 3 and e.weight < 5) or e.name starts with 'xb' return e",
                 &graph,
                 true).await.unwrap();
 

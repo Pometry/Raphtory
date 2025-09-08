@@ -2,16 +2,29 @@ import json
 import re
 import tempfile
 import time
+from datetime import datetime
 from typing import TypeVar, Callable
 import os
 import pytest
 from functools import wraps
+
+from dateutil import parser
+
 from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
 
 B = TypeVar("B")
 
 PORT = 1737
+
+
+def sort_dict_recursive(d) -> dict:
+    if isinstance(d, dict):
+        return {key: sort_dict_recursive(d[key]) for key in sorted(d)}
+    elif isinstance(d, list):
+        return [sort_dict_recursive(v) for v in d]
+    else:
+        return d
 
 
 if "DISK_TEST_MARK" in os.environ:
@@ -106,20 +119,37 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
 
 def run_graphql_test(query, expected_output, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
-
         response = client.query(query)
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
-        assert response_dict == expected_output
+        assert (
+            response_dict == expected_output
+        ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
+
+
+def run_group_graphql_test(queries_and_expected_outputs, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+
+        for query, expected_output in queries_and_expected_outputs:
+            response = client.query(query)
+            response_dict = (
+                json.loads(response) if isinstance(response, str) else response
+            )
+            assert sort_dict_recursive(response_dict) == sort_dict_recursive(
+                expected_output
+            ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
@@ -133,3 +163,44 @@ def run_graphql_error_test(query, expected_error_message, graph):
         assert (
             error_message == expected_error_message
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
+def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+        for query, expected_error_message in queries_and_expected_error_messages:
+            with pytest.raises(Exception) as excinfo:
+                client.query(query)
+
+            full_error_message = str(excinfo.value)
+            match = re.search(r'"message":"(.*?)"', full_error_message)
+            error_message = match.group(1) if match else ""
+            assert (
+                error_message == expected_error_message
+            ), f"Expected '{expected_error_message}', but got '{error_message}'"
+
+
+def assert_set_eq(left, right):
+    """Check if two lists are the same set and same length"""
+    assert len(left) == len(right)
+    assert set(left) == set(right)
+
+
+def assert_has_properties(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.properties.get(k))
+            assert v == actual
+        else:
+            assert entity.properties.get(k) == v
+
+
+def assert_has_metadata(entity, props):
+    for k, v in props.items():
+        if isinstance(v, datetime):
+            actual = parser.parse(entity.metadata.get(k))
+            assert v == actual
+        else:
+            assert entity.metadata.get(k) == v

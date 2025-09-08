@@ -19,22 +19,30 @@ use super::views::deletion_graph::PersistentGraph;
 use crate::{
     db::{
         api::{
-            mutation::internal::InheritMutationOps,
-            storage::{graph::storage_ops::GraphStorage, storage::Storage},
-            view::internal::{
-                Base, InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritViewOps, Static,
+            storage::storage::Storage,
+            view::{
+                internal::{
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps,
+                    InheritViewOps, Static,
+                },
+                time::internal::InternalTimeOps,
             },
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
     prelude::*,
 };
+use raphtory_api::inherit::Base;
+use raphtory_storage::{
+    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
+    mutation::InheritMutationOps,
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fmt::{Display, Formatter},
+    hint::black_box,
     ops::Deref,
     sync::Arc,
 };
@@ -43,6 +51,14 @@ use std::{
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
+}
+
+impl InheritCoreGraphOps for Graph {}
+impl InheritLayerOps for Graph {}
+impl From<Arc<Storage>> for Graph {
+    fn from(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
 }
 
 impl Static for Graph {}
@@ -57,7 +73,7 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
             g1.edges().explode().iter().all(|e| { // all exploded edges exist in other
                 g2
                     .edge(e.src().id(), e.dst().id())
-                    .filter(|ee| ee.at(e.time().expect("exploded")).is_active())
+                    .filter(|ee| ee.at(e.time().expect("exploded")).is_valid())
                     .is_some()
             })
     } else {
@@ -66,59 +82,78 @@ pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps
 }
 
 pub fn assert_node_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    n1: NodeView<G1, GH1>,
-    n2: NodeView<G2, GH2>,
+    n1: NodeView<'graph, G1, GH1>,
+    n2: NodeView<'graph, G2, GH2>,
+) {
+    assert_node_equal_layer(n1, n2, "", false)
+}
+
+pub fn assert_node_equal_layer<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
+>(
+    n1: NodeView<'graph, G1, GH1>,
+    n2: NodeView<'graph, G2, GH2>,
+    layer_tag: &str,
+    persistent: bool,
 ) {
     assert_eq!(
         n1.id(),
         n2.id(),
-        "mismatched node id: left {:?}, right {:?}",
+        "mismatched node id{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n2.id()
     );
     assert_eq!(
         n1.name(),
         n2.name(),
-        "mismatched node name: left {:?}, right {:?}",
+        "mismatched node name{layer_tag}: left {:?}, right {:?}",
         n1.name(),
         n2.name()
     );
     assert_eq!(
+        n1.node_type(),
+        n2.node_type(),
+        "mismatched node type{layer_tag}"
+    );
+    assert_eq!(
         n1.earliest_time(),
         n2.earliest_time(),
-        "mismatched node earliest time for node {:?}: left {:?}, right {:?}",
+        "mismatched node earliest time for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.earliest_time(),
         n2.earliest_time()
     );
     // This doesn't hold for materialised windowed PersistentGraph (node is still present after the end of the window)
-    // assert_eq!(
-    //     n1.latest_time(),
-    //     n2.latest_time(),
-    //     "mismatched node latest time for node {:?}: left {:?}, right {:?}",
-    //     n1.id(),
-    //     n1.latest_time(),
-    //     n2.latest_time()
-    // );
     assert_eq!(
-        n1.properties().constant().as_map(),
-        n2.properties().constant().as_map(),
-        "mismatched constant properties for node {:?}: left {:?}, right {:?}",
+        n1.latest_time(),
+        n2.latest_time(),
+        "mismatched node latest time for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
-        n1.properties().constant().as_map(),
-        n2.properties().constant().as_map()
+        n1.latest_time(),
+        n2.latest_time()
+    );
+    assert_eq!(
+        n1.metadata().as_map(),
+        n2.metadata().as_map(),
+        "mismatched metadata for node {:?}{layer_tag}: left {:?}, right {:?}",
+        n1.id(),
+        n1.metadata().as_map(),
+        n2.metadata().as_map()
     );
     assert_eq!(
         n1.properties().temporal().as_map(),
         n2.properties().temporal().as_map(),
-        "mismatched temporal properties for node {:?}: left {:?}, right {:?}",
+        "mismatched temporal properties for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.properties().temporal().as_map(),
         n2.properties().temporal().as_map()
@@ -126,7 +161,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.out_degree(),
         n2.out_degree(),
-        "mismatched out-degree for node {:?}: left {}, right {}",
+        "mismatched out-degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.out_degree(),
         n2.out_degree(),
@@ -134,7 +169,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.in_degree(),
         n2.in_degree(),
-        "mismatched in-degree for node {:?}: left {}, right {}",
+        "mismatched in-degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.in_degree(),
         n2.in_degree(),
@@ -142,7 +177,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.degree(),
         n2.degree(),
-        "mismatched degree for node {:?}: left {}, right {}",
+        "mismatched degree for node {:?}{layer_tag}: left {}, right {}",
         n1.id(),
         n1.degree(),
         n2.degree(),
@@ -150,7 +185,7 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.out_neighbours().id().collect::<HashSet<_>>(),
         n2.out_neighbours().id().collect::<HashSet<_>>(),
-        "mismatched out-neighbours for node {:?}: left {:?}, right {:?}",
+        "mismatched out-neighbours for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.out_neighbours().id().collect::<HashSet<_>>(),
         n2.out_neighbours().id().collect::<HashSet<_>>()
@@ -158,23 +193,77 @@ pub fn assert_node_equal<
     assert_eq!(
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>(),
-        "mismatched in-neighbours for node {:?}: left {:?}, right {:?}",
+        "mismatched in-neighbours for node {:?}{layer_tag}: left {:?}, right {:?}",
         n1.id(),
         n1.in_neighbours().id().collect::<HashSet<_>>(),
         n2.in_neighbours().id().collect::<HashSet<_>>()
-    )
+    );
+    if persistent {
+        let earliest = n1.timeline_start();
+        match earliest {
+            None => {
+                assert!(
+                    n2.timeline_end().is_none(),
+                    "expected empty timeline for node {:?}{layer_tag}",
+                    n1.id()
+                );
+            }
+            Some(earliest) => {
+                // persistent graph might have updates at start after materialize
+                assert_eq!(
+                    n1.after(earliest).edge_history_count(),
+                    n2.after(earliest).edge_history_count(),
+                    "mismatched edge_history_count for node {:?}{layer_tag}",
+                    n1.id()
+                );
+                assert_eq!(
+                    n1.after(earliest).history(),
+                    n2.after(earliest).history(),
+                    "mismatched history for node {:?}{layer_tag}",
+                    n1.id()
+                );
+            }
+        }
+    } else {
+        assert_eq!(
+            n1.history(),
+            n2.history(),
+            "mismatched history for node {:?}{layer_tag}",
+            n1.id()
+        );
+        assert_eq!(
+            n1.edge_history_count(),
+            n2.edge_history_count(),
+            "mismatched edge_history_count for node {:?}{layer_tag}",
+            n1.id()
+        );
+    }
 }
 
 pub fn assert_nodes_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
 >(
-    nodes1: &Nodes<'graph1, G1, GH1>,
-    nodes2: &Nodes<'graph2, G2, GH2>,
+    nodes1: &Nodes<'graph, G1, GH1>,
+    nodes2: &Nodes<'graph, G2, GH2>,
+) {
+    assert_nodes_equal_layer(nodes1, nodes2, "", false);
+}
+
+pub fn assert_nodes_equal_layer<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    GH1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
+    GH2: GraphViewOps<'graph>,
+>(
+    nodes1: &Nodes<'graph, G1, GH1>,
+    nodes2: &Nodes<'graph, G2, GH2>,
+    layer_tag: &str,
+    persistent: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
     nodes1.sort();
@@ -183,12 +272,10 @@ pub fn assert_nodes_equal<
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
-        "mismatched number of nodes: left {}, right {}",
-        nodes1.len(),
-        nodes2.len()
+        "mismatched number of nodes{layer_tag}",
     );
     for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal(n1, n2);
+        assert_node_equal_layer(n1, n2, layer_tag, persistent);
     }
 }
 
@@ -203,49 +290,90 @@ pub fn assert_edges_equal<
     edges1: &Edges<'graph1, G1, GH1>,
     edges2: &Edges<'graph2, G2, GH2>,
 ) {
+    assert_edges_equal_layer(edges1, edges2, "", false);
+}
+
+pub fn assert_edges_equal_layer<
+    'graph1,
+    'graph2,
+    G1: GraphViewOps<'graph1>,
+    GH1: GraphViewOps<'graph1>,
+    G2: GraphViewOps<'graph2>,
+    GH2: GraphViewOps<'graph2>,
+>(
+    edges1: &Edges<'graph1, G1, GH1>,
+    edges2: &Edges<'graph2, G2, GH2>,
+    layer_tag: &str,
+    persistent: bool,
+) {
     let mut edges1: Vec<_> = edges1.collect();
     let mut edges2: Vec<_> = edges2.collect();
     assert_eq!(
         edges1.len(),
         edges2.len(),
-        "mismatched number of edges: left {}, right {}",
-        edges1.len(),
-        edges2.len()
+        "mismatched number of edges{layer_tag}",
     );
     edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
     edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
 
     for (e1, e2) in edges1.into_iter().zip(edges2) {
-        assert_eq!(
-            e1.id(),
-            e2.id(),
-            "mismatched edge ids: left {:?}, right {:?}",
-            e1.id(),
-            e2.id()
-        );
+        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
         assert_eq!(
             e1.earliest_time(),
             e2.earliest_time(),
-            "mismatched earliest time for edge {:?}: left {:?}, right {:?}",
+            "mismatched earliest time for edge {:?}{layer_tag}",
             e1.id(),
-            e1.earliest_time(),
-            e2.earliest_time()
         );
         assert_eq!(
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map(),
-            "mismatched constant properties for edge {:?}: left {:?}, right {:?}",
+            e1.metadata().as_map(),
+            e2.metadata().as_map(),
+            "mismatched metadata for edge {:?}{layer_tag}",
             e1.id(),
-            e1.properties().constant().as_map(),
-            e2.properties().constant().as_map()
         );
         assert_eq!(
             e1.properties().temporal().as_map(),
             e2.properties().temporal().as_map(),
-            "mismatched temporal properties for edge {:?}: left {:?}, right {:?}",
+            "mismatched temporal properties for edge {:?}{layer_tag}",
             e1.id(),
-            e1.properties().temporal().as_map(),
-            e2.properties().temporal().as_map(),
+        );
+        assert_eq!(
+            e1.is_valid(),
+            e2.is_valid(),
+            "mismatched is_valid for edge {:?}{layer_tag}",
+            e1.id()
+        );
+        if persistent {
+            let earliest = e1.timeline_start();
+            match earliest {
+                None => {
+                    assert!(
+                        e2.timeline_start().is_none(),
+                        "expected empty timeline for edge {:?}{layer_tag}",
+                        e1.id()
+                    )
+                }
+                Some(earliest) => {
+                    assert_eq!(
+                        e1.after(earliest).is_active(),
+                        e2.after(earliest).is_active(),
+                        "mismatched is_active for edge {:?}{layer_tag}",
+                        e1.id()
+                    );
+                }
+            }
+        } else {
+            assert_eq!(
+                e1.is_active(),
+                e2.is_active(),
+                "mismatched is_active for edge {:?}{layer_tag}",
+                e1.id()
+            );
+        }
+        assert_eq!(
+            e1.is_deleted(),
+            e2.is_deleted(),
+            "mismatched is_deleted for edge {:?}{layer_tag}",
+            e1.id()
         );
 
         // FIXME: DiskGraph does not currently preserve secondary index
@@ -266,102 +394,106 @@ pub fn assert_edges_equal<
         assert_eq!(
             e1_updates,
             e2_updates,
-            "mismatched updates for edge {:?}: left {:?}, right {:?}",
+            "mismatched updates for edge {:?}{layer_tag}",
             e1.id(),
-            e1_updates,
-            e2_updates,
         );
     }
 }
 
-fn assert_graph_equal_layer<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
->(
+fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
+    layer: Option<&str>,
+    persistent: bool,
 ) {
+    let layer_tag = match layer {
+        None => "",
+        Some(layer) => &format!(" for layer {layer}"),
+    };
     assert_eq!(
         g1.count_nodes(),
         g2.count_nodes(),
-        "mismatched number of nodes: left {}, right {}",
-        g1.count_nodes(),
-        g2.count_nodes()
+        "mismatched number of nodes{layer_tag}",
     );
     assert_eq!(
         g1.count_edges(),
         g2.count_edges(),
-        "mismatched number of edges: left {}, right {}",
-        g1.count_edges(),
-        g2.count_edges()
+        "mismatched number of edges{layer_tag}",
     );
     assert_eq!(
         g1.count_temporal_edges(),
         g2.count_temporal_edges(),
-        "mismatched number of temporal edges: left {}, right {}",
-        g1.count_temporal_edges(),
-        g2.count_temporal_edges()
+        "mismatched number of temporal edges{layer_tag}",
     );
     assert_eq!(
         g1.earliest_time(),
         g2.earliest_time(),
-        "mismatched earliest time: left {:?}, right {:?}",
-        g1.earliest_time(),
-        g2.earliest_time()
+        "mismatched earliest time{layer_tag}",
     );
     assert_eq!(
         g1.latest_time(),
         g2.latest_time(),
-        "mismatched latest time: left {:?}, right {:?}",
-        g1.latest_time(),
-        g2.latest_time()
+        "mismatched latest time{layer_tag}",
     );
     assert_eq!(
-        g1.properties().constant().as_map(),
-        g2.properties().constant().as_map(),
-        "mismatched graph constant properties: left {:?}, right {:?}",
-        g1.properties().constant().as_map(),
-        g2.properties().constant().as_map()
+        g1.metadata().as_map(),
+        g2.metadata().as_map(),
+        "mismatched graph metadata{layer_tag}",
     );
     assert_eq!(
         g1.properties().temporal().as_map(),
         g2.properties().temporal().as_map(),
-        "mismatched graph temporal properties: left {:?}, right {:?}",
-        g1.properties().temporal().as_map(),
-        g2.properties().temporal().as_map()
+        "mismatched graph temporal properties{layer_tag}",
     );
-    assert_nodes_equal(&g1.nodes(), &g2.nodes());
-    assert_edges_equal(&g1.edges(), &g2.edges());
+    assert_nodes_equal_layer(&g1.nodes(), &g2.nodes(), layer_tag, persistent);
+    assert_edges_equal_layer(&g1.edges(), &g2.edges(), layer_tag, persistent);
 }
 
-pub fn assert_graph_equal<
-    'graph1,
-    'graph2,
-    G1: GraphViewOps<'graph1>,
-    G2: GraphViewOps<'graph2>,
+fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    g1: &G1,
+    g2: &G2,
+    persistent: bool,
+) {
+    black_box({
+        assert_graph_equal_layer(g1, g2, None, persistent);
+        let left_layers: HashSet<_> = g1.unique_layers().collect();
+        let right_layers: HashSet<_> = g2.unique_layers().collect();
+        assert_eq!(
+            left_layers, right_layers,
+            "mismatched layers: left {:?}, right {:?}",
+            left_layers, right_layers
+        );
+
+        for layer in left_layers {
+            assert_graph_equal_layer(
+                &g1.layers(layer.deref())
+                    .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
+                &g2.layers(layer.deref())
+                    .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
+                Some(&layer),
+                persistent,
+            );
+        }
+    })
+}
+
+pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
+    g1: &G1,
+    g2: &G2,
+) {
+    assert_graph_equal_inner(g1, g2, false)
+}
+
+/// Equality check for materialized persistent graph that ignores the updates generated by the materialise at graph.earliest_time()
+pub fn assert_persistent_materialize_graph_equal<
+    'graph,
+    G1: GraphViewOps<'graph>,
+    G2: GraphViewOps<'graph>,
 >(
     g1: &G1,
     g2: &G2,
 ) {
-    assert_graph_equal_layer(g1, g2);
-    let left_layers: HashSet<_> = g1.unique_layers().collect();
-    let right_layers: HashSet<_> = g2.unique_layers().collect();
-    assert_eq!(
-        left_layers, right_layers,
-        "mismatched layers: left {:?}, right {:?}",
-        left_layers, right_layers
-    );
-
-    for layer in left_layers {
-        assert_graph_equal_layer(
-            &g1.layers(layer.deref())
-                .expect(&format!("Left graph missing layer {layer})")),
-            &g2.layers(layer.deref())
-                .expect(&format!("Right graph missing layer {layer}")),
-        );
-    }
+    assert_graph_equal_inner(g1, g2, true)
 }
 
 impl Display for Graph {
@@ -454,24 +586,18 @@ mod db_tests {
     use crate::serialise::StableDecode;
     use crate::{
         algorithms::components::weakly_connected_components,
-        core::{
-            utils::{
-                errors::GraphError::{self, EdgeExistsError, NodeExistsError, NodesExistError},
-                time::{error::ParseTimeError, TryIntoTime},
-            },
-            IntoPropList, Prop,
-        },
         db::{
             api::{
-                properties::internal::{ConstPropertiesOps, TemporalPropertiesRowView},
+                properties::internal::InternalMetadataOps,
                 view::{
-                    internal::{CoreGraphOps, EdgeFilterOps, TimeSemantics},
+                    internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                     time::internal::InternalTimeOps,
-                    EdgeViewOps, Layer, LayerOps, NodeViewOps, TimeOps,
+                    EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
                 },
             },
-            graph::{edge::EdgeView, edges::Edges, node::NodeView, path::PathFromNode},
+            graph::{edge::EdgeView, edges::Edges, path::PathFromNode},
         },
+        errors::GraphError,
         graphgen::random_attachment::random_attachment,
         prelude::{AdditionOps, PropertyAdditionOps},
         test_storage,
@@ -490,6 +616,9 @@ mod db_tests {
         },
         utils::logging::global_info_logger,
     };
+    use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
+    use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
+    use rayon::join;
     use std::{
         collections::{HashMap, HashSet},
         ops::Range,
@@ -499,17 +628,17 @@ mod db_tests {
     use tracing::{error, info};
 
     #[test]
-    fn edge_const_props() -> Result<(), GraphError> {
+    fn edge_metadata() -> Result<(), GraphError> {
         let g = Graph::new();
 
         g.add_edge(0, 0, 0, NO_PROPS, None)?;
         g.add_edge(0, 0, 1, NO_PROPS, None)?;
 
-        g.edge(0, 0).unwrap().update_constant_properties(
+        g.edge(0, 0).unwrap().update_metadata(
             vec![("x".to_string(), Prop::map([("n", Prop::U64(23))]))],
             None,
         )?;
-        g.edge(0, 1).unwrap().update_constant_properties(
+        g.edge(0, 1).unwrap().update_metadata(
             vec![(
                 "a".to_string(),
                 Prop::map([("a", Prop::U8(1)), ("b", Prop::str("baa"))]),
@@ -518,25 +647,15 @@ mod db_tests {
         )?;
 
         let e1 = g.edge(0, 0).unwrap();
-        let actual = e1
-            .properties()
-            .constant()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect::<Vec<_>>();
-        assert!(actual.contains(&("x".to_string(), Prop::map([("n", Prop::U64(23))]))));
+        let actual = e1.metadata().as_map();
+        assert_eq!(actual.get("x"), Some(&Prop::map([("n", Prop::U64(23))])));
 
         let e2 = g.edge(0, 1).unwrap();
-        let actual = e2
-            .properties()
-            .constant()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect::<Vec<_>>();
+        let actual = e2.metadata().as_vec();
         assert_eq!(
             actual,
             vec![(
-                "a".to_string(),
+                "a".into(),
                 Prop::map([("b", Prop::str("baa")), ("a", Prop::U8(1))])
             )]
         );
@@ -563,20 +682,20 @@ mod db_tests {
             assert!(result.end.is_some());
 
             assert_eq!(
-                graph.const_prop_keys().collect::<Vec<_>>(),
+                graph.metadata_keys().collect::<Vec<_>>(),
                 Vec::<ArcStr>::new()
             );
             assert_eq!(
-                graph.const_prop_ids().collect::<Vec<_>>(),
+                graph.metadata_ids().collect::<Vec<_>>(),
                 Vec::<usize>::new()
             );
             assert_eq!(
-                graph.const_prop_values().collect::<Vec<_>>(),
+                graph.metadata_values().collect::<Vec<_>>(),
                 Vec::<Option<Prop>>::new()
             );
-            assert!(graph.constant_prop(1).is_none());
-            assert!(graph.get_const_prop_id("1").is_none());
-            assert!(graph.get_const_prop(1).is_none());
+            assert!(graph.metadata().get_by_id(1).is_none());
+            assert!(graph.get_metadata_id("1").is_none());
+            assert!(graph.get_metadata(1).is_none());
             assert_eq!(graph.count_nodes(), 0);
             assert_eq!(graph.count_edges(), 0);
             assert_eq!(graph.count_temporal_edges(), 0);
@@ -590,15 +709,12 @@ mod db_tests {
 
             assert!(graph.is_empty());
 
-            assert_eq!(
-                graph.nodes().collect(),
-                Vec::<NodeView<Graph, Graph>>::new()
-            );
+            assert!(graph.nodes().collect().is_empty());
             assert_eq!(
                 graph.edges().collect(),
                 Vec::<EdgeView<Graph, Graph>>::new()
             );
-            assert!(!graph.edges_filtered());
+            assert!(!graph.internal_edge_filtered());
             assert!(graph.edge(1, 2).is_none());
             assert!(graph.latest_time_global().is_none());
             assert!(graph.latest_time_window(1, 2).is_none());
@@ -708,7 +824,7 @@ mod db_tests {
             .unwrap();
 
         assert_eq!(g_b.history(), vec![1]);
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let gg = Graph::new();
         let res = gg.import_node(&g_a, false).unwrap();
         assert_eq!(res.name(), "A");
@@ -717,16 +833,13 @@ mod db_tests {
         assert_eq!(res.name(), "B");
         assert_eq!(res.history(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(
-            res.properties().constant().get("con").unwrap(),
-            Prop::I64(11)
-        );
+        assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
 
         let gg = Graph::new();
         gg.add_node(1, "B", NO_PROPS, None).unwrap();
         let res = gg.import_nodes(vec![&g_a, &g_b], false);
         match res {
-            Err(NodesExistError(ids)) => {
+            Err(GraphError::NodesExistError(ids)) => {
                 assert_eq!(
                     ids.into_iter()
                         .map(|id| id.to_string())
@@ -741,7 +854,7 @@ mod db_tests {
         assert_eq!(gg.node("A"), None);
 
         let gg = Graph::new();
-        let _ = gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
+        gg.import_nodes(vec![&g_a, &g_b], false).unwrap();
         assert_eq!(gg.nodes().name().collect_vec(), vec!["A", "B"]);
 
         let e_a_b = g.add_edge(2, "A", "B", NO_PROPS, None).unwrap();
@@ -767,7 +880,7 @@ mod db_tests {
         let e_c_d = g.add_edge(4, "C", "D", NO_PROPS, None).unwrap();
 
         let gg = Graph::new();
-        let _ = gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
+        gg.import_edges(vec![&e_a_b, &e_c_d], false).unwrap();
         assert_eq!(gg.edges().len(), 2);
 
         let gg = Graph::new();
@@ -796,7 +909,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         let res = gg.import_node_as(&g_a, "X", false).unwrap();
@@ -806,7 +919,7 @@ mod db_tests {
         let _ = gg.add_node(1, "Y", NO_PROPS, None).unwrap();
         let res = gg.import_node_as(&g_b, "Y", false);
         match res {
-            Err(NodeExistsError(id)) => {
+            Err(GraphError::NodeExistsError(id)) => {
                 assert_eq!(id.to_string(), "Y");
             }
             Err(e) => panic!("Unexpected error: {:?}", e),
@@ -821,7 +934,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -831,7 +944,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         gg.add_node(1, "Y", NO_PROPS, None).unwrap();
@@ -844,10 +957,7 @@ mod db_tests {
         assert_eq!(res.name(), "Y");
         assert_eq!(res.history(), vec![1]);
         assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(
-            res.properties().constant().get("con").unwrap(),
-            Prop::I64(11)
-        );
+        assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
     }
 
     #[test]
@@ -857,7 +967,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
 
         let gg = Graph::new();
@@ -865,7 +975,7 @@ mod db_tests {
         gg.add_node(1, "R", NO_PROPS, None).unwrap();
         let res = gg.import_nodes_as(vec![&g_a, &g_b, &g_c], vec!["P", "Q", "R"], false);
         match res {
-            Err(NodesExistError(ids)) => {
+            Err(GraphError::NodesExistError(ids)) => {
                 assert_eq!(
                     ids.into_iter()
                         .map(|id| id.to_string())
@@ -883,7 +993,7 @@ mod db_tests {
         assert_eq!(y.name(), "Q");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -893,12 +1003,11 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
         let gg = Graph::new();
         gg.add_node(1, "Q", NO_PROPS, None).unwrap();
-        let _ = gg
-            .import_nodes_as(vec![&g_a, &g_b], vec!["P", "Q"], true)
+        gg.import_nodes_as(vec![&g_a, &g_b], vec!["P", "Q"], true)
             .unwrap();
         let mut nodes = gg.nodes().name().collect_vec();
         nodes.sort();
@@ -907,7 +1016,7 @@ mod db_tests {
         assert_eq!(y.name(), "Q");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
-        assert_eq!(y.properties().constant().get("con").unwrap(), Prop::I64(11));
+        assert_eq!(y.metadata().get("con").unwrap(), Prop::I64(11));
     }
 
     #[test]
@@ -917,7 +1026,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+        g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
             .unwrap();
         let e_a_b = g
             .add_edge(
@@ -943,7 +1052,7 @@ mod db_tests {
         gg.import_edge_as(&e_b_c, ("Y", "Z"), false).unwrap();
         let res = gg.import_edge_as(&e_a_b, ("X", "Y"), false);
         match res {
-            Err(EdgeExistsError(src_id, dst_id)) => {
+            Err(GraphError::EdgeExistsError(src_id, dst_id)) => {
                 assert_eq!(src_id.to_string(), "X");
                 assert_eq!(dst_id.to_string(), "Y");
             }
@@ -960,7 +1069,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1, 2]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
 
         let e_src = gg.edge("X", "Y").unwrap().src().name();
         let e_dst = gg.edge("X", "Y").unwrap().dst().name();
@@ -978,7 +1087,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let e_a_b = g
             .add_edge(
                 2,
@@ -1005,7 +1114,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -1015,7 +1124,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))])
+        g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
             .unwrap();
         g.add_node(0, "C", NO_PROPS, None).unwrap();
         let e_a_b = g
@@ -1052,7 +1161,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![1]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
         let x = gg.node("Z").unwrap();
         assert_eq!(x.name(), "Z");
         assert_eq!(x.history(), vec![1]);
@@ -1076,7 +1185,7 @@ mod db_tests {
         let g_b = g
             .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
             .unwrap();
-        let _ = g_b.add_constant_properties(vec![("con".to_string(), Prop::I64(11))]);
+        let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
         let e_a_b = g
             .add_edge(
                 2,
@@ -1108,7 +1217,7 @@ mod db_tests {
         assert_eq!(y.name(), "Y");
         assert_eq!(y.history(), vec![2, 3]);
         assert_eq!(y.properties().get("temp"), None);
-        assert_eq!(y.properties().constant().get("con"), None);
+        assert_eq!(y.metadata().get("con"), None);
     }
 
     #[test]
@@ -1117,13 +1226,13 @@ mod db_tests {
         let g = Graph::new();
         g.add_edge(0, "A", "B", NO_PROPS, None).unwrap();
         let ed = g.edge("A", "B").unwrap();
-        ed.add_constant_properties(vec![("CCC", Prop::str("RED"))], None)
+        ed.add_metadata(vec![("CCC", Prop::str("RED"))], None)
             .unwrap();
-        info!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.metadata().as_map());
         g.add_edge(0, "A", "B", NO_PROPS, Some("LAYERONE")).unwrap();
-        ed.add_constant_properties(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
+        ed.add_metadata(vec![("CCC", Prop::str("BLUE"))], Some("LAYERONE"))
             .unwrap();
-        info!("{:?}", ed.properties().constant().as_map());
+        info!("{:?}", ed.metadata().as_map());
     }
 
     #[test]
@@ -1374,7 +1483,33 @@ mod db_tests {
     }
 
     #[test]
-    fn constant_properties() {
+    fn test_metadata_props() {
+        let g = Graph::new();
+        let n = g.add_node(1, 1, [("p1", 1)], None).unwrap();
+        n.add_metadata([("m1", 1)]).unwrap();
+        let n = g.add_node(1, 2, [("p2", 2)], None).unwrap();
+        n.add_metadata([("m2", 2)]).unwrap();
+
+        let n1_meta = g
+            .node(1)
+            .unwrap()
+            .metadata()
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(n1_meta, vec!["m1", "m2"]);
+        let n1_props = g
+            .node(1)
+            .unwrap()
+            .properties()
+            .keys()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(n1_props, vec!["p1", "p2"]);
+    }
+
+    #[test]
+    fn metadata() {
         let g = Graph::new();
         g.add_edge(0, 11, 22, NO_PROPS, None).unwrap();
         g.add_edge(
@@ -1399,84 +1534,70 @@ mod db_tests {
         let edge2233 = g.edge(&v22, &v33).unwrap();
         let edge3311 = g.edge(&v33, &v11).unwrap();
 
-        v11.add_constant_properties(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
+        v11.add_metadata(vec![("a", Prop::U64(11)), ("b", Prop::I64(11))])
             .unwrap();
-        v11.add_constant_properties(vec![("c", Prop::U32(11))])
-            .unwrap();
+        v11.add_metadata(vec![("c", Prop::U32(11))]).unwrap();
 
-        v44.add_constant_properties(vec![("e", Prop::U8(1))])
-            .unwrap();
-        v55.add_constant_properties(vec![("f", Prop::U16(1))])
-            .unwrap();
+        v44.add_metadata(vec![("e", Prop::U8(1))]).unwrap();
+        v55.add_metadata(vec![("f", Prop::U16(1))]).unwrap();
         edge1111
-            .add_constant_properties(vec![("d", Prop::U64(1111))], None)
+            .add_metadata(vec![("d", Prop::U64(1111))], None)
             .unwrap();
         edge3311
-            .add_constant_properties(vec![("a", Prop::U64(3311))], None)
+            .add_metadata(vec![("a", Prop::U64(3311))], None)
             .unwrap();
 
         // cannot add properties to non-existant layer
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
 
         // cannot change property type
-        assert!(v22
-            .add_constant_properties(vec![("b", Prop::U64(22))])
-            .is_err());
+        assert!(v22.add_metadata(vec![("b", Prop::U64(22))]).is_err());
+
+        // TODO: Revisit this test after metadata handling is finalised.
+        //       Refer to the `test_metadata_props` test for context.
+        // assert_eq!(
+        //     v11.metadata().keys().collect::<Vec<_>>(),
+        //     vec!["a", "b", "c"]
+        // );
+        // assert!(v22.metadata().keys().next().is_none());
+        // assert!(v33.metadata().keys().next().is_none());
+        // assert_eq!(v44.metadata().keys().collect::<Vec<_>>(), vec!["e"]);
+        // assert_eq!(v55.metadata().keys().collect::<Vec<_>>(), vec!["f"]);
 
         assert_eq!(
-            v11.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["a", "b", "c"]
-        );
-        assert!(v22.properties().constant().keys().next().is_none());
-        assert!(v33.properties().constant().keys().next().is_none());
-        assert_eq!(
-            v44.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["e"]
-        );
-        assert_eq!(
-            v55.properties().constant().keys().collect::<Vec<_>>(),
-            vec!["f"]
-        );
-        assert_eq!(
-            edge1111.properties().constant().keys().collect::<Vec<_>>(),
+            edge1111.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"] // all edges get all ids anyhow
         );
         assert_eq!(
-            edge3311.properties().constant().keys().collect::<Vec<_>>(),
+            edge3311.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"]
         );
         assert_eq!(
-            edge2233.properties().constant().keys().collect::<Vec<_>>(),
+            edge2233.metadata().keys().collect::<Vec<_>>(),
             vec!["d", "a"]
         );
 
-        assert_eq!(v11.properties().constant().get("a"), Some(Prop::U64(11)));
-        assert_eq!(v11.properties().constant().get("b"), Some(Prop::I64(11)));
-        assert_eq!(v11.properties().constant().get("c"), Some(Prop::U32(11)));
-        assert_eq!(v22.properties().constant().get("b"), None);
-        assert_eq!(v44.properties().constant().get("e"), Some(Prop::U8(1)));
-        assert_eq!(v55.properties().constant().get("f"), Some(Prop::U16(1)));
-        assert_eq!(v22.properties().constant().get("a"), None);
-        assert_eq!(
-            edge1111.properties().constant().get("d"),
-            Some(Prop::U64(1111))
-        );
-        assert_eq!(
-            edge3311.properties().constant().get("a"),
-            Some(Prop::U64(3311))
-        );
-        assert_eq!(edge2233.properties().constant().get("a"), None);
+        assert_eq!(v11.metadata().get("a"), Some(Prop::U64(11)));
+        assert_eq!(v11.metadata().get("b"), Some(Prop::I64(11)));
+        assert_eq!(v11.metadata().get("c"), Some(Prop::U32(11)));
+        assert_eq!(v22.metadata().get("b"), None);
+        assert_eq!(v44.metadata().get("e"), Some(Prop::U8(1)));
+        assert_eq!(v55.metadata().get("f"), Some(Prop::U16(1)));
+        assert_eq!(v22.metadata().get("a"), None);
+        assert_eq!(edge1111.metadata().get("d"), Some(Prop::U64(1111)));
+        assert_eq!(edge3311.metadata().get("a"), Some(Prop::U64(3311)));
+        assert_eq!(edge2233.metadata().get("a"), None);
 
         // cannot add properties to non-existant layer
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
         g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
         // cannot add properties to layer without updates
         assert!(edge1111
-            .add_constant_properties([("test", "test")], Some("test"))
+            .add_metadata([("test", "test")], Some("test"))
             .is_err());
     }
 
@@ -2133,8 +2254,7 @@ mod db_tests {
             Some("b"),
         )?;
 
-        let node = g.node(1).unwrap();
-        node.add_constant_properties([("lol", Prop::str("smile"))])?;
+        n1.add_metadata([("lol", Prop::str("smile"))])?;
 
         let node_1_props = n1
             .properties()
@@ -2146,9 +2266,10 @@ mod db_tests {
             vec![
                 ("t".to_string(), Prop::str("wallet")),
                 ("cost".to_string(), Prop::F64(99.5)),
-                ("lol".to_string(), Prop::str("smile"))
             ]
         );
+
+        assert_eq!(n1.metadata().as_vec(), [("lol".into(), "smile".into())]);
 
         Ok(())
     }
@@ -2288,6 +2409,21 @@ mod db_tests {
             assert_eq!(times_of_onetwo, [1, 3]);
             assert_eq!(times_of_four, [4]);
             assert!(windowed_times_of_four.is_empty());
+            assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
+        });
+    }
+
+    #[test]
+    fn check_node_edge_history_count() {
+        let graph = Graph::new();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
+
+        test_storage!(&graph, |graph| {
+            let node = graph.node(0).unwrap();
+            assert_eq!(node.edge_history_count(), 2);
+            assert_eq!(node.after(1).edge_history_count(), 1);
+            assert_eq!(node.after(3).edge_history_count(), 0);
         });
     }
 
@@ -2395,7 +2531,7 @@ mod db_tests {
     }
 
     #[quickcheck]
-    fn test_graph_constant_props(u64_props: HashMap<String, u64>) -> bool {
+    fn test_graph_metadata(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -2403,17 +2539,17 @@ mod db_tests {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
         props_map
             .into_iter()
-            .all(|(name, value)| g.properties().constant().get(&name).unwrap() == value)
+            .all(|(name, value)| g.metadata().get(&name).unwrap() == value)
     }
 
     #[test]
-    fn test_graph_constant_props2() {
+    fn test_graph_metadata2() {
         let g = Graph::new();
 
         let as_props: Vec<(&str, Prop)> = vec![(
@@ -2421,21 +2557,14 @@ mod db_tests {
             Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
         )];
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
             .map(|(name, _)| name.into())
             .collect::<HashSet<_>>();
 
-        assert_eq!(
-            g.properties()
-                .constant()
-                .keys()
-                .into_iter()
-                .collect::<HashSet<_>>(),
-            props_names
-        );
+        assert_eq!(g.metadata().keys().collect::<HashSet<_>>(), props_names);
 
         let data = vec![
             ("key1", Prop::I64(10)),
@@ -2444,7 +2573,7 @@ mod db_tests {
         ];
         let as_props: Vec<(&str, Prop)> = vec![("mylist2", Prop::map(data))];
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names2: HashSet<ArcStr> = as_props
             .into_iter()
@@ -2452,17 +2581,13 @@ mod db_tests {
             .collect::<HashSet<_>>();
 
         assert_eq!(
-            g.properties()
-                .constant()
-                .keys()
-                .into_iter()
-                .collect::<HashSet<_>>(),
+            g.metadata().keys().collect::<HashSet<_>>(),
             props_names.union(&props_names2).cloned().collect()
         );
     }
 
     #[quickcheck]
-    fn test_graph_constant_props_names(u64_props: HashMap<String, u64>) -> bool {
+    fn test_graph_metadata_names(u64_props: HashMap<String, u64>) -> bool {
         let g = Graph::new();
 
         let as_props = u64_props
@@ -2470,19 +2595,14 @@ mod db_tests {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-        g.add_constant_properties(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
             .map(|(name, _)| name)
             .collect::<HashSet<_>>();
 
-        g.properties()
-            .constant()
-            .keys()
-            .into_iter()
-            .collect::<HashSet<_>>()
-            == props_names
+        g.metadata().keys().collect::<HashSet<_>>() == props_names
     }
 
     #[quickcheck]
@@ -2778,15 +2898,18 @@ mod db_tests {
                 .explode_layers()
                 .iter()
                 .filter_map(|e| {
-                    e.edge
-                        .layer()
+                    e.layer_name()
+                        .ok()
                         .map(|layer| (e.src().id(), e.dst().id(), layer))
                 })
                 .collect::<Vec<_>>();
 
             assert_eq!(
                 layer_exploded,
-                vec![(GID::U64(1), GID::U64(2), 1), (GID::U64(1), GID::U64(2), 2)]
+                vec![
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer1")),
+                    (GID::U64(1), GID::U64(2), ArcStr::from("layer2"))
+                ]
             );
         });
     }
@@ -2807,8 +2930,8 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
+                        e.layer_name()
+                            .ok()
                             .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
@@ -2817,10 +2940,15 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(3, 1, 2, 0), (0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), d))
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2"),
+                    (3, 1, 2, "_default"),
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| (a, GID::U64(b), GID::U64(c), ArcStr::from(d)))
+                .collect::<Vec<_>>()
             );
         });
     }
@@ -2842,9 +2970,9 @@ mod db_tests {
                 .iter()
                 .flat_map(|e| {
                     e.explode().into_iter().filter_map(|e| {
-                        e.edge
-                            .layer()
-                            .zip(Some(e.time().unwrap()))
+                        e.layer_name()
+                            .ok()
+                            .zip(e.time().ok())
                             .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                     })
                 })
@@ -2852,10 +2980,14 @@ mod db_tests {
 
             assert_eq!(
                 layer_exploded,
-                vec![(0, 1, 2, 1), (2, 1, 2, 1), (1, 1, 2, 2)]
-                    .into_iter()
-                    .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), d) })
-                    .collect::<Vec<_>>()
+                vec![
+                    (0, 1, 2, "layer1"),
+                    (2, 1, 2, "layer1"),
+                    (1, 1, 2, "layer2")
+                ]
+                .into_iter()
+                .map(|(a, b, c, d)| { (a, GID::U64(b), GID::U64(c), ArcStr::from(d)) })
+                .collect::<Vec<_>>()
             );
         });
     }
@@ -3226,7 +3358,7 @@ mod db_tests {
 
         test_storage!(&graph, |graph| {
             let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
-            assert_eq!(weakly_connected_components(&wl, 10, None).groups().len(), 1);
+            assert_eq!(weakly_connected_components(&wl).groups().len(), 1);
         });
     }
 
@@ -3296,7 +3428,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["wallet"])
+                .type_filter(["wallet"])
                 .name()
                 .into_iter_values()
                 .collect_vec(),
@@ -3323,7 +3455,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a", "b", "c", "e"])
+                .type_filter(["a", "b", "c", "e"])
                 .name()
                 .collect_vec(),
             vec!["1", "2", "3", "4", "5", "6"]
@@ -3331,21 +3463,21 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&Vec::<String>::new())
+                .type_filter(Vec::<String>::new())
                 .name()
                 .collect_vec(),
             Vec::<String>::new()
         );
 
         assert_eq!(
-            g.nodes().type_filter(&vec![""]).name().collect_vec(),
+            g.nodes().type_filter([""]).name().collect_vec(),
             vec!["7", "8", "9"]
         );
 
         let w = g.window(1, 4);
         assert_eq!(
             w.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3353,9 +3485,9 @@ mod db_tests {
         );
         assert_eq!(
             w.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c", "b"])
+                .type_filter(["c", "b"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3365,7 +3497,7 @@ mod db_tests {
         let l = g.layers(["a"]).unwrap();
         assert_eq!(
             l.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3373,9 +3505,9 @@ mod db_tests {
         );
         assert_eq!(
             l.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c", "b"])
+                .type_filter(["c", "b"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3385,7 +3517,7 @@ mod db_tests {
         let sg = g.subgraph([1, 2, 3, 4, 5, 6]);
         assert_eq!(
             sg.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3393,9 +3525,9 @@ mod db_tests {
         );
         assert_eq!(
             sg.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c", "b"])
+                .type_filter(["c", "b"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3408,7 +3540,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3416,7 +3548,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3424,7 +3556,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .par_iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3432,7 +3564,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .par_iter()
                 .map(|v| v.degree())
                 .collect::<Vec<_>>(),
@@ -3441,7 +3573,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .collect()
                 .into_iter()
                 .map(|n| n.name())
@@ -3450,7 +3582,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&Vec::<&str>::new())
+                .type_filter(Vec::<&str>::new())
                 .collect()
                 .into_iter()
                 .map(|n| n.name())
@@ -3459,15 +3591,15 @@ mod db_tests {
         );
 
         assert_eq!(g.nodes().len(), 9);
-        assert_eq!(g.nodes().type_filter(&vec!["b"]).len(), 2);
-        assert_eq!(g.nodes().type_filter(&vec!["d"]).len(), 0);
+        assert_eq!(g.nodes().type_filter(["b"]).len(), 2);
+        assert_eq!(g.nodes().type_filter(["d"]).len(), 0);
 
-        assert_eq!(g.nodes().is_empty(), false);
-        assert_eq!(g.nodes().type_filter(&vec!["d"]).is_empty(), true);
+        assert!(!g.nodes().is_empty());
+        assert!(g.nodes().type_filter(["d"]).is_empty());
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .name()
                 .into_iter_values()
                 .collect_vec(),
@@ -3475,7 +3607,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a", "c"])
+                .type_filter(["a", "c"])
                 .name()
                 .into_iter_values()
                 .collect_vec(),
@@ -3484,7 +3616,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -3493,7 +3625,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a", "c"])
+                .type_filter(["a", "c"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -3502,7 +3634,7 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -3512,9 +3644,9 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c"])
+                .type_filter(["c"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3522,9 +3654,9 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&Vec::<&str>::new())
+                .type_filter(Vec::<&str>::new())
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3532,9 +3664,9 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c", "b"])
+                .type_filter(["c", "b"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3542,9 +3674,9 @@ mod db_tests {
         );
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3553,7 +3685,7 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
                 .neighbours()
                 .name()
@@ -3564,9 +3696,9 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["c"])
+                .type_filter(["c"])
                 .neighbours()
                 .name()
                 .map(|n| { n.collect::<Vec<_>>() })
@@ -3596,25 +3728,25 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .total_count(),
             0
         );
 
         assert!(g
             .nodes()
-            .type_filter(&vec!["a"])
+            .type_filter(["a"])
             .neighbours()
-            .type_filter(&vec!["d"])
+            .type_filter(["d"])
             .is_all_empty());
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .iter()
                 .map(|n| { n.name().collect::<Vec<_>>() })
                 .collect_vec(),
@@ -3623,9 +3755,9 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["b"])
+                .type_filter(["b"])
                 .collect()
                 .into_iter()
                 .flatten()
@@ -3636,9 +3768,9 @@ mod db_tests {
 
         assert_eq!(
             g.nodes()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .collect()
                 .into_iter()
                 .flatten()
@@ -3656,7 +3788,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["b"])
+                .type_filter(["b"])
                 .name()
                 .collect_vec(),
             vec!["3"]
@@ -3666,7 +3798,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .name()
                 .collect_vec(),
             Vec::<&str>::new()
@@ -3676,7 +3808,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["c", "a"])
+                .type_filter(["c", "a"])
                 .name()
                 .collect_vec(),
             vec!["1", "4"]
@@ -3686,7 +3818,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["c"])
+                .type_filter(["c"])
                 .neighbours()
                 .name()
                 .collect_vec(),
@@ -3704,11 +3836,7 @@ mod db_tests {
         );
 
         assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .len(),
+            g.node("2").unwrap().neighbours().type_filter(["d"]).len(),
             0
         );
 
@@ -3716,7 +3844,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["a"])
+                .type_filter(["a"])
                 .neighbours()
                 .len(),
             3
@@ -3726,42 +3854,39 @@ mod db_tests {
             .node("2")
             .unwrap()
             .neighbours()
-            .type_filter(&vec!["d"])
+            .type_filter(["d"])
             .is_empty());
 
-        assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["a"])
-                .neighbours()
-                .is_empty(),
-            false
-        );
+        assert!(!g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(["a"])
+            .neighbours()
+            .is_empty());
 
         assert!(g
             .node("2")
             .unwrap()
             .neighbours()
-            .type_filter(&vec!["d"])
+            .type_filter(["d"])
             .neighbours()
             .is_empty());
 
-        assert_eq!(
-            g.node("2")
-                .unwrap()
-                .neighbours()
-                .type_filter(&vec!["d"])
-                .iter()
-                .collect_vec(),
-            Vec::<NodeView<Graph, Graph>>::new()
-        );
+        assert!(g
+            .node("2")
+            .unwrap()
+            .neighbours()
+            .type_filter(["d"])
+            .iter()
+            .collect_vec()
+            .is_empty(),);
 
         assert_eq!(
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["b"])
+                .type_filter(["b"])
                 .collect()
                 .into_iter()
                 .map(|n| n.name())
@@ -3773,7 +3898,7 @@ mod db_tests {
             g.node("2")
                 .unwrap()
                 .neighbours()
-                .type_filter(&vec!["d"])
+                .type_filter(["d"])
                 .collect()
                 .into_iter()
                 .map(|n| n.name())
@@ -3880,8 +4005,8 @@ mod db_tests {
             .num_threads(5)
             .build()
             .unwrap();
-        let graph = pool.install(|| Graph::new());
-        assert_eq!(graph.core_graph().internal_num_nodes(), 0);
+        let graph = pool.install(Graph::new);
+        assert_eq!(graph.core_graph().unfiltered_num_nodes(), 0);
     }
 
     #[test]
@@ -3900,11 +4025,11 @@ mod db_tests {
     }
 
     #[test]
-    fn test_materialize_constant_edge_props() {
+    fn test_materialize_edge_metadata() {
         let g = Graph::new();
         g.add_edge(0, 1, 2, NO_PROPS, Some("a")).unwrap();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        e.add_constant_properties([("test", "test")], None).unwrap();
+        e.add_metadata([("test", "test")], None).unwrap();
         g.add_edge(10, 1, 2, NO_PROPS, Some("a")).unwrap();
 
         let gw = g.after(1);
@@ -3914,11 +4039,54 @@ mod db_tests {
 
     #[test]
     fn materialize_window_prop_test() {
-        proptest!(|(graph_f in build_graph_strat(10, 10, false), w in any::<Range<i64>>())| {
-            let g = build_graph(graph_f);
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+            let g = Graph::from(build_graph(&graph_f));
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
             assert_graph_equal(&gw, &gmw);
         })
+    }
+
+    #[test]
+    fn test_multilayer() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        g.add_edge(1, 0, 0, NO_PROPS, Some("a")).unwrap();
+        let gw = g.window(0, 1);
+
+        let expected = Graph::new();
+        expected.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        expected.resolve_layer(Some("a")).unwrap();
+        assert_graph_equal(&gw, &expected);
+    }
+
+    #[test]
+    fn test_empty_window() {
+        let g = Graph::new();
+        g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
+        let gw = g.window(-1, 0);
+
+        assert!(g.window(-1, 0).nodes().is_empty());
+        assert_eq!(g.window(-1, 0).count_nodes(), 0);
+        for layer in gw.unique_layers() {
+            let layered = gw.valid_layers(layer);
+            assert_eq!(layered.count_nodes(), 0);
+        }
+    }
+
+    #[test]
+    fn add_edge_and_read_props_concurrent() {
+        let g = Graph::new();
+        for t in 0..1000 {
+            join(
+                || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
+                || {
+                    // if the edge exists already, it should have the property set
+                    g.window(t, t + 1)
+                        .edge(1, 2)
+                        .map(|e| assert!(e.properties().get("test").is_some()))
+                },
+            );
+        }
     }
 }

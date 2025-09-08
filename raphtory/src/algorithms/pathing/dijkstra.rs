@@ -1,18 +1,22 @@
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
-    core::{
-        entities::nodes::node_ref::NodeRef, utils::errors::GraphError, Direction, PropType,
-        PropUnwrap,
-    },
+    core::entities::nodes::node_ref::NodeRef,
     db::{
         api::state::{Index, NodeState},
         graph::nodes::Nodes,
     },
-    prelude::{EdgeViewOps, NodeViewOps, Prop},
+    errors::GraphError,
+    prelude::*,
 };
 use indexmap::IndexSet;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{
+    entities::{
+        properties::prop::{PropType, PropUnwrap},
+        VID,
+    },
+    Direction,
+};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
@@ -74,26 +78,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     };
     let mut weight_type = PropType::U8;
     if let Some(weight) = weight {
-        let maybe_weight_type = match g.edge_meta().temporal_prop_meta().get_id(weight) {
-            Some(weight_id) => g.edge_meta().temporal_prop_meta().get_dtype(weight_id),
-            None => g
-                .edge_meta()
-                .const_prop_meta()
-                .get_id(weight)
-                .map(|weight_id| {
-                    g.edge_meta()
-                        .const_prop_meta()
-                        .get_dtype(weight_id)
-                        .unwrap()
-                }),
-        };
-        match maybe_weight_type {
-            None => {
-                return Err(GraphError::PropertyMissingError(weight.to_string()));
-            }
-            Some(dtype) => {
-                weight_type = dtype;
-            }
+        if let Some((_, dtype)) = g.edge_meta().get_prop_id_and_type(weight, false) {
+            weight_type = dtype;
+        } else {
+            return Err(GraphError::PropertyMissingError(weight.to_string()));
         }
     }
 
@@ -170,9 +158,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         }
 
         let edges = match direction {
-            Direction::OUT => g.node(node_vid.clone()).unwrap().out_edges(),
-            Direction::IN => g.node(node_vid.clone()).unwrap().in_edges(),
-            Direction::BOTH => g.node(node_vid.clone()).unwrap().edges(),
+            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
+            Direction::IN => g.node(node_vid).unwrap().in_edges(),
+            Direction::BOTH => g.node(node_vid).unwrap().edges(),
         };
 
         // Replace this loop with your actual logic to iterate over the outgoing edges
@@ -218,7 +206,6 @@ mod dijkstra_tests {
     use super::*;
     use crate::{
         db::{api::mutation::AdditionOps, graph::graph::Graph},
-        prelude::*,
         test_storage,
     };
 

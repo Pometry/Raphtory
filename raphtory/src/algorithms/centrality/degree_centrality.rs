@@ -57,7 +57,6 @@ mod degree_centrality_test {
 
     use crate::{
         algorithms::centrality::degree_centrality::{degree_centrality, CentralityScore},
-        core::Prop,
         db::{
             api::{mutation::AdditionOps, state::NodeStateValue},
             graph::graph::Graph,
@@ -66,6 +65,7 @@ mod degree_centrality_test {
         test_storage,
     };
     use std::collections::HashMap;
+    use raphtory_api::core::entities::properties::prop::Prop;
 
     fn des<T: NodeStateValue>(recordbatch: &RecordBatch) -> T {
         let deserializer = Deserializer::from_record_batch(recordbatch).unwrap();

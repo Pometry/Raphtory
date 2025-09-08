@@ -119,6 +119,7 @@ if "DISK_TEST_MARK" in os.environ:
 
         assert g.count_nodes() == 1624
         assert g.layer("netflow").count_edges() == 2018
+        assert g.layer("netflow").count_nodes() == 1619
         assert g.earliest_time == 7257601
         assert g.latest_time == 7343985
 
@@ -126,14 +127,17 @@ if "DISK_TEST_MARK" in os.environ:
             "Weakly CC  Layer",
             algorithms.weakly_connected_components,
             g.layer("netflow"),
-            20,
+            print_result=False,
+        )
+        assert len(list(actual)) == 1619
+
+        actual = measure(
+            "Weakly CC",
+            algorithms.weakly_connected_components,
+            g,
             print_result=False,
         )
         assert len(list(actual)) == 1624
-
-        # Doesn't work yet (was silently running on only the first layer before but now actually panics because of lack of multilayer edge views)
-        # actual = measure("Weakly CC", algorithms.weakly_connected_components, g, 20, print_result=False)
-        # assert len(list(actual)) == 1624
 
         actual = measure(
             "Page Rank",
@@ -142,7 +146,7 @@ if "DISK_TEST_MARK" in os.environ:
             100,
             print_result=False,
         )
-        assert len(list(actual)) == 1624
+        assert len(list(actual)) == 1619
 
     def test_disk_graph_type_filter():
         from raphtory import DiskGraphStorage

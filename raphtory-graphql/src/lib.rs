@@ -1,6 +1,7 @@
 pub use crate::server::GraphServer;
 mod auth;
 pub mod data;
+mod embeddings;
 mod graph;
 pub mod model;
 pub mod observability;
@@ -12,22 +13,19 @@ pub mod url_encode;
 pub mod config;
 #[cfg(feature = "python")]
 pub mod python;
+pub mod rayon;
 
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        config::app_config::AppConfig,
+        config::app_config::{AppConfig, AppConfigBuilder},
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
-    use serde_json::Value;
-
     use dynamic_graphql::{Request, Variables};
-    #[cfg(feature = "storage")]
-    use raphtory::disk_graph::DiskGraphStorage;
     use raphtory::{
         db::{
             api::view::{IntoDynamic, MaterializedGraph},
@@ -37,7 +35,7 @@ mod graphql_test {
         serialise::GraphFolder,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use serde_json::json;
+    use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
         fs,
@@ -45,6 +43,7 @@ mod graphql_test {
     use tempfile::tempdir;
 
     #[tokio::test]
+    #[cfg(feature = "search")]
     async fn test_search_nodes_gql() {
         let graph = Graph::new();
 
@@ -80,7 +79,7 @@ mod graphql_test {
             graph.add_node(id, name, props, None).unwrap();
         }
 
-        let constant_props = vec![
+        let metadata = vec![
             ("N1", vec![("p1", Prop::U64(1u64))]),
             ("N4", vec![("p1", Prop::U64(2u64))]),
             ("N9", vec![("p1", Prop::U64(1u64))]),
@@ -92,12 +91,8 @@ mod graphql_test {
             ("N15", vec![("p1", Prop::U64(1u64))]),
         ];
 
-        for (name, props) in constant_props {
-            graph
-                .node(name)
-                .unwrap()
-                .add_constant_properties(props)
-                .unwrap();
+        for (name, props) in metadata {
+            graph.node(name).unwrap().add_metadata(props).unwrap();
         }
 
         let graph: MaterializedGraph = graph.into();
@@ -106,7 +101,8 @@ mod graphql_test {
         let tmp_dir = tempdir().unwrap();
         save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let config = AppConfigBuilder::new().with_create_index(true).build();
+        let data = Data::new(tmp_dir.path(), &config);
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -131,14 +127,18 @@ mod graphql_test {
                           node: {
                                 field: NODE_NAME,
                                 operator: EQUAL,
-                                value: "N1"
+                                value: {
+                                  str: "N1"
+                                }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
                             operator: NOT_EQUAL,
-                            value: "air_nomads"
+                            value: {
+                              str: "air_nomads"
+                            }
                           }
                         },
                         {
@@ -194,7 +194,7 @@ mod graphql_test {
         graph
             .add_node(0, 11, NO_PROPS, None)
             .expect("Could not add node!");
-        graph.add_constant_properties([("name", "lotr")]).unwrap();
+        graph.add_metadata([("name", "lotr")]).unwrap();
 
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
@@ -275,7 +275,7 @@ mod graphql_test {
         graph
             .node(1)
             .unwrap()
-            .add_constant_properties([("lol", "smile")])
+            .add_metadata([("lol", "smile")])
             .unwrap();
 
         let edges = vec![
@@ -304,7 +304,7 @@ mod graphql_test {
         graph
             .edge(edges[0].1, edges[0].2)
             .unwrap()
-            .add_constant_properties([("static", "test")], None)
+            .add_metadata([("static", "test")], None)
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
@@ -325,10 +325,20 @@ mod graphql_test {
                     propertyType
                     variants
                   }
+                  metadata {
+                    key
+                    propertyType
+                    variants
+                  }
                 }
               }
               nodes {
                 properties {
+                    key
+                    propertyType
+                    variants
+                }
+                metadata {
                     key
                     propertyType
                     variants
@@ -342,8 +352,7 @@ mod graphql_test {
         let req = Request::new(prop_has_key_filter);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
-
-        println!("{data:?}");
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
 
         fn sort_properties(properties: &mut Vec<Value>) {
             properties.sort_by(|a, b| {
@@ -360,7 +369,14 @@ mod graphql_test {
 
             assert_eq!(node_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(node_properties[1]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(node_properties[2]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut node_metadata) =
+            data["graph"]["schema"]["nodes"][1]["metadata"].clone()
+        {
+            sort_properties(&mut node_metadata);
+
+            assert_eq!(node_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
 
         if let Value::Array(mut edge_properties) =
@@ -371,7 +387,14 @@ mod graphql_test {
             assert_eq!(edge_properties[0]["propertyType"].as_str().unwrap(), "F32");
             assert_eq!(edge_properties[1]["propertyType"].as_str().unwrap(), "I32");
             assert_eq!(edge_properties[2]["propertyType"].as_str().unwrap(), "Str");
-            assert_eq!(edge_properties[3]["propertyType"].as_str().unwrap(), "Str");
+        }
+
+        if let Value::Array(mut edge_metadata) =
+            data["graph"]["schema"]["layers"][0]["edges"][0]["metadata"].clone()
+        {
+            sort_properties(&mut edge_metadata);
+
+            assert_eq!(edge_metadata[0]["propertyType"].as_str().unwrap(), "Str");
         }
     }
 
@@ -432,7 +455,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_unique_temporal_properties() {
         let g = Graph::new();
-        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
         g.add_properties(2, [("state", "abc")]).unwrap();
         g.add_properties(3, [("state", "xyz")]).unwrap();
@@ -583,7 +606,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_ordered_dedupe_temporal_properties() {
         let g = Graph::new();
-        g.add_constant_properties([("name", "graph")]).unwrap();
+        g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
         g.add_properties(2, [("state", "abc")]).unwrap();
         g.add_properties(3, [("state", "xyz")]).unwrap();
@@ -898,9 +921,10 @@ mod graphql_test {
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
         g.add_node(0, 1, NO_PROPS, None).unwrap();
-        let tmp_file = tempfile::NamedTempFile::new().unwrap();
-        g.encode(GraphFolder::new_as_zip(tmp_file.path())).unwrap();
-        let file = fs::File::open(&tmp_file).unwrap();
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let zip_path = tmp_dir.path().join("graph.zip");
+        g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
+        let file = fs::File::open(&zip_path).unwrap();
         let upload_val = UploadValue {
             filename: "test".into(),
             content_type: Some("application/octet-stream".into()),
@@ -1011,7 +1035,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_type_filter() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1128,11 +1152,253 @@ mod graphql_test {
         );
     }
 
+    #[tokio::test]
+    async fn test_paging() {
+        let graph1 = Graph::new();
+        graph1.add_metadata([("name", "graph1")]).unwrap();
+        graph1.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph1.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
+        graph1.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
+        graph1.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
+        graph1.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
+        graph1.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph1.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 4, 5, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 4, 6, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
+        graph1.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+        let graph2 = Graph::new();
+        graph2.add_metadata([("name", "graph2")]).unwrap();
+        graph2.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph3 = Graph::new();
+        graph3.add_metadata([("name", "graph3")]).unwrap();
+        graph3.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph4 = Graph::new();
+        graph4.add_metadata([("name", "graph4")]).unwrap();
+        graph4.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph5 = Graph::new();
+        graph5.add_metadata([("name", "graph5")]).unwrap();
+        graph5.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        let graph6 = Graph::new();
+        graph6.add_metadata([("name", "graph6")]).unwrap();
+        graph6.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+
+        let graphs = HashMap::from([
+            ("graph1".to_string(), graph1.into()),
+            ("graph2".to_string(), graph2.into()),
+            ("graph3".to_string(), graph3.into()),
+            ("graph4".to_string(), graph4.into()),
+            ("graph5".to_string(), graph5.into()),
+            ("graph6".to_string(), graph6.into()),
+        ]);
+        let tmp_dir = tempdir().unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 3, offset: 1) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": [
+                            {
+                                "name": "2"
+                            },
+                            {
+                                "name": "3"
+                            },
+                            {
+                                "name": "4"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 3, offset: 999) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": []
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                nodes {
+                    page(limit: 2, pageIndex: 1) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "nodes": {
+                        "page": [
+                            {
+                                "name": "3"
+                            },
+                            {
+                                "name": "4"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                edges {
+                    page(limit: 2, pageIndex: 1, offset: 3) {
+                        id
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "edges": {
+                        "page": [
+                            {
+                                "id": ["5", "6"]
+                            },
+                            {
+                                "id": ["3", "6"]
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            graph(path: "graph1") {
+                edges {
+                    page(limit: 3, pageIndex: 2) {
+                        id
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "edges": {
+                        "page": [
+                            {
+                                "id": ["3", "6"]
+                            },
+                        ]
+                    }
+                }
+            }),
+        );
+
+        let req = r#"
+        {
+            root {
+                graphs {
+                    page(limit: 4, offset: 3) {
+                        name
+                    }
+                }
+            }
+        }
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(
+            data,
+            json!({
+                "root": {
+                    "graphs": {
+                        "page": [
+                            {
+                                "name": "graph4"
+                            },
+                            {
+                                "name": "graph5"
+                            },
+                            {
+                                "name": "graph6"
+                            }
+                        ]
+                    }
+                }
+            }),
+        );
+    }
+
     #[cfg(feature = "storage")]
     #[tokio::test]
     async fn test_disk_graph() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1207,7 +1473,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_query_namespace() {
         let graph = Graph::new();
-        graph.add_constant_properties([("name", "graph")]).unwrap();
+        graph.add_metadata([("name", "graph")]).unwrap();
         graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
         graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
         graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
@@ -1232,63 +1498,72 @@ mod graphql_test {
 
         let req = r#"
         {
-          namespace(path: "") {
-            path
-            graphs {
-              path
-              name
-              metadata {
-                nodeCount
-                edgeCount
-                properties {
-                  key
-                  value
-                }
-              }
-            }
-            children {
-              path
-            }
-            parent {
-              path
-            }
-          }
+  namespace(path: "") {
+    path
+    graphs {
+      list {
+        path
+        name
+        nodeCount
+        edgeCount
+        metadata {
+          key
+          value
         }
-        "#;
+      }
+    }
+    children {
+      list {
+        path
+      }
+    }
+    parent {
+      path
+    }
+  }
+}
+"#;
 
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        assert_eq!(res.errors, vec![]);
         assert_eq!(
             data,
             json!({
                 "namespace": {
                     "path": "",
-                    "graphs": [
+                    "graphs": {"list":[
                         {
                             "path": "graph",
                             "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
                         },
-                    ],
-                    "children": [],
+                    ]},
+                    "children":{"list":[]},
                     "parent": null
                 },
             }),
         );
 
         let req = r#"
-        mutation CreateSubgraph {
+        mutation CreateGraph2 {
           createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
+        }
+        "#;
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        let req = r#"
+        mutation CreateNamespace1Graph3 {
+          createSubgraph(parentPath: "graph", newPath: "namespace1/graph3", nodes: ["2", "3", "4"], overwrite: false)
         }
         "#;
         let req = Request::new(req);
@@ -1297,25 +1572,146 @@ mod graphql_test {
 
         let req = r#"
         {
-          namespace(path: "") {
-            path
+  namespace(path: "") {
+    path
+    graphs {
+      list {
+        path
+        name
+          nodeCount
+          edgeCount
+          metadata {
+            key
+            value
+          }
+      }
+    }
+    children {
+      list {
+        path
+      }
+    }
+    parent {
+      path
+    }
+    items {
+      list {
+        __typename
+        ... on Namespace {
+          path
+        }
+        ... on MetaGraph {
+          path
+        }
+      }
+      page(limit: 2, offset: 1) {
+        __typename
+        ... on Namespace {
+          path
+        }
+        ... on MetaGraph {
+          path
+        }
+      }
+    }
+  }
+}
+        "#;
+
+        let req = Request::new(req);
+        let res = schema.execute(req).await;
+        let data = res.data.into_json().unwrap();
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            data,
+            json!({
+                "namespace": {
+                    "path": "",
+                    "graphs": {"list":[
+                        {
+                            "path": "graph",
+                            "name": "graph",
+                            "nodeCount": 6,
+                            "edgeCount": 6,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
+                        },
+                        {
+                            "path": "graph2",
+                            "name": "graph2",
+                            "nodeCount": 2,
+                            "edgeCount": 1,
+                            "metadata": [
+                                {
+                                    "key": "name",
+                                    "value": "graph"
+                                },
+                            ]
+                        },
+                    ]},
+                    "children": {
+                        "list": [
+                            {
+                                "path": "namespace1"
+                            }
+                        ]
+                    },
+                    "parent": null,
+                    "items": {
+                        "list": [
+                            {
+                                "__typename": "Namespace",
+                                "path": "namespace1",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph2",
+                            }
+                        ],
+                        "page": [
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph",
+                            },
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "graph2",
+                            }
+                        ]
+                    }
+                },
+            }),
+        );
+
+        let req = r#"
+        {
+          namespace(path: "namespace1") {
             graphs {
-              path
-              name
-              metadata {
-                nodeCount
-                edgeCount
-                properties {
-                  key
-                  value
-                }
+              list {
+                path
               }
-            }
-            children {
-              path
             }
             parent {
               path
+            }
+            items {
+              list {
+                __typename
+                ... on Namespace {
+                  path
+                }
+                ... on MetaGraph {
+                  path
+                }
+              }
             }
           }
         }
@@ -1328,39 +1724,24 @@ mod graphql_test {
             data,
             json!({
                 "namespace": {
-                    "path": "",
-                    "graphs": [
-                        {
-                            "path": "graph",
-                            "name": "graph",
-                            "metadata": {
-                                "nodeCount": 6,
-                                "edgeCount": 6,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
-                        },
-                        {
-                            "path": "graph2",
-                            "name": "graph2",
-                            "metadata": {
-                                "nodeCount": 2,
-                                "edgeCount": 1,
-                                "properties": [
-                                    {
-                                        "key": "name",
-                                        "value": "graph"
-                                    },
-                                ]
-                            }
-                        },
-                    ],
-                    "children": [],
-                    "parent": null
+                    "graphs": {
+                        "list": [
+                            {
+                                "path": "namespace1/graph3",
+                            },
+                        ]
+                    },
+                    "parent": {
+                        "path": ""
+                    },
+                    "items": {
+                        "list": [
+                            {
+                                "__typename": "MetaGraph",
+                                "path": "namespace1/graph3",
+                            },
+                        ],
+                    }
                 },
             }),
         );

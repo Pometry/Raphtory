@@ -15,6 +15,7 @@ use crate::{
             louvain::louvain as louvain_rs, modularity::ModularityUnDir,
         },
         components,
+        cores::k_core::k_core_set,
         dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
         embeddings::fast_rp::fast_rp as fast_rp_rs,
         layout::{
@@ -56,14 +57,14 @@ use crate::{
         },
         projections::temporal_bipartite_projection::temporal_bipartite_projection as temporal_bipartite_rs,
     },
-    core::utils::errors::GraphError,
     db::{
         api::{
-            state::{NodeState, TypedNodeState},
+            state::{Index, NodeState, TypedNodeState},
             view::internal::DynamicGraph,
         },
         graph::{node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::{Graph, Prop},
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -75,6 +76,7 @@ use pometry_storage::algorithms::connected_components::connected_components as c
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::Direction;
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::collections::{HashMap, HashSet};
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -131,17 +133,13 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     iter_count (int, optional): Maximum number of iterations to run. Note that this will terminate early if the labels converge prior to the number of iterations being reached.
 ///
 /// Returns:
 ///     NodeStateUsize: Mapping of nodes to their component ids.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=None))]
-pub fn weakly_connected_components(
-    graph: &PyGraphView,
-    iter_count: Option<usize>,
-) -> NodeState<'static, usize, DynamicGraph> {
-    components::weakly_connected_components(&graph.graph, iter_count.unwrap_or(usize::MAX), None)
+#[pyo3(signature = (graph))]
+pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, usize, DynamicGraph> {
+    components::weakly_connected_components(&graph.graph)
 }
 
 /// Strongly connected components
@@ -165,7 +163,7 @@ pub fn strongly_connected_components(
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.graph.as_ref())
+    connected_components_rs(graph.0.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -250,7 +248,6 @@ pub fn pagerank(
     use_l2_norm: bool,
     damping_factor: Option<f64>,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
-    //NodeState<'static, f64, DynamicGraph> {
     unweighted_page_rank(
         &graph.graph,
         Some(iter_count),
@@ -643,7 +640,6 @@ pub fn balance(
 pub fn degree_centrality(
     graph: &PyGraphView,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
-    // NodeState<'static, f64, DynamicGraph> {
     degree_centrality_rs(&graph.graph)
 }
 
@@ -751,11 +747,39 @@ pub fn betweenness_centrality(
 pub fn label_propagation(
     graph: &PyGraphView,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<NodeView<DynamicGraph>>>> {
+) -> PyResult<Vec<HashSet<NodeView<'static, DynamicGraph>>>> {
     match label_propagation_rs(&graph.graph, seed) {
         Ok(result) => Ok(result),
         Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
     }
+}
+
+/// Determines which nodes are in the k-core for a given value of k
+///
+/// Arguments:
+///     graph (GraphView): A reference to the graph
+///     k (int): Value of k such that the returned nodes have degree > k (recursively)
+///     iter_count (int): The number of iterations to run
+///     threads (int, optional): number of threads to run on
+///
+/// Returns:
+///     list[Node]: A list of nodes in the k core
+///
+#[pyfunction]
+#[pyo3[signature = (graph, k, iter_count, threads=None)]]
+pub fn k_core(
+    graph: &PyGraphView,
+    k: usize,
+    iter_count: usize,
+    threads: Option<usize>,
+) -> Nodes<'static, DynamicGraph> {
+    let v_set = k_core_set(&graph.graph, k, iter_count, threads);
+    let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
+        None
+    } else {
+        Some(Index::from_iter(v_set))
+    };
+    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), index, None)
 }
 
 /// Simulate an SEIR dynamic on the network

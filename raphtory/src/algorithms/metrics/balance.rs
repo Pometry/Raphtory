@@ -3,13 +3,14 @@
 //! This algorithm provides functionality to accumulate (or sum) weights on nodes
 //! in a graph.
 use crate::{
-    core::{utils::errors::GraphError, Direction},
     db::{
         api::{state::NodeState, view::StaticGraphViewOps},
         graph::node::NodeView,
     },
+    errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::Direction;
 use rayon::prelude::*;
 
 /// Computes the net sum of weights for a given node based on edge direction.
@@ -32,8 +33,8 @@ use rayon::prelude::*;
 /// # Returns
 /// An `f64` which is the net sum of weights for the node considering the specified direction.
 fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    v: &NodeView<G, GH>,
-    name: &str,
+    v: &NodeView<'graph, G, GH>,
+    prop_id: usize,
     direction: Direction,
 ) -> f64 {
     // let in_result = v.in_edges().properties().get(name.clone()).sum();
@@ -43,9 +44,8 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .in_edges()
             .properties()
             .flat_map(|prop| {
-                prop.temporal().get(name).map(|val| {
+                prop.temporal().get_by_id(prop_id).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
@@ -55,17 +55,16 @@ fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
             .out_edges()
             .properties()
             .flat_map(|prop| {
-                prop.temporal().get(name).map(|val| {
+                prop.temporal().get_by_id(prop_id).map(|val| {
                     val.values()
-                        .into_iter()
                         .map(|valval| valval.as_f64().unwrap_or(1.0f64))
                         .sum::<f64>()
                 })
             })
             .sum::<f64>(),
         Direction::BOTH => {
-            let in_res = balance_per_node(v, name, Direction::IN);
-            let out_res = balance_per_node(v, name, Direction::OUT);
+            let in_res = balance_per_node(v, prop_id, Direction::IN);
+            let out_res = balance_per_node(v, prop_id, Direction::OUT);
             in_res + out_res
         }
     }
@@ -88,54 +87,36 @@ pub fn balance<G: StaticGraphViewOps>(
     name: String,
     direction: Direction,
 ) -> Result<NodeState<'static, f64, G>, GraphError> {
-    let weight_type = match graph.edge_meta().temporal_prop_meta().get_id(&name) {
-        Some(weight_id) => graph.edge_meta().temporal_prop_meta().get_dtype(weight_id),
-        None => graph
-            .edge_meta()
-            .const_prop_meta()
-            .get_id(&name)
-            .map(|weight_id| {
-                graph
-                    .edge_meta()
-                    .const_prop_meta()
-                    .get_dtype(weight_id)
-                    .unwrap()
-            }),
-    };
-    match weight_type {
-        None => {
+    if let Some((weight_id, weight_type)) = graph.edge_meta().get_prop_id_and_type(&name, false) {
+        if !weight_type.is_numeric() {
             return Err(GraphError::InvalidProperty {
-                reason: "Edge property {name} does not exist".to_string(),
-            })
+                reason: "Edge property {name} is not numeric".to_string(),
+            });
         }
-        Some(weight_type) => {
-            if !weight_type.is_numeric() {
-                return Err(GraphError::InvalidProperty {
-                    reason: "Edge property {name} is not numeric".to_string(),
-                });
-            }
-        }
+        let values: Vec<_> = graph
+            .nodes()
+            .par_iter()
+            .map(|n| balance_per_node(&n, weight_id, direction))
+            .collect();
+
+        Ok(NodeState::new_from_values(graph.clone(), values))
+    } else {
+        Err(GraphError::InvalidProperty {
+            reason: "Edge property {name} does not exist".to_string(),
+        })
     }
-
-    let values: Vec<_> = graph
-        .nodes()
-        .par_iter()
-        .map(|n| balance_per_node(&n, &name, direction))
-        .collect();
-
-    Ok(NodeState::new_from_values(graph.clone(), values))
 }
 
 #[cfg(test)]
 mod sum_weight_test {
     use crate::{
         algorithms::metrics::balance::balance,
-        core::{Direction, Prop},
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::GraphViewOps,
         test_storage,
     };
     use pretty_assertions::assert_eq;
+    use raphtory_api::core::{entities::properties::prop::Prop, Direction};
     use std::collections::HashMap;
 
     #[test]

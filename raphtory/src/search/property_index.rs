@@ -1,9 +1,11 @@
 use crate::{
-    core::utils::errors::GraphError,
+    errors::GraphError,
     prelude::*,
-    search::{fields, new_index, TOKENIZER},
+    search::{fields, get_reader, new_index, TOKENIZER},
 };
-use raphtory_api::core::{storage::timeindex::TimeIndexEntry, PropType};
+use raphtory_api::core::{
+    entities::properties::prop::PropType, storage::timeindex::TimeIndexEntry,
+};
 use std::{fs, path::PathBuf, sync::Arc};
 use tantivy::{
     collector::TopDocs,
@@ -12,13 +14,12 @@ use tantivy::{
         Field, IndexRecordOption, Schema, SchemaBuilder, TextFieldIndexing, TextOptions, Type,
         FAST, INDEXED, STRING, TEXT,
     },
-    Document, Index, IndexReader, TantivyDocument,
+    Document, Index, TantivyDocument,
 };
 
 #[derive(Clone)]
 pub struct PropertyIndex {
     pub(crate) index: Arc<Index>,
-    pub(crate) reader: IndexReader,
     pub(crate) time_field: Option<Field>,
     pub(crate) secondary_time_field: Option<Field>,
     pub(crate) layer_field: Option<Field>,
@@ -81,11 +82,10 @@ impl PropertyIndex {
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
-        let (index, reader) = new_index(schema, path)?;
+        let index = new_index(schema, path)?;
 
         Ok(Self {
             index: Arc::new(index),
-            reader,
             time_field,
             secondary_time_field,
             layer_field,
@@ -109,17 +109,12 @@ impl PropertyIndex {
 
     fn load_from_path(path: &PathBuf, is_edge: bool) -> Result<Self, GraphError> {
         let index = Index::open_in_dir(path)?;
-        let reader = index
-            .reader_builder()
-            .reload_policy(tantivy::ReloadPolicy::Manual)
-            .try_into()?;
         let schema = index.schema();
         let (time_field, secondary_time_field, layer_field, entity_id_field) =
             Self::fetch_fields(&schema, is_edge)?;
 
         Ok(Self {
             index: Arc::new(index),
-            reader,
             time_field,
             secondary_time_field,
             layer_field,
@@ -137,8 +132,17 @@ impl PropertyIndex {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                let prop_index = Self::load_from_path(&path, is_edge)?;
-                result.push(Some(prop_index));
+                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
+                    if let Ok(prop_id) = file_name.parse::<usize>() {
+                        let prop_index = Self::load_from_path(&path, is_edge)?;
+
+                        if result.len() <= prop_id {
+                            result.resize(prop_id + 1, None);
+                        }
+
+                        result[prop_id] = Some(prop_index);
+                    }
+                }
             }
         }
 
@@ -146,7 +150,7 @@ impl PropertyIndex {
     }
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
-        let searcher = self.reader.searcher();
+        let searcher = get_reader(&self.index)?.searcher();
         let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
         println!("Total property doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
@@ -280,7 +284,7 @@ impl PropertyIndex {
         Ok(document)
     }
 
-    pub(crate) fn create_node_const_property_document(
+    pub(crate) fn create_node_metadata_document(
         &self,
         node_id: u64,
         prop_value: &Prop,
@@ -299,7 +303,7 @@ impl PropertyIndex {
         self.create_property_document(field_node_id, node_id, Some(time), None, prop_value)
     }
 
-    pub(crate) fn create_edge_const_property_document(
+    pub(crate) fn create_edge_metadata_document(
         &self,
         edge_id: u64,
         layer_id: usize,

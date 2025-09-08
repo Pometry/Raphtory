@@ -1,17 +1,17 @@
 use crate::{
-    core::{utils::errors::GraphError, Prop},
     db::{
-        api::view::{
-            internal::CoreGraphOps, DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps,
-        },
+        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
         },
     },
+    errors::GraphError,
     prelude::*,
     python::{
-        graph::properties::{PropertiesView, PyNestedPropsIterable},
+        graph::properties::{
+            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        },
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
@@ -30,6 +30,7 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyDict};
 use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::HashMap;
 
@@ -150,10 +151,23 @@ impl PyEdges {
     }
 
     /// Returns all properties of the edges
+    ///
+    /// Returns:
+    ///     PropertiesView:
     #[getter]
     fn properties(&self) -> PropertiesView {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
+    }
+
+    /// Returns all the metadata of the edges
+    ///
+    /// Returns:
+    ///     MetadataView:
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let edges = self.edges.clone();
+        (move || edges.metadata()).into()
     }
 
     /// Returns all ids of the edges.
@@ -287,7 +301,7 @@ impl PyEdges {
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
-        if explode == true {
+        if explode {
             edges = self.edges.explode_layers().explode();
         }
 
@@ -312,6 +326,7 @@ impl PyEdges {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().unwrap_or(0),
@@ -484,6 +499,13 @@ impl PyNestedEdges {
     fn properties(&self) -> PyNestedPropsIterable {
         let edges = self.edges.clone();
         (move || edges.properties()).into()
+    }
+
+    /// Get a view of the metadata only.
+    #[getter]
+    pub fn metadata(&self) -> PyMetadataListList {
+        let edges = self.edges.clone();
+        (move || edges.metadata()).into()
     }
 
     /// Returns all ids of the edges.

@@ -1,12 +1,7 @@
 use crate::{
-    core::utils::{errors::GraphError, iter::GenLockedIter},
-    db::{
-        api::{
-            properties::internal::TemporalPropertiesRowView,
-            storage::graph::storage_ops::GraphStorage, view::internal::CoreGraphOps,
-        },
-        graph::node::NodeView,
-    },
+    core::utils::iter::GenLockedIter,
+    db::graph::node::NodeView,
+    errors::GraphError,
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
         run_encode, NODES_C_PATH, NODES_T_PATH, NODE_ID, TIME_COL, TYPE_COL,
@@ -15,6 +10,7 @@ use crate::{
 use arrow_schema::{DataType, Field};
 use itertools::Itertools;
 use raphtory_api::{core::entities::VID, iter::IntoDynBoxed};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::path::Path;
 
 pub(crate) fn encode_nodes_tprop(
@@ -23,7 +19,7 @@ pub(crate) fn encode_nodes_tprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.node_meta().temporal_prop_meta(),
+        g.node_meta().temporal_prop_mapper(),
         g.unfiltered_num_nodes(),
         path,
         NODES_T_PATH,
@@ -39,7 +35,7 @@ pub(crate) fn encode_nodes_tprop(
 
             let cols = g
                 .node_meta()
-                .temporal_prop_meta()
+                .temporal_prop_mapper()
                 .get_keys()
                 .into_iter()
                 .collect_vec();
@@ -51,7 +47,6 @@ pub(crate) fn encode_nodes_tprop(
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .into_iter()
                             .map(|(t, props)| ParquetTNode {
                                 node: *node,
                                 cols,
@@ -82,7 +77,7 @@ pub(crate) fn encode_nodes_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.node_meta().const_prop_meta(),
+        g.node_meta().metadata_mapper(),
         g.unfiltered_num_nodes(),
         path,
         NODES_C_PATH,

@@ -2,19 +2,15 @@
 //! A node is a node in the graph, and can have properties and edges.
 //! It can also be used to navigate the graph.
 use crate::{
-    core::{
-        entities::nodes::node_ref::{AsNodeRef, NodeRef},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             state::{ops, LazyNodeState, NodeStateOps},
             view::{
                 internal::{
-                    CoreGraphOps, DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic,
-                    IntoDynamicOrMutable, MaterializedGraph,
+                    DynOrMutableGraph, DynamicGraph, IntoDynHop, IntoDynamic, IntoDynamicOrMutable,
+                    MaterializedGraph,
                 },
                 *,
             },
@@ -25,17 +21,16 @@ use crate::{
             path::{PathFromGraph, PathFromNode},
         },
     },
+    errors::GraphError,
+    prelude::PropertiesOps,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{
             node::internal::OneHopFilter,
             node_state::PyOutputNodeState,
-            properties::{PropertiesView, PyNestedPropsIterable},
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
-        types::{
-            iterable::FromIterable,
-            repr::StructReprBuilder,
-            wrappers::{filter_expr::PyFilterExpr, iterables::*},
-        },
+        types::{iterable::FromIterable, repr::StructReprBuilder, wrappers::iterables::*},
         utils::{PyNodeRef, PyTime},
     },
     *,
@@ -57,7 +52,12 @@ use python::{
         PyGenericIterator,
     },
 };
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr, utils::hashing::calculate_hash};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GID},
+    storage::arc_str::ArcStr,
+    utils::hashing::calculate_hash,
+};
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
 use std::collections::{HashMap, HashSet};
 
@@ -65,30 +65,30 @@ use std::collections::{HashMap, HashSet};
 #[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyNode {
-    pub node: NodeView<DynamicGraph, DynamicGraph>,
+    pub node: NodeView<'static, DynamicGraph, DynamicGraph>,
 }
 
 impl_nodeviewops!(
     PyNode,
     node,
-    NodeView<DynamicGraph>,
+    NodeView<'static, DynamicGraph>,
     "Node",
     "Edges",
     "PathFromNode"
 );
-impl_edge_property_filter_ops!(PyNode<NodeView<DynamicGraph, DynamicGraph>>, node, "Node");
+impl_edge_property_filter_ops!(
+    PyNode<NodeView<'static, DynamicGraph, DynamicGraph>>,
+    node,
+    "Node"
+);
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<NodeView<G, GH>> for PyNode
+    From<NodeView<'static, G, GH>> for PyNode
 {
-    fn from(value: NodeView<G, GH>) -> Self {
+    fn from(value: NodeView<'static, G, GH>) -> Self {
         let base_graph = value.base_graph.into_dynamic();
         let graph = value.graph.into_dynamic();
-        let node = NodeView {
-            base_graph,
-            graph,
-            node: value.node,
-        };
+        let node = NodeView::new_one_hop_filtered(base_graph, graph, value.node);
         Self { node }
     }
 }
@@ -204,8 +204,17 @@ impl PyNode {
     /// Returns:
     ///     Properties: A list of properties.
     #[getter]
-    pub fn properties(&self) -> Properties<NodeView<DynamicGraph, DynamicGraph>> {
+    pub fn properties(&self) -> Properties<NodeView<'static, DynamicGraph, DynamicGraph>> {
         self.node.properties()
+    }
+
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, NodeView<'static, DynamicGraph, DynamicGraph>> {
+        self.node.metadata()
     }
 
     /// Returns the type of node
@@ -250,6 +259,14 @@ impl PyNode {
         history.into_pyarray(py)
     }
 
+    /// Get the number of edge events for this node
+    ///
+    /// Returns:
+    ///     int: The number of edge events
+    pub fn edge_history_count(&self) -> usize {
+        self.node.edge_history_count()
+    }
+
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
@@ -282,9 +299,9 @@ impl Repr for PyNode {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeView<'graph, G, GH> {
     fn repr(&self) -> String {
-        let repr_struc = StructReprBuilder::new("Node")
+        let repr_struct = StructReprBuilder::new("Node")
             .add_field("name", self.name())
             .add_field("earliest_time", self.earliest_time())
             .add_field("latest_time", self.latest_time());
@@ -292,18 +309,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
         match self.node_type() {
             None => {
                 if self.properties().is_empty() {
-                    repr_struc.finish()
+                    repr_struct.finish()
                 } else {
-                    repr_struc
+                    repr_struct
                         .add_field("properties", self.properties())
                         .finish()
                 }
             }
             Some(node_type) => {
                 if self.properties().is_empty() {
-                    repr_struc.add_field("node_type", node_type).finish()
+                    repr_struct.add_field("node_type", node_type).finish()
                 } else {
-                    repr_struc
+                    repr_struct
                         .add_field("properties", self.properties())
                         .add_field("node_type", node_type)
                         .finish()
@@ -315,14 +332,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for NodeVie
 
 #[pyclass(name = "MutableNode", extends = PyNode, module="raphtory", frozen)]
 pub struct PyMutableNode {
-    node: NodeView<MaterializedGraph, MaterializedGraph>,
+    node: NodeView<'static, MaterializedGraph, MaterializedGraph>,
 }
 
 impl PyMutableNode {
-    fn new_bound<G: StaticGraphViewOps + IntoDynamic + Into<MaterializedGraph>>(
-        node: NodeView<G>,
-        py: Python,
-    ) -> PyResult<Bound<PyMutableNode>> {
+    fn new_bound<'py, G: StaticGraphViewOps + IntoDynamic + Into<MaterializedGraph>>(
+        node: NodeView<'static, G>,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyMutableNode>> {
         Bound::new(py, (PyMutableNode::from(node.clone()), PyNode::from(node)))
     }
 }
@@ -336,7 +353,7 @@ impl<
         'py,
         G: StaticGraphViewOps + IntoDynamicOrMutable,
         GH: StaticGraphViewOps + IntoDynamicOrMutable,
-    > IntoPyObject<'py> for NodeView<G, GH>
+    > IntoPyObject<'py> for NodeView<'static, G, GH>
 {
     type Target = PyAny;
     type Output = Bound<'py, Self::Target>;
@@ -367,8 +384,8 @@ impl<
     }
 }
 
-impl<G: Into<MaterializedGraph>> From<NodeView<G>> for PyMutableNode {
-    fn from(value: NodeView<G>) -> Self {
+impl<G: Into<MaterializedGraph>> From<NodeView<'static, G>> for PyMutableNode {
+    fn from(value: NodeView<'static, G>) -> Self {
         let graph = value.graph.into();
         let node = NodeView::new_internal(graph, value.node);
         PyMutableNode { node }
@@ -417,30 +434,24 @@ impl PyMutableNode {
         }
     }
 
-    /// Add constant properties to a node in the graph.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Add metadata to a node in the graph.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn add_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.add_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn add_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.add_metadata(metadata)
     }
 
-    /// Update constant properties of a node in the graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Update metadata of a node in the graph overwriting existing values.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
-    pub fn update_constant_properties(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        self.node.update_constant_properties(properties)
+    ///     metadata (PropInput): A dictionary of properties to be added to the node. Each key is a string representing the property name, and each value is of type Prop representing the property value.
+    pub fn update_metadata(&self, metadata: HashMap<String, Prop>) -> Result<(), GraphError> {
+        self.node.update_metadata(metadata)
     }
 
     /// Return a string representation of the node.
@@ -496,7 +507,7 @@ impl PyNodes {
     #[doc = r""]
     #[doc = r" Returns:"]
     #[doc = concat!("     ","list[Node]",": the list of ","node","s")]
-    fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
+    fn collect(&self) -> Vec<NodeView<'static, DynamicGraph>> {
         self.nodes.collect()
     }
 
@@ -646,6 +657,16 @@ impl PyNodes {
         self.nodes.history()
     }
 
+    /// Return the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     EdgeHistoryCountView: a view of the edge history counts
+    fn edge_history_count(
+        &self,
+    ) -> LazyNodeState<'static, ops::EdgeHistoryCount<DynamicGraph>, DynamicGraph> {
+        self.nodes.edge_history_count()
+    }
+
     /// The node types
     ///
     /// Returns:
@@ -680,6 +701,16 @@ impl PyNodes {
         (move || nodes.properties().into_iter_values()).into()
     }
 
+    /// The metadata of the node
+    ///
+    /// Returns:
+    ///     MetadataView: A view of the node properties
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let nodes = self.nodes.clone();
+        (move || nodes.metadata().into_iter_values()).into()
+    }
+
     /// Returns the number of edges of the nodes
     ///
     /// Returns:
@@ -704,7 +735,10 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<DynamicGraph, DynamicGraph>> {
+    pub fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<NodeView<'static, DynamicGraph, DynamicGraph>> {
         self.nodes
             .get(node)
             .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
@@ -747,6 +781,7 @@ impl PyNodes {
                     &column_names,
                     &is_prop_both_temp_and_const,
                     &item.properties(),
+                    &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
                     item.start().unwrap_or(0),
@@ -816,7 +851,7 @@ impl_nodeviewops!(
 impl_iterable_mixin!(
     PyPathFromGraph,
     path,
-    Vec<Vec<NodeView<DynamicGraph>>>,
+    Vec<Vec<NodeView<'static, DynamicGraph>>>,
     "list[list[Node]]",
     "node"
 );
@@ -883,6 +918,12 @@ impl PyPathFromGraph {
         (move || path.history()).into()
     }
 
+    /// Returns the number of edge updates for each node
+    fn edge_history_count(&self) -> NestedUsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// Returns all timestamps of nodes, when an node is added or change to an node is made.
     fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
         let path = self.path.clone();
@@ -894,6 +935,13 @@ impl PyPathFromGraph {
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> PyMetadataListList {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node degrees
@@ -980,7 +1028,7 @@ impl_nodeviewops!(
 impl_iterable_mixin!(
     PyPathFromNode,
     path,
-    Vec<NodeView<DynamicGraph>>,
+    Vec<NodeView<'static, DynamicGraph>>,
     "list[Node]",
     "node"
 );
@@ -1039,6 +1087,15 @@ impl PyPathFromNode {
         (move || path.node_type()).into()
     }
 
+    /// Get the number of edge updates for each node
+    ///
+    /// Returns:
+    ///     UsizeIterable:
+    fn edge_history_count(&self) -> UsizeIterable {
+        let path = self.path.clone();
+        (move || path.edge_history_count()).into()
+    }
+
     /// the node earliest times
     #[getter]
     fn earliest_time(&self) -> OptionI64Iterable {
@@ -1058,6 +1115,13 @@ impl PyPathFromNode {
     fn properties(&self) -> PropertiesView {
         let path = self.path.clone();
         (move || path.properties()).into()
+    }
+
+    /// the node metadata
+    #[getter]
+    fn metadata(&self) -> MetadataView {
+        let path = self.path.clone();
+        (move || path.metadata()).into()
     }
 
     /// the node in-degrees

@@ -1,9 +1,6 @@
-use crate::model::{
-    algorithms::RegisterFunction,
-    plugins::{
-        entry_point::EntryPoint,
-        operation::{NoOpMutation, Operation},
-    },
+use crate::model::plugins::{
+    entry_point::EntryPoint,
+    operation::{NoOpMutation, Operation},
 };
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
@@ -14,11 +11,13 @@ use std::{
     sync::{Mutex, MutexGuard},
 };
 
+use super::RegisterFunction;
+
 pub static MUTATION_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone, Default)]
-pub struct MutationPlugin {}
+pub struct MutationPlugin;
 
 impl<'a> EntryPoint<'a> for MutationPlugin {
     fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {

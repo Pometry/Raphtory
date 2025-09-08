@@ -1,79 +1,87 @@
 use crate::{
     core::{
-        entities::{
-            nodes::node_ref::{AsNodeRef, NodeRef},
-            properties::{graph_meta::GraphMeta, props::Meta, tprop::TProp},
-            LayerIds, EID, GID, VID,
-        },
-        storage::{
-            locked_view::LockedView, raw_edges::WriteLockedEdges, timeindex::TimeIndexEntry,
-            WriteLockedNodes,
-        },
-        utils::errors::{GraphError, GraphError::EventGraphDeletionsNotSupported},
-        PropType,
+        entities::{LayerIds, EID, VID},
+        storage::timeindex::TimeIndexEntry,
     },
     db::{
-        api::{
-            mutation::internal::{
-                InternalAdditionOps, InternalDeletionOps, InternalPropertyAdditionOps,
-            },
-            properties::internal::{
-                ConstPropertiesOps, TemporalPropertiesOps, TemporalPropertyViewOps,
-            },
-            storage::graph::{
-                edges::{
-                    edge_entry::EdgeStorageEntry, edge_ref::EdgeStorageRef, edges::EdgesStorage,
-                },
-                locked::WriteLockedGraph,
-                nodes::{node_entry::NodeStorageEntry, nodes::NodesStorage},
-                storage_ops::GraphStorage,
-            },
-            view::{internal::*, BoxedIter, BoxedLIter},
-        },
+        api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
     prelude::*,
 };
-use chrono::{DateTime, Utc};
-use enum_dispatch::enum_dispatch;
-use raphtory_api::{
-    core::{
-        entities::GidType,
-        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
-    },
-    GraphType,
-};
+use raphtory_api::{iter::BoxedLDIter, GraphType};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
-#[enum_dispatch(CoreGraphOps)]
-#[enum_dispatch(InternalLayerOps)]
-#[enum_dispatch(ListOps)]
-#[enum_dispatch(TimeSemantics)]
-#[enum_dispatch(EdgeFilterOps)]
-#[enum_dispatch(NodeFilterOps)]
-#[enum_dispatch(InternalMaterialize)]
-#[enum_dispatch(TemporalPropertiesOps)]
-#[enum_dispatch(TemporalPropertyViewOps)]
-#[enum_dispatch(ConstPropertiesOps)]
-#[enum_dispatch(InternalAdditionOps)]
-#[enum_dispatch(InternalPropertyAdditionOps)]
 #[derive(Serialize, Deserialize, Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
 }
 
+macro_rules! for_all {
+    ($value:expr, $pattern:pat => $result:expr) => {
+        match $value {
+            MaterializedGraph::EventGraph($pattern) => $result,
+            MaterializedGraph::PersistentGraph($pattern) => $result,
+        }
+    };
+}
+
+impl From<Graph> for MaterializedGraph {
+    fn from(value: Graph) -> Self {
+        MaterializedGraph::EventGraph(value)
+    }
+}
+
+impl From<PersistentGraph> for MaterializedGraph {
+    fn from(value: PersistentGraph) -> Self {
+        MaterializedGraph::PersistentGraph(value)
+    }
+}
+
+impl Base for MaterializedGraph {
+    type Base = Arc<Storage>;
+
+    fn base(&self) -> &Self::Base {
+        match self {
+            MaterializedGraph::EventGraph(g) => &g.inner,
+            MaterializedGraph::PersistentGraph(g) => &g.0,
+        }
+    }
+}
+
+impl InheritCoreGraphOps for MaterializedGraph {}
+impl InheritLayerOps for MaterializedGraph {}
+impl InheritListOps for MaterializedGraph {}
+
+impl InheritPropertiesOps for MaterializedGraph {}
+
+impl InheritNodeFilterOps for MaterializedGraph {}
+impl InheritAllEdgeFilterOps for MaterializedGraph {}
+
+impl InternalMaterialize for MaterializedGraph {
+    fn graph_type(&self) -> GraphType {
+        match self {
+            MaterializedGraph::EventGraph(_) => GraphType::EventGraph,
+            MaterializedGraph::PersistentGraph(_) => GraphType::PersistentGraph,
+        }
+    }
+}
+
+impl InheritMutationOps for MaterializedGraph {}
+
+impl Debug for MaterializedGraph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut builder = f.debug_tuple("MaterializedGraph");
+        for_all!(self, g => builder.field(g)).finish()
+    }
+}
+
 impl Static for MaterializedGraph {}
 
 impl MaterializedGraph {
-    pub fn storage(&self) -> &GraphStorage {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.core_graph(),
-            MaterializedGraph::PersistentGraph(g) => g.core_graph(),
-        }
-    }
-
     pub fn into_events(self) -> Option<Graph> {
         match self {
             MaterializedGraph::EventGraph(g) => Some(g),
@@ -90,41 +98,81 @@ impl MaterializedGraph {
 
 impl InternalStorageOps for MaterializedGraph {
     fn get_storage(&self) -> Option<&Storage> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.get_storage(),
-            MaterializedGraph::PersistentGraph(g) => g.get_storage(),
-        }
+        for_all!(self, g => g.get_storage())
     }
 }
 
-impl InternalDeletionOps for MaterializedGraph {
-    fn internal_delete_edge(
-        &self,
-        t: TimeIndexEntry,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
-            MaterializedGraph::PersistentGraph(g) => g.internal_delete_edge(t, src, dst, layer),
-        }
+impl GraphTimeSemanticsOps for MaterializedGraph {
+    fn node_time_semantics(&self) -> TimeSemantics {
+        for_all!(self, g => g.node_time_semantics())
     }
 
-    fn internal_delete_existing_edge(
+    fn edge_time_semantics(&self) -> TimeSemantics {
+        for_all!(self, g => g.edge_time_semantics())
+    }
+
+    fn view_start(&self) -> Option<i64> {
+        for_all!(self, g => g.view_start())
+    }
+
+    fn view_end(&self) -> Option<i64> {
+        for_all!(self, g => g.view_end())
+    }
+
+    fn earliest_time_global(&self) -> Option<i64> {
+        for_all!(self, g => g.earliest_time_global())
+    }
+
+    fn latest_time_global(&self) -> Option<i64> {
+        for_all!(self, g => g.latest_time_global())
+    }
+
+    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        for_all!(self, g => g.earliest_time_window(start, end))
+    }
+
+    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+        for_all!(self, g => g.latest_time_window(start, end))
+    }
+
+    fn has_temporal_prop(&self, prop_id: usize) -> bool {
+        for_all!(self, g => g.has_temporal_prop(prop_id))
+    }
+
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        for_all!(self, g => g.temporal_prop_iter(prop_id))
+    }
+
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+        for_all!(self, g => g.has_temporal_prop_window(prop_id, w))
+    }
+
+    fn temporal_prop_iter_window(
         &self,
+        prop_id: usize,
+        start: i64,
+        end: i64,
+    ) -> BoxedLDIter<(TimeIndexEntry, Prop)> {
+        for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
+    }
+
+    fn temporal_prop_last_at(
+        &self,
+        prop_id: usize,
         t: TimeIndexEntry,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(_) => Err(EventGraphDeletionsNotSupported),
-            MaterializedGraph::PersistentGraph(g) => g.internal_delete_existing_edge(t, eid, layer),
-        }
+    ) -> Option<(TimeIndexEntry, Prop)> {
+        for_all!(self, g => g.temporal_prop_last_at(prop_id, t))
+    }
+
+    fn temporal_prop_last_at_window(
+        &self,
+        prop_id: usize,
+        t: TimeIndexEntry,
+        w: Range<i64>,
+    ) -> Option<(TimeIndexEntry, Prop)> {
+        for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
     }
 }
-
-impl DeletionOps for MaterializedGraph {}
 
 impl NodeHistoryFilter for MaterializedGraph {
     fn is_node_prop_update_available(
@@ -133,14 +181,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         node_id: VID,
         time: TimeIndexEntry,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_node_prop_update_available(prop_id, node_id, time)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_node_prop_update_available(prop_id, node_id, time)
-            }
-        }
+        for_all!(self, g => g.is_node_prop_update_available(prop_id, node_id, time))
     }
 
     fn is_node_prop_update_available_window(
@@ -150,14 +191,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_node_prop_update_available_window(prop_id, node_id, time, w)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_node_prop_update_available_window(prop_id, node_id, time, w)
-            }
-        }
+        for_all!(self, g => g.is_node_prop_update_available_window(prop_id, node_id, time, w))
     }
 
     fn is_node_prop_update_latest(
@@ -166,14 +200,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         node_id: VID,
         time: TimeIndexEntry,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_node_prop_update_latest(prop_id, node_id, time)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_node_prop_update_latest(prop_id, node_id, time)
-            }
-        }
+        for_all!(self, g =>g.is_node_prop_update_latest(prop_id, node_id, time))
     }
 
     fn is_node_prop_update_latest_window(
@@ -183,14 +210,7 @@ impl NodeHistoryFilter for MaterializedGraph {
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_node_prop_update_latest_window(prop_id, node_id, time, w)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_node_prop_update_latest_window(prop_id, node_id, time, w)
-            }
-        }
+        for_all!(self, g => g.is_node_prop_update_latest_window(prop_id, node_id, time, w))
     }
 }
 
@@ -202,14 +222,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time)
-            }
-        }
+        for_all!(self, g => g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time))
     }
 
     fn is_edge_prop_update_available_window(
@@ -220,14 +233,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w)
-            }
-        }
+        for_all!(self, g => g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w))
     }
 
     fn is_edge_prop_update_latest(
@@ -238,14 +244,7 @@ impl EdgeHistoryFilter for MaterializedGraph {
         edge_id: EID,
         time: TimeIndexEntry,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
-            }
-        }
+        for_all!(self, g => g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time))
     }
 
     fn is_edge_prop_update_latest_window(
@@ -257,18 +256,10 @@ impl EdgeHistoryFilter for MaterializedGraph {
         time: TimeIndexEntry,
         w: Range<i64>,
     ) -> bool {
-        match self {
-            MaterializedGraph::EventGraph(g) => {
-                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
-            }
-            MaterializedGraph::PersistentGraph(g) => {
-                g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w)
-            }
-        }
+        for_all!(self, g => g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w))
     }
 }
 
-#[enum_dispatch]
 pub trait InternalMaterialize {
     fn new_base_graph(&self, graph: GraphStorage) -> MaterializedGraph {
         match self.graph_type() {
@@ -282,8 +273,6 @@ pub trait InternalMaterialize {
     }
 
     fn graph_type(&self) -> GraphType;
-
-    fn include_deletions(&self) -> bool;
 }
 
 pub trait InheritMaterialize: Base {}
@@ -301,25 +290,19 @@ where
     fn graph_type(&self) -> GraphType {
         self.base().graph_type()
     }
-
-    #[inline]
-    fn include_deletions(&self) -> bool {
-        self.base().include_deletions()
-    }
 }
 
 #[cfg(test)]
 mod test_materialised_graph_dispatch {
-    use raphtory_api::core::entities::GID;
-
     use crate::{
         core::entities::LayerIds,
         db::api::view::internal::{
-            CoreGraphOps, EdgeFilterOps, InternalLayerOps, InternalMaterialize, MaterializedGraph,
-            TimeSemantics,
+            GraphTimeSemanticsOps, InternalEdgeFilterOps, InternalLayerOps, MaterializedGraph,
         },
         prelude::*,
     };
+    use raphtory_api::core::entities::GID;
+    use raphtory_storage::core_ops::CoreGraphOps;
 
     #[test]
     fn materialised_graph_has_core_ops() {
@@ -336,7 +319,7 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_edge_filter_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert!(!mg.edges_filtered());
+        assert!(!mg.internal_edge_filtered());
     }
 
     #[test]
@@ -349,12 +332,6 @@ mod test_materialised_graph_dispatch {
     fn materialised_graph_has_time_semantics() {
         let mg = MaterializedGraph::from(Graph::new());
         assert!(mg.view_start().is_none());
-    }
-
-    #[test]
-    fn materialised_graph_has_internal_materialise() {
-        let mg = MaterializedGraph::from(Graph::new());
-        assert!(!mg.include_deletions());
     }
 
     #[test]

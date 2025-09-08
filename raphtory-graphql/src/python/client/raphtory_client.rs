@@ -1,6 +1,8 @@
 use crate::{
     python::{
-        client::remote_graph::PyRemoteGraph, encode_graph, server::is_online,
+        client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
+        encode_graph,
+        server::is_online,
         translate_from_python, translate_map_to_python,
     },
     url_encode::url_decode_graph,
@@ -10,24 +12,25 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{
-    db::api::view::MaterializedGraph,
-    python::utils::{errors::adapt_err_value, execute_async_task},
-};
+use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
+use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, fs::File, io::Read, path::Path};
+use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
+use tokio::runtime::Runtime;
 use tracing::debug;
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
 /// Arguments:
-///     url (str): the URL of the Raphtory GraphQL server
+/// url (str): the URL of the Raphtory GraphQL server
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
 pub struct PyRaphtoryClient {
     pub(crate) url: String,
     pub(crate) token: String,
+    client: Client,
+    runtime: Arc<Runtime>,
 }
 
 impl PyRaphtoryClient {
@@ -37,7 +40,7 @@ impl PyRaphtoryClient {
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
         let client = self.clone();
-        let (graphql_query, graphql_result) = execute_async_task(move || async move {
+        let (graphql_query, graphql_result) = self.execute_async_task(move || async move {
             client.send_graphql_query(query, variables).await
         })?;
         let mut graphql_result = graphql_result;
@@ -75,7 +78,8 @@ impl PyRaphtoryClient {
             "variables": variables
         });
 
-        let response = Client::new()
+        let response = self
+            .client
             .post(&self.url)
             .bearer_auth(&self.token)
             .json(&request_body)
@@ -88,6 +92,14 @@ impl PyRaphtoryClient {
             .await
             .map_err(|err| adapt_err_value(&err))
             .map(|json| (request_body, json))
+    }
+    pub fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        Python::with_gil(|py| py.allow_threads(|| self.runtime.block_on(task())))
     }
 }
 
@@ -104,7 +116,18 @@ impl PyRaphtoryClient {
         {
             Ok(response) => {
                 if response.status() == 200 {
-                    Ok(Self { url, token })
+                    let client = Client::new();
+                    let runtime = Arc::new(
+                        tokio::runtime::Builder::new_multi_thread()
+                            .enable_all()
+                            .build()?,
+                    );
+                    Ok(Self {
+                        url,
+                        token,
+                        client,
+                        runtime,
+                    })
                 } else {
                     Err(PyValueError::new_err(format!(
                         "Could not connect to the given server - response {}",
@@ -122,7 +145,7 @@ impl PyRaphtoryClient {
     /// Check if the server is online.
     ///
     /// Returns:
-    ///    bool: Returns true if server is online otherwise false.
+    /// bool: Returns true if server is online otherwise false.
     fn is_server_online(&self) -> bool {
         is_online(&self.url)
     }
@@ -130,11 +153,11 @@ impl PyRaphtoryClient {
     /// Make a GraphQL query against the server.
     ///
     /// Arguments:
-    ///   query (str): the query to make.
-    ///   variables (dict[str, Any], optional): a dict of variables present on the query and their values.
+    /// query (str): the query to make.
+    /// variables (dict[str, Any], optional): a dict of variables present on the query and their values.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response.
+    /// dict[str, Any]: The data field from the graphQL response.
     #[pyo3(signature = (query, variables = None))]
     pub(crate) fn query<'py>(
         &self,
@@ -148,20 +171,19 @@ impl PyRaphtoryClient {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
         }
-
-        let data = self.query_with_json_variables(query, json_variables)?;
+        let data = py.allow_threads(|| self.query_with_json_variables(query, json_variables))?;
         translate_map_to_python(py, data)
     }
 
     /// Send a graph to the server
     ///
     /// Arguments:
-    ///   path (str): the path of the graph
-    ///   graph (Graph | PersistentGraph): the graph to send
-    ///   overwrite (bool): overwrite existing graph. Defaults to False.
+    /// path (str): the path of the graph
+    /// graph (Graph | PersistentGraph): the graph to send
+    /// overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+    /// dict[str, Any]: The data field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
@@ -192,27 +214,24 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Upload graph file from a path `file_path` on the client
+    /// Upload graph file from a path file_path on the client
     ///
     /// Arguments:
-    ///   path (str): the name of the graph
-    ///   file_path (str): the path of the graph on the client
-    ///   overwrite (bool): overwrite existing graph. Defaults to False.
+    /// path (str): the name of the graph
+    /// file_path (str): the path of the graph on the client
+    /// overwrite (bool): overwrite existing graph. Defaults to False.
     ///
     /// Returns:
-    ///    dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+    /// dict[str, Any]: The data field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
-        execute_async_task(move || async move {
-            let client = Client::new();
-
-            let mut file =
-                File::open(Path::new(&file_path)).map_err(|err| adapt_err_value(&err))?;
-
+        let client = self.client.clone();
+        self.execute_async_task(move || async move {
+            let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)
-                .map_err(|err| adapt_err_value(&err))?;
+            folder.create_zip(Cursor::new(&mut buffer))?;
+
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
@@ -274,14 +293,14 @@ impl PyRaphtoryClient {
         })
     }
 
-    /// Copy graph from a path `path` on the server to a `new_path` on the server
+    /// Copy graph from a path path on the server to a new_path on the server
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be copied
-    ///   new_path (str): the new path of the copied graph
+    /// path (str): the path of the graph to be copied
+    /// new_path (str): the new path of the copied graph
     ///
     /// Returns:
-    ///    None:
+    /// None:
     #[pyo3(signature = (path, new_path))]
     fn copy_graph(&self, path: String, new_path: String) -> PyResult<()> {
         let query = r#"
@@ -308,14 +327,14 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Move graph from a path `path` on the server to a `new_path` on the server
+    /// Move graph from a path path on the server to a new_path on the server
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be moved
-    ///   new_path (str): the new path of the moved graph
+    /// path (str): the path of the graph to be moved
+    /// new_path (str): the new path of the moved graph
     ///
     /// Returns:
-    ///    None:
+    /// None:
     #[pyo3(signature = (path, new_path))]
     fn move_graph(&self, path: String, new_path: String) -> PyResult<()> {
         let query = r#"
@@ -342,13 +361,13 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Delete graph from a path `path` on the server
+    /// Delete graph from a path path on the server
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be deleted
+    /// path (str): the path of the graph to be deleted
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (path))]
     fn delete_graph(&self, path: String) -> PyResult<()> {
         let query = r#"
@@ -371,16 +390,16 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Receive graph from a path `path` on the server
+    /// Receive graph from a path path on the server
     ///
     /// Note:
-    ///     This downloads a copy of the graph. Modifications are not persistet to the server.
+    /// This downloads a copy of the graph. Modifications are not persistet to the server.
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be received
+    /// path (str): the path of the graph to be received
     ///
     /// Returns:
-    ///    Union[Graph, PersistentGraph]: A copy of the graph
+    /// Union[Graph, PersistentGraph]: A copy of the graph
     fn receive_graph(&self, path: String) -> PyResult<MaterializedGraph> {
         let query = r#"
             query ReceiveGraph($path: String!) {
@@ -400,14 +419,14 @@ impl PyRaphtoryClient {
         }
     }
 
-    /// Create a new empty Graph on the server at `path`
+    /// Create a new empty Graph on the server at path
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be created
-    ///   graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
+    /// path (str): the path of the graph to be created
+    /// graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
     ///
     /// Returns:
-    ///    None:
+    /// None:
     ///
     fn new_graph(&self, path: String, graph_type: String) -> PyResult<()> {
         let query = r#"
@@ -432,18 +451,60 @@ impl PyRaphtoryClient {
         Ok(())
     }
 
-    /// Get a RemoteGraph reference to a graph on the server at `path`
+    /// Get a RemoteGraph reference to a graph on the server at path
     ///
     /// Arguments:
-    ///   path (str): the path of the graph to be created
+    /// path (str): the path of the graph to be created
     ///
     /// Returns:
-    ///    RemoteGraph: the remote graph reference
+    /// RemoteGraph: the remote graph reference
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
             path,
             client: self.clone(),
+        }
+    }
+
+    /// Create Index for graph on the server at 'path'
+    ///
+    /// Arguments:
+    /// path (str): the path of the graph to be created
+    /// index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+    /// in_ram (bool): create index in ram
+    ///
+    /// Returns:
+    /// None:
+    ///
+    #[pyo3(signature = (path, index_spec, in_ram = true))]
+    fn create_index(
+        &self,
+        path: String,
+        index_spec: PyRemoteIndexSpec,
+        in_ram: bool,
+    ) -> PyResult<()> {
+        let query = r#"
+            mutation CreateIndex($path: String!, $indexSpec: IndexSpecInput!, $inRam: Boolean!) {
+                createIndex(path: $path, indexSpec: $indexSpec, inRam: $inRam)
+            }
+        "#
+        .to_owned();
+
+        let variables = [
+            ("path".to_string(), json!(path)),
+            ("indexSpec".to_string(), json!(index_spec)),
+            ("inRam".to_string(), json!(in_ram)),
+        ]
+        .into_iter()
+        .collect();
+
+        let data = self.query_with_json_variables(query, variables)?;
+
+        match data.get("createIndex") {
+            Some(JsonValue::Bool(true)) => Ok(()),
+            _ => Err(PyException::new_err(format!(
+                "Failed to create index, server returned: {data:?}"
+            ))),
         }
     }
 }

@@ -1,15 +1,13 @@
 //! The API for querying a view of the graph in a read-only state
-
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             view::{
                 internal::{
                     DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
                 },
-                LayerOps, StaticGraphViewOps,
+                ExplodedEdgePropertyFilterOps, LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -22,22 +20,23 @@ use crate::{
                 cached_view::CachedView,
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
+                    exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                     node_property_filtered_graph::NodePropertyFilteredGraph,
                     node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
+                valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
         },
     },
+    errors::GraphError,
     prelude::*,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{edge::PyEdge, node::PyNode},
-        types::{
-            repr::{Repr, StructReprBuilder},
-            wrappers::filter_expr::PyFilterExpr,
-        },
+        types::repr::{Repr, StructReprBuilder},
         utils::PyNodeRef,
     },
 };
@@ -168,17 +167,27 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropert
     }
 }
 
-// impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
-//     for ExplodedEdgePropertyFilteredGraph<G>
-// {
-//     type Target = PyGraphView;
-//     type Output = <Self::Target as IntoPyObject<'py>>::Output;
-//     type Error = <Self::Target as IntoPyObject<'py>>::Error;
-//
-//     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-//         PyGraphView::from(self).into_pyobject(py)
-//     }
-// }
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py>
+    for ExplodedEdgePropertyFilteredGraph<G>
+{
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for ValidGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
 
 /// The API for querying a view of the graph in a read-only state
 #[pymethods]
@@ -287,13 +296,13 @@ impl PyGraphView {
     ///
     /// Returns:
     ///     Optional[Node]: the node with the specified id, or None if the node does not exist
-    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<DynamicGraph>> {
+    pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, DynamicGraph>> {
         self.graph.node(id)
     }
 
     /// Get the nodes that match the properties name and value
     /// Arguments:
-    ///     properties_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, PropValue]): the properties name and value
     /// Returns:
     ///    list[Node]: the nodes that match the properties name and value
     #[pyo3(signature = (properties_dict))]
@@ -310,7 +319,7 @@ impl PyGraphView {
                     }
                 })
             })
-            .map(|n| PyNode::from(n))
+            .map(PyNode::from)
             .collect::<Vec<_>>();
 
         out
@@ -344,7 +353,7 @@ impl PyGraphView {
 
     /// Get the edges that match the properties name and value
     /// Arguments:
-    ///     properties_dict (dict[str, Prop]): the properties name and value
+    ///     properties_dict (dict[str, PropValue]): the properties name and value
     /// Returns:
     ///    list[Edge]: the edges that match the properties name and value
     #[pyo3(signature = (properties_dict))]
@@ -361,7 +370,7 @@ impl PyGraphView {
                     }
                 })
             })
-            .map(|e| PyEdge::from(e))
+            .map(PyEdge::from)
             .collect::<Vec<_>>();
 
         out
@@ -386,6 +395,16 @@ impl PyGraphView {
         self.graph.properties()
     }
 
+    /// Get all graph metadata
+    ///
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    fn metadata(&self) -> Metadata<'static, DynamicGraph> {
+        self.graph.metadata()
+    }
+
     /// Returns a subgraph given a set of nodes
     ///
     /// Arguments:
@@ -395,6 +414,20 @@ impl PyGraphView {
     ///    GraphView: Returns the subgraph
     fn subgraph(&self, nodes: Vec<PyNodeRef>) -> NodeSubgraph<DynamicGraph> {
         self.graph.subgraph(nodes)
+    }
+
+    /// Return a view of the graph that only includes valid edges
+    ///
+    /// Note:
+    ///
+    ///     The semantics for `valid` depend on the time semantics of the underlying graph.
+    ///     In the case of a persistent graph, an edge is valid if its last update is an addition.
+    ///     In the case of an event graph, an edge is valid if it has at least one addition event.
+    ///
+    /// Returns:
+    ///     GraphView: The filtered graph
+    fn valid(&self) -> ValidGraph<DynamicGraph> {
+        self.graph.valid()
     }
 
     /// Applies the filters to the graph and retains the node ids and the edge ids

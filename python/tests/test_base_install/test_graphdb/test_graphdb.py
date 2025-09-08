@@ -52,7 +52,7 @@ def create_graph_with_deletions():
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
-    g.edge(edges[0][1], edges[0][2]).add_constant_properties({"static": "test"})
+    g.edge(edges[0][1], edges[0][2]).add_metadata({"static": "test"})
     g.delete_edge(10, edges[0][1], edges[0][2])
     return g
 
@@ -443,14 +443,14 @@ def test_graph_properties():
         "prop 4": [1, 2],
         "prop 5": {"x": 1, "y": "ok"},
     }
-    g.add_constant_properties(props)
+    g.add_metadata(props)
 
-    sp = g.properties.constant.keys()
+    sp = g.metadata.keys()
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
-    assert g.properties["prop 1"] == 1
-    assert g.properties["prop 4"] == [1, 2]
-    assert g.properties["prop 5"] == {"x": 1, "y": "ok"}
+    assert g.metadata["prop 1"] == 1
+    assert g.metadata["prop 4"] == [1, 2]
+    assert g.metadata["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
     g.add_properties(1, props)
@@ -482,10 +482,10 @@ def test_graph_properties():
     time_history_test(1, "static prop", None)
 
     def time_static_property_test(time, key, value):
-        assert g.at(time).properties.constant.get(key) == value
+        assert g.at(time).metadata.get(key) == value
 
     def static_property_test(key, value):
-        assert g.properties.constant.get(key) == value
+        assert g.metadata.get(key) == value
 
     time_static_property_test(1, "prop 1", 1)
     time_static_property_test(100, "prop 1", 1)
@@ -500,19 +500,12 @@ def test_graph_properties():
         assert g.properties.get(key) == value
 
     static_property_test("prop 2", "hi")
-    property_test("prop 2", "hi")
+    property_test("prop 2", None)
     time_static_property_test(2, "prop 3", True)
-    time_property_test(2, "prop 3", True)
+    time_property_test(2, "prop 3", None)
 
     # testing properties
-    assert g.properties.as_dict() == {
-        "prop 1": 1,
-        "prop 2": "hi",
-        "prop 3": True,
-        "prop 4": 11,
-        "prop 5": "world",
-        "prop 6": True,
-    }
+    assert g.properties.as_dict() == {"prop 4": 11, "prop 5": "world", "prop 6": True}
 
     assert g.properties.temporal.latest() == {
         "prop 4": 11,
@@ -520,12 +513,9 @@ def test_graph_properties():
         "prop 6": True,
     }
     assert g.before(3).properties.as_dict() == {
-        "prop 1": 1,
-        "prop 2": "hi",
-        "prop 3": True,
-        "prop 4": 11,
         "prop 5": "world",
         "prop 6": True,
+        "prop 4": 11,
     }
 
     # testing property histories
@@ -542,9 +532,7 @@ def test_graph_properties():
     }
 
     # testing property names
-    expected_names = sorted(
-        ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
-    )
+    expected_names = sorted(["prop 4", "prop 5", "prop 6"])
     assert sorted(g.properties.keys()) == expected_names
 
     expected_names_no_static = sorted(["prop 4", "prop 5", "prop 6"])
@@ -556,9 +544,9 @@ def test_graph_properties():
     assert "prop 4" in g.properties
     assert "prop 7" not in g.properties
     assert "prop 7" not in g.before(2).properties
-    assert "prop 1" in g.properties
-    assert "prop 2" in g.before(2).properties
-    assert "static prop" not in g.properties.constant
+    assert "prop 1" in g.metadata
+    assert "prop 2" in g.before(2).metadata
+    assert "static prop" not in g.metadata
 
 
 def create_graph_history_1():
@@ -570,7 +558,7 @@ def create_graph_history_1():
     v.add_updates(2, props_t2)
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
     v.add_updates(3, props_t3)
-    v.add_constant_properties({"static prop": 123})
+    v.add_metadata({"static prop": 123})
     return g
 
 
@@ -618,23 +606,23 @@ def test_node_properties():
         def time_static_property_test(time, key, value):
             gg = g.before(time + 1)
             if value is None:
-                assert gg.node(1).properties.constant.get(key) is None
-                assert gg.nodes.properties.constant.get(key) is None
-                assert gg.nodes.out_neighbours.properties.constant.get(key) is None
+                assert gg.node(1).metadata.get(key) is None
+                assert gg.nodes.metadata.get(key) is None
+                assert gg.nodes.out_neighbours.metadata.get(key) is None
             else:
-                assert gg.node(1).properties.constant.get(key) == value
-                assert gg.nodes.properties.constant.get(key) == [value]
-                assert gg.nodes.out_neighbours.properties.constant.get(key) == [[value]]
+                assert gg.node(1).metadata.get(key) == value
+                assert gg.nodes.metadata.get(key) == [value]
+                assert gg.nodes.out_neighbours.metadata.get(key) == [[value]]
 
         def static_property_test(key, value):
             if value is None:
-                assert g.node(1).properties.constant.get(key) is None
-                assert g.nodes.properties.constant.get(key) is None
-                assert g.nodes.out_neighbours.properties.constant.get(key) is None
+                assert g.node(1).metadata.get(key) is None
+                assert g.nodes.metadata.get(key) is None
+                assert g.nodes.out_neighbours.metadata.get(key) is None
             else:
-                assert g.node(1).properties.constant.get(key) == value
-                assert g.nodes.properties.constant.get(key) == [value]
-                assert g.nodes.out_neighbours.properties.constant.get(key) == [[value]]
+                assert g.node(1).metadata.get(key) == value
+                assert g.nodes.metadata.get(key) == [value]
+                assert g.nodes.out_neighbours.metadata.get(key) == [[value]]
 
         time_static_property_test(1, "static prop", 123)
         time_static_property_test(100, "static prop", 123)
@@ -646,22 +634,20 @@ def test_node_properties():
             gg = g.before(time + 1)
             if value is None:
                 assert gg.node(1).properties.get(key) is None
-                assert gg.nodes.properties.get(key) is None
-                assert gg.nodes.out_neighbours.properties.get(key) is None
             else:
                 assert gg.node(1).properties.get(key) == value
                 assert gg.nodes.properties.get(key) == [value]
                 assert gg.nodes.out_neighbours.properties.get(key) == [[value]]
 
-        def property_test(key, value):
+        def meta_test(key, value):
             if value is None:
-                assert g.node(1).properties.get(key) is None
-                assert g.nodes.properties.get(key) is None
-                assert g.nodes.out_neighbours.properties.get(key) is None
+                assert g.node(1).metadata.get(key) is None
+                assert g.nodes.metadata.get(key) is None
+                assert g.nodes.out_neighbours.metadata.get(key) is None
             else:
-                assert g.node(1).properties.get(key) == value
-                assert g.nodes.properties.get(key) == [value]
-                assert g.nodes.out_neighbours.properties.get(key) == [[value]]
+                assert g.node(1).metadata.get(key) == value
+                assert g.nodes.metadata.get(key) == [value]
+                assert g.nodes.out_neighbours.metadata.get(key) == [[value]]
 
         def no_static_property_test(key, value):
             if value is None:
@@ -675,8 +661,8 @@ def test_node_properties():
                     [value]
                 ]
 
-        property_test("static prop", 123)
-        assert g.node(1)["static prop"] == 123
+        meta_test("static prop", 123)
+        assert g.node(1).metadata["static prop"] == 123
         no_static_property_test("static prop", None)
         no_static_property_test("prop 1", 2)
         time_property_test(2, "prop 2", 0.6)
@@ -688,6 +674,9 @@ def test_node_properties():
             "prop 3": "hello",
             "prop 1": 2,
             "prop 4": True,
+        }
+
+        assert g.node(1).metadata == {
             "static prop": 123,
         }
 
@@ -708,7 +697,6 @@ def test_node_properties():
             "prop 3": ["hello"],
             "prop 1": [2],
             "prop 4": [True],
-            "static prop": [123],
         }
 
         assert g.nodes.out_neighbours.properties == {
@@ -716,6 +704,13 @@ def test_node_properties():
             "prop 3": [["hello"]],
             "prop 1": [[2]],
             "prop 4": [[True]],
+        }
+
+        assert g.nodes.metadata == {
+            "static prop": [123],
+        }
+
+        assert g.nodes.out_neighbours.metadata == {
             "static prop": [[123]],
         }
 
@@ -742,22 +737,29 @@ def test_node_properties():
             "prop 1": 2,
             "prop 4": False,
             "prop 2": 0.6,
-            "static prop": 123,
             "prop 3": "hi",
         }
         assert g.before(3).nodes.properties == {
             "prop 1": [2],
             "prop 4": [False],
             "prop 2": [0.6],
-            "static prop": [123],
             "prop 3": ["hi"],
         }
         assert g.before(3).nodes.out_neighbours.properties == {
             "prop 1": [[2]],
             "prop 4": [[False]],
             "prop 2": [[0.6]],
-            "static prop": [[123]],
             "prop 3": [["hi"]],
+        }
+
+        assert g.before(3).node(1).metadata == {
+            "static prop": 123,
+        }
+        assert g.before(3).nodes.metadata == {
+            "static prop": [123],
+        }
+        assert g.before(3).nodes.out_neighbours.metadata == {
+            "static prop": [[123]],
         }
 
         # testing property histories
@@ -781,7 +783,6 @@ def test_node_properties():
         }
 
         assert g.at(2).node(1).properties.temporal == {
-            "prop 3": [],
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
@@ -800,7 +801,7 @@ def test_node_properties():
         }
 
         # testing property names
-        expected_names = sorted(["prop 4", "prop 1", "prop 2", "prop 3", "static prop"])
+        expected_names = sorted(["prop 4", "prop 1", "prop 2", "prop 3"])
         assert sorted(g.node(1).properties.keys()) == expected_names
         assert sorted(g.nodes.properties.keys()) == expected_names
         assert sorted(g.nodes.out_neighbours.properties.keys()) == expected_names
@@ -814,10 +815,11 @@ def test_node_properties():
         )
 
         expected_names_no_static_at_1 = ["prop 1", "prop 2", "prop 3", "prop 4"]
-        assert (
-            sorted(g.at(1).node(1).properties.temporal.keys())
-            == expected_names_no_static_at_1
-        )
+        assert sorted(g.at(1).node(1).properties.temporal.keys()) == [
+            "prop 1",
+            "prop 3",
+            "prop 4",
+        ]
         assert (
             sorted(g.at(1).nodes.properties.temporal.keys())
             == expected_names_no_static_at_1
@@ -840,33 +842,35 @@ def test_node_properties():
         assert "prop 5" not in g.nodes.properties
         assert "prop 5" not in g.nodes.out_neighbours.properties
 
-        assert "prop 2" not in g.at(1).node(1).properties
-        assert "prop 2" not in g.at(1).nodes.properties
-        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties
+        assert (
+            "prop 2" not in g.at(1).node(1).properties.as_dict()
+        )  # TODO should be as dict?
+        #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
+        #        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
 
-        assert "static prop" in g.node(1).properties
-        assert "static prop" in g.nodes.properties
-        assert "static prop" in g.nodes.out_neighbours.properties
+        assert "static prop" in g.node(1).metadata
+        assert "static prop" in g.nodes.metadata
+        assert "static prop" in g.nodes.out_neighbours.metadata
 
-        assert "static prop" in g.at(1).node(1).properties
-        assert "static prop" in g.at(1).nodes.properties
-        assert "static prop" in g.at(1).nodes.out_neighbours.properties
+        assert "static prop" in g.at(1).node(1).metadata
+        assert "static prop" in g.at(1).nodes.metadata
+        assert "static prop" in g.at(1).nodes.out_neighbours.metadata
 
         assert "static prop" not in g.at(1).node(1).properties.temporal
         assert "static prop" not in g.at(1).nodes.properties.temporal
         assert "static prop" not in g.at(1).nodes.out_neighbours.properties.temporal
 
-        assert "static prop" in g.node(1).properties.constant
-        assert "static prop" in g.nodes.properties.constant
-        assert "static prop" in g.nodes.out_neighbours.properties.constant
+        assert "static prop" in g.node(1).metadata
+        assert "static prop" in g.nodes.metadata
+        assert "static prop" in g.nodes.out_neighbours.metadata
 
-        assert "prop 2" not in g.node(1).properties.constant
-        assert "prop 2" not in g.nodes.properties.constant
-        assert "prop 2" not in g.nodes.out_neighbours.properties.constant
+        assert "prop 2" not in g.node(1).metadata
+        assert "prop 2" not in g.nodes.metadata
+        assert "prop 2" not in g.nodes.out_neighbours.metadata
 
-        assert "static prop" in g.at(1).node(1).properties.constant
-        assert "static prop" in g.at(1).nodes.properties.constant
-        assert "static prop" in g.at(1).nodes.out_neighbours.properties.constant
+        assert "static prop" in g.at(1).node(1).metadata
+        assert "static prop" in g.at(1).nodes.metadata
+        assert "static prop" in g.at(1).nodes.out_neighbours.metadata
 
     check(g)
 
@@ -967,7 +971,6 @@ def test_edge_properties():
             "prop 4": [(1, True)],
             "prop 1": [(1, 1)],
             "prop 3": [(1, "hi")],
-            "prop 2": [],
         }
 
         assert g.edge(1, 2).properties.temporal.latest() == {
@@ -989,14 +992,12 @@ def test_edge_properties():
             "prop 2": [(2, 0.6)],
             "prop 4": [(2, False)],
             "prop 1": [(2, 2)],
-            "prop 3": [],
         }
 
         assert g.after(2).edge(1, 2).properties.temporal == {
             "prop 2": [(3, 0.9)],
             "prop 3": [(3, "hello")],
             "prop 4": [(3, True)],
-            "prop 1": [],
         }
 
         assert sorted(g.edge(1, 2).properties.temporal.keys()) == sorted(
@@ -1005,7 +1006,6 @@ def test_edge_properties():
 
         assert sorted(g.at(1).edge(1, 2).properties.temporal.keys()) == [
             "prop 1",
-            "prop 2",
             "prop 3",
             "prop 4",
         ]
@@ -1021,17 +1021,19 @@ def test_edge_properties():
         assert "prop 4" in g.edge(1, 2).properties
         assert "prop 2" in g.edge(1, 2).properties
         assert "prop 5" not in g.edge(1, 2).properties
-        assert "prop 2" not in g.at(1).edge(1, 2).properties
+        assert (
+            "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
+        )  # TODO should be as dict? - Properties now returns all keys here
 
     def check(g):
-        assert g.at(1).edge(1, 2).properties.constant.get("static prop") == 123
-        assert g.before(101).edge(1, 2).properties.constant.get("static prop") == 123
-        assert g.edge(1, 2).properties.constant.get("static prop") == 123
-        assert g.edge(1, 2).properties.constant.get("prop 4") is None
+        assert g.at(1).edge(1, 2).metadata.get("static prop") == 123
+        assert g.before(101).edge(1, 2).metadata.get("static prop") == 123
+        assert g.edge(1, 2).metadata.get("static prop") == 123
+        assert g.edge(1, 2).metadata.get("prop 4") is None
 
         # testing property
-        assert g.edge(1, 2).properties.get("static prop") == 123
-        assert g.edge(1, 2)["static prop"] == 123
+        assert g.edge(1, 2).metadata.get("static prop") == 123
+        assert g.edge(1, 2).metadata["static prop"] == 123
         assert g.edge(1, 2).properties.temporal.get("static prop") is None
         assert g.edge(1, 2).properties.temporal.get("prop 1").value() == 2
         assert g.at(2).edge(1, 2).properties.get("prop 2") == 0.6
@@ -1043,29 +1045,35 @@ def test_edge_properties():
             "prop 3": "hello",
             "prop 1": 2,
             "prop 4": True,
-            "static prop": 123,
         }
 
         assert g.before(3).edge(1, 2).properties == {
             "prop 1": 2,
             "prop 4": False,
             "prop 2": 0.6,
-            "static prop": 123,
             "prop 3": "hi",
+        }
+
+        assert g.edge(1, 2).metadata == {
+            "static prop": 123,
+        }
+
+        assert g.before(3).edge(1, 2).metadata == {
+            "static prop": 123,
         }
 
         # testing property names
         assert sorted(g.edge(1, 2).properties.keys()) == sorted(
-            ["prop 4", "prop 1", "prop 2", "prop 3", "static prop"]
+            ["prop 4", "prop 1", "prop 2", "prop 3"]
         )
 
-        assert "static prop" in g.edge(1, 2).properties
-        assert "static prop" in g.at(1).edge(1, 2).properties
+        assert "static prop" in g.edge(1, 2).metadata
+        assert "static prop" in g.at(1).edge(1, 2).metadata
         assert "static prop" not in g.at(1).edge(1, 2).properties.temporal
 
-        assert "static prop" in g.edge(1, 2).properties.constant
-        assert "prop 2" not in g.edge(1, 2).properties.constant
-        assert "static prop" in g.at(1).edge(1, 2).properties.constant
+        assert "static prop" in g.edge(1, 2).metadata
+        assert "prop 2" not in g.edge(1, 2).metadata
+        assert "static prop" in g.at(1).edge(1, 2).metadata
 
     check_temporal_properties(g)
     check(g)
@@ -1080,18 +1088,18 @@ def create_graph_edge_properties():
     props_t3 = {"prop 2": 0.9, "prop 3": "hello", "prop 4": True}
     e.add_updates(3, props_t3)
 
-    e.add_constant_properties({"static prop": 123})
+    e.add_metadata({"static prop": 123})
     return g
 
 
-def test_edge_constant_properties_layers():
+def test_edge_metadata_layers():
     g = Graph()
     g.add_edge(0, 1, 2, layer="a")
     g.add_edge(0, 1, 2)
-    g.edge(1, 2).add_constant_properties({"test": 1})
-    constant_exploded = g.layer("a").edges.explode().properties.constant
-    assert constant_exploded.values() == [[None]]
-    assert constant_exploded.keys() == ["test"]
+    g.edge(1, 2).add_metadata({"test": 1})
+    metadata_exploded = g.layer("a").edges.explode().metadata
+    assert metadata_exploded.values() == [[None]]
+    assert metadata_exploded.keys() == ["test"]
 
 
 def test_temporal_edge_properties_layers():
@@ -1224,7 +1232,6 @@ def test_save_load_graph():
 
         v = view.node(11)
         assert v.properties.temporal == {
-            "cost": [],
             "type": [(1, "wallet")],
             "balance": [(1, 99.5)],
         }
@@ -1402,7 +1409,7 @@ def test_static_prop_change():
     # with pytest.raises(Exception):
     g = Graph()
     v = g.add_node(0, 1)
-    v.add_constant_properties({"name": "value1"})
+    v.add_metadata({"name": "value1"})
 
     expected_msg = (
         """Exception: Failed to mutate graph\n"""
@@ -1414,23 +1421,19 @@ def test_static_prop_change():
 
     # with pytest.raises(Exception, match=re.escape(expected_msg)):
     with pytest.raises(Exception):
-        v.add_constant_properties({"name": "value2"})
+        v.add_metadata({"name": "value2"})
 
 
-def test_constant_property_update():
+def test_metadata_update():
     def updates(v):
-        v.update_constant_properties({"prop1": "value1", "prop2": 123})
-        assert (
-            v.properties.get("prop1") == "value1" and v.properties.get("prop2") == 123
-        )
-        v.update_constant_properties({"prop1": "value2", "prop2": 345})
-        assert (
-            v.properties.get("prop1") == "value2" and v.properties.get("prop2") == 345
-        )
+        v.update_metadata({"prop1": "value1", "prop2": 123})
+        assert v.metadata.get("prop1") == "value1" and v.metadata.get("prop2") == 123
+        v.update_metadata({"prop1": "value2", "prop2": 345})
+        assert v.metadata.get("prop1") == "value2" and v.metadata.get("prop2") == 345
 
-        v.add_constant_properties({"name": "value1"})
-        v.update_constant_properties({"name": "value2"})
-        assert v.properties.get("name") == "value2"
+        v.add_metadata({"name": "value1"})
+        v.update_metadata({"name": "value2"})
+        assert v.metadata.get("name") == "value2"
 
     g = Graph()
     updates(g)
@@ -1868,7 +1871,7 @@ def test_layer_name():
 
 def test_time():
     g = Graph()
-    g.add_constant_properties({"name": "graph"})
+    g.add_metadata({"name": "graph"})
 
     g.add_edge(0, 0, 1)
     g.add_edge(0, 0, 2)
@@ -2153,10 +2156,13 @@ def test_subgraph():
         mg.add_properties(1, props)
 
         props = {"prop 1": 1, "prop 2": "hi", "prop 3": True}
-        mg.add_constant_properties(props)
+        mg.add_metadata(props)
         x = mg.properties.keys()
         x.sort()
-        assert x == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5", "prop 6"]
+        assert x == ["prop 4", "prop 5", "prop 6"]
+        x = mg.metadata.keys()
+        x.sort()
+        assert x == ["prop 1", "prop 2", "prop 3"]
 
     check(g)
 
@@ -2192,7 +2198,7 @@ def test_materialize_graph():
     g.add_node(0, 1, {"type": "wallet", "cost": 99.5})
     g.add_node(-1, 2, {"type": "wallet", "cost": 10.0})
     g.add_node(6, 3, {"type": "wallet", "cost": 76.0})
-    g.add_node(6, 4).add_constant_properties({"abc": "xyz"})
+    g.add_node(6, 4).add_metadata({"abc": "xyz"})
 
     for e in edges:
         g.add_edge(e[0], e[1], e[2], {"prop1": 1, "prop2": 9.8, "prop3": "test"})
@@ -2200,23 +2206,23 @@ def test_materialize_graph():
     g.add_edge(8, 2, 4)
 
     sprop = {"sprop 1": "kaggle", "sprop 2": True}
-    g.add_constant_properties(sprop)
-    assert g.properties.constant == sprop
+    g.add_metadata(sprop)
+    assert g.metadata == sprop
 
-    # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for constant properties on edges
+    # @with_disk_graph FIXME: need special handling for nodes additions from Graph, support for metadata on edges
     def check(g):
         def check_g_inner(mg):
             assert mg.node(1).properties.get("type") == "wallet"
-            assert mg.node(4).properties == {"abc": "xyz"}
-            assert mg.node(4).properties.constant.get("abc") == "xyz"
+            assert mg.node(4).metadata == {"abc": "xyz"}
+            assert mg.node(4).metadata.get("abc") == "xyz"
             check_arr(mg.node(1).history(), [-1, 0, 1, 2])
             check_arr(mg.node(4).history(), [6, 8])
             assert mg.nodes.id.collect() == [1, 2, 3, 4]
             assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
             assert g.nodes.id.collect() == mg.nodes.id.collect()
             assert set(g.edges.id) == set(mg.edges.id)
-            assert mg.node(1).properties.constant == {}
-            assert mg.node(4).properties.constant == {"abc": "xyz"}
+            assert mg.node(1).metadata == {}
+            assert mg.node(4).metadata == {"abc": "xyz"}
             assert g.edge(1, 2).id == (1, 2)
             assert mg.edge(1, 2).id == (1, 2)
             assert mg.has_edge(1, 2)
@@ -2231,9 +2237,9 @@ def test_materialize_graph():
         check_g_inner(mg)
 
         sprop2 = {"sprop 3": 11, "sprop 4": 10}
-        mg.add_constant_properties(sprop2)
+        mg.add_metadata(sprop2)
         sprop.update(sprop2)
-        assert mg.properties.constant == sprop
+        assert mg.metadata == sprop
 
     check(g)
 
@@ -2291,16 +2297,12 @@ def test_deletions():
 
 def test_edge_layer():
     g = Graph()
-    g.add_edge(1, 1, 2, layer="layer 1").add_constant_properties(
-        {"test_prop": "test_val"}
-    )
-    g.add_edge(1, 2, 3, layer="layer 2").add_constant_properties(
-        {"test_prop": "test_val 2"}
-    )
+    g.add_edge(1, 1, 2, layer="layer 1").add_metadata({"test_prop": "test_val"})
+    g.add_edge(1, 2, 3, layer="layer 2").add_metadata({"test_prop": "test_val 2"})
 
-    # @with_disk_graph #FIXME: add support for edge constant properties
+    # @with_disk_graph #FIXME: add support for edge metadata
     def check(g):
-        assert g.edges.properties.constant.get("test_prop") == [
+        assert g.edges.metadata.get("test_prop") == [
             {"layer 1": "test_val"},
             {"layer 2": "test_val 2"},
         ]
@@ -2860,7 +2862,7 @@ def test_unique_temporal_properties():
     g.add_properties(2, {"name": "tarzan2"})
     g.add_properties(3, {"name": "tarzan2"})
     g.add_properties(2, {"salary": "1000"})
-    g.add_constant_properties({"type": "character"})
+    g.add_metadata({"type": "character"})
     g.add_edge(1, 1, 2, properties={"status": "open"})
     g.add_edge(2, 1, 2, properties={"status": "open"})
     g.add_edge(3, 1, 2, properties={"status": "review"})

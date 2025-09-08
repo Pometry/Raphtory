@@ -1,33 +1,78 @@
+use crate::rayon::blocking_compute;
 use async_graphql::{Error, Name, Value as GqlValue};
-use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
+use dynamic_graphql::{
+    InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
+};
 use itertools::Itertools;
 use raphtory::{
-    core::{utils::errors::GraphError, IntoPropMap, Prop},
     db::api::properties::{
-        dyn_props::{DynConstProperties, DynProperties, DynProps, DynTemporalProperties},
+        dyn_props::{DynMetadata, DynProperties, DynProps, DynTemporalProperties},
         TemporalPropertyView,
     },
+    errors::GraphError,
+    prelude::*,
 };
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::core::{
+    entities::properties::prop::{IntoPropMap, Prop},
+    storage::arc_str::ArcStr,
+};
 use rustc_hash::FxHashMap;
 use serde_json::Number;
-use std::{collections::HashMap, convert::TryFrom, sync::Arc};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    fmt,
+    fmt::{Display, Formatter},
+    sync::Arc,
+};
 
-#[derive(InputObject, Clone, Debug, Default)]
+#[derive(InputObject, Clone, Debug)]
 pub struct ObjectEntry {
+    /// Key.
     pub key: String,
+    /// Value.
     pub value: Value,
 }
 
-#[derive(InputObject, Clone, Debug, Default)]
-pub struct Value {
-    pub u64: Option<u64>,
-    pub i64: Option<i64>,
-    pub f64: Option<f64>,
-    pub str: Option<String>,
-    pub bool: Option<bool>,
-    pub list: Option<Vec<Value>>,
-    pub object: Option<Vec<ObjectEntry>>,
+#[derive(OneOfInput, Clone, Debug)]
+pub enum Value {
+    /// 64 bit unsigned integer.
+    U64(u64),
+    /// 64 bit signed integer.
+    I64(i64),
+    /// 64 bit float.
+    F64(f64),
+    /// String.
+    Str(String),
+    /// Boolean.
+    Bool(bool),
+    /// List.
+    List(Vec<Value>),
+    /// Object.
+    Object(Vec<ObjectEntry>),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::U64(v) => write!(f, "U64({})", v),
+            Value::I64(v) => write!(f, "I64({})", v),
+            Value::F64(v) => write!(f, "F64({})", v),
+            Value::Str(v) => write!(f, "Str({})", v),
+            Value::Bool(v) => write!(f, "Bool({})", v),
+            Value::List(vs) => {
+                let inner = vs.iter().map(|v| v.to_string()).join(", ");
+                write!(f, "List([{}])", inner)
+            }
+            Value::Object(entries) => {
+                let inner = entries
+                    .iter()
+                    .map(|entry| format!("{}: {}", entry.key, entry.value))
+                    .join(", ");
+                write!(f, "Object({{{}}})", inner)
+            }
+        }
+    }
 }
 
 impl TryFrom<Value> for Prop {
@@ -39,44 +84,36 @@ impl TryFrom<Value> for Prop {
 }
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
-    if let Some(n) = value.u64 {
-        return Ok(Prop::U64(n));
+    match value {
+        Value::U64(n) => Ok(Prop::U64(n)),
+        Value::I64(n) => Ok(Prop::I64(n)),
+        Value::F64(n) => Ok(Prop::F64(n)),
+        Value::Str(s) => Ok(Prop::Str(s.into())),
+        Value::Bool(b) => Ok(Prop::Bool(b)),
+        Value::List(list) => {
+            let prop_list: Vec<Prop> = list
+                .into_iter()
+                .map(value_to_prop)
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Prop::List(prop_list.into()))
+        }
+        Value::Object(object) => {
+            let prop_map: FxHashMap<ArcStr, Prop> = object
+                .into_iter()
+                .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
+                .collect::<Result<FxHashMap<_, _>, _>>()?;
+            Ok(Prop::Map(Arc::new(prop_map)))
+        }
     }
-    if let Some(n) = value.i64 {
-        return Ok(Prop::I64(n));
-    }
-    if let Some(n) = value.f64 {
-        return Ok(Prop::F64(n));
-    }
-    if let Some(s) = value.str {
-        return Ok(Prop::Str(s.into()));
-    }
-    if let Some(b) = value.bool {
-        return Ok(Prop::Bool(b));
-    }
-    if let Some(list) = value.list {
-        let prop_list: Vec<Prop> = list
-            .into_iter()
-            .map(value_to_prop)
-            .collect::<Result<Vec<_>, _>>()?;
-        return Ok(Prop::List(prop_list.into()));
-    }
-    if let Some(object) = value.object {
-        let prop_map: FxHashMap<ArcStr, Prop> = object
-            .into_iter()
-            .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
-            .collect::<Result<FxHashMap<_, _>, _>>()?;
-        return Ok(Prop::Map(Arc::new(prop_map)));
-    }
-    Err(GraphError::EmptyValue)
 }
 
 #[derive(Clone, Debug, Scalar)]
-pub struct GqlPropOutputVal(pub Prop);
+#[graphql(name = "PropertyOutput")]
+pub struct GqlPropertyOutputVal(pub Prop);
 
-impl ScalarValue for GqlPropOutputVal {
-    fn from_value(value: GqlValue) -> Result<GqlPropOutputVal, Error> {
-        Ok(GqlPropOutputVal(gql_to_prop(value)?))
+impl ScalarValue for GqlPropertyOutputVal {
+    fn from_value(value: GqlValue) -> Result<GqlPropertyOutputVal, Error> {
+        Ok(GqlPropertyOutputVal(gql_to_prop(value)?))
     }
 
     fn to_value(&self) -> GqlValue {
@@ -142,25 +179,26 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
 }
 
 #[derive(Clone, ResolvedObject)]
-pub(crate) struct GqlProp {
+#[graphql(name = "Property")]
+pub(crate) struct GqlProperty {
     key: String,
     prop: Prop,
 }
 
-impl GqlProp {
+impl GqlProperty {
     pub(crate) fn new(key: String, prop: Prop) -> Self {
         Self { key, prop }
     }
 }
 
-impl From<(String, Prop)> for GqlProp {
+impl From<(String, Prop)> for GqlProperty {
     fn from(value: (String, Prop)) -> Self {
-        GqlProp::new(value.0, value.1)
+        GqlProperty::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlProp {
+impl GqlProperty {
     async fn key(&self) -> String {
         self.key.clone()
     }
@@ -169,100 +207,120 @@ impl GqlProp {
         self.prop.to_string()
     }
 
-    async fn value(&self) -> GqlPropOutputVal {
-        GqlPropOutputVal(self.prop.clone())
+    async fn value(&self) -> GqlPropertyOutputVal {
+        GqlPropertyOutputVal(self.prop.clone())
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlPropTuple {
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "PropertyTuple")]
+pub(crate) struct GqlPropertyTuple {
     time: i64,
     prop: Prop,
 }
 
-impl GqlPropTuple {
+impl GqlPropertyTuple {
     pub(crate) fn new(time: i64, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(i64, Prop)> for GqlPropTuple {
+impl From<(i64, Prop)> for GqlPropertyTuple {
     fn from(value: (i64, Prop)) -> Self {
-        GqlPropTuple::new(value.0, value.1)
+        GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlPropTuple {
+impl GqlPropertyTuple {
     async fn time(&self) -> i64 {
         self.time
     }
 
     async fn as_string(&self) -> String {
-        self.prop.to_string()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.to_string()).await
     }
 
-    async fn value(&self) -> GqlPropOutputVal {
-        GqlPropOutputVal(self.prop.clone())
+    async fn value(&self) -> GqlPropertyOutputVal {
+        GqlPropertyOutputVal(self.prop.clone())
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlTemporalProp {
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "TemporalProperty")]
+pub(crate) struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
-impl GqlTemporalProp {
+impl GqlTemporalProperty {
     pub(crate) fn new(key: String, prop: TemporalPropertyView<DynProps>) -> Self {
         Self { key, prop }
     }
 }
-impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProp {
+impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
     fn from(value: (String, TemporalPropertyView<DynProps>)) -> Self {
-        GqlTemporalProp::new(value.0, value.1)
+        GqlTemporalProperty::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
-impl GqlTemporalProp {
+impl GqlTemporalProperty {
+    /// Key of a property.
     async fn key(&self) -> String {
         self.key.clone()
     }
 
     async fn history(&self) -> Vec<i64> {
-        self.prop.history().collect()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.history().collect()).await
     }
 
+    /// Return the values of the properties.
     async fn values(&self) -> Vec<String> {
-        self.prop.values().map(|x| x.to_string()).collect()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
     }
 
     async fn at(&self, t: i64) -> Option<String> {
-        self.prop.at(t).map(|x| x.to_string())
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.at(t).map(|x| x.to_string())).await
     }
 
     async fn latest(&self) -> Option<String> {
-        self.prop.latest().map(|x| x.to_string())
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.latest().map(|x| x.to_string())).await
     }
 
     async fn unique(&self) -> Vec<String> {
-        self.prop
-            .unique()
-            .into_iter()
-            .map(|x| x.to_string())
-            .collect_vec()
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .prop
+                .unique()
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect_vec()
+        })
+        .await
     }
 
-    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropTuple> {
-        self.prop
-            .ordered_dedupe(latest_time)
-            .into_iter()
-            .map(|(k, p)| (k, p).into())
-            .collect()
+    async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropertyTuple> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .prop
+                .ordered_dedupe(latest_time)
+                .into_iter()
+                .map(|(k, p)| (k, p).into())
+                .collect()
+        })
+        .await
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Properties")]
 pub(crate) struct GqlProperties {
     props: DynProperties,
 }
@@ -281,7 +339,8 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
     }
 }
 
-#[derive(ResolvedObject)]
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "TemporalProperties")]
 pub(crate) struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
@@ -296,85 +355,106 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
     }
 }
 
-#[derive(ResolvedObject)]
-pub(crate) struct GqlConstantProperties {
-    props: DynConstProperties,
+#[derive(ResolvedObject, Clone)]
+#[graphql(name = "Metadata")]
+pub(crate) struct GqlMetadata {
+    props: DynMetadata,
 }
-impl GqlConstantProperties {
-    pub(crate) fn new(props: DynConstProperties) -> Self {
+impl GqlMetadata {
+    pub(crate) fn new(props: DynMetadata) -> Self {
         Self { props }
     }
 }
-impl From<DynConstProperties> for GqlConstantProperties {
-    fn from(value: DynConstProperties) -> Self {
-        GqlConstantProperties::new(value)
+impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
+    fn from(value: P) -> Self {
+        GqlMetadata::new(value.into())
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlProperties {
-    async fn get(&self, key: &str) -> Option<GqlProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+    /// Get property value matching the specified key.
+    async fn get(&self, key: String) -> Option<GqlProperty> {
+        self.props
+            .get(key.as_str())
+            .map(|p| (key.to_string(), p).into())
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    /// Check if the key is in the properties.
+    async fn contains(&self, key: String) -> bool {
+        self.props.get(&key).is_some()
     }
 
+    /// Return all property keys.
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.into()).collect()
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
-        match keys {
-            Some(keys) => self
+    /// Return all property values.
+    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
+        let self_clone = self.clone();
+        blocking_compute(move || match keys {
+            Some(keys) => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| {
+                .iter_filtered()
+                .filter_map(|(k, prop)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
-                        p.map(|prop| (key, prop).into())
+                        Some((key, prop).into())
                     } else {
                         None
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
-                .iter()
-                .filter_map(|(k, p)| p.map(|prop| (k.to_string(), prop).into()))
+                .iter_filtered()
+                .map(|(k, prop)| (k.to_string(), prop).into())
                 .collect(),
-        }
+        })
+        .await
     }
 
     async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
-
-    pub(crate) async fn constant(&self) -> GqlConstantProperties {
-        self.props.constant().into()
-    }
 }
 
 #[ResolvedObjectFields]
-impl GqlConstantProperties {
-    async fn get(&self, key: &str) -> Option<GqlProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+impl GqlMetadata {
+    /// Get metadata value matching the specified key.
+    async fn get(&self, key: String) -> Option<GqlProperty> {
+        self.props
+            .get(key.as_str())
+            .map(|p| (key.to_string(), p).into())
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    /// /// Check if the key is in the metadata.
+    async fn contains(&self, key: String) -> bool {
+        self.props.contains(key.as_str())
     }
 
+    /// Return all metadata keys.
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.clone().into()).collect()
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
     }
 
-    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProp> {
-        match keys {
-            Some(keys) => self
+    /// /// Return all metadata values.
+    pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
+        let self_clone = self.clone();
+        blocking_compute(move || match keys {
+            Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -384,34 +464,48 @@ impl GqlConstantProperties {
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
-        }
+        })
+        .await
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperties {
-    async fn get(&self, key: &str) -> Option<GqlTemporalProp> {
-        self.props.get(key).map(|p| (key.to_string(), p).into())
+    /// Get property value matching the specified key.
+    async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
+        self.props.get(key.as_str()).map(move |p| (key, p).into())
     }
 
-    async fn contains(&self, key: &str) -> bool {
-        self.props.contains(key)
+    /// Check if the key is in the properties.
+    async fn contains(&self, key: String) -> bool {
+        self.props.get(&key).is_some()
     }
 
+    /// Return all property keys.
     async fn keys(&self) -> Vec<String> {
-        self.props.keys().map(|k| k.into()).collect()
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            self_clone
+                .props
+                .iter_filtered()
+                .map(|(k, _)| k.into())
+                .collect()
+        })
+        .await
     }
 
-    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProp> {
-        match keys {
-            Some(keys) => self
+    /// Return all property values.
+    async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
+        let self_clone = self.clone();
+        blocking_compute(move || match keys {
+            Some(keys) => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
                     if keys.contains(&key) {
@@ -421,11 +515,12 @@ impl GqlTemporalProperties {
                     }
                 })
                 .collect(),
-            None => self
+            None => self_clone
                 .props
-                .iter()
+                .iter_filtered()
                 .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
-        }
+        })
+        .await
     }
 }

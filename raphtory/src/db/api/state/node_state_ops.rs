@@ -12,7 +12,7 @@ use crate::{
 use indexmap::IndexSet;
 use num_traits::AsPrimitive;
 use rayon::prelude::*;
-use std::{borrow::Borrow, hash::Hash, iter::Sum};
+use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
 
 pub trait ToOwnedValue<T> {
     fn to_owned_value(self) -> T;
@@ -31,7 +31,14 @@ impl<'a, T: Clone> ToOwnedValue<T> for &'a T {
 }
 
 pub trait NodeStateOps<'a, 'graph: 'a>:
-    IntoIterator<Item = (NodeView<Self::BaseGraph, Self::Graph>, Self::OwnedValue)> + Send + Sync
+    IntoIterator<
+        Item = (
+            NodeView<'graph, Self::BaseGraph, Self::Graph>,
+            Self::OwnedValue,
+        ),
+    > + Send
+    + Sync
+    + 'graph
 {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
@@ -52,7 +59,12 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn iter(
         &'a self,
-    ) -> impl Iterator<Item = (NodeView<&'a Self::BaseGraph, &'a Self::Graph>, Self::Value)> + 'a;
+    ) -> impl Iterator<
+        Item = (
+            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
+            Self::Value,
+        ),
+    > + 'a;
 
     fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph>
     where
@@ -161,8 +173,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
     {
-        let values =
-            node_state_ord_ops::par_top_k(self.par_iter(), |(_, v1), (_, v2)| cmp(v1, v2), k);
+        let values = node_state_ord_ops::top_k(self.iter(), |(_, v1), (_, v2)| cmp(v1, v2), k);
         let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = values
             .into_iter()
             .map(|(n, v)| (n.node, v.to_owned_value()))
@@ -216,7 +227,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         values.into_iter().nth(median_index)
     }
 
-    fn group_by<V: Hash + Eq + Send + Sync + Clone, F: Fn(Self::Value) -> V + Sync>(
+    fn group_by<V: Hash + Eq + Send + Sync + Clone + Debug, F: Fn(Self::Value) -> V + Sync>(
         &'a self,
         group_fn: F,
     ) -> NodeGroups<V, Self::Graph> {

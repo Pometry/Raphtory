@@ -5,10 +5,9 @@
 //! edge as it existed at a particular point in time, or as it existed over a particular time range.
 //!
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             view::{
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
@@ -16,6 +15,7 @@ use crate::{
         },
         graph::{edge::EdgeView, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
     python::{types::repr::Repr, utils::PyTime},
 };
@@ -272,10 +272,19 @@ impl PyEdge {
     /// Returns a view of the properties of the edge.
     ///
     /// Returns:
-    ///   Properties on the Edge.
+    ///   Properties: Properties on the Edge.
     #[getter]
     pub fn properties(&self) -> Properties<EdgeView<DynamicGraph, DynamicGraph>> {
         self.edge.properties()
+    }
+
+    /// Gets the metadata of an edge
+    ///
+    /// Returns:
+    ///     Metadata:
+    #[getter]
+    pub fn metadata(&self) -> Metadata<'static, EdgeView<DynamicGraph, DynamicGraph>> {
+        self.edge.metadata()
     }
 
     /// Gets the earliest time of an edge.
@@ -338,7 +347,7 @@ impl PyEdge {
     ///     str: The name of the layer
     #[getter]
     pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
-        self.edge.layer_name().map(|v| v.clone())
+        self.edge.layer_name()
     }
 
     /// Gets the datetime of an exploded edge.
@@ -387,12 +396,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeVie
             )
         } else {
             format!(
-                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={}, layer(s)=[{}])",
+                "Edge(source={}, target={}, earliest_time={}, latest_time={}, properties={{{}}}, layer(s)=[{}])",
                 source.trim_matches('"'),
                 target.trim_matches('"'),
                 earliest_time,
                 latest_time,
-                format!("{{{properties}}}"),
+                properties,
                 layer_names_prev
             )
         }
@@ -449,36 +458,36 @@ impl PyMutableEdge {
         self.edge.delete(t, layer)
     }
 
-    /// Add constant properties to an edge in the graph.
-    /// This function is used to add properties to an edge that remain constant and do not
+    /// Add metadata to an edge in the graph.
+    /// This function is used to add properties to an edge that do not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    #[pyo3(signature = (properties, layer=None))]
-    fn add_constant_properties(
+    #[pyo3(signature = (metadata, layer=None))]
+    fn add_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.add_constant_properties(properties, layer)
+        self.edge.add_metadata(metadata, layer)
     }
 
-    /// Update constant properties of an edge in the graph overwriting existing values.
-    /// This function is used to add properties to an edge that remains constant and does not
+    /// Update metadata of an edge in the graph overwriting existing values.
+    /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (PropInput): A dictionary of properties to be added to the edge.
+    ///     metadata (PropInput): A dictionary of properties to be added to the edge.
     ///     layer (str, optional): The layer you want these properties to be added on to.
-    #[pyo3(signature = (properties, layer=None))]
-    pub fn update_constant_properties(
+    #[pyo3(signature = (metadata, layer=None))]
+    pub fn update_metadata(
         &self,
-        properties: HashMap<String, Prop>,
+        metadata: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        self.edge.update_constant_properties(properties, layer)
+        self.edge.update_metadata(metadata, layer)
     }
 
     fn __repr__(&self) -> String {

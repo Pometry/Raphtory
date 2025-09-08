@@ -3,18 +3,15 @@ use crate::python::client::{
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::{
-    core::{
-        utils::{errors::GraphError, time::IntoTime},
-        Prop,
-    },
-    python::utils::PyTime,
-};
+use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
 
 /// A remote edge reference
 ///
-/// Returned by :meth:`RemoteGraph.edge`, :meth:`RemoteGraph.add_edge`, and :meth:`RemoteGraph.delete_edge`.
+/// Returned by [RemoteGraph.edge][raphtory.graphql.RemoteGraph.edge],
+/// [RemoteGraph.add_edge][raphtory.graphql.RemoteGraph.add_edge],
+/// and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
@@ -42,12 +39,12 @@ impl PyRemoteEdge {
     /// The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///     properties (Optional[Dict[str, Prop]]): A dictionary of properties to update.
-    ///     layer (str, optional): The layer you want the updates to be applied.
+    /// t (int | str | datetime): The timestamp at which the updates should be applied.
+    /// properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    /// layer (str, optional): The layer you want the updates to be applied.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (t, properties=None, layer=None))]
     fn add_updates(
         &self,
@@ -84,11 +81,11 @@ impl PyRemoteEdge {
     /// Mark the edge as deleted at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | datetime): The timestamp at which the deletion should be applied.
-    ///     layer (str, optional): The layer you want the deletion applied to.
+    /// t (int | str | datetime): The timestamp at which the deletion should be applied.
+    /// layer (str, optional): The layer you want the deletion applied to.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
@@ -115,18 +112,18 @@ impl PyRemoteEdge {
         Ok(())
     }
 
-    /// Add constant properties to the edge within the remote graph.
-    /// This function is used to add properties to an edge that remain constant and do not
-    /// change over time. These properties are fundamental attributes of the edge.
+    /// Add metadata to the edge within the remote graph.
+    /// This function is used to add metadata to an edge that does not
+    /// change over time. This metadata is fundamental information of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str, optional): The layer you want these properties to be added on to.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    /// layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (properties, layer=None))]
-    fn add_constant_properties(
+    fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -136,7 +133,7 @@ impl PyRemoteEdge {
             {
               updateGraph(path: "{{path}}") {
                 edge(src: "{{src}}",dst: "{{dst}}") {
-                  addConstantProperties(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                  addMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
                 }
               }
             }
@@ -156,18 +153,18 @@ impl PyRemoteEdge {
         Ok(())
     }
 
-    /// Update constant properties of an edge in the remote graph overwriting existing values.
-    /// This function is used to add properties to an edge that remains constant and does not
+    /// Update metadata of an edge in the remote graph overwriting existing values.
+    /// This function is used to add properties to an edge that does not
     /// change over time. These properties are fundamental attributes of the edge.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the edge.
-    ///     layer (str, optional): The layer you want these properties to be added on to.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+    /// layer (str, optional): The layer you want these properties to be added on to.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (properties, layer=None))]
-    pub fn update_constant_properties(
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -177,7 +174,7 @@ impl PyRemoteEdge {
             {
               updateGraph(path: "{{path}}") {
                 edge(src: "{{src}}",dst: "{{dst}}") {
-                  updateConstantProperties(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
+                  updateMetadata(properties:  {{ properties | safe }} {% if layer is not none %}, layer:  "{{layer}}" {% endif %})
                 }
               }
             }

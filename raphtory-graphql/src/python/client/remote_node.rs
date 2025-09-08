@@ -3,13 +3,8 @@ use crate::python::client::{
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::{
-    core::{
-        utils::{errors::GraphError, time::IntoTime},
-        Prop,
-    },
-    python::utils::PyTime,
-};
+use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
+use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -32,10 +27,10 @@ impl PyRemoteNode {
     /// throw an error
     ///
     /// Parameters:
-    ///     new_type (str): The new type to be set
+    /// new_type (str): The new type to be set
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -62,11 +57,11 @@ impl PyRemoteNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///     properties (Dict[str, Prop], optional): A dictionary of properties to update.
+    /// t (int | str | datetime): The timestamp at which the updates should be applied.
+    /// properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
@@ -97,16 +92,16 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Add constant properties to a node in the remote graph.
-    /// This function is used to add properties to a node that remain constant and does not
+    /// Add metadata to a node in the remote graph.
+    /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///     None:
-    pub fn add_constant_properties(
+    /// None:
+    pub fn add_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -115,7 +110,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  addConstantProperties(properties: {{ properties | safe }} )
+                  addMetadata(properties: {{ properties | safe }} )
                 }
               }
             }
@@ -132,16 +127,16 @@ impl PyRemoteNode {
         Ok(())
     }
 
-    /// Update constant properties of a node in the remote graph overwriting existing values.
-    /// This function is used to add properties to a node that remain constant and do not
+    /// Update metadata of a node in the remote graph overwriting existing values.
+    /// This function is used to add properties to a node that does not
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (Dict[str, Prop]): A dictionary of properties to be added to the node.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///     None:
-    pub fn update_constant_properties(
+    /// None:
+    pub fn update_metadata(
         &self,
         py: Python,
         properties: HashMap<String, Prop>,
@@ -150,7 +145,7 @@ impl PyRemoteNode {
             {
               updateGraph(path: "{{path}}") {
                 node(name: "{{name}}") {
-                  updateConstantProperties(properties: {{ properties | safe }} )
+                  updateMetadata(properties: {{ properties | safe }} )
                 }
               }
             }

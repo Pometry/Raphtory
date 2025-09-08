@@ -1,10 +1,4 @@
-use crate::model::{
-    algorithms::{
-        algorithms::{Pagerank, ShortestPath},
-        RegisterFunction,
-    },
-    plugins::{entry_point::EntryPoint, operation::Operation},
-};
+use crate::model::plugins::entry_point::EntryPoint;
 use async_graphql::{dynamic::FieldValue, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
@@ -13,6 +7,12 @@ use std::{
     borrow::Cow,
     collections::HashMap,
     sync::{Mutex, MutexGuard},
+};
+
+use super::{
+    algorithms::{Pagerank, ShortestPath},
+    operation::Operation,
+    RegisterFunction,
 };
 
 pub static GRAPH_ALGO_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =

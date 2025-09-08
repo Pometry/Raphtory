@@ -11,7 +11,6 @@ use crate::{
     db::{
         api::{
             state::NodeOp,
-            storage::graph::storage_ops::GraphStorage,
             view::{internal::OneHopFilter, BaseNodeViewOps, BoxedLIter, IntoDynBoxed},
         },
         graph::{create_node_type_filter, edges::Edges, node::NodeView, path::PathFromNode},
@@ -21,6 +20,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     cell::{Ref, RefCell, RefMut},
     sync::Arc,
@@ -342,7 +342,7 @@ impl<
     type BaseGraph = &'graph G;
     type Graph = GH;
     type ValueType<T: NodeOp + 'graph> = Box<dyn Iterator<Item = T::Output> + 'graph>;
-    type PropType = NodeView<GH, GH>;
+    type PropType = NodeView<'graph, GH, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 
@@ -489,7 +489,7 @@ impl<
         = T::Output
     where
         T: 'graph;
-    type PropType = NodeView<GH>;
+    type PropType = NodeView<'graph, GH>;
     type PathType = EvalPathFromNode<'graph, 'a, G, &'graph G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, GH, CS, S>;
 

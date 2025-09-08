@@ -1,28 +1,19 @@
-use std::{
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
-
 use crate::{
-    core::{
-        entities::{LayerIds, Multiple},
-        utils::errors::GraphError,
-    },
+    core::entities::LayerIds,
     db::api::{
         properties::internal::InheritPropertiesOps,
-        view::{
-            internal::{
-                Base, Immutable, InheritCoreOps, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritTimeSemantics, InternalLayerOps, Static,
-            },
-            Layer,
+        view::internal::{
+            GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritExplodedEdgeFilterOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalEdgeLayerFilterOps, InternalLayerOps, Static,
         },
     },
     prelude::GraphViewOps,
 };
-
-use crate::db::api::view::internal::InheritStorageOps;
+use raphtory_api::inherit::Base;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -57,52 +48,22 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for LayeredGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for LayeredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
+impl<'graph, G: GraphView> InheritNodeFilterOps for LayeredGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
         Self { graph, layers }
-    }
-
-    /// Get the intersection between the previously requested layers and the layers of
-    /// this view
-    fn constrain(&self, layers: LayerIds) -> LayerIds {
-        match layers {
-            LayerIds::None => LayerIds::None,
-            LayerIds::All => self.layers.clone(),
-            _ => match &self.layers {
-                LayerIds::All => layers,
-                LayerIds::One(id) => match layers.find(*id) {
-                    Some(layer) => LayerIds::One(layer),
-                    None => LayerIds::None,
-                },
-                LayerIds::Multiple(ids) => {
-                    // intersect the layers
-                    let new_layers: Arc<[usize]> =
-                        ids.iter().filter_map(|id| layers.find(id)).collect();
-                    match new_layers.len() {
-                        0 => LayerIds::None,
-                        1 => LayerIds::One(new_layers[0]),
-                        _ => LayerIds::Multiple(Multiple(new_layers)),
-                    }
-                }
-                LayerIds::None => LayerIds::None,
-            },
-        }
     }
 }
 
@@ -110,21 +71,57 @@ impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> &LayerIds {
         &self.layers
     }
+}
 
-    fn layer_ids_from_names(&self, key: Layer) -> Result<LayerIds, GraphError> {
-        Ok(self.constrain(self.graph.layer_ids_from_names(key)?))
+impl<G: GraphView> InternalEdgeLayerFilterOps for LayeredGraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
+        !matches!(self.layers, LayerIds::All) || self.graph.internal_edge_layer_filtered()
     }
 
-    fn valid_layer_ids_from_names(&self, key: Layer) -> LayerIds {
-        self.constrain(self.graph.valid_layer_ids_from_names(key))
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        matches!(self.layers, LayerIds::All) && self.graph.internal_layer_filter_edge_list_trusted()
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer) // actual layer filter handled upstream for optimisation
     }
 }
 
+impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
+
+impl<G: GraphView> InheritExplodedEdgeFilterOps for LayeredGraph<G> {}
+
 #[cfg(test)]
 mod test_layers {
-    use crate::{prelude::*, test_storage};
+    use crate::{
+        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        prelude::*,
+        test_storage,
+        test_utils::{build_graph, build_graph_layer, build_graph_strat},
+    };
     use itertools::Itertools;
+    use proptest::proptest;
     use raphtory_api::core::entities::GID;
+
+    #[test]
+    fn prop_test_layering() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, false), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+            let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+            let g = Graph::from(build_graph(&graph_f));
+                let g_layer = g.valid_layers(layer.clone());
+                assert_graph_equal(&g_layer, &g_layer_expected);
+        })
+    }
+
+    #[test]
+    fn prop_test_layering_persistent_graph() {
+        proptest!(|(graph_f in build_graph_strat(10, 10, true), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
+            let g_layer_expected = PersistentGraph::from(build_graph_layer(&graph_f, &layer));
+            let g = PersistentGraph::from(build_graph(&graph_f));
+            let g_layer = g.valid_layers(layer);
+            assert_graph_equal(&g_layer, &g_layer_expected);
+        })
+    }
 
     #[test]
     fn test_layer_node() {
@@ -213,8 +210,11 @@ mod test_layers {
         let e1 = graph.add_edge(0, 1, 2, NO_PROPS, Some("1")).unwrap();
         graph.add_edge(1, 1, 2, NO_PROPS, Some("2")).unwrap();
 
+        println!("edge: {e1:?}");
         // FIXME: this is weird, see issue #1458
         assert!(e1.has_layer("2"));
+        let history = e1.layers("2").unwrap().history();
+        println!("history: {:?}", history);
         assert!(e1.layers("2").unwrap().history().is_empty());
 
         test_storage!(&graph, |graph| {
@@ -240,7 +240,7 @@ mod test_layers {
                     views::{layer_graph::LayeredGraph, window_graph::WindowedGraph},
                 },
             },
-            prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
+            prelude::{LayerOps, TimeOps},
         };
         use std::ops::Range;
 
@@ -267,12 +267,12 @@ mod test_layers {
 
         mod test_nodes_filters_layer_graph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps,
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             use crate::db::graph::{
                 assertions::{
@@ -545,7 +545,6 @@ mod test_layers {
 
         mod test_edges_filters_layer_graph {
             use crate::{
-                core::Prop,
                 db::{
                     api::view::StaticGraphViewOps,
                     graph::{
@@ -562,6 +561,7 @@ mod test_layers {
                 },
                 prelude::{AdditionOps, PropertyFilter},
             };
+            use raphtory_api::core::entities::properties::prop::Prop;
 
             fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
                 let edges = vec![

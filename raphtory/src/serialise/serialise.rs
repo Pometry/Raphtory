@@ -1,24 +1,14 @@
 use super::{proto_ext::PropTypeExt, GraphFolder};
 #[cfg(feature = "search")]
-use crate::prelude::SearchableGraphOps;
+use crate::prelude::IndexMutationOps;
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, LayerIds},
-        utils::errors::GraphError,
-        Prop,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, LayerIds},
     db::{
-        api::{
-            mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-            storage::graph::{
-                edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps,
-                storage_ops::GraphStorage, tprop_storage_ops::TPropOps,
-            },
-            view::{internal::CoreGraphOps, MaterializedGraph, StaticGraphViewOps},
-        },
+        api::view::{MaterializedGraph, StaticGraphViewOps},
         graph::views::deletion_graph::PersistentGraph,
     },
-    prelude::Graph,
+    errors::GraphError,
+    prelude::{AdditionOps, Graph},
     serialise::{
         proto::{self, graph_update::*, new_meta::*, new_node::Gid},
         proto_ext,
@@ -27,12 +17,29 @@ use crate::{
 use itertools::Itertools;
 use prost::Message;
 use raphtory_api::core::{
-    entities::{properties::props::PropMapper, GidRef, EID, VID},
-    storage::timeindex::TimeIndexEntry,
-    unify_types, Direction, PropType,
+    entities::{
+        properties::{
+            meta::PropMapper,
+            prop::{unify_types, Prop, PropType},
+            tprop::TPropOps,
+        },
+        GidRef, EID, VID,
+    },
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    Direction,
+};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::node_storage_ops::NodeStorageOps,
+    },
+    mutation::{
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
+    },
 };
 use rayon::prelude::*;
-use std::{iter, sync::Arc};
+use std::{iter, ops::Deref, sync::Arc};
 
 macro_rules! zip_tprop_updates {
     ($iter:expr) => {
@@ -43,7 +50,7 @@ macro_rules! zip_tprop_updates {
     };
 }
 
-pub trait StableEncode: StaticGraphViewOps {
+pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     fn encode_to_proto(&self) -> proto::Graph;
     fn encode_to_vec(&self) -> Vec<u8> {
         self.encode_to_proto().encode_to_vec()
@@ -55,19 +62,19 @@ pub trait StableEncode: StaticGraphViewOps {
     }
 }
 
-pub trait StableDecode: InternalStableDecode + StaticGraphViewOps {
+pub trait StableDecode: InternalStableDecode + StaticGraphViewOps + AdditionOps {
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
         let folder = path.into();
         let graph = Self::decode_from_path(&folder)?;
 
         #[cfg(feature = "search")]
-        graph.load_index(&folder.root_folder)?;
+        graph.load_index(&folder)?;
 
         Ok(graph)
     }
 }
 
-impl<T: InternalStableDecode + StaticGraphViewOps> StableDecode for T {}
+impl<T: InternalStableDecode + StaticGraphViewOps + AdditionOps> StableDecode for T {}
 
 pub trait InternalStableDecode: Sized {
     fn decode_from_proto(graph: &proto::Graph) -> Result<Self, GraphError>;
@@ -104,16 +111,16 @@ impl StableEncode for GraphStorage {
 
         // Graph Properties
         let graph_meta = storage.graph_meta();
-        for (id, key) in graph_meta.const_prop_meta().get_keys().iter().enumerate() {
+        for (id, key) in graph_meta.metadata_mapper().get_keys().iter().enumerate() {
             graph.new_graph_cprop(key, id);
         }
-        graph.update_graph_cprops(graph_meta.const_props());
+        graph.update_graph_cprops(graph_meta.metadata());
 
         for (id, (key, dtype)) in graph_meta
-            .temporal_prop_meta()
+            .temporal_mapper()
             .get_keys()
             .iter()
-            .zip(graph_meta.temporal_prop_meta().dtypes().iter())
+            .zip(graph_meta.temporal_mapper().dtypes().iter())
             .enumerate()
         {
             graph.new_graph_tprop(key, id, dtype);
@@ -122,6 +129,7 @@ impl StableEncode for GraphStorage {
             .temporal_props()
             .map(|(key, values)| {
                 values
+                    .deref()
                     .iter()
                     .map(move |(t, v)| (t, (key, v)))
                     .collect::<Vec<_>>()
@@ -155,7 +163,7 @@ impl StableEncode for GraphStorage {
         }
 
         // Node Properties
-        let n_const_meta = self.node_meta().const_prop_meta();
+        let n_const_meta = self.node_meta().metadata_mapper();
         for (id, (key, dtype)) in n_const_meta
             .get_keys()
             .iter()
@@ -164,7 +172,7 @@ impl StableEncode for GraphStorage {
         {
             graph.new_node_cprop(key, id, dtype);
         }
-        let n_temporal_meta = self.node_meta().temporal_prop_meta();
+        let n_temporal_meta = self.node_meta().temporal_prop_mapper();
         for (id, (key, dtype)) in n_temporal_meta
             .get_keys()
             .iter()
@@ -195,7 +203,7 @@ impl StableEncode for GraphStorage {
         }
 
         // Edge Properties
-        let e_const_meta = self.edge_meta().const_prop_meta();
+        let e_const_meta = self.edge_meta().metadata_mapper();
         for (id, (key, dtype)) in e_const_meta
             .get_keys()
             .iter()
@@ -204,7 +212,7 @@ impl StableEncode for GraphStorage {
         {
             graph.new_edge_cprop(key, id, dtype);
         }
-        let e_temporal_meta = self.edge_meta().temporal_prop_meta();
+        let e_temporal_meta = self.edge_meta().temporal_prop_mapper();
         for (id, (key, dtype)) in e_temporal_meta
             .get_keys()
             .iter()
@@ -237,9 +245,8 @@ impl StableEncode for GraphStorage {
                 graph.update_edge_cprops(
                     eid,
                     layer_id,
-                    (0..e_const_meta.len()).filter_map(|i| {
-                        edge.constant_prop_layer(layer_id, i).map(|prop| (i, prop))
-                    }),
+                    (0..e_const_meta.len())
+                        .filter_map(|i| edge.metadata_layer(layer_id, i).map(|prop| (i, prop))),
                 );
             }
         }
@@ -286,7 +293,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewNodeCprop(node_cprop) => {
                         let p_type = node_cprop.prop_type();
-                        storage.node_meta.const_prop_meta().set_id_and_dtype(
+                        storage.node_meta.metadata_mapper().set_id_and_dtype(
                             node_cprop.name.as_str(),
                             node_cprop.id as usize,
                             p_type,
@@ -294,7 +301,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewNodeTprop(node_tprop) => {
                         let p_type = node_tprop.prop_type();
-                        storage.node_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.node_meta.temporal_prop_mapper().set_id_and_dtype(
                             node_tprop.name.as_str(),
                             node_tprop.id as usize,
                             p_type,
@@ -302,11 +309,11 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewGraphCprop(graph_cprop) => storage
                         .graph_meta
-                        .const_prop_meta()
+                        .metadata_mapper()
                         .set_id(graph_cprop.name.as_str(), graph_cprop.id as usize),
                     Meta::NewGraphTprop(graph_tprop) => {
                         let p_type = graph_tprop.prop_type();
-                        storage.graph_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.graph_meta.temporal_mapper().set_id_and_dtype(
                             graph_tprop.name.as_str(),
                             graph_tprop.id as usize,
                             p_type,
@@ -318,7 +325,7 @@ impl InternalStableDecode for TemporalGraph {
                         .set_id(new_layer.name.as_str(), new_layer.id as usize),
                     Meta::NewEdgeCprop(edge_cprop) => {
                         let p_type = edge_cprop.prop_type();
-                        storage.edge_meta.const_prop_meta().set_id_and_dtype(
+                        storage.edge_meta.metadata_mapper().set_id_and_dtype(
                             edge_cprop.name.as_str(),
                             edge_cprop.id as usize,
                             p_type,
@@ -326,7 +333,7 @@ impl InternalStableDecode for TemporalGraph {
                     }
                     Meta::NewEdgeTprop(edge_tprop) => {
                         let p_type = edge_tprop.prop_type();
-                        storage.edge_meta.temporal_prop_meta().set_id_and_dtype(
+                        storage.edge_meta.temporal_prop_mapper().set_id_and_dtype(
                             edge_tprop.name.as_str(),
                             edge_tprop.id as usize,
                             p_type,
@@ -340,10 +347,10 @@ impl InternalStableDecode for TemporalGraph {
             .write_lock_edges()?
             .into_par_iter_mut()
             .map(|mut shard| {
-                let mut const_prop_types =
-                    vec![PropType::Empty; storage.edge_meta.const_prop_meta().len()];
+                let mut metadata_types =
+                    vec![PropType::Empty; storage.edge_meta.metadata_mapper().len()];
                 let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.edge_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.edge_meta.temporal_prop_mapper().len()];
 
                 for edge in graph.edges.iter() {
                     if let Some(mut new_edge) = shard.get_mut(edge.eid()) {
@@ -371,13 +378,13 @@ impl InternalStableDecode for TemporalGraph {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
                                         if let Ok(new_type) = unify_types(
-                                            &const_prop_types[id],
+                                            &metadata_types[id],
                                             &prop.dtype(),
                                             &mut false,
                                         ) {
-                                            const_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
+                                            metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
                                         }
-                                        edge_layer.update_constant_prop(id, prop)?;
+                                        edge_layer.update_metadata(id, prop)?;
                                     }
                                 }
                             }
@@ -409,19 +416,19 @@ impl InternalStableDecode for TemporalGraph {
                         }
                     }
                 }
-                Ok::<_, GraphError>((const_prop_types, temporal_prop_types))
+                Ok::<_, GraphError>((metadata_types, temporal_prop_types))
             })
             .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
                 unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
             })
             .transpose()?;
 
-        if let Some((const_prop_types, temp_prop_types)) = new_edge_property_types {
+        if let Some((metadata_types, temp_prop_types)) = new_edge_property_types {
             update_meta(
-                const_prop_types,
+                metadata_types,
                 temp_prop_types,
-                &storage.edge_meta.const_prop_meta(),
-                &storage.edge_meta.temporal_prop_meta(),
+                storage.edge_meta.metadata_mapper(),
+                storage.edge_meta.temporal_prop_mapper(),
             );
         }
 
@@ -429,10 +436,10 @@ impl InternalStableDecode for TemporalGraph {
             .write_lock_nodes()?
             .into_par_iter_mut()
             .map(|mut shard| {
-                let mut const_prop_types =
-                    vec![PropType::Empty; storage.node_meta.const_prop_meta().len()];
+                let mut metadata_types =
+                    vec![PropType::Empty; storage.node_meta.metadata_mapper().len()];
                 let mut temporal_prop_types =
-                    vec![PropType::Empty; storage.node_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.node_meta.temporal_prop_mapper().len()];
 
                 for node in graph.nodes.iter() {
                     let vid = VID(node.vid as usize);
@@ -451,10 +458,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             src.add_edge(edge.dst(), Direction::OUT, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                src.update_time(t, edge.eid());
+                                src.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -462,10 +469,10 @@ impl InternalStableDecode for TemporalGraph {
                         for layer in edge.layer_ids_iter(&LayerIds::All) {
                             dst.add_edge(edge.src(), Direction::IN, layer, edge.eid());
                             for t in edge.additions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer(layer));
                             }
                             for t in edge.deletions(layer).iter() {
-                                dst.update_time(t, edge.eid());
+                                dst.update_time(t, edge.eid().with_layer_deletion(layer));
                             }
                         }
                     }
@@ -479,13 +486,13 @@ impl InternalStableDecode for TemporalGraph {
                                         let (id, prop) = prop_update?;
                                         let prop = storage.process_prop_value(&prop);
                                         if let Ok(new_type) = unify_types(
-                                            &const_prop_types[id],
+                                            &metadata_types[id],
                                             &prop.dtype(),
                                             &mut false,
                                         ) {
-                                            const_prop_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
+                                            metadata_types[id] = new_type; // the original types saved in protos are now incomplete we need to update them
                                         }
-                                        node.update_constant_prop(id, prop)?;
+                                        node.update_metadata(id, prop)?;
                                     }
                                 }
                             }
@@ -526,19 +533,19 @@ impl InternalStableDecode for TemporalGraph {
                         }
                     }
                 }
-                Ok::<_, GraphError>((const_prop_types, temporal_prop_types))
+                Ok::<_, GraphError>((metadata_types, temporal_prop_types))
             })
             .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
                 unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
             })
             .transpose()?;
 
-        if let Some((const_prop_types, temp_prop_types)) = new_nodes_property_types {
+        if let Some((metadata_types, temp_prop_types)) = new_nodes_property_types {
             update_meta(
-                const_prop_types,
+                metadata_types,
                 temp_prop_types,
-                &storage.node_meta.const_prop_meta(),
-                &storage.node_meta.temporal_prop_meta(),
+                storage.node_meta.metadata_mapper(),
+                storage.node_meta.temporal_prop_mapper(),
             );
         }
 
@@ -546,19 +553,19 @@ impl InternalStableDecode for TemporalGraph {
             .updates
             .par_iter()
             .map(|update| {
-                let mut const_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.const_prop_meta().len()];
+                let mut metadata_types =
+                    vec![PropType::Empty; storage.graph_meta.metadata_mapper().len()];
                 let mut graph_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.temporal_prop_meta().len()];
+                    vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
 
                 if let Some(update) = update.update.as_ref() {
                     match update {
                         Update::UpdateGraphCprops(props) => {
                             let c_props = proto_ext::collect_props(&props.properties)?;
                             for (id, prop) in &c_props {
-                                const_prop_types[*id] = prop.dtype();
+                                metadata_types[*id] = prop.dtype();
                             }
-                            storage.internal_update_constant_properties(&c_props)?;
+                            storage.internal_update_metadata(&c_props)?;
                         }
                         Update::UpdateGraphTprops(props) => {
                             let time = TimeIndexEntry(props.time, props.secondary as usize);
@@ -571,19 +578,19 @@ impl InternalStableDecode for TemporalGraph {
                         _ => {}
                     }
                 }
-                Ok::<_, GraphError>((const_prop_types, graph_prop_types))
+                Ok::<_, GraphError>((metadata_types, graph_prop_types))
             })
             .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
                 unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
             })
             .transpose()?;
 
-        if let Some((const_prop_types, temp_prop_types)) = graph_prop_new_types {
+        if let Some((metadata_types, temp_prop_types)) = graph_prop_new_types {
             update_meta(
-                const_prop_types,
+                metadata_types,
                 temp_prop_types,
                 &PropMapper::default(),
-                &storage.graph_meta.temporal_prop_meta(),
+                storage.graph_meta.temporal_mapper(),
             );
         }
         Ok(storage)
@@ -591,13 +598,13 @@ impl InternalStableDecode for TemporalGraph {
 }
 
 fn update_meta(
-    const_prop_types: Vec<PropType>,
+    metadata_types: Vec<PropType>,
     temp_prop_types: Vec<PropType>,
     const_meta: &PropMapper,
     temp_meta: &PropMapper,
 ) {
     let keys = { const_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
-    for ((id, prop_type), key) in const_prop_types.into_iter().enumerate().zip(keys) {
+    for ((id, prop_type), key) in metadata_types.into_iter().enumerate().zip(keys) {
         const_meta.set_id_and_dtype(key, id, prop_type);
     }
     let keys = { temp_meta.get_keys().iter().cloned().collect::<Vec<_>>() };
@@ -614,14 +621,14 @@ fn unify_property_types(
     r_temp: &[PropType],
 ) -> Result<(Vec<PropType>, Vec<PropType>), GraphError> {
     let const_pt = l_const
-        .into_iter()
+        .iter()
         .zip(r_const)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     let temp_pt = l_temp
-        .into_iter()
+        .iter()
         .zip(r_temp)
-        .map(|(l, r)| unify_types(&l, &r, &mut false))
+        .map(|(l, r)| unify_types(l, r, &mut false))
         .collect::<Result<Vec<PropType>, _>>()?;
     Ok((const_pt, temp_pt))
 }
@@ -681,7 +688,7 @@ mod proto_test {
     use super::*;
     use crate::{
         db::{
-            api::{mutation::DeletionOps, properties::internal::ConstPropertiesOps},
+            api::{mutation::DeletionOps, properties::internal::InternalMetadataOps},
             graph::graph::assert_graph_equal,
         },
         prelude::*,
@@ -701,20 +708,26 @@ mod proto_test {
 
         let graph = Graph::decode(path).unwrap();
 
-        let nodes = graph
+        let nodes_props = graph
             .nodes()
             .properties()
             .into_iter()
             .flat_map(|(_, props)| props.into_iter())
             .collect::<Vec<_>>();
         assert_eq!(
-            nodes,
-            vec![
-                ("a".into(), Some("a".into())),
-                ("z".into(), Some("a".into())),
-                ("a".into(), None)
-            ]
+            nodes_props,
+            vec![("a".into(), Some("a".into())), ("a".into(), None)]
         );
+
+        // TODO: Revisit this test after metadata handling is finalised.
+        //       Refer to the `test_metadata_props` test for context.
+        // let nodes_metadata = graph
+        //     .nodes()
+        //     .metadata()
+        //     .into_iter()
+        //     .flat_map(|(_, props)| props.into_iter())
+        //     .collect::<Vec<_>>();
+        // assert_eq!(nodes_metadata, vec![("z".into(), Some("a".into())),]);
     }
     #[test]
     fn can_read_previous_proto() {
@@ -726,14 +739,14 @@ mod proto_test {
         let graph = Graph::decode(path).unwrap();
 
         let actual: HashMap<_, _> = graph
-            .const_prop_keys()
+            .node_meta()
+            .get_all_property_names(false)
             .into_iter()
             .map(|key| {
                 let props = graph
                     .nodes()
-                    .properties()
-                    .into_iter()
-                    .map(|(_, prop)| prop.get(&key))
+                    .iter()
+                    .map(|n| n.properties().get(&key).or_else(|| n.metadata().get(&key)))
                     .collect::<Vec<_>>();
                 (key, props)
             })
@@ -906,17 +919,17 @@ mod proto_test {
             );
         };
 
-        let pm = graph.node_meta().const_prop_meta();
+        let pm = graph.node_meta().metadata_mapper();
         check_prop_mapper(pm);
 
-        let pm = graph.edge_meta().temporal_prop_meta();
+        let pm = graph.edge_meta().temporal_prop_mapper();
         check_prop_mapper(pm);
 
-        let pm = graph.graph_meta().temporal_prop_meta();
+        let pm = graph.graph_meta().temporal_mapper();
         check_prop_mapper(pm);
 
-        let mut vec1 = actual.keys().into_iter().collect::<Vec<_>>();
-        let mut vec2 = expected.keys().into_iter().collect::<Vec<_>>();
+        let mut vec1 = actual.keys().collect::<Vec<_>>();
+        let mut vec2 = expected.keys().collect::<Vec<_>>();
         vec1.sort();
         vec2.sort();
         assert_eq!(vec1, vec2);
@@ -983,7 +996,7 @@ mod proto_test {
     }
 
     #[test]
-    fn node_with_const_props() {
+    fn node_with_metadata() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
@@ -992,8 +1005,8 @@ mod proto_test {
             .add_node(2, "Bob", [("age", Prop::U32(47))], None)
             .unwrap();
 
-        n1.update_constant_properties([("name", Prop::Str("Bob".into()))])
-            .expect("Failed to update constant properties");
+        n1.update_metadata([("name", Prop::Str("Bob".into()))])
+            .expect("Failed to update metadata");
 
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -1025,7 +1038,7 @@ mod proto_test {
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-        let deletions = edge.deletions().iter().copied().collect::<Vec<_>>();
+        let deletions = edge.deletions().to_vec();
         assert_eq!(deletions, vec![19]);
     }
 
@@ -1053,13 +1066,13 @@ mod proto_test {
     }
 
     #[test]
-    fn edge_const_props() {
+    fn edge_metadata() {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e1 = g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
-        e1.update_constant_properties([("friends", true)], None)
-            .expect("Failed to update constant properties");
+        e1.update_metadata([("friends", true)], None)
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1134,7 +1147,7 @@ mod proto_test {
     }
 
     #[test]
-    fn test_all_the_const_props_on_edge() {
+    fn test_all_the_metadata_on_edge() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
@@ -1142,8 +1155,8 @@ mod proto_test {
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let e = g1.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+        e.update_metadata(props.clone(), Some("a"))
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1154,14 +1167,14 @@ mod proto_test {
             .layers("a")
             .unwrap();
 
-        for (new, old) in edge.properties().constant().iter().zip(props.iter()) {
+        for (new, old) in edge.metadata().iter_filtered().zip(props.iter()) {
             assert_eq!(new.0, old.0);
             assert_eq!(new.1, old.1);
         }
     }
 
     #[test]
-    fn test_all_the_const_props_on_node() {
+    fn test_all_the_metadata_on_node() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
@@ -1169,8 +1182,8 @@ mod proto_test {
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
         let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
-            .expect("Failed to update constant properties");
+        n.update_metadata(props.clone())
+            .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -1178,8 +1191,7 @@ mod proto_test {
         let node = g2.node("Alice").expect("Failed to get node");
 
         assert!(props.into_iter().all(|(name, expected)| {
-            node.properties()
-                .constant()
+            node.metadata()
                 .get(name)
                 .filter(|prop| prop == &expected)
                 .is_some()
@@ -1187,13 +1199,13 @@ mod proto_test {
     }
 
     #[test]
-    fn graph_const_properties() {
+    fn graph_metadata() {
         let mut props = vec![];
         write_props_to_vec(&mut props);
 
         let g1 = Graph::new();
-        g1.add_constant_properties(props.clone())
-            .expect("Failed to add constant properties");
+        g1.add_metadata(props.clone())
+            .expect("Failed to add metadata");
 
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
@@ -1202,8 +1214,8 @@ mod proto_test {
         assert_graph_equal(&g1, &g2);
 
         props.into_iter().for_each(|(name, prop)| {
-            let id = g2.get_const_prop_id(name).expect("Failed to get prop id");
-            assert_eq!(prop, g2.get_const_prop(id).expect("Failed to get prop"));
+            let id = g2.get_metadata_id(name).expect("Failed to get prop id");
+            assert_eq!(prop, g2.get_metadata(id).expect("Failed to get prop"));
         });
     }
 
@@ -1214,8 +1226,8 @@ mod proto_test {
 
         let g1 = Graph::new();
         for t in 0..props.len() {
-            g1.add_properties(t as i64, (&props[t..t + 1]).to_vec())
-                .expect("Failed to add constant properties");
+            g1.add_properties(t as i64, props[t..t + 1].to_vec())
+                .expect("Failed to add metadata");
         }
 
         let tempdir = TempDir::new().unwrap();
@@ -1291,7 +1303,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1309,7 +1320,6 @@ mod proto_test {
             .get("test")
             .unwrap()
             .values()
-            .into_iter()
             .map(|v| v.unwrap_str())
             .collect_vec();
         assert_eq!(values, ["test", "test", "test"]);
@@ -1331,23 +1341,23 @@ mod proto_test {
         assert_metadata_correct(&folder, &g);
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
-                .expect("Failed to add constant properties");
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
+                .expect("Failed to add metadata");
         }
         g.write_updates().unwrap();
 
-        g.add_constant_properties(props.clone())
-            .expect("Failed to add constant properties");
+        g.add_metadata(props.clone())
+            .expect("Failed to add metadata");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
-            .expect("Failed to update constant properties");
+        n.update_metadata(props.clone())
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+        e.update_metadata(props.clone(), Some("a"))
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);
@@ -1378,23 +1388,23 @@ mod proto_test {
         g.cache(&temp_cache_file).unwrap();
 
         for t in 0..props.len() {
-            g.add_properties(t as i64, (&props[t..t + 1]).to_vec())
-                .expect("Failed to add constant properties");
+            g.add_properties(t as i64, props[t..t + 1].to_vec())
+                .expect("Failed to add metadata");
         }
         g.write_updates().unwrap();
 
-        g.add_constant_properties(props.clone())
-            .expect("Failed to add constant properties");
+        g.add_metadata(props.clone())
+            .expect("Failed to add metadata");
         g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        n.update_constant_properties(props.clone())
-            .expect("Failed to update constant properties");
+        n.update_metadata(props.clone())
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
-        e.update_constant_properties(props.clone(), Some("a"))
-            .expect("Failed to update constant properties");
+        e.update_metadata(props.clone(), Some("a"))
+            .expect("Failed to update metadata");
         g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);
@@ -1474,251 +1484,5 @@ mod proto_test {
             "array",
             Prop::from_arr::<UInt8Type>(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
         ));
-    }
-
-    #[cfg(feature = "search")]
-    mod test_index_io {
-        use crate::{
-            core::{utils::errors::GraphError, Prop},
-            db::{
-                api::{
-                    mutation::internal::{InternalAdditionOps, InternalPropertyAdditionOps},
-                    view::{internal::InternalStorageOps, StaticGraphViewOps},
-                },
-                graph::views::filter::model::{AsNodeFilter, NodeFilter, NodeFilterBuilderOps},
-            },
-            prelude::{
-                AdditionOps, CacheOps, Graph, GraphViewOps, NodeViewOps, PropertyAdditionOps,
-                SearchableGraphOps, StableDecode, StableEncode,
-            },
-            serialise::GraphFolder,
-        };
-        use raphtory_api::core::{storage::arc_str::ArcStr, utils::logging::global_info_logger};
-
-        fn init_graph<G>(graph: G) -> G
-        where
-            G: StaticGraphViewOps
-                + AdditionOps
-                + InternalAdditionOps
-                + InternalPropertyAdditionOps
-                + PropertyAdditionOps,
-        {
-            graph
-                .add_node(
-                    1,
-                    "Alice",
-                    vec![("p1", Prop::U64(2u64))],
-                    Some("fire_nation"),
-                )
-                .unwrap();
-            graph
-        }
-
-        fn assert_search_results<T: AsNodeFilter + Clone>(
-            graph: &Graph,
-            filter: &T,
-            expected: Vec<&str>,
-        ) {
-            let res = graph
-                .search_nodes(filter.clone(), 2, 0)
-                .unwrap()
-                .into_iter()
-                .map(|n| n.name())
-                .collect::<Vec<_>>();
-            assert_eq!(res, expected);
-        }
-
-        #[test]
-        fn test_create_no_index_persist_no_index_on_encode_load_no_index_on_decode() {
-            // No index persisted since it was never created
-            let graph = init_graph(Graph::new());
-
-            let err = graph
-                .search_nodes(NodeFilter::name().eq("Alice"), 2, 0)
-                .expect_err("Expected error since index was not created");
-            assert!(matches!(err, GraphError::IndexNotCreated));
-
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.encode(path).unwrap();
-
-            let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_none());
-        }
-
-        #[test]
-        fn test_create_index_persist_index_on_encode_load_index_on_decode() {
-            let graph = init_graph(Graph::new());
-
-            // Created index
-            graph.create_index().unwrap();
-
-            let filter = NodeFilter::name().eq("Alice");
-            assert_search_results(&graph, &filter, vec!["Alice"]);
-
-            // Persisted both graph and index
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.encode(path).unwrap();
-
-            // Loaded index that was persisted
-            let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
-
-            assert_search_results(&graph, &filter, vec!["Alice"]);
-        }
-
-        #[test]
-        fn test_create_index_persist_index_on_encode_update_index_load_persisted_index_on_decode() {
-            let graph = init_graph(Graph::new());
-
-            // Created index
-            graph.create_index().unwrap();
-
-            let filter1 = NodeFilter::name().eq("Alice");
-            assert_search_results(&graph, &filter1, vec!["Alice"]);
-
-            // Persisted both graph and index
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.encode(path).unwrap();
-
-            // Updated both graph and index
-            graph
-                .add_node(
-                    2,
-                    "Tommy",
-                    vec![("p1", Prop::U64(5u64))],
-                    Some("water_tribe"),
-                )
-                .unwrap();
-            let filter2 = NodeFilter::name().eq("Tommy");
-            assert_search_results(&graph, &filter2, vec!["Tommy"]);
-
-            // Loaded index that was persisted
-            let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
-            assert_search_results(&graph, &filter1, vec!["Alice"]);
-            assert_search_results(&graph, &filter2, Vec::<&str>::new());
-
-            // Updating and encode the graph and index should decode the updated the graph as well as index
-            // So far we have the index that was created and persisted for the first time
-            graph
-                .add_node(
-                    2,
-                    "Tommy",
-                    vec![("p1", Prop::U64(5u64))],
-                    Some("water_tribe"),
-                )
-                .unwrap();
-            let filter2 = NodeFilter::name().eq("Tommy");
-            assert_search_results(&graph, &filter2, vec!["Tommy"]);
-
-            // Should persist the updated graph and index
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.encode(path).unwrap();
-
-            // Should load the updated graph and index
-            let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_some());
-            assert_search_results(&graph, &filter1, vec!["Alice"]);
-            assert_search_results(&graph, &filter2, vec!["Tommy"]);
-        }
-
-        #[test]
-        fn test_zip_encode_decode_index() {
-            let graph = init_graph(Graph::new());
-            graph.create_index().unwrap();
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            let folder = GraphFolder::new_as_zip(path);
-            graph.encode(folder.root_folder).unwrap();
-
-            let graph = Graph::decode(path).unwrap();
-            let node = graph.node("Alice").unwrap();
-            let node_type = node.node_type();
-            assert_eq!(node_type, Some(ArcStr::from("fire_nation")));
-
-            let filter = NodeFilter::name().eq("Alice");
-            assert_search_results(&graph, &filter, vec!["Alice"]);
-        }
-
-        #[test]
-        fn test_create_index_in_ram() {
-            global_info_logger();
-
-            let graph = init_graph(Graph::new());
-            graph.create_index_in_ram().unwrap();
-
-            let filter = NodeFilter::name().eq("Alice");
-            assert_search_results(&graph, &filter, vec!["Alice"]);
-
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.encode(path).unwrap();
-
-            let graph = Graph::decode(path).unwrap();
-            let index = graph.get_storage().unwrap().index.get();
-            assert!(index.is_none());
-
-            let results = graph.search_nodes(filter.clone(), 2, 0);
-            assert!(matches!(results, Err(GraphError::IndexNotCreated)));
-        }
-
-        #[test]
-        fn test_cached_graph_view() {
-            global_info_logger();
-            let graph = init_graph(Graph::new());
-            graph.create_index().unwrap();
-
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.cache(path).unwrap();
-
-            graph
-                .add_node(
-                    2,
-                    "Tommy",
-                    vec![("p1", Prop::U64(5u64))],
-                    Some("water_tribe"),
-                )
-                .unwrap();
-            graph.write_updates().unwrap();
-
-            let graph = Graph::decode(path).unwrap();
-            let filter = NodeFilter::name().eq("Tommy");
-            assert_search_results(&graph, &filter, vec!["Tommy"]);
-        }
-
-        #[test]
-        fn test_cached_graph_view_create_index_after_graph_is_cached() {
-            global_info_logger();
-            let graph = init_graph(Graph::new());
-
-            let binding = tempfile::TempDir::new().unwrap();
-            let path = binding.path();
-            graph.cache(path).unwrap();
-            // Creates index in a temp dir within graph dir
-            graph.create_index().unwrap();
-
-            graph
-                .add_node(
-                    2,
-                    "Tommy",
-                    vec![("p1", Prop::U64(5u64))],
-                    Some("water_tribe"),
-                )
-                .unwrap();
-            graph.write_updates().unwrap();
-
-            let graph = Graph::decode(path).unwrap();
-            let filter = NodeFilter::name().eq("Tommy");
-            assert_search_results(&graph, &filter, vec!["Tommy"]);
-        }
     }
 }

@@ -19,11 +19,8 @@ use tokio::runtime::Runtime;
 ///    * Number of edges (hyperlink between subreddits) 701
 ///
 ///
-/// Arguments:
-///    shards: The number of shards to use for the graph
-///
 /// Returns:
-///   A Graph containing the LOTR dataset
+///   Graph: A Graph containing the LOTR dataset
 #[pyfunction]
 pub fn lotr_graph() -> PyResult<Py<PyGraph>> {
     PyGraph::py_from_db_graph(crate::graph_loader::lotr_graph::lotr_graph())
@@ -56,7 +53,7 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///  * SOURCE_SUBREDDIT: the subreddit where the link originates
 ///  * TARGET_SUBREDDIT: the subreddit where the link ends
 ///  * POST_ID: the post in the source subreddit that starts the link
-///  * TIMESTAMP: time time of the post
+///  * TIMESTAMP: time of the post
 ///  * POST_LABEL: label indicating if the source post is explicitly negative towards the target
 ///    post. The value is -1 if the source is negative towards the target, and 1 if it is neutral or
 ///    positive. The label is created using crowd-sourcing and training a text based classifier, and
@@ -65,8 +62,7 @@ pub fn lotr_graph_with_props() -> PyResult<Py<PyGraph>> {
 ///    list of comma separated numbers. This can be found on the source website
 ///
 /// Arguments:
-///   shards: The number of shards to use for the graph
-///   timeout_seconds: The number of seconds to wait for the dataset to download
+///   timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
 ///
 /// Returns:
 ///  Graph: A Graph containing the Reddit hyperlinks dataset

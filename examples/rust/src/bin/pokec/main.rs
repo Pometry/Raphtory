@@ -57,7 +57,7 @@ fn main() {
 
     let now = Instant::now();
 
-    weakly_connected_components(&g, 100, None);
+    weakly_connected_components(&g);
 
     info!(
         "Connected Components took {} millis",

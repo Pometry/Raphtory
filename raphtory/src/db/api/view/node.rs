@@ -2,17 +2,18 @@ use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
         storage::timeindex::AsTime,
-        Direction,
     },
     db::api::{
-        properties::internal::PropertiesOps,
+        properties::internal::InternalPropertiesOps,
         state::{ops, NodeOp},
-        storage::graph::storage_ops::GraphStorage,
-        view::{internal::OneHopFilter, reset_filter::ResetFilter, TimeOps},
+        view::{internal::OneHopFilter, node_edges, reset_filter::ResetFilter, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
 };
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
+use raphtory_api::core::Direction;
+use raphtory_storage::graph::graph::GraphStorage;
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type BaseGraph: GraphViewOps<'graph>;
@@ -22,7 +23,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
         Op: NodeOp + 'graph,
         Op::Output: 'graph;
 
-    type PropType: PropertiesOps + Clone + 'graph;
+    type PropType: InternalPropertiesOps + Clone + 'graph;
     type PathType: NodeViewOps<'graph, BaseGraph = Self::BaseGraph, Graph = Self::BaseGraph>
         + 'graph;
     type Edges: EdgeViewOps<'graph, Graph = Self::Graph, BaseGraph = Self::BaseGraph> + 'graph;
@@ -89,6 +90,8 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Gets the history of the node (time that the node was added and times when changes were made to the node)
     fn history(&self) -> Self::ValueType<ops::History<Self::Graph>>;
 
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
+
     /// Gets the history of the node (time that the node was added and times when changes were made to the node) as `DateTime<Utc>` objects if parseable
     fn history_date_time(
         &self,
@@ -102,7 +105,10 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     /// Returns:
     ///
     /// A view with the names of the properties as keys and the property values as values.
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>>;
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>>;
+
+    /// Get a view of the metadata of this node.
+    fn metadata(&self) -> Self::ValueType<ops::GetMetadata<'graph, Self::Graph>>;
 
     /// Get the degree of this node (i.e., the number of edges that are incident to it).
     ///
@@ -239,6 +245,14 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
         };
         self.map(op)
     }
+
+    #[inline]
+    fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>> {
+        let op = ops::EdgeHistoryCount {
+            graph: self.graph().clone(),
+        };
+        self.map(op)
+    }
     #[inline]
     fn history_date_time(
         &self,
@@ -259,12 +273,17 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     #[inline]
-    fn properties(&self) -> Self::ValueType<ops::GetProperties<Self::Graph>> {
-        let op = ops::GetProperties {
-            graph: self.graph().clone(),
-        };
+    fn properties(&self) -> Self::ValueType<ops::GetProperties<'graph, Self::Graph>> {
+        let op = ops::GetProperties::new(self.graph().clone());
         self.map(op)
     }
+
+    #[inline]
+    fn metadata(&self) -> Self::ValueType<ops::GetMetadata<'graph, Self::Graph>> {
+        let op = ops::GetMetadata::new(self.graph().clone());
+        self.map(op)
+    }
+
     #[inline]
     fn degree(&self) -> Self::ValueType<ops::Degree<Self::Graph>> {
         let op = ops::Degree {
@@ -292,40 +311,55 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     #[inline]
     fn edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
         })
     }
     #[inline]
     fn in_edges(&self) -> Self::Edges {
-        self.map_edges(|cg, g, v| cg.clone().into_node_edges_iter(v, Direction::IN, g.clone()))
+        self.map_edges(|cg, g, v| {
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+        })
     }
     #[inline]
     fn out_edges(&self) -> Self::Edges {
         self.map_edges(|cg, g, v| {
-            cg.clone()
-                .into_node_edges_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
         })
     }
     #[inline]
     fn neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::BOTH, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::BOTH)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn in_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::IN, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::IN)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
     #[inline]
     fn out_neighbours(&self) -> Self::PathType {
         self.hop(|cg, g, v| {
-            cg.clone()
-                .into_node_neighbours_iter(v, Direction::OUT, g.clone())
+            let cg = cg.clone();
+            let g = g.clone();
+            node_edges(cg, g, v, Direction::OUT)
+                .map(|e| e.remote())
+                .dedup()
         })
     }
 }

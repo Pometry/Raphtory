@@ -5,4 +5,7 @@ target/
 .env
 .idea/
 .vscode/
-Dockerfile*
+graphql-bench/
+Dockerfile
+python.Dockerfile
+__pycache__

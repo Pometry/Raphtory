@@ -1,4 +1,4 @@
-from raphtory import Prop, filter
+from raphtory import filter
 import pytest
 from filters_setup import init_graph
 from utils import with_disk_variants
@@ -154,7 +154,7 @@ def test_filter_nodes_for_property_contains():
         expected_ids = ["1", "2", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Property("p10").constant().contains("Paper")
+        filter_expr = filter.Metadata("p10").contains("Paper")
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids
@@ -180,7 +180,7 @@ def test_filter_nodes_for_property_not_contains():
         expected_ids = ["1", "3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Property("p10").constant().not_contains("ship")
+        filter_expr = filter.Metadata("p10").not_contains("ship")
         result_ids = sorted(graph.filter_nodes(filter_expr).nodes.id)
         expected_ids = []
         assert result_ids == expected_ids

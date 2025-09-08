@@ -1,23 +1,21 @@
 use crate::{
-    core::utils::errors::GraphError,
     db::{
         api::{
             properties::internal::InheritPropertiesOps,
-            storage::graph::edges::edge_ref::EdgeStorageRef,
-            view::{
-                internal::{
-                    EdgeFilterOps, Immutable, InheritCoreOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-                    InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
-                },
-                Base,
+            view::internal::{
+                Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+                InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::InternalEdgeFilterOps, model::Filter, EdgeFieldFilter},
+        graph::views::filter::{internal::CreateEdgeFilter, model::Filter, EdgeFieldFilter},
     },
+    errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::LayerIds;
+use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {
@@ -25,13 +23,13 @@ pub struct EdgeFieldFilteredGraph<G> {
     filter: Filter,
 }
 
-impl<'graph, G> EdgeFieldFilteredGraph<G> {
+impl<G> EdgeFieldFilteredGraph<G> {
     pub(crate) fn new(graph: G, filter: Filter) -> Self {
         Self { graph, filter }
     }
 }
 
-impl InternalEdgeFilterOps for EdgeFieldFilter {
+impl CreateEdgeFilter for EdgeFieldFilter {
     type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgeFieldFilteredGraph<G>;
 
     fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
@@ -42,7 +40,7 @@ impl InternalEdgeFilterOps for EdgeFieldFilter {
     }
 }
 
-impl<'graph, G> Base for EdgeFieldFilteredGraph<G> {
+impl<G> Base for EdgeFieldFilteredGraph<G> {
     type Base = G;
 
     fn base(&self) -> &Self::Base {
@@ -53,7 +51,7 @@ impl<'graph, G> Base for EdgeFieldFilteredGraph<G> {
 impl<G> Static for EdgeFieldFilteredGraph<G> {}
 impl<G> Immutable for EdgeFieldFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreOps for EdgeFieldFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgeFieldFilteredGraph<G> {}
@@ -64,20 +62,24 @@ impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgeFieldFiltered
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgeFieldFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgeFieldFilteredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeFilterOps for EdgeFieldFilteredGraph<G> {
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for EdgeFieldFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for EdgeFieldFilteredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgeFieldFilteredGraph<G> {
     #[inline]
-    fn edges_filtered(&self) -> bool {
+    fn internal_edge_filtered(&self) -> bool {
         true
     }
 
     #[inline]
-    fn edge_list_trusted(&self) -> bool {
+    fn internal_edge_list_trusted(&self) -> bool {
         false
     }
 
     #[inline]
-    fn filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.filter_edge(edge, layer_ids) {
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        if self.graph.internal_filter_edge(edge, layer_ids) {
             self.filter.matches_edge(&self.graph, edge)
         } else {
             false

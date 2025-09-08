@@ -1,6 +1,7 @@
+use crate::rayon::blocking_compute;
 use raphtory::{
-    core::utils::errors::{GraphError, InvalidPathReason, InvalidPathReason::*},
-    serialise::GraphFolder,
+    errors::{GraphError, InvalidPathReason},
+    serialise::{metadata::GraphMetadata, GraphFolder},
 };
 use std::{
     fs,
@@ -9,7 +10,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ExistingGraphFolder {
     folder: ValidGraphFolder,
 }
@@ -47,27 +48,32 @@ impl ExistingGraphFolder {
 
     pub(crate) fn get_graph_name(&self) -> Result<String, GraphError> {
         let path = &self.get_base_path();
-        let last_component: Component = path
-            .components()
-            .last()
-            .ok_or_else(|| GraphError::from(PathNotParsable(self.to_error_path())))?;
+        let last_component: Component = path.components().last().ok_or_else(|| {
+            GraphError::from(InvalidPathReason::PathNotParsable(self.to_error_path()))
+        })?;
         match last_component {
-            Component::Normal(value) => value
-                .to_str()
-                .map(|s| s.to_string())
-                .ok_or(GraphError::from(PathNotParsable(self.to_error_path()))),
+            Component::Normal(value) => {
+                value
+                    .to_str()
+                    .map(|s| s.to_string())
+                    .ok_or(GraphError::from(InvalidPathReason::PathNotParsable(
+                        self.to_error_path(),
+                    )))
+            }
             Component::Prefix(_)
             | Component::RootDir
             | Component::CurDir
-            | Component::ParentDir => Err(GraphError::from(PathNotParsable(self.to_error_path()))),
+            | Component::ParentDir => Err(GraphError::from(InvalidPathReason::PathNotParsable(
+                self.to_error_path(),
+            ))),
         }
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    original_path: String,
     folder: GraphFolder,
+    original_path: String,
 }
 
 impl From<ExistingGraphFolder> for ValidGraphFolder {
@@ -92,10 +98,10 @@ pub(crate) fn valid_path(
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
-        return Err(DoubleForwardSlash(user_facing_path));
+        return Err(InvalidPathReason::DoubleForwardSlash(user_facing_path));
     }
     if relative_path.contains(r"\") {
-        return Err(BackslashError(user_facing_path));
+        return Err(InvalidPathReason::BackslashError(user_facing_path));
     }
 
     let mut full_path = base_path.clone();
@@ -103,23 +109,27 @@ pub(crate) fn valid_path(
     // tries to access a parent dir or is a symlink which could break out of the working dir
     for component in user_facing_path.components() {
         match component {
-            Component::Prefix(_) => return Err(RootNotAllowed(user_facing_path)),
-            Component::RootDir => return Err(RootNotAllowed(user_facing_path)),
-            Component::CurDir => return Err(CurDirNotAllowed(user_facing_path)),
-            Component::ParentDir => return Err(ParentDirNotAllowed(user_facing_path)),
+            Component::Prefix(_) => {
+                return Err(InvalidPathReason::RootNotAllowed(user_facing_path))
+            }
+            Component::RootDir => return Err(InvalidPathReason::RootNotAllowed(user_facing_path)),
+            Component::CurDir => return Err(InvalidPathReason::CurDirNotAllowed(user_facing_path)),
+            Component::ParentDir => {
+                return Err(InvalidPathReason::ParentDirNotAllowed(user_facing_path))
+            }
             Component::Normal(component) => {
                 // check if some intermediate path is already a graph
                 if full_path.join(".raph").exists() {
-                    return Err(ParentIsGraph(user_facing_path));
+                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 full_path.push(component);
                 //check if the path with the component is a graph
                 if namespace && full_path.join(".raph").exists() {
-                    return Err(ParentIsGraph(user_facing_path));
+                    return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
                 }
                 //check for symlinks
                 if full_path.is_symlink() {
-                    return Err(SymlinkNotAllowed(user_facing_path));
+                    return Err(InvalidPathReason::SymlinkNotAllowed(user_facing_path));
                 }
             }
         }
@@ -139,28 +149,48 @@ impl ValidGraphFolder {
         })
     }
 
-    pub(crate) fn created(&self) -> Result<i64, GraphError> {
+    pub fn created(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.created()?.to_millis()
     }
 
-    pub(crate) fn last_opened(&self) -> Result<i64, GraphError> {
+    pub fn last_opened(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.accessed()?.to_millis()
     }
 
-    pub(crate) fn last_updated(&self) -> Result<i64, GraphError> {
+    pub fn last_updated(&self) -> Result<i64, GraphError> {
         fs::metadata(self.get_graph_path())?.modified()?.to_millis()
     }
 
-    pub(crate) fn get_original_path_str(&self) -> &str {
+    pub async fn created_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.created()?.to_millis()
+    }
+
+    pub async fn last_opened_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.accessed()?.to_millis()
+    }
+
+    pub async fn last_updated_async(&self) -> Result<i64, GraphError> {
+        let metadata = tokio::fs::metadata(self.get_graph_path()).await?;
+        metadata.modified()?.to_millis()
+    }
+
+    pub async fn read_metadata_async(&self) -> Result<GraphMetadata, GraphError> {
+        let folder = self.folder.clone();
+        blocking_compute(move || folder.read_metadata()).await
+    }
+
+    pub fn get_original_path_str(&self) -> &str {
         &self.original_path
     }
 
-    pub(crate) fn get_original_path(&self) -> &Path {
+    pub fn get_original_path(&self) -> &Path {
         &Path::new(&self.original_path)
     }
 
     /// This returns the PathBuf used to build multiple GraphError types
-    pub(crate) fn to_error_path(&self) -> PathBuf {
+    pub fn to_error_path(&self) -> PathBuf {
         self.original_path.to_owned().into()
     }
 }

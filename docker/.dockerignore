@@ -1,8 +1,0 @@
-pometry-storage-private
-.dockerignore
-target/
-.git/
-.env
-.idea/
-.vscode/
-Dockerfile*

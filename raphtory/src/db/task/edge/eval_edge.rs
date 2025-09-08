@@ -18,7 +18,8 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
-use crate::db::{api::storage::graph::storage_ops::GraphStorage, task::eval_graph::EvalGraph};
+use crate::db::{api::properties::Metadata, task::eval_graph::EvalGraph};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
@@ -94,6 +95,10 @@ impl<
 
     fn as_props(&self) -> Self::ValueType<Properties<Self::PropType>> {
         self.edge.as_props()
+    }
+
+    fn as_metadata(&self) -> Self::ValueType<Metadata<'graph, Self::PropType>> {
+        self.edge.as_metadata()
     }
 
     fn map_nodes<F: for<'b> Fn(&'b Self::Graph, EdgeRef) -> VID + Send + Sync + Clone + 'graph>(
