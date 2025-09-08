@@ -188,10 +188,6 @@ impl<T: TryFrom<u8> + TryFrom<u16> + TryFrom<u32> + TryFrom<u64> + TryFrom<i32> 
 {
 }
 
-trait TryFromFloat: TryFrom<f32> + TryFrom<f64> {}
-impl<T: TryFrom<f32> + TryFrom<f64>> TryFromFloat for T {}
-
-//TryFrom<f32> + TryFrom<f64> + TryFrom<BigDecimal>
 impl Prop {
     fn float_to_int<T: Into<f64> + Copy>(val: T) -> Result<i64, String> {
         let val = val.into();

@@ -12,14 +12,22 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank,
         pathing::dijkstra::dijkstra_single_source_shortest_paths,
     },
+    core::Prop,
     prelude::NodeViewOps,
 };
 use raphtory_api::core::Direction;
+use std::collections::HashMap;
 
 #[derive(SimpleObject)]
 pub(crate) struct PagerankOutput {
     name: String,
     rank: f64,
+}
+
+impl From<(String, HashMap<String, Option<Prop>>)> for PagerankOutput {
+    fn from(_value: (String, HashMap<String, Option<Prop>>)) -> Self {
+        todo!()
+    }
 }
 
 impl From<(String, f64)> for PagerankOutput {

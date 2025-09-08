@@ -4861,6 +4861,7 @@ name = "raphtory"
 version = "0.15.1"
 dependencies = [
  "ahash",
+ "arrow",
  "arrow-array",
  "arrow-buffer",
  "arrow-data",

@@ -28,6 +28,7 @@ use crate::{
     python::{
         graph::{
             node::internal::OneHopFilter,
+            node_state::PyOutputNodeState,
             properties::{PropertiesView, PyNestedPropsIterable},
         },
         types::{
@@ -497,6 +498,15 @@ impl PyNodes {
     #[doc = concat!("     ","list[Node]",": the list of ","node","s")]
     fn collect(&self) -> Vec<NodeView<DynamicGraph>> {
         self.nodes.collect()
+    }
+
+    #[pyo3(signature = (file_path, id_column="id".to_string()))]
+    fn nodestate_from_parquet(
+        &self,
+        file_path: String,
+        id_column: Option<String>,
+    ) -> PyOutputNodeState {
+        PyOutputNodeState::new(self.nodes.nodestate_from_parquet(file_path, id_column))
     }
 }
 

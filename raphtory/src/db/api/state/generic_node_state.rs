@@ -2,19 +2,26 @@ use crate::{
     core::{
         entities::{nodes::node_ref::AsNodeRef, VID},
         Prop,
-    }, db::{
+    },
+    db::{
         api::{
             state::{node_state_ops::NodeStateOps, Index},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
-    }, prelude::{GraphViewOps, NodeViewOps}
+    },
+    prelude::{GraphViewOps, NodeViewOps},
 };
-use arrow_array::{Array, ArrayRef, Datum, RecordBatch, StringArray};
+
+use arrow::compute::{cast_with_options, CastOptions};
+
+use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
 use indexmap::IndexSet;
-use parquet::{arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter}, basic::Compression, file::properties::WriterProperties};
+use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterProperties};
 
+use arrow_array::{builder::UInt64Builder, UInt64Array};
+use arrow_select::{concat::concat, take::take};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -23,13 +30,16 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 use std::{
-    collections::HashMap, fmt::{Debug, Formatter}, fs::File, hash::BuildHasher, marker::PhantomData, path::Path, sync::Arc
+    cmp::PartialEq,
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    fs::File,
+    hash::BuildHasher,
+    marker::PhantomData,
+    path::Path,
+    sync::Arc,
 };
-use std::cmp::PartialEq;
-use arrow_array::builder::make_builder;
-use arrow_select::{concat::concat, take::take};
-use arrow_array::builder::UInt64Builder;
-use arrow_array::UInt64Array;
+use tracing::field::debug;
 
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
@@ -126,7 +136,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    pub fn transform(self) -> TypedNodeState<'graph, HashMap<String, Prop>, G, GH> {
+    pub fn transform(self) -> TypedNodeState<'graph, HashMap<String, Option<Prop>>, G, GH> {
         TypedNodeState::new(self)
     }
 
@@ -155,142 +165,222 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         )
     }
 
-    pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, node_column: Option<String>) {
+    fn len(&self) -> usize {
+        self.values.num_rows()
+    }
 
+    pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
-        
-        if node_column.is_some() {
-            let ids: Vec<String> = self.nodes().id().iter().map(|(_, gid)| gid.to_string()).collect();
+
+        if id_column.is_some() {
+            let ids: Vec<String> = self
+                .nodes()
+                .id()
+                .iter()
+                .map(|(_, gid)| gid.to_string())
+                .collect();
             let ids_array = Arc::new(StringArray::from(ids)) as ArrayRef;
 
             let mut builder = SchemaBuilder::new();
             for field in &self.values.schema().fields().clone() {
                 builder.push(field.clone())
             }
-            builder.push(Arc::new(Field::new(node_column.unwrap(), DataType::Utf8, false)));
+            builder.push(Arc::new(Field::new(
+                id_column.unwrap(),
+                DataType::Utf8,
+                false,
+            )));
             schema = Arc::new(Schema::new(builder.finish().fields));
-            
+
             let mut columns = self.values.columns().to_vec();
             columns.push(ids_array);
-            
+
             batch = Some(RecordBatch::try_new(schema.clone(), columns).unwrap());
         }
-        
+
         // Now write this new_batch to Parquet
         let file = File::create(file_path).unwrap();
         let props = WriterProperties::builder()
             .set_compression(Compression::SNAPPY)
             .build();
         let mut writer = ArrowWriter::try_new(file, schema, Some(props)).unwrap();
-        writer.write(batch.as_ref().unwrap_or(&self.values)).expect("Writing batch");
+        writer
+            .write(batch.as_ref().unwrap_or(&self.values))
+            .expect("Writing batch");
         writer.close().unwrap();
     }
 
-    // TODO: handle removal of id_column if Some, optional check if id_column is sorted as keys?
-    pub fn values_from_parquet<P: AsRef<Path>>(&mut self, file_path: P, id_column: Option<String>) {
-        let file = File::open(file_path).unwrap();
-        let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
-        let mut reader = builder.build().unwrap();
-        self.values = reader.next().unwrap().unwrap();
-    }
-
     fn merge_columns(
-        num_graph_nodes: usize,
         col_name: &String,
-        idx_merge_priority: MergePriority,
-        tgt_idx_set: &Option<Index<VID>>,
+        tgt_idx_set: Option<&Index<VID>>,
         tgt_idx_set_len: usize,
-        lh: &Option<Index<VID>>,
-        rh: &Option<Index<VID>>, 
-        lh_batch: &mut RecordBatch, 
-        rh_batch: &mut RecordBatch,
-    )
-    {
-
-        if idx_merge_priority == MergePriority::Left && lh_batch.column_by_name(col_name).is_some() {
-            let c = lh_batch.column_by_name(col_name).unwrap();
-        } else if idx_merge_priority == MergePriority::Right && lh_batch.column_by_name(col_name).is_none() && rh_batch.column_by_name(col_name).is_some() {
-            let c = rh_batch.column_by_name(col_name).unwrap();
+        lh: Option<&Index<VID>>,
+        rh: Option<&Index<VID>>,
+        lh_batch: &RecordBatch,
+        rh_batch: &RecordBatch,
+    ) -> (Arc<dyn Array>, Field) {
+        let iter = if tgt_idx_set.is_some() {
+            Either::Left(tgt_idx_set.as_ref().unwrap().iter())
         } else {
-            let lh_col = lh_batch.column_by_name(col_name).unwrap_or(rh_batch.column_by_name(col_name).unwrap());
-            let rh_col = rh_batch.column_by_name(col_name).unwrap();
-            let mut builder = make_builder(&lh_col.data_type(), tgt_idx_set_len);
-
-            let left_col = lh_batch.column_by_name(col_name).unwrap();
-            let a = left_col.slice(0, 1);
-            let b = left_col.slice(1, 1);
-
-            let to_cat = &[a.as_ref(), b.as_ref()];
-            let cat = concat(to_cat).unwrap();
-
-            let mut idx_builder = UInt64Builder::with_capacity(tgt_idx_set_len);
-            let take_idx: UInt64Array = idx_builder.finish();
-            let out = take(cat.as_ref(), &take_idx, None);
-
-
-            let iter = if tgt_idx_set.is_some() { Either::Left(tgt_idx_set.as_ref().unwrap().iter()) } else { Either::Right((0..num_graph_nodes).map(VID)) };
-            for i in iter {
-                
+            Either::Right((0..tgt_idx_set_len).map(VID))
+        };
+        let mut idx_builder = UInt64Builder::with_capacity(tgt_idx_set_len);
+        let left_col = lh_batch.column_by_name(col_name);
+        let left_len = if left_col.is_some() {
+            left_col.unwrap().len()
+        } else {
+            0
+        };
+        let right_col = rh_batch.column_by_name(col_name);
+        let cat = match (left_col, right_col) {
+            (Some(l), Some(r)) => &concat(&[l.as_ref(), r.as_ref()]).unwrap(),
+            (Some(l), None) => l,
+            (None, Some(r)) => r,
+            (None, None) => unreachable!("at least one is guaranteed to be Some"),
+        };
+        for i in iter {
+            if left_col.is_some() && (lh.is_none() || lh.unwrap().contains(&i)) {
+                if lh.is_none() {
+                    idx_builder.append_value(i.0 as u64);
+                } else {
+                    idx_builder.append_value(lh.unwrap().index(&i).unwrap() as u64);
+                }
+            } else if right_col.is_some() && (rh.is_none() || rh.unwrap().contains(&i)) {
+                if rh.is_none() {
+                    idx_builder.append_value((left_len + i.0) as u64);
+                } else {
+                    idx_builder.append_value((left_len + rh.unwrap().index(&i).unwrap()) as u64);
+                }
+            } else {
+                idx_builder.append_null();
             }
         }
+        let take_idx: UInt64Array = idx_builder.finish();
+        let mut field = lh_batch.schema_ref().field_with_name(col_name);
+        if field.is_err() {
+            field = rh_batch.schema_ref().field_with_name(col_name);
+        }
+        (
+            take(cat.as_ref(), &take_idx, None).unwrap(),
+            field.unwrap().clone(),
+        )
     }
 
     pub fn merge(
-        &mut self, 
-        other: &mut GenericNodeState<'graph, G>, 
-        index_merge_priority: MergePriority, 
-        default_column_merge_priority: MergePriority, 
-        column_merge_priority_map: Option<HashMap<String, MergePriority>>) 
-    {
-        let new_idx_set =
-            if self.keys.is_none() || other.keys.is_none() {
-                None
-            } else {
-                Some(IndexSet::union(
-                    self.keys
-                        .as_ref()
-                        .unwrap()
-                        .index
-                        .as_ref(),
-                    other.keys.as_ref().unwrap().index.as_ref()).clone().into_iter().map(|v| v.to_owned()).collect())
-            };
-        let tgt_idx_set = match index_merge_priority {
-            MergePriority::Left => &self.keys,
-            MergePriority::Right => &other.keys,
-            MergePriority::Exclude => &new_idx_set,
+        &self,
+        other: &GenericNodeState<'graph, G>,
+        index_merge_priority: MergePriority,
+        default_column_merge_priority: MergePriority,
+        column_merge_priority_map: Option<HashMap<String, MergePriority>>,
+    ) -> Self {
+        let new_idx_set = if self.keys.is_none() || other.keys.is_none() {
+            None
+        } else {
+            Some(
+                IndexSet::union(
+                    self.keys.as_ref().unwrap().index.as_ref(),
+                    other.keys.as_ref().unwrap().index.as_ref(),
+                )
+                .clone()
+                .into_iter()
+                .map(|v| v.to_owned())
+                .collect(),
+            )
         };
-        let tgt_index_set_len = tgt_idx_set.as_ref().map_or(self.graph.unfiltered_num_nodes(), |idx_set| idx_set.len());
+        let tgt_idx_set = match index_merge_priority {
+            MergePriority::Left => self.keys.as_ref(),
+            MergePriority::Right => other.keys.as_ref(),
+            MergePriority::Exclude => new_idx_set.as_ref(),
+        };
+        let tgt_index_set_len =
+            tgt_idx_set.map_or(self.graph.unfiltered_num_nodes(), |idx_set| idx_set.len());
+
+        let mut cols: Vec<Arc<dyn Array>> = vec![];
+        let mut fields: Vec<Field> = vec![];
 
         // iterate over priority map first and merge accordingly
         if column_merge_priority_map.as_ref().is_some() {
             for (col_name, priority) in column_merge_priority_map.as_ref().unwrap() {
                 let (lh, rh, lh_batch, rh_batch) = match priority {
-                    MergePriority::Left => (&self.keys, &other.keys, &mut self.values, &mut other.values),
-                    MergePriority::Right => (&other.keys, &self.keys, &mut self.values, &mut other.values),
+                    MergePriority::Left => (
+                        self.keys.as_ref(),
+                        other.keys.as_ref(),
+                        &self.values,
+                        &other.values,
+                    ),
+                    MergePriority::Right => (
+                        other.keys.as_ref(),
+                        self.keys.as_ref(),
+                        &other.values,
+                        &self.values,
+                    ),
                     MergePriority::Exclude => continue,
                 };
-                GenericNodeState::<'graph, G>::merge_columns(self.graph.unfiltered_num_nodes(), col_name, index_merge_priority.clone(), tgt_idx_set, tgt_index_set_len, lh, rh, lh_batch, rh_batch);
+                let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
+                    col_name,
+                    tgt_idx_set,
+                    tgt_index_set_len,
+                    lh,
+                    rh,
+                    lh_batch,
+                    rh_batch,
+                );
+                cols.push(col);
+                fields.push(field);
             }
         }
 
         // if default is not exclude
         // merge remaining columns accordingly
         let (lh, rh, lh_batch, rh_batch) = match default_column_merge_priority {
-            MergePriority::Left => (&self.keys, &other.keys, &mut self.values, &mut other.values),
-            MergePriority::Right => (&other.keys, &self.keys, &mut self.values, &mut other.values),
-            MergePriority::Exclude => return,
+            MergePriority::Left => (
+                self.keys.as_ref(),
+                other.keys.as_ref(),
+                &self.values,
+                &other.values,
+            ),
+            MergePriority::Right => (
+                other.keys.as_ref(),
+                self.keys.as_ref(),
+                &other.values,
+                &self.values,
+            ),
+            MergePriority::Exclude => {
+                return GenericNodeState::new(
+                    self.base_graph.clone(),
+                    self.graph.clone(),
+                    RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
+                    tgt_idx_set.cloned(),
+                )
+            }
         };
         // iterate over columns in lh, if not in priority_map, merge columns
         for column in lh_batch.schema().fields().iter() {
             let col_name = column.name();
             if column_merge_priority_map
                 .as_ref()
-                .map_or(false,|map| map.contains_key(col_name)) 
+                .map_or(true, |map| map.contains_key(col_name) == false)
             {
-                GenericNodeState::<'graph, G>::merge_columns(self.graph.unfiltered_num_nodes(), col_name, index_merge_priority.clone(), tgt_idx_set, tgt_index_set_len, lh, rh, lh_batch, rh_batch);
+                let (col, field) = GenericNodeState::<'graph, G>::merge_columns(
+                    col_name,
+                    tgt_idx_set,
+                    tgt_index_set_len,
+                    lh,
+                    rh,
+                    lh_batch,
+                    rh_batch,
+                );
+                cols.push(col);
+                fields.push(field);
             }
         }
+        GenericNodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
+            tgt_idx_set.cloned(),
+        )
     }
 }
 
@@ -356,11 +446,11 @@ impl<
 }
 
 impl<'graph, G: GraphViewOps<'graph>, GH: Debug + GraphViewOps<'graph>>
-    TypedNodeState<'graph, HashMap<String, Prop>, G, GH>
+    TypedNodeState<'graph, HashMap<String, Option<Prop>>, G, GH>
 {
     pub fn try_eq_hashmap<K: AsNodeRef>(
         &self,
-        other: HashMap<K, HashMap<String, Prop>>,
+        other: HashMap<K, HashMap<String, Option<Prop>>>,
     ) -> Result<bool, &'static str> {
         if other.len() != self.len() {
             return Ok(false);
@@ -375,6 +465,19 @@ impl<'graph, G: GraphViewOps<'graph>, GH: Debug + GraphViewOps<'graph>>
 
             for (key, lhs_val) in lhs_map {
                 let rhs_val = rhs_map.remove(&key).ok_or("Key missing in rhs map")?;
+
+                if lhs_val.is_none() {
+                    if rhs_val.is_none() {
+                        continue;
+                    } else {
+                        return Ok(false);
+                    }
+                } else if rhs_val.is_none() {
+                    return Ok(false);
+                }
+
+                let lhs_val = lhs_val.unwrap();
+                let rhs_val = rhs_val.unwrap();
 
                 let casted_rhs = rhs_val
                     .try_cast(lhs_val.dtype())
@@ -446,7 +549,9 @@ impl<
     #[allow(refining_impl_trait)]
     fn par_iter_values(&'a self) -> impl IndexedParallelIterator<Item = Self::Value> + 'a {
         let iter = RecordBatchIterator::<'a, Self::Value>::new(&self.state.values);
-        (0..self.len()).into_par_iter().map(move |i| RecordBatchIterator::get(&iter, i))
+        (0..self.len())
+            .into_par_iter()
+            .map(move |i| RecordBatchIterator::get(&iter, i))
     }
 
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync {
@@ -558,7 +663,7 @@ impl<
     }
 
     fn len(&self) -> usize {
-        self.state.values.num_rows()
+        self.state.len()
     }
 }
 
@@ -569,17 +674,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     pub fn new_from_eval<V: NodeStateValue>(graph: G, values: Vec<V>) -> Self {
-        let index = Index::for_graph(graph.clone());
-        let values = match &index {
-            None => values,
-            Some(index) => index
-                .iter()
-                .map(|vid| values[vid.index()].clone())
-                .collect(),
-        };
-        let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
-        let values = to_record_batch(&fields, &values).unwrap();
-        Self::new(graph.clone(), graph, values, index)
+        Self::new_from_eval_mapped(graph, values, |v| v)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -602,7 +697,8 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .collect(),
         };
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
-        let values = to_record_batch(&fields, &values).unwrap();
+        let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
+
         Self::new(graph.clone(), graph, values, index)
     }
 
@@ -620,7 +716,12 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// node filtering when needed)
     pub fn new_from_values(graph: G, values: impl Into<RecordBatch>) -> Self {
         let index = Index::for_graph(&graph);
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(
+            graph.clone(),
+            graph,
+            Self::convert_recordbatch(values.into()).unwrap(),
+            index,
+        )
     }
 
     /// create a new NodeState from a HashMap of values
@@ -647,5 +748,28 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let values = to_record_batch(&fields, &values).unwrap();
             Self::new(graph.clone(), graph, values, Some(Index::new(index)))
         }
+    }
+
+    fn convert_recordbatch(
+        recordbatch: RecordBatch,
+    ) -> Result<RecordBatch, arrow_schema::ArrowError> {
+        // Cast all arrays to nullable
+        let new_columns: Vec<Arc<dyn Array>> = recordbatch
+            .columns()
+            .iter()
+            .map(|col| cast_with_options(col, &col.data_type().clone(), &CastOptions::default()))
+            .collect::<arrow::error::Result<_>>()?;
+
+        // Rebuild schema with nullable fields
+        let new_fields: Vec<Field> = recordbatch
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| Field::new(f.name(), f.data_type().clone(), true))
+            .collect();
+
+        let new_schema = Arc::new(Schema::new(new_fields));
+
+        RecordBatch::try_new(new_schema.clone(), new_columns)
     }
 }

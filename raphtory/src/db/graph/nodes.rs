@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::LazyNodeState,
+            state::{GenericNodeState, LazyNodeState},
             storage::graph::storage_ops::GraphStorage,
             view::{
                 internal::{OneHopFilter, Static},
@@ -22,12 +22,15 @@ use crate::db::{
     graph::{create_node_type_filter, views::node_subgraph::NodeSubgraph},
 };
 use either::Either;
+use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
+    fs::File,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
+    path::Path,
     sync::Arc,
 };
 
@@ -125,6 +128,30 @@ where
             node_types_filter: None,
             _marker: PhantomData,
         }
+    }
+
+    pub fn nodestate_from_parquet<P: AsRef<Path>>(
+        &self,
+        file_path: P,
+        id_column: Option<String>,
+    ) -> GenericNodeState<'graph, G> {
+        let file = File::open(file_path).unwrap();
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
+        let mut reader = builder.build().unwrap();
+        let mut batch = reader.next().unwrap().unwrap();
+        if let Some(id_col) = id_column {
+            if let Some(idx) = batch.schema().index_of(&id_col).ok() {
+                batch.remove_column(idx);
+            } else {
+                panic!("Column '{}' not found in Parquet file", id_col);
+            }
+        }
+        GenericNodeState::new(
+            self.base_graph.clone(),
+            self.graph.clone(),
+            batch,
+            Index::for_graph(self.graph.clone()),
+        )
     }
 }
 
