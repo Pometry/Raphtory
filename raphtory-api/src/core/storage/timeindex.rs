@@ -45,10 +45,10 @@ pub trait AsTime: fmt::Debug + Copy + Ord + Eq + Send + Sync + 'static {
     /// Converts the timestamp into a UTC DateTime.
     ///
     /// # Returns:
-    /// * `DateTime`
+    ///    `DateTime`:
     ///
     /// # Raises:
-    /// * `TimeError`: Returns TimestampError on out-of-range timestamps.
+    ///  `TimeError`: Returns TimestampError on out-of-range timestamps.
     fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         let t = self.t();
         DateTime::from_timestamp_millis(t).ok_or(TimeError::OutOfRange(t))

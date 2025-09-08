@@ -551,7 +551,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
         entries
     }
 
-    /// Flattens all history objects into a single history object with all time information ordered.
+    /// Flattens all history objects into a single history object with all time entries ordered.
     pub fn flatten(
         &self,
     ) -> History<'graph, CompositeHistory<'graph, NodeView<'graph, DynamicGraph>>> {

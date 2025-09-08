@@ -35,45 +35,35 @@ impl<T: InternalHistoryOps + 'static> From<History<'_, T>> for GqlHistory {
 
 #[ResolvedObjectFields]
 impl GqlHistory {
-    /// Get the earliest time entry associated with this history.
-    /// Returns:
-    ///     Optional[TimeIndexEntry]: Earliest time entry, or None if the history is empty.
+    /// Get the earliest time entry associated with this history or None if the history is empty.
     async fn earliest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.earliest_time().map(|t| t.into())).await
     }
 
-    /// Get the latest time entry associated with this history.
-    /// Returns:
-    ///     Optional[TimeIndexEntry]: Latest time entry, or None if the history is empty.
+    /// Get the latest time entry associated with this history or None if the history is empty.
     async fn latest_time(&self) -> Option<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.latest_time().map(|t| t.into())).await
     }
 
     /// List all time entries present in this history.
-    /// Returns:
-    ///     List[TimeIndexEntry]: Time entries for this history.
     async fn list(&self) -> Vec<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await
     }
 
     /// List all time entries present in this history in reverse order.
-    /// Returns:
-    ///     List[TimeIndexEntry]: Time entries in reverse order.
     async fn list_rev(&self) -> Vec<GqlTimeIndexEntry> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect()).await
     }
 
-    /// Fetch a page of time entries.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[TimeIndexEntry]: Page of time entries.
+    /// Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page(
         &self,
         limit: usize,
@@ -94,13 +84,11 @@ impl GqlHistory {
         .await
     }
 
-    /// Fetch a page of time entries in reverse chronological order.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[TimeIndexEntry]: Page of time entries in reverse order.
+    /// Fetch one page of TimeIndexEntry entries with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page_rev(
         &self,
         limit: usize,
@@ -121,25 +109,20 @@ impl GqlHistory {
         .await
     }
 
-    /// Check whether the history is empty.
-    /// Returns:
-    ///     bool: True if empty, otherwise False.
+    /// Returns True if the history is empty.
     async fn is_empty(&self) -> bool {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.is_empty()).await
     }
 
     /// Get the number of entries contained in the history.
-    /// Returns:
-    ///     int: Number of entries.
     async fn count(&self) -> u64 {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history.len() as u64).await
     }
 
-    /// Access timestamps as Unix epochs in milliseconds instead of `TimeIndexEntry` entries.
-    /// Returns:
-    ///     HistoryTimestamp: History object exposing timestamps.
+    /// Returns a HistoryTimestamp object which accesses timestamps as Unix epochs in milliseconds
+    /// instead of TimeIndexEntry entries.
     async fn timestamps(&self) -> GqlHistoryTimestamp {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistoryTimestamp {
@@ -148,11 +131,10 @@ impl GqlHistory {
         .await
     }
 
-    /// Access datetimes instead of `TimeIndexEntry` entries. Useful for converting millisecond timestamps into easily readable datetime strings.
-    /// Args:
-    ///     format_string (Optional[str]): Format string for output datetimes. Refer to chrono::format::strftime for formatting specifiers and escape sequences. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
-    /// Returns:
-    ///     HistoryDateTime: History object exposing datetime views.
+    /// Returns a HistoryDateTime object which accesses datetimes instead of TimeIndexEntry entries.
+    /// Useful for converting millisecond timestamps into easily readable datetime strings.
+    /// Optionally, a format string can be passed to format the output. Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
+    /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
     async fn datetimes(&self, format_string: Option<String>) -> GqlHistoryDateTime {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistoryDateTime {
@@ -162,9 +144,8 @@ impl GqlHistory {
         .await
     }
 
-    /// Access secondary indices of `TimeIndexEntry` entries. They are used for ordering within the same timestamp.
-    /// Returns:
-    ///     HistorySecondaryIndex: History object exposing secondary indices.
+    /// Returns a HistorySecondaryIndex object which accesses secondary indices of TimeIndexEntry entries.
+    /// They are used for ordering within the same timestamp.
     async fn secondary_index(&self) -> GqlHistorySecondaryIndex {
         let self_clone = self.clone();
         blocking_compute(move || GqlHistorySecondaryIndex {
@@ -173,9 +154,7 @@ impl GqlHistory {
         .await
     }
 
-    /// Access intervals between temporal entries.
-    /// Returns:
-    ///     Intervals: Intervals object exposing interval values.
+    /// Returns an Intervals object which calculates the intervals between consecutive TimeIndexEntry timestamps.
     async fn intervals(&self) -> GqlIntervals {
         let self_clone = self.clone();
         blocking_compute(move || GqlIntervals {
@@ -195,28 +174,22 @@ pub struct GqlHistoryTimestamp {
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
     /// List all timestamps.
-    /// Returns:
-    ///     List[int]: Timestamps in milliseconds since Unix epoch.
     async fn list(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history_t.collect()).await
     }
 
     /// List all timestamps in reverse order.
-    /// Returns:
-    ///     List[int]: Timestamps in reverse order.
     async fn list_rev(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.history_t.collect_rev()).await
     }
 
-    /// Fetch a page of timestamps.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of timestamps.
+    /// Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
+    /// The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page(
         &self,
         limit: usize,
@@ -236,13 +209,11 @@ impl GqlHistoryTimestamp {
         .await
     }
 
-    /// Fetch a page of timestamps in reverse chronological order.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of timestamps in reverse order.
+    /// Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page_rev(
         &self,
         limit: usize,
@@ -274,12 +245,8 @@ pub struct GqlHistoryDateTime {
 #[ResolvedObjectFields]
 impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings.
-    /// Args:
-    ///     filter_broken (Optional[bool]): If True, ignore time conversion errors. Defaults to False.
-    /// Returns:
-    ///     List[str]: Datetimes formatted as strings.
-    /// Raises:
-    ///     TimeError: If a time conversion fails and filter_broken is False.
+    /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+    /// will be raised on time conversion error. Defaults to False.
     async fn list(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -302,13 +269,9 @@ impl GqlHistoryDateTime {
         .await
     }
 
-    /// List all datetimes formatted as strings in reverse order.
-    /// Args:
-    ///     filter_broken (Optional[bool]): If True, ignore time conversion errors. Defaults to False.
-    /// Returns:
-    ///     List[str]: Datetimes formatted as strings.
-    /// Raises:
-    ///     TimeError: If a time conversion fails and filter_broken is False.
+    /// List all datetimes formatted as strings in reverse chronological order.
+    /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+    /// will be raised on time conversion error. Defaults to False.
     async fn list_rev(&self, filter_broken: Option<bool>) -> Result<Vec<String>, TimeError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -331,16 +294,13 @@ impl GqlHistoryDateTime {
         .await
     }
 
-    /// Fetch a page of datetimes formatted as strings.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    ///     filter_broken (Optional[bool]): If True, ignore time conversion errors. Defaults to False.
-    /// Returns:
-    ///     List[str]: Page of formatted datetimes.
-    /// Raises:
-    ///     TimeError: If a time conversion fails and filter_broken is False.
+    /// Fetch one page of datetimes formatted as string with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+    /// will be raised on time conversion error. Defaults to False.
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page(
         &self,
         limit: usize,
@@ -373,16 +333,13 @@ impl GqlHistoryDateTime {
         .await
     }
 
-    /// Fetch a page of datetimes formatted as strings in reverse chronological order.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    ///     filter_broken (Optional[bool]): If True, ignore time conversion errors. Defaults to False.
-    /// Returns:
-    ///     List[str]: Page of formatted datetimes in reverse order.
-    /// Raises:
-    ///     TimeError: If a time conversion fails and filter_broken is False.
+    /// Fetch one page of datetimes formatted as string in reverse chronological order with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
+    /// will be raised on time conversion error. Defaults to False.
+    ///
+    /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page_rev(
         &self,
         limit: usize,
@@ -426,8 +383,6 @@ pub struct GqlHistorySecondaryIndex {
 #[ResolvedObjectFields]
 impl GqlHistorySecondaryIndex {
     /// List secondary indices.
-    /// Returns:
-    ///     List[int]: Secondary indices.
     async fn list(&self) -> Vec<u64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -441,8 +396,6 @@ impl GqlHistorySecondaryIndex {
     }
 
     /// List secondary indices in reverse order.
-    /// Returns:
-    ///     List[int]: Secondary indices in reverse order.
     async fn list_rev(&self) -> Vec<u64> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -455,13 +408,11 @@ impl GqlHistorySecondaryIndex {
         .await
     }
 
-    /// Fetch a page of secondary indices.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of secondary indices.
+    /// Fetch one page of secondary indices with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page(
         &self,
         limit: usize,
@@ -482,13 +433,11 @@ impl GqlHistorySecondaryIndex {
         .await
     }
 
-    /// Fetch a page of secondary indices in reverse chronological order.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of secondary indices in reverse order.
+    /// Fetch one page of secondary indices in reverse chronological order with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page_rev(
         &self,
         limit: usize,
@@ -519,29 +468,23 @@ pub struct GqlIntervals {
 
 #[ResolvedObjectFields]
 impl GqlIntervals {
-    /// List time intervals between consecutive timestamps.
-    /// Returns:
-    ///     List[int]: Time intervals in milliseconds.
+    /// List time intervals between consecutive timestamps in milliseconds.
     async fn list(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.collect()).await
     }
 
-    /// List time intervals between consecutive timestamps in reverse order.
-    /// Returns:
-    ///     List[int]: Time intervals in reverse order.
+    /// List millisecond time intervals between consecutive timestamps in reverse order.
     async fn list_rev(&self) -> Vec<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.collect_rev()).await
     }
 
-    /// Fetch a page of intervals.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of time intervals.
+    /// Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page(
         &self,
         limit: usize,
@@ -561,13 +504,11 @@ impl GqlIntervals {
         .await
     }
 
-    /// Fetch a page of intervals in reverse chronological order.
-    /// Args:
-    ///     limit (int): Number of items to return.
-    ///     offset (Optional[int]): Number of items to skip. Defaults to 0.
-    ///     page_index (Optional[int]): Number of pages of size `limit` to skip. Defaults to 0.
-    /// Returns:
-    ///     List[int]: Page of time intervals in reverse order.
+    /// Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
+    /// optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
+    ///
+    /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
+    /// will be returned.
     async fn page_rev(
         &self,
         limit: usize,
@@ -587,33 +528,25 @@ impl GqlIntervals {
         .await
     }
 
-    /// Compute the mean interval between consecutive timestamps.
-    /// Returns:
-    ///     Optional[float]: Mean interval, or None if fewer than 1 timestamp.
+    /// Compute the mean interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
     async fn mean(&self) -> Option<f64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.mean()).await
     }
 
-    /// Compute the median interval between consecutive timestamps.
-    /// Returns:
-    ///     Optional[int]: Median interval, or None if fewer than 1 timestamp.
+    /// Compute the median interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
     async fn median(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.median()).await
     }
 
-    /// Compute the maximum interval between consecutive timestamps.
-    /// Returns:
-    ///     Optional[int]: Maximum interval, or None if fewer than 1 timestamp.
+    /// Compute the maximum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
     async fn max(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.max()).await
     }
 
-    /// Compute the minimum interval between consecutive timestamps.
-    /// Returns:
-    ///     Optional[int]: Minimum interval, or None if fewer than 1 timestamp.
+    /// Compute the minimum interval between consecutive timestamps. Returns None if fewer than 1 timestamp.
     async fn min(&self) -> Option<i64> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.intervals.min()).await

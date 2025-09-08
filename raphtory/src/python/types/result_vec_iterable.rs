@@ -65,6 +65,8 @@ impl ResultVecUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here.
     fn __repr__(&self) -> String {
         self.repr()
     }
@@ -154,6 +156,8 @@ impl NestedResultVecUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here.
     fn __repr__(&self) -> String {
         self.repr()
     }

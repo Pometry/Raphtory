@@ -31,8 +31,8 @@ impl<'source> FromPyObject<'source> for TimeIndexEntry {
     }
 }
 
-/// Components that can make a TimeIndexEntry. Extract them from Python as individual components so we can support tuples for TimeIndexEntry
-/// They can be used as the secondary index as well.
+/// Components that can make a TimeIndexEntry. They can be used as the secondary index as well.
+/// Extract them from Python as individual components so we can support tuples for TimeIndexEntry.
 #[derive(Debug, Clone, Copy)]
 pub struct TimeIndexComponent {
     component: i64,
@@ -154,16 +154,19 @@ impl PyTimeIndexEntry {
 #[pymethods]
 impl PyTimeIndexEntry {
     /// Return the UTC datetime representation of this time entry.
+    ///
     /// Returns:
     ///     datetime: The UTC datetime corresponding to this entry's timestamp.
+    ///
     /// Raises:
-    ///     TimeError: Returns TimestampError on out-of-range timestamps.
+    ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
     #[getter]
     pub fn dt(&self) -> Result<DateTime<Utc>, TimeError> {
         self.time.dt()
     }
 
     /// Return the secondary index associated with this time entry.
+    ///
     /// Returns:
     ///     int: The secondary index.
     #[getter]
@@ -172,6 +175,7 @@ impl PyTimeIndexEntry {
     }
 
     /// Return the Unix timestamp in milliseconds.
+    ///
     /// Returns:
     ///     int: Milliseconds since the Unix epoch.
     #[getter]
@@ -180,8 +184,9 @@ impl PyTimeIndexEntry {
     }
 
     /// Return this entry as a tuple of (timestamp_ms, secondary_index).
+    ///
     /// Returns:
-    /// tuple[int, int]: (timestamp, secondary_index).
+    ///     tuple[int,int]: (timestamp, secondary_index).
     #[getter]
     pub fn as_tuple(&self) -> (i64, usize) {
         self.time.as_tuple()
@@ -228,8 +233,10 @@ impl PyTimeIndexEntry {
     }
 
     /// Create a new TimeIndexEntry.
+    ///
     /// Arguments:
     ///    time (int | float | datetime | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well.
+
     /// Returns:
     ///     TimeIndexEntry: A new time index entry.
     #[staticmethod]

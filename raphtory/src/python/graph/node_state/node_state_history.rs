@@ -26,7 +26,7 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::prelude::{ParallelIterator};
+use rayon::prelude::ParallelIterator;
 use std::{collections::HashMap, sync::Arc};
 
 /// A NodeState of History objects for each node.
@@ -169,10 +169,10 @@ impl NodeStateHistory {
         self.inner.collect_time_entries()
     }
 
-    /// Flattens all history objects into a single history object with all time information ordered.
+    /// Flattens all history objects into a single history object with all time entries ordered.
     ///
     /// Returns:
-    ///     History: A history object containing all time information.
+    ///     History: A history object containing all time entries.
     fn flatten(&self) -> PyHistory {
         self.inner.flatten().into_arc_dyn().into()
     }
@@ -347,9 +347,6 @@ impl NodeStateHistory {
         pandas.call_method("DataFrame", (columns,), None)
     }
 }
-
-// impl_node_state_ord_ops not here, should History implement Ord ops?
-// impl_node_state_group_by_ops not here bc grouping wanted is unclear
 
 impl
     From<

@@ -343,9 +343,6 @@ impl HistoryView {
     }
 }
 
-// impl_node_state_ord_ops not here, should History implement Ord ops?
-// impl_node_state_group_by_ops not here bc grouping wanted is unclear
-
 impl From<LazyNodeState<'static, HistoryOp<'static, DynamicGraph>, DynamicGraph, DynamicGraph>>
     for HistoryView
 {

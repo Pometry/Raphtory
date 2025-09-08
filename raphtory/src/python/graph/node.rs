@@ -241,7 +241,7 @@ impl PyNode {
     /// Returns the history of a node, including node additions and changes made to node.
     ///
     /// Returns:
-    ///     History: A History object for the node, providing access to time information
+    ///     History: A History object for the node, providing access to time entries.
     #[getter]
     pub fn history(&self) -> PyHistory {
         PyHistory::new(History::new(Arc::new(self.node.clone())))
@@ -825,7 +825,10 @@ impl PyPathFromGraph {
         (move || path.latest_time()).into()
     }
 
-    /// Returns a history object for each node with time information for when a node is added or change to a node is made.
+    /// Returns a history object for each node with time entries for when a node is added or change to a node is made.
+    ///
+    /// Returns:
+    ///     Iterable[Iterable[History]]: A nested iterable of history objects, one for each node.
     #[getter]
     fn history(&self) -> NestedHistoryIterable {
         let path = self.path.clone();
@@ -836,7 +839,10 @@ impl PyPathFromGraph {
         .into()
     }
 
-    /// Returns a single history object containing time information for all nodes in the path
+    /// Get a single history object containing time entries for all nodes in the path.
+    ///
+    /// Returns:
+    ///     History: A history object with all time entries associated with the nodes.
     fn combined_history(&self) -> PyHistory {
         let path = self.path.clone();
         PyHistory::new(History::new(Arc::new(path)))
@@ -1028,7 +1034,10 @@ impl PyPathFromNode {
         (move || path.latest_time()).into()
     }
 
-    /// Returns a single history object containing time information for all nodes in the path
+    /// Get a single history object containing time entries for all nodes in the path.
+    ///
+    /// Returns:
+    ///     History: History object with all time entries for the nodes.
     fn combined_history(&self) -> PyHistory {
         let path = self.path.clone();
         PyHistory::new(History::new(Arc::new(path)))

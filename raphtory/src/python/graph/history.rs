@@ -47,8 +47,10 @@ impl PyHistory {
 #[pymethods]
 impl PyHistory {
     /// Compose multiple History objects into a single History by fusing their time entries in chronological order.
-    /// Args:
+    ///
+    /// Arguments:
     ///     objects (Iterable[History]): History objects to compose.
+    ///
     /// Returns:
     ///     History: Composed History object containing entries from all inputs.
     #[staticmethod]
@@ -65,8 +67,10 @@ impl PyHistory {
 
     // TODO: Ideally we want one of compose_histories/merge. We want to see where the performance benefits shift from one to the other and automatically use that.
     /// Merge this History with another by interleaving entries in time order.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (History): Right-hand history to merge.
+    ///
     /// Returns:
     ///     History: Merged history containing entries from both inputs.
     pub fn merge(&self, other: &Self) -> Self {
@@ -80,6 +84,7 @@ impl PyHistory {
     }
 
     /// Return a History where iteration order is reversed.
+    ///
     /// Returns:
     ///     History: History that yields items in reverse chronological order.
     pub fn reverse(&self) -> Self {
@@ -90,6 +95,7 @@ impl PyHistory {
     }
 
     /// Access history events as timestamps (milliseconds since Unix epoch).
+    ///
     /// Returns:
     ///     HistoryTimestamp: Timestamp (as int) view of this history.
     #[getter]
@@ -100,6 +106,7 @@ impl PyHistory {
     }
 
     /// Access history events as UTC datetimes.
+    ///
     /// Returns:
     ///     HistoryDateTime: Datetime view of this history.
     #[getter]
@@ -110,6 +117,7 @@ impl PyHistory {
     }
 
     /// Access the unique secondary index of each time entry.
+    ///
     /// Returns:
     ///     HistorySecondaryIndex: Secondary index view of this history.
     #[getter]
@@ -120,6 +128,7 @@ impl PyHistory {
     }
 
     /// Access the intervals between consecutive timestamps in milliseconds.
+    ///
     /// Returns:
     ///     Intervals: Intervals view of this history.
     #[getter]
@@ -130,6 +139,7 @@ impl PyHistory {
     }
 
     /// Get the earliest time entry.
+    ///
     /// Returns:
     ///     Optional[TimeIndexEntry]: Earliest time entry, or None if empty.
     pub fn earliest_time(&self) -> Option<TimeIndexEntry> {
@@ -137,6 +147,7 @@ impl PyHistory {
     }
 
     /// Get the latest time entry.
+    ///
     /// Returns:
     ///     Optional[TimeIndexEntry]: Latest time entry, or None if empty.
     pub fn latest_time(&self) -> Option<TimeIndexEntry> {
@@ -144,6 +155,7 @@ impl PyHistory {
     }
 
     /// Collect all time entries in chronological order.
+    ///
     /// Returns:
     ///     List[TimeIndexEntry]: Collected time entries.
     pub fn collect(&self) -> Vec<TimeIndexEntry> {
@@ -151,6 +163,7 @@ impl PyHistory {
     }
 
     /// Collect all time entries in reverse chronological order.
+    ///
     /// Returns:
     ///     List[TimeIndexEntry]: Collected time entries in reverse order.
     pub fn collect_rev(&self) -> Vec<TimeIndexEntry> {
@@ -158,6 +171,7 @@ impl PyHistory {
     }
 
     /// Iterate over all time entries in chronological order.
+    ///
     /// Returns:
     ///     Iterator[TimeIndexEntry]: Iterator over time entries.
     pub fn __iter__(&self) -> PyBorrowingIterator {
@@ -169,6 +183,7 @@ impl PyHistory {
     }
 
     /// Iterate over all time entries in reverse chronological order.
+    ///
     /// Returns:
     ///     Iterator[TimeIndexEntry]: Iterator over time entries in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
@@ -180,6 +195,7 @@ impl PyHistory {
     }
 
     /// Return the string representation.
+    ///
     /// Returns:
     ///     str: String representation.
     pub fn __repr__(&self) -> String {
@@ -187,8 +203,10 @@ impl PyHistory {
     }
 
     /// Check if this History object contains a time entry.
-    /// Args:
+    ///
+    /// Arguments:
     ///     item (TimeIndexEntry): Time entry to check.
+    ///
     /// Returns:
     ///     bool: True if present, otherwise False.
     fn __contains__(&self, item: TimeIndexEntry) -> bool {
@@ -196,8 +214,10 @@ impl PyHistory {
     }
 
     /// Compare equality with another History or a list of TimeIndexEntry.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (History | List[TimeIndexEntry]): The item to compare equality with.
+    ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
@@ -211,8 +231,10 @@ impl PyHistory {
     }
 
     /// Compare inequality with another History or a list of TimeIndexEntry.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (History | List[TimeIndexEntry]): The item to compare inequality with.
+    ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
     fn __ne__(&self, other: &Bound<PyAny>) -> bool {
@@ -220,6 +242,7 @@ impl PyHistory {
     }
 
     /// Check whether the history has no entries.
+    ///
     /// Returns:
     ///     bool: True if empty, otherwise False.
     pub fn is_empty(&self) -> bool {
@@ -227,6 +250,7 @@ impl PyHistory {
     }
 
     /// Return the number of time entries.
+    ///
     /// Returns:
     ///     int: Number of entries.
     pub fn __len__(&self) -> usize {
@@ -270,6 +294,7 @@ pub struct PyHistoryTimestamp {
 #[pymethods]
 impl PyHistoryTimestamp {
     /// Collect all timestamps into a numpy ndarray.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Timestamps in milliseconds since Unix epoch.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
@@ -278,6 +303,7 @@ impl PyHistoryTimestamp {
     }
 
     /// Collect all timestamps into a numpy ndarray in reverse order.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Timestamps in milliseconds since Unix epoch in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
@@ -286,6 +312,7 @@ impl PyHistoryTimestamp {
     }
 
     /// Iterate over all timestamps.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over timestamps in milliseconds since Unix epoch.
     pub fn __iter__(&self) -> PyBorrowingIterator {
@@ -297,6 +324,7 @@ impl PyHistoryTimestamp {
     }
 
     /// Iterate over all timestamps in reverse order.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over timestamps (milliseconds since Unix epoch) in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
@@ -308,8 +336,10 @@ impl PyHistoryTimestamp {
     }
 
     /// Check if this HistoryTimestamp object contains a timestamp.
-    /// Args:
+    ///
+    /// Arguments:
     ///     item (int): Timestamp in milliseconds since Unix epoch.
+    ///
     /// Returns:
     ///     bool: True if present, otherwise False.
     fn __contains__(&self, item: i64) -> bool {
@@ -317,8 +347,10 @@ impl PyHistoryTimestamp {
     }
 
     /// Compare equality with another HistoryTimestamp or with a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistoryTimestamp | List[int]): The item to compare equality with.
+    ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
@@ -332,8 +364,10 @@ impl PyHistoryTimestamp {
     }
 
     /// Compare inequality with another HistoryTimestamp or with a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistoryTimestamp | List[int]): The item to compare inequality with.
+    ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
     fn __ne__(&self, other: &Bound<PyAny>) -> bool {
@@ -341,6 +375,7 @@ impl PyHistoryTimestamp {
     }
 
     /// Return the string representation.
+    ///
     /// Returns:
     ///     str: String representation.
     pub fn __repr__(&self) -> String {
@@ -397,8 +432,10 @@ pub struct PyHistoryDateTime {
 #[pymethods]
 impl PyHistoryDateTime {
     /// Collect all datetimes.
+    ///
     /// Returns:
     ///     List[datetime]: Collected UTC datetimes.
+    ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
     pub fn collect(&self) -> PyResult<Vec<DateTime<Utc>>> {
@@ -406,8 +443,10 @@ impl PyHistoryDateTime {
     }
 
     /// Collect all datetimes in reverse order.
+    ///
     /// Returns:
     ///     List[datetime]: Collected UTC datetimes in reverse order.
+    ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
     pub fn collect_rev(&self) -> PyResult<Vec<DateTime<Utc>>> {
@@ -415,8 +454,10 @@ impl PyHistoryDateTime {
     }
 
     /// Iterate over all datetimes.
+    ///
     /// Returns:
     ///     Iterator[datetime]: Iterator over UTC datetimes.
+    ///
     /// Raises:
     ///     TimeError: May be raised during iteration if a timestamp cannot be converted.
     pub fn __iter__(&self) -> PyBorrowingIterator {
@@ -428,8 +469,10 @@ impl PyHistoryDateTime {
     }
 
     /// Iterate over all datetimes in reverse order.
+    ///
     /// Returns:
     ///     Iterator[datetime]: Iterator over UTC datetimes in reverse order.
+    ///
     /// Raises:
     ///     TimeError: May be raised during iteration if a timestamp cannot be converted.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
@@ -441,8 +484,10 @@ impl PyHistoryDateTime {
     }
 
     /// Check if this HistoryDateTime object contains a datetime.
-    /// Args:
+    ///
+    /// Arguments:
     ///     item (datetime): Datetime to check. Naive datetimes are treated as UTC; aware datetimes are converted to UTC.
+    ///
     /// Returns:
     ///     bool: True if present, otherwise False.
     fn __contains__(&self, item: &Bound<PyAny>) -> bool {
@@ -465,8 +510,10 @@ impl PyHistoryDateTime {
     }
 
     /// Compare equality with another HistoryDateTime or a list of datetimes.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistoryDateTime | List[datetime]): The other item to compare equality with.
+    ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
@@ -493,8 +540,10 @@ impl PyHistoryDateTime {
     }
 
     /// Compare inequality with another HistoryDateTime or a list of datetimes.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistoryDateTime | List[datetime]): The other item to compare inequality with.
+    ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
     fn __ne__(&self, other: &Bound<PyAny>) -> bool {
@@ -502,6 +551,7 @@ impl PyHistoryDateTime {
     }
 
     /// Return the string representation.
+    ///
     /// Returns:
     ///     str: String representation.
     pub fn __repr__(&self) -> String {
@@ -558,6 +608,7 @@ pub struct PyHistorySecondaryIndex {
 #[pymethods]
 impl PyHistorySecondaryIndex {
     /// Collect all secondary indices.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Secondary indices.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
@@ -566,6 +617,7 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Collect all secondary indices in reverse order.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Secondary indices in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
@@ -574,6 +626,7 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Iterate over all secondary indices.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over secondary indices.
     pub fn __iter__(&self) -> PyBorrowingIterator {
@@ -585,6 +638,7 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Iterate over all secondary indices in reverse order.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over secondary indices in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
@@ -596,8 +650,10 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Check if this HistorySecondaryIndex object contains a secondary index.
-    /// Args:
+    ///
+    /// Arguments:
     ///     item (int): Secondary index to check.
+    ///
     /// Returns:
     ///     bool: True if present, otherwise False.
     fn __contains__(&self, item: usize) -> bool {
@@ -605,8 +661,10 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Compare equality with another HistorySecondaryIndex or a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistorySecondaryIndex | List[int]): The other item to compare equality with.
+    ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
@@ -620,8 +678,10 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Compare inequality with another HistorySecondaryIndex or a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (HistorySecondaryIndex | List[int]): The other item to compare inequality with.
+    ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
     fn __ne__(&self, other: &Bound<PyAny>) -> bool {
@@ -629,6 +689,7 @@ impl PyHistorySecondaryIndex {
     }
 
     /// Return the string representation.
+    ///
     /// Returns:
     ///     str: String representation.
     pub fn __repr__(&self) -> String {
@@ -685,6 +746,7 @@ pub struct PyIntervals {
 #[pymethods]
 impl PyIntervals {
     /// Collect all interval values in milliseconds.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Intervals in milliseconds.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
@@ -693,6 +755,7 @@ impl PyIntervals {
     }
 
     /// Collect all interval values in reverse order.
+    ///
     /// Returns:
     ///     numpy.ndarray[int64]: Intervals in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
@@ -701,6 +764,7 @@ impl PyIntervals {
     }
 
     /// Iterate over all intervals.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over intervals in milliseconds.
     pub fn __iter__(&self) -> PyBorrowingIterator {
@@ -712,6 +776,7 @@ impl PyIntervals {
     }
 
     /// Iterate over all intervals in reverse order.
+    ///
     /// Returns:
     ///     Iterator[int]: Iterator over intervals in reverse order.
     pub fn __reversed__(&self) -> PyBorrowingIterator {
@@ -723,8 +788,10 @@ impl PyIntervals {
     }
 
     /// Check if the Intervals object contains an interval value.
-    /// Args:
+    ///
+    /// Arguments:
     ///     item (int): Interval to check, in milliseconds.
+    ///
     /// Returns:
     ///     bool: True if present, otherwise False.
     fn __contains__(&self, item: i64) -> bool {
@@ -732,8 +799,10 @@ impl PyIntervals {
     }
 
     /// Compare equality with another Intervals or a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (Intervals | List[int]): The other item to compare equality with.
+    ///
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
@@ -747,8 +816,10 @@ impl PyIntervals {
     }
 
     /// Compare inequality with another Intervals or a list of integers.
-    /// Args:
+    ///
+    /// Arguments:
     ///     other (Intervals | List[int]): The other item to compare inequality with.
+    ///
     /// Returns:
     ///     bool: True if not equal, otherwise False.
     fn __ne__(&self, other: &Bound<PyAny>) -> bool {
@@ -756,6 +827,7 @@ impl PyIntervals {
     }
 
     /// Return the string representation.
+    ///
     /// Returns:
     ///     str: String representation.
     pub fn __repr__(&self) -> String {
@@ -763,6 +835,7 @@ impl PyIntervals {
     }
 
     /// Calculate the mean interval in milliseconds.
+    ///
     /// Returns:
     ///     Optional[float]: Mean interval, or None if fewer than 1 interval.
     pub fn mean(&self) -> Option<f64> {
@@ -770,6 +843,7 @@ impl PyIntervals {
     }
 
     /// Calculate the median interval in milliseconds.
+    ///
     /// Returns:
     ///     Optional[int]: Median interval, or None if fewer than 1 interval.
     pub fn median(&self) -> Option<i64> {
@@ -777,6 +851,7 @@ impl PyIntervals {
     }
 
     /// Calculate the maximum interval in milliseconds.
+    ///
     /// Returns:
     ///     Optional[int]: Maximum interval, or None if fewer than 1 interval.
     pub fn max(&self) -> Option<i64> {
@@ -784,6 +859,7 @@ impl PyIntervals {
     }
 
     /// Calculate the minimum interval in milliseconds.
+    ///
     /// Returns:
     ///     Optional[int]: Minimum interval, or None if fewer than 1 interval.
     pub fn min(&self) -> Option<i64> {
@@ -840,6 +916,7 @@ py_iterable_base_methods!(HistoryIterable, PyGenericIterator);
 #[pymethods]
 impl HistoryIterable {
     /// Access history items as timestamps (milliseconds since Unix epoch).
+    ///
     /// Returns:
     ///     HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.
     #[getter]
@@ -849,6 +926,7 @@ impl HistoryIterable {
     }
 
     /// Access history items as UTC datetimes.
+    ///
     /// Returns:
     ///     HistoryDateTimeIterable: Iterable of HistoryDateTime objects, one for each item.
     #[getter]
@@ -858,6 +936,7 @@ impl HistoryIterable {
     }
 
     /// Access secondary indices of history items.
+    ///
     /// Returns:
     ///     HistorySecondaryIndexIterable: Iterable of HistorySecondaryIndex objects, one for each item.
     #[getter]
@@ -867,6 +946,7 @@ impl HistoryIterable {
     }
 
     /// Access intervals between consecutive timestamps in milliseconds.
+    ///
     /// Returns:
     ///     IntervalsIterable: Iterable of Intervals objects, one for each item.
     #[getter]
@@ -876,6 +956,7 @@ impl HistoryIterable {
     }
 
     /// Collect time entries from each history in the iterable.
+    ///
     /// Returns:
     ///     List[List[TimeIndexEntry]]: Collected entries per history.
     pub fn collect(&self) -> Vec<Vec<TimeIndexEntry>> {
@@ -892,6 +973,7 @@ py_iterable_base_methods!(NestedHistoryIterable, PyNestedGenericIterator);
 #[pymethods]
 impl NestedHistoryIterable {
     /// Access nested histories as timestamp views.
+    ///
     /// Returns:
     ///     NestedHistoryTimestampIterable: Iterable of iterables of HistoryTimestamp objects.
     #[getter]
@@ -901,6 +983,7 @@ impl NestedHistoryIterable {
     }
 
     /// Access nested histories as datetime views.
+    ///
     /// Returns:
     ///     NestedHistoryDateTimeIterable: Iterable of iterables of HistoryDateTime objects.
     #[getter]
@@ -910,6 +993,7 @@ impl NestedHistoryIterable {
     }
 
     /// Access nested histories as secondary index views.
+    ///
     /// Returns:
     ///     NestedHistorySecondaryIndexIterable: Iterable of iterables of HistorySecondaryIndex objects.
     #[getter]
@@ -919,6 +1003,7 @@ impl NestedHistoryIterable {
     }
 
     /// Access nested histories as intervals views.
+    ///
     /// Returns:
     ///     NestedIntervalsIterable: Iterable of iterables of Intervals objects.
     #[getter]
@@ -928,6 +1013,7 @@ impl NestedHistoryIterable {
     }
 
     /// Collect time entries from each history within each nested iterable.
+    ///
     /// Returns:
     ///     List[List[List[TimeIndexEntry]]]: Collected entries per nested history.
     pub fn collect(&self) -> Vec<Vec<Vec<TimeIndexEntry>>> {
@@ -946,6 +1032,7 @@ py_iterable_base_methods!(HistoryTimestampIterable, PyGenericIterator);
 #[pymethods]
 impl HistoryTimestampIterable {
     /// Collect timestamps for each history.
+    ///
     /// Returns:
     ///     List[numpy.ndarray[int64]]: Timestamps in milliseconds per history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
@@ -962,6 +1049,7 @@ py_iterable_base_methods!(NestedHistoryTimestampIterable, PyNestedGenericIterato
 #[pymethods]
 impl NestedHistoryTimestampIterable {
     /// Collect timestamps for each history in each nested iterable.
+    ///
     /// Returns:
     ///     List[List[numpy.ndarray[int64]]]: Timestamps in milliseconds per nested history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<i64, Ix1>>>> {
@@ -980,8 +1068,10 @@ py_iterable_base_methods!(HistoryDateTimeIterable, PyGenericIterator);
 #[pymethods]
 impl HistoryDateTimeIterable {
     /// Collect datetimes for each history.
+    ///
     /// Returns:
     ///     List[List[datetime]]: UTC datetimes per history.
+    ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
     pub fn collect(&self) -> Result<Vec<Vec<DateTime<Utc>>>, TimeError> {
@@ -998,8 +1088,10 @@ py_iterable_base_methods!(NestedHistoryDateTimeIterable, PyNestedGenericIterator
 #[pymethods]
 impl NestedHistoryDateTimeIterable {
     /// Collect datetimes for each history in each nested iterable.
+    ///
     /// Returns:
     ///     List[List[List[datetime]]]: UTC datetimes per nested history.
+    ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
     pub fn collect<'py>(&self, py: Python<'py>) -> Result<Vec<Vec<Vec<DateTime<Utc>>>>, TimeError> {
@@ -1018,6 +1110,7 @@ py_iterable_base_methods!(HistorySecondaryIndexIterable, PyGenericIterator);
 #[pymethods]
 impl HistorySecondaryIndexIterable {
     /// Collect secondary indices for each history.
+    ///
     /// Returns:
     ///     List[List[int]]: Secondary indices per history.
     pub fn collect(&self) -> Vec<Vec<usize>> {
@@ -1034,6 +1127,7 @@ py_iterable_base_methods!(NestedHistorySecondaryIndexIterable, PyNestedGenericIt
 #[pymethods]
 impl NestedHistorySecondaryIndexIterable {
     /// Collect secondary indices for each history in each nested iterable.
+    ///
     /// Returns:
     ///     List[List[List[int]]]: Secondary indices per nested history.
     pub fn collect<'py>(&self) -> Vec<Vec<Vec<usize>>> {
@@ -1049,6 +1143,7 @@ py_iterable_base_methods!(IntervalsIterable, PyGenericIterator);
 #[pymethods]
 impl IntervalsIterable {
     /// Collect intervals for each history in milliseconds.
+    ///
     /// Returns:
     ///     List[List[int]]: Intervals per history.
     pub fn collect(&self) -> Vec<Vec<i64>> {
@@ -1065,6 +1160,7 @@ py_iterable_base_methods!(NestedIntervalsIterable, PyNestedGenericIterator);
 #[pymethods]
 impl NestedIntervalsIterable {
     /// Collect intervals for each history in each nested iterable, in milliseconds.
+    ///
     /// Returns:
     ///     List[List[List[int]]]: Intervals per nested history.
     pub fn collect<'py>(&self) -> Vec<Vec<Vec<i64>>> {

@@ -1538,7 +1538,7 @@ def test_zero_step():
     graph = Graph()
     create_graph_epoch(graph)
     queries_and_exceptions = []
-    zero_exception = "Failed to parse time string: 0 size step is not supported"
+    zero_exception = "Failed to parse time string: 0 size step is not supported."
     # graph fail test
     query = """
     {
@@ -2200,8 +2200,8 @@ def test_wrong_window():
     create_graph_epoch(graph)
     queries_and_exceptions = []
     mismatch_exception = "Your window and step must be of the same type: duration (string) or epoch (int)"
-    parse_exception = "Failed to parse time string: one of the tokens in the interval string supposed to be a number couldn't be parsed"
-    parse_exception2 = "Failed to parse time string: 'monthdas' is not a valid unit"
+    parse_exception = "Failed to parse time string: One of the tokens in the interval string supposed to be a number couldn't be parsed."
+    parse_exception2 = "Failed to parse time string: 'monthdas' is not a valid unit."
     too_many_exception = "Invalid value for argument \\"
     # graph fail test
     query = """

@@ -64,6 +64,8 @@ impl ResultUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here.
     fn __repr__(&self) -> String {
         self.repr()
     }
@@ -150,6 +152,8 @@ impl NestedResultUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here.
     fn __repr__(&self) -> String {
         self.repr()
     }
@@ -225,6 +229,8 @@ impl ResultOptionUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here. None values are displayed.
     fn __repr__(&self) -> String {
         self.repr()
     }
@@ -314,6 +320,8 @@ impl NestedResultOptionUtcDateTimeIterable {
         self.iter().count()
     }
 
+    /// Note that the representation of this iterable only displays successful values.
+    /// Errors (if they arise during iteration) are not displayed here. None values are displayed.
     fn __repr__(&self) -> String {
         self.repr()
     }

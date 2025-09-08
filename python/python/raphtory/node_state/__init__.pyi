@@ -2073,7 +2073,12 @@ class EarliestTimeView(object):
 
     @property
     def dt(self):
-        ...
+        """
+        Access earliest times as UTC DateTimes.
+
+        Returns:
+            A lazy view over the earliest times for each node as datetimes.
+        """
 
     @property
     def end(self) -> Optional[TimeIndexEntry]:
@@ -2285,7 +2290,12 @@ class EarliestTimeView(object):
 
     @property
     def secondary_index(self):
-        ...
+        """
+        Access the secondary indices of the earliest times.
+
+        Returns:
+            A lazy view over the secondary indices of the earliest times for each node.
+        """
 
     def shrink_end(self, end: TimeIndexEntry) -> EarliestTimeView:
         """
@@ -2373,7 +2383,12 @@ class EarliestTimeView(object):
 
     @property
     def t(self):
-        ...
+        """
+        Access earliest times as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            A lazy view over the earliest times for each node as timestamps.
+        """
 
     def to_df(self) -> DataFrame:
         """
@@ -3349,7 +3364,7 @@ class EarliestSecondaryIndexView(object):
         """
 
 class EarliestDateTimeView(object): 
-    """A lazy view over EarliestDateTime values for node"""
+    """A lazy view over EarliestDateTime values for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -3427,7 +3442,7 @@ class EarliestDateTimeView(object):
 
     def collect(self) -> list[Optional[datetime]]:
         """
-        Compute all values and return the result as a list
+        Compute all DateTime values and return the result as a list
 
         Returns:
             list[Optional[datetime]]: all values as a list
@@ -3435,7 +3450,7 @@ class EarliestDateTimeView(object):
 
     def collect_valid(self) -> list[datetime]:
         """
-        Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+        Compute all DateTime values and return the valid results as a list. Conversion errors and empty values are ignored
 
         Returns:
             list[datetime]: all values as a list
@@ -3443,7 +3458,7 @@ class EarliestDateTimeView(object):
 
     def compute(self) -> NodeStateOptionDateTime:
         """
-        Compute all values and return the result as a NodeState. Fails if any DateTime error is encountered.
+        Compute all DateTime values and return the result as a NodeState. Fails if any DateTime error is encountered.
 
         Returns:
             NodeStateOptionDateTime: the computed `NodeState`
@@ -3563,7 +3578,7 @@ class EarliestDateTimeView(object):
 
     def items(self) -> Iterator[Tuple[Node, Optional[datetime]]]:
         """
-        Iterate over items
+        Iterate over DateTimes
 
         Returns:
             Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
@@ -3571,14 +3586,19 @@ class EarliestDateTimeView(object):
 
     def items_valid(self) -> Iterator[Tuple[Node, datetime]]:
         """
-        Iterate over valid items only. Ignore error and None values.
+        Iterate over valid DateTimes only. Ignore error and None values.
 
         Returns:
             Iterator[Tuple[Node, datetime]]: Iterator over items
         """
 
-    def iter_valid(self):
-        """Returns an iterator over all valid values. Conversion errors and empty values are ignored"""
+    def iter_valid(self) -> Iterator[datetime]:
+        """
+        Returns an iterator over all valid DateTime values. Conversion errors and empty values are ignored
+
+        Returns:
+            Iterator[datetime]: Valid datetime values.
+        """
 
     def latest(self) -> EarliestDateTimeView:
         """
@@ -3760,7 +3780,7 @@ class EarliestDateTimeView(object):
 
     def sorted_by_id_valid(self) -> NodeStateOptionDateTime:
         """
-        Sort only valid results by node id. DateTime errors are ignored.
+        Sort only non-error DateTimes  by node id. DateTime errors are ignored.
 
         Returns:
             NodeStateOptionDateTime: The sorted node state
@@ -3783,7 +3803,7 @@ class EarliestDateTimeView(object):
         the corresponding values.
 
         Returns:
-            DataFrame: the pandas DataFrame
+            DataFrame: A Pandas DataFrame.
         """
 
     def top_k(self, k: int) -> NodeStateOptionDateTime:
@@ -3811,15 +3831,15 @@ class EarliestDateTimeView(object):
 
     def values(self) -> Iterator[Optional[datetime]]:
         """
-        Iterate over values
+        Iterate over DateTimes
 
         Returns:
-            Iterator[Optional[datetime]]: Iterator over values
+            Iterator[Optional[datetime]]: Iterator over datetimes
         """
 
     def values_valid(self) -> Iterator[datetime]:
         """
-        Iterate over valid values only. Ignore error and None values.
+        Iterate over valid DateTime values only. Ignore error and None values.
 
         Returns:
             Iterator[datetime]: Iterator over values
@@ -3948,7 +3968,12 @@ class LatestTimeView(object):
 
     @property
     def dt(self):
-        ...
+        """
+        Access latest times as UTC DateTimes.
+
+        Returns:
+            A lazy view over the latest times for each node as datetimes.
+        """
 
     @property
     def end(self) -> Optional[TimeIndexEntry]:
@@ -4160,7 +4185,12 @@ class LatestTimeView(object):
 
     @property
     def secondary_index(self):
-        ...
+        """
+        Access the secondary indices of the latest times.
+
+        Returns:
+            A lazy view over the secondary indices of the latest times for each node.
+        """
 
     def shrink_end(self, end: TimeIndexEntry) -> LatestTimeView:
         """
@@ -4248,7 +4278,12 @@ class LatestTimeView(object):
 
     @property
     def t(self):
-        ...
+        """
+        Access latest times as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            A lazy view over the latest times for each node as timestamps.
+        """
 
     def to_df(self) -> DataFrame:
         """
@@ -5224,7 +5259,7 @@ class LatestSecondaryIndexView(object):
         """
 
 class LatestDateTimeView(object): 
-    """A lazy view over EarliestDateTime values for node"""
+    """A lazy view over EarliestDateTime values for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -5302,7 +5337,7 @@ class LatestDateTimeView(object):
 
     def collect(self) -> list[Optional[datetime]]:
         """
-        Compute all values and return the result as a list
+        Compute all DateTime values and return the result as a list
 
         Returns:
             list[Optional[datetime]]: all values as a list
@@ -5310,7 +5345,7 @@ class LatestDateTimeView(object):
 
     def collect_valid(self) -> list[datetime]:
         """
-        Compute all values and return the valid results as a list. Conversion errors and empty values are ignored
+        Compute all DateTime values and return the valid results as a list. Conversion errors and empty values are ignored
 
         Returns:
             list[datetime]: all values as a list
@@ -5318,7 +5353,7 @@ class LatestDateTimeView(object):
 
     def compute(self) -> NodeStateOptionDateTime:
         """
-        Compute all values and return the result as a NodeState. Fails if any DateTime error is encountered.
+        Compute all DateTime values and return the result as a NodeState. Fails if any DateTime error is encountered.
 
         Returns:
             NodeStateOptionDateTime: the computed `NodeState`
@@ -5326,7 +5361,7 @@ class LatestDateTimeView(object):
 
     def compute_valid(self) -> NodeStateOptionDateTime:
         """
-        Compute all values and only return the valid results as a NodeState. DateTime errors are ignored.
+        Compute all DateTime values and only return the valid results as a NodeState. DateTime errors are ignored.
 
         Returns:
             NodeStateOptionDateTime: the computed `NodeState`
@@ -5405,16 +5440,16 @@ class LatestDateTimeView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def get(self, node: NodeInput, default=...) -> Optional[datetime]:
+    def get(self, node: NodeInput, default: Optional[datetime] = None) -> Optional[datetime]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-           default (Optional[datetime]): the default value. Defaults to None.
+            default (Optional[datetime]): the default value. Defaults to None.
 
         Returns:
-           Optional[datetime]: the value for the node or the default value
+            Optional[datetime]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -5446,14 +5481,19 @@ class LatestDateTimeView(object):
 
     def items_valid(self) -> Iterator[Tuple[Node, datetime]]:
         """
-        Iterate over valid items only. Ignore error and None values.
+        Iterate over valid DateTime items only. Ignore error and None values.
 
         Returns:
             Iterator[Tuple[Node, datetime]]: Iterator over items
         """
 
-    def iter_valid(self):
-        """Returns an iterator over all valid values. Conversion errors and empty values are ignored"""
+    def iter_valid(self) -> Iterator[datetime]:
+        """
+        Returns an iterator over all valid DateTime values. Conversion errors and empty values are ignored
+
+        Returns:
+            Iterator[datetime]: Valid DateTime values.
+        """
 
     def latest(self) -> LatestDateTimeView:
         """
@@ -5635,7 +5675,7 @@ class LatestDateTimeView(object):
 
     def sorted_by_id_valid(self) -> NodeStateOptionDateTime:
         """
-        Sort only valid results by node id. DateTime errors are ignored.
+        Sort only non-error DateTimes by node id. DateTime errors are ignored.
 
         Returns:
             NodeStateOptionDateTime: The sorted node state
@@ -5658,7 +5698,7 @@ class LatestDateTimeView(object):
         the corresponding values.
 
         Returns:
-            DataFrame: the pandas DataFrame
+            DataFrame: A Pandas DataFrame.
         """
 
     def top_k(self, k: int) -> NodeStateOptionDateTime:
@@ -5686,7 +5726,7 @@ class LatestDateTimeView(object):
 
     def values(self) -> Iterator[Optional[datetime]]:
         """
-        Iterate over values
+        Iterate over DateTime values
 
         Returns:
             Iterator[Optional[datetime]]: Iterator over values
@@ -5694,7 +5734,7 @@ class LatestDateTimeView(object):
 
     def values_valid(self) -> Iterator[datetime]:
         """
-        Iterate over valid values only. Ignore error and None values.
+        Iterate over valid DateTime values only. Ignore error and None values.
 
         Returns:
             Iterator[datetime]: Iterator over values
@@ -6091,7 +6131,7 @@ class NodeStateString(object):
         """
 
 class HistoryView(object): 
-    """A lazy view over History values for node"""
+    """A lazy view over History values for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -6158,15 +6198,15 @@ class HistoryView(object):
 
     def collect(self) -> list[History]:
         """
-        Compute all values and return the result as a list
+        Compute all History objects and return the result as a list
 
         Returns:
-            list[History]: all values as a list
+            list[History]: all History objects as a list
         """
 
     def collect_time_entries(self) -> list[TimeIndexEntry]:
         """
-        Compute all values and return the contained time entries as a sorted list
+        Compute all History objects and return the contained time entries as a sorted list
 
         Returns:
             list[TimeIndexEntry]: all time entries as a list
@@ -6189,10 +6229,20 @@ class HistoryView(object):
 
     @property
     def dt(self):
-        ...
+        """
+        Access history events as UTC datetimes.
+
+        Returns:
+            A lazy view over HistoryDateTime objects for each node.
+        """
 
     def earliest_time(self):
-        ...
+        """
+        Get the earliest time entry.
+
+        Returns:
+            A lazy view over the earliest time of each node as a TimeIndexEntry.
+        """
 
     @property
     def end(self) -> Optional[TimeIndexEntry]:
@@ -6262,22 +6312,22 @@ class HistoryView(object):
 
     def flatten(self) -> History:
         """
-        Flattens all history objects into a single history object with all time information ordered.
+        Flattens all history objects into a single history with all time entries ordered.
 
         Returns:
-            History: a history object containing all time information
+            History: a history object containing all time entries
         """
 
-    def get(self, node: NodeInput, default=...) -> Optional[History]:
+    def get(self, node: NodeInput, default: Optional[History] = None) -> Optional[History]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-           default (Optional[History]): the default value. Defaults to None.
+            default (Optional[History]): the default value. Defaults to None.
 
         Returns:
-           Optional[History]: the value for the node or the default value
+            Optional[History]: the History object for the node or the default value
         """
 
     def has_layer(self, name: str) -> bool:
@@ -6293,14 +6343,19 @@ class HistoryView(object):
 
     @property
     def intervals(self):
-        ...
+        """
+        Access the intervals between consecutive timestamps in milliseconds.
+
+        Returns:
+            A lazy view over Intervals objects for each node.
+        """
 
     def items(self) -> Iterator[Tuple[Node, History]]:
         """
-        Iterate over items
+        Iterate over History objects
 
         Returns:
-            Iterator[Tuple[Node, History]]: Iterator over items
+            Iterator[Tuple[Node, History]]: Iterator over histories
         """
 
     def latest(self) -> HistoryView:
@@ -6312,7 +6367,11 @@ class HistoryView(object):
         """
 
     def latest_time(self):
-        ...
+        """
+        Get the latest time entry.
+        Returns:
+            A lazy view over the latest time of each node as a TimeIndexEntry.
+        """
 
     def layer(self, name: str) -> HistoryView:
         """
@@ -6363,7 +6422,12 @@ class HistoryView(object):
 
     @property
     def secondary_index(self):
-        ...
+        """
+        Access the unique secondary index of each time entry.
+
+        Returns:
+            A lazy view over HistorySecondaryIndex objects for each node.
+        """
 
     def shrink_end(self, end: TimeIndexEntry) -> HistoryView:
         """
@@ -6440,7 +6504,12 @@ class HistoryView(object):
 
     @property
     def t(self):
-        ...
+        """
+        Access history events as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            A lazy view over HistoryTimestamp objects for each node.
+        """
 
     def to_df(self) -> DataFrame:
         """
@@ -6450,7 +6519,7 @@ class HistoryView(object):
         the corresponding values.
 
         Returns:
-            DataFrame: the pandas DataFrame
+            DataFrame: A Pandas DataFrame.
         """
 
     def valid_layers(self, names: list[str]) -> HistoryView:
@@ -6467,10 +6536,10 @@ class HistoryView(object):
 
     def values(self) -> Iterator[History]:
         """
-        Iterate over values
+        Iterate over History objects
 
         Returns:
-            Iterator[History]: Iterator over values
+            Iterator[History]: Iterator over histories
         """
 
     def window(self, start: TimeInput | None, end: TimeInput | None) -> HistoryView:
@@ -8823,6 +8892,7 @@ class NodeStateHits(object):
         """
 
 class NodeStateHistory(object): 
+    """A NodeState of History objects for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -8856,77 +8926,107 @@ class NodeStateHistory(object):
 
     def collect_time_entries(self) -> list[TimeIndexEntry]:
         """
-        Collect and return all the contained time entries as a sorted list
+        Collect and return all the contained time entries as a sorted list.
 
         Returns:
-            list[TimeIndexEntry]: all time entries as a list
+            list[TimeIndexEntry]: All time entries as a list.
         """
 
     @property
     def dt(self):
-        ...
+        """
+        Access history events as UTC datetimes.
+
+        Returns:
+            A NodeState of HistoryDateTime objects for each node.
+        """
 
     def earliest_time(self):
-        ...
+        """
+        Get the earliest time entry.
+
+        Returns:
+            A NodeState of the earliest time of each node as a TimeIndexEntry.
+        """
 
     def flatten(self) -> History:
         """
-        Flattens all history objects into a single history object with all time information ordered.
+        Flattens all history objects into a single history object with all time entries ordered.
 
         Returns:
-            History: a history object containing all time information
+            History: A history object containing all time entries.
         """
 
-    def get(self, node: NodeInput, default=...) -> Optional[History]:
+    def get(self, node: NodeInput, default: Optional[History] = None) -> Optional[History]:
         """
-        Get value for node
+        Get History object for the node.
 
         Arguments:
             node (NodeInput): the node
-           default (Optional[History]): the default value. Defaults to None.
+            default (Optional[History]): The default value. Defaults to None.
 
         Returns:
-           Optional[History]: the value for the node or the default value
+            Optional[History]: The value for the node or the default value.
         """
 
     @property
     def intervals(self):
-        ...
+        """
+        Access the intervals between consecutive timestamps in milliseconds.
+
+        Returns:
+            A NodeState of Intervals objects for each node.
+        """
 
     def items(self) -> Iterator[Tuple[Node, History]]:
         """
         Iterate over items
 
         Returns:
-            Iterator[Tuple[Node, History]]: Iterator over items
+            Iterator[Tuple[Node, History]]: Iterator over items.
         """
 
     def latest_time(self):
-        ...
+        """
+        Get the latest time entry.
+
+        Returns:
+            A NodeState of the latest time of each node as a TimeIndexEntry.
+        """
 
     def nodes(self) -> Nodes:
         """
-        Iterate over nodes
+        Iterate over nodes.
 
         Returns:
-            Nodes: The nodes
+            Nodes: The nodes.
         """
 
     @property
     def secondary_index(self):
-        ...
+        """
+        Access the unique secondary index of each time entry.
+
+        Returns:
+            A NodeState of HistorySecondaryIndex objects for each node.
+        """
 
     def sorted_by_id(self) -> NodeStateHistory:
         """
         Sort results by node id
 
         Returns:
-            NodeStateHistory: The sorted node state
+            NodeStateHistory: The sorted node state.
         """
 
     @property
     def t(self):
-        ...
+        """
+        Access history events as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            A NodeState of HistoryTimestamp objects for each node.
+        """
 
     def to_df(self) -> DataFrame:
         """
@@ -8936,15 +9036,15 @@ class NodeStateHistory(object):
         the corresponding values.
 
         Returns:
-            DataFrame: the pandas DataFrame
+            DataFrame: A Pandas DataFrame.
         """
 
     def values(self) -> Iterator[History]:
         """
-        Iterate over values
+        Iterate over History objects.
 
         Returns:
-            Iterator[History]: Iterator over values
+            Iterator[History]: Iterator over History objects.
         """
 
 class NodeStateHistoryTimestamp(object): 

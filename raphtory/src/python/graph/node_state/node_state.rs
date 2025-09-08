@@ -520,9 +520,13 @@ impl_lazy_node_state_ord!(
 );
 impl_one_hop!(EarliestTimeView<ops::EarliestTime>, "EarliestTimeView");
 impl_node_state_group_by_ops!(EarliestTimeView, Option<TimeIndexEntry>);
-// implement custom functions for LazyNodeState<EarliestTime>
+// Custom time functions for LazyNodeState<EarliestTime>
 #[pymethods]
 impl EarliestTimeView {
+    /// Access earliest times as timestamps (milliseconds since Unix epoch).
+    ///
+    /// Returns:
+    ///     A lazy view over the earliest times for each node as timestamps.
     #[getter]
     fn t(
         &self,
@@ -530,6 +534,10 @@ impl EarliestTimeView {
         self.inner.t()
     }
 
+    /// Access earliest times as UTC DateTimes.
+    ///
+    /// Returns:
+    ///     A lazy view over the earliest times for each node as datetimes.
     #[getter]
     fn dt(
         &self,
@@ -542,6 +550,10 @@ impl EarliestTimeView {
         self.inner.dt()
     }
 
+    /// Access the secondary indices of the earliest times.
+    ///
+    /// Returns:
+    ///     A lazy view over the secondary indices of the earliest times for each node.
     #[getter]
     fn secondary_index(
         &self,
@@ -587,9 +599,13 @@ impl_lazy_node_state_ord!(
 );
 impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
 impl_node_state_group_by_ops!(LatestTimeView, Option<TimeIndexEntry>);
-// implement custom functions for LazyNodeState<LatestTime>
+// Custom time functions for LazyNodeState<LatestTime>
 #[pymethods]
 impl LatestTimeView {
+    /// Access latest times as timestamps (milliseconds since Unix epoch).
+    ///
+    /// Returns:
+    ///     A lazy view over the latest times for each node as timestamps.
     #[getter]
     fn t(
         &self,
@@ -597,6 +613,10 @@ impl LatestTimeView {
         self.inner.t()
     }
 
+    /// Access latest times as UTC DateTimes.
+    ///
+    /// Returns:
+    ///     A lazy view over the latest times for each node as datetimes.
     #[getter]
     fn dt(
         &self,
@@ -609,6 +629,10 @@ impl LatestTimeView {
         self.inner.dt()
     }
 
+    /// Access the secondary indices of the latest times.
+    ///
+    /// Returns:
+    ///     A lazy view over the secondary indices of the latest times for each node.
     #[getter]
     fn secondary_index(
         &self,

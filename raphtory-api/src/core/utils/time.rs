@@ -10,7 +10,9 @@ use std::{convert::Infallible, num::ParseIntError};
 pub enum ParseTimeError {
     #[error("The interval string doesn't contain a complete number of number-unit pairs.")]
     InvalidPairs,
-    #[error("One of the tokens in the interval string supposed to be a number couldn't be parsed.")]
+    #[error(
+        "One of the tokens in the interval string supposed to be a number couldn't be parsed."
+    )]
     ParseInt {
         #[from]
         source: ParseIntError,
@@ -142,7 +144,8 @@ impl TryIntoTimeNeedsSecondaryIndex for NaiveDateTime {}
 
 impl TryIntoTimeNeedsSecondaryIndex for &str {}
 
-/// Used to handle automatic injection of secondary index if not explicitly provided
+/// Used to handle automatic injection of secondary index if not explicitly provided.
+/// In many cases, we will want different behaviour if a secondary index was provided or not.
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),
@@ -164,7 +167,7 @@ impl InputTime {
     }
 }
 
-// Single time input only refers to the i64 component of a TimeIndexEntry (without a secondary index).
+/// Single time input only refers to the i64 component of a TimeIndexEntry (no secondary index).
 pub trait AsSingleTimeInput {
     fn try_into_input_time(self) -> Result<InputTime, ParseTimeError>;
 }

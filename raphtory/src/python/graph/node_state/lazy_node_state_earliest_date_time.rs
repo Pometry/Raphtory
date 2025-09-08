@@ -50,10 +50,10 @@ impl EarliestDateTimeView {
 
 #[pymethods]
 impl EarliestDateTimeView {
-    /// Compute all datetime values and return the result as a NodeState. Fails if any DateTime error is encountered.
+    /// Compute all DateTime values and return the result as a NodeState. Fails if any DateTime error is encountered.
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
+    ///     NodeStateOptionDateTime: the computed `NodeState`
     fn compute(
         &self,
     ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph>, TimeError>
@@ -64,7 +64,7 @@ impl EarliestDateTimeView {
     /// Compute all values and only return the valid results as a NodeState. DateTime errors are ignored.
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: the computed `NodeState`"]
+    ///     NodeStateOptionDateTime: the computed `NodeState`
     fn compute_valid(
         &self,
     ) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph> {
@@ -74,7 +74,7 @@ impl EarliestDateTimeView {
     /// Compute all DateTime values and return the result as a list
     ///
     /// Returns:
-    #[doc = "     list[Optional[datetime]]: all values as a list"]
+    ///     list[Optional[datetime]]: all values as a list
     fn collect(&self) -> PyResult<Vec<Option<DateTime<Utc>>>> {
         self.inner
             .iter_values()
@@ -85,7 +85,7 @@ impl EarliestDateTimeView {
     /// Compute all DateTime values and return the valid results as a list. Conversion errors and empty values are ignored
     ///
     /// Returns:
-    #[doc = "     list[datetime]: all values as a list"]
+    ///     list[datetime]: all values as a list
     fn collect_valid(&self) -> Vec<DateTime<Utc>> {
         self.inner
             .iter_values()
@@ -93,7 +93,7 @@ impl EarliestDateTimeView {
             .collect::<Vec<_>>()
     }
 
-    /// Get the number of datetimes held by this LazyNodeState.
+    /// Get the number of DateTimes held by this LazyNodeState.
     fn __len__(&self) -> usize {
         self.inner.len()
     }
@@ -161,8 +161,8 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Returns an iterator over all valid datetime values. Conversion errors and empty values are ignored
-    /// 
+    /// Returns an iterator over all valid DateTime values. Conversion errors and empty values are ignored
+    ///
     /// Returns:
     ///     Iterator[datetime]: Valid datetime values.
     fn iter_valid(&self) -> PyBorrowingIterator {
@@ -215,10 +215,10 @@ impl EarliestDateTimeView {
         }
     }
 
-    /// Iterate over datetimes
+    /// Iterate over DateTimes
     ///
     /// Returns:
-    #[doc = "     Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items"]
+    ///     Iterator[Tuple[Node, Optional[datetime]]]: Iterator over items
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter_tuple_result!(
             self.inner.clone(),
@@ -227,10 +227,10 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Iterate over valid datetimes only. Ignore error and None values.
+    /// Iterate over valid DateTimes only. Ignore error and None values.
     ///
     /// Returns:
-    #[doc = "     Iterator[Tuple[Node, datetime]]: Iterator over items"]
+    ///     Iterator[Tuple[Node, datetime]]: Iterator over items
     fn items_valid(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -242,18 +242,18 @@ impl EarliestDateTimeView {
         )
     }
 
-    /// Iterate over datetimes
+    /// Iterate over DateTimes
     ///
     /// Returns:
-    #[doc = "     Iterator[Optional[datetime]]: Iterator over datetimes"]
+    ///     Iterator[Optional[datetime]]: Iterator over datetimes
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
     }
 
-    /// Iterate over valid datetime values only. Ignore error and None values.
+    /// Iterate over valid DateTime values only. Ignore error and None values.
     ///
     /// Returns:
-    #[doc = "     Iterator[datetime]: Iterator over values"]
+    ///     Iterator[datetime]: Iterator over values
     fn values_valid(&self) -> PyBorrowingIterator {
         self.iter_valid()
     }
@@ -261,17 +261,17 @@ impl EarliestDateTimeView {
     /// Sort results by node id. Fails if any DateTime error is encountered.
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: The sorted node state"]
+    ///     NodeStateOptionDateTime: The sorted node state
     fn sorted_by_id(
         &self,
     ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>, TimeError> {
         self.compute().map(|ns| ns.sort_by_id())
     }
 
-    /// Sort only non-error datetimes  by node id. DateTime errors are ignored.
+    /// Sort only non-error DateTimes  by node id. DateTime errors are ignored.
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: The sorted node state"]
+    ///     NodeStateOptionDateTime: The sorted node state
     fn sorted_by_id_valid(&self) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
         self.compute_valid().sort_by_id()
     }
@@ -304,7 +304,7 @@ impl EarliestDateTimeView {
     ///     reverse (bool): If `True`, sort in descending order, otherwise ascending. Defaults to False.
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: Sorted node state"]
+    ///     NodeStateOptionDateTime: Sorted node state
     #[pyo3(signature = (reverse = false))]
     fn sorted(
         &self,
@@ -334,7 +334,7 @@ impl EarliestDateTimeView {
     ///     k (int): The number of values to return
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: The k largest values as a node state"]
+    ///     NodeStateOptionDateTime: The k largest values as a node state
     fn top_k(
         &self,
         k: usize,
@@ -353,7 +353,7 @@ impl EarliestDateTimeView {
     ///     k (int): The number of values to return
     ///
     /// Returns:
-    #[doc = "     NodeStateOptionDateTime: The k smallest values as a node state"]
+    ///     NodeStateOptionDateTime: The k smallest values as a node state
     fn bottom_k(
         &self,
         k: usize,
@@ -374,7 +374,7 @@ impl EarliestDateTimeView {
     /// Return smallest value and corresponding node
     ///
     /// Returns:
-    #[doc = "     Optional[Tuple[Node, datetime]]: The Node and minimum value or `None` if empty"]
+    ///     Optional[Tuple[Node, datetime]]: The Node and minimum value or `None` if empty
     fn min_item(&self) -> PyResult<Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)>> {
         let min = self.inner.min_item_by(|a, b| match (a, b) {
             (Ok(a), Ok(b)) => a.cmp(b),
@@ -394,7 +394,7 @@ impl EarliestDateTimeView {
     /// Return the minimum value
     ///
     /// Returns:
-    #[doc = "     Optional[datetime]: The minimum value or `None` if empty"]
+    ///     Optional[datetime]: The minimum value or `None` if empty
     fn min(&self) -> PyResult<Option<DateTime<Utc>>> {
         self.min_item().map(|v| v.map(|(_, date)| date))
     }
@@ -402,7 +402,7 @@ impl EarliestDateTimeView {
     /// Return largest value and corresponding node
     ///
     /// Returns:
-    #[doc = "     Optional[Tuple[Node, datetime]]: The Node and maximum value or `None` if empty"]
+    ///     Optional[Tuple[Node, datetime]]: The Node and maximum value or `None` if empty
     fn max_item(&self) -> PyResult<Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)>> {
         let max = self.inner.max_item_by(|a, b| match (a, b) {
             (Ok(a), Ok(b)) => a.cmp(b),
@@ -422,7 +422,7 @@ impl EarliestDateTimeView {
     /// Return the maximum value
     ///
     /// Returns:
-    #[doc = "     Optional[datetime]: The maximum value or `None` if empty"]
+    ///     Optional[datetime]: The maximum value or `None` if empty
     fn max(&self) -> PyResult<Option<DateTime<Utc>>> {
         self.max_item().map(|v| v.map(|(_, date)| date))
     }
@@ -430,7 +430,7 @@ impl EarliestDateTimeView {
     /// Return the median value
     ///
     /// Returns:
-    #[doc = "     Optional[datetime]: The median value or `None` if empty"]
+    ///     Optional[datetime]: The median value or `None` if empty
     fn median(&self) -> Option<DateTime<Utc>> {
         self.median_item().map(|(_, v)| v)
     }
@@ -438,7 +438,7 @@ impl EarliestDateTimeView {
     /// Return median value and corresponding node
     ///
     /// Returns:
-    #[doc = "     Optional[Tuple[Node, datetime]]: The median value or `None` if empty"]
+    ///     Optional[Tuple[Node, datetime]]: The median value or `None` if empty
     fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, DateTime<Utc>)> {
         // median_item_by but we have to exclude error and none values
         let mut values: Vec<_> = self

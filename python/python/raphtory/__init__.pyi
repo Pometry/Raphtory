@@ -2118,7 +2118,7 @@ class Node(object):
         Returns the history of a node, including node additions and changes made to node.
 
         Returns:
-            History: A History object for the node, providing access to time information
+            History: A History object for the node, providing access to time entries.
         """
 
     @property
@@ -2982,7 +2982,7 @@ class PathFromNode(object):
         """
 
     def combined_history(self):
-        """Returns a single history object containing time information for all nodes in the path"""
+        """Returns a single history object containing time entries for all nodes in the path"""
 
     def default_layer(self) -> PathFromNode:
         """
@@ -3418,7 +3418,7 @@ class PathFromGraph(object):
         """
 
     def combined_history(self):
-        """Returns a single history object containing time information for all nodes in the path"""
+        """Returns a single history object containing time entries for all nodes in the path"""
 
     def default_layer(self) -> PathFromGraph:
         """
@@ -3559,7 +3559,7 @@ class PathFromGraph(object):
 
     @property
     def history(self):
-        """Returns a history object for each node with time information for when a node is added or change to a node is made."""
+        """Returns a history object for each node with time entries for when a node is added or change to a node is made."""
 
     @property
     def id(self):
@@ -3927,10 +3927,10 @@ class Edge(object):
     @property
     def deletions(self) -> History:
         """
-        Returns a history object with information on an edge's deletion times.
+        Returns a history object with TimeIndexEntry entries for an edge's deletion times.
 
         Returns:
-           History:  A history object containing temporal information about the edge's deletions
+           History:  A history object containing time entries about the edge's deletions
         """
 
     @property
@@ -4032,10 +4032,10 @@ class Edge(object):
     @property
     def history(self) -> History:
         """
-        Returns a history object with information on when an edge is added or change to an edge is made.
+        Returns a history object with TimeIndexEntry entries for when an edge is added or change to an edge is made.
 
         Returns:
-           History:  A history object containing temporal information about the edge
+           History:  A history object containing temporal entries about the edge
         """
 
     @property
@@ -4344,13 +4344,12 @@ class Edges(object):
         """
 
     @property
-    def deletions(self):
+    def deletions(self) -> Iterator[History]:
         """
         Returns history objects for edges containing their deletion times.
 
         Returns:
-           An iterable of history objects, one for each edge.
-
+           Iterator[History]: An iterator over history objects, one for each edge.
         """
 
     @property
@@ -4363,7 +4362,7 @@ class Edges(object):
         Returns the earliest time of the edges.
 
         Returns:
-        Earliest time of the edges as an iterable of TimeIndexEntry items.
+            Iterator[Option[TimeIndexEntry]]: Iterator over the earliest times of the edges as TimeIndexEntry entries.
         """
 
     @property
@@ -4450,13 +4449,12 @@ class Edges(object):
         """
 
     @property
-    def history(self):
+    def history(self) -> Iterator[History]:
         """
         Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
 
         Returns:
-           An iterable of history objects, one for each edge.
-
+           Iterator[History]: An iterator over history objects, one for each edge.
         """
 
     @property
@@ -4464,7 +4462,7 @@ class Edges(object):
         """Returns all ids of the edges."""
 
     def is_active(self):
-        ...
+        """Check if the edges are active (i.e. there is at least one update during this time)"""
 
     def is_deleted(self):
         """Check if the edges are deleted"""
@@ -4486,10 +4484,10 @@ class Edges(object):
     @property
     def latest_time(self):
         """
-        Returns the latest time of the edges.
+        Returns the latest times of the edges.
 
         Returns:
-         Latest time of the edges as an iterable of TimeIndexEntry items.
+            Iterator[Option[TimeIndexEntry]]: Iterator over the latest times of the edges as TimeIndexEntry entries.
         """
 
     def layer(self, name: str) -> Edges:
@@ -4765,8 +4763,13 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self):
-        """Returns history objects for edges, containing information about their deletion times."""
+    def deletions(self) -> Iterator[Iterator[History]]:
+        """
+        Get history objects for edges containing their deletion times.
+
+        Returns:
+            Iterator[Iterator[History]]: A nested iterator over history objects, one for each edge.
+        """
 
     @property
     def dst(self):
@@ -4774,7 +4777,12 @@ class NestedEdges(object):
 
     @property
     def earliest_time(self):
-        """Returns the earliest time of the edges as TimeIndexEntry."""
+        """
+        Get the earliest time of the edges as TimeIndexEntry.
+
+        Returns:
+            Iterator[Iterator[Option[TimeIndexEntry]]]: A nested iterator over the earliest times.
+        """
 
     @property
     def end(self) -> Optional[TimeIndexEntry]:
@@ -4860,15 +4868,20 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self):
-        """Returns history objects for edges, containing information about when an edge is added or change to an edge is made."""
+    def history(self) -> Iterator[Iterator[History]]:
+        """
+        Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
+
+        Returns:
+            Iterator[Iterator[History]]: A nested iterator over history objects, one for each edge.
+        """
 
     @property
     def id(self):
         """Returns all ids of the edges."""
 
     def is_active(self):
-        ...
+        """Check if the edges are active (i.e. there is at least one update during this time)"""
 
     def is_deleted(self):
         """Check if edges are deleted"""
@@ -4889,7 +4902,12 @@ class NestedEdges(object):
 
     @property
     def latest_time(self):
-        """Returns the latest time of the edges."""
+        """
+        Get the latest time of the edges as TimeIndexEntry.
+
+        Returns:
+            Iterator[Iterator[Option[TimeIndexEntry]]]: A nested iterator over the latest times.
+        """
 
     def layer(self, name: str) -> NestedEdges:
         """
@@ -5020,8 +5038,16 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self):
-        """Returns the times of exploded edges"""
+    def time(self) -> Iterator[Iterator[TimeIndexEntry]]:
+        """
+        Returns the times of exploded edges.
+
+        Returns:
+            Iterator[Iterator[TimeIndexEntry]]: A nested iterator over the times of the exploded edges.
+
+        Raises:
+            GraphError: If a graph error occurs (e.g. the edges are not exploded).
+        """
 
     def valid_layers(self, names: list[str]) -> NestedEdges:
         """
@@ -5513,29 +5539,33 @@ class TimeIndexEntry(object):
         """Return repr(self)."""
 
     @property
-    def as_tuple(self) -> tuple[int, int]:
+    def as_tuple(self) -> tuple[int,int]:
         """
-        Return this entry as a tuple of `(timestamp_ms, secondary_index)`.
+        Return this entry as a tuple of (timestamp_ms, secondary_index).
+
         Returns:
-              tuple[int, int]: (timestamp, secondary_index)
+            tuple[int,int]: (timestamp, secondary_index).
         """
 
     @property
     def dt(self) -> datetime:
         """
-        Return the UTC `datetime` representation of this time entry.
+        Return the UTC datetime representation of this time entry.
+
         Returns:
             datetime: The UTC datetime corresponding to this entry's timestamp.
+
         Raises:
-            TimeError: Returns TimestampError on out-of-range timestamps.
+            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
         """
 
     @staticmethod
-    def new(time: Any) -> TimeIndexEntry:
+    def new(time: int | float | datetime | str | tuple) -> TimeIndexEntry:
         """
-        Create a new `TimeIndexEntry`.
+        Create a new TimeIndexEntry.
+
         Arguments:
-           time (int | float | `datetime` | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well
+           time (int | float | datetime | str | tuple): The time entry to be created. Pass a tuple/list of two of these components to specify the secondary index as well.
         Returns:
             TimeIndexEntry: A new time index entry.
         """
@@ -5544,6 +5574,7 @@ class TimeIndexEntry(object):
     def secondary_index(self) -> int:
         """
         Return the secondary index associated with this time entry.
+
         Returns:
             int: The secondary index.
         """
@@ -5552,11 +5583,13 @@ class TimeIndexEntry(object):
     def t(self) -> int:
         """
         Return the Unix timestamp in milliseconds.
+
         Returns:
             int: Milliseconds since the Unix epoch.
         """
 
 class History(object): 
+    """History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, secondary indices, and intervals."""
 
     def __contains__(self, key):
         """Return bool(key in self)."""
@@ -5588,49 +5621,120 @@ class History(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def __reversed__(self):
-        """Iterate over all time events in reverse"""
+    def __reversed__(self) -> Iterator[TimeIndexEntry]:
+        """
+        Iterate over all time entries in reverse chronological order.
 
-    def collect(self):
-        """Collect all time events"""
+        Returns:
+            Iterator[TimeIndexEntry]: Iterator over time entries in reverse order.
+        """
 
-    def collect_rev(self):
-        """Collect all time events in reverse"""
+    def collect(self) -> List[TimeIndexEntry]:
+        """
+        Collect all time entries in chronological order.
+
+        Returns:
+            List[TimeIndexEntry]: Collected time entries.
+        """
+
+    def collect_rev(self) -> List[TimeIndexEntry]:
+        """
+        Collect all time entries in reverse chronological order.
+
+        Returns:
+            List[TimeIndexEntry]: Collected time entries in reverse order.
+        """
 
     @staticmethod
-    def compose_histories(objects):
-        ...
+    def compose_histories(objects: Iterable[History]) -> History:
+        """
+        Compose multiple History objects into a single History by fusing their time entries in chronological order.
+
+        Arguments:
+            objects (Iterable[History]): History objects to compose.
+
+        Returns:
+            History: Composed History object containing entries from all inputs.
+        """
 
     @property
     def dt(self):
-        """Access history events as DateTime items"""
+        """
+        Access history events as UTC datetimes.
 
-    def earliest_time(self):
-        """Get the earliest time in the history"""
+        Returns:
+            HistoryDateTime: Datetime view of this history.
+        """
+
+    def earliest_time(self) -> Optional[TimeIndexEntry]:
+        """
+        Get the earliest time entry.
+
+        Returns:
+            Optional[TimeIndexEntry]: Earliest time entry, or None if empty.
+        """
 
     @property
     def intervals(self):
-        ...
+        """
+        Access the intervals between consecutive timestamps in milliseconds.
 
-    def is_empty(self):
-        ...
+        Returns:
+            Intervals: Intervals view of this history.
+        """
 
-    def latest_time(self):
-        """Get the latest time in the history"""
+    def is_empty(self) -> bool:
+        """
+        Check whether the history has no entries.
 
-    def merge(self, other):
-        ...
+        Returns:
+            bool: True if empty, otherwise False.
+        """
 
-    def reverse(self):
-        ...
+    def latest_time(self) -> Optional[TimeIndexEntry]:
+        """
+        Get the latest time entry.
+
+        Returns:
+            Optional[TimeIndexEntry]: Latest time entry, or None if empty.
+        """
+
+    def merge(self, other: History) -> History:
+        """
+        Merge this History with another by interleaving entries in time order.
+
+        Arguments:
+            other (History): Right-hand history to merge.
+
+        Returns:
+            History: Merged history containing entries from both inputs.
+        """
+
+    def reverse(self) -> History:
+        """
+        Return a History where iteration order is reversed.
+
+        Returns:
+            History: History that yields items in reverse chronological order.
+        """
 
     @property
     def secondary_index(self):
-        """Access secondary index (unique index) of history events"""
+        """
+        Access the unique secondary index of each time entry.
+
+        Returns:
+            HistorySecondaryIndex: Secondary index view of this history.
+        """
 
     @property
     def t(self):
-        """Access history events as i64 timestamps"""
+        """
+        Access history events as timestamps (milliseconds since Unix epoch).
+
+        Returns:
+            HistoryTimestamp: Timestamp (as int) view of this history.
+        """
 
 class WindowSet(object): 
 
