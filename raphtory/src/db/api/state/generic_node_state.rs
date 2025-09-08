@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{nodes::node_ref::AsNodeRef, VID},
-        Prop,
-    },
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
             state::{node_state_ops::NodeStateOps, Index},
@@ -22,6 +19,7 @@ use parquet::{arrow::ArrowWriter, basic::Compression, file::properties::WriterPr
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
+use raphtory_api::core::entities::properties::prop::Prop;
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -508,7 +506,7 @@ impl<
 impl<'graph, V: NodeStateValue + 'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>
     IntoIterator for TypedNodeState<'graph, V, G, GH>
 {
-    type Item = (NodeView<G, GH>, V);
+    type Item = (NodeView<'graph, G, GH>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {

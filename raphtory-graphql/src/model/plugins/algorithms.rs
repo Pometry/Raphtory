@@ -12,10 +12,9 @@ use raphtory::{
         centrality::pagerank::unweighted_page_rank,
         pathing::dijkstra::dijkstra_single_source_shortest_paths,
     },
-    core::Prop,
     prelude::NodeViewOps,
 };
-use raphtory_api::core::Direction;
+use raphtory_api::core::{entities::properties::prop::Prop, Direction};
 use std::collections::HashMap;
 
 #[derive(SimpleObject)]

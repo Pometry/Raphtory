@@ -16,15 +16,6 @@ pub struct PyRemoteNode {
 }
 
 impl PyRemoteNode {
-    /// New node.
-    ///
-    /// Arguments:
-    ///   path (str):
-    ///   client (RaphtoryClient):
-    ///   id (str):
-    ///
-    /// Returns:
-    ///   None:
     pub(crate) fn new(path: String, client: PyRaphtoryClient, id: String) -> Self {
         Self { path, client, id }
     }
@@ -35,11 +26,11 @@ impl PyRemoteNode {
     /// Set the type on the node. This only works if the type has not been previously set, otherwise will
     /// throw an error
     ///
-    /// Arguments:
-    ///   new_type (str): The new type to be set
+    /// Parameters:
+    /// new_type (str): The new type to be set
     ///
     /// Returns:
-    ///   None:
+    /// None:
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -65,12 +56,12 @@ impl PyRemoteNode {
     /// Add updates to a node in the remote graph at a specified time.
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
-    /// Arguments:
-    ///   t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///   properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    /// Parameters:
+    /// t (int | str | datetime): The timestamp at which the updates should be applied.
+    /// properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
@@ -105,11 +96,11 @@ impl PyRemoteNode {
     /// This function is used to add properties to a node that do not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    /// Parameters:
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     pub fn add_metadata(
         &self,
         py: Python,
@@ -140,11 +131,11 @@ impl PyRemoteNode {
     /// This function is used to add properties to a node that does not
     /// change over time. These properties are fundamental attributes of the node.
     ///
-    /// Arguments:
-    ///   properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    /// Parameters:
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///   None:
+    /// None:
     pub fn update_metadata(
         &self,
         py: Python,

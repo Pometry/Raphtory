@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    core::{
-        state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
-        Prop,
-    },
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
             state::{GenericNodeState, TypedNodeState},
@@ -19,6 +16,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use num_traits::abs;
+use raphtory_api::core::entities::properties::prop::Prop;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]

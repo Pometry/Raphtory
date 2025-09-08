@@ -86,9 +86,6 @@ impl<P: InternalPropertiesOps + Clone> Properties<P> {
     }
 
     /// Get a view of the temporal properties only.
-    ///
-    /// Returns:
-    ///     TemporalProperties:
     pub fn temporal(&self) -> TemporalProperties<P> {
         TemporalProperties::new(self.props.clone())
     }

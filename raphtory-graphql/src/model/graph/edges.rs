@@ -320,9 +320,6 @@ impl GqlEdges {
     /////////////////
 
     /// Returns the number of edges.
-    ///
-    /// Returns:
-    ///     int:
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.len()).await

@@ -13,6 +13,7 @@ enum AllPropertySpec {
 	ALL_PROPERTIES
 }
 
+
 """
 Collection of items
 """
@@ -74,25 +75,6 @@ type CollectionOfNamespacedItem {
 	Returns a count of collection objects.
 	"""
 	count: Int!
-}
-
-"""
-Document in a vector graph
-"""
-type Document {
-	"""
-	Entity associated with document.
-	"""
-	entity: DocumentEntity!
-	"""
-	Content of the document.
-	"""
-	content: String!
-	"""
-	Similarity score with a specified query
-	"""
-	embedding: [Float!]!
-	score: Float!
 }
 
 """
@@ -218,30 +200,18 @@ type Edge {
 	end: Int
 	"""
 	Returns the source node of the edge.
-	
-	Returns:
-	Node:
 	"""
 	src: Node!
 	"""
 	Returns the destination node of the edge.
-	
-	Returns:
-	Node:
 	"""
 	dst: Node!
 	"""
 	Returns the node at the other end of the edge (same as dst() for out-edges and src() for in-edges).
-	
-	Returns:
-	Node:
 	"""
 	nbr: Node!
 	"""
 	Returns the id of the edge.
-	
-	Returns:
-	list[str]:
 	"""
 	id: [String!]!
 	"""
@@ -272,16 +242,10 @@ type Edge {
 	explodeLayers: Edges!
 	"""
 	Returns a list of timestamps of when an edge is added or change to an edge is made.
-	
-	Returns:
-	List[int]:
 	"""
 	history: [Int!]!
 	"""
 	Returns a list of timestamps of when an edge is deleted.
-	
-	Returns:
-	List[int]:
 	"""
 	deletions: [Int!]!
 	"""
@@ -581,9 +545,6 @@ type Edges {
 	end: Int
 	"""
 	Returns the number of edges.
-	
-	Returns:
-	int:
 	"""
 	count: Int!
 	"""
@@ -674,6 +635,90 @@ type EdgesWindowSet {
 	"""
 	page(limit: Int!, offset: Int, pageIndex: Int): [Edges!]!
 	list: [Edges!]!
+}
+
+
+"""
+Document in a vector graph
+"""
+type GqlDocument {
+	"""
+	Entity associated with document.
+	"""
+	entity: DocumentEntity!
+	"""
+	Content of the document.
+	"""
+	content: String!
+	"""
+	Similarity score with a specified query
+	"""
+	embedding: [Float!]!
+	score: Float!
+}
+
+type GqlIndexSpec {
+	"""
+	Returns node metadata.
+	"""
+	nodeMetadata: [String!]!
+	"""
+	Returns node properties.
+	"""
+	nodeProperties: [String!]!
+	"""
+	Returns edge metadata.
+	"""
+	edgeMetadata: [String!]!
+	"""
+	Returns edge properties.
+	"""
+	edgeProperties: [String!]!
+}
+
+type GqlVectorSelection {
+	"""
+	Returns a list of nodes in the current selection.
+	"""
+	nodes: [Node!]!
+	"""
+	Returns a list of edges in the current selection.
+	"""
+	edges: [Edge!]!
+	"""
+	Returns a list of documents in the current selection.
+	"""
+	getDocuments: [GqlDocument!]!
+	"""
+	Adds all the documents associated with the specified nodes to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addNodes(nodes: [String!]!): GqlVectorSelection!
+	"""
+	Adds all the documents associated with the specified edges to the current selection.
+	
+	Documents added by this call are assumed to have a score of 0.
+	"""
+	addEdges(edges: [InputEdge!]!): GqlVectorSelection!
+	"""
+	Add all the documents a specified number of hops away to the selection.
+	
+	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
+	"""
+	expand(hops: Int!, window: Window): GqlVectorSelection!
+	"""
+	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+	"""
+	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+	"""
+	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
+	"""
+	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+	"""
+	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 }
 
 type Graph {
@@ -803,9 +848,6 @@ type Graph {
 	latestEdgeTime(includeNegative: Boolean): Int
 	"""
 	Returns the number of edges in the graph.
-	
-	Returns:
-	int:
 	"""
 	countEdges: Int!
 	"""
@@ -877,7 +919,7 @@ type Graph {
 	"""
 	(Experimental) Get index specification.
 	"""
-	getIndexSpec: IndexSpec!
+	getIndexSpec: GqlIndexSpec!
 	"""
 	(Experimental) Searches for nodes which match the given filter expression.
 	
@@ -1021,24 +1063,6 @@ type GraphWindowSet {
 	list: [Graph!]!
 }
 
-type IndexSpec {
-	"""
-	Returns node metadata.
-	"""
-	nodeMetadata: [String!]!
-	"""
-	Returns node properties.
-	"""
-	nodeProperties: [String!]!
-	"""
-	Returns edge metadata.
-	"""
-	edgeMetadata: [String!]!
-	"""
-	Returns edge properties.
-	"""
-	edgeProperties: [String!]!
-}
 
 input IndexSpecInput {
 	"""
@@ -1061,6 +1085,7 @@ input InputEdge {
 	"""
 	dst: String!
 }
+
 
 type LayerSchema {
 	"""
@@ -1100,9 +1125,6 @@ type MetaGraph {
 	nodeCount: Int!
 	"""
 	Returns the number of edges in the graph.
-	
-	Returns:
-	int:
 	"""
 	edgeCount: Int!
 	"""
@@ -1261,7 +1283,7 @@ type MutableGraph {
 	"""
 	createNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
 	"""
-	Add a batch of nodes
+	Add a batch of nodes.
 	"""
 	addNodes(nodes: [NodeAddition!]!): Boolean!
 	"""
@@ -1273,7 +1295,7 @@ type MutableGraph {
 	"""
 	addEdge(time: Int!, src: String!, dst: String!, properties: [PropertyInput!], layer: String): MutableEdge!
 	"""
-	Add a batch of edges
+	Add a batch of edges.
 	"""
 	addEdges(edges: [EdgeAddition!]!): Boolean!
 	"""
@@ -2255,9 +2277,6 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
-"""
-SomePropertySpec object containing lists of metadata and property names.
-"""
 input SomePropertySpec {
 	"""
 	List of metadata.
@@ -2279,6 +2298,7 @@ enum SortByTime {
 	"""
 	EARLIEST
 }
+
 
 type TemporalProperties {
 	"""
@@ -2389,68 +2409,23 @@ input Value @oneOf {
 	object: [ObjectEntry!]
 }
 
-type VectorSelection {
-	"""
-	Returns a list of nodes in the current selection.
-	"""
-	nodes: [Node!]!
-	"""
-	Returns a list of edges in the current selection.
-	"""
-	edges: [Edge!]!
-	"""
-	Returns a list of documents in the current selection.
-	"""
-	getDocuments: [Document!]!
-	"""
-	Adds all the documents associated with the specified nodes to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addNodes(nodes: [String!]!): VectorSelection!
-	"""
-	Adds all the documents associated with the specified edges to the current selection.
-	
-	Documents added by this call are assumed to have a score of 0.
-	"""
-	addEdges(edges: [InputEdge!]!): VectorSelection!
-	"""
-	Add all the documents a specified number of hops away to the selection.
-	
-	Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-	"""
-	expand(hops: Int!, window: Window): VectorSelection!
-	"""
-	Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
-	"""
-	expandEntitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
-	"""
-	Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
-	"""
-	expandNodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
-	"""
-	Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
-	"""
-	expandEdgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
-}
-
 type VectorisedGraph {
 	"""
 	Returns an empty selection of documents.
 	"""
-	emptySelection: VectorSelection!
+	emptySelection: GqlVectorSelection!
 	"""
 	Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
 	"""
-	entitiesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	entitiesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 	"""
 	Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
 	"""
-	nodesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	nodesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 	"""
 	Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
 	"""
-	edgesBySimilarity(query: String!, limit: Int!, window: Window): VectorSelection!
+	edgesBySimilarity(query: String!, limit: Int!, window: Window): GqlVectorSelection!
 }
 
 input Window {
@@ -2477,21 +2452,9 @@ input WindowDuration @oneOf {
 	epoch: Int
 }
 
-"""
-Directs the executor to include this field or fragment only when the `if` argument is true.
-"""
 directive @include(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
-"""
-Indicates that an Input Object is a OneOf Input Object (and thus requires exactly one of its field be provided)
-"""
 directive @oneOf on INPUT_OBJECT
-"""
-Directs the executor to skip this field or fragment when the `if` argument is true.
-"""
 directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
-"""
-Provides a scalar specification URL for specifying the behavior of custom scalar types.
-"""
 directive @specifiedBy(url: String!) on SCALAR
 schema {
 	query: QueryRoot

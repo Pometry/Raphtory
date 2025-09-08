@@ -1,6 +1,7 @@
 """
 Load and save Raphtory graphs from/to file(s)
 """
+
 from __future__ import annotations
 
 ###############################################################################
@@ -25,9 +26,17 @@ from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
-from raphtory.iterables import *
 
-__all__ = ['lotr_graph', 'lotr_graph_with_props', 'neo4j_movie_graph', 'stable_coin_graph', 'reddit_hyperlink_graph', 'reddit_hyperlink_graph_local', 'karate_club_graph']
+__all__ = [
+    "lotr_graph",
+    "lotr_graph_with_props",
+    "neo4j_movie_graph",
+    "stable_coin_graph",
+    "reddit_hyperlink_graph",
+    "reddit_hyperlink_graph_local",
+    "karate_club_graph",
+]
+
 def lotr_graph() -> Graph:
     """
     Load the Lord of the Rings dataset into a graph.
@@ -45,43 +54,14 @@ def lotr_graph() -> Graph:
 
 
     Returns:
-        Graph: A Graph containing the LOTR dataset
+      Graph: A Graph containing the LOTR dataset
     """
 
-def lotr_graph_with_props() -> Graph:
-    """
-    Same as `lotr_graph()` but with additional properties race and gender for some of the nodes
+def lotr_graph_with_props():
+    """Same as `lotr_graph()` but with additional properties race and gender for some of the nodes"""
 
-    Returns:
-        Graph:
-    """
-
-def neo4j_movie_graph(uri: str, username: str, password: str, database: str = ...) -> Graph:
-    """
-    Returns the neo4j movie graph example.
-
-    Arguments:
-        uri (str):
-        username (str):
-        password (str):
-        database (str):
-
-    Returns:
-        Graph:
-    """
-
-def stable_coin_graph(path: str = None, subset: bool = None) -> Graph:
-    """
-    Returns the stablecoin graph example.
-
-    Arguments:
-        path (str):
-        subset (bool):
-
-    Returns:
-        Graph:
-    """
-
+def neo4j_movie_graph(uri, username, password, database=...): ...
+def stable_coin_graph(path=None, subset=None): ...
 def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
     """
     Load (a subset of) Reddit hyperlinks dataset into a graph.
@@ -114,24 +94,14 @@ def reddit_hyperlink_graph(timeout_seconds: int = 600) -> Graph:
        list of comma separated numbers. This can be found on the source website
 
     Arguments:
-        timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
+      timeout_seconds (int): The number of seconds to wait for the dataset to download. Defaults to 600.
 
     Returns:
-        Graph: A Graph containing the Reddit hyperlinks dataset
+     Graph: A Graph containing the Reddit hyperlinks dataset
     """
 
-def reddit_hyperlink_graph_local(file_path: str) -> Graph:
-    """
-    Returns the Reddit hyperlink graph example.
-
-    Arguments:
-        file_path (str):
-
-    Returns:
-        Graph:
-    """
-
-def karate_club_graph() -> Graph:
+def reddit_hyperlink_graph_local(file_path): ...
+def karate_club_graph():
     """
     `karate_club_graph` constructs a karate club graph.
 
@@ -152,5 +122,5 @@ def karate_club_graph() -> Graph:
       Zachary W. (1977). An information flow model for conflict and fission in small groups. Journal of Anthropological Research, 33, 452-473.
 
     Returns:
-        Graph:
+        A `Graph` object representing the karate club network.
     """
