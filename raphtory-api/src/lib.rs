@@ -36,53 +36,26 @@ pub enum GraphType {
 /// use raphtory_api::box_on_debug;
 ///
 /// box_on_debug! {
-///     pub fn simple_iter() -> impl Iterator<Item = i32> {
-///         (0..10).filter(|x| x % 2 == 0)
+///     pub fn simple_iter(count: usize) -> impl Iterator<Item = i32> {
+///         (0..count as i32).filter(|x| x % 2 == 0)
 ///     }
 /// }
 /// ```
 ///
-/// ### Function with lifetimes:
-/// ```rust
-/// use raphtory_api::box_on_debug;
 ///
-/// struct EdgeStorageEntry<'a>(&'a str);
-///
-/// box_on_debug! {
-///     pub fn iter_with_lifetime<'a>(data: &'a str) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
-///         std::iter::once(EdgeStorageEntry(data))
-///     }
-/// }
-/// ```
-///
-/// ### Function with where clause:
-/// ```rust
-/// use raphtory_api::box_on_debug;
-///
-/// box_on_debug! {
-///     pub fn iter_with_where_clause<T>() -> impl Iterator<Item = T>
-///     where
-///         T: Clone + Send,
-///     {
-///         std::iter::empty()
-///     }
-/// }
-/// ```
 #[macro_export]
 macro_rules! box_on_debug {
-    // Function with type parameters, empty params, and where clause
+    // Function with at least one parameter and no where clause
     (
         $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $($generic:ident $(: $($bounds:tt)*)? ),+ > () -> impl Iterator<Item = $item:ty>
-        where $($where_clause:tt)*
+        $vis:vis fn $name:ident $(<$($generics:tt)*>)? ($($param:ident: $param_ty:ty),+ $(,)?) -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
         {
             $($body:tt)*
         }
     ) => {
         #[cfg(debug_assertions)]
         $(#[$attr])*
-        $vis fn $name < $($generic $(: $($bounds)*)?),+ > () -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        where $($where_clause)*
+        $vis fn $name $(<$($generics)*>)? ($($param: $param_ty),+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
         {
             let iter = { $($body)* };
             Box::new(iter)
@@ -90,188 +63,7 @@ macro_rules! box_on_debug {
 
         #[cfg(not(debug_assertions))]
         $(#[$attr])*
-        $vis fn $name < $($generic $(: $($bounds)*)?),+ > () -> impl Iterator<Item = $item>
-        where $($where_clause)*
-        {
-            $($body)*
-        }
-    };
-
-    // Function with type parameters and where clause (matches T: Clone + Send pattern)
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $($generic:ident $(: $($bounds:tt)*)? ),+ > ($($param:ident: $param_ty:ty),+ $(,)?) -> impl Iterator<Item = $item:ty>
-        where $($where_clause:tt)*
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $($generic $(: $($bounds)*)?),+ > ($($param: $param_ty),+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        where $($where_clause)*
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $($generic $(: $($bounds)*)?),+ > ($($param: $param_ty),+) -> impl Iterator<Item = $item>
-        where $($where_clause)*
-        {
-            $($body)*
-        }
-    };
-
-    // Function with lifetime parameters and where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $($lifetime:lifetime),+ > ($($param:ident: $param_ty:ty),* $(,)?) -> impl Iterator<Item = $item:ty> + $output_lifetime:lifetime
-        where $($where_clause:tt)*
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $($lifetime),+ > ($($param: $param_ty),*) -> Box<dyn Iterator<Item = $item> + Send + Sync + $output_lifetime>
-        where $($where_clause)*
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $($lifetime),+ > ($($param: $param_ty),*) -> impl Iterator<Item = $item> + $output_lifetime
-        where $($where_clause)*
-        {
-            $($body)*
-        }
-    };
-
-    // Function with lifetime parameters but no where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident < $($lifetime:lifetime),+ > ($($param:ident: $param_ty:ty),* $(,)?) -> impl Iterator<Item = $item:ty> + $output_lifetime:lifetime
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name < $($lifetime),+ > ($($param: $param_ty),*) -> Box<dyn Iterator<Item = $item> + Send + Sync + $output_lifetime>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name < $($lifetime),+ > ($($param: $param_ty),*) -> impl Iterator<Item = $item> + $output_lifetime
-        {
-            $($body)*
-        }
-    };
-
-    // Function without generics, empty params, with where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident () -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
-        where $($where_clause:tt)*
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name () -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        where $($where_clause)*
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name () -> impl Iterator<Item = $item> $(+ $($bounds)*)?
-        where $($where_clause)*
-        {
-            $($body)*
-        }
-    };
-
-    // Function without generics but with where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident ($($param:ident: $param_ty:ty),+ $(,)?) -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
-        where $($where_clause:tt)*
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name ($($param: $param_ty),+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        where $($where_clause)*
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name ($($param: $param_ty),+) -> impl Iterator<Item = $item> $(+ $($bounds)*)?
-        where $($where_clause)*
-        {
-            $($body)*
-        }
-    };
-
-    // Function without generics, empty params, no where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident () -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name () -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name () -> impl Iterator<Item = $item> $(+ $($bounds)*)?
-        {
-            $($body)*
-        }
-    };
-
-    // Function without generics and no where clause
-    (
-        $(#[$attr:meta])*
-        $vis:vis fn $name:ident ($($param:ident: $param_ty:ty),+ $(,)?) -> impl Iterator<Item = $item:ty> $(+ $($bounds:tt)*)?
-        {
-            $($body:tt)*
-        }
-    ) => {
-        #[cfg(debug_assertions)]
-        $(#[$attr])*
-        $vis fn $name ($($param: $param_ty),+) -> Box<dyn Iterator<Item = $item> + Send + Sync>
-        {
-            let iter = { $($body)* };
-            Box::new(iter)
-        }
-
-        #[cfg(not(debug_assertions))]
-        $(#[$attr])*
-        $vis fn $name ($($param: $param_ty),+) -> impl Iterator<Item = $item> $(+ $($bounds)*)?
+        $vis fn $name $(<$($generics)*>)? ($($param: $param_ty),+) -> impl Iterator<Item = $item> $(+ $($bounds)*)?
         {
             $($body)*
         }
