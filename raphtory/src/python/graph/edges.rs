@@ -4,14 +4,16 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
+            nodes::Nodes,
         },
     },
     errors::GraphError,
     prelude::*,
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::properties::{
-            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        graph::{
+            node::PyNodes,
+            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
         },
         types::{
             repr::{iterator_repr, Repr},
@@ -79,8 +81,25 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<Edges<'static, G, GH>> for PyEdges
+{
+    fn from(value: Edges<'static, G, GH>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        Self {
+            edges: Edges::new(base_graph, graph, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyEdges {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyEdges> {
+        let r = self.edges.filter_iter(filter)?;
+        Ok(PyEdges::from(r))
+    }
+
     /// Returns the number of edges
     fn count(&self) -> usize {
         self.edges.len()
@@ -417,8 +436,25 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
+    From<NestedEdges<'static, G, GH>> for PyNestedEdges
+{
+    fn from(value: NestedEdges<'static, G, GH>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        let graph = value.graph.into_dynamic();
+        Self {
+            edges: NestedEdges::new(base_graph, graph, value.nodes, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyNestedEdges {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNestedEdges> {
+        let r = self.edges.filter_iter(filter)?;
+        Ok(PyNestedEdges::from(r))
+    }
+
     /// Returns the earliest time of the edges.
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {

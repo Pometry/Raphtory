@@ -2012,8 +2012,8 @@ mod db_tests {
             assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
             assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-            fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-                neighbours: PathFromNode<'graph, G, GH>,
+            fn to_ids<'graph, G: GraphViewOps<'graph>>(
+                neighbours: PathFromNode<'graph, G>,
             ) -> Vec<u64> {
                 neighbours
                     .iter()

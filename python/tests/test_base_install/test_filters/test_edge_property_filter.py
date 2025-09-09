@@ -26,6 +26,7 @@ def test_filter_edges_for_property_ne():
                 ("1", "2"),
                 ("2", "1"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -46,6 +47,7 @@ def test_filter_edges_for_property_lt():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -66,6 +68,7 @@ def test_filter_edges_for_property_le():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -85,6 +88,7 @@ def test_filter_edges_for_property_gt():
                 ("1", "2"),
                 ("2", "1"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -105,6 +109,7 @@ def test_edges_for_property_ge():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -133,6 +138,7 @@ def test_filter_edges_for_property_in():
             [
                 ("2", "1"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -146,6 +152,7 @@ def test_filter_edges_for_property_in():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -177,6 +184,7 @@ def test_filter_edges_for_property_is_some():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -368,6 +376,7 @@ def test_filter_edges_for_not_property():
             [
                 ("2", "1"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -1042,5 +1051,42 @@ def test_edge_unsupported_ops_agg():
         expr = filter.Edge.property("p_u64s").sum().not_contains("abc")
         with pytest.raises(Exception) as _:
             graph.filter(expr)
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_edges_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Edge.property("p2") > 5
+        result_ids = _pairs(graph.edges[filter_expr])
+        expected_ids = {
+            ("2", "1"),
+            ("3", "1"),
+            ("3", "4"),
+            ("David Gilmour", "John Mayer"),
+            ("John Mayer", "Jimmy Page"),
+        }
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_nested_edges_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Edge.property("p2") > 5
+        print(graph.nodes.edges[filter_expr].id.collect())
+        result_ids = graph.nodes.edges[filter_expr].id.collect()
+        expected_ids = [
+            [("2", "1"), ("3", "1")],
+            [("2", "1")],
+            [("3", "1"), ("3", "4")],
+            [("3", "4")],
+            [("David Gilmour", "John Mayer")],
+            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
 
     return check

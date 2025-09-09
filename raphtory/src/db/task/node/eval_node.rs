@@ -353,11 +353,8 @@ impl<
         let node_state = self.eval_graph.node_state.clone();
         let ss = self.eval_graph.ss;
         let storage = self.eval_graph.storage;
-        let path = PathFromNode::new_one_hop_filtered(
-            self.eval_graph.base_graph.clone(),
-            self.graph.clone(),
-            self.op.clone(),
-        );
+        let path =
+            PathFromNode::new_one_hop_filtered(self.eval_graph.base_graph.clone(), self.op.clone());
         let edges = path.map_edges(op);
         EvalEdges {
             ss,

@@ -24,6 +24,7 @@ def test_filter_edges_for_src_ne():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -59,6 +60,7 @@ def test_filter_edges_for_src_not_in():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -89,6 +91,7 @@ def test_filter_edges_for_dst_ne():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -123,6 +126,7 @@ def test_filter_edges_for_dst_not_in():
             [
                 ("1", "2"),
                 ("2", "3"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -218,6 +222,7 @@ def test_filter_edges_for_src_not_contains():
                 ("2", "1"),
                 ("2", "3"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
             ]
         )

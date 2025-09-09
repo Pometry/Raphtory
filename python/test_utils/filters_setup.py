@@ -82,6 +82,7 @@ def init_graph(graph):
         ),
         (3, "2", "3", {"p20": "Gold_ship"}, "air_nomads"),
         (3, "3", "1", {"p2": 6, "p3": 1}, "fire_nation"),
+        (3, "3", "4", {"p2": 6, "p3": 1}, "fire_nation"),
         (3, "2", "1", {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
         (
             4,

@@ -297,7 +297,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
         T: NodeOp + 'graph,
         T::Output: 'graph;
     type PropType = Self;
-    type PathType = PathFromNode<'graph, G, G>;
+    type PathType = PathFromNode<'graph, G>;
     type Edges = Edges<'graph, G>;
 
     fn graph(&self) -> &Self::Graph {

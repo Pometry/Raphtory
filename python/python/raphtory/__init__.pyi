@@ -3288,6 +3288,9 @@ class PathFromNode(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -3715,6 +3718,9 @@ class PathFromNode(object):
 class PathFromGraph(object):
     def __bool__(self):
         """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -4709,6 +4715,9 @@ class Edges(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -5194,6 +5203,9 @@ class Edges(object):
 class NestedEdges(object):
     def __bool__(self):
         """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
 
     def __iter__(self):
         """Implement iter(self)."""

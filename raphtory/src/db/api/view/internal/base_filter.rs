@@ -19,10 +19,7 @@ pub trait BaseFilter<'graph> {
 pub trait IterFilter<'graph> {
     type IterGraph: GraphViewOps<'graph> + 'graph;
 
-    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: IterFilter<
-        'graph,
-        IterGraph = FilteredGraph,
-    >;
+    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: IterFilter<'graph>;
 
     fn iter_graph(&self) -> &Self::IterGraph;
 
