@@ -159,20 +159,3 @@ pub fn collect_tree_paths(path: &Path) -> Vec<PathBuf> {
     }
     paths
 }
-
-#[cfg(test)]
-mod test {
-
-    #[test]
-    fn check_has_debug_symbols() {
-        #[cfg(has_debug_symbols)]
-        {
-            println!("Debug symbols are present.");
-        }
-
-        #[cfg(not(has_debug_symbols))]
-        {
-            println!("Debug symbols are not present.");
-        }
-    }
-}
