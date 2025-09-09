@@ -1,4 +1,4 @@
-use raphtory_api_macros::{box_on_debug, box_on_debug_lifetime};
+use raphtory_api_macros::box_on_debug_lifetime;
 
 // Mock types for testing
 struct LayerIds;

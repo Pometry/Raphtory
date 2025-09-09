@@ -101,7 +101,9 @@ pub(crate) fn load_nodes_from_df<
     let mut node_type_col_resolved = vec![];
 
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-    let mut start_id = session.reserve_event_ids(df_view.num_rows).map_err(into_graph_err)?;
+    let mut start_id = session
+        .reserve_event_ids(df_view.num_rows)
+        .map_err(into_graph_err)?;
 
     for chunk in df_view.chunks {
         let df = chunk?;
@@ -466,42 +468,39 @@ pub(crate) fn load_edges_from_df<
 
             // Add temporal & constant properties to edges
             sc.spawn(|_| {
-                write_locked_graph
-                    .edges
-                    .par_iter_mut()
-                    .for_each(|shard| {
-                        let mut t_props = vec![];
-                        let mut c_props = vec![];
+                write_locked_graph.edges.par_iter_mut().for_each(|shard| {
+                    let mut t_props = vec![];
+                    let mut c_props = vec![];
 
-                        for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
-                            .iter()
-                            .zip(dst_col_resolved.iter())
-                            .zip(time_col.iter())
-                            .zip(eid_col_resolved.iter())
-                            .zip(layer_col_resolved.iter())
-                            .zip(
-                                eids_exist
-                                    .iter()
-                                    .map(|exists| exists.load(Ordering::Relaxed)),
-                            )
-                            .enumerate()
-                        {
-                            if let Some(eid_pos) = shard.resolve_pos(*eid) {
-                                let t = TimeIndexEntry(time, start_idx + idx);
-                                let mut writer = shard.writer();
+                    for (idx, (((((src, dst), time), eid), layer), exists)) in src_col_resolved
+                        .iter()
+                        .zip(dst_col_resolved.iter())
+                        .zip(time_col.iter())
+                        .zip(eid_col_resolved.iter())
+                        .zip(layer_col_resolved.iter())
+                        .zip(
+                            eids_exist
+                                .iter()
+                                .map(|exists| exists.load(Ordering::Relaxed)),
+                        )
+                        .enumerate()
+                    {
+                        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+                            let t = TimeIndexEntry(time, start_idx + idx);
+                            let mut writer = shard.writer();
 
-                                t_props.clear();
-                                t_props.extend(prop_cols.iter_row(idx));
+                            t_props.clear();
+                            t_props.extend(prop_cols.iter_row(idx));
 
-                                c_props.clear();
-                                c_props.extend(metadata_cols.iter_row(idx));
-                                c_props.extend_from_slice(&shared_metadata);
+                            c_props.clear();
+                            c_props.extend(metadata_cols.iter_row(idx));
+                            c_props.extend_from_slice(&shared_metadata);
 
-                                writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
-                                writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
-                                writer.add_edge(t, eid_pos, *src, *dst, t_props.drain(..), *layer, 0);
-                            }
+                            writer.add_static_edge(Some(eid_pos), *src, *dst, 0, Some(exists));
+                            writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
+                            writer.add_edge(t, eid_pos, *src, *dst, t_props.drain(..), *layer, 0);
                         }
+                    }
                 });
             });
         });
@@ -691,31 +690,28 @@ pub(crate) fn load_node_props_from_df<
         write_locked_graph
             .resize_chunks_to_num_nodes(write_locked_graph.graph().internal_num_nodes());
 
-        write_locked_graph
-            .nodes
-            .iter_mut()
-            .try_for_each(|shard| {
-                let mut c_props = vec![];
+        write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
+            let mut c_props = vec![];
 
-                for (idx, ((vid, node_type), gid)) in node_col_resolved
-                    .iter()
-                    .zip(node_type_col_resolved.iter())
-                    .zip(node_col.iter())
-                    .enumerate()
-                {
-                    if let Some(mut_node) = shard.resolve_pos(*vid) {
-                        let mut writer = shard.writer();
-                        writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
+            for (idx, ((vid, node_type), gid)) in node_col_resolved
+                .iter()
+                .zip(node_type_col_resolved.iter())
+                .zip(node_col.iter())
+                .enumerate()
+            {
+                if let Some(mut_node) = shard.resolve_pos(*vid) {
+                    let mut writer = shard.writer();
+                    writer.store_node_id_and_node_type(mut_node, 0, gid, *node_type, 0);
 
-                        c_props.clear();
-                        c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
-                        writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
-                    };
-                }
+                    c_props.clear();
+                    c_props.extend(metadata_cols.iter_row(idx));
+                    c_props.extend_from_slice(&shared_metadata);
+                    writer.update_c_props(mut_node, 0, c_props.drain(..), 0);
+                };
+            }
 
-                Ok::<_, GraphError>(())
-            })?;
+            Ok::<_, GraphError>(())
+        })?;
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());

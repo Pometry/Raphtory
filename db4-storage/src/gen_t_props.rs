@@ -70,7 +70,8 @@ impl<'a, Ref> GenTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
-    fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + 'a {
+    #[box_on_debug_lifetime]
+    fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
                 Either::Left(self.node.into_t_props_layers(layer_ids, prop_id))

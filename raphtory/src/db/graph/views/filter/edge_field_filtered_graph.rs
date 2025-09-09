@@ -1,4 +1,3 @@
-use raphtory_storage::graph::edges::edge_ref::EdgeEntryRef;
 use crate::{
     db::{
         api::{
@@ -16,7 +15,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
-use raphtory_storage::{core_ops::InheritCoreGraphOps};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Debug, Clone)]
 pub struct EdgeFieldFilteredGraph<G> {

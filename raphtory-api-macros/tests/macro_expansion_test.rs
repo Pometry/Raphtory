@@ -14,14 +14,14 @@ mod tests {
     #[test]
     fn test_debug_vs_release_types() {
         let iter = test_function();
-        
+
         // This test verifies that the function returns the correct type
         // In debug builds: Box<dyn Iterator<Item = TestItem> + Send + Sync + 'a>
         // In release builds: impl Iterator<Item = TestItem> + Send + Sync + 'a
-        
+
         let _collected: Vec<TestItem> = iter.collect();
     }
-    
+
     #[test]
     #[cfg(debug_assertions)]
     fn test_debug_build_returns_box() {

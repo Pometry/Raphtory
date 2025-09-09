@@ -172,6 +172,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn vid(&self) -> VID;
 
+    #[box_on_debug_lifetime]
     fn edges_dir(
         self,
         layer_id: usize,

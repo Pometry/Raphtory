@@ -40,7 +40,7 @@ where
 // Mock trait with methods like yours
 trait TestSelfTrait<'a> {
     type EntryRef;
-    
+
     fn edge_iter_layer(&self, layer: usize) -> impl Iterator<Item = Self::EntryRef>;
 
     // Your first example function - should work with #[box_on_debug_lifetime]
@@ -48,7 +48,10 @@ trait TestSelfTrait<'a> {
     fn edge_iter<'b, 'c: 'b>(
         &'b self,
         _layer_ids: &'c LayerIds,
-    ) -> impl Iterator<Item = Self::EntryRef> + Send + Sync + 'b where 'a: 'b {
+    ) -> impl Iterator<Item = Self::EntryRef> + Send + Sync + 'b
+    where
+        'a: 'b,
+    {
         // Simplified version of your complex matching logic
         std::iter::empty()
     }
@@ -61,7 +64,7 @@ trait TestEdgesTrait<'a>
 where
     Self: Sized,
 {
-    // Your second example function - should work with #[box_on_debug_lifetime]  
+    // Your second example function - should work with #[box_on_debug_lifetime]
     #[box_on_debug_lifetime]
     fn edges_iter<'b>(
         self,
@@ -81,7 +84,7 @@ struct TestStruct;
 
 impl<'a> TestSelfTrait<'a> for &'a TestStruct {
     type EntryRef = EdgeRef;
-    
+
     fn edge_iter_layer(&self, _layer: usize) -> impl Iterator<Item = Self::EntryRef> {
         std::iter::empty()
     }
@@ -102,7 +105,7 @@ mod tests {
         let test_struct = TestStruct;
         let layer_ids = LayerIds::All;
         let test_ref = &test_struct;
-        
+
         // Test that the first example function compiles and works
         let iter = test_ref.edge_iter(&layer_ids);
         let _results: Vec<EdgeRef> = iter.collect();
@@ -114,7 +117,7 @@ mod tests {
         let layer_ids = LayerIds::All;
         let direction = Direction;
         let test_ref = &test_struct;
-        
+
         // Test that the second example function compiles and works
         let iter = test_ref.edges_iter(&layer_ids, direction);
         let _results: Vec<EdgeRef> = iter.collect();
@@ -126,7 +129,7 @@ mod tests {
         let test_struct = TestStruct;
         let layer_ids = LayerIds::All;
         let test_ref = &test_struct;
-        
+
         // In debug builds, verify we get boxed iterators
         let iter = test_ref.edge_iter(&layer_ids);
         let _boxed: Box<dyn Iterator<Item = EdgeRef> + Send + Sync + '_> = iter;
