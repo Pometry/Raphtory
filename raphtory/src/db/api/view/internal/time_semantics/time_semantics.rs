@@ -608,6 +608,10 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         for_all_iter!(self, semantics => semantics.temporal_edge_prop_hist_window_rev(e, view, layer_ids, prop_id, w))
     }
 
+    /// Get edge metadata
+    ///
+    /// Returns:
+    ///     PropValue:
     fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,

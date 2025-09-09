@@ -1508,23 +1508,23 @@ class PersistentGraph(GraphView):
     def __reduce__(self): ...
     def add_edge(
         self,
-        timestamp: int,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        secondary_index: Optional[int] = None,
+        timestamp: Any,
+        src: Any,
+        dst: Any,
+        properties: Any = None,
+        layer: Any = None,
+        secondary_index: Any = None,
     ) -> None:
         """
         Adds a new edge with the given source and destination nodes and properties to the graph.
 
         Arguments:
-           timestamp (int): The timestamp of the edge.
-           src (str | int): The id of the source node.
-           dst (str | int): The id of the destination node.
-           properties (PropInput, optional): The properties of the edge, as a dict of string and properties
-           layer (str, optional): The layer of the edge.
-           secondary_index (int, optional): The optional integer which will be used as a secondary index
+            timestamp: (int) The timestamp of the edge.
+            src: (str | int) The id of the source node.
+            dst: (str | int) The id of the destination node.
+            properties: (PropInput, optional) The properties of the edge, as a dict of string and properties
+            layer: (str, optional) The layer of the edge.
+            secondary_index: (int, optional) The optional integer which will be used as a secondary index
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2223,10 +2223,10 @@ class PersistentGraph(GraphView):
         Gets the node with the specified id
 
         Arguments:
-          id (str | int): the node id
+            id (str | int): the node id
 
         Returns:
-          Optional[MutableNode]: The node with the specified id, or None if the node does not exist
+            Optional[MutableNode]: The node with the specified id, or None if the node does not exist
         """
 
     def persistent_graph(self) -> PersistentGraph:
@@ -6788,55 +6788,55 @@ class IndexSpecBuilder(object):
             IndexSpec:
         """
 
-    def with_all_edge_metadata(self):
+    def with_all_edge_metadata(self) -> dict[str, Any]:
         """
         Adds all edge metadata to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_all_edge_properties(self):
+    def with_all_edge_properties(self) -> dict[str, Any]:
         """
         Adds all edge properties to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_all_edge_properties_and_metadata(self):
+    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
         """
         Adds all edge properties and metadata to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_all_node_metadata(self):
+    def with_all_node_metadata(self) -> dict[str, Any]:
         """
         Adds all node metadata to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_all_node_properties(self):
+    def with_all_node_properties(self) -> dict[str, Any]:
         """
         Adds all node properties to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_all_node_properties_and_metadata(self):
+    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
         """
         Adds all node properties and metadata to the spec.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_edge_metadata(self, props: Any):
+    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
         """
         Adds specified edge metadata to the spec.
 
@@ -6844,10 +6844,10 @@ class IndexSpecBuilder(object):
             props: List of metadata.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_edge_properties(self, props: Any):
+    def with_edge_properties(self, props: Any) -> dict[str, Any]:
         """
         Adds specified edge properties to the spec.
 
@@ -6855,23 +6855,29 @@ class IndexSpecBuilder(object):
             props: List of properties.
 
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_node_metadata(self, props):
+    def with_node_metadata(self, props: Any) -> dict[str, Any]:
         """
         Adds specified node metadata to the spec.
 
+        Arguments:
+            props: list of metadata.
+
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
-    def with_node_properties(self, props):
+    def with_node_properties(self, props: Any) -> dict[str, Any]:
         """
         Adds specified node properties to the spec.
 
+        Arguments:
+            props: list of properties.
+
         Returns:
-            PyResult:
+            dict[str, Any]:
         """
 
 class IndexSpec(object):
@@ -6879,13 +6885,45 @@ class IndexSpec(object):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self): ...
-    @property
-    def edge_properties(self): ...
-    @property
-    def node_metadata(self): ...
-    @property
-    def node_properties(self): ...
+    def edge_metadata(self) -> list[str]:
+        """
+        Get edge metadata.
 
-def version():
-    """Return Raphtory version."""
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def edge_properties(self) -> list[str]:
+        """
+        Get edge properties.
+
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def node_metadata(self) -> list[str]:
+        """
+        Get node metadata.
+
+        Returns:
+            list[str]:
+        """
+
+    @property
+    def node_properties(self) -> list[str]:
+        """
+        Get node properties.
+
+        Returns:
+            list[str]:
+        """
+
+def version() -> str:
+    """
+    Return Raphtory version.
+
+    Returns:
+        str:
+    """

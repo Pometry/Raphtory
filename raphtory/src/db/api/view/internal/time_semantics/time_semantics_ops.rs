@@ -523,7 +523,10 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize, Prop)> + Send + Sync + 'graph;
 
-    /// Get metadata edge property
+    /// Get edge metadata
+    ///
+    /// Returns:
+    ///     PropValue:
     fn edge_metadata<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeStorageRef<'graph>,

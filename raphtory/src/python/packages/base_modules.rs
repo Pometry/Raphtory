@@ -70,6 +70,9 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
     #[pyfunction]
     /// Return Raphtory version.
+    ///
+    /// Returns:
+    ///     str:
     pub(crate) fn version() -> String {
         String::from(crate::version())
     }

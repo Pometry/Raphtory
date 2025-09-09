@@ -248,12 +248,12 @@ impl PyPersistentGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the graph.
     ///
     /// Arguments:
-    ///    timestamp (int): The timestamp of the edge.
-    ///    src (str | int): The id of the source node.
-    ///    dst (str | int): The id of the destination node.
-    ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties
-    ///    layer (str, optional): The layer of the edge.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///     timestamp: (int) The timestamp of the edge.
+    ///     src: (str | int) The id of the source node.
+    ///     dst: (str | int) The id of the destination node.
+    ///     properties: (PropInput, optional) The properties of the edge, as a dict of string and properties
+    ///     layer: (str, optional) The layer of the edge.
+    ///     secondary_index: (int, optional) The optional integer which will be used as a secondary index
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
@@ -320,10 +320,10 @@ impl PyPersistentGraph {
     /// Gets the node with the specified id
     ///
     /// Arguments:
-    ///   id (str | int): the node id
+    ///     id (str | int): the node id
     ///
     /// Returns:
-    ///   Optional[MutableNode]: The node with the specified id, or None if the node does not exist
+    ///     Optional[MutableNode]: The node with the specified id, or None if the node does not exist
     pub fn node(&self, id: PyNodeRef) -> Option<NodeView<'static, PersistentGraph>> {
         self.graph.node(id)
     }
