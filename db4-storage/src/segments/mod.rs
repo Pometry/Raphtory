@@ -57,6 +57,7 @@ impl<'a, T: HasRow> Iterator for FullRangeIter<'a, T> {
             .is_some()
         {
             let entry = self.container.data.get(&l_pos).unwrap();
+            self.head = None;
             Some((entry, self.container.properties().get_entry(entry.row())))
         } else {
             None
