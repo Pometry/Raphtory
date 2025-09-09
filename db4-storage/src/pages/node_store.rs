@@ -26,7 +26,7 @@ pub struct NodeStorageInner<NS, EXT> {
     pages: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
     nodes_path: Option<PathBuf>,
-    max_page_len: usize,
+    max_page_len: u32,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
     ext: EXT,
@@ -49,7 +49,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Send + Sync + Clone> ReadLockedNo
     }
 
     pub fn len(&self) -> usize {
-        self.storage.num_nodes()
+        self.storage.num_nodes() as usize
     }
 
     pub fn iter(
@@ -90,7 +90,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
-        max_page_len: usize,
+        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
@@ -176,7 +176,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
     pub fn load(
         nodes_path: impl AsRef<Path>,
-        max_page_len: usize,
+        max_page_len: u32,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Result<Self, StorageError> {
@@ -245,7 +245,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
 
         for (_, page) in pages.iter() {
             for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(layer_id);
+                let count = page.layer_count(layer_id) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -327,7 +327,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Clone> NodeStorageInner<NS, EXT> 
         }
     }
 
-    pub fn max_page_len(&self) -> usize {
+    pub fn max_page_len(&self) -> u32 {
         self.max_page_len
     }
 }

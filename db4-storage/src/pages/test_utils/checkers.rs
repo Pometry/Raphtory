@@ -95,7 +95,7 @@ pub fn check_edges_support<
             .expect("Failed to add edge");
     }
 
-    let actual_num_nodes = graph.nodes().num_nodes();
+    let actual_num_nodes = graph.nodes().num_nodes() as usize;
     assert_eq!(actual_num_nodes, nodes.len());
 
     edges.sort_unstable();

@@ -69,8 +69,7 @@ impl<'a> MemEdgeRef<'a> {
             self.es
                 .as_ref()
                 .get(layer_id)
-                .and_then(|entry| entry.items().get(self.pos.0))
-                .is_some_and(|item| *item)
+                .is_some_and(|layer| layer.has_item(self.pos))
         })
     }
 }

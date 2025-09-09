@@ -28,10 +28,10 @@ use std::{
     },
 };
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug)]
 pub struct MemNodeSegment {
     segment_id: usize,
-    max_page_len: usize,
+    max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
 }
 
@@ -159,7 +159,7 @@ impl MemNodeSegment {
     pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
         self.layers
             .get(layer_id)
-            .is_some_and(|layer| layer.items().get(n.0).is_some_and(|x| *x))
+            .is_some_and(|layer| layer.has_item(n))
     }
 
     pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
@@ -184,7 +184,7 @@ impl MemNodeSegment {
             .flat_map(|adj| adj.inb_iter())
     }
 
-    pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
+    pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
         Self {
             segment_id,
             max_page_len,
@@ -438,7 +438,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn load(
         _page_id: usize,
-        _max_page_len: usize,
+        _max_page_len: u32,
         _node_meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
@@ -452,7 +452,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     fn new(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: Option<PathBuf>,
@@ -530,7 +530,7 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
         self.head().layers.len()
     }
 
-    fn layer_count(&self, layer_id: usize) -> usize {
+    fn layer_count(&self, layer_id: usize) -> u32 {
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())

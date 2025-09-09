@@ -27,11 +27,11 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn t_len(&self) -> usize;
     fn num_layers(&self) -> usize;
-    fn layer_count(&self, layer_id: usize) -> usize;
+    fn layer_count(&self, layer_id: usize) -> u32;
 
     fn load(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         meta: Arc<Meta>,
         path: impl AsRef<Path>,
         ext: Self::Extension,
@@ -41,7 +41,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn new(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         meta: Arc<Meta>,
         path: Option<PathBuf>,
         ext: Self::Extension,
@@ -49,7 +49,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn segment_id(&self) -> usize;
 
-    fn num_edges(&self) -> usize;
+    fn num_edges(&self) -> u32;
 
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
@@ -64,7 +64,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         head_lock: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
 
-    fn increment_num_edges(&self) -> usize;
+    fn increment_num_edges(&self) -> u32;
 
     fn contains_edge(
         &self,
@@ -80,11 +80,11 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
-    fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a>;
+    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a>;
 
-    fn layer_entry<'a, LP: Into<LocalPOS>>(
+    fn layer_entry<'a>(
         &'a self,
-        edge_pos: LP,
+        edge_pos: LocalPOS,
         layer_id: usize,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>>;

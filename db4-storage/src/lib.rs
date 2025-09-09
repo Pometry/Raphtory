@@ -101,21 +101,27 @@ pub mod error {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 #[repr(transparent)]
-pub struct LocalPOS(pub usize);
+pub struct LocalPOS(pub u32);
 
-impl LocalPOS {
-    pub fn as_vid(self, page_id: usize, max_page_len: usize) -> VID {
-        VID(page_id * max_page_len + self.0)
-    }
 
-    pub fn as_eid(self, page_id: usize, max_page_len: usize) -> EID {
-        EID(page_id * max_page_len + self.0)
+impl From<usize> for LocalPOS {
+    fn from(value: usize) -> Self {
+        assert!(value <= u32::MAX as usize);
+        LocalPOS(value as u32)
     }
 }
 
-impl From<usize> for LocalPOS {
-    fn from(pos: usize) -> Self {
-        Self(pos)
+impl LocalPOS {
+    pub fn as_vid(self, page_id: usize, max_page_len: u32) -> VID {
+        VID(page_id * (max_page_len as usize) + (self.0 as usize))
+    }
+
+    pub fn as_eid(self, page_id: usize, max_page_len: u32) -> EID {
+        EID(page_id * (max_page_len as usize) + (self.0 as usize))
+    }
+
+    pub fn as_index(self) -> usize {
+        self.0 as usize
     }
 }
 

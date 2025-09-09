@@ -37,8 +37,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         &mut self,
         t: T,
         edge_pos: LocalPOS,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        src: VID,
+        dst: VID,
         props: impl IntoIterator<Item = (usize, Prop)>,
         layer_id: usize,
         lsn: u64,
@@ -59,8 +59,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         &mut self,
         t: T,
         edge_pos: LocalPOS,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        src: VID,
+        dst: VID,
         layer_id: usize,
         lsn: u64,
     ) {
@@ -70,10 +70,6 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         if !existing_edge {
             self.increment_layer_num_edges(layer_id);
         }
-
-        let src = src.into();
-        let dst = dst.into();
-
         self.graph_stats.update_time(t.t());
         self.writer
             .delete_edge_internal(t, edge_pos, src, dst, layer_id, lsn);
@@ -128,8 +124,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     pub fn update_c_props(
         &mut self,
         edge_pos: LocalPOS,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        src: VID,
+        dst: VID,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {

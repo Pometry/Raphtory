@@ -33,7 +33,7 @@ bytemuck.workspace = true
 rayon.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
-
+roaring.workspace = true
 proptest = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 iter-enum = { workspace = true, features = ["rayon"] }

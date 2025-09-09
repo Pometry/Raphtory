@@ -23,7 +23,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{self, AtomicUsize},
+        atomic::{self, AtomicU32},
     },
 };
 
@@ -75,7 +75,7 @@ impl AsMut<[SegmentContainer<MemPageEntry>]> for MemEdgeSegment {
 }
 
 impl MemEdgeSegment {
-    pub fn new(segment_id: usize, max_page_len: usize, meta: Arc<Meta>) -> Self {
+    pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
             est_size: 0,
@@ -128,12 +128,11 @@ impl MemEdgeSegment {
         self.layers.iter().map(|seg| seg.lsn()).min().unwrap_or(0)
     }
 
-    pub fn max_page_len(&self) -> usize {
+    pub fn max_page_len(&self) -> u32 {
         self.layers[0].max_page_len()
     }
 
-    pub fn get_edge(&self, edge_pos: impl Into<LocalPOS>, layer_id: usize) -> Option<(VID, VID)> {
-        let edge_pos = edge_pos.into();
+    pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> Option<(VID, VID)> {
         self.layers
             .get(layer_id)?
             .get(&edge_pos)
@@ -143,17 +142,13 @@ impl MemEdgeSegment {
     pub fn insert_edge_internal<T: AsTime>(
         &mut self,
         t: T,
-        edge_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
         lsn: u64,
     ) {
-        let edge_pos = edge_pos.into();
-        let src = src.into();
-        let dst = dst.into();
-
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
@@ -173,15 +168,12 @@ impl MemEdgeSegment {
     pub fn delete_edge_internal<T: AsTime>(
         &mut self,
         t: T,
-        edge_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
         layer_id: usize,
         lsn: u64,
     ) {
-        let edge_pos = edge_pos.into();
-        let src = src.into();
-        let dst = dst.into();
         let t = TimeIndexEntry::new(t.t(), t.i());
 
         // Ensure we have enough layers
@@ -281,16 +273,12 @@ impl MemEdgeSegment {
 
     pub fn update_const_properties(
         &mut self,
-        edge_pos: impl Into<LocalPOS>,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
+        edge_pos: LocalPOS,
+        src: VID,
+        dst: VID,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let edge_pos = edge_pos.into();
-        let src = src.into();
-        let dst = dst.into();
-
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
@@ -307,9 +295,8 @@ impl MemEdgeSegment {
     pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
         self.layers
             .get(layer_id)
-            .and_then(|layer| layer.items().get::<usize>(edge_pos.0))
-            .map(|b| *b)
-            .unwrap_or_default()
+            .filter(|layer| layer.has_item(edge_pos))
+            .is_some()
     }
 
     pub fn latest(&self) -> Option<TimeIndexEntry> {
@@ -330,7 +317,7 @@ impl MemEdgeSegment {
 pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
-    num_edges: AtomicUsize,
+    num_edges: AtomicU32,
     _ext: EXT,
 }
 
@@ -348,14 +335,8 @@ impl ArcLockedSegmentView {
             .layers
             .get(layer_id)
             .into_iter()
-            .flat_map(|layer| {
-                layer
-                    .items()
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, check)| check.then_some(index))
-            })
-            .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
+            .flat_map(|layer| layer.filled_positions())
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
     }
 
     fn edge_par_iter_layer<'a>(
@@ -366,14 +347,8 @@ impl ArcLockedSegmentView {
             .layers
             .get(layer_id)
             .into_par_iter()
-            .flat_map(|layer| {
-                layer
-                    .items()
-                    .par_iter()
-                    .enumerate()
-                    .filter_map(|(index, check)| check.then_some(index))
-            })
-            .map(move |pos| MemEdgeRef::new(LocalPOS(pos), &self.inner))
+            .flat_map(|layer| layer.filled_positions_par())
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
     }
 }
 
@@ -440,7 +415,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 
     fn load(
         _page_id: usize,
-        _max_page_len: usize,
+        _max_page_len: u32,
         _meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
         _ext: Self::Extension,
@@ -453,7 +428,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
 
     fn new(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         meta: Arc<Meta>,
         _path: Option<PathBuf>,
         _ext: Self::Extension,
@@ -462,7 +437,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
                 .into(),
             segment_id: page_id,
-            num_edges: AtomicUsize::new(0),
+            num_edges: AtomicU32::new(0),
             _ext,
         }
     }
@@ -471,7 +446,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.segment_id
     }
 
-    fn num_edges(&self) -> usize {
+    fn num_edges(&self) -> u32 {
         self.num_edges.load(atomic::Ordering::Relaxed)
     }
 
@@ -498,7 +473,7 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         Ok(())
     }
 
-    fn increment_num_edges(&self) -> usize {
+    fn increment_num_edges(&self) -> u32 {
         self.num_edges.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
@@ -520,22 +495,23 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         locked_head.get_edge(edge_pos, layer_id)
     }
 
-    fn entry<'a, LP: Into<LocalPOS>>(&'a self, edge_pos: LP) -> Self::Entry<'a> {
+    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a> {
         let edge_pos = edge_pos.into();
         MemEdgeEntry::new(edge_pos, self.head())
     }
 
-    fn layer_entry<'a, LP: Into<LocalPOS>>(
+    fn layer_entry<'a>(
         &'a self,
-        edge_pos: LP,
+        edge_pos: LocalPOS,
         layer_id: usize,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
         let edge_pos = edge_pos.into();
         locked_head.and_then(|locked_head| {
             let layer = locked_head.as_ref().get(layer_id)?;
-            let has_edge = layer.items().get(edge_pos.0).is_some_and(|item| *item);
-            has_edge.then(|| MemEdgeEntry::new(edge_pos, locked_head))
+            layer
+                .has_item(edge_pos)
+                .then(|| MemEdgeEntry::new(edge_pos, locked_head))
         })
     }
 
@@ -549,10 +525,10 @@ impl<P: PersistentStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSegm
         self.head().layers.len()
     }
 
-    fn layer_count(&self, layer_id: usize) -> usize {
+    fn layer_count(&self, layer_id: usize) -> u32 {
         self.head()
             .get_layer(layer_id)
-            .map_or(0, |layer| layer.len())
+            .map_or(0, |layer| layer.len() as u32)
     }
 }
 
@@ -573,8 +549,8 @@ mod test {
         segment.insert_edge_internal(
             TimeIndexEntry::new(1, 0),
             LocalPOS(0),
-            1,
-            2,
+            VID(1),
+            VID(2),
             0,
             vec![(0, Prop::from("test"))],
             1,
@@ -597,8 +573,8 @@ mod test {
         segment.insert_edge_internal(
             TimeIndexEntry::new(3, 0),
             LocalPOS(1),
-            4,
-            6,
+            VID(4),
+            VID(6),
             0,
             vec![(0, Prop::from("test2"))],
             1,
@@ -626,7 +602,7 @@ mod test {
             .unwrap()
             .inner();
 
-        segment.update_const_properties(LocalPOS(1), 4, 6, 0, [(prop_id, Prop::U8(2))]);
+        segment.update_const_properties(LocalPOS(1), VID(4), VID(6), 0, [(prop_id, Prop::U8(2))]);
 
         let est_size5 = segment.est_size();
         assert!(
