@@ -150,8 +150,8 @@ impl<
 
     pub fn new_with_meta(
         graph_dir: Option<&Path>,
-        max_page_len_nodes: usize,
-        max_page_len_edges: usize,
+        max_page_len_nodes: u32,
+        max_page_len_edges: u32,
         node_meta: Meta,
         edge_meta: Meta,
     ) -> Self {
@@ -195,11 +195,7 @@ impl<
         }
     }
 
-    pub fn new(
-        graph_dir: Option<&Path>,
-        max_page_len_nodes: usize,
-        max_page_len_edges: usize,
-    ) -> Self {
+    pub fn new(graph_dir: Option<&Path>, max_page_len_nodes: u32, max_page_len_edges: u32) -> Self {
         Self::new_with_meta(
             graph_dir,
             max_page_len_nodes,
@@ -395,15 +391,16 @@ fn read_graph_meta(graph_dir: impl AsRef<Path>) -> Result<GraphMeta, StorageErro
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct GraphMeta {
-    max_page_len_nodes: usize,
-    max_page_len_edges: usize,
+    max_page_len_nodes: u32,
+    max_page_len_edges: u32,
 }
 
 #[inline(always)]
-pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: usize) -> (usize, LocalPOS) {
-    let chunk = i.into() / max_page_len;
-    let pos = i.into() % max_page_len;
-    (chunk, pos.into())
+pub fn resolve_pos<I: Copy + Into<usize>>(i: I, max_page_len: u32) -> (usize, LocalPOS) {
+    let i = i.into();
+    let chunk = i / max_page_len as usize;
+    let pos = i % max_page_len as usize;
+    (chunk, LocalPOS(pos as u32))
 }
 
 #[cfg(test)]
@@ -424,11 +421,7 @@ mod test {
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
 
-    fn check_edges(
-        edges: Vec<(impl Into<VID>, impl Into<VID>)>,
-        chunk_size: usize,
-        par_load: bool,
-    ) {
+    fn check_edges(edges: Vec<(impl Into<VID>, impl Into<VID>)>, chunk_size: u32, par_load: bool) {
         // Set optional layer_id to None
         let layer_id = None;
         let edges = edges
@@ -443,7 +436,7 @@ mod test {
 
     fn check_edges_with_layers(
         edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, layer_id
-        chunk_size: usize,
+        chunk_size: u32,
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
@@ -454,7 +447,7 @@ mod test {
     #[test]
     fn test_storage() {
         let edges_strat = edges_strat(10);
-        proptest!(|(edges in edges_strat, chunk_size in 1usize .. 100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 1u32 .. 100)|{
             check_edges(edges, chunk_size, false);
         });
     }
@@ -462,7 +455,7 @@ mod test {
     #[test]
     fn test_storage_par() {
         let edges_strat = edges_strat(15);
-        proptest!(|(edges in edges_strat, chunk_size in 1usize..100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 1u32..100)|{
             check_edges(edges, chunk_size, true);
         });
     }
@@ -470,7 +463,7 @@ mod test {
     #[test]
     fn test_storage_par_1024_x2() {
         let edges_strat = edges_strat(50);
-        proptest!(|(edges in edges_strat, chunk_size in 1usize..100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 1u32..100)|{
             check_edges(edges, chunk_size, true);
         });
     }
@@ -478,7 +471,7 @@ mod test {
     #[test]
     fn test_storage_par_1024() {
         let edges_strat = edges_strat(50);
-        proptest!(|(edges in edges_strat, chunk_size in 2usize..100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 2u32..100)|{
             check_edges(edges, chunk_size, false);
         });
     }
@@ -505,7 +498,7 @@ mod test {
     fn test_storage_with_layers() {
         let edges_strat = edges_strat_with_layers(10);
 
-        proptest!(|(edges in edges_strat, chunk_size in 1usize .. 100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 1u32 .. 100)|{
             check_edges_with_layers(edges, chunk_size, false);
         });
     }
@@ -597,7 +590,7 @@ mod test {
     #[test]
     fn add_one_edge_with_props() {
         let edges = make_edges(1, 1);
-        proptest!(|(edges in edges, node_page_len in 1usize..100, edge_page_len in 1usize .. 100)|{
+        proptest!(|(edges in edges, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_props(node_page_len, edge_page_len, &edges);
         });
     }
@@ -660,7 +653,7 @@ mod test {
     #[test]
     fn add_one_node_with_props() {
         let nodes = make_nodes(1);
-        proptest!(|(nodes in nodes, node_page_len in 1usize..100, edge_page_len in 1usize .. 100)|{
+        proptest!(|(nodes in nodes, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_nodes(node_page_len, edge_page_len, &nodes);
         });
     }
@@ -668,7 +661,7 @@ mod test {
     #[test]
     fn add_multiple_node_with_props() {
         let nodes = make_nodes(20);
-        proptest!(|(nodes in nodes, node_page_len in 1usize..100, edge_page_len in 1usize .. 100)|{
+        proptest!(|(nodes in nodes, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_nodes(node_page_len, edge_page_len, &nodes);
         });
     }
@@ -868,7 +861,7 @@ mod test {
     #[test]
     fn add_multiple_edges_with_props() {
         let edges = make_edges(20, 20);
-        proptest!(|(edges in edges, node_page_len in 1usize..100, edge_page_len in 1usize .. 100)|{
+        proptest!(|(edges in edges, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_props(node_page_len, edge_page_len, &edges);
         });
     }
@@ -1373,13 +1366,13 @@ mod test {
         check_graph_with_props(10, 10, &edges.into());
     }
 
-    fn check_graph_with_nodes(node_page_len: usize, edge_page_len: usize, fixture: &NodeFixture) {
+    fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
             Layer::<()>::new(Some(path), node_page_len, edge_page_len)
         });
     }
 
-    fn check_graph_with_props(node_page_len: usize, edge_page_len: usize, fixture: &Fixture) {
+    fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
             Layer::<()>::new(Some(path), node_page_len, edge_page_len)
         });

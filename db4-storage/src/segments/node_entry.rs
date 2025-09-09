@@ -233,7 +233,6 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns
             .as_ref()
             .get(layer_id)
-            .and_then(|seg| seg.items().get(self.pos.0))
-            .is_some_and(|x| *x)
+            .is_some_and(|layer| layer.has_item(self.pos))
     }
 }

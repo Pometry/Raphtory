@@ -11,7 +11,7 @@ use std::ops::DerefMut;
 
 pub struct LockedNodePage<'a, NS> {
     page_id: usize,
-    max_page_len: usize,
+    max_page_len: u32,
     layer_counter: &'a GraphStats,
     page: &'a NS,
     lock: RwLockWriteGuard<'a, MemNodeSegment>,
@@ -21,7 +21,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> LockedNodePage<'a, NS> {
     pub fn new(
         page_id: usize,
         layer_counter: &'a GraphStats,
-        max_page_len: usize,
+        max_page_len: u32,
         page: &'a NS,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {

@@ -31,7 +31,7 @@ pub struct EdgeStorageInner<ES, EXT> {
     layer_counter: Arc<GraphStats>,
     free_pages: Box<[RwLock<usize>; N]>,
     edges_path: Option<PathBuf>,
-    max_page_len: usize,
+    max_page_len: u32,
     prop_meta: Arc<Meta>,
     ext: EXT,
 }
@@ -119,7 +119,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
     pub fn new_with_meta(
         edges_path: Option<PathBuf>,
-        max_page_len: usize,
+        max_page_len: u32,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
@@ -135,7 +135,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         }
     }
 
-    pub fn new(edges_path: Option<PathBuf>, max_page_len: usize, ext: EXT) -> Self {
+    pub fn new(edges_path: Option<PathBuf>, max_page_len: u32, ext: EXT) -> Self {
         Self::new_with_meta(edges_path, max_page_len, Meta::new_for_edges().into(), ext)
     }
 
@@ -171,7 +171,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
     pub fn load(
         edges_path: impl AsRef<Path>,
-        max_page_len: usize,
+        max_page_len: u32,
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
@@ -260,7 +260,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
 
         for (_, page) in pages.iter() {
             for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(layer_id);
+                let count = page.layer_count(layer_id) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -344,7 +344,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
         }
     }
 
-    pub fn max_page_len(&self) -> usize {
+    pub fn max_page_len(&self) -> u32 {
         self.max_page_len
     }
 
@@ -421,7 +421,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
-        let slot_idx = num_edges % N;
+        let slot_idx = num_edges as usize % N;
         let maybe_free_page = self.free_pages[slot_idx..]
             .iter()
             .cycle()
@@ -463,6 +463,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             .flat_map(move |page| {
                 (0..page.num_edges())
                     .into_par_iter()
+                    .map(LocalPOS)
                     .filter_map(move |local_edge| {
                         page.layer_entry(local_edge, layer, Some(page.head()))
                     })
@@ -474,7 +475,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {
                 (0..page.num_edges()).filter_map(move |local_edge| {
-                    page.layer_entry(local_edge, layer, Some(page.head()))
+                    page.layer_entry(LocalPOS(local_edge), layer, Some(page.head()))
                 })
             })
     }

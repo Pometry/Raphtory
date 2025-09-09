@@ -1,6 +1,5 @@
-use std::sync::atomic::AtomicUsize;
-
 use raphtory_core::entities::graph::timer::{MaxCounter, MinCounter, TimeCounterTrait};
+use std::sync::atomic::AtomicUsize;
 
 #[derive(Debug)]
 pub struct GraphStats {

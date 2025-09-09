@@ -13,7 +13,7 @@ use rayon::prelude::*;
 #[derive(Debug)]
 pub struct LockedEdgePage<'a, ES> {
     page_id: usize,
-    max_page_len: usize,
+    max_page_len: u32,
     page: &'a ES,
     num_edges: &'a GraphStats,
     lock: RwLockWriteGuard<'a, MemEdgeSegment>,
@@ -22,7 +22,7 @@ pub struct LockedEdgePage<'a, ES> {
 impl<'a, EXT, ES: EdgeSegmentOps<Extension = EXT>> LockedEdgePage<'a, ES> {
     pub fn new(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         page: &'a ES,
         num_edges: &'a GraphStats,
         lock: RwLockWriteGuard<'a, MemEdgeSegment>,

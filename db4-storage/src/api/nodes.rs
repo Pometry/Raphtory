@@ -51,7 +51,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn load(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: impl AsRef<Path>,
@@ -61,7 +61,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         Self: Sized;
     fn new(
         page_id: usize,
-        max_page_len: usize,
+        max_page_len: u32,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         path: Option<PathBuf>,
@@ -75,13 +75,13 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn head_mut(&self) -> RwLockWriteGuard<'_, MemNodeSegment>;
 
-    fn num_nodes(&self) -> usize {
+    fn num_nodes(&self) -> u32 {
         self.layer_count(0)
     }
 
     fn num_layers(&self) -> usize;
 
-    fn layer_count(&self, layer_id: usize) -> usize;
+    fn layer_count(&self, layer_id: usize) -> u32;
 
     fn notify_write(
         &self,
