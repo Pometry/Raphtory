@@ -3,9 +3,8 @@
 //! the random attachment model.
 use crate::{
     graphgen::{
-        preferential_attachment::ba_preferential_attachment as pa,
+        erdos_renyi::erdos_renyi as er, preferential_attachment::ba_preferential_attachment as pa,
         random_attachment::random_attachment as ra,
-        erdos_renyi::erdos_renyi as er,
     },
     python::graph::graph::PyGraph,
 };

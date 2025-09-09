@@ -9,7 +9,7 @@
 //! erdos_renyi(&graph, 1000, 0.1, None);
 //! ```
 
-
+use super::next_id;
 use crate::{
     db::{
         api::{mutation::AdditionOps, view::*},
@@ -17,11 +17,8 @@ use crate::{
     },
     prelude::{NodeStateOps, NO_PROPS},
 };
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use tracing::error;
-use rand::Rng;
-use super::next_id;
-
 
 /// Generates an Erdos-Renyi random graph in the provided `graph`.
 ///
@@ -57,7 +54,7 @@ pub fn erdos_renyi(graph: &Graph, n_nodes: usize, p: f64, seed: Option<[u8; 32]>
         graph
             .add_node(latest_time, &max_id, NO_PROPS, None)
             .map_err(|err| error!("{:?}", err))
-            .ok();    
+            .ok();
     }
     let all_ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
     for id in all_ids.iter() {

@@ -22,9 +22,20 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['FilterExpr', 'PropertyFilterOps', 'NodeFilterBuilder', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "PropertyFilterOps",
+    "NodeFilterBuilder",
+    "Node",
+    "EdgeFilterOp",
+    "EdgeEndpoint",
+    "Edge",
+    "Property",
+    "Metadata",
+    "TemporalPropertyFilterBuilder",
+]
 
+class FilterExpr(object):
     def __and__(self, value):
         """Return self&value."""
 
@@ -40,8 +51,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class PropertyFilterOps(object): 
-
+class PropertyFilterOps(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -60,28 +70,15 @@ class PropertyFilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_none(self): ...
+    def is_not_in(self, values): ...
+    def is_some(self): ...
+    def not_contains(self, value): ...
 
-    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match):
-        ...
-
-    def is_in(self, values):
-        ...
-
-    def is_none(self):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def is_some(self):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class NodeFilterBuilder(object): 
+class NodeFilterBuilder(object):
     """
     A builder for constructing node filters
 
@@ -106,23 +103,13 @@ class NodeFilterBuilder(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
-
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class Node(object): 
-
+class Node(object):
     @staticmethod
     def name():
         """
@@ -141,8 +128,7 @@ class Node(object):
             NodeFilterBuilder: A filter builder for filtering by node type
         """
 
-class EdgeFilterOp(object): 
-
+class EdgeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -161,37 +147,22 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
-        ...
+class EdgeEndpoint(object):
+    def name(self): ...
 
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class EdgeEndpoint(object): 
-
-    def name(self):
-        ...
-
-class Edge(object): 
-
+class Edge(object):
     @staticmethod
-    def dst():
-        ...
-
+    def dst(): ...
     @staticmethod
-    def src():
-        ...
+    def src(): ...
 
-class Property(PropertyFilterOps): 
+class Property(PropertyFilterOps):
     """
     Construct a property filter
 
@@ -202,10 +173,9 @@ class Property(PropertyFilterOps):
     def __new__(cls, name: str) -> Property:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def temporal(self):
-        ...
+    def temporal(self): ...
 
-class Metadata(PropertyFilterOps): 
+class Metadata(PropertyFilterOps):
     """
     Construct a metadata filter
 
@@ -216,10 +186,6 @@ class Metadata(PropertyFilterOps):
     def __new__(cls, name: str) -> Metadata:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class TemporalPropertyFilterBuilder(object): 
-
-    def any(self):
-        ...
-
-    def latest(self):
-        ...
+class TemporalPropertyFilterBuilder(object):
+    def any(self): ...
+    def latest(self): ...
