@@ -3,6 +3,7 @@ use std::{borrow::Borrow, ops::Range};
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
+use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
 
 use crate::utils::Iter4;
@@ -18,13 +19,14 @@ where
         self,
         layer_id: usize,
         prop_id: usize,
-    ) -> impl Iterator<Item = Self::TProp> + 'a;
+    ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a;
 
+    #[box_on_debug_lifetime]
     fn into_t_props_layers(
         self,
         layers: impl Borrow<LayerIds>,
         prop_id: usize,
-    ) -> impl Iterator<Item = Self::TProp> + 'a {
+    ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
         match layers.borrow() {
             LayerIds::None => Iter4::I(std::iter::empty()),
             LayerIds::One(layer_id) => Iter4::J(self.into_t_props(*layer_id, prop_id)),
@@ -68,7 +70,8 @@ impl<'a, Ref> GenTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> GenTProps<'a, Ref> {
-    fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + 'a {
+    #[box_on_debug_lifetime]
+    fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
                 Either::Left(self.node.into_t_props_layers(layer_ids, prop_id))

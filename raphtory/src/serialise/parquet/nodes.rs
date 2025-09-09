@@ -93,7 +93,6 @@ pub(crate) fn encode_nodes_cprop(
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
-
             // scope for the decoder
             {
                 decoder.serialize(&node_rows)?;

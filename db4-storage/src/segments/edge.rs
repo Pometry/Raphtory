@@ -13,6 +13,7 @@ use raphtory_api::core::entities::{
     VID,
     properties::{meta::Meta, prop::Prop},
 };
+use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::LayerIds,
     storage::timeindex::{AsTime, TimeIndexEntry},
@@ -363,6 +364,7 @@ impl LockedESegment for ArcLockedSegmentView {
         MemEdgeRef::new(edge_pos, &self.inner)
     }
 
+    #[box_on_debug_lifetime]
     fn edge_iter<'a, 'b: 'a>(
         &'a self,
         layer_ids: &'b LayerIds,
@@ -381,7 +383,7 @@ impl LockedESegment for ArcLockedSegmentView {
     fn edge_par_iter<'a, 'b: 'a>(
         &'a self,
         layer_ids: &'b LayerIds,
-    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
             LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),

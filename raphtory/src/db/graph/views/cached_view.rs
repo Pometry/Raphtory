@@ -22,7 +22,7 @@ use raphtory_api::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{
-        edges::{edge_storage_ops::EdgeStorageOps},
+        edges::edge_storage_ops::EdgeStorageOps,
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     },
 };

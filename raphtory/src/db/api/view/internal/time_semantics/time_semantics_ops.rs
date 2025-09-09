@@ -3,7 +3,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_storage::graph::{nodes::node_ref::NodeStorageRef};
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 use std::ops::Range;
 use storage::EdgeEntryRef;
 
@@ -190,7 +190,6 @@ pub trait EdgeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph;
-
 
     /// The number of exploded edge events for the `edge`
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(

@@ -23,7 +23,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
 use raphtory_storage::graph::{
-    edges::{edge_storage_ops::EdgeStorageOps},
+    edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};

@@ -24,7 +24,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_storage::{core_ops::InheritCoreGraphOps};
+use raphtory_storage::core_ops::InheritCoreGraphOps;
 use std::ops::Range;
 use storage::EdgeEntryRef;
 

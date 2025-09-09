@@ -11,7 +11,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps};
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 use storage::EdgeEntryRef;
 
