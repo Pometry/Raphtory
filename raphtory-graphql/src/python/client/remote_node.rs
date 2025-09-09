@@ -31,10 +31,10 @@ impl PyRemoteNode {
     /// throw an error
     ///
     /// Parameters:
-    ///     new_type (str): The new type to be set
+    /// new_type (str): The new type to be set
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
         let template = r#"
             {
@@ -61,11 +61,11 @@ impl PyRemoteNode {
     /// This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
     ///
     /// Parameters:
-    ///     t (int | str | datetime): The timestamp at which the updates should be applied.
-    ///     properties (dict[str, PropValue], optional): A dictionary of properties to update.
+    /// t (int | str | datetime): The timestamp at which the updates should be applied.
+    /// properties (dict[str, PropValue], optional): A dictionary of properties to update.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
@@ -101,10 +101,10 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn add_metadata(
         &self,
         py: Python,
@@ -136,10 +136,10 @@ impl PyRemoteNode {
     /// change over time. These properties are fundamental attributes of the node.
     ///
     /// Parameters:
-    ///     properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+    /// properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn update_metadata(
         &self,
         py: Python,

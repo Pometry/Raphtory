@@ -9,7 +9,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     cmp::{Ordering, Reverse},
     collections::BinaryHeap,
-    fmt::{Debug, Formatter},
+    fmt::{Binary, Debug, Formatter},
     ops::Deref,
 };
 
@@ -283,6 +283,37 @@ where
     }
 }
 
+pub fn top_k<V: Send + Sync, F>(iter: impl IntoIterator<Item = V>, cmp: F, k: usize) -> Vec<V>
+where
+    F: Fn(&V, &V) -> Ordering + Send + Sync,
+{
+    let mut heap: BinaryHeap<Reverse<Ordered<V, &F>>> = BinaryHeap::with_capacity(k);
+
+    for v in iter {
+        let elem = Reverse(Ordered {
+            value: v,
+            cmp_fn: &cmp,
+        });
+        if heap.len() < k {
+            // heap is still not full, push the element and return
+            heap.push(elem);
+        } else if heap.peek() > Some(&elem) {
+            // May need to push this element, drop the read guard and wait for write access
+            if let Some(mut first_mut) = heap.peek_mut() {
+                *first_mut = elem;
+            };
+        }
+    }
+
+    let values: Vec<V> = heap
+        .into_sorted_vec()
+        .into_iter()
+        .map(|Reverse(Ordered { value, .. })| value)
+        .collect();
+
+    values
+}
+
 pub fn par_top_k<V: Send + Sync, F>(
     iter: impl IntoParallelIterator<Item = V>,
     cmp: F,
@@ -310,7 +341,7 @@ where
             // May need to push this element, drop the read guard and wait for write access
             let mut write_guard = heap.write();
             if let Some(mut first_mut) = write_guard.peek_mut() {
-                if first_mut.deref() >= &elem {
+                if first_mut.deref() > &elem {
                     *first_mut = elem;
                 }
             };
@@ -329,13 +360,40 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::db::api::state::node_state_ord_ops::par_top_k;
+    use crate::db::api::state::node_state_ord_ops::{par_top_k, top_k};
+
+    use rand; // 0.8.5
+
+    use rand::distributions::{Distribution, Uniform};
+    use tokio::time::Instant;
+
+    fn gen_x_ints(
+        count: u32,
+        distribution: impl Distribution<u32>,
+        rng: &mut (impl rand::Rng + ?Sized),
+    ) -> Vec<u32> {
+        let mut results = Vec::with_capacity(count as usize);
+        let iter = distribution.sample_iter(rng);
+        for (_, sample) in (0..count).zip(iter) {
+            results.push(sample);
+        }
+        results
+    }
 
     #[test]
     fn test_top_k() {
-        let values = [4i32, 2, 3, 100, 4, 2];
-        let res = par_top_k(values, |a, b| a.cmp(b), 3);
-
-        assert_eq!(res, [100, 4, 4])
+        let values = gen_x_ints(
+            100_000_000,
+            Uniform::new(0, 10000000),
+            &mut rand::thread_rng(),
+        ); // [4i32, 2, 3, 100, 4, 2];
+        let timer = Instant::now();
+        let res1 = top_k(values.clone(), |a, b| a.cmp(b), 100);
+        println!("Top K in: {:?}", timer.elapsed());
+        let timer = Instant::now();
+        let res2 = par_top_k(values, |a, b| a.cmp(b), 100);
+        println!("Par Top K in: {:?}", timer.elapsed());
+        assert_eq!(res1, res2);
+        //assert_eq!(res, par_top_k(values, |a, b| a.cmp(b), 100))  //[100, 4, 4])
     }
 }

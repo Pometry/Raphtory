@@ -8,8 +8,11 @@ use super::{edge::GqlEdge, node::GqlNode};
 
 #[derive(Union)]
 #[graphql(name = "DocumentEntity")]
+/// Entity associated with document.
 pub(crate) enum GqlDocumentEntity {
+    /// Node
     Node(GqlNode),
+    /// Edge
     Edge(GqlEdge),
 }
 
@@ -22,10 +25,14 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
     }
 }
 
+/// Document in a vector graph
 #[derive(SimpleObject)]
 pub struct GqlDocument {
+    /// Entity associated with document.
     pub(crate) entity: GqlDocumentEntity,
+    /// Content of the document.
     pub(crate) content: String,
+    /// Similarity score with a specified query
     pub(crate) embedding: Vec<f32>,
     pub(crate) score: f32,
 }

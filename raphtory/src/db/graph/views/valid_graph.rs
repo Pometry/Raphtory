@@ -128,6 +128,21 @@ mod tests {
     }
 
     #[test]
+    fn test_explode_layers() {
+        let g = PersistentGraph::new();
+        g.add_edge(0, 0, 1, NO_PROPS, Some("a")).unwrap();
+        g.delete_edge(0, 0, 1, Some("b")).unwrap();
+        let gv = g.valid();
+        let edge = gv.edge(0, 1).unwrap();
+        let exploded = edge.explode_layers();
+        let layers = exploded
+            .layer_name()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(layers, ["a"]);
+    }
+
+    #[test]
     fn materialize_prop_test_events() {
         proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
             let g = Graph::from(build_graph(&graph_f)).valid();

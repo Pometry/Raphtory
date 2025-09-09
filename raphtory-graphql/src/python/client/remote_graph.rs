@@ -24,10 +24,10 @@ impl PyRemoteGraph {
     /// Gets a remote node with the specified id
     ///
     /// Arguments:
-    ///   id (str | int): the node id
+    /// id (str | int): the node id
     ///
     /// Returns:
-    ///   RemoteNode: the remote node reference
+    /// RemoteNode: the remote node reference
     pub fn node(&self, id: GID) -> PyRemoteNode {
         PyRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
     }
@@ -35,11 +35,11 @@ impl PyRemoteGraph {
     /// Gets a remote edge with the specified source and destination nodes
     ///
     /// Arguments:
-    ///     src (str | int): the source node id
-    ///     dst (str | int): the destination node id
+    /// src (str | int): the source node id
+    /// dst (str | int): the destination node id
     ///
     /// Returns:
-    ///     RemoteEdge: the remote edge reference
+    /// RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
         PyRemoteEdge::new(
@@ -53,10 +53,10 @@ impl PyRemoteGraph {
     /// Batch add node updates to the remote graph
     ///
     /// Arguments:
-    ///   updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+    /// updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (updates))]
     pub fn add_nodes(&self, py: Python, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
         let template = r#"
@@ -123,10 +123,10 @@ impl PyRemoteGraph {
     /// Batch add edge updates to the remote graph
     ///
     /// Arguments:
-    ///   updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+    /// updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
     ///
     /// Returns:
-    ///     None:
+    /// None:
     #[pyo3(signature = (updates))]
     pub fn add_edges(&self, py: Python, updates: Vec<PyEdgeAddition>) -> Result<(), GraphError> {
         let template = r#"
@@ -194,12 +194,12 @@ impl PyRemoteGraph {
     /// Adds a new node with the given id and properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int | str | datetime): The timestamp of the node.
-    ///    id (str | int): The id of the node.
-    ///    properties (dict, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
+    /// timestamp (int | str | datetime): The timestamp of the node.
+    /// id (str | int): The id of the node.
+    /// properties (dict, optional): The properties of the node.
+    /// node_type (str, optional): The optional string which will be used as a node type
     /// Returns:
-    ///   RemoteNode: the new remote node
+    /// RemoteNode: the new remote node
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
@@ -240,12 +240,12 @@ impl PyRemoteGraph {
     /// Create a new node with the given id and properties to the remote graph and fail if the node already exists.
     ///
     /// Arguments:
-    ///    timestamp (int | str | datetime): The timestamp of the node.
-    ///    id (str | int): The id of the node.
-    ///    properties (dict, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
+    /// timestamp (int | str | datetime): The timestamp of the node.
+    /// id (str | int): The id of the node.
+    /// properties (dict, optional): The properties of the node.
+    /// node_type (str, optional): The optional string which will be used as a node type
     /// Returns:
-    ///   RemoteNode: the new remote node
+    /// RemoteNode: the new remote node
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
@@ -286,11 +286,11 @@ impl PyRemoteGraph {
     /// Adds properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int | str | datetime): The timestamp of the temporal property.
-    ///    properties (dict): The temporal properties of the graph.
+    /// timestamp (int | str | datetime): The timestamp of the temporal property.
+    /// properties (dict): The temporal properties of the graph.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn add_property(
         &self,
         py: Python,
@@ -319,10 +319,10 @@ impl PyRemoteGraph {
     /// Adds metadata to the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    /// properties (dict): The metadata of the graph.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn add_metadata(
         &self,
         py: Python,
@@ -350,10 +350,10 @@ impl PyRemoteGraph {
     /// Updates metadata on the remote graph.
     ///
     /// Arguments:
-    ///     properties (dict): The metadata of the graph.
+    /// properties (dict): The metadata of the graph.
     ///
     /// Returns:
-    ///     None:
+    /// None:
     pub fn update_metadata(
         &self,
         py: Python,
@@ -382,14 +382,14 @@ impl PyRemoteGraph {
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.
     ///
     /// Arguments:
-    ///    timestamp (int | str | datetime): The timestamp of the edge.
-    ///    src (str | int): The id of the source node.
-    ///    dst (str | int): The id of the destination node.
-    ///    properties (dict, optional): The properties of the edge, as a dict of string and properties.
-    ///    layer (str, optional): The layer of the edge.
+    /// timestamp (int | str | datetime): The timestamp of the edge.
+    /// src (str | int): The id of the source node.
+    /// dst (str | int): The id of the destination node.
+    /// properties (dict, optional): The properties of the edge, as a dict of string and properties.
+    /// layer (str, optional): The layer of the edge.
     ///
     /// Returns:
-    ///   RemoteEdge: the remote edge
+    /// RemoteEdge: the remote edge
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
@@ -432,13 +432,13 @@ impl PyRemoteGraph {
     /// Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
     ///
     /// Arguments:
-    ///   timestamp (int): The timestamp of the edge.
-    ///   src (str | int): The id of the source node.
-    ///   dst (str | int): The id of the destination node.
-    ///   layer (str, optional): The layer of the edge.
+    /// timestamp (int): The timestamp of the edge.
+    /// src (str | int): The id of the source node.
+    /// dst (str | int): The id of the destination node.
+    /// layer (str, optional): The layer of the edge.
     ///
     /// Returns:
-    ///   RemoteEdge: the remote edge
+    /// RemoteEdge: the remote edge
     #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,

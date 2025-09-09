@@ -31,18 +31,27 @@ use std::{
 
 #[derive(InputObject, Clone, Debug)]
 pub struct ObjectEntry {
+    /// Key.
     pub key: String,
+    /// Value.
     pub value: Value,
 }
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Value {
+    /// 64 bit unsigned integer.
     U64(u64),
+    /// 64 bit signed integer.
     I64(i64),
+    /// 64 bit float.
     F64(f64),
+    /// String.
     Str(String),
+    /// Boolean.
     Bool(bool),
+    /// List.
     List(Vec<Value>),
+    /// Object.
     Object(Vec<ObjectEntry>),
 }
 
@@ -260,6 +269,7 @@ impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperty {
+    /// Key of a property.
     async fn key(&self) -> String {
         self.key.clone()
     }
@@ -269,6 +279,7 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.history().into()).await
     }
 
+    /// Return the values of the properties.
     async fn values(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
@@ -365,16 +376,19 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlProperties {
+    /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
     }
 
+    /// Check if the key is in the properties.
     async fn contains(&self, key: String) -> bool {
         self.props.get(&key).is_some()
     }
 
+    /// Return all property keys.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -387,6 +401,7 @@ impl GqlProperties {
         .await
     }
 
+    /// Return all property values.
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {
@@ -418,21 +433,25 @@ impl GqlProperties {
 
 #[ResolvedObjectFields]
 impl GqlMetadata {
+    /// Get metadata value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
     }
 
+    /// /// Check if the key is in the metadata.
     async fn contains(&self, key: String) -> bool {
         self.props.contains(key.as_str())
     }
 
+    /// Return all metadata keys.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
     }
 
+    /// /// Return all metadata values.
     pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {
@@ -460,14 +479,17 @@ impl GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperties {
+    /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
         self.props.get(key.as_str()).map(move |p| (key, p).into())
     }
 
+    /// Check if the key is in the properties.
     async fn contains(&self, key: String) -> bool {
         self.props.get(&key).is_some()
     }
 
+    /// Return all property keys.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -480,6 +502,7 @@ impl GqlTemporalProperties {
         .await
     }
 
+    /// Return all property values.
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {
