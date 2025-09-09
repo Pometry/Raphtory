@@ -43,6 +43,15 @@ fn load_movies(row: Row, graph: &rap::Graph) {
 }
 
 /// Returns the neo4j movie graph example.
+///
+/// Parameters:
+///     uri: (str)
+///     username: (str)
+///     password: (str)
+///     database: (str)
+///
+/// Returns:
+///     Graph:
 pub async fn neo4j_movie_graph(
     uri: String,
     username: String,

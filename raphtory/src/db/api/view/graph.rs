@@ -718,6 +718,9 @@ pub struct IndexSpecBuilder<G: BoxableGraphView + Sized + Clone + 'static> {
 
 impl<G: BoxableGraphView + Sized + Clone + 'static> IndexSpecBuilder<G> {
     /// Create a new IndexSpecBuilder.
+    ///
+    /// Parameter:
+    ///     graph:
     pub fn new(graph: G) -> Self {
         Self {
             graph,

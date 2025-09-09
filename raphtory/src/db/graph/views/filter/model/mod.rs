@@ -107,6 +107,15 @@ impl Filter {
         }
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
+    ///  
     pub fn fuzzy_search(
         field_name: impl Into<String>,
         field_value: impl Into<String>,
@@ -324,30 +333,117 @@ impl<T: InternalPropertyFilterOps> InternalPropertyFilterOps for Arc<T> {
 
 /// Property filter operators.
 pub trait PropertyFilterOps {
+    /// Equals
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Not equals
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Less than or equal to
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Greater than or equal to
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Less than or equal to
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Greater than
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Is in
+    ///
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
+    /// Is not in
+    ///
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter;
 
+    /// Is none
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_none(&self) -> PropertyFilter;
 
+    /// Is some
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_some(&self) -> PropertyFilter;
 
+    /// Contains
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Not contains
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter;
 
+    /// Fuzzy search
+    ///
+    /// Parameters:
+    ///     prop_value:
+    ///     levenshtein_distance:
+    ///     prefix_match:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -357,54 +453,119 @@ pub trait PropertyFilterOps {
 }
 
 impl<T: ?Sized + InternalPropertyFilterOps> PropertyFilterOps for T {
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn eq(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::eq(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn ne(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::ne(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn le(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::le(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn ge(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::ge(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn lt(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::lt(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn gt(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::gt(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
         PropertyFilter::is_in(self.property_ref(), values)
     }
 
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn is_not_in(&self, values: impl IntoIterator<Item = Prop>) -> PropertyFilter {
         PropertyFilter::is_not_in(self.property_ref(), values)
     }
 
+    /// Returns:
+    ///     PropertyFilter:
     fn is_none(&self) -> PropertyFilter {
         PropertyFilter::is_none(self.property_ref())
     }
 
+    /// Returns:
+    ///     PropertyFilter:
     fn is_some(&self) -> PropertyFilter {
         PropertyFilter::is_some(self.property_ref())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn contains(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::contains(self.property_ref(), value.into())
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     PropertyFilter:
     fn not_contains(&self, value: impl Into<Prop>) -> PropertyFilter {
         PropertyFilter::not_contains(self.property_ref(), value.into())
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
+    ///  
+    /// Returns:
+    ///     PropertyFilter:
     fn fuzzy_search(
         &self,
         prop_value: impl Into<String>,
@@ -530,6 +691,15 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
         Filter::not_contains(self.field_name(), value.into()).into()
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
+    ///  
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
@@ -586,18 +756,71 @@ impl<T: InternalEdgeFilterBuilderOps> InternalEdgeFilterBuilderOps for Arc<T> {
 }
 
 pub trait EdgeFilterOps {
+    /// Equals
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
+    /// Not equals
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
+    /// Is in
+    ///
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
+    /// Is not in
+    ///
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter;
 
+    /// Contains
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
+    /// Not contains
+    ///
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter;
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
+    ///  
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn fuzzy_search(
         &self,
         value: impl Into<String>,
@@ -607,30 +830,71 @@ pub trait EdgeFilterOps {
 }
 
 impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn eq(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::eq(self.field_name(), value))
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn ne(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::ne(self.field_name(), value))
     }
 
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn is_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::is_in(self.field_name(), values))
     }
 
+    /// Parameters:
+    ///     values:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn is_not_in(&self, values: impl IntoIterator<Item = String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::is_not_in(self.field_name(), values))
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::contains(self.field_name(), value.into()))
     }
 
+    /// Parameters:
+    ///     value:
+    ///
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn not_contains(&self, value: impl Into<String>) -> EdgeFieldFilter {
         EdgeFieldFilter(Filter::not_contains(self.field_name(), value.into()))
     }
 
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
+    /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
+    ///  
+    /// Returns:
+    ///     EdgeFieldFilter:
     fn fuzzy_search(
         &self,
         value: impl Into<String>,

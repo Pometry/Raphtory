@@ -76,12 +76,17 @@ impl PyEdgeFilterOp {
         PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
     }
 
-    /// Returns a filter expression that checks if a given value approximately matches the specified string.
-    ///  
+    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
+    ///
+    /// Parameters:
+    ///     prop_value: (str)
+    ///     levenshtein_distance: (usize)
+    ///     prefix_match: (bool)
     ///  
     /// Returns:
-    ///     filter expression
+    ///     FilterExpr:
     fn fuzzy_search(
         &self,
         value: String,

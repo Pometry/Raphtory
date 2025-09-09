@@ -315,138 +315,165 @@ class RaphtoryClient(object):
         """
 
 class RemoteGraph(object):
-    def add_edge(self, timestamp, src, dst, properties=None, layer=None):
+    def add_edge(
+        self,
+        timestamp: int | str | datetime,
+        src: str | int,
+        dst: str | int,
+        properties: Optional[dict] = None,
+        layer: Optional[str] = None,
+    ) -> RemoteEdge:
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
 
         Arguments:
-        timestamp (int | str | datetime): The timestamp of the edge.
-        src (str | int): The id of the source node.
-        dst (str | int): The id of the destination node.
-        properties (dict, optional): The properties of the edge, as a dict of string and properties.
-        layer (str, optional): The layer of the edge.
+            timestamp (int | str | datetime): The timestamp of the edge.
+            src (str | int): The id of the source node.
+            dst (str | int): The id of the destination node.
+            properties (dict, optional): The properties of the edge, as a dict of string and properties.
+            layer (str, optional): The layer of the edge.
 
         Returns:
-        RemoteEdge: the remote edge
+            RemoteEdge: the remote edge
         """
 
-    def add_edges(self, updates):
+    def add_edges(self, updates: List[RemoteEdgeAddition]) -> None:
         """
         Batch add edge updates to the remote graph
 
         Arguments:
-        updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+            updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
 
         Returns:
-        None:
+            None:
         """
 
-    def add_metadata(self, properties):
+    def add_metadata(self, properties: dict) -> None:
         """
         Adds metadata to the remote graph.
 
         Arguments:
-        properties (dict): The metadata of the graph.
+            properties (dict): The metadata of the graph.
 
         Returns:
-        None:
+            None:
         """
 
-    def add_node(self, timestamp, id, properties=None, node_type=None):
+    def add_node(
+        self,
+        timestamp: int | str | datetime,
+        id: str | int,
+        properties: Optional[dict] = None,
+        node_type: Optional[str] = None,
+    ) -> RemoteNode:
         """
         Adds a new node with the given id and properties to the remote graph.
 
         Arguments:
-        timestamp (int | str | datetime): The timestamp of the node.
-        id (str | int): The id of the node.
-        properties (dict, optional): The properties of the node.
-        node_type (str, optional): The optional string which will be used as a node type
+            timestamp (int | str | datetime): The timestamp of the node.
+            id (str | int): The id of the node.
+            properties (dict, optional): The properties of the node.
+            node_type (str, optional): The optional string which will be used as a node type
+
         Returns:
-        RemoteNode: the new remote node
+            RemoteNode: the new remote node
         """
 
-    def add_nodes(self, updates):
+    def add_nodes(self, updates: List[RemoteNodeAddition]) -> None:
         """
         Batch add node updates to the remote graph
 
         Arguments:
-        updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+            updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
 
         Returns:
-        None:
+            None:
         """
 
-    def add_property(self, timestamp, properties):
+    def add_property(self, timestamp: int | str | datetime, properties: dict) -> None:
         """
         Adds properties to the remote graph.
 
         Arguments:
-        timestamp (int | str | datetime): The timestamp of the temporal property.
-        properties (dict): The temporal properties of the graph.
+            timestamp (int | str | datetime): The timestamp of the temporal property.
+            properties (dict): The temporal properties of the graph.
 
         Returns:
-        None:
+            None:
         """
 
-    def create_node(self, timestamp, id, properties=None, node_type=None):
+    def create_node(
+        self,
+        timestamp: int | str | datetime,
+        id: str | int,
+        properties: Optional[dict] = None,
+        node_type: Optional[str] = None,
+    ) -> RemoteNode:
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
 
         Arguments:
-        timestamp (int | str | datetime): The timestamp of the node.
-        id (str | int): The id of the node.
-        properties (dict, optional): The properties of the node.
-        node_type (str, optional): The optional string which will be used as a node type
+            timestamp (int | str | datetime): The timestamp of the node.
+            id (str | int): The id of the node.
+            properties (dict, optional): The properties of the node.
+            node_type (str, optional): The optional string which will be used as a node type
+
         Returns:
-        RemoteNode: the new remote node
+            RemoteNode: the new remote node
         """
 
-    def delete_edge(self, timestamp, src, dst, layer=None):
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str] = None,
+    ) -> RemoteEdge:
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
 
         Arguments:
-        timestamp (int): The timestamp of the edge.
-        src (str | int): The id of the source node.
-        dst (str | int): The id of the destination node.
-        layer (str, optional): The layer of the edge.
+            timestamp (int): The timestamp of the edge.
+            src (str | int): The id of the source node.
+            dst (str | int): The id of the destination node.
+            layer (str, optional): The layer of the edge.
 
         Returns:
-        RemoteEdge: the remote edge
+            RemoteEdge: the remote edge
         """
 
-    def edge(self, src, dst):
+    def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
         """
         Gets a remote edge with the specified source and destination nodes
 
         Arguments:
-        src (str | int): the source node id
-        dst (str | int): the destination node id
+            src (str | int): the source node id
+            dst (str | int): the destination node id
 
         Returns:
-        RemoteEdge: the remote edge reference
+            RemoteEdge: the remote edge reference
         """
 
-    def node(self, id):
+    def node(self, id: str | int) -> RemoteNode:
         """
         Gets a remote node with the specified id
 
         Arguments:
-        id (str | int): the node id
+            id (str | int): the node id
 
         Returns:
-        RemoteNode: the remote node reference
+            RemoteNode: the remote node reference
         """
 
-    def update_metadata(self, properties):
+    def update_metadata(self, properties: dict) -> None:
         """
         Updates metadata on the remote graph.
 
         Arguments:
-        properties (dict): The metadata of the graph.
+            properties (dict): The metadata of the graph.
 
         Returns:
-        None:
+            None:
         """
 
 class RemoteEdge(object):
@@ -458,21 +485,28 @@ class RemoteEdge(object):
     and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
     """
 
-    def add_metadata(self, properties, layer=None):
+    def add_metadata(
+        self, properties: dict[str, PropValue], layer: Optional[str] = None
+    ) -> None:
         """
         Add metadata to the edge within the remote graph.
         This function is used to add metadata to an edge that does not
         change over time. This metadata is fundamental information of the edge.
 
         Parameters:
-        properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-        layer (str, optional): The layer you want these properties to be added on to.
+          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
-        None:
+          None:
         """
 
-    def add_updates(self, t, properties=None, layer=None):
+    def add_updates(
+        self,
+        t: int | str | datetime,
+        properties: Optional[dict[str, PropValue]] = None,
+        layer: Optional[str] = None,
+    ) -> None:
         """
         Add updates to an edge in the remote graph at a specified time.
 
@@ -480,68 +514,72 @@ class RemoteEdge(object):
         The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-        t (int | str | datetime): The timestamp at which the updates should be applied.
-        properties (dict[str, PropValue], optional): A dictionary of properties to update.
-        layer (str, optional): The layer you want the updates to be applied.
+          t (int | str | datetime): The timestamp at which the updates should be applied.
+          properties (dict[str, PropValue], optional): A dictionary of properties to update.
+          layer (str, optional): The layer you want the updates to be applied.
 
         Returns:
-        None:
+          None:
         """
 
-    def delete(self, t, layer=None):
+    def delete(self, t: int | str | datetime, layer: Optional[str] = None) -> None:
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
-        t (int | str | datetime): The timestamp at which the deletion should be applied.
-        layer (str, optional): The layer you want the deletion applied to.
+          t (int | str | datetime): The timestamp at which the deletion should be applied.
+          layer (str, optional): The layer you want the deletion applied to.
 
         Returns:
           None:
 
         Raises:
-            GraphError: If the operation fails.
+          GraphError: If the operation fails.
         """
 
-    def update_metadata(self, properties, layer=None):
+    def update_metadata(
+        self, properties: dict[str, PropValue], layer: Optional[str] = None
+    ) -> None:
         """
         Update metadata of an edge in the remote graph overwriting existing values.
         This function is used to add properties to an edge that does not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-        properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-        layer (str, optional): The layer you want these properties to be added on to.
+          properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+          layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
-        None:
+          None:
         """
 
 class RemoteNode(object):
-    def add_metadata(self, properties):
+    def add_metadata(self, properties: dict[str, PropValue]) -> None:
         """
         Add metadata to a node in the remote graph.
         This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-        properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+          properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
-        None:
+          None:
         """
 
-    def add_updates(self, t, properties=None):
+    def add_updates(
+        self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None
+    ) -> None:
         """
         Add updates to a node in the remote graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-        t (int | str | datetime): The timestamp at which the updates should be applied.
-        properties (dict[str, PropValue], optional): A dictionary of properties to update.
+          t (int | str | datetime): The timestamp at which the updates should be applied.
+          properties (dict[str, PropValue], optional): A dictionary of properties to update.
 
         Returns:
-        None:
+          None:
         """
 
     def set_node_type(self, new_type: str) -> None:
@@ -556,17 +594,17 @@ class RemoteNode(object):
           None:
         """
 
-    def update_metadata(self, properties):
+    def update_metadata(self, properties: dict[str, PropValue]) -> None:
         """
         Update metadata of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that does not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-        properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+          properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
-        None:
+          None:
         """
 
 class RemoteNodeAddition(object):
@@ -574,14 +612,18 @@ class RemoteNodeAddition(object):
     Node addition update
 
     Arguments:
-    name (GID): the id of the node
-    node_type (str, optional): the node type
-    metadata (PropInput, optional): the metadata
-    updates (list[RemoteUpdate], optional): the temporal updates
+        name (GID): the id of the node
+        node_type (str, optional): the node type
+        metadata (PropInput, optional): the metadata
+        updates (list[RemoteUpdate], optional): the temporal updates
     """
 
     def __new__(
-        cls, name, node_type=None, metadata=None, updates=None
+        cls,
+        name: GID,
+        node_type: Optional[str] = None,
+        metadata: Optional[PropInput] = None,
+        updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -590,11 +632,13 @@ class RemoteUpdate(object):
     A temporal update
 
     Arguments:
-    time (TimeInput): the timestamp for the update
-    properties (PropInput, optional): the properties for the update
+        time (TimeInput): the timestamp for the update
+        properties (PropInput, optional): the properties for the update
     """
 
-    def __new__(cls, time, properties=None) -> RemoteUpdate:
+    def __new__(
+        cls, time: TimeInput, properties: Optional[PropInput] = None
+    ) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class RemoteEdgeAddition(object):
@@ -602,15 +646,20 @@ class RemoteEdgeAddition(object):
     An edge update
 
     Arguments:
-    src (GID): the id of the source node
-    dst (GID): the id of the destination node
-    layer (str, optional): the layer for the update
-    metadata (PropInput, optional): the metadata for the edge
-    updates (list[RemoteUpdate], optional): the temporal updates for the edge
+        src (GID): the id of the source node
+        dst (GID): the id of the destination node
+        layer (str, optional): the layer for the update
+        metadata (PropInput, optional): the metadata for the edge
+        updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
     def __new__(
-        cls, src, dst, layer=None, metadata=None, updates=None
+        cls,
+        src: GID,
+        dst: GID,
+        layer: Optional[str] = None,
+        metadata: Optional[PropInput] = None,
+        updates: Optional[list[RemoteUpdate]] = None,
     ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -619,11 +668,11 @@ class RemoteIndexSpec(object):
     Create a RemoteIndexSpec specifying which node and edge properties to index.
 
     Arguments:
-    node_props (PropsInput): Property spec for nodes.
-    edge_props (PropsInput): Property spec for edges.
+        node_props (PropsInput): Property spec for nodes.
+        edge_props (PropsInput): Property spec for edges.
     """
 
-    def __new__(cls, node_props, edge_props) -> RemoteIndexSpec:
+    def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class PropsInput(object):
@@ -631,14 +680,18 @@ class PropsInput(object):
     Create a PropsInput by choosing to include all/some properties explicitly.
 
     Arguments:
-    all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
-    some (SomePropertySpec, optional): Explicitly list the properties to include.
+        all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+        some (SomePropertySpec, optional): Explicitly list the properties to include.
 
     Raises:
-    ValueError: If neither all and some are specified.
+        ValueError: If neither all and some are specified.
     """
 
-    def __new__(cls, all=None, some=None) -> PropsInput:
+    def __new__(
+        cls,
+        all: Optional[AllPropertySpec] = None,
+        some: Optional[SomePropertySpec] = None,
+    ) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class SomePropertySpec(object):
@@ -646,11 +699,13 @@ class SomePropertySpec(object):
     Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
 
     Arguments:
-    metadata (list[str]): Metadata property names. Defaults to [].
-    temporal (list[str]): Temporal property names. Defaults to [].
+        metadata (list[str]): Metadata property names. Defaults to [].
+        properties (list[str]): Temporal property names. Defaults to [].
     """
 
-    def __new__(cls, metadata=..., properties=...) -> SomePropertySpec:
+    def __new__(
+        cls, metadata: list[str] = [], properties: list[str] = []
+    ) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 class AllPropertySpec(object):

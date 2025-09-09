@@ -22,6 +22,13 @@ pub struct StableCoin {
 }
 
 /// Returns the stablecoin graph example.
+///
+/// Parameters:
+///     path:
+///     subset:
+///
+/// Returns:
+///     Graph:
 pub fn stable_coin_graph(path: Option<String>, subset: bool) -> Graph {
     let data_dir = match path {
         Some(path) => PathBuf::from(path),

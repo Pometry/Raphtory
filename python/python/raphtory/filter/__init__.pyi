@@ -71,30 +71,43 @@ class PropertyFilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
+    def contains(self, value: Any):
         """
         Returns a filter expression that checks if this object contains a specified property.
 
+        Parameters:
+            value:
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
-    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match):
+    def fuzzy_search(
+        self, prop_value: Any, levenshtein_distance: Any, prefix_match: Any
+    ):
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
+        Parameters:
+            prop_value: (str)
+            levenshtein_distance: (usize)
+            prefix_match: (bool)
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
-    def is_in(self, values):
+    def is_in(self, values: Any):
         """
         Returns a filter expression that checks if a given value is in a specified iterable of properties.
 
+        Parameters:
+            values:
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
     def is_none(self):
@@ -102,15 +115,18 @@ class PropertyFilterOps(object):
         Returns a filter expression that checks if a given value is none.
 
         Returns:
-            filter expression
+            FilterExpr:
         """
 
-    def is_not_in(self, values):
+    def is_not_in(self, values: Any):
         """
         Returns a filter expression that checks if a given value is not in a specified iterable of properties.
 
+        Parameters:
+            values:
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
     def is_some(self):
@@ -118,15 +134,18 @@ class PropertyFilterOps(object):
         Returns a filter expression that checks if a given value is some.
 
         Returns:
-            filter expression
+            FilterExpr:
         """
 
-    def not_contains(self, value):
+    def not_contains(self, value: Any):
         """
         Returns a filter expression that checks if this object does not contain a specified property.
 
+        Parameters:
+            value:
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
 class NodeFilterBuilder(object):
@@ -154,43 +173,61 @@ class NodeFilterBuilder(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
+    def contains(self, value: Any):
         """
         Returns a filter expression that checks if the specified iterable of strings contains a given value.
+
+        Parameters:
+            value:
 
         Returns:
             filter expression
         """
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+    def fuzzy_search(self, value: Any, levenshtein_distance: Any, prefix_match: Any):
         """
         Returns a filter expression that checks if the specified properties approximately match the specified string.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
+        Parameters:
+            value:
+            levenshtein_distance:
+            prefix_match:
+
         Returns:
             filter expression
         """
 
-    def is_in(self, values):
+    def is_in(self, values: Any):
         """
         Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
 
+        Parameters:
+            values:
+
         Returns:
             filter expression
         """
 
-    def is_not_in(self, values):
+    def is_not_in(self, values: Any):
         """
         Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
 
+        Parameters:
+            values:
+
         Returns:
             filter expression
         """
 
-    def not_contains(self, value):
+    def not_contains(self, value: Any):
         """
         Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
+
+
+        Parameters:
+            value:
 
         Returns:
             filter expression
@@ -242,14 +279,19 @@ class EdgeFilterOp(object):
             filter expression
         """
 
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+    def fuzzy_search(self, value, levenshtein_distance: Any, prefix_match: Any):
         """
-        Returns a filter expression that checks if a given value approximately matches the specified string.
+        Returns a filter expression that checks if the specified properties approximately match the specified string.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
+        Parameters:
+            prop_value: (str)
+            levenshtein_distance: (usize)
+            prefix_match: (bool)
+
         Returns:
-            filter expression
+            FilterExpr:
         """
 
     def is_in(self, values):
