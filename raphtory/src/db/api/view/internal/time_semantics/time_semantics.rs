@@ -11,7 +11,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_storage::graph::{nodes::node_ref::NodeStorageRef};
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 use std::ops::Range;
 use storage::EdgeEntryRef;
 

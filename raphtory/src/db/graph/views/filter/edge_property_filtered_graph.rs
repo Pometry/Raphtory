@@ -16,7 +16,7 @@ use crate::{
     prelude::{GraphViewOps, LayerOps},
 };
 use raphtory_api::inherit::Base;
-use raphtory_storage::{core_ops::InheritCoreGraphOps};
+use raphtory_storage::core_ops::InheritCoreGraphOps;
 use storage::EdgeEntryRef;
 
 #[derive(Debug, Clone)]

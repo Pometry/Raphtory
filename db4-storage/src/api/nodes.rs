@@ -11,6 +11,7 @@ use raphtory_api::{
     },
     iter::IntoDynBoxed,
 };
+use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::{EID, GidRef, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{TimeIndexEntry, TimeIndexOps},
@@ -171,6 +172,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn vid(&self) -> VID;
 
+    #[box_on_debug_lifetime]
     fn edges_dir(
         self,
         layer_id: usize,
@@ -202,6 +204,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         }
     }
 
+    #[box_on_debug_lifetime]
     fn edges_iter<'b>(
         self,
         layers_ids: &'b LayerIds,

@@ -12,6 +12,7 @@ edition = "2024"
 
 [dependencies]
 raphtory-api.workspace = true
+raphtory-api-macros.workspace = true
 raphtory-core = { workspace = true }
 # db4-common = {path = "../db4-common"}
 

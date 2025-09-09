@@ -10,7 +10,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, LayerIds, ELID},
     storage::timeindex::TimeIndexEntry,
 };
-use raphtory_storage::graph::{ nodes::node_ref::NodeStorageRef};
+use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
 use std::ops::Range;
 use storage::EdgeEntryRef;
 
@@ -286,8 +286,6 @@ impl EdgeTimeSemanticsOps for BaseTimeSemantics {
     ) -> impl Iterator<Item = (TimeIndexEntry, usize)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.edge_history_window(edge, view, layer_ids, w))
     }
-
-
 
     #[inline]
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
