@@ -4372,12 +4372,12 @@ class Edges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> Iterable[Optional[TimeIndexEntry]]:
         """
         Returns the earliest time of the edges.
 
         Returns:
-            Iterable[Option[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
+            Iterable[Optional[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
         """
 
     @property
@@ -4497,12 +4497,12 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> Iterable[Optional[TimeIndexEntry]]:
         """
         Returns the latest times of the edges.
 
         Returns:
-            Iterable[Option[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
+            Iterable[Optional[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
         """
 
     def layer(self, name: str) -> Edges:
@@ -4791,12 +4791,12 @@ class NestedEdges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_time(self):
+    def earliest_time(self) -> Iterable[Iterable[Optional[TimeIndexEntry]]]:
         """
         Get the earliest time of the edges as TimeIndexEntry.
 
         Returns:
-            Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the earliest times.
+            Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the earliest times.
         """
 
     @property
@@ -4916,12 +4916,12 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self):
+    def latest_time(self) -> Iterable[Iterable[Optional[TimeIndexEntry]]]:
         """
         Get the latest time of the edges as TimeIndexEntry.
 
         Returns:
-            Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the latest times.
+            Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the latest times.
         """
 
     def layer(self, name: str) -> NestedEdges:

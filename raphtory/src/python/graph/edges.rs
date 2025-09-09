@@ -86,7 +86,7 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    ///     Iterable[Option[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
+    ///     Iterable[Optional[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
     #[getter]
     fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -96,7 +96,7 @@ impl PyEdges {
     /// Returns the latest times of the edges.
     ///
     /// Returns:
-    ///     Iterable[Option[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
+    ///     Iterable[Optional[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
     #[getter]
     fn latest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -366,7 +366,7 @@ impl PyNestedEdges {
     /// Get the earliest time of the edges as TimeIndexEntry.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the earliest times.
+    ///     Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the earliest times.
     #[getter]
     fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -376,7 +376,7 @@ impl PyNestedEdges {
     /// Get the latest time of the edges as TimeIndexEntry.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Option[TimeIndexEntry]]]: A nested iterable of the latest times.
+    ///     Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the latest times.
     #[getter]
     fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
