@@ -656,10 +656,5 @@ mod test {
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"
         );
-
-        let actual_size = bincode::serialize(writer.mut_segment.deref())
-            .unwrap()
-            .len();
-        println!("{actual_size} vs {est_size7}");
     }
 }

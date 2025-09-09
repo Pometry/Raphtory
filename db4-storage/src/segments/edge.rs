@@ -560,7 +560,7 @@ mod test {
 
         assert!(est_size1 > 0);
 
-        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), 5, 3, 0, 0);
+        segment.delete_edge_internal(TimeIndexEntry::new(2, 3), LocalPOS(0), VID(5), VID(3), 0, 0);
 
         let est_size2 = segment.est_size();
 
