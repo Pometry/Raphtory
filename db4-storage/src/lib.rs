@@ -103,7 +103,6 @@ pub mod error {
 #[repr(transparent)]
 pub struct LocalPOS(pub u32);
 
-
 impl From<usize> for LocalPOS {
     fn from(value: usize) -> Self {
         assert!(value <= u32::MAX as usize);
