@@ -22,15 +22,18 @@ use std::{path::PathBuf, sync::Arc, thread};
 /// A class for defining and running a Raphtory GraphQL server
 ///
 /// Arguments:
-/// work_dir (str | PathLike): the working directory for the server
-/// cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-/// cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-/// log_level (str, optional): the log level for the server
-/// tracing (bool, optional): whether tracing should be enabled
-/// otlp_agent_host (str, optional): OTLP agent host for tracing
-/// otlp_agent_port(str, optional): OTLP agent port for tracing
-/// otlp_tracing_service_name (str, optional): The OTLP tracing service name
-/// config_path (str | PathLike, optional): Path to the config file
+///     work_dir (str | PathLike): the working directory for the server
+///     cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
+///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
+///     log_level (str, optional): the log level for the server
+///     tracing (bool, optional): whether tracing should be enabled
+///     otlp_agent_host (str, optional): OTLP agent host for tracing
+///     otlp_agent_port(str, optional): OTLP agent port for tracing
+///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
+///     config_path (str | PathLike, optional): Path to the config file
+///     auth_public_key:
+///     auth_enabled_for_reads:
+///     create_index:
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(pub Option<GraphServer>);
 

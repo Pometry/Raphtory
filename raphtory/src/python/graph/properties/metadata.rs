@@ -56,7 +56,7 @@ impl PyMetadata {
     /// lists the property values
     ///
     /// Returns:
-    ///     list | Array: the property values
+    ///     list[PropValue]:
     pub fn values(&self) -> Vec<Prop> {
         self.props.iter_filtered().map(|(_, value)| value).collect()
     }

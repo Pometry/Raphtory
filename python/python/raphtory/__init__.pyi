@@ -6290,8 +6290,10 @@ class PyPropValueList(object):
 
     def collect(self): ...
     def count(self): ...
-    def drop_none(self):
+    def drop_none(self) -> list[PropValue]:
         """
+        Drop none.
+
         Returns:
             list[PropValue]:
         """
@@ -6312,9 +6314,29 @@ class PyPropValueList(object):
             PropValue: The mean of each property values, or None if count is zero.
         """
 
-    def median(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def median(self) -> PropValue:
+        """
+        Compute the median of all property values.
+
+        Returns:
+            PropValue:
+        """
+
+    def min(self) -> PropValue:
+        """
+        Min property value.
+
+        Returns:
+            PropValue:
+        """
+
+    def sum(self) -> PropValue:
+        """
+        Sum of property values.
+
+        Returns:
+            PropValue:
+        """
 
 class Metadata(object):
     """A view of metadata of an entity"""
@@ -6389,12 +6411,12 @@ class Metadata(object):
             list[str]: the property keys
         """
 
-    def values(self):
+    def values(self) -> list[PropValue]:
         """
         lists the property values
 
         Returns:
-            list | Array: the property values
+            list[PropValue]:
         """
 
 class TemporalProperties(object):
@@ -6602,12 +6624,15 @@ class TemporalProp(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def at(self, t):
+    def at(self, t: Any) -> Optional[PropValue]:
         """
         Get the value of the property at a specified time.
 
+        Arguments:
+            t: time.
+
         Returns:
-            Optional[Prop]:
+            Optional[PropValue]:
         """
 
     def average(self) -> PropValue:
@@ -6690,9 +6715,12 @@ class TemporalProp(object):
             Tuple[int, PropValue]: A tuple containing the time and the minimum property value.
         """
 
-    def ordered_dedupe(self, latest_time) -> List[int]:
+    def ordered_dedupe(self, latest_time: Any) -> List[int]:
         """
         List of ordered deduplicated property values.
+
+        Arguments:
+            latest_time: Enable to check only latest time.
 
         Returns:
             List[int]:
@@ -6706,20 +6734,20 @@ class TemporalProp(object):
             PropValue: The sum of all property values.
         """
 
-    def unique(self):
+    def unique(self) -> List[PropValue]:
         """
         List of unique property values.
 
         Returns:
-            List[Prop]:
+            List[PropValue]:
         """
 
-    def value(self):
+    def value(self) -> Optional[PropValue]:
         """
         Get the latest value of the property.
 
         Returns:
-            Optional[Prop]:
+            Optional[PropValue]:
         """
 
     def values(self):
@@ -6736,16 +6764,16 @@ class WindowSet(object):
 
     def time_index(self, center: bool = False) -> Iterable:
         """
-        Returns the time index of this window set
+        Returns the time index of this window set.
 
         It uses the last time of each window as the reference or the center of each if `center` is
-        set to `True`
+        set to `True`.
 
         Arguments:
-            center (bool): if True time indexes are centered. Defaults to False
+            center (bool): If True time indexes are centered. Defaults to False.
 
         Returns:
-            Iterable: the time index"
+            Iterable: The time index.
         """
 
 class IndexSpecBuilder(object):
@@ -6760,16 +6788,91 @@ class IndexSpecBuilder(object):
             IndexSpec:
         """
 
-    def with_all_edge_metadata(self): ...
-    def with_all_edge_properties(self): ...
-    def with_all_edge_properties_and_metadata(self): ...
-    def with_all_node_metadata(self): ...
-    def with_all_node_properties(self): ...
-    def with_all_node_properties_and_metadata(self): ...
-    def with_edge_metadata(self, props): ...
-    def with_edge_properties(self, props): ...
-    def with_node_metadata(self, props): ...
-    def with_node_properties(self, props): ...
+    def with_all_edge_metadata(self):
+        """
+        Adds all edge metadata to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_all_edge_properties(self):
+        """
+        Adds all edge properties to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_all_edge_properties_and_metadata(self):
+        """
+        Adds all edge properties and metadata to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_all_node_metadata(self):
+        """
+        Adds all node metadata to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_all_node_properties(self):
+        """
+        Adds all node properties to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_all_node_properties_and_metadata(self):
+        """
+        Adds all node properties and metadata to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_edge_metadata(self, props: Any):
+        """
+        Adds specified edge metadata to the spec.
+
+        Arguments:
+            props: List of metadata.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_edge_properties(self, props: Any):
+        """
+        Adds specified edge properties to the spec.
+
+        Arguments:
+            props: List of properties.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_node_metadata(self, props):
+        """
+        Adds specified node metadata to the spec.
+
+        Returns:
+            PyResult:
+        """
+
+    def with_node_properties(self, props):
+        """
+        Adds specified node properties to the spec.
+
+        Returns:
+            PyResult:
+        """
 
 class IndexSpec(object):
     def __repr__(self):

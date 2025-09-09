@@ -105,60 +105,106 @@ impl PyIndexSpecBuilder {
         }
     }
 
+    /// Adds all node properties and metadata to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_node_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_properties_and_metadata(),
         })
     }
 
+    /// Adds all node metadata to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_node_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_metadata(),
         })
     }
 
+    /// Adds all node properties to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_node_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_node_properties(),
         })
     }
 
+    /// Adds specified node metadata to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_node_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_node_metadata(props)?,
         })
     }
 
+    /// Adds specified node properties to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_node_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_node_properties(props)?,
         })
     }
 
+    /// Adds all edge properties and metadata to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_edge_properties_and_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_properties_and_metadata(),
         })
     }
 
+    /// Adds all edge metadata to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_edge_metadata(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_metadata(),
         })
     }
 
+    /// Adds all edge properties to the spec.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_all_edge_properties(&mut self) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_all_edge_properties(),
         })
     }
 
+    /// Adds specified edge metadata to the spec.
+    ///
+    /// Arguments:
+    ///     props: List of metadata.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_edge_metadata(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_edge_metadata(props)?,
         })
     }
 
+    /// Adds specified edge properties to the spec.
+    ///
+    /// Arguments:
+    ///     props: List of properties.
+    ///
+    /// Returns:
+    ///     PyResult:
     pub fn with_edge_properties(&mut self, props: Vec<String>) -> PyResult<Self> {
         Ok(Self {
             builder: self.builder.clone().with_edge_properties(props)?,
