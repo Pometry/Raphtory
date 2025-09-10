@@ -4,16 +4,14 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
-            nodes::Nodes,
         },
     },
     errors::GraphError,
     prelude::*,
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::{
-            node::PyNodes,
-            properties::{MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable},
+        graph::properties::{
+            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
         },
         types::{
             repr::{iterator_repr, Repr},

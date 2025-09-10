@@ -1069,6 +1069,16 @@ def test_edges_getitem_property_filter_expr():
         }
         assert result_ids == expected_ids
 
+        filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
+        result_ids = _pairs(graph.edges[filter_expr][filter_expr2])
+        expected_ids = {("John Mayer", "Jimmy Page")}
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = _pairs(graph.edges[filter_expr3])
+        expected_ids = {("John Mayer", "Jimmy Page")}
+        assert result_ids == expected_ids
+
     return check
 
 
@@ -1076,7 +1086,6 @@ def test_edges_getitem_property_filter_expr():
 def test_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
-        print(graph.nodes.edges[filter_expr].id.collect())
         result_ids = graph.nodes.edges[filter_expr].id.collect()
         expected_ids = [
             [("2", "1"), ("3", "1")],
@@ -1085,6 +1094,79 @@ def test_nested_edges_getitem_property_filter_expr():
             [("3", "4")],
             [("David Gilmour", "John Mayer")],
             [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
+
+        filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
+        result_ids = graph.nodes.edges[filter_expr][filter_expr2].id.collect()
+        expected_ids = [
+            [],
+            [],
+            [],
+            [],
+            [],
+            [("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.nodes.edges[filter_expr3].id.collect()
+        expected_ids = [
+            [],
+            [],
+            [],
+            [],
+            [],
+            [("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_nodes_nested_edges_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Edge.property("p2") > 5
+        result_ids = graph.nodes.neighbours.edges[filter_expr].id.collect()
+        expected_ids = [
+            [("2", "1"), ("3", "1"), ("3", "4")],
+            [("2", "1"), ("3", "1"), ("3", "1"), ("3", "4")],
+            [("2", "1"), ("3", "1"), ("2", "1"), ("3", "4")],
+            [("3", "1"), ("3", "4")],
+            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
+
+        filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
+        result_ids = graph.nodes.neighbours.edges[filter_expr][
+            filter_expr2
+        ].id.collect()
+        expected_ids = [
+            [],
+            [],
+            [],
+            [],
+            [("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
+        ]
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.nodes.neighbours.edges[filter_expr3].id.collect()
+        expected_ids = [
+            [],
+            [],
+            [],
+            [],
+            [("John Mayer", "Jimmy Page")],
+            [("John Mayer", "Jimmy Page")],
             [("John Mayer", "Jimmy Page")],
         ]
         assert result_ids == expected_ids
