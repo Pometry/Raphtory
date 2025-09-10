@@ -50,6 +50,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         lsn: u64,
     ) {
         let e_id = e_id.into();
+        println!(
+            "Adding static outbound edge: src_pos: {:?}, e_id: {:?}, lsn: {}",
+            src_pos, e_id, lsn
+        );
         self.add_outbound_edge_inner::<i64>(None, src_pos, dst, e_id.with_layer(0), lsn);
     }
 

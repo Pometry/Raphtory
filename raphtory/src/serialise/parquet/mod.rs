@@ -54,8 +54,11 @@ mod graph;
 pub trait ParquetEncoder {
     fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
         // Encode to a tmp dir using parquet and then zip it
-        let temp_dir = tempfile::tempdir()?;
+        let mut temp_dir = tempfile::tempdir()?;
+        temp_dir.disable_cleanup(true);
         self.encode_parquet(&temp_dir)?;
+
+        println!("temp_dir for encode: {:?}", temp_dir.path());
 
         let mut zip_buffer = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut zip_buffer);
@@ -96,7 +99,10 @@ pub trait ParquetDecoder: Sized {
         // Unzip to a temp dir and decode parquet from there
         let reader = std::io::Cursor::new(bytes);
         let mut zip = zip::ZipArchive::new(reader)?;
-        let temp_dir = tempfile::tempdir()?;
+        let mut temp_dir = tempfile::tempdir()?;
+        temp_dir.disable_cleanup(true);
+
+        println!("temp_dir for decode: {:?}", temp_dir.path());
 
         for i in 0..zip.len() {
             let mut file = zip.by_index(i)?;
@@ -885,7 +891,9 @@ mod test {
     }
 
     fn check_parquet_encoding(g: Graph) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let mut temp_dir = tempfile::tempdir().unwrap();
+        println!("temp_dir: {:?}", temp_dir.path());
+        temp_dir.disable_cleanup(true);
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir).unwrap();
         assert_graph_equal(&g, &g2);

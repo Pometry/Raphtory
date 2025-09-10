@@ -601,10 +601,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum()
         } else {
+            println!("count_temporal_edges: {:?}", core_edges.as_ref().len());
+            println!("layer_ids: {:?}", layer_ids);
             core_edges
                 .as_ref()
-                .par_iter(layer_ids)
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
+                .iter(layer_ids)
+                .map(move |edge| {
+                    let count = edge_time_semantics.edge_exploded_count(edge.as_ref(), self);
+                    println!("edge_exploded_count: {}", count);
+                    count
+                })
                 .sum()
         }
     }

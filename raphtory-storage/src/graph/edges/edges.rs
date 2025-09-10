@@ -2,7 +2,7 @@ use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use raphtory_api::core::entities::{LayerIds, EID};
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
-use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges};
+use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges, api::edges::EdgeRefOps};
 
 pub struct EdgesStorage {
     storage: Arc<ReadLockedEdges<Extension>>,
