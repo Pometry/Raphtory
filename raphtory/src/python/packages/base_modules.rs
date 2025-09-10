@@ -38,6 +38,7 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyPersistentGraph,
         PyGraphEncoder,
         PyNode,
+        PyNodeFilterBuilder,
         PyNodes,
         PyPathFromNode,
         PyPathFromGraph,
@@ -48,11 +49,16 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyMutableEdge,
         PyProperties,
         PyMetadata,
+        MetadataView,
         PyTemporalProperties,
         PropertiesView,
         PyTemporalProp,
         PyTimeIndexEntry,
         PyHistory,
+        PyHistoryTimestamp,
+        PyHistoryDateTime,
+        PyHistorySecondaryIndex,
+        PyIntervals,
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec
@@ -160,9 +166,11 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 pub use crate::python::graph::node_state::base_node_state_module;
 use crate::python::{
     algorithm::epidemics::PyInfected,
+    filter::node_filter_builders::PyNodeFilterBuilder,
     graph::{
+        history::{PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals},
         index::{PyIndexSpec, PyIndexSpecBuilder},
-        properties::PropertiesView,
+        properties::{MetadataView, PropertiesView},
     },
     types::wrappers::document::PyEmbedding,
 };

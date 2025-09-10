@@ -34,10 +34,7 @@ use pyo3::{
 };
 use raphtory_api::core::{
     entities::GID,
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, TimeError},
-    },
+    storage::{arc_str::ArcStr, timeindex::TimeError},
 };
 use std::collections::HashMap;
 

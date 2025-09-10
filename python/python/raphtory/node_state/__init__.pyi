@@ -16,6 +16,8 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.graphql import *
 from raphtory.typing import *
+import numpy as np
+from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
 from os import PathLike
@@ -6596,7 +6598,7 @@ class HistoryTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
+    def collect(self) -> list[HistoryTimestamp]:
         """
         Compute all values and return the result as a list
 
@@ -6612,7 +6614,7 @@ class HistoryTimestampView(object):
              NodeStateHistoryTimestamp: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistoryTimestamp] = None) -> Optional[HistoryTimestamp]:
         """
         Get value for node
 
@@ -6624,7 +6626,7 @@ class HistoryTimestampView(object):
             Optional[HistoryTimestamp]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistoryTimestamp]]:
         """
         Iterate over items
 
@@ -6659,7 +6661,7 @@ class HistoryTimestampView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistoryTimestamp]:
         """
         Iterate over values
 
@@ -6700,7 +6702,7 @@ class HistoryDateTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
+    def collect(self) -> list[HistoryDateTime]:
         """
         Compute all values and return the result as a list
 
@@ -6716,7 +6718,7 @@ class HistoryDateTimeView(object):
              NodeStateHistoryDateTime: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistoryDateTime] = None) -> Optional[HistoryDateTime]:
         """
         Get value for node
 
@@ -6728,7 +6730,7 @@ class HistoryDateTimeView(object):
             Optional[HistoryDateTime]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistoryDateTime]]:
         """
         Iterate over items
 
@@ -6763,7 +6765,7 @@ class HistoryDateTimeView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistoryDateTime]:
         """
         Iterate over values
 
@@ -6804,7 +6806,7 @@ class HistorySecondaryIndexView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
+    def collect(self) -> list[HistorySecondaryIndex]:
         """
         Compute all values and return the result as a list
 
@@ -6820,7 +6822,7 @@ class HistorySecondaryIndexView(object):
              NodeStateHistorySecondaryIndex: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistorySecondaryIndex] = None) -> Optional[HistorySecondaryIndex]:
         """
         Get value for node
 
@@ -6832,7 +6834,7 @@ class HistorySecondaryIndexView(object):
             Optional[HistorySecondaryIndex]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistorySecondaryIndex]]:
         """
         Iterate over items
 
@@ -6867,7 +6869,7 @@ class HistorySecondaryIndexView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistorySecondaryIndex]:
         """
         Iterate over values
 
@@ -6908,7 +6910,7 @@ class IntervalsView(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self):
+    def collect(self) -> list[Intervals]:
         """
         Compute all values and return the result as a list
 
@@ -6924,7 +6926,7 @@ class IntervalsView(object):
              NodeStateIntervals: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[Intervals] = None) -> Optional[Intervals]:
         """
         Get value for node
 
@@ -6936,7 +6938,7 @@ class IntervalsView(object):
             Optional[Intervals]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, Intervals]]:
         """
         Iterate over items
 
@@ -6971,7 +6973,7 @@ class IntervalsView(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[Intervals]:
         """
         Iterate over values
 
@@ -9079,7 +9081,7 @@ class NodeStateHistoryTimestamp(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistoryTimestamp] = None) -> Optional[HistoryTimestamp]:
         """
         Get value for node
 
@@ -9091,7 +9093,7 @@ class NodeStateHistoryTimestamp(object):
             Optional[HistoryTimestamp]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistoryTimestamp]]:
         """
         Iterate over items
 
@@ -9126,7 +9128,7 @@ class NodeStateHistoryTimestamp(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistoryTimestamp]:
         """
         Iterate over values
 
@@ -9166,7 +9168,7 @@ class NodeStateHistoryDateTime(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistoryDateTime] = None) -> Optional[HistoryDateTime]:
         """
         Get value for node
 
@@ -9178,7 +9180,7 @@ class NodeStateHistoryDateTime(object):
             Optional[HistoryDateTime]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistoryDateTime]]:
         """
         Iterate over items
 
@@ -9213,7 +9215,7 @@ class NodeStateHistoryDateTime(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistoryDateTime]:
         """
         Iterate over values
 
@@ -9253,7 +9255,7 @@ class NodeStateHistorySecondaryIndex(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[HistorySecondaryIndex] = None) -> Optional[HistorySecondaryIndex]:
         """
         Get value for node
 
@@ -9265,7 +9267,7 @@ class NodeStateHistorySecondaryIndex(object):
             Optional[HistorySecondaryIndex]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, HistorySecondaryIndex]]:
         """
         Iterate over items
 
@@ -9300,7 +9302,7 @@ class NodeStateHistorySecondaryIndex(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[HistorySecondaryIndex]:
         """
         Iterate over values
 
@@ -9340,7 +9342,7 @@ class NodeStateIntervals(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def get(self, node: NodeInput, default: Any = None):
+    def get(self, node: NodeInput, default: Optional[Intervals] = None) -> Optional[Intervals]:
         """
         Get value for node
 
@@ -9352,7 +9354,7 @@ class NodeStateIntervals(object):
             Optional[Intervals]: the value for the node or the default value
         """
 
-    def items(self):
+    def items(self) -> Iterator[Tuple[Node, Intervals]]:
         """
         Iterate over items
 
@@ -9387,7 +9389,7 @@ class NodeStateIntervals(object):
             DataFrame: the pandas DataFrame
         """
 
-    def values(self):
+    def values(self) -> Iterator[Intervals]:
         """
         Iterate over values
 

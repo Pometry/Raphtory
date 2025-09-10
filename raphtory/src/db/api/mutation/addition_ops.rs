@@ -10,10 +10,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::{
-        dict_mapper::MaybeNew::{Existing, New},
-        timeindex::AsTime,
-    },
+    storage::dict_mapper::MaybeNew::{Existing, New},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;

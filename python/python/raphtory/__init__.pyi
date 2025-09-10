@@ -19,13 +19,15 @@ from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
+import numpy as np
+from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistorySecondaryIndex', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -2395,6 +2397,46 @@ class Node(object):
             Optional[int]:
         """
 
+class NodeFilterBuilder(object): 
+    """
+    A builder for constructing node filters
+
+    To create a filter builder see [Node][raphtory.filter.Node].
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value):
+        ...
+
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+        ...
+
+    def is_in(self, values):
+        ...
+
+    def is_not_in(self, values):
+        ...
+
+    def not_contains(self, value):
+        ...
+
 class Nodes(object): 
     """A list of nodes that can be iterated over."""
 
@@ -2712,7 +2754,7 @@ class Nodes(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataView:
         """
         The metadata of the node
 
@@ -4548,7 +4590,7 @@ class Edges(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataView:
         """
         Returns all the metadata of the edges
 
@@ -5293,6 +5335,50 @@ class Metadata(object):
             list | Array: the property values
         """
 
+class MetadataView(object): 
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def as_dict(self):
+        ...
+
+    def get(self, key):
+        ...
+
+    def items(self):
+        ...
+
+    def keys(self):
+        ...
+
+    def values(self):
+        ...
+
 class TemporalProperties(object): 
     """A view of the temporal properties of an entity"""
 
@@ -5673,7 +5759,7 @@ class History(object):
         """
 
     @property
-    def dt(self):
+    def dt(self) -> HistoryDateTime:
         """
         Access history events as UTC datetimes.
 
@@ -5690,7 +5776,7 @@ class History(object):
         """
 
     @property
-    def intervals(self):
+    def intervals(self) -> Intervals:
         """
         Access the intervals between consecutive timestamps in milliseconds.
 
@@ -5734,7 +5820,7 @@ class History(object):
         """
 
     @property
-    def secondary_index(self):
+    def secondary_index(self) -> HistorySecondaryIndex:
         """
         Access the unique secondary index of each time entry.
 
@@ -5743,12 +5829,269 @@ class History(object):
         """
 
     @property
-    def t(self):
+    def t(self) -> HistoryTimestamp:
         """
         Access history events as timestamps (milliseconds since Unix epoch).
 
         Returns:
             HistoryTimestamp: Timestamp (as int) view of this history.
+        """
+
+class HistoryTimestamp(object): 
+    """History view that exposes timestamps in milliseconds since Unix epoch."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all timestamps in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over timestamps (milliseconds since Unix epoch) in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.int64]:
+        """
+        Collect all timestamps into a numpy ndarray.
+
+        Returns:
+            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch.
+        """
+
+    def collect_rev(self) -> NDArray[np.int64]:
+        """
+        Collect all timestamps into a numpy ndarray in reverse order.
+
+        Returns:
+            NDArray[np.int64]: Timestamps in milliseconds since Unix epoch in reverse order.
+        """
+
+class HistoryDateTime(object): 
+    """History view that exposes UTC datetimes."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[datetime]:
+        """
+        Iterate over all datetimes in reverse order.
+
+        Returns:
+            Iterator[datetime]: Iterator over UTC datetimes in reverse order.
+
+        Raises:
+            TimeError: May be raised during iteration if a timestamp cannot be converted.
+        """
+
+    def collect(self) -> List[datetime]:
+        """
+        Collect all datetimes.
+
+        Returns:
+            List[datetime]: Collected UTC datetimes.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+    def collect_rev(self) -> List[datetime]:
+        """
+        Collect all datetimes in reverse order.
+
+        Returns:
+            List[datetime]: Collected UTC datetimes in reverse order.
+
+        Raises:
+            TimeError: If a timestamp cannot be converted to a datetime.
+        """
+
+class HistorySecondaryIndex(object): 
+    """History view that exposes secondary indices of time entries. They are used for ordering within the same timestamp."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all secondary indices in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over secondary indices in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.uintp]:
+        """
+        Collect all secondary indices.
+
+        Returns:
+            NDArray[np.uintp]: Secondary indices.
+        """
+
+    def collect_rev(self) -> NDArray[np.uintp]:
+        """
+        Collect all secondary indices in reverse order.
+
+        Returns:
+            NDArray[np.uintp]: Secondary indices in reverse order.
+        """
+
+class Intervals(object): 
+    """View over the intervals between consecutive timestamps, expressed in milliseconds."""
+
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __reversed__(self) -> Iterator[int]:
+        """
+        Iterate over all intervals in reverse order.
+
+        Returns:
+            Iterator[int]: Iterator over intervals in reverse order.
+        """
+
+    def collect(self) -> NDArray[np.int64]:
+        """
+        Collect all interval values in milliseconds.
+
+        Returns:
+            NDArray[np.int64]: Intervals in milliseconds.
+        """
+
+    def collect_rev(self) -> NDArray[np.int64]:
+        """
+        Collect all interval values in reverse order.
+
+        Returns:
+            NDArray[np.int64]: Intervals in reverse order.
+        """
+
+    def max(self) -> Optional[int]:
+        """
+        Calculate the maximum interval in milliseconds.
+
+        Returns:
+            Optional[int]: Maximum interval, or None if fewer than 1 interval.
+        """
+
+    def mean(self) -> Optional[float]:
+        """
+        Calculate the mean interval in milliseconds.
+
+        Returns:
+            Optional[float]: Mean interval, or None if fewer than 1 interval.
+        """
+
+    def median(self) -> Optional[int]:
+        """
+        Calculate the median interval in milliseconds.
+
+        Returns:
+            Optional[int]: Median interval, or None if fewer than 1 interval.
+        """
+
+    def min(self) -> Optional[int]:
+        """
+        Calculate the minimum interval in milliseconds.
+
+        Returns:
+            Optional[int]: Minimum interval, or None if fewer than 1 interval.
         """
 
 class WindowSet(object): 

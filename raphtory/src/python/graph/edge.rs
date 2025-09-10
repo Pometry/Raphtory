@@ -9,7 +9,6 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
-                history::History,
                 internal::{DynamicGraph, Immutable, IntoDynamic, MaterializedGraph, Static},
                 StaticGraphViewOps,
             },
@@ -20,16 +19,12 @@ use crate::{
     prelude::*,
     python::{graph::history::PyHistory, types::repr::Repr},
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use pyo3::prelude::*;
 use raphtory_api::{
     core::{
         entities::GID,
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{TimeError, TimeIndexEntry},
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     python::timeindex::TimeIndexComponent,
 };
@@ -37,7 +32,6 @@ use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
     ops::Deref,
-    sync::Arc,
 };
 
 /// PyEdge is a Python class that represents an edge in the graph.

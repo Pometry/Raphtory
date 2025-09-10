@@ -38,7 +38,9 @@ impl ScalarValue for GqlSimpleTimeInput {
 #[derive(InputObject, Clone, Debug)]
 #[graphql(name = "IndexedTimeInput")]
 pub struct GqlIndexedTimeInput {
+    /// Simple time input. Either a timestamp (int) or a DateTime formatted string.
     time: GqlSimpleTimeInput,
+    /// Secondary index.
     secondary_index: usize,
 }
 
@@ -46,7 +48,9 @@ pub struct GqlIndexedTimeInput {
 #[derive(OneOfInput, Clone, Debug)]
 #[graphql(name = "TimeInput")]
 pub enum GqlTimeInput {
+    /// Simple time input. Either a timestamp (int) or a DateTime formatted string.
     SimpleTime(GqlSimpleTimeInput),
+    /// Indexed time input. Allows specifying a secondary index for ordering within the same timestamp.
     IndexedTime(GqlIndexedTimeInput),
 }
 
@@ -74,7 +78,7 @@ impl TryIntoTime for GqlTimeInput {
     }
 }
 
-/// Time index entry with timestamp and secondary index for ordering.
+/// Time index entry with timestamp and secondary index for ordering within the same timestamp.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "TimeIndexEntry")]
 pub struct GqlTimeIndexEntry {

@@ -9,7 +9,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{properties::tprop::TPropOps, EID, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };

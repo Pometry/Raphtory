@@ -940,8 +940,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1245,7 +1245,13 @@ input IndexSpecInput {
 Input for indexed time entries.
 """
 input IndexedTimeInput {
+	"""
+	Simple time input. Either a timestamp (int) or a DateTime formatted string.
+	"""
 	time: SimpleTimeInput!
+	"""
+	Secondary index.
+	"""
 	secondaryIndex: Int!
 }
 
@@ -2604,7 +2610,7 @@ enum TemporalType {
 }
 
 """
-Time index entry with timestamp and secondary index for ordering.
+Time index entry with timestamp and secondary index for ordering within the same timestamp.
 """
 type TimeIndexEntry {
 	"""
@@ -2630,7 +2636,13 @@ type TimeIndexEntry {
 Input for simple or indexed time entries.
 """
 input TimeInput @oneOf {
+	"""
+	Simple time input. Either a timestamp (int) or a DateTime formatted string.
+	"""
 	simpleTime: SimpleTimeInput
+	"""
+	Indexed time input. Allows specifying a secondary index for ordering within the same timestamp.
+	"""
 	indexedTime: IndexedTimeInput
 }
 

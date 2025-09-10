@@ -12,7 +12,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{AsTime, TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},

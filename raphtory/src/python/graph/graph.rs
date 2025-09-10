@@ -27,10 +27,7 @@ use crate::{
 };
 use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict};
 use raphtory_api::{
-    core::{
-        entities::GID,
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-    },
+    core::{entities::GID, storage::arc_str::ArcStr},
     python::timeindex::TimeIndexComponent,
 };
 use raphtory_storage::core_ops::CoreGraphOps;

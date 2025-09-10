@@ -16,6 +16,8 @@ from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
+import numpy as np
+from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
 from os import PathLike
@@ -124,7 +126,7 @@ class NodeFilterBuilder(object):
 class Node(object): 
 
     @staticmethod
-    def name():
+    def name() -> NodeFilterBuilder:
         """
         Filter node by name
 
@@ -133,7 +135,7 @@ class Node(object):
         """
 
     @staticmethod
-    def node_type():
+    def node_type() -> NodeFilterBuilder:
         """
         Filter node by type
 

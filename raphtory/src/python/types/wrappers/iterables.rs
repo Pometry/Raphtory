@@ -1,8 +1,5 @@
 use crate::{
-    db::api::view::{
-        history::{History, HistoryDateTime, HistoryTimestamp, InternalHistoryOps},
-        BoxedIter,
-    },
+    db::api::view::BoxedIter,
     prelude::Prop,
     python::types::{
         repr::Repr,
@@ -15,18 +12,14 @@ use crate::{
 use chrono::{DateTime, Utc};
 use num::cast::AsPrimitive;
 use pyo3::prelude::*;
-use raphtory_api::{
-    core::{
-        entities::GID,
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{AsTime, TimeIndexEntry},
-        },
+use raphtory_api::core::{
+    entities::GID,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, TimeIndexEntry},
     },
-    inherit::Base,
-    iter::IntoDynBoxed,
 };
-use std::{iter::Sum, ops::Deref, sync::Arc};
+use std::iter::Sum;
 
 pub(crate) trait MeanExt<V>: Iterator<Item = V>
 where

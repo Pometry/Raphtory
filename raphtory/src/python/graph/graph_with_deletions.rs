@@ -27,7 +27,7 @@ use pyo3::{prelude::*, pybacked::PyBackedStr};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::arc_str::ArcStr,
     },
     python::timeindex::TimeIndexComponent,
 };

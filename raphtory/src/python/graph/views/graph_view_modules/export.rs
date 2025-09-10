@@ -4,10 +4,7 @@ use pyo3::{
     types::{PyDict, PyTuple},
     IntoPyObjectExt,
 };
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::{arc_str::ArcStr, timeindex::AsTime},
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
 #[pymethods]

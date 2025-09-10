@@ -67,10 +67,7 @@ use raphtory_api::{
             properties::prop::{Prop, PropType},
             EID, ELID, VID,
         },
-        storage::{
-            arc_str::ArcStr,
-            timeindex::{AsTime, TimeIndexEntry},
-        },
+        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
     },
     inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
@@ -603,7 +600,9 @@ mod views_test {
     use quickcheck::TestResult;
     use quickcheck_macros::quickcheck;
     use rand::prelude::*;
-    use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+    use raphtory_api::core::{
+        entities::GID, storage::timeindex::AsTime, utils::logging::global_info_logger,
+    };
     use rayon::prelude::*;
     #[cfg(feature = "storage")]
     use tempfile::TempDir;

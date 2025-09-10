@@ -13,7 +13,6 @@ use crate::{
     rayon::blocking_compute,
 };
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use futures_util::StreamExt;
 use itertools::Itertools;
 use raphtory::{
     db::{

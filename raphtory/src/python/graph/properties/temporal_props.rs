@@ -18,10 +18,7 @@ use crate::{
         types::{
             repr::{iterator_dict_repr, iterator_repr, Repr},
             wrappers::{
-                iterables::{
-                    I64VecIterable, NestedI64VecIterable, NestedUsizeIterable, PropIterable,
-                    UsizeIterable,
-                },
+                iterables::{NestedUsizeIterable, PropIterable, UsizeIterable},
                 iterators::PyBorrowingIterator,
                 prop::{PropHistItems, PropValue},
             },

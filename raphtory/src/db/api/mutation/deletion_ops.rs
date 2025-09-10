@@ -6,7 +6,6 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::edges::edge_ref::EdgeRef,
-    storage::timeindex::TimeIndexEntry,
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::mutation::{

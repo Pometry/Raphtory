@@ -14,10 +14,7 @@ use std::{
 
 use crate::db::api::{
     properties::internal::InternalPropertiesOps,
-    view::{
-        history::{History, ReversedHistoryOps},
-        BoxedLIter,
-    },
+    view::{history::History, BoxedLIter},
 };
 use raphtory_api::core::storage::timeindex::AsTime;
 #[cfg(feature = "arrow")]

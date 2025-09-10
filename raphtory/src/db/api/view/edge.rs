@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, VID},
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::TimeIndexEntry,
     },
     db::{
         api::{
@@ -20,12 +20,11 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
-use chrono::{DateTime, Utc};
 use ouroboros::self_referencing;
 use raphtory_api::{
     core::{
         entities::{LayerIds, GID},
-        storage::{arc_str::ArcStr, timeindex::TimeError},
+        storage::arc_str::ArcStr,
     },
     iter::BoxedLIter,
 };

@@ -6,7 +6,7 @@ use crate::{
             view::{
                 history::{
                     compose_history_from_items, CompositeHistory, History, HistoryDateTime,
-                    HistorySecondaryIndex, HistoryTimestamp, InternalHistoryOps,
+                    HistorySecondaryIndex, HistoryTimestamp,
                 },
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,

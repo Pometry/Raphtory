@@ -26,7 +26,6 @@ use pyo3::{
 };
 use raphtory_api::core::storage::timeindex::TimeIndexEntry;
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
-use rayon::prelude::ParallelIterator;
 use std::{collections::HashMap, sync::Arc};
 
 /// A NodeState of History objects for each node.

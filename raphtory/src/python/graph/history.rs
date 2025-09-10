@@ -17,7 +17,7 @@ use raphtory_api::{
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use std::{ops::Deref, sync::Arc};
+use std::sync::Arc;
 
 impl Repr for TimeIndexEntry {
     fn repr(&self) -> String {
@@ -296,7 +296,7 @@ impl PyHistoryTimestamp {
     /// Collect all timestamps into a numpy ndarray.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Timestamps in milliseconds since Unix epoch.
+    ///     NDArray[np.int64]: Timestamps in milliseconds since Unix epoch.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect();
         t.into_pyarray(py)
@@ -305,7 +305,7 @@ impl PyHistoryTimestamp {
     /// Collect all timestamps into a numpy ndarray in reverse order.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Timestamps in milliseconds since Unix epoch in reverse order.
+    ///     NDArray[np.int64]: Timestamps in milliseconds since Unix epoch in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let t = self.history_t.collect_rev();
         t.into_pyarray(py)
@@ -610,7 +610,7 @@ impl PyHistorySecondaryIndex {
     /// Collect all secondary indices.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Secondary indices.
+    ///     NDArray[np.uintp]: Secondary indices.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect();
         u.into_pyarray(py)
@@ -619,7 +619,7 @@ impl PyHistorySecondaryIndex {
     /// Collect all secondary indices in reverse order.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Secondary indices in reverse order.
+    ///     NDArray[np.uintp]: Secondary indices in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<usize, Ix1>> {
         let u = self.history_s.collect_rev();
         u.into_pyarray(py)
@@ -748,7 +748,7 @@ impl PyIntervals {
     /// Collect all interval values in milliseconds.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Intervals in milliseconds.
+    ///     NDArray[np.int64]: Intervals in milliseconds.
     pub fn collect<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect();
         i.into_pyarray(py)
@@ -757,7 +757,7 @@ impl PyIntervals {
     /// Collect all interval values in reverse order.
     ///
     /// Returns:
-    ///     numpy.ndarray[int64]: Intervals in reverse order.
+    ///     NDArray[np.int64]: Intervals in reverse order.
     pub fn collect_rev<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
         let i = self.intervals.collect_rev();
         i.into_pyarray(py)
@@ -1034,7 +1034,7 @@ impl HistoryTimestampIterable {
     /// Collect timestamps for each history.
     ///
     /// Returns:
-    ///     List[numpy.ndarray[int64]]: Timestamps in milliseconds per history.
+    ///     List[NDArray[np.int64]]: Timestamps in milliseconds per history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Bound<'py, PyArray<i64, Ix1>>> {
         self.iter().map(|h| h.collect().into_pyarray(py)).collect()
     }
@@ -1051,7 +1051,7 @@ impl NestedHistoryTimestampIterable {
     /// Collect timestamps for each history in each nested iterable.
     ///
     /// Returns:
-    ///     List[List[numpy.ndarray[int64]]]: Timestamps in milliseconds per nested history.
+    ///     List[List[NDArray[np.int64]]]: Timestamps in milliseconds per nested history.
     pub fn collect<'py>(&self, py: Python<'py>) -> Vec<Vec<Bound<'py, PyArray<i64, Ix1>>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect().into_pyarray(py)).collect())
@@ -1094,7 +1094,7 @@ impl NestedHistoryDateTimeIterable {
     ///
     /// Raises:
     ///     TimeError: If a timestamp cannot be converted to a datetime.
-    pub fn collect<'py>(&self, py: Python<'py>) -> Result<Vec<Vec<Vec<DateTime<Utc>>>>, TimeError> {
+    pub fn collect(&self) -> Result<Vec<Vec<Vec<DateTime<Utc>>>>, TimeError> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()
@@ -1130,7 +1130,7 @@ impl NestedHistorySecondaryIndexIterable {
     ///
     /// Returns:
     ///     List[List[List[int]]]: Secondary indices per nested history.
-    pub fn collect<'py>(&self) -> Vec<Vec<Vec<usize>>> {
+    pub fn collect(&self) -> Vec<Vec<Vec<usize>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()
@@ -1163,7 +1163,7 @@ impl NestedIntervalsIterable {
     ///
     /// Returns:
     ///     List[List[List[int]]]: Intervals per nested history.
-    pub fn collect<'py>(&self) -> Vec<Vec<Vec<i64>>> {
+    pub fn collect(&self) -> Vec<Vec<Vec<i64>>> {
         self.iter()
             .map(|h| h.map(|h| h.collect()).collect())
             .collect()

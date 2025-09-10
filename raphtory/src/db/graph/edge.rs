@@ -34,7 +34,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
-    utils::time::{AsSingleTimeInput, TryIntoInputTime},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
