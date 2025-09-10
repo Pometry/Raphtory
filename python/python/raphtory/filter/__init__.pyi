@@ -22,20 +22,9 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = [
-    "FilterExpr",
-    "PropertyFilterOps",
-    "Node",
-    "EdgeFilterOp",
-    "EdgeEndpoint",
-    "Edge",
-    "ExplodedEdge",
-    "Property",
-    "Metadata",
-    "TemporalPropertyFilterBuilder",
-]
+__all__ = ['FilterExpr', 'PropertyFilterOps', 'NodeFilterBuilder', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
+class FilterExpr(object): 
 
-class FilterExpr(object):
     def __and__(self, value):
         """Return self&value."""
 
@@ -51,7 +40,8 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class PropertyFilterOps(object):
+class PropertyFilterOps(object): 
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -70,24 +60,69 @@ class PropertyFilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def avg(self): ...
-    def contains(self, value): ...
-    def ends_with(self, value): ...
-    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match): ...
-    def is_in(self, values): ...
-    def is_none(self): ...
-    def is_not_in(self, values): ...
-    def is_some(self): ...
-    def len(self): ...
-    def max(self): ...
-    def min(self): ...
-    def not_contains(self, value): ...
-    def starts_with(self, value): ...
-    def sum(self): ...
+    def contains(self, value):
+        ...
 
-class Node(object):
-    @staticmethod
-    def metadata(name): ...
+    def fuzzy_search(self, prop_value, levenshtein_distance, prefix_match):
+        ...
+
+    def is_in(self, values):
+        ...
+
+    def is_none(self):
+        ...
+
+    def is_not_in(self, values):
+        ...
+
+    def is_some(self):
+        ...
+
+    def not_contains(self, value):
+        ...
+
+class NodeFilterBuilder(object): 
+    """
+    A builder for constructing node filters
+
+    To create a filter builder see [Node][raphtory.filter.Node].
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def contains(self, value):
+        ...
+
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+        ...
+
+    def is_in(self, values):
+        ...
+
+    def is_not_in(self, values):
+        ...
+
+    def not_contains(self, value):
+        ...
+
+class Node(object): 
+
     @staticmethod
     def name():
         """
@@ -106,10 +141,8 @@ class Node(object):
             NodeFilterBuilder: A filter builder for filtering by node type
         """
 
-    @staticmethod
-    def property(name): ...
+class EdgeFilterOp(object): 
 
-class EdgeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -128,34 +161,37 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value): ...
-    def ends_with(self, value): ...
-    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
-    def is_in(self, values): ...
-    def is_not_in(self, values): ...
-    def not_contains(self, value): ...
-    def starts_with(self, value): ...
+    def contains(self, value):
+        ...
 
-class EdgeEndpoint(object):
-    def name(self): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match):
+        ...
 
-class Edge(object):
-    @staticmethod
-    def dst(): ...
-    @staticmethod
-    def metadata(name): ...
-    @staticmethod
-    def property(name): ...
-    @staticmethod
-    def src(): ...
+    def is_in(self, values):
+        ...
 
-class ExplodedEdge(object):
-    @staticmethod
-    def metadata(name): ...
-    @staticmethod
-    def property(name): ...
+    def is_not_in(self, values):
+        ...
 
-class Property(PropertyFilterOps):
+    def not_contains(self, value):
+        ...
+
+class EdgeEndpoint(object): 
+
+    def name(self):
+        ...
+
+class Edge(object): 
+
+    @staticmethod
+    def dst():
+        ...
+
+    @staticmethod
+    def src():
+        ...
+
+class Property(PropertyFilterOps): 
     """
     Construct a property filter
 
@@ -163,9 +199,13 @@ class Property(PropertyFilterOps):
         name (str): the name of the property to filter
     """
 
-    def temporal(self): ...
+    def __new__(cls, name: str) -> Property:
+        """Create and return a new object.  See help(type) for accurate signature."""
 
-class Metadata(PropertyFilterOps):
+    def temporal(self):
+        ...
+
+class Metadata(PropertyFilterOps): 
     """
     Construct a metadata filter
 
@@ -173,8 +213,13 @@ class Metadata(PropertyFilterOps):
         name (str): the name of the property to filter
     """
 
-class TemporalPropertyFilterBuilder(object):
-    def all(self): ...
-    def any(self): ...
-    def first(self): ...
-    def latest(self): ...
+    def __new__(cls, name: str) -> Metadata:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class TemporalPropertyFilterBuilder(object): 
+
+    def any(self):
+        ...
+
+    def latest(self):
+        ...
