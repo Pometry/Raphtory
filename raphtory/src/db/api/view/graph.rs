@@ -605,7 +605,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             println!("layer_ids: {:?}", layer_ids);
             core_edges
                 .as_ref()
-                .iter(layer_ids)
+                .par_iter(layer_ids)
                 .map(move |edge| {
                     let count = edge_time_semantics.edge_exploded_count(edge.as_ref(), self);
                     println!("edge_exploded_count: {}", count);
