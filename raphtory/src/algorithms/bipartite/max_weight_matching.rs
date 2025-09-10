@@ -1484,7 +1484,6 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         });
         Edges {
             base_graph: self.graph.clone(),
-            graph: self.graph.clone(),
             edges: edges_iter,
         }
     }

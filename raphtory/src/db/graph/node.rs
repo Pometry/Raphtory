@@ -324,7 +324,6 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
         });
         Edges {
             base_graph: self.graph.clone(),
-            graph: self.graph.clone(),
             edges,
         }
     }

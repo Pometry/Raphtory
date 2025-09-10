@@ -60,7 +60,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         T: 'graph;
     type PropType = EdgeView<G>;
     type Nodes = EvalNodeView<'graph, 'a, G, S, CS>;
-    type Exploded = EvalEdges<'graph, 'a, G, G, CS, S>;
+    type Exploded = EvalEdges<'graph, 'a, G, CS, S>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,

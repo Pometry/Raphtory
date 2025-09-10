@@ -203,7 +203,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         T: 'graph;
     type PropType = Self;
     type Nodes = NodeView<'graph, G>;
-    type Exploded = Edges<'graph, G, G>;
+    type Exploded = Edges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -236,15 +236,10 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
         op: F,
     ) -> Self::Exploded {
         let graph1 = self.graph.clone();
-        let graph = self.graph.clone();
         let base_graph = self.graph.clone();
         let edge = self.edge;
         let edges = Arc::new(move || op(&graph1, edge).into_dyn_boxed());
-        Edges {
-            graph,
-            base_graph,
-            edges,
-        }
+        Edges { base_graph, edges }
     }
 }
 

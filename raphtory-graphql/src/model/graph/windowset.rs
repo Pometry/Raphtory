@@ -276,11 +276,11 @@ impl GqlEdgeWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EdgesWindowSet")]
 pub(crate) struct GqlEdgesWindowSet {
-    pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph>>,
 }
 
 impl GqlEdgesWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, Edges<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, Edges<DynamicGraph>>) -> Self {
         Self { ws }
     }
 }

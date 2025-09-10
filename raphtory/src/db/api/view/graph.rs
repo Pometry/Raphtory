@@ -58,7 +58,7 @@ use std::sync::{atomic::Ordering, Arc};
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Edges<'graph, Self, Self>;
+    fn edges(&self) -> Edges<'graph, Self>;
 
     /// Return a View of the nodes in the Graph
     fn nodes(&self) -> Nodes<'graph, Self, Self>;
@@ -170,7 +170,7 @@ pub trait SearchableGraphOps: Sized {
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
-    fn edges(&self) -> Edges<'graph, Self, Self> {
+    fn edges(&self) -> Edges<'graph, Self> {
         let graph = self.clone();
         let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> =
             match graph.node_list() {
@@ -206,7 +206,6 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             };
         Edges {
             base_graph: self.clone(),
-            graph: self.clone(),
             edges,
         }
     }

@@ -310,8 +310,8 @@ where
     type Graph = G;
     type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH>;
     type PropType = NodeView<'graph, G>;
-    type PathType = PathFromGraph<'graph, G, G>;
-    type Edges = NestedEdges<'graph, G, GH>;
+    type PathType = PathFromGraph<'graph, G>;
+    type Edges = NestedEdges<'graph, G>;
 
     fn graph(&self) -> &Self::Graph {
         &self.base_graph
@@ -340,7 +340,6 @@ where
         });
         NestedEdges {
             base_graph: self.base_graph.clone(),
-            graph: self.iter_graph.clone(),
             nodes,
             edges,
         }
