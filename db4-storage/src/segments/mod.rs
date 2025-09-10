@@ -80,14 +80,14 @@ impl<'a> Producer for ItemProducer<'a> {
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let start = self.items.select(self.range.start).unwrap_or(u32::MAX);
+        let start = self.items.select(self.range.start).unwrap_or(u32::MIN);
         let end = self.items.select(self.range.end).unwrap_or(u32::MAX);
         self.items.range(start..end)
     }
 
     fn split_at(self, index: usize) -> (Self, Self) {
         let left_range = self.range.start..(self.range.start + index as u32);
-        let right_range = index as u32..self.range.end;
+        let right_range = (self.range.start + index as u32)..self.range.end;
         (
             ItemProducer {
                 items: self.items,
