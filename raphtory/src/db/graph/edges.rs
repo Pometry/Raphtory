@@ -363,14 +363,24 @@ where
         filtered_graph: FilteredGraph,
     ) -> Self::IterFiltered<FilteredGraph> {
         let edges = self.edges.clone();
+        let edges = self.edges.clone();
         NestedEdges {
             base_graph: self.base_graph.clone(),
             nodes: self.nodes.clone(),
             edges: Arc::new(move |vid| {
                 let filtered_graph = filtered_graph.clone();
                 let edges_locked = filtered_graph.core_edges();
-                Box::new(edges(vid).filter(move |e_ref| {
-                    filtered_graph.filter_edge(edges_locked.edge(e_ref.pid()))
+                Box::new(edges(vid).filter(move |e_ref| match e_ref.layer() {
+                    Some(l) => match e_ref.time() {
+                        Some(t) => {
+                            filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
+                        }
+                        None => {
+                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
+                            lg.filter_edge(edges_locked.edge(e_ref.pid()))
+                        }
+                    },
+                    None => filtered_graph.filter_edge(edges_locked.edge(e_ref.pid())),
                 }))
             }),
         }

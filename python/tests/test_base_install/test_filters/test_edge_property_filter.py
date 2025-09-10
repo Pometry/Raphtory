@@ -1176,6 +1176,38 @@ def test_nested_edges_getitem_property_filter_expr():
 
 
 @with_disk_variants(init_graph)
+def test_nested_exploded_edges_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Edge.property("p2") == 4
+        filter_expr2 = filter.ExplodedEdge.property("p2") == 4
+
+        # Test 1
+        result_ids = graph.nodes.edges[filter_expr].explode()[filter_expr2].id.collect()
+        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        assert result_ids == expected_ids
+
+        result_ids = graph.nodes.edges[filter_expr].explode()[filter_expr2].id.collect()
+        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        assert result_ids == expected_ids
+
+        # Test 2
+        filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
+        filter_expr2 = filter.ExplodedEdge.property("p2") == 4
+        result_ids = graph.nodes.edges.explode()[filter_expr][filter_expr2].id.collect()
+        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
+        filter_expr2 = filter.ExplodedEdge.property("p2") == 4
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.nodes.edges.explode()[filter_expr3].id.collect()
+        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
 def test_nodes_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
