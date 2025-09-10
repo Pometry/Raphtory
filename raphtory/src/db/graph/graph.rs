@@ -271,12 +271,10 @@ pub fn assert_edges_equal<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
 ) {
     assert_edges_equal_layer(edges1, edges2, "", false);
 }
@@ -285,12 +283,10 @@ pub fn assert_edges_equal_layer<
     'graph1,
     'graph2,
     G1: GraphViewOps<'graph1>,
-    GH1: GraphViewOps<'graph1>,
     G2: GraphViewOps<'graph2>,
-    GH2: GraphViewOps<'graph2>,
 >(
-    edges1: &Edges<'graph1, G1, GH1>,
-    edges2: &Edges<'graph2, G2, GH2>,
+    edges1: &Edges<'graph1, G1>,
+    edges2: &Edges<'graph2, G2>,
     layer_tag: &str,
     persistent: bool,
 ) {
@@ -1978,8 +1974,8 @@ mod db_tests {
             assert_eq!(node1.in_degree(), 0);
             assert_eq!(node2.in_degree(), 0);
 
-            fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-                edges: Edges<'graph, G, GH>,
+            fn to_tuples<'graph, G: GraphViewOps<'graph>>(
+                edges: Edges<'graph, G>,
             ) -> Vec<(u64, u64)> {
                 edges
                     .id()
@@ -2012,8 +2008,8 @@ mod db_tests {
             assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
             assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-            fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-                neighbours: PathFromNode<'graph, G, GH>,
+            fn to_ids<'graph, G: GraphViewOps<'graph>>(
+                neighbours: PathFromNode<'graph, G>,
             ) -> Vec<u64> {
                 neighbours
                     .iter()

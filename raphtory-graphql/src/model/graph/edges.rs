@@ -291,7 +291,6 @@ impl GqlEdges {
                 .collect();
             self_clone.update(Edges::new(
                 self_clone.ee.base_graph().clone(),
-                self_clone.ee.base_graph().clone(),
                 Arc::new(move || {
                     let sorted = sorted.clone();
                     (0..sorted.len()).map(move |i| sorted[i]).into_dyn_boxed()

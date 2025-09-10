@@ -467,12 +467,15 @@ impl PyNodes {
     fn __len__(&self) -> usize {
         self.nodes.len()
     }
+
     fn __bool__(&self) -> bool {
         !self.nodes.is_empty()
     }
+
     fn __iter__(&self) -> PyGenericIterator {
         self.nodes.iter_owned().into()
     }
+
     #[doc = concat!(" Collect all ","node","s into a list")]
     #[doc = r""]
     #[doc = r" Returns:"]
@@ -480,13 +483,18 @@ impl PyNodes {
     fn collect(&self) -> Vec<NodeView<'static, DynamicGraph>> {
         self.nodes.collect()
     }
+
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNodes> {
+        let r = self.nodes.filter_iter(filter)?;
+        Ok(PyNodes::from(r))
+    }
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     From<Nodes<'static, G, GH>> for PyNodes
 {
     fn from(value: Nodes<'static, G, GH>) -> Self {
-        let graph = value.one_hop_graph.into_dynamic();
+        let graph = value.iter_graph.into_dynamic();
         let base_graph = value.base_graph.into_dynamic();
         Self {
             nodes: Nodes::new_filtered(base_graph, graph, value.nodes, value.node_types_filter),
@@ -696,12 +704,6 @@ impl PyNodes {
         self.nodes.out_degree()
     }
 
-    pub fn __getitem__(&self, node: PyNodeRef) -> PyResult<NodeView<'static, DynamicGraph>> {
-        self.nodes
-            .get(node)
-            .ok_or_else(|| PyIndexError::new_err("Node does not exist"))
-    }
-
     /// Converts the graph's nodes into a Pandas DataFrame.
     ///
     /// This method will create a DataFrame with the following columns:
@@ -795,13 +797,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Nodes<'
 
 #[pyclass(name = "PathFromGraph", module = "raphtory")]
 pub struct PyPathFromGraph {
-    path: PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    path: PathFromGraph<'static, DynamicGraph>,
 }
 
 impl_nodeviewops!(
     PyPathFromGraph,
     path,
-    PathFromGraph<'static, DynamicGraph, DynamicGraph>,
+    PathFromGraph<'static, DynamicGraph>,
     "PathFromGraph",
     "NestedEdges",
     "PathFromGraph"
@@ -925,27 +927,27 @@ impl PyPathFromGraph {
     pub fn type_filter(
         &self,
         node_types: Vec<PyBackedStr>,
-    ) -> PathFromGraph<'static, DynamicGraph, DynamicGraph> {
+    ) -> PathFromGraph<'static, DynamicGraph> {
         self.path.type_filter(&node_types)
+    }
+
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyPathFromGraph> {
+        let r = self.path.filter_iter(filter)?;
+        Ok(PyPathFromGraph::from(r))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-    for PathFromGraph<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> Repr for PathFromGraph<'graph, G> {
     fn repr(&self) -> String {
         format!("PathFromGraph({})", iterator_repr(self.iter()))
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<PathFromGraph<'static, G, GH>> for PyPathFromGraph
-{
-    fn from(value: PathFromGraph<'static, G, GH>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromGraph<'static, G>> for PyPathFromGraph {
+    fn from(value: PathFromGraph<'static, G>) -> Self {
         Self {
             path: PathFromGraph {
                 base_graph: value.base_graph.into_dynamic(),
-                one_hop_graph: value.one_hop_graph.into_dynamic(),
                 op: value.op,
                 nodes: value.nodes,
             },
@@ -953,9 +955,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for PathFromGraph<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for PathFromGraph<'static, G> {
     type Target = PyPathFromGraph;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -967,13 +967,13 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
 
 #[pyclass(name = "PathFromNode", module = "raphtory")]
 pub struct PyPathFromNode {
-    path: PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    path: PathFromNode<'static, DynamicGraph>,
 }
 
 impl_nodeviewops!(
     PyPathFromNode,
     path,
-    PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    PathFromNode<'static, DynamicGraph>,
     "PathFromNode",
     "Edges",
     "PathFromNode"
@@ -986,13 +986,10 @@ impl_iterable_mixin!(
     "node"
 );
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<PathFromNode<'static, G, GH>> for PyPathFromNode
-{
-    fn from(value: PathFromNode<'static, G, GH>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic> From<PathFromNode<'static, G>> for PyPathFromNode {
+    fn from(value: PathFromNode<'static, G>) -> Self {
         Self {
             path: PathFromNode {
-                one_hop_graph: value.one_hop_graph.clone().into_dynamic(),
                 base_graph: value.base_graph.clone().into_dynamic(),
                 op: value.op.clone(),
             },
@@ -1000,9 +997,7 @@ impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for PathFromNode<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for PathFromNode<'static, G> {
     type Target = PyPathFromNode;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -1097,17 +1092,17 @@ impl PyPathFromNode {
     ///
     /// Returns:
     ///     PathFromNode: the filtered view
-    pub fn type_filter(
-        &self,
-        node_types: Vec<PyBackedStr>,
-    ) -> PathFromNode<'static, DynamicGraph, DynamicGraph> {
+    pub fn type_filter(&self, node_types: Vec<PyBackedStr>) -> PathFromNode<'static, DynamicGraph> {
         self.path.type_filter(&node_types)
+    }
+
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyPathFromNode> {
+        let r = self.path.filter_iter(filter)?;
+        Ok(PyPathFromNode::from(r))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-    for PathFromNode<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> Repr for PathFromNode<'graph, G> {
     fn repr(&self) -> String {
         format!("PathFromNode({})", iterator_repr(self.iter()))
     }

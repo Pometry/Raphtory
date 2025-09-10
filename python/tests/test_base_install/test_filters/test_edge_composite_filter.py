@@ -20,6 +20,7 @@ def test_edge_composite_filter():
                 ("1", "2"),
                 ("2", "1"),
                 ("3", "1"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]
@@ -39,6 +40,7 @@ def test_edge_composite_filter():
         expected_ids = [
             ("2", "1"),
             ("3", "1"),
+            ("3", "4"),
             ("David Gilmour", "John Mayer"),
             ("John Mayer", "Jimmy Page"),
         ]
@@ -84,6 +86,7 @@ def test_not_edge_composite_filter():
             [
                 ("1", "2"),
                 ("2", "3"),
+                ("3", "4"),
                 ("David Gilmour", "John Mayer"),
                 ("John Mayer", "Jimmy Page"),
             ]

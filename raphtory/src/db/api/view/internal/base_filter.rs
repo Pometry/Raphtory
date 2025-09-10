@@ -16,18 +16,15 @@ pub trait BaseFilter<'graph> {
     ) -> Self::Filtered<FilteredGraph>;
 }
 
-pub trait OneHopFilter<'graph> {
-    type OneHopGraph: GraphViewOps<'graph> + 'graph;
+pub trait IterFilter<'graph> {
+    type IterGraph: GraphViewOps<'graph> + 'graph;
 
-    type OneHopFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: OneHopFilter<
-        'graph,
-        OneHopGraph = FilteredGraph,
-    >;
+    type IterFiltered<FilteredGraph: GraphViewOps<'graph> + 'graph>: IterFilter<'graph>;
 
-    fn one_hop_graph(&self) -> &Self::OneHopGraph;
+    fn iter_graph(&self) -> &Self::IterGraph;
 
-    fn apply_one_hop_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
+    fn apply_iter_filter<FilteredGraph: GraphViewOps<'graph> + 'graph>(
         &self,
         filtered_graph: FilteredGraph,
-    ) -> Self::OneHopFiltered<FilteredGraph>;
+    ) -> Self::IterFiltered<FilteredGraph>;
 }

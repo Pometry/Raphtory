@@ -17,19 +17,17 @@ use raphtory::{
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
 pub(crate) struct GqlPathFromNode {
-    pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    pub(crate) nn: PathFromNode<'static, DynamicGraph>,
 }
 
 impl GqlPathFromNode {
-    fn update<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: Into<PathFromNode<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
         GqlPathFromNode::new(nodes)
     }
 }
 
 impl GqlPathFromNode {
-    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(
-        nodes: N,
-    ) -> Self {
+    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph>>>(nodes: N) -> Self {
         Self { nn: nodes.into() }
     }
 

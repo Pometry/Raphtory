@@ -26,6 +26,7 @@ def init_graph(graph):
                 "p9": 5,
                 "p10": "Paper_airplane",
                 "p20": "Gold_ship",
+                "p100": 50,
             },
             "fire_nation",
         ),
@@ -40,7 +41,13 @@ def init_graph(graph):
         (
             3,
             3,
-            {"p2": 6, "p3": 1, "p10": "Paper_airplane", "p20": "Gold_boat"},
+            {
+                "p2": 6,
+                "p3": 1,
+                "p10": "Paper_airplane",
+                "p20": "Gold_boat",
+                "p100": 60,
+            },
             "fire_nation",
         ),
         (4, 1, {"p1": "shivam_kapoor", "p9": 5}, "fire_nation"),
@@ -75,6 +82,7 @@ def init_graph(graph):
         ),
         (3, "2", "3", {"p20": "Gold_ship"}, "air_nomads"),
         (3, "3", "1", {"p2": 6, "p3": 1}, "fire_nation"),
+        (3, "3", "4", {"p2": 6, "p3": 1}, "fire_nation"),
         (3, "2", "1", {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
         (
             4,

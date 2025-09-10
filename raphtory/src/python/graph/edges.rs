@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, IterFilterOps, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -9,6 +9,7 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::properties::{
             MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
         },
@@ -50,36 +51,43 @@ impl_iterable_mixin!(
     |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
 );
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Repr for Edges<'graph, G> {
     fn repr(&self) -> String {
         format!("Edges({})", iterator_repr(self.iter()))
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for Edges<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'static, G> {
     type Target = PyEdges;
     type Output = Bound<'py, PyEdges>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let graph = self.graph.into_dynamic();
         let base_graph = self.base_graph.into_dynamic();
         let edges = self.edges;
         PyEdges {
-            edges: Edges {
-                base_graph,
-                graph,
-                edges,
-            },
+            edges: Edges { base_graph, edges },
         }
         .into_pyobject(py)
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
+    fn from(value: Edges<'static, G>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        Self {
+            edges: Edges::new(base_graph, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyEdges {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyEdges> {
+        let r = self.edges.filter_iter(filter)?;
+        Ok(PyEdges::from(r))
+    }
+
     /// Returns the number of edges
     fn count(&self) -> usize {
         self.edges.len()
@@ -297,7 +305,7 @@ impl PyEdges {
             String::from("dst"),
             String::from("layer"),
         ];
-        let edge_meta = self.edges.graph.edge_meta();
+        let edge_meta = self.edges.base_graph.edge_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
@@ -390,16 +398,13 @@ impl_iterable_mixin!(
     "edge"
 );
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for NestedEdges<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges<'static, G> {
     type Target = PyNestedEdges;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let edges = NestedEdges {
-            graph: self.graph.into_dynamic(),
             nodes: self.nodes,
             base_graph: self.base_graph.into_dynamic(),
             edges: self.edges,
@@ -408,16 +413,28 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDyna
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-    for NestedEdges<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
     fn repr(&self) -> String {
         format!("NestedEdges({})", iterator_repr(self.iter()))
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
+    fn from(value: NestedEdges<'static, G>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        Self {
+            edges: NestedEdges::new(base_graph, value.nodes, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyNestedEdges {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNestedEdges> {
+        let r = self.edges.filter_iter(filter)?;
+        Ok(PyNestedEdges::from(r))
+    }
+
     /// Returns the earliest time of the edges.
     #[getter]
     fn earliest_time(&self) -> NestedOptionI64Iterable {

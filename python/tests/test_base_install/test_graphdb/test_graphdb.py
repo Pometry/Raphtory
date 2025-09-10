@@ -2138,7 +2138,7 @@ def test_subgraph():
         empty_graph = g.subgraph([])
         assert empty_graph.nodes.collect() == []
 
-        node1 = g.nodes[1]
+        node1 = g.node(1)
         subgraph = g.subgraph([node1])
         assert subgraph.nodes.collect() == [node1]
 

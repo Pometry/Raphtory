@@ -671,3 +671,140 @@ def test_filter_nodes_for_metadata_len():
         assert result_ids == expected_ids
 
     return check
+
+
+@with_disk_variants(init_graph)
+def test_nodes_getitem_property_filter_expr():
+    def check(graph):
+        # Test 1
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.nodes[filter_expr].id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = ["1", "3"]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.nodes[filter_expr].neighbours.name.collect())
+        expected_ids = [["1", "2", "4"], ["2", "3"]]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.filter(filter_expr).nodes.neighbours.name.collect())
+        expected_ids = [
+            ["1"],
+            ["3"],
+        ]  # graph filter applies to nodes neighbours as well
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.nodes[filter_expr].degree())
+        expected_ids = [2, 3]
+        assert result_ids == expected_ids
+
+        filter_expr = filter.Node.property("p100") > 30
+        result_ids = sorted(graph.filter(filter_expr).nodes.degree())
+        expected_ids = [1, 1]  # graph filter applies to nodes neighbours as well
+        assert result_ids == expected_ids
+
+        # Test 2
+        filter_expr2 = filter.Node.property("p9") == 5
+        # TODO: Chained filters will be problem for filters that involve windows and layers
+        result_ids = graph.nodes[filter_expr][filter_expr2].id.collect()
+        expected_ids = ["1"]
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.nodes[filter_expr3].id.collect()
+        expected_ids = ["1"]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_path_from_graph_nodes_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Node.property("p100") > 30
+
+        # Test 1
+        result_ids = graph.nodes.id.collect()
+        expected_ids = ["1", "2", "3", "4", "David Gilmour", "John Mayer", "Jimmy Page"]
+        assert result_ids == expected_ids
+
+        result_ids = graph.nodes.neighbours.id.collect()
+        expected_ids = [
+            ["2", "3"],
+            ["1", "3"],
+            ["1", "2", "4"],
+            ["3"],
+            ["John Mayer"],
+            ["David Gilmour", "Jimmy Page"],
+            ["John Mayer"],
+        ]
+        assert result_ids == expected_ids
+
+        result_ids = graph.nodes.neighbours[filter_expr].id.collect()
+        expected_ids = [["3"], ["1", "3"], ["1"], ["3"], [], [], []]
+        assert result_ids == expected_ids
+
+        result_ids = graph.nodes.neighbours[filter_expr].neighbours.id.collect()
+        expected_ids = [
+            ["1", "2", "4"],
+            ["2", "3", "1", "2", "4"],
+            ["2", "3"],
+            ["1", "2", "4"],
+            [],
+            [],
+            [],
+        ]
+        assert result_ids == expected_ids
+
+        # Test 2
+        filter_expr2 = filter.Node.property("p9") == 5
+        result_ids = graph.nodes.neighbours[filter_expr][filter_expr2].id.collect()
+        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.nodes.neighbours[filter_expr3].id.collect()
+        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_path_from_node_nodes_getitem_property_filter_expr():
+    def check(graph):
+        filter_expr = filter.Node.property("p100") > 30
+        assert graph.node("1") is not None
+
+        # Test 1
+        result_ids = graph.node("1").neighbours.id.collect()
+        expected_ids = ["2", "3"]
+        assert result_ids == expected_ids
+
+        result_ids = graph.node("1").neighbours[filter_expr].id.collect()
+        expected_ids = ["3"]
+        assert result_ids == expected_ids
+
+        result_ids = graph.node("1").neighbours[filter_expr].neighbours.id.collect()
+        expected_ids = ["1", "2", "4"]
+        assert result_ids == expected_ids
+
+        # Test 2
+        filter_expr2 = filter.Node.property("p3") == 1
+        result_ids = graph.node("1").neighbours[filter_expr][filter_expr2].id.collect()
+        expected_ids = ["3"]
+        assert result_ids == expected_ids
+
+        filter_expr3 = filter_expr & filter_expr2
+        result_ids = graph.node("1").neighbours[filter_expr3].id.collect()
+        expected_ids = ["3"]
+        assert result_ids == expected_ids
+
+    return check
