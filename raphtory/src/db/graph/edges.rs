@@ -12,10 +12,12 @@ use crate::{
         graph::{
             edge::EdgeView,
             path::{PathFromGraph, PathFromNode},
+            views::layer_graph::LayeredGraph,
         },
     },
     prelude::GraphViewOps,
 };
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -191,8 +193,17 @@ where
             edges: Arc::new(move || {
                 let filtered_graph = filtered_graph.clone();
                 let edges_locked = filtered_graph.core_edges();
-                Box::new(edges().filter(move |e_ref| {
-                    filtered_graph.filter_edge(edges_locked.edge(e_ref.pid()))
+                Box::new(edges().filter(move |e_ref| match e_ref.layer() {
+                    Some(l) => match e_ref.time() {
+                        Some(t) => {
+                            filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
+                        }
+                        None => {
+                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
+                            lg.filter_edge(edges_locked.edge(e_ref.pid()))
+                        }
+                    },
+                    None => filtered_graph.filter_edge(edges_locked.edge(e_ref.pid())),
                 }))
             }),
         }

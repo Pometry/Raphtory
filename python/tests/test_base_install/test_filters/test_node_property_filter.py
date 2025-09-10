@@ -712,6 +712,7 @@ def test_nodes_getitem_property_filter_expr():
 
         # Test 2
         filter_expr2 = filter.Node.property("p9") == 5
+        # TODO: Chained filters will be problem for filters that involve windows and layers
         result_ids = graph.nodes[filter_expr][filter_expr2].id.collect()
         expected_ids = ["1"]
         assert result_ids == expected_ids
