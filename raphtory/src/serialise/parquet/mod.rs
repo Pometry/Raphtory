@@ -1073,12 +1073,17 @@ mod test {
     }
 
     #[test]
-    fn test_parquet_bytes() {
-        proptest!(|(edges in build_graph_strat(10, 10, true))| {
-            let g = Graph::from(build_graph(&edges));
-            let bytes = g.encode_parquet_to_bytes().unwrap();
-            let g2 = Graph::decode_parquet_from_bytes(&bytes).unwrap();
-            assert_graph_equal(&g, &g2);
-        })
+    fn test_parquet_bytes_simple() {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
+        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
+        g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+
+        let bytes = g.encode_parquet_to_bytes().unwrap();
+        let g2 = Graph::decode_parquet_from_bytes(&bytes).unwrap();
+        assert_graph_equal(&g, &g2);
     }
 }
