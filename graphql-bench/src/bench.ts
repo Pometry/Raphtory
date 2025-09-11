@@ -285,7 +285,7 @@ export function readAndWriteNodeProperties(input: SetupData) {
                   },
                   at: {
                     __args: {
-                      time,
+                      simpleTime: time,
                     },
                     properties: {
                       get: {

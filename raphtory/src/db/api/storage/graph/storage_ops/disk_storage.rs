@@ -227,7 +227,7 @@ mod test {
         prelude::*,
     };
     use pometry_storage::{graph::TemporalGraph, properties::Properties};
-    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::AsTime};
     use raphtory_storage::disk::{ParquetLayerCols, Time};
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
@@ -263,11 +263,11 @@ mod test {
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
-        assert_eq!(g.earliest_time(), Some(expected));
+        assert_eq!(g.earliest_time().map(|t| t.t()), Some(expected));
 
         // check latest_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
-        assert_eq!(g.latest_time(), Some(expected));
+        assert_eq!(g.latest_time().map(|t| t.t()), Some(expected));
 
         // get edges over window
 
@@ -282,11 +282,11 @@ mod test {
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
-        assert_eq!(g.earliest_time(), Some(expected));
+        assert_eq!(g.earliest_time().map(|t| t.t()), Some(expected));
 
         // check latest_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
-        assert_eq!(g.latest_time(), Some(expected));
+        assert_eq!(g.latest_time().map(|t| t.t()), Some(expected));
     }
 
     #[test]
@@ -296,7 +296,10 @@ mod test {
         g.add_node(0, 0, NO_PROPS, None).unwrap();
         // g.add_node(1, 1, [("test", "test")], None).unwrap();
         let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-        assert_eq!(disk_g.node(0).unwrap().earliest_time(), Some(0));
+        assert_eq!(
+            disk_g.node(0).unwrap().earliest_time().map(|t| t.t()),
+            Some(0)
+        );
         assert_graph_equal(&g, &disk_g);
     }
 
@@ -433,7 +436,7 @@ mod test {
                     .into_iter()
                     .flat_map(|t_prop| t_prop.into_iter())
             })
-            .filter_map(|(t, t_prop)| t_prop.into_f64().map(|v| (t, v)))
+            .filter_map(|(t, t_prop)| t_prop.into_f64().map(|v| (t.t(), v)))
             .collect();
         edge_t_props
     }
@@ -583,7 +586,15 @@ mod test {
             .properties()
             .temporal()
             .into_iter()
-            .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
+            .map(|(key, t_view)| {
+                (
+                    key.to_string(),
+                    t_view
+                        .into_iter()
+                        .map(|(t, p)| (t.t(), p))
+                        .collect::<Vec<_>>(),
+                )
+            })
             .filter(|(_, v)| !v.is_empty())
             .collect::<Vec<_>>();
 
@@ -1025,7 +1036,7 @@ mod storage_tests {
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
-    use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::{disk::DiskGraphStorage, mutation::addition_ops::InternalAdditionOps};
 
@@ -1081,6 +1092,7 @@ mod storage_tests {
                 .get("node_prop")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(0, Prop::F64(0.)), (1, Prop::F64(1.))]
         );
@@ -1090,6 +1102,7 @@ mod storage_tests {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(3, Prop::str("test")), (3, Prop::str("test"))]
         );
