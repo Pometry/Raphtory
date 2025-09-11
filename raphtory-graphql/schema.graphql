@@ -200,10 +200,16 @@ type Edge {
 	end: Int
 	"""
 	Returns the source node of the edge.
+	
+	Returns:
+	GqlNode:
 	"""
 	src: Node!
 	"""
 	Returns the destination node of the edge.
+	
+	Returns:
+	GqlNode:
 	"""
 	dst: Node!
 	"""
@@ -242,10 +248,16 @@ type Edge {
 	explodeLayers: Edges!
 	"""
 	Returns a list of timestamps of when an edge is added or change to an edge is made.
+	
+	Returns:
+	List[int]:
 	"""
 	history: [Int!]!
 	"""
 	Returns a list of timestamps of when an edge is deleted.
+	
+	Returns:
+	List[int]:
 	"""
 	deletions: [Int!]!
 	"""
@@ -545,6 +557,9 @@ type Edges {
 	end: Int
 	"""
 	Returns the number of edges.
+	
+	Returns:
+	usize:
 	"""
 	count: Int!
 	"""
@@ -848,6 +863,9 @@ type Graph {
 	latestEdgeTime(includeNegative: Boolean): Int
 	"""
 	Returns the number of edges in the graph.
+	
+	Returns:
+	usize:
 	"""
 	countEdges: Int!
 	"""
@@ -940,8 +958,8 @@ type Graph {
 }
 
 type GraphAlgorithmPlugin {
-	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 	pagerank(iterCount: Int!, threads: Int, tol: Float): [PagerankOutput!]!
+	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
 type GraphSchema {
@@ -1125,6 +1143,9 @@ type MetaGraph {
 	nodeCount: Int!
 	"""
 	Returns the number of edges in the graph.
+	
+	Returns:
+	usize:
 	"""
 	edgeCount: Int!
 	"""
@@ -2277,6 +2298,9 @@ type ShortestPathOutput {
 	nodes: [String!]!
 }
 
+"""
+SomePropertySpec object containing lists of metadata and property names.
+"""
 input SomePropertySpec {
 	"""
 	List of metadata.

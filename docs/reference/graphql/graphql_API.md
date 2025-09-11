@@ -889,6 +889,9 @@ Returns the end time of the window. Returns none if no window is applied.
 
 Returns the source node of the edge.
 
+Returns:
+GqlNode:
+
 </td>
 </tr>
 <tr>
@@ -897,6 +900,9 @@ Returns the source node of the edge.
 <td>
 
 Returns the destination node of the edge.
+
+Returns:
+GqlNode:
 
 </td>
 </tr>
@@ -981,6 +987,9 @@ Each new edge object contains only updates from the respective layers.
 
 Returns a list of timestamps of when an edge is added or change to an edge is made.
 
+Returns:
+List[int]:
+
 </td>
 </tr>
 <tr>
@@ -989,6 +998,9 @@ Returns a list of timestamps of when an edge is added or change to an edge is ma
 <td>
 
 Returns a list of timestamps of when an edge is deleted.
+
+Returns:
+List[int]:
 
 </td>
 </tr>
@@ -1465,6 +1477,9 @@ Returns the end time of the window or none if there is no window.
 <td>
 
 Returns the number of edges.
+
+Returns:
+usize:
 
 </td>
 </tr>
@@ -2236,6 +2251,9 @@ Returns the earliest time that any edge in this graph is valid.
 
 Returns the number of edges in the graph.
 
+Returns:
+usize:
+
 </td>
 </tr>
 <tr>
@@ -2547,26 +2565,6 @@ This allows you to specify multiple operations together.
 </thead>
 <tbody>
 <tr>
-<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
-<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">source</td>
-<td valign="top"><a href="#string">String</a>!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">targets</td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
-</tr>
-<tr>
-<td colspan="2" align="right" valign="top">direction</td>
-<td valign="top"><a href="#string">String</a></td>
-<td></td>
-</tr>
-<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.pagerank">pagerank</strong></td>
 <td valign="top">[<a href="#pagerankoutput">PagerankOutput</a>!]!</td>
 <td></td>
@@ -2584,6 +2582,26 @@ This allows you to specify multiple operations together.
 <tr>
 <td colspan="2" align="right" valign="top">tol</td>
 <td valign="top"><a href="#float">Float</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
+<td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">source</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">targets</td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">direction</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -2776,6 +2794,9 @@ Returns the number of nodes in the graph.
 <td>
 
 Returns the number of edges in the graph.
+
+Returns:
+usize:
 
 </td>
 </tr>
@@ -6887,6 +6908,8 @@ Some properties and metadata.
 </table>
 
 ### SomePropertySpec
+
+SomePropertySpec object containing lists of metadata and property names.
 
 <table>
 <thead>
