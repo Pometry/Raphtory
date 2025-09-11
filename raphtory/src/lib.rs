@@ -161,7 +161,7 @@ mod test_utils {
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, NaiveDateTime, Utc};
     use itertools::Itertools;
-    use proptest::{arbitrary::any, prelude::*};
+    use proptest::{arbitrary::any, option, prelude::*};
     use proptest_derive::Arbitrary;
     use raphtory_api::core::entities::properties::prop::{PropType, DECIMAL_MAX};
     use raphtory_storage::{
@@ -192,6 +192,24 @@ mod test_utils {
                 i64::MIN..i64::MAX,
                 any::<String>(),
                 any::<i64>(),
+            ),
+            0..=len,
+        )
+    }
+
+    pub(crate) fn build_layered_edge_list(
+        len: usize,
+        num_nodes: u64,
+        layers: usize,
+    ) -> impl Strategy<Value = Vec<(u64, u64, i64, String, i64, Option<String>)>> {
+        proptest::collection::vec(
+            (
+                0..num_nodes,
+                0..num_nodes,
+                i64::MIN..i64::MAX,
+                any::<String>(),
+                any::<i64>(),
+                option::of(0..layers).prop_map(|l| l.map(|l| l.to_string())),
             ),
             0..=len,
         )

@@ -34,8 +34,8 @@ use tempfile::TempDir;
 pub mod entries;
 pub mod mutation;
 
-const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 25_000;
-const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 50_000;
+const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 1_048_576;
+const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension> {
