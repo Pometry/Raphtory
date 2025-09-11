@@ -89,7 +89,7 @@ jobs:
       - name: Run stubsgen
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
         run: |
-          echo "Installing Raphtory from cache..."
+          echo "Installing Raphtory from ./python"
           pip install -e ./python
           echo "Installing stubsgen"
           python -m pip install -e stub_gen
