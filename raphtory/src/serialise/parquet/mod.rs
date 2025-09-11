@@ -1094,4 +1094,15 @@ mod test {
         let g2 = Graph::decode_parquet_from_bytes(&bytes).unwrap();
         assert_graph_equal(&g, &g2);
     }
+
+    #[test]
+    fn test_parquet_bytes_proptest() {
+        proptest!(|(edges in build_graph_strat(10, 10, true))| {
+            let g = Graph::from(build_graph(&edges));
+            let bytes = g.encode_parquet_to_bytes().unwrap();
+            let g2 = Graph::decode_parquet_from_bytes(&bytes).unwrap();
+
+            assert_graph_equal(&g, &g2);
+        })
+    }
 }
