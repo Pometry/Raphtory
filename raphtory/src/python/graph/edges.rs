@@ -86,7 +86,7 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    ///     Iterable[Optional[TimeIndexEntry]]: Iterable of the earliest times of the edges as TimeIndexEntry entries.
+    ///     OptionTimeIndexEntryIterable: Iterable of the earliest times of the edges as TimeIndexEntry entries.
     #[getter]
     fn earliest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -96,7 +96,7 @@ impl PyEdges {
     /// Returns the latest times of the edges.
     ///
     /// Returns:
-    ///     Iterable[Optional[TimeIndexEntry]]: Iterable of the latest times of the edges as TimeIndexEntry entries.
+    ///     OptionTimeIndexEntryIterable: Iterable of the latest times of the edges as TimeIndexEntry entries.
     #[getter]
     fn latest_time(&self) -> OptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -148,7 +148,7 @@ impl PyEdges {
     /// Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///    Iterable[History]: An iterable of history objects, one for each edge.
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
     #[getter]
     fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
@@ -158,7 +158,7 @@ impl PyEdges {
     /// Returns history objects for edges containing their deletion times.
     ///
     /// Returns:
-    ///    Iterable[History]: An iterable of history objects, one for each edge.
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
     #[getter]
     fn deletions(&self) -> HistoryIterable {
         let edges = self.edges.clone();
@@ -366,7 +366,7 @@ impl PyNestedEdges {
     /// Get the earliest time of the edges as TimeIndexEntry.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the earliest times.
+    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of the earliest times.
     #[getter]
     fn earliest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -376,7 +376,7 @@ impl PyNestedEdges {
     /// Get the latest time of the edges as TimeIndexEntry.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Optional[TimeIndexEntry]]]: A nested iterable of the latest times.
+    ///     NestedOptionTimeIndexEntryIterable: A nested iterable of the latest times.
     #[getter]
     fn latest_time(&self) -> NestedOptionTimeIndexEntryIterable {
         let edges = self.edges.clone();
@@ -386,7 +386,7 @@ impl PyNestedEdges {
     /// Returns the times of exploded edges.
     ///
     /// Returns:
-    ///     Iterable[Iterable[TimeIndexEntry]]: A nested iterable of the times of the exploded edges.
+    ///     NestedTimeIndexEntryIterable: A nested iterable of the times of the exploded edges.
     ///
     /// Raises:
     ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
@@ -461,7 +461,7 @@ impl PyNestedEdges {
     /// Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     Iterable[Iterable[History]]: A nested iterable of history objects, one for each edge.
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
     #[getter]
     fn history(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
@@ -476,7 +476,7 @@ impl PyNestedEdges {
     /// Get history objects for edges containing their deletion times.
     ///
     /// Returns:
-    ///     Iterable[Iterable[History]]: A nested iterable of history objects, one for each edge.
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
     #[getter]
     fn deletions(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();

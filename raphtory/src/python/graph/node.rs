@@ -828,7 +828,7 @@ impl PyPathFromGraph {
     /// Returns a history object for each node with time entries for when a node is added or change to a node is made.
     ///
     /// Returns:
-    ///     Iterable[Iterable[History]]: A nested iterable of history objects, one for each node.
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each node.
     #[getter]
     fn history(&self) -> NestedHistoryIterable {
         let path = self.path.clone();

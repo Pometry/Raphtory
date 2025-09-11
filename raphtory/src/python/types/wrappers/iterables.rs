@@ -119,7 +119,7 @@ impl TimeIndexEntryIterable {
     /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     Iterable[int]: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    ///     I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
     #[getter]
     fn t(&self) -> I64Iterable {
         let builder = self.builder.clone();
@@ -129,7 +129,7 @@ impl TimeIndexEntryIterable {
     /// Change this Iterable of TimeIndexEntry into an Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     Iterable[datetime]: Iterable of UTC datetimes for each TimeIndexEntry.
+    ///     ResultUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -142,7 +142,7 @@ impl TimeIndexEntryIterable {
     /// Change this Iterable of TimeIndexEntry into an Iterable of their associated secondary indices.
     ///
     /// Returns:
-    ///     Iterable[int]: Iterable of secondary indices associated to each TimeIndexEntry.
+    ///     UsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry.
     #[getter]
     fn secondary_index(&self) -> UsizeIterable {
         let builder = self.builder.clone();
@@ -165,7 +165,7 @@ impl NestedTimeIndexEntryIterable {
     /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     Iterable[Iterable[int]]: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
+    ///     NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
     #[getter]
     fn t(&self) -> NestedI64Iterable {
         let builder = self.builder.clone();
@@ -175,7 +175,7 @@ impl NestedTimeIndexEntryIterable {
     /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     Iterable[Iterable[datetime]]: Nested iterable of UTC datetimes for each TimeIndexEntry.
+    ///     NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -188,7 +188,7 @@ impl NestedTimeIndexEntryIterable {
     /// Change this nested Iterable of TimeIndexEntry into a nested Iterable of their associated secondary indices.
     ///
     /// Returns:
-    ///     Iterable[Iterable[int]]: Nested iterable of secondary indices associated to each TimeIndexEntry.
+    ///     NestedUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry.
     #[getter]
     fn secondary_index(&self) -> NestedUsizeIterable {
         let builder = self.builder.clone();
@@ -208,7 +208,7 @@ impl OptionTimeIndexEntryIterable {
     /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     Iterable[Optional[int]]: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    ///     OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
     #[getter]
     fn t(&self) -> OptionI64Iterable {
         let builder = self.builder.clone();
@@ -218,7 +218,7 @@ impl OptionTimeIndexEntryIterable {
     /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     Iterable[Optional[datetime]]: Iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///     ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry, if available.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -231,7 +231,7 @@ impl OptionTimeIndexEntryIterable {
     /// Change this Iterable of Optional[TimeIndexEntry] into an Iterable of their associated secondary indices.
     ///
     /// Returns:
-    ///     Iterable[Optional[int]]: Iterable of secondary indices associated to each TimeIndexEntry, if available.
+    ///     OptionUsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry, if available.
     #[getter]
     fn secondary_index(&self) -> OptionUsizeIterable {
         let builder = self.builder.clone();
@@ -263,7 +263,7 @@ impl NestedOptionTimeIndexEntryIterable {
     /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding Unix timestamps in milliseconds.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Optional[int]]]: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
+    ///     NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
     #[getter]
     fn t(&self) -> NestedOptionI64Iterable {
         let builder = self.builder.clone();
@@ -273,7 +273,7 @@ impl NestedOptionTimeIndexEntryIterable {
     /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding UTC DateTimes.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Optional[datetime]]]: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
+    ///     NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -287,7 +287,7 @@ impl NestedOptionTimeIndexEntryIterable {
     /// Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of their associated secondary indices.
     ///
     /// Returns:
-    ///     Iterable[Iterable[Optional[int]]]: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.
+    ///     NestedOptionUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.
     #[getter]
     fn secondary_index(&self) -> NestedOptionUsizeIterable {
         let builder = self.builder.clone();

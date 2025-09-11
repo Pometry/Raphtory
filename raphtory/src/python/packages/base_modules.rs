@@ -5,15 +5,26 @@ use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
-        algorithm::max_weight_matching::PyMatching,
+        algorithm::{epidemics::PyInfected, max_weight_matching::PyMatching},
+        filter::node_filter_builders::PyNodeFilterBuilder,
         graph::{
             edge::{PyEdge, PyMutableEdge},
             edges::{PyEdges, PyNestedEdges},
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
-            history::PyHistory,
+            history::{
+                HistoryDateTimeIterable, HistoryIterable, HistorySecondaryIndexIterable,
+                HistoryTimestampIterable, IntervalsIterable, NestedHistoryDateTimeIterable,
+                NestedHistoryIterable, NestedHistorySecondaryIndexIterable,
+                NestedHistoryTimestampIterable, NestedIntervalsIterable, PyHistory,
+                PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+            },
+            index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
-            properties::{PyMetadata, PyProperties, PyTemporalProp, PyTemporalProperties},
+            properties::{
+                MetadataView, PropertiesView, PyMetadata, PyProperties, PyTemporalProp,
+                PyTemporalProperties,
+            },
             views::graph_view::PyGraphView,
         },
         packages::{
@@ -22,7 +33,21 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::wrappers::document::PyDocument,
+        types::{
+            result_iterable::{
+                NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
+                ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
+            },
+            wrappers::{
+                document::{PyDocument, PyEmbedding},
+                iterables::{
+                    I64Iterable, NestedI64Iterable, NestedOptionI64Iterable,
+                    NestedOptionTimeIndexEntryIterable, NestedOptionUsizeIterable,
+                    NestedTimeIndexEntryIterable, OptionI64Iterable, OptionTimeIndexEntryIterable,
+                    OptionUsizeIterable, TimeIndexEntryIterable,
+                },
+            },
+        },
         utils::PyWindowSet,
     },
 };
@@ -61,7 +86,32 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyIntervals,
         PyWindowSet,
         PyIndexSpecBuilder,
-        PyIndexSpec
+        PyIndexSpec,
+        // do we want to add these and use them in return types?
+        HistoryIterable,
+        NestedHistoryIterable,
+        HistoryTimestampIterable,
+        NestedHistoryTimestampIterable,
+        HistoryDateTimeIterable,
+        NestedHistoryDateTimeIterable,
+        HistorySecondaryIndexIterable,
+        NestedHistorySecondaryIndexIterable,
+        IntervalsIterable,
+        NestedIntervalsIterable,
+        OptionTimeIndexEntryIterable,
+        NestedOptionTimeIndexEntryIterable,
+        TimeIndexEntryIterable,
+        NestedTimeIndexEntryIterable,
+        ResultUtcDateTimeIterable,
+        NestedResultUtcDateTimeIterable,
+        ResultOptionUtcDateTimeIterable,
+        NestedResultOptionUtcDateTimeIterable,
+        OptionUsizeIterable,
+        NestedOptionUsizeIterable,
+        OptionI64Iterable,
+        NestedOptionI64Iterable,
+        I64Iterable,
+        NestedI64Iterable,
     );
 
     #[pyfunction]
@@ -164,13 +214,3 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
-use crate::python::{
-    algorithm::epidemics::PyInfected,
-    filter::node_filter_builders::PyNodeFilterBuilder,
-    graph::{
-        history::{PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals},
-        index::{PyIndexSpec, PyIndexSpecBuilder},
-        properties::{MetadataView, PropertiesView},
-    },
-    types::wrappers::document::PyEmbedding,
-};

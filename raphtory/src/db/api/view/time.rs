@@ -42,7 +42,6 @@ pub(crate) mod internal {
 
         fn timeline_start(&self) -> Option<TimeIndexEntry> {
             self.start()
-                .map(|t| t)
                 .or_else(|| self.current_filter().earliest_time())
         }
 
@@ -93,10 +92,10 @@ pub trait TimeOps<'graph>:
     InternalTimeOps<'graph, InternalWindowedView = Self::WindowedViewType>
 {
     type WindowedViewType: TimeOps<'graph> + 'graph;
-    /// Return the timestamp of the start of the view or None if the view start is unbounded.
+    /// Return the time entry of the start of the view or None if the view start is unbounded.
     fn start(&self) -> Option<TimeIndexEntry>;
 
-    /// Return the timestamp of the view or None if the view end is unbounded.
+    /// Return the time entry of the view or None if the view end is unbounded.
     fn end(&self) -> Option<TimeIndexEntry>;
 
     /// set the start of the window to the larger of `start` and `self.start()`
