@@ -1,7 +1,11 @@
 use super::properties::{Properties, RowEntry};
 use crate::{LocalPOS, error::StorageError};
 use either::Either;
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
+use polars_arrow::pushable::Pushable;
+use raphtory_api::core::{
+    entities::properties::{meta::Meta, prop::Prop},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_core::{
     entities::{
         ELID,
@@ -15,7 +19,12 @@ use rayon::{
 };
 use roaring::{RoaringBitmap, bitmap::Iter};
 use rustc_hash::FxHashMap;
-use std::{collections::hash_map::Entry, fmt::Debug, ops::Range, sync::Arc};
+use std::{
+    collections::hash_map::Entry,
+    fmt::{Debug, Formatter, Pointer},
+    ops::Range,
+    sync::Arc,
+};
 
 pub mod edge;
 pub mod node;
@@ -24,135 +33,147 @@ pub mod additions;
 pub mod edge_entry;
 pub mod node_entry;
 
+pub type PageIndexT = u32;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct PageIndexEntry(PageIndexT);
+
+impl Default for PageIndexEntry {
+    fn default() -> Self {
+        PageIndexEntry(PageIndexT::MAX)
+    }
+}
+
+impl PageIndexEntry {
+    fn index(self) -> Option<usize> {
+        (self.0 != PageIndexT::MAX).then_some(self.0 as usize)
+    }
+
+    fn is_filled(self) -> bool {
+        self.0 != PageIndexT::MAX
+    }
+}
+
+#[derive(Default)]
+struct PageIndex(Vec<PageIndexEntry>);
+
+impl PageIndex {
+    fn get(&self, pos: LocalPOS) -> Option<usize> {
+        self.0.get(pos.as_index()).and_then(|index| index.index())
+    }
+
+    fn set(&mut self, pos: LocalPOS, index: PageIndexEntry) {
+        let pos_index = pos.as_index();
+        if pos_index >= self.0.len() {
+            self.0.resize(pos_index + 1, PageIndexEntry::default());
+        }
+        self.0[pos_index] = index;
+    }
+
+    fn iter(&self) -> impl ExactSizeIterator<Item = Option<usize>> {
+        self.0.iter().map(|i| i.index())
+    }
+
+    fn filled_positions(&self) -> impl Iterator<Item = LocalPOS> {
+        self.0
+            .iter()
+            .enumerate()
+            .filter_map(|(i, p)| p.is_filled().then_some(LocalPOS::from(i)))
+    }
+
+    fn par_iter(&self) -> impl IndexedParallelIterator<Item = Option<usize>> {
+        self.0.par_iter().map(|i| i.index())
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+#[derive(Default)]
+struct SparseVec<T> {
+    index: PageIndex,
+    data: Vec<(LocalPOS, T)>,
+}
+
+impl<T: Debug> Debug for SparseVec<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter_filled()).finish()
+    }
+}
+
+impl<T> SparseVec<T> {
+    fn get(&self, pos: LocalPOS) -> Option<&T> {
+        self.index
+            .get(pos)
+            .and_then(|i| self.data.get(i).map(|(_, x)| x))
+    }
+
+    fn get_mut(&mut self, pos: LocalPOS) -> Option<&mut T> {
+        self.index
+            .get(pos)
+            .and_then(|i| self.data.get_mut(i).map(|(_, x)| x))
+    }
+
+    fn is_filled(&self, pos: LocalPOS) -> bool {
+        self.index.get(pos).is_some()
+    }
+
+    /// Iterator over filled positions.
+    ///
+    /// Note that this returns items in insertion order!
+    fn iter_filled(&self) -> impl Iterator<Item = (LocalPOS, &T)> {
+        self.data.iter().map(|(i, x)| (*i, x))
+    }
+
+    fn iter_all(&self) -> impl ExactSizeIterator<Item = Option<&T>> {
+        self.index.iter().map(|i| i.map(|i| &self.data[i].1))
+    }
+
+    fn num_filled(&self) -> usize {
+        self.data.len()
+    }
+}
+
+impl<T: Send + Sync> SparseVec<T> {
+    /// Parallel iterator over filled positions.
+    ///
+    /// Note that this returns items in insertion order!
+    fn par_iter_filled(&self) -> impl IndexedParallelIterator<Item = (LocalPOS, &T)> {
+        self.data.par_iter().map(|(i, x)| (*i, x))
+    }
+    fn par_iter_all(&self) -> impl IndexedParallelIterator<Item = Option<&T>> {
+        self.index.par_iter().map(|i| i.map(|i| &self.data[i].1))
+    }
+}
+
+impl<T: HasRow> SparseVec<T> {
+    fn get_or_new(&mut self, pos: LocalPOS) -> MaybeNew<&mut T> {
+        match self.index.get(pos) {
+            None => {
+                let next_index = self.data.len();
+                self.data.push((pos, T::default()));
+                let new_entry = &mut self.data[next_index].1;
+                *new_entry.row_mut() = next_index;
+                self.index.set(pos, PageIndexEntry(next_index as u32));
+                MaybeNew::New(new_entry)
+            }
+            Some(i) => MaybeNew::Existing(&mut self.data[i].1),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct SegmentContainer<T> {
     segment_id: usize,
-    items: RoaringBitmap,
-    data: FxHashMap<LocalPOS, T>,
+    data: SparseVec<T>,
     max_page_len: u32,
     properties: Properties,
     meta: Arc<Meta>,
     lsn: u64,
 }
 
-pub struct FullRangeIter<'a, T> {
-    range: Range<u32>,
-    iter: Iter<'a>,
-    head: Option<u32>,
-    container: &'a SegmentContainer<T>,
-}
-
-impl<'a, T: HasRow> Iterator for FullRangeIter<'a, T> {
-    type Item = (LocalPOS, Option<(&'a T, RowEntry<'a>)>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let next_item = self.range.next()?;
-        if self.head.is_none() {
-            self.head = self.iter.next();
-        }
-        let l_pos = LocalPOS(next_item);
-        let data = if self
-            .head
-            .as_ref()
-            .filter(|&&head| head == next_item)
-            .is_some()
-        {
-            let entry = self.container.data.get(&l_pos).unwrap();
-            self.head = None;
-            Some((entry, self.container.properties().get_entry(entry.row())))
-        } else {
-            None
-        };
-        Some((LocalPOS(next_item), data))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.range.size_hint()
-    }
-}
-
-struct ItemProducer<'a> {
-    items: &'a RoaringBitmap,
-    range: Range<u32>,
-}
-
-impl<'a> Producer for ItemProducer<'a> {
-    type Item = u32;
-    type IntoIter = Iter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let start = self.items.select(self.range.start).unwrap_or(u32::MIN);
-        let end = self.items.select(self.range.end).unwrap_or(u32::MAX);
-        self.items.range(start..end)
-    }
-
-    fn split_at(self, index: usize) -> (Self, Self) {
-        let left_range = self.range.start..(self.range.start + index as u32);
-        let right_range = (self.range.start + index as u32)..self.range.end;
-        (
-            ItemProducer {
-                items: self.items,
-                range: left_range,
-            },
-            ItemProducer {
-                items: self.items,
-                range: right_range,
-            },
-        )
-    }
-}
-
-pub struct ParItemIter<'a> {
-    items: &'a RoaringBitmap,
-}
-
-impl<'a> ParallelIterator for ParItemIter<'a> {
-    type Item = u32;
-
-    fn drive_unindexed<C>(self, consumer: C) -> C::Result
-    where
-        C: UnindexedConsumer<Self::Item>,
-    {
-        bridge(self, consumer)
-    }
-}
-
-impl<'a> IndexedParallelIterator for ParItemIter<'a> {
-    fn len(&self) -> usize {
-        self.items.len() as usize
-    }
-
-    fn drive<C: Consumer<Self::Item>>(self, consumer: C) -> C::Result {
-        bridge(self, consumer)
-    }
-
-    fn with_producer<CB: ProducerCallback<Self::Item>>(self, callback: CB) -> CB::Output {
-        let producer = ItemProducer {
-            items: self.items,
-            range: 0..self.items.len() as u32,
-        };
-        callback.callback(producer)
-    }
-}
-
-impl<'a, T: HasRow> ExactSizeIterator for FullRangeIter<'a, T> {}
-
-impl<T: Debug> Debug for SegmentContainer<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let items = self.items.iter().collect::<Vec<_>>();
-        let mut data = self.data.iter().collect::<Vec<_>>();
-        data.sort_by(|a, b| a.0.cmp(b.0));
-
-        f.debug_struct("SegmentContainer")
-            .field("page_id", &self.segment_id)
-            .field("items", &items as &dyn Debug)
-            .field("data", &data)
-            .field("max_page_len", &self.max_page_len)
-            .field("properties", &self.properties)
-            .finish()
-    }
-}
-
-pub trait HasRow: Default + Send + Sync {
+pub trait HasRow: Default + Send + Sync + Sized {
     fn row(&self) -> usize;
     fn row_mut(&mut self) -> &mut usize;
 }
@@ -162,7 +183,6 @@ impl<T: HasRow> SegmentContainer<T> {
         assert!(max_page_len > 0, "max_page_len must be greater than 0");
         Self {
             segment_id,
-            items: RoaringBitmap::new(),
             data: Default::default(),
             max_page_len,
             properties: Default::default(),
@@ -174,7 +194,8 @@ impl<T: HasRow> SegmentContainer<T> {
     #[inline]
     pub fn est_size(&self) -> usize {
         //TODO: this is a rough estimate and should be improved
-        let data_size = (self.data.len() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
+        let data_size =
+            (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
         let timestamp_size = std::mem::size_of::<TimeIndexEntry>();
         (self.properties.additions_count * timestamp_size)
             + data_size
@@ -182,20 +203,12 @@ impl<T: HasRow> SegmentContainer<T> {
             + self.c_prop_est_size()
     }
 
-    pub fn get(&self, item_pos: &LocalPOS) -> Option<&T> {
-        if self.items.contains(item_pos.0) {
-            self.data.get(item_pos)
-        } else {
-            None
-        }
+    pub fn get(&self, item_pos: LocalPOS) -> Option<&T> {
+        self.data.get(item_pos)
     }
 
     pub fn has_item(&self, item_pos: LocalPOS) -> bool {
-        self.items.contains(item_pos.0)
-    }
-
-    pub fn set_item(&mut self, item_pos: LocalPOS) {
-        self.items.insert(item_pos.0);
+        self.data.is_filled(item_pos)
     }
 
     pub fn max_page_len(&self) -> u32 {
@@ -203,7 +216,7 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn is_full(&self) -> bool {
-        self.data.len() == self.max_page_len() as usize
+        self.data.num_filled() == self.max_page_len() as usize
     }
 
     pub fn t_len(&self) -> usize {
@@ -214,17 +227,8 @@ impl<T: HasRow> SegmentContainer<T> {
     /// If the item position already exists, it returns a mutable reference to the existing item.
     /// Left variant indicates that the item was already present,
     /// Right variant indicates that a new item was created.
-    pub(crate) fn reserve_local_row(&mut self, item_pos: LocalPOS) -> Either<&mut T, &mut T> {
-        let local_row = self.data.len();
-        self.set_item(item_pos);
-        match self.data.entry(item_pos) {
-            Entry::Occupied(occupied_entry) => Either::Left(occupied_entry.into_mut()),
-            Entry::Vacant(vacant_entry) => {
-                let vacant_entry = vacant_entry.insert(T::default());
-                *vacant_entry.row_mut() = local_row;
-                Either::Right(vacant_entry)
-            }
-        }
+    pub(crate) fn reserve_local_row(&mut self, item_pos: LocalPOS) -> MaybeNew<&mut T> {
+        self.data.get_or_new(item_pos)
     }
 
     #[inline]
@@ -252,7 +256,7 @@ impl<T: HasRow> SegmentContainer<T> {
         local_pos: LocalPOS,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
-        if let Some(item) = self.get(&local_pos) {
+        if let Some(item) = self.get(local_pos) {
             let local_row = item.row();
             let edge_properties = self.properties().get_entry(local_row);
             for (prop_id, prop_val) in props {
@@ -266,19 +270,12 @@ impl<T: HasRow> SegmentContainer<T> {
         &self.meta
     }
 
-    pub fn items(&self) -> &RoaringBitmap {
-        &self.items
-    }
-
     pub fn filled_positions(&self) -> impl Iterator<Item = LocalPOS> {
-        self.items.iter().map(LocalPOS)
+        self.data.index.filled_positions()
     }
 
     pub fn filled_positions_par(&self) -> impl ParallelIterator<Item = LocalPOS> {
-        ParItemIter {
-            items: self.items(),
-        }
-        .map(LocalPOS)
+        self.data.par_iter_filled().map(|(i, _)| i)
     }
 
     #[inline(always)]
@@ -297,41 +294,48 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn len(&self) -> u32 {
-        self.data.len() as u32
+        self.data.data.len() as u32
     }
 
     pub fn is_empty(&self) -> bool {
-        self.data.is_empty()
+        self.data.data.is_empty()
     }
 
+    /// returns items in insertion order!
     pub fn row_entries(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
-        self.items.iter().map(LocalPOS).filter_map(move |l_pos| {
-            let entry = self.data.get(&l_pos)?;
-            Some((l_pos, entry, self.properties().get_entry(entry.row())))
+        self.data
+            .iter_filled()
+            .map(|(l_pos, entry)| (l_pos, entry, self.properties().get_entry(entry.row())))
+    }
+
+    /// return filled entries ordered by index
+    pub fn row_entries_ordered(&self) -> impl Iterator<Item = (LocalPOS, &T, RowEntry<'_>)> {
+        self.all_entries().filter_map(|(pos, entry)| {
+            let (v, row) = entry?;
+            Some((pos, v, row))
         })
     }
 
-    pub fn all_entries(&self) -> FullRangeIter<'_, T> {
-        FullRangeIter {
-            range: 0..self.max_page_len,
-            iter: self.items.iter(),
-            head: None,
-            container: self,
-        }
+    pub fn all_entries(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
+        self.data.iter_all().enumerate().map(|(i, v)| {
+            (
+                LocalPOS::from(i),
+                v.map(|v| (v, self.properties().get_entry(v.row()))),
+            )
+        })
     }
 
     pub fn all_entries_par(
         &self,
     ) -> impl ParallelIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> + '_ {
-        (0..self.max_page_len)
-            .into_par_iter()
-            .map(LocalPOS)
-            .map(move |l_pos| {
-                let entry = self
-                    .get(&l_pos)
-                    .map(|entry| (entry, self.properties().get_entry(entry.row())));
-                (l_pos, entry)
-            })
+        self.data.par_iter_all().enumerate().map(|(i, v)| {
+            (
+                LocalPOS::from(i),
+                v.map(|entry| (entry, self.properties().get_entry(entry.row()))),
+            )
+        })
     }
 
     pub fn earliest(&self) -> Option<TimeIndexEntry> {
@@ -343,7 +347,7 @@ impl<T: HasRow> SegmentContainer<T> {
     }
 
     pub fn temporal_index(&self) -> Vec<usize> {
-        self.row_entries()
+        self.row_entries_ordered()
             .flat_map(|(_, mp, _)| {
                 let row = mp.row();
                 self.properties()
@@ -357,7 +361,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn t_prop(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<TPropCell<'_>> {
         let item_id = item_id.into();
-        self.data.get(&item_id).and_then(|entry| {
+        self.data.get(item_id).and_then(|entry| {
             let prop_entry = self.properties.get_entry(entry.row());
             prop_entry.prop(prop_id)
         })
@@ -366,7 +370,7 @@ impl<T: HasRow> SegmentContainer<T> {
     pub fn t_prop_rows(&self, item_id: impl Into<LocalPOS>) -> &TCell<Option<usize>> {
         let item_id = item_id.into();
         self.data
-            .get(&item_id)
+            .get(item_id)
             .map(|entry| {
                 let prop_entry = self.properties.get_entry(entry.row());
                 prop_entry.t_cell()
@@ -376,7 +380,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn c_prop(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<Prop> {
         let item_id = item_id.into();
-        self.data.get(&item_id).and_then(|entry| {
+        self.data.get(item_id).and_then(|entry| {
             let prop_entry = self.properties.c_column(prop_id)?;
             prop_entry.get(entry.row())
         })
@@ -384,7 +388,7 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn c_prop_str(&self, item_id: impl Into<LocalPOS>, prop_id: usize) -> Option<&str> {
         let item_id = item_id.into();
-        self.data.get(&item_id).and_then(|entry| {
+        self.data.get(item_id).and_then(|entry| {
             let prop_entry = self.properties.c_column(prop_id)?;
             prop_entry
                 .get_ref(entry.row())
@@ -394,21 +398,21 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn additions(&self, item_pos: LocalPOS) -> &TCell<ELID> {
         self.data
-            .get(&item_pos)
+            .get(item_pos)
             .and_then(|entry| self.properties.additions(entry.row()))
             .unwrap_or(&TCell::Empty)
     }
 
     pub fn deletions(&self, item_pos: LocalPOS) -> &TCell<ELID> {
         self.data
-            .get(&item_pos)
+            .get(item_pos)
             .and_then(|entry| self.properties.deletions(entry.row()))
             .unwrap_or(&TCell::Empty)
     }
 
     pub fn times_from_props(&self, item_pos: LocalPOS) -> &TCell<Option<usize>> {
         self.data
-            .get(&item_pos)
+            .get(item_pos)
             .and_then(|entry| self.properties.times_from_props(entry.row()))
             .unwrap_or(&TCell::Empty)
     }

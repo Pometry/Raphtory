@@ -136,7 +136,7 @@ impl MemEdgeSegment {
     pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> Option<(VID, VID)> {
         self.layers
             .get(layer_id)?
-            .get(&edge_pos)
+            .get(edge_pos)
             .map(|entry| (entry.src, entry.dst))
     }
 
@@ -243,21 +243,10 @@ impl MemEdgeSegment {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
 
-        let row = self.layers[layer_id]
-            .reserve_local_row(edge_pos)
-            .map_either(
-                |row| {
-                    row.src = src;
-                    row.dst = dst;
-                    row.row()
-                },
-                |row| {
-                    row.src = src;
-                    row.dst = dst;
-                    row.row()
-                },
-            );
-        row.either(|a| a, |a| a)
+        let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
+        row.src = src;
+        row.dst = dst;
+        row.row
     }
 
     pub fn check_const_properties(

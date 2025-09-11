@@ -156,7 +156,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         self.es
             .as_ref()
             .get(layer_id)? //.get(layer_id)?
-            .get(&self.pos)
+            .get(self.pos)
             .map(|entry| (entry.src, entry.dst))
     }
 
@@ -177,11 +177,11 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn src(&self) -> Option<VID> {
-        self.es.as_ref()[0].get(&self.pos).map(|entry| entry.src)
+        self.es.as_ref()[0].get(self.pos).map(|entry| entry.src)
     }
 
     fn dst(&self) -> Option<VID> {
-        self.es.as_ref()[0].get(&self.pos).map(|entry| entry.dst)
+        self.es.as_ref()[0].get(self.pos).map(|entry| entry.dst)
     }
 
     fn edge_id(&self) -> EID {

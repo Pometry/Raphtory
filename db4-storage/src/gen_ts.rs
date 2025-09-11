@@ -17,7 +17,7 @@ pub enum LayerIter<'a> {
 pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::All);
 
 impl<'a> LayerIter<'a> {
-    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> + 'a {
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> + Send + Sync + 'a {
         match self {
             LayerIter::One(id) => Iter2::I1(std::iter::once(id)),
             LayerIter::LRef(layers) => Iter2::I2(layers.iter(num_layers)),
@@ -72,19 +72,19 @@ where
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+    ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
     fn additions_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+    ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
     fn deletions_tc(
         self,
         layer_id: usize,
         range: Option<(TimeIndexEntry, TimeIndexEntry)>,
-    ) -> impl Iterator<Item = Self::TimeCell> + 'a;
+    ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
     fn num_layers(&self) -> usize;
 }
@@ -297,7 +297,7 @@ where
     pub fn edge_events(self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'a {
         self.layer_id
             .into_iter(self.node.num_layers())
-            .flat_map(|layer_id| {
+            .flat_map(move |layer_id| {
                 self.node
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events())
@@ -320,7 +320,7 @@ where
 }
 
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
-    pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + 'a {
+    pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + Send + Sync + 'a {
         let range = self.range;
         self.layer_id
             .into_iter(self.node.num_layers())
