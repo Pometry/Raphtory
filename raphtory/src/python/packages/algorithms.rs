@@ -150,12 +150,12 @@ pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, us
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids
+///     PyOutputNodeState: NodeState mapping nodes to their component ids
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn strongly_connected_components(
     graph: &PyGraphView,
-) -> NodeState<'static, usize, DynamicGraph> {
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
     components::strongly_connected_components(&graph.graph)
 }
 
@@ -238,7 +238,7 @@ pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 ///
 /// Returns:
-///     NodeStateF64: Mapping of nodes to their pagerank value.
+///     PyOutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
@@ -644,7 +644,7 @@ pub fn balance(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     NodeStateF64: Mapping of nodes to their associated degree centrality.
+///     PyOutputNodeState: NodeState mapping nodes to their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn degree_centrality(
