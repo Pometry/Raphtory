@@ -81,55 +81,6 @@ impl GraphFolder {
         self.root_folder.is_file()
     }
 
-    pub fn read_graph(&self) -> Result<GraphReader, io::Error> {
-        if self.is_zip() {
-            let file = File::open(&self.root_folder)?;
-            let mut archive = ZipArchive::new(file)?;
-            let mut entry = archive.by_name(GRAPH_FILE_NAME)?;
-            let mut buf = vec![];
-            entry.read_to_end(&mut buf)?;
-            Ok(GraphReader::Zip(buf))
-        } else {
-            let file = File::open(self.get_graph_path())?;
-            let buf = unsafe { memmap2::MmapOptions::new().map(&file)? };
-            Ok(GraphReader::Folder(buf))
-        }
-    }
-
-    pub fn write_graph(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
-        self.write_graph_data(graph)?;
-        self.write_metadata(graph)?;
-
-        #[cfg(feature = "search")]
-        self.write_index(graph)?;
-
-        Ok(())
-    }
-
-    #[cfg(feature = "search")]
-    fn write_index(&self, graph: &impl StableEncode) -> Result<(), GraphError> {
-        if self.write_as_zip_format {
-            graph.persist_index_to_disk_zip(&self)
-        } else {
-            graph.persist_index_to_disk(&self)
-        }
-    }
-
-    fn write_graph_data(&self, graph: &impl StableEncode) -> Result<(), io::Error> {
-        let bytes = graph.encode_to_bytes();
-
-        if self.write_as_zip_format {
-            let file = File::create_new(&self.root_folder)?;
-            let mut zip = ZipWriter::new(file);
-            zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
-            zip.write_all(&bytes)
-        } else {
-            self.ensure_clean_root_dir()?;
-            let mut file = File::create_new(self.get_graph_path())?;
-            file.write_all(&bytes)
-        }
-    }
-
     pub fn read_metadata(&self) -> Result<GraphMetadata, GraphError> {
         match self.try_read_metadata() {
             Ok(data) => Ok(data),
@@ -151,7 +102,7 @@ impl GraphFolder {
     }
 
     pub fn try_read_metadata(&self) -> Result<GraphMetadata, io::Error> {
-        if self.root_folder.is_file() {
+        if self.is_zip() {
             let file = File::open(&self.root_folder)?;
             let mut archive = ZipArchive::new(file)?;
             let zip_file = archive.by_name(META_FILE_NAME)?;
@@ -195,7 +146,7 @@ impl GraphFolder {
         Ok(OpenOptions::new().append(true).open(path)?)
     }
 
-    fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
+    pub(crate) fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
         if self.root_folder.exists() {
             let non_empty = self.root_folder.read_dir()?.next().is_some();
             if non_empty {
@@ -215,6 +166,7 @@ impl GraphFolder {
 
     pub fn create_zip<W: Write + Seek>(&self, mut writer: W) -> Result<(), GraphError> {
         let mut buffer = Vec::new();
+
         if self.is_zip() {
             let mut reader = File::open(&self.root_folder)?;
             reader.read_to_end(&mut buffer)?;
@@ -273,10 +225,12 @@ mod zip_tests {
     fn test_load_cached_from_zip() {
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
+
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         graph.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
         let result = Graph::load_cached(&zip_path);
+
         assert!(result.is_err());
     }
 
@@ -290,7 +244,7 @@ mod zip_tests {
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         let folder = GraphFolder::new_as_zip(&zip_path);
-        folder.write_graph_data(&graph).unwrap();
+        graph.encode(&folder).unwrap();
 
         let err = folder.try_read_metadata();
         assert!(err.is_err());
@@ -309,13 +263,17 @@ mod zip_tests {
     #[test]
     fn test_read_metadata_from_noninitialized_folder() {
         global_info_logger();
+
         let graph = Graph::new();
         graph.add_node(0, 0, NO_PROPS, None).unwrap();
+
         let temp_folder = tempfile::TempDir::new().unwrap();
         let folder = GraphFolder::from(temp_folder.path());
-        folder.write_graph_data(&graph).unwrap();
+        graph.encode(&folder).unwrap();
+
         let err = folder.try_read_metadata();
         assert!(err.is_err());
+
         let result = folder.read_metadata().unwrap();
         assert_eq!(
             result,
