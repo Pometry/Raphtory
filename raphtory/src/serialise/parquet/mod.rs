@@ -40,6 +40,7 @@ use std::{
     ops::Range,
     path::{Path, PathBuf},
     sync::Arc,
+    io::{Read, Seek, Write},
 };
 use zip::write::FileOptions;
 use zip::ZipWriter;
@@ -53,13 +54,21 @@ mod graph;
 
 pub trait ParquetEncoder {
     fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
-        // Encode to a tmp dir using parquet, zip it and return the bytes
+        // Write directly to an in-memory cursor
+        let mut zip_buffer = Vec::new();
+        let cursor = std::io::Cursor::new(&mut zip_buffer);
+
+        self.encode_parquet_to_zip(cursor)?;
+
+        Ok(zip_buffer)
+    }
+
+    fn encode_parquet_to_zip<W: Write + Seek>(&self, writer: W) -> Result<(), GraphError> {
+        // Encode to a tmp dir using parquet, then zip it to the writer
         let temp_dir = tempfile::tempdir()?;
         self.encode_parquet(&temp_dir)?;
 
-        let mut zip_buffer = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut zip_buffer);
-        let mut zip_writer = ZipWriter::new(&mut cursor);
+        let mut zip_writer = ZipWriter::new(writer);
 
         // Walk through the directory and add files to zip
         for entry in WalkDir::new(temp_dir.path()) {
@@ -85,7 +94,7 @@ pub trait ParquetEncoder {
         }
 
         zip_writer.finish()?;
-        Ok(zip_buffer)
+        Ok(())
     }
 
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError>;
@@ -93,8 +102,14 @@ pub trait ParquetEncoder {
 
 pub trait ParquetDecoder: Sized {
     fn decode_parquet_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
-        // Unzip to a temp dir and decode parquet from there
+        // Read directly from an in-memory cursor
         let reader = std::io::Cursor::new(bytes);
+
+        Self::decode_parquet_from_zip(reader)
+    }
+
+    fn decode_parquet_from_zip<R: Read + Seek>(reader: R) -> Result<Self, GraphError> {
+        // Unzip to a temp dir and decode parquet from there
         let mut zip = zip::ZipArchive::new(reader)?;
         let temp_dir = tempfile::tempdir()?;
 
@@ -1096,5 +1111,68 @@ mod test {
 
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn test_parquet_zip_simple() {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
+        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
+        g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let zip_path = temp_dir.path().join("test_graph.zip");
+
+        // Test writing to a file
+        let file = std::fs::File::create(&zip_path).unwrap();
+        g.encode_parquet_to_zip(file).unwrap();
+        let reader = std::fs::File::open(&zip_path).unwrap();
+        let g2 = Graph::decode_parquet_from_zip(reader).unwrap();
+        assert_graph_equal(&g, &g2);
+    }
+
+    #[test]
+    fn test_parquet_zip_proptest() {
+        proptest!(|(edges in build_graph_strat(30, 30, true))| {
+            let g = Graph::from(build_graph(&edges));
+            let temp_dir = tempfile::tempdir().unwrap();
+            let zip_path = temp_dir.path().join("test_graph.zip");
+
+            // Test writing to a file
+            let file = std::fs::File::create(&zip_path).unwrap();
+            g.encode_parquet_to_zip(file).unwrap();
+            let reader = std::fs::File::open(&zip_path).unwrap();
+            let g2 = Graph::decode_parquet_from_zip(reader).unwrap();
+
+            assert_graph_equal(&g, &g2);
+        })
+    }
+
+    #[test]
+    fn test_parquet_zip_in_memory() {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
+        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
+        g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+
+        // Test writing to an in-memory cursor
+        let mut zip_buffer = Vec::new();
+        let cursor = std::io::Cursor::new(&mut zip_buffer);
+        g.encode_parquet_to_zip(cursor).unwrap();
+
+        // Decode from the in-memory bytes using both methods
+        let g2 = Graph::decode_parquet_from_bytes(&zip_buffer).unwrap();
+        assert_graph_equal(&g, &g2);
+
+        // Also test decode_parquet_from_zip with in-memory cursor
+        let reader = std::io::Cursor::new(&zip_buffer);
+        let g3 = Graph::decode_parquet_from_zip(reader).unwrap();
+        assert_graph_equal(&g, &g3);
     }
 }
