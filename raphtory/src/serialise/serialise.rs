@@ -31,7 +31,24 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder: GraphFolder = path.into();
-        folder.write_graph(self)
+
+        if folder.write_as_zip_format {
+            let file = std::fs::File::create(&folder.root_folder)?;
+            self.encode_parquet_to_zip(file)?;
+
+            #[cfg(feature = "search")]
+            self.persist_index_to_disk_zip(&folder)?;
+        } else {
+            folder.ensure_clean_root_dir()?;
+            self.encode_parquet(&folder.root_folder)?;
+
+            #[cfg(feature = "search")]
+            self.persist_index_to_disk(&folder)?;
+        }
+
+        folder.write_metadata(self)?;
+
+        Ok(())
     }
 }
 
@@ -59,9 +76,15 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     }
 
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
+        let graph;
         let folder: GraphFolder = path.into();
-        let bytes = folder.read_graph()?;
-        let graph = Self::decode_from_bytes(bytes.as_ref())?;
+
+        if folder.is_zip() {
+            let reader = std::fs::File::open(&folder.root_folder)?;
+            graph = Self::decode_parquet_from_zip(reader)?;
+        } else {
+            graph = Self::decode_parquet(&folder.root_folder)?;
+        }
 
         #[cfg(feature = "search")]
         graph.load_index(&folder)?;
