@@ -53,7 +53,7 @@ mod graph;
 
 pub trait ParquetEncoder {
     fn encode_parquet_to_bytes(&self) -> Result<Vec<u8>, GraphError> {
-        // Encode to a tmp dir using parquet and then zip it
+        // Encode to a tmp dir using parquet, zip it and return the bytes
         let temp_dir = tempfile::tempdir()?;
         self.encode_parquet(&temp_dir)?;
 
