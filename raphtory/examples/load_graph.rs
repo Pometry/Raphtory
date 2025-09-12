@@ -1,7 +1,7 @@
 #[cfg(all(feature = "io", feature = "arrow"))]
 fn main() {
     use std::path::PathBuf;
-    #[derive(serde::Serialize)]
+    #[derive(serde::Serialize, PartialEq, PartialOrd, Eq, Ord)]
     struct Edge {
         src: String,
         dst: String,
@@ -16,10 +16,11 @@ fn main() {
         // "dai_opt_edge_list",
         // "dola_opt_edge_list",
         // "susd_opt_edge_list",
-        "usd_0_opt_edge_list", // expected: 153547, actual:153540
-                               // "usdc_e_opt_edge_list",
-                               // "usdc_opt_edge_list",
-                               // "usdt_opt_edge_list",
+        // "usd_0_opt_edge_list", // expected: 153547, actual:153540
+        // "usdc_e_opt_edge_list",
+        // "usdc_opt_edge_list",
+        // "usdt_opt_edge_list",
+        "usd_0_opt_edge_list_sample",
     ];
     let parquet_root = "/Volumes/Work/assets/optimism";
     if graph_path.exists() {
@@ -51,19 +52,28 @@ fn main() {
 
             // let mut wtr = csv::WriterBuilder::new()
             //     .has_headers(true)
-            //     .from_path(format!("{parquet_root}/usd_0_opt_edge_list.csv"))
+            //     .from_path(format!(
+            //         "/Volumes/Work/assets/usd_0_opt_edge_list_sampl_actual.csv"
+            //     ))
             //     .expect("Failed to create CSV writer");
+
+            // let mut edges = vec![];
             for n in g.nodes() {
                 all_nodes_count += 1usize;
                 for e in n.out_edges() {
                     all_edges_count += 1usize;
-                    // wtr.serialize(Edge {
-                    //     src: e.src().name(),
-                    //     dst: e.dst().name(),
-                    // })
-                    // .unwrap();
+                    // edges.push(Edge {
+                    //     src: e.src().name().to_string(),
+                    //     dst: e.dst().name().to_string(),
+                    // });
                 }
             }
+            // edges.sort();
+
+            // for edge in edges {
+            //     wtr.serialize(edge).expect("Failed to write edge to CSV");
+            // }
+
             println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
         };
         for layer in layers {
