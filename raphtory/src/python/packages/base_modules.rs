@@ -13,11 +13,8 @@ use crate::{
             graph::{PyGraph, PyGraphEncoder},
             graph_with_deletions::PyPersistentGraph,
             history::{
-                HistoryDateTimeIterable, HistoryIterable, HistorySecondaryIndexIterable,
-                HistoryTimestampIterable, IntervalsIterable, NestedHistoryDateTimeIterable,
-                NestedHistoryIterable, NestedHistorySecondaryIndexIterable,
-                NestedHistoryTimestampIterable, NestedIntervalsIterable, PyHistory,
-                PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp, PyIntervals,
+                PyHistory, PyHistoryDateTime, PyHistorySecondaryIndex, PyHistoryTimestamp,
+                PyIntervals,
             },
             index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
@@ -33,21 +30,7 @@ use crate::{
             graph_loader::*,
             vectors::{PyVectorSelection, PyVectorisedGraph},
         },
-        types::{
-            result_iterable::{
-                NestedResultOptionUtcDateTimeIterable, NestedResultUtcDateTimeIterable,
-                ResultOptionUtcDateTimeIterable, ResultUtcDateTimeIterable,
-            },
-            wrappers::{
-                document::{PyDocument, PyEmbedding},
-                iterables::{
-                    I64Iterable, NestedI64Iterable, NestedOptionI64Iterable,
-                    NestedOptionTimeIndexEntryIterable, NestedOptionUsizeIterable,
-                    NestedTimeIndexEntryIterable, OptionI64Iterable, OptionTimeIndexEntryIterable,
-                    OptionUsizeIterable, TimeIndexEntryIterable,
-                },
-            },
-        },
+        types::wrappers::document::{PyDocument, PyEmbedding},
         utils::PyWindowSet,
     },
 };
@@ -87,31 +70,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyWindowSet,
         PyIndexSpecBuilder,
         PyIndexSpec,
-        // do we want to add these and use them in return types?
-        HistoryIterable,
-        NestedHistoryIterable,
-        HistoryTimestampIterable,
-        NestedHistoryTimestampIterable,
-        HistoryDateTimeIterable,
-        NestedHistoryDateTimeIterable,
-        HistorySecondaryIndexIterable,
-        NestedHistorySecondaryIndexIterable,
-        IntervalsIterable,
-        NestedIntervalsIterable,
-        OptionTimeIndexEntryIterable,
-        NestedOptionTimeIndexEntryIterable,
-        TimeIndexEntryIterable,
-        NestedTimeIndexEntryIterable,
-        ResultUtcDateTimeIterable,
-        NestedResultUtcDateTimeIterable,
-        ResultOptionUtcDateTimeIterable,
-        NestedResultOptionUtcDateTimeIterable,
-        OptionUsizeIterable,
-        NestedOptionUsizeIterable,
-        OptionI64Iterable,
-        NestedOptionI64Iterable,
-        I64Iterable,
-        NestedI64Iterable,
     );
 
     #[pyfunction]

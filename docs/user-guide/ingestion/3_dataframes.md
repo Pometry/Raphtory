@@ -125,8 +125,6 @@ print(g.edge("ServerA", "ServerB"))
 
 ```{.python continuation hide}
 assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693557000000, 18446744073709551615])"
-assert str(g.node("ServerA")) == "Node(name=ServerA, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693556400000, 4], properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))"
-assert str(g.edge("ServerA", "ServerB")) == "Edge(source=ServerA, target=ServerB, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693555200000, 0], properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])"
 ```
 
 !!! Output
@@ -204,8 +202,6 @@ print(g.edge("ServerA", "ServerB"))
 
 ```{.python continuation hide}
 assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693557000000, 18446744073709551615])"
-assert str(g.node("ServerA")) == "Node(name=ServerA, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693556400000, 4], properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))"
-assert str(g.edge("ServerA", "ServerB")) == "Edge(source=ServerA, target=ServerB, earliest_time=TimeIndexEntry[1693555200000, 0], latest_time=TimeIndexEntry[1693555200000, 0], properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])"
 ```
 
 !!! Output

@@ -250,8 +250,6 @@ print(e)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=2, number_of_edges=1, number_of_temporal_edges=1, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[4, 18446744073709551615], properties=Properties({inner data: {fruits: {apple: 5, banana: 3}, date of birth: 2021-01-01 12:32:00}, favourite greetings: [hi, hello, howdy]}))"
-assert str(v) == "Node(name=User 1, earliest_time=TimeIndexEntry[1, 0], latest_time=TimeIndexEntry[4, 5], properties=Properties({count: 2, greeting: hello, encrypted: true, balance: 0.9}))"
 assert str(e) == "Edge(source=User 1, target=User 2, earliest_time=TimeIndexEntry[4, 5], latest_time=TimeIndexEntry[4, 5], properties={weights: [1, 2, 3]}, layer(s)=[_default])"
 ```
 

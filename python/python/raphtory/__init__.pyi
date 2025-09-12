@@ -27,7 +27,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistorySecondaryIndex', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'HistoryIterable', 'NestedHistoryIterable', 'HistoryTimestampIterable', 'NestedHistoryTimestampIterable', 'HistoryDateTimeIterable', 'NestedHistoryDateTimeIterable', 'HistorySecondaryIndexIterable', 'NestedHistorySecondaryIndexIterable', 'IntervalsIterable', 'NestedIntervalsIterable', 'OptionTimeIndexEntryIterable', 'NestedOptionTimeIndexEntryIterable', 'TimeIndexEntryIterable', 'NestedTimeIndexEntryIterable', 'ResultUtcDateTimeIterable', 'NestedResultUtcDateTimeIterable', 'ResultOptionUtcDateTimeIterable', 'NestedResultOptionUtcDateTimeIterable', 'OptionUsizeIterable', 'NestedOptionUsizeIterable', 'OptionI64Iterable', 'NestedOptionI64Iterable', 'I64Iterable', 'NestedI64Iterable', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'NodeFilterBuilder', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'MetadataView', 'TemporalProperties', 'PropertiesView', 'TemporalProperty', 'TimeIndexEntry', 'History', 'HistoryTimestamp', 'HistoryDateTime', 'HistorySecondaryIndex', 'Intervals', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -3610,7 +3610,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
@@ -4401,7 +4401,7 @@ class Edges(object):
         """
 
     @property
-    def deletions(self) -> HistoryIterable:
+    def deletions(self):
         """
         Returns history objects for edges containing their deletion times.
 
@@ -4414,7 +4414,7 @@ class Edges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_time(self) -> OptionTimeIndexEntryIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -4506,7 +4506,7 @@ class Edges(object):
         """
 
     @property
-    def history(self) -> HistoryIterable:
+    def history(self):
         """
         Returns history objects for edges containing their time entries, when an edge is added or change to an edge is made.
 
@@ -4539,7 +4539,7 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self) -> OptionTimeIndexEntryIterable:
+    def latest_time(self):
         """
         Returns the latest times of the edges.
 
@@ -4820,7 +4820,7 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self) -> NestedHistoryIterable:
+    def deletions(self):
         """
         Get history objects for edges containing their deletion times.
 
@@ -4833,7 +4833,7 @@ class NestedEdges(object):
         """Returns the destination node of the edge."""
 
     @property
-    def earliest_time(self) -> NestedOptionTimeIndexEntryIterable:
+    def earliest_time(self):
         """
         Get the earliest time of the edges as TimeIndexEntry.
 
@@ -4925,7 +4925,7 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Get history objects for edges, containing time entries about when an edge is added or change to an edge is made.
 
@@ -4958,7 +4958,7 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionTimeIndexEntryIterable:
+    def latest_time(self):
         """
         Get the latest time of the edges as TimeIndexEntry.
 
@@ -5095,7 +5095,7 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self) -> NestedTimeIndexEntryIterable:
+    def time(self):
         """
         Returns the times of exploded edges.
 
@@ -6170,842 +6170,6 @@ class IndexSpec(object):
 
     @property
     def node_properties(self):
-        ...
-
-class HistoryIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[TimeIndexEntry]]:
-        """
-        Collect time entries from each history in the iterable.
-
-        Returns:
-            List[List[TimeIndexEntry]]: Collected entries per history.
-        """
-
-    @property
-    def dt(self) -> HistoryDateTimeIterable:
-        """
-        Access history items as UTC datetimes.
-
-        Returns:
-            HistoryDateTimeIterable: Iterable of HistoryDateTime objects, one for each item.
-        """
-
-    @property
-    def intervals(self) -> IntervalsIterable:
-        """
-        Access intervals between consecutive timestamps in milliseconds.
-
-        Returns:
-            IntervalsIterable: Iterable of Intervals objects, one for each item.
-        """
-
-    @property
-    def secondary_index(self) -> HistorySecondaryIndexIterable:
-        """
-        Access secondary indices of history items.
-
-        Returns:
-            HistorySecondaryIndexIterable: Iterable of HistorySecondaryIndex objects, one for each item.
-        """
-
-    @property
-    def t(self) -> HistoryTimestampIterable:
-        """
-        Access history items as timestamps (milliseconds since Unix epoch).
-
-        Returns:
-            HistoryTimestampIterable: Iterable of HistoryTimestamp objects, one for each item.
-        """
-
-class NestedHistoryIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[List[TimeIndexEntry]]]:
-        """
-        Collect time entries from each history within each nested iterable.
-
-        Returns:
-            List[List[List[TimeIndexEntry]]]: Collected entries per nested history.
-        """
-
-    @property
-    def dt(self) -> NestedHistoryDateTimeIterable:
-        """
-        Access nested histories as datetime views.
-
-        Returns:
-            NestedHistoryDateTimeIterable: Iterable of iterables of HistoryDateTime objects.
-        """
-
-    @property
-    def intervals(self) -> NestedIntervalsIterable:
-        """
-        Access nested histories as intervals views.
-
-        Returns:
-            NestedIntervalsIterable: Iterable of iterables of Intervals objects.
-        """
-
-    @property
-    def secondary_index(self) -> NestedHistorySecondaryIndexIterable:
-        """
-        Access nested histories as secondary index views.
-
-        Returns:
-            NestedHistorySecondaryIndexIterable: Iterable of iterables of HistorySecondaryIndex objects.
-        """
-
-    @property
-    def t(self) -> NestedHistoryTimestampIterable:
-        """
-        Access nested histories as timestamp views.
-
-        Returns:
-            NestedHistoryTimestampIterable: Iterable of iterables of HistoryTimestamp objects.
-        """
-
-class HistoryTimestampIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[NDArray[np.int64]]:
-        """
-        Collect timestamps for each history.
-
-        Returns:
-            List[NDArray[np.int64]]: Timestamps in milliseconds per history.
-        """
-
-class NestedHistoryTimestampIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[NDArray[np.int64]]]:
-        """
-        Collect timestamps for each history in each nested iterable.
-
-        Returns:
-            List[List[NDArray[np.int64]]]: Timestamps in milliseconds per nested history.
-        """
-
-class HistoryDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[datetime]]:
-        """
-        Collect datetimes for each history.
-
-        Returns:
-            List[List[datetime]]: UTC datetimes per history.
-
-        Raises:
-            TimeError: If a timestamp cannot be converted to a datetime.
-        """
-
-class NestedHistoryDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[List[datetime]]]:
-        """
-        Collect datetimes for each history in each nested iterable.
-
-        Returns:
-            List[List[List[datetime]]]: UTC datetimes per nested history.
-
-        Raises:
-            TimeError: If a timestamp cannot be converted to a datetime.
-        """
-
-class HistorySecondaryIndexIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[int]]:
-        """
-        Collect secondary indices for each history.
-
-        Returns:
-            List[List[int]]: Secondary indices per history.
-        """
-
-class NestedHistorySecondaryIndexIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[List[int]]]:
-        """
-        Collect secondary indices for each history in each nested iterable.
-
-        Returns:
-            List[List[List[int]]]: Secondary indices per nested history.
-        """
-
-class IntervalsIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[int]]:
-        """
-        Collect intervals for each history in milliseconds.
-
-        Returns:
-            List[List[int]]: Intervals per history.
-        """
-
-class NestedIntervalsIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self) -> List[List[List[int]]]:
-        """
-        Collect intervals for each history in each nested iterable, in milliseconds.
-
-        Returns:
-            List[List[List[int]]]: Intervals per nested history.
-        """
-
-class OptionTimeIndexEntryIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    @property
-    def dt(self) -> ResultOptionUtcDateTimeIterable:
-        """
-        Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding UTC DateTimes.
-
-        Returns:
-            ResultOptionUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry, if available.
-
-        Raises:
-            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
-        """
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-    @property
-    def secondary_index(self) -> OptionUsizeIterable:
-        """
-        Change this Iterable of Optional[TimeIndexEntry] into an Iterable of their associated secondary indices.
-
-        Returns:
-            OptionUsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry, if available.
-        """
-
-    @property
-    def t(self) -> OptionI64Iterable:
-        """
-        Change this Iterable of Optional[TimeIndexEntry] into an Iterable of corresponding Unix timestamps in milliseconds.
-
-        Returns:
-            OptionI64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
-        """
-
-class NestedOptionTimeIndexEntryIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    @property
-    def dt(self) -> NestedResultOptionUtcDateTimeIterable:
-        """
-        Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding UTC DateTimes.
-
-        Returns:
-            NestedResultOptionUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry, if available.
-
-        Raises:
-            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
-        """
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-    @property
-    def secondary_index(self) -> NestedOptionUsizeIterable:
-        """
-        Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of their associated secondary indices.
-
-        Returns:
-            NestedOptionUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry, if available.
-        """
-
-    @property
-    def t(self) -> NestedOptionI64Iterable:
-        """
-        Change this nested Iterable of Optional[TimeIndexEntry] into a nested Iterable of corresponding Unix timestamps in milliseconds.
-
-        Returns:
-            NestedOptionI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry, if available.
-        """
-
-class TimeIndexEntryIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    @property
-    def dt(self) -> ResultUtcDateTimeIterable:
-        """
-        Change this Iterable of TimeIndexEntry into an Iterable of corresponding UTC DateTimes.
-
-        Returns:
-            ResultUtcDateTimeIterable: Iterable of UTC datetimes for each TimeIndexEntry.
-
-        Raises:
-            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
-        """
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-    @property
-    def secondary_index(self) -> UsizeIterable:
-        """
-        Change this Iterable of TimeIndexEntry into an Iterable of their associated secondary indices.
-
-        Returns:
-            UsizeIterable: Iterable of secondary indices associated to each TimeIndexEntry.
-        """
-
-    @property
-    def t(self) -> I64Iterable:
-        """
-        Change this Iterable of TimeIndexEntry into an Iterable of corresponding Unix timestamps in milliseconds.
-
-        Returns:
-            I64Iterable: Iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
-        """
-
-class NestedTimeIndexEntryIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    @property
-    def dt(self) -> NestedResultUtcDateTimeIterable:
-        """
-        Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding UTC DateTimes.
-
-        Returns:
-            NestedResultUtcDateTimeIterable: Nested iterable of UTC datetimes for each TimeIndexEntry.
-
-        Raises:
-            TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
-        """
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-    @property
-    def secondary_index(self):
-        """
-        Change this nested Iterable of TimeIndexEntry into a nested Iterable of their associated secondary indices.
-
-        Returns:
-            NestedUsizeIterable: Nested iterable of secondary indices associated to each TimeIndexEntry.
-        """
-
-    @property
-    def t(self) -> NestedI64Iterable:
-        """
-        Change this nested Iterable of TimeIndexEntry into a nested Iterable of corresponding Unix timestamps in milliseconds.
-
-        Returns:
-            NestedI64Iterable: Nested iterable of millisecond timestamps since the Unix epoch for each TimeIndexEntry.
-        """
-
-class ResultUtcDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-class NestedResultUtcDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-class ResultOptionUtcDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-class NestedResultOptionUtcDateTimeIterable(object): 
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-class OptionUsizeIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedOptionUsizeIterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class OptionI64Iterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class NestedOptionI64Iterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def min(self):
-        ...
-
-class I64Iterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
-        ...
-
-class NestedI64Iterable(object): 
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __iter__(self):
-        """Implement iter(self)."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __len__(self):
-        """Return len(self)."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def __repr__(self):
-        """Return repr(self)."""
-
-    def collect(self):
-        ...
-
-    def max(self):
-        ...
-
-    def mean(self):
-        ...
-
-    def min(self):
-        ...
-
-    def sum(self):
         ...
 
 def version():

@@ -931,7 +931,7 @@ mod test {
         use crate::{
             db::{
                 api::storage::graph::storage_ops::disk_storage::IntoGraph,
-                graph::graph::assert_graph_equal,
+                graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
             },
             test_utils::{build_edge_list, build_graph_from_edge_list},
         };
@@ -946,7 +946,8 @@ mod test {
             g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
             let test_dir = TempDir::new().unwrap();
             let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-            assert_graph_equal(&disk_g, &g);
+            // persisted graphs have different secondary indices on time entries
+            assert_graph_equal_timestamps(&disk_g, &g);
         }
 
         #[test]
@@ -955,9 +956,10 @@ mod test {
                 let g = build_graph_from_edge_list(&edges);
                 let test_dir = TempDir::new().unwrap();
                 let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-                assert_graph_equal(&disk_g, &g);
+                // persisted graphs have different secondary indices on time entries
+                assert_graph_equal_timestamps(&disk_g, &g);
                 let reloaded_disk_g = DiskGraphStorage::load_from_dir(test_dir.path()).unwrap().into_graph();
-                assert_graph_equal(&reloaded_disk_g, &g);
+                assert_graph_equal_timestamps(&reloaded_disk_g, &g);
             } )
         }
     }
@@ -1032,7 +1034,7 @@ mod storage_tests {
     use crate::{
         db::{
             api::storage::graph::storage_ops::disk_storage::IntoGraph,
-            graph::graph::assert_graph_equal,
+            graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
@@ -1176,7 +1178,8 @@ mod storage_tests {
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)
             .unwrap();
-        assert_graph_equal(&merged_g_disk.into_graph(), &merged_g_expected)
+        // only check timestamps because secondary indices might be different based on order of edge added
+        assert_graph_equal_timestamps(&merged_g_disk.into_graph(), &merged_g_expected)
     }
 
     #[test]
