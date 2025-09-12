@@ -64,8 +64,8 @@ mod degree_centrality_test {
         prelude::{NodeStateOps, NO_PROPS},
         test_storage,
     };
-    use std::collections::HashMap;
     use raphtory_api::core::entities::properties::prop::Prop;
+    use std::collections::HashMap;
 
     fn des<T: NodeStateValue>(recordbatch: &RecordBatch) -> T {
         let deserializer = Deserializer::from_record_batch(recordbatch).unwrap();
