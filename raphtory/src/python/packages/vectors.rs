@@ -266,10 +266,10 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
-    /// Search the top scoring entities according to `query` with no more than `limit` entities
+    /// Search the closest entities to `query` with no more than `limit` entities
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new entities to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -288,10 +288,10 @@ impl PyVectorisedGraph {
             .entities_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
+    /// Search the closest nodes to `query` with no more than `limit` nodes
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new nodes to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -310,10 +310,10 @@ impl PyVectorisedGraph {
             .nodes_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring edges according to `query` with no more than `limit` edges
+    /// Search the closest edges to `query` with no more than `limit` edges
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new edges to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -372,17 +372,17 @@ impl PyVectorSelection {
         Ok(self.0.get_documents()?)
     }
 
-    /// Return the documents alongside their scores present in the current selection
+    /// Return the documents alongside their distances present in the current selection
     ///
     /// Returns:
-    ///     list[Tuple[Document, float]]: list of documents and scores
-    fn get_documents_with_scores(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
-        Ok(self.0.get_documents_with_scores()?)
+    ///     list[Tuple[Document, float]]: list of documents and distances
+    fn get_documents_with_distances(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
+        Ok(self.0.get_documents_with_distances()?)
     }
 
     /// Add all the documents associated with the `nodes` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
@@ -395,7 +395,7 @@ impl PyVectorSelection {
 
     /// Add all the documents associated with the `edges` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     ///
     /// Args:
     ///   edges (list):  a list of the edge ids or edges to add
@@ -435,19 +435,18 @@ impl PyVectorSelection {
         self_.0.expand(hops, translate_window(window))
     }
 
-    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent entities closest to `query`
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
     ///      not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    ///      similarity score obtained against the `query`.
+    ///   2. Those candidates are added to the selection in ascending distance from `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -467,12 +466,12 @@ impl PyVectorSelection {
         Ok(())
     }
 
-    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent nodes closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new nodes to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -492,12 +491,12 @@ impl PyVectorSelection {
         Ok(())
     }
 
-    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent edges closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new edges to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///

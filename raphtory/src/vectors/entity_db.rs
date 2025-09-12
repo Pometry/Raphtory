@@ -9,29 +9,29 @@ use super::{
 };
 use crate::{
     db::api::view::StaticGraphViewOps, errors::GraphResult, prelude::GraphViewOps,
-    vectors::vector_db::VectorDb,
+    vectors::vector_collection::VectorCollection,
 };
 
 const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB
 
 #[derive(Clone)]
-pub(super) struct NodeDb<D: VectorDb>(pub(super) D);
+pub(super) struct NodeDb<D: VectorCollection>(pub(super) D);
 
-impl<D: VectorDb> Deref for NodeDb<D> {
+impl<D: VectorCollection> Deref for NodeDb<D> {
     type Target = D;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<D: VectorDb + 'static> EntityDb for NodeDb<D> {
+impl<D: VectorCollection + 'static> EntityDb for NodeDb<D> {
     type VectorDb = D;
 
     fn get_db(&self) -> &Self::VectorDb {
         &self.0
     }
 
-    fn into_entity_ref(id: u32) -> EntityRef {
+    fn into_entity_ref(id: u64) -> EntityRef {
         EntityRef::Node(id)
     }
 
@@ -39,29 +39,29 @@ impl<D: VectorDb + 'static> EntityDb for NodeDb<D> {
         view.has_node(entity.as_node_gid(view).unwrap())
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u32> {
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> {
         view.nodes().into_iter().map(|node| node.into_db_id())
     }
 }
 
 #[derive(Clone)]
-pub(super) struct EdgeDb<D: VectorDb>(pub(super) D);
+pub(super) struct EdgeDb<D: VectorCollection>(pub(super) D);
 
-impl<D: VectorDb> Deref for EdgeDb<D> {
+impl<D: VectorCollection> Deref for EdgeDb<D> {
     type Target = D;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<D: VectorDb + 'static> EntityDb for EdgeDb<D> {
+impl<D: VectorCollection + 'static> EntityDb for EdgeDb<D> {
     type VectorDb = D;
 
     fn get_db(&self) -> &Self::VectorDb {
         &self.0
     }
 
-    fn into_entity_ref(id: u32) -> EntityRef {
+    fn into_entity_ref(id: u64) -> EntityRef {
         EntityRef::Edge(id)
     }
 
@@ -70,17 +70,17 @@ impl<D: VectorDb + 'static> EntityDb for EdgeDb<D> {
         view.has_edge(src, dst) // TODO: there should be a quicker way of chking of some edge exist by pid
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u32> {
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> {
         view.edges().into_iter().map(|edge| edge.into_db_id())
     }
 }
 
 pub(super) trait EntityDb: Sized {
-    type VectorDb: VectorDb;
+    type VectorDb: VectorCollection;
     fn get_db(&self) -> &Self::VectorDb;
-    fn into_entity_ref(id: u32) -> EntityRef;
+    fn into_entity_ref(id: u64) -> EntityRef;
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool;
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u32> + 'static;
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> + 'static;
 
     // async fn from_vectors(
     //     vectors: impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send,
@@ -94,27 +94,31 @@ pub(super) trait EntityDb: Sized {
     //     VectorDb::from_path(path).map(Self::from_vector_db)
     // }
 
-    fn from_path(path: &Path) -> GraphResult<Self> {
-        todo!() // TODO: remove this function, only here for compilation
-    }
+    // fn from_path(path: &Path) -> GraphResult<Self> {
+    //     todo!() // TODO: remove this function, only here for compilation
+    // }
 
+    // maybe use this if the parallel version doesn't really improve things
     async fn insert_vector_stream(
         &self,
-        vectors: impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send,
+        vectors: impl futures_util::Stream<Item = GraphResult<(u64, Embedding)>> + Send,
     ) -> GraphResult<()> {
         futures_util::pin_mut!(vectors);
 
         while let Some(result) = vectors.as_mut().chunks(1000).next().await {
-            let vector_result: Vec<(usize, Embedding)> = result
+            let vector_result: Vec<(u64, Embedding)> = result
                 .into_iter()
                 .map(|result| result.unwrap())
-                .map(|(id, vector)| (id as usize, vector))
+                .map(|(id, vector)| (id, vector))
                 .collect();
-            self.get_db().insert_vectors(vector_result).await.unwrap()
+            let ids = vector_result.iter().map(|(id, _)| *id).collect();
+            let vectors = vector_result.into_iter().map(|(_, vector)| vector);
+            self.get_db().insert_vectors(ids, vectors).await.unwrap()
         }
         Ok(())
     }
 
+    // TODO: return here the cosine instead of the distance?
     async fn top_k<G: StaticGraphViewOps>(
         &self,
         query: &Embedding,
@@ -122,54 +126,23 @@ pub(super) trait EntityDb: Sized {
         view: Option<G>,
         filter: Option<HashSet<EntityRef>>,
     ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)>> {
-        let result = self
+        let candidates: Option<Box<dyn Iterator<Item = u64>>> = match (view, filter) {
+            (None, None) => None,
+            (view, Some(filter)) => Some(Box::new(
+                filter
+                    .into_iter()
+                    .filter(move |entity| {
+                        view.as_ref()
+                            .is_none_or(|view| Self::view_has_entity(entity, view))
+                    })
+                    .map(|entity| entity.id()),
+            )),
+            (Some(view), None) => Some(Box::new(Self::all_valid_entities(view))),
+        };
+        Ok(self
             .get_db()
-            .top_k(query, k)
-            .await
-            .map(|(id, score)| (Self::into_entity_ref(id as u32), score));
-        Ok(result)
-        // let candidates: Option<Box<dyn Iterator<Item = u32>>> = match (view, filter) {
-        //     (None, None) => None,
-        //     (view, Some(filter)) => Some(Box::new(
-        //         filter
-        //             .into_iter()
-        //             .filter(move |entity| {
-        //                 view.as_ref()
-        //                     .is_none_or(|view| Self::view_has_entity(entity, view))
-        //             })
-        //             .map(|entity| entity.id()),
-        //     )),
-        //     (Some(view), None) => Some(Box::new(Self::all_valid_entities(view))),
-        // };
-        // self.top_k_with_candidates(query, k, candidates)
+            .top_k_with_distances(query, k, candidates)
+            .await?
+            .map(|(id, distance)| (Self::into_entity_ref(id), distance)))
     }
-
-    // fn top_k_with_candidates(
-    //     &self,
-    //     query: &Embedding,
-    //     k: usize,
-    //     candidates: Option<impl Iterator<Item = u32>>,
-    // ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)>> {
-    //     let db = self.get_db();
-    //     let rtxn = db.env.read_txn()?;
-    //     let vectors = match Reader::open(&rtxn, 0, db.vectors) {
-    //         Ok(reader) => {
-    //             let mut query_builder = reader.nns(k);
-    //             let candidates = candidates.map(|filter| roaring::RoaringBitmap::from_iter(filter));
-    //             let query_builder = if let Some(filter) = &candidates {
-    //                 query_builder.candidates(filter)
-    //             } else {
-    //                 &query_builder
-    //             };
-    //             query_builder.by_vector(&rtxn, query.as_ref())?
-    //         }
-    //         Err(arroy::Error::MissingMetadata(_)) => vec![], // this just means the db is empty
-    //         Err(error) => return Err(error.into()),
-    //     };
-    //     Ok(vectors
-    //         .into_iter()
-    //         // for arroy, distance = (1.0 - score) / 2.0, where score is cosine: [-1, 1]
-    //         .map(|(id, distance)| (Self::into_entity_ref(id), 1.0 - 2.0 * distance)))
-    //     // TODO: make sure to include this correction into arroy impl!!!!!!!!!!
-    // }
 }

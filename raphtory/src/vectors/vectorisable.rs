@@ -1,7 +1,7 @@
 use super::{
     cache::VectorCache,
     entity_db::{EdgeDb, NodeDb},
-    storage::{edge_vectors_path, node_vectors_path, VectorMeta},
+    storage::{db_path, VectorMeta},
 };
 use crate::{
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
@@ -11,12 +11,12 @@ use crate::{
         embeddings::compute_embeddings,
         entity_db::EntityDb,
         template::DocumentTemplate,
-        vector_db::{Milvus, VectorDb, VectorDbFactory},
+        vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
         vectorised_graph::VectorisedGraph,
     },
 };
 use async_trait::async_trait;
-use std::path::Path;
+use std::{ops::Deref, path::Path};
 use tracing::info;
 
 #[async_trait]
@@ -50,7 +50,11 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
-        let factory = Milvus::new("http://localhost:19530".to_owned());
+        let db_path = path
+            .map(|path| Ok::<Box<dyn AsRef<Path> + Send>, std::io::Error>(Box::new(db_path(path))))
+            .unwrap_or_else(|| Ok(Box::new(tempfile::tempdir()?)))?;
+        let db_path_ref = db_path.as_ref().as_ref();
+        let factory = LanceDb;
         let dim = cache.get_vector_sample().len();
         if verbose {
             info!("computing embeddings for nodes");
@@ -58,10 +62,9 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let nodes = self.nodes();
         let node_docs = nodes
             .iter()
-            .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
-        // let node_path = path.map(node_vectors_path);
+            .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u64, doc)));
         let node_vectors = compute_embeddings(node_docs, &cache);
-        let node_db = NodeDb(factory.new_db(dim).await); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        let node_db = NodeDb(factory.new_collection(db_path_ref, "nodes", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
         node_db.insert_vector_stream(node_vectors).await.unwrap();
         node_db.create_index().await;
 
@@ -72,11 +75,10 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let edge_docs = edges.iter().filter_map(|edge| {
             template
                 .edge(edge)
-                .map(|doc| (edge.edge.pid().0 as u32, doc))
+                .map(|doc| (edge.edge.pid().0 as u64, doc))
         });
-        // let edge_path = path.map(edge_vectors_path);
         let edge_vectors = compute_embeddings(edge_docs, &cache);
-        let edge_db = EdgeDb(factory.new_db(dim).await); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        let edge_db = EdgeDb(factory.new_collection(db_path_ref, "edges", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
         edge_db.insert_vector_stream(edge_vectors).await.unwrap();
         edge_db.create_index().await;
 
@@ -87,6 +89,8 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             };
             meta.write_to_path(path)?;
         }
+
+        // FIXME: here tempdir will be dropped and so the vector db will be destroyed!!!!!!!!!!!!!!
 
         Ok(VectorisedGraph {
             source_graph: self.clone(),

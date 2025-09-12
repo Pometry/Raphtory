@@ -13,7 +13,7 @@ use crate::{
     },
     errors::GraphResult,
     prelude::{EdgeViewOps, NodeViewOps, *},
-    vectors::vector_db::VectorDb,
+    vectors::vector_collection::VectorCollection,
 };
 use either::Either;
 use futures_util::future::join_all;
@@ -38,7 +38,7 @@ impl ExpansionPath {
 }
 
 #[derive(Debug, Clone)]
-struct Selected(Vec<(EntityRef, f32)>);
+struct Selected(Vec<(EntityRef, f32)>); // TODO: add here the text/embedding use to calculate the distance
 
 impl From<Vec<(EntityRef, f32)>> for Selected {
     fn from(value: Vec<(EntityRef, f32)>) -> Self {
@@ -119,19 +119,19 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     /// Return the documents present in the current selection
     pub async fn get_documents(&self) -> GraphResult<Vec<Document<G>>> {
         Ok(self
-            .get_documents_with_scores()
+            .get_documents_with_distances()
             .await?
             .into_iter()
             .map(|(doc, _)| doc)
             .collect())
     }
 
-    /// Return the documents alongside their scores present in the current selection
-    pub async fn get_documents_with_scores(&self) -> GraphResult<Vec<(Document<G>, f32)>> {
-        let futures = self.selected.iter().map(|(entity, score)| async {
+    /// Return the documents alongside their distances present in the current selection
+    pub async fn get_documents_with_distances(&self) -> GraphResult<Vec<(Document<G>, f32)>> {
+        let futures = self.selected.iter().map(|(entity, distance)| async {
             self.regenerate_doc(*entity)
                 .await
-                .map(|doc| (doc, *score))
+                .map(|doc| (doc, *distance))
                 .unwrap() // TODO: REMOVE UNWRAP
         });
         Ok(join_all(futures).await)
@@ -139,7 +139,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
     /// Add all `nodes` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     /// If any node id doesn't exist it will be ignored
     ///
     /// # Arguments
@@ -153,7 +153,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
     /// Add all `edges` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     /// If any edge doesn't exist it will be ignored
     ///
     /// # Arguments
@@ -198,19 +198,18 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         }
     }
 
-    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent entities closest to `query`
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
     /// not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    /// similarity score obtained against the `query`.
+    ///   2. Those candidates are added to the selection in ascending distance from `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * window - the window where documents need to belong to in order to be considered
     pub async fn expand_entities_by_similarity(
         &mut self,
@@ -222,12 +221,12 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .await
     }
 
-    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent nodes closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of new nodes to add
     ///   * window - the window where documents need to belong to in order to be considered
     pub async fn expand_nodes_by_similarity(
@@ -240,12 +239,12 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .await
     }
 
-    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent edges closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of new edges to add
     ///   * window - the window where documents need to belong to in order to be considered
     pub async fn expand_edges_by_similarity(

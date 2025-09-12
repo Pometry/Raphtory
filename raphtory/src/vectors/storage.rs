@@ -7,7 +7,10 @@ use super::{
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{GraphError, GraphResult},
-    vectors::Embedding,
+    vectors::{
+        vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
+        Embedding,
+    },
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -30,12 +33,16 @@ impl VectorMeta {
 }
 
 impl<G: StaticGraphViewOps> VectorisedGraph<G> {
-    pub fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
+    pub async fn read_from_path(path: &Path, graph: G, cache: VectorCache) -> GraphResult<Self> {
         let meta_string = std::fs::read_to_string(meta_path(path))?;
         let meta: VectorMeta = serde_json::from_str(&meta_string)?;
 
-        let node_db = NodeDb::from_path(&node_vectors_path(path))?;
-        let edge_db = EdgeDb::from_path(&edge_vectors_path(path))?;
+        let factory = LanceDb;
+        let db_path = db_path(path);
+        let dim = meta.sample.len();
+        // TODO: put table names in common place? maybe some trait function for EntityDb that returns it
+        let node_db = NodeDb(factory.from_path(&db_path, "nodes", dim).await?);
+        let edge_db = EdgeDb(factory.from_path(&db_path, "edges", dim).await?);
 
         Ok(VectorisedGraph {
             template: meta.template,
@@ -51,10 +58,6 @@ fn meta_path(path: &Path) -> PathBuf {
     path.join("meta")
 }
 
-pub(super) fn node_vectors_path(path: &Path) -> PathBuf {
-    path.join("nodes")
-}
-
-pub(super) fn edge_vectors_path(path: &Path) -> PathBuf {
-    path.join("edges")
+pub(super) fn db_path(path: &Path) -> PathBuf {
+    path.join("db")
 }

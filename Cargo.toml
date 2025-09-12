@@ -82,7 +82,7 @@ parking_lot = { version = "0.12.1", features = [
     "send_guard",
 ] }
 ordered-float = "4.2.0"
-chrono = { version = "=0.4.38", features = ["serde"] }
+chrono = { version = "=0.4.41", features = ["serde"] }
 tempfile = "3.10.0"
 futures-util = "0.3.30"
 thiserror = "2.0.0"
@@ -154,6 +154,7 @@ minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 datafusion = { version = "43.0.0" }
 arroy = "0.6.1"
+lancedb = "0.22.0"
 heed = "0.22.0"
 sqlparser = "0.51.0"
 futures = "0.3"

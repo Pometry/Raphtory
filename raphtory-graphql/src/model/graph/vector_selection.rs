@@ -45,7 +45,7 @@ impl GqlVectorSelection {
     async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
         blocking_compute(move || {
-            let docs = cloned.get_documents_with_scores()?.into_iter();
+            let docs = cloned.get_documents_with_distances()?.into_iter();
             Ok(docs
                 .map(|(doc, score)| GqlDocument {
                     content: doc.content,

@@ -13,7 +13,7 @@ pub mod splitting;
 mod storage;
 pub mod template;
 mod utils;
-mod vector_db;
+mod vector_collection;
 pub mod vector_selection;
 pub mod vectorisable;
 pub mod vectorised_graph;

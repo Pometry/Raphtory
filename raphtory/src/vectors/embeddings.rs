@@ -71,15 +71,15 @@ pub fn default_openai_embeddings() -> OpenAIEmbeddings {
 pub(super) fn compute_embeddings<'a, I>(
     documents: I,
     cache: &'a VectorCache,
-) -> impl Stream<Item = GraphResult<(u32, Embedding)>> + Send + 'a
+) -> impl Stream<Item = GraphResult<(u64, Embedding)>> + Send + 'a
 where
-    I: Iterator<Item = (u32, String)> + Send + 'a,
+    I: Iterator<Item = (u64, String)> + Send + 'a,
 {
     futures_util::stream::iter(documents)
         .chunks(CHUNK_SIZE)
         .then(|chunk| async {
             let texts = chunk.iter().map(|(_, text)| text.clone()).collect();
-            let stream: Pin<Box<dyn Stream<Item = GraphResult<(u32, Embedding)>> + Send>> =
+            let stream: Pin<Box<dyn Stream<Item = GraphResult<(u64, Embedding)>> + Send>> =
                 match cache.get_embeddings(texts).await {
                     Ok(embeddings) => {
                         let embedded: Vec<_> = chunk
