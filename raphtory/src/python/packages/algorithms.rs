@@ -747,21 +747,24 @@ pub fn betweenness_centrality(
 ///
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
+///     iter_count: Number of iterations
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
-///     list[set[Node]]: A list of sets each containing nodes that have been grouped
+///     PyOutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, seed=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None)]]
 pub fn label_propagation(
     graph: &PyGraphView,
+    iter_count: usize,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<NodeView<'static, DynamicGraph>>>> {
-    match label_propagation_rs(&graph.graph, seed) {
-        Ok(result) => Ok(result),
-        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    }
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph> {
+    label_propagation_rs(&graph.graph, 20, seed, None)
+    // match  {
+    //Ok(result) => Ok(result),
+    //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    // }
 }
 
 /// Determines which nodes are in the k-core for a given value of k

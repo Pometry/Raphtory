@@ -1,13 +1,15 @@
 use crate::{
     core::entities::VID,
     db::{
-        api::{state::NodeState, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, NodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         graph::node::NodeView,
     },
     prelude::*,
 };
 use std::collections::{HashMap, HashSet};
-use crate::db::api::state::{GenericNodeState, TypedNodeState};
 
 fn tarjan<'graph, G>(
     node: NodeView<&'graph G>,
@@ -89,7 +91,9 @@ where
 ///
 /// An [AlgorithmResult] containing the mapping from each node to its component ID
 ///
-pub fn strongly_connected_components<G>(graph: &G) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G>
+pub fn strongly_connected_components<G>(
+    graph: &G,
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G>
 where
     G: StaticGraphViewOps,
 {
