@@ -344,7 +344,11 @@ def test_networkx_full_history():
                     ("primary_function", ((1693556400000, 15), "Backup")),
                     ("uptime_days", ((1693556400000, 15), 30)),
                 ],
-                "update_history": [(1693556100000, 3), (1693556400000, 15), (1693556700000, 5)],
+                "update_history": [
+                    (1693556100000, 3),
+                    (1693556400000, 15),
+                    (1693556700000, 5),
+                ],
             },
         ),
     ]
@@ -436,7 +440,11 @@ def test_networkx_full_history():
                     )
                 ],
                 "layer": "Standard Service Request",
-                "update_history": [(1693557000000, 6), (1693557060000, 7), (1693557120000, 8)],
+                "update_history": [
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
+                ],
             },
         ),
         (
@@ -645,7 +653,16 @@ def test_networkx_no_props():
                 ]
             },
         ),
-        ("ServerE", {"update_history": [(1693556100000, 3), (1693556400000, 15), (1693556700000, 5)]}),
+        (
+            "ServerE",
+            {
+                "update_history": [
+                    (1693556100000, 3),
+                    (1693556400000, 15),
+                    (1693556700000, 5),
+                ]
+            },
+        ),
     ]
     compare_list_of_dicts(nodeList, resultList)
 
@@ -654,7 +671,10 @@ def test_networkx_no_props():
         (
             "ServerA",
             "ServerB",
-            {"layer": "Critical System Request", "update_history": [(1693555200000, 0)]},
+            {
+                "layer": "Critical System Request",
+                "update_history": [(1693555200000, 0)],
+            },
         ),
         (
             "ServerA",
@@ -664,19 +684,29 @@ def test_networkx_no_props():
         (
             "ServerB",
             "ServerD",
-            {"layer": "Standard Service Request", "update_history": [(1693555800000, 2)]},
+            {
+                "layer": "Standard Service Request",
+                "update_history": [(1693555800000, 2)],
+            },
         ),
         (
             "ServerC",
             "ServerA",
-            {"layer": "Critical System Request", "update_history": [(1693556400000, 4)]},
+            {
+                "layer": "Critical System Request",
+                "update_history": [(1693556400000, 4)],
+            },
         ),
         (
             "ServerD",
             "ServerC",
             {
                 "layer": "Standard Service Request",
-                "update_history": [(1693557000000, 6), (1693557060000, 7), (1693557120000, 8)],
+                "update_history": [
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
+                ],
             },
         ),
         (

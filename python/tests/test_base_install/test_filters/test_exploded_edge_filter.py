@@ -77,8 +77,14 @@ def test_graph(GraphClass):
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1), (TimeIndex.new((3, 2)), 3)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1), (TimeIndex.new((3, 5)), 3)]
+    assert e1.properties.temporal.get("weight").items() == [
+        (TimeIndex.new((1, 0)), 1),
+        (TimeIndex.new((3, 2)), 3),
+    ]
+    assert e2.properties.temporal.get("weight").items() == [
+        (TimeIndex.new((1, 3)), 1),
+        (TimeIndex.new((3, 5)), 3),
+    ]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
@@ -131,8 +137,14 @@ def test_same_time_event(GraphClass):
 
     assert e2.layer_names == ["blue", "red"]
 
-    assert e1.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 0)), 1), (TimeIndex.new((1, 2)), 3)]
-    assert e2.properties.temporal.get("weight").items() == [(TimeIndex.new((1, 3)), 1), (TimeIndex.new((1, 5)), 3)]
+    assert e1.properties.temporal.get("weight").items() == [
+        (TimeIndex.new((1, 0)), 1),
+        (TimeIndex.new((1, 2)), 3),
+    ]
+    assert e2.properties.temporal.get("weight").items() == [
+        (TimeIndex.new((1, 3)), 1),
+        (TimeIndex.new((1, 5)), 3),
+    ]
 
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])

@@ -94,27 +94,20 @@ def test_latest_and_active():
                 "isActive": True,
                 "latest": {
                     "history": {
-                        "list": [{"timestamp": 3, "secondaryIndex": 2}, {"timestamp": 3, "secondaryIndex": 5}
+                        "list": [
+                            {"timestamp": 3, "secondaryIndex": 2},
+                            {"timestamp": 3, "secondaryIndex": 5},
                         ]
                     }
-                }
+                },
             },
             "e12": {
                 "isActive": True,
                 "latest": {
-                    "history": {
-                        "list": [{"timestamp": 3, "secondaryIndex": 2}]
-                    }
-                }
+                    "history": {"list": [{"timestamp": 3, "secondaryIndex": 2}]}
+                },
             },
-            "e13": {
-                "latest": {
-                    "isActive": False,
-                    "history": {
-                        "list": []
-                    }
-                }
-            },
+            "e13": {"latest": {"isActive": False, "history": {"list": []}}},
             "nodes": {
                 "list": [
                     {
@@ -124,22 +117,22 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"timestamp": 3, "secondaryIndex": 2}]
+                                            "list": [
+                                                {"timestamp": 3, "secondaryIndex": 2}
+                                            ]
                                         }
                                     },
+                                    {"history": {"list": []}},
                                     {
                                         "history": {
-                                            "list": []
+                                            "list": [
+                                                {"timestamp": 3, "secondaryIndex": 5}
+                                            ]
                                         }
                                     },
-                                    {
-                                        "history": {
-                                            "list": [{"timestamp": 3, "secondaryIndex": 5}]
-                                        }
-                                    }
                                 ]
                             }
-                        }
+                        },
                     },
                     {
                         "name": "2",
@@ -148,27 +141,18 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"timestamp": 3, "secondaryIndex": 2}
+                                            "list": [
+                                                {"timestamp": 3, "secondaryIndex": 2}
                                             ]
                                         }
                                     }
                                 ]
                             }
-                        }
+                        },
                     },
                     {
                         "name": "3",
-                        "edges": {
-                            "latest": {
-                                "list": [
-                                    {
-                                        "history": {
-                                            "list": []
-                                        }
-                                    }
-                                ]
-                            }
-                        }
+                        "edges": {"latest": {"list": [{"history": {"list": []}}]}},
                     },
                     {
                         "name": "4",
@@ -177,58 +161,51 @@ def test_latest_and_active():
                                 "list": [
                                     {
                                         "history": {
-                                            "list": [{"timestamp": 3, "secondaryIndex": 5}]
+                                            "list": [
+                                                {"timestamp": 3, "secondaryIndex": 5}
+                                            ]
                                         }
                                     }
                                 ]
                             }
-                        }
-                    }
+                        },
+                    },
                 ],
                 "latest": {
                     "list": [
                         {
                             "name": "1",
                             "history": {
-                                "list": [{"timestamp": 3, "secondaryIndex": 2}, {"timestamp": 3, "secondaryIndex": 5}]
-                            }
+                                "list": [
+                                    {"timestamp": 3, "secondaryIndex": 2},
+                                    {"timestamp": 3, "secondaryIndex": 5},
+                                ]
+                            },
                         },
                         {
                             "name": "2",
                             "history": {
                                 "list": [{"timestamp": 3, "secondaryIndex": 2}]
-                            }
+                            },
                         },
                         {
                             "name": "4",
                             "history": {
                                 "list": [{"timestamp": 3, "secondaryIndex": 5}]
-                            }
-                        }
+                            },
+                        },
                     ]
-                }
+                },
             },
             "edges": {
                 "latest": {
                     "list": [
-                        {
-                            "history": {
-                                "list": [{"timestamp": 3, "secondaryIndex": 2}]
-                            }
-                        },
-                        {
-                            "history": {
-                                "list": []
-                            }
-                        },
-                        {
-                            "history": {
-                                "list": [{"timestamp": 3, "secondaryIndex": 5}]
-                            }
-                        }
+                        {"history": {"list": [{"timestamp": 3, "secondaryIndex": 2}]}},
+                        {"history": {"list": []}},
+                        {"history": {"list": [{"timestamp": 3, "secondaryIndex": 5}]}},
                     ]
                 }
-            }
+            },
         }
     }
 

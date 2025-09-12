@@ -462,18 +462,18 @@ def test_graph_properties_query():
                                                 "list": [
                                                     {
                                                         "timestamp": 1,
-                                                        "secondaryIndex": 0
+                                                        "secondaryIndex": 0,
                                                     },
                                                     {
                                                         "timestamp": 2,
-                                                        "secondaryIndex": 1
+                                                        "secondaryIndex": 1,
                                                     },
                                                     {
                                                         "timestamp": 3,
-                                                        "secondaryIndex": 2
-                                                    }
+                                                        "secondaryIndex": 2,
+                                                    },
                                                 ]
-                                            }
+                                            },
                                         }
                                     ]
                                 },

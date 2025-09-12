@@ -16,9 +16,15 @@ def create_graph() -> Graph:
 
     # Add edges with timestamps and layers
     graph.add_edge(150, "Dumbledore", "Harry", layer="communication")
-    graph.add_edge(200, "Dumbledore", "Harry", properties={"weight": 0.5}, layer="friendship")
-    graph.add_edge(300, "Dumbledore", "Harry", properties={"weight": 0.7}, layer="communication")
-    graph.add_edge(350, "Dumbledore", "Harry", properties={"weight": 0.9}, layer="friendship")
+    graph.add_edge(
+        200, "Dumbledore", "Harry", properties={"weight": 0.5}, layer="friendship"
+    )
+    graph.add_edge(
+        300, "Dumbledore", "Harry", properties={"weight": 0.7}, layer="communication"
+    )
+    graph.add_edge(
+        350, "Dumbledore", "Harry", properties={"weight": 0.9}, layer="friendship"
+    )
     return graph
 
 
@@ -38,7 +44,13 @@ def test_history():
         }
       }
     }"""
-    expected_output = {'graph': {'node': {'history': {'timestamps': {'list': [100, 150, 200, 200, 300, 300, 350]}}}}}
+    expected_output = {
+        "graph": {
+            "node": {
+                "history": {"timestamps": {"list": [100, 150, 200, 200, 300, 300, 350]}}
+            }
+        }
+    }
     queries_and_expected_outputs = [(query, expected_output)]
 
     # test edge
@@ -54,7 +66,9 @@ def test_history():
         }
       }
     }"""
-    expected_output = {'graph': {'edge': {'history': {'timestamps': {'list': [150, 200, 300, 350]}}}}}
+    expected_output = {
+        "graph": {"edge": {"history": {"timestamps": {"list": [150, 200, 300, 350]}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test windowed node
@@ -72,7 +86,9 @@ def test_history():
         }
       }
     }"""
-    expected_output_1 = {'graph': {'window': {'node': {'history': {'timestamps': {'list': [100]}}}}}}
+    expected_output_1 = {
+        "graph": {"window": {"node": {"history": {"timestamps": {"list": [100]}}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output_1))
     query = """
     {
@@ -88,7 +104,11 @@ def test_history():
         }
       }
     }"""
-    expected_output_2 = {'graph': {'window': {'node': {'history': {'timestamps': {'list': [150, 200, 200]}}}}}}
+    expected_output_2 = {
+        "graph": {
+            "window": {"node": {"history": {"timestamps": {"list": [150, 200, 200]}}}}
+        }
+    }
     queries_and_expected_outputs.append((query, expected_output_2))
 
     query = """
@@ -105,7 +125,11 @@ def test_history():
         }
       }
     }"""
-    expected_output_3 = {'graph': {'window': {'node': {'history': {'timestamps': {'list': [300, 300, 350]}}}}}}
+    expected_output_3 = {
+        "graph": {
+            "window": {"node": {"history": {"timestamps": {"list": [300, 300, 350]}}}}
+        }
+    }
     queries_and_expected_outputs.append((query, expected_output_3))
 
     # test windowed edge
@@ -124,7 +148,7 @@ def test_history():
       }
     }
     """
-    expected_output_1 = {'graph': {'window': {'edge': None}}}
+    expected_output_1 = {"graph": {"window": {"edge": None}}}
     queries_and_expected_outputs.append((query, expected_output_1))
 
     query = """
@@ -142,7 +166,9 @@ def test_history():
       }
     }
     """
-    expected_output_2 = {'graph': {'window': {'edge': {'history': {'timestamps': {'list': [150, 200]}}}}}}
+    expected_output_2 = {
+        "graph": {"window": {"edge": {"history": {"timestamps": {"list": [150, 200]}}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output_2))
 
     query = """
@@ -160,7 +186,9 @@ def test_history():
       }
     }
     """
-    expected_output_3 = {'graph': {'window': {'edge': {'history': {'timestamps': {'list': [300, 350]}}}}}}
+    expected_output_3 = {
+        "graph": {"window": {"edge": {"history": {"timestamps": {"list": [300, 350]}}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output_3))
 
     # test layered node
@@ -178,7 +206,13 @@ def test_history():
         }
       }
     }"""
-    expected_output = {'graph': {'layer': {'node': {'history': {'timestamps': {'list': [100, 200, 200, 300, 350]}}}}}}
+    expected_output = {
+        "graph": {
+            "layer": {
+                "node": {"history": {"timestamps": {"list": [100, 200, 200, 300, 350]}}}
+            }
+        }
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test layered edge
@@ -197,7 +231,9 @@ def test_history():
       }
     }
     """
-    expected_output = {'graph': {'layer': {'edge': {'history': {'timestamps': {'list': [150, 300]}}}}}}
+    expected_output = {
+        "graph": {"layer": {"edge": {"history": {"timestamps": {"list": [150, 300]}}}}}
+    }
     queries_and_expected_outputs.append((query, expected_output))
 
     # test edge filtered by property, when the same property for the same edge is updated at different times
@@ -217,7 +253,13 @@ def test_history():
         }
       }
     }"""
-    expected_output_1 = {'graph': {'edgeFilter': {'edge': {'history': {'timestamps': {'list': [150, 200, 300, 350]}}}}}}
+    expected_output_1 = {
+        "graph": {
+            "edgeFilter": {
+                "edge": {"history": {"timestamps": {"list": [150, 200, 300, 350]}}}
+            }
+        }
+    }
     queries_and_expected_outputs.append((query_1, expected_output_1))
 
     query_2 = """
@@ -236,7 +278,7 @@ def test_history():
         }
       }
     }"""
-    expected_output_2 = {'graph': {'edgeFilter': {'edge': None}}}
+    expected_output_2 = {"graph": {"edgeFilter": {"edge": None}}}
     queries_and_expected_outputs.append((query_2, expected_output_2))
 
     # test node filtered by property, when the same property is updated at different times
@@ -256,7 +298,7 @@ def test_history():
         }
       }
     }"""
-    expected_output_1 = {'graph': {'nodeFilter': {'node': None}}}
+    expected_output_1 = {"graph": {"nodeFilter": {"node": None}}}
     queries_and_expected_outputs.append((query_1, expected_output_1))
 
     query_2 = """
@@ -275,7 +317,13 @@ def test_history():
         }
       }
     }"""
-    expected_output_2 = {'graph': {'nodeFilter': {'node': {'history': {'timestamps': {'list': [100, 200, 300]}}}}}}
+    expected_output_2 = {
+        "graph": {
+            "nodeFilter": {
+                "node": {"history": {"timestamps": {"list": [100, 200, 300]}}}
+            }
+        }
+    }
     queries_and_expected_outputs.append((query_2, expected_output_2))
 
     query_3 = """
@@ -294,7 +342,7 @@ def test_history():
         }
       }
     }"""
-    expected_output_3 = {'graph': {'nodeFilter': {'node': None}}}
+    expected_output_3 = {"graph": {"nodeFilter": {"node": None}}}
     queries_and_expected_outputs.append((query_3, expected_output_3))
 
     query_4 = """
@@ -313,7 +361,17 @@ def test_history():
         }
       }
     }"""
-    expected_output_4 = {'graph': {'nodeFilter': {'node': {'history': {'timestamps': {'list': [150, 150, 200, 250, 300, 350, 350]}}}}}}
+    expected_output_4 = {
+        "graph": {
+            "nodeFilter": {
+                "node": {
+                    "history": {
+                        "timestamps": {"list": [150, 150, 200, 250, 300, 350, 350]}
+                    }
+                }
+            }
+        }
+    }
     queries_and_expected_outputs.append((query_4, expected_output_4))
 
     run_group_graphql_test(queries_and_expected_outputs, graph)

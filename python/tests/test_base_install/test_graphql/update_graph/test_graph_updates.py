@@ -82,11 +82,13 @@ def test_add_properties():
         assert_has_properties(g, props)
 
         localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
-        timestamps = sorted([
-            1,
-            int(current_datetime.timestamp() * 1000),
-            int(localized_datetime.timestamp() * 1000),
-        ])
+        timestamps = sorted(
+            [
+                1,
+                int(current_datetime.timestamp() * 1000),
+                int(localized_datetime.timestamp() * 1000),
+            ]
+        )
 
         check_arr(g.properties.temporal.get("prop_map").history.t.collect(), timestamps)
 

@@ -112,11 +112,7 @@ def test_apply_view_snapshot_latest():
 
     correct = {
         "graph": {
-            "applyViews": {
-                "earliestTime": {
-                    "timestamp": 1735689600000
-                }
-            },
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "page": [
@@ -130,7 +126,7 @@ def test_apply_view_snapshot_latest():
                                         1735776000000,
                                         1735862400000,
                                         1735862400000,
-                                        1735948800000
+                                        1735948800000,
                                     ]
                                 }
                             }
@@ -149,7 +145,7 @@ def test_apply_view_snapshot_latest():
                                 1735776000000,
                                 1735862400000,
                                 1735862400000,
-                                1735948800000
+                                1735948800000,
                             ]
                         }
                     }
@@ -169,7 +165,7 @@ def test_apply_view_snapshot_latest():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
@@ -180,11 +176,11 @@ def test_apply_view_snapshot_latest():
                                         "list": [
                                             1735689600000,
                                             1735776000000,
-                                            1735862400000
+                                            1735862400000,
                                         ]
                                     }
                                 }
-                            }
+                            },
                         }
                     ]
                 }
@@ -201,13 +197,13 @@ def test_apply_view_snapshot_latest():
                                     1735776000000,
                                     1735862400000,
                                     1735862400000,
-                                    1735948800000
+                                    1735948800000,
                                 ]
                             }
                         }
                     }
                 }
-            }
+            },
         }
     }
 
@@ -292,7 +288,7 @@ def test_apply_view_default_layer():
                                         1735776000000,
                                         1735862400000,
                                         1735862400000,
-                                        1735948800000
+                                        1735948800000,
                                     ]
                                 }
                             }
@@ -300,7 +296,9 @@ def test_apply_view_default_layer():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735862400000]}}}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735862400000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "page": [
@@ -315,23 +313,31 @@ def test_apply_view_default_layer():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000,1735776000000,1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "src": {
-                        "history": {"timestamps": {"list": [1736035200000]}}
-                    }
+                    "src": {"history": {"timestamps": {"list": [1736035200000]}}}
                 }
-            }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -403,8 +409,13 @@ def test_apply_view_latest():
 }
 """
     correct = {
-        "graph": {"applyViews": {"earliestTime": {"timestamp": 1736035200000}},
-            "nodes": {"applyViews": {"page": [{"history": {"timestamps": {"list": [1736035200000]}}}]}},
+        "graph": {
+            "applyViews": {"earliestTime": {"timestamp": 1736035200000}},
+            "nodes": {
+                "applyViews": {
+                    "page": [{"history": {"timestamps": {"list": [1736035200000]}}}]
+                }
+            },
             "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {
                 "applyViews": {
@@ -420,17 +431,31 @@ def test_apply_view_latest():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": [1736035200000]}}}}}
+            "edge": {
+                "applyViews": {
+                    "src": {"history": {"timestamps": {"list": [1736035200000]}}}
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -504,8 +529,20 @@ def test_apply_view_at():
     correct = {
         "graph": {
             "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
-            "nodes": {"applyViews": {"page": [{"history": {"timestamps": {"list": [1735689600000, 1735689600000]}}}]}},
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}},
+            "nodes": {
+                "applyViews": {
+                    "page": [
+                        {
+                            "history": {
+                                "timestamps": {"list": [1735689600000, 1735689600000]}
+                            }
+                        }
+                    ]
+                }
+            },
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "page": [
@@ -520,17 +557,31 @@ def test_apply_view_at():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": [1736035200000]}}}}}
+            "edge": {
+                "applyViews": {
+                    "src": {"history": {"timestamps": {"list": [1736035200000]}}}
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -602,8 +653,8 @@ def test_apply_view_snapshot_at():
 }
 """
     correct = {
-        "graph":
-            {"applyViews": {"latestTime": {"timestamp": 1736035200000}},
+        "graph": {
+            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
             "nodes": {
                 "applyViews": {
                     "page": [
@@ -616,7 +667,7 @@ def test_apply_view_snapshot_at():
                                         1735776000000,
                                         1735776000000,
                                         1735862400000,
-                                        1735862400000
+                                        1735862400000,
                                     ]
                                 }
                             }
@@ -624,7 +675,15 @@ def test_apply_view_snapshot_at():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}},
+            "node": {
+                "applyViews": {
+                    "history": {
+                        "timestamps": {
+                            "list": [1735689600000, 1735776000000, 1735862400000]
+                        }
+                    }
+                }
+            },
             "edges": {
                 "applyViews": {
                     "page": [
@@ -639,17 +698,31 @@ def test_apply_view_snapshot_at():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": [1736035200000]}}}}}
+            "edge": {
+                "applyViews": {
+                    "src": {"history": {"timestamps": {"list": [1736035200000]}}}
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -736,9 +809,8 @@ def test_apply_view_window():
 }
 """
     correct = {
-        "graph":{
-            "applyViews":
-                {"latestTime": {"timestamp": 1735776000000}},
+        "graph": {
+            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
                 "applyViews": {
                     "page": [
@@ -749,7 +821,7 @@ def test_apply_view_window():
                                         1735689600000,
                                         1735689600000,
                                         1735776000000,
-                                        1735776000000
+                                        1735776000000,
                                     ]
                                 }
                             }
@@ -757,7 +829,11 @@ def test_apply_view_window():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000, 1735776000000]}}}},
+            "node": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000, 1735776000000]}}
+                }
+            },
             "edges": {
                 "applyViews": {
                     "page": [
@@ -772,12 +848,22 @@ def test_apply_view_window():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
@@ -794,13 +880,13 @@ def test_apply_view_window():
                                     1735776000000,
                                     1735862400000,
                                     1735862400000,
-                                    1735948800000
+                                    1735948800000,
                                 ]
                             }
                         }
                     }
                 }
-            }
+            },
         }
     }
 
@@ -874,8 +960,7 @@ def test_apply_view_before():
 
     correct = {
         "graph": {
-            "applyViews":
-                {"latestTime": {"timestamp": 1735776000000}},
+            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
                 "applyViews": {
                     "page": [
@@ -886,7 +971,7 @@ def test_apply_view_before():
                                         1735689600000,
                                         1735689600000,
                                         1735776000000,
-                                        1735776000000
+                                        1735776000000,
                                     ]
                                 }
                             }
@@ -894,7 +979,11 @@ def test_apply_view_before():
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000, 1735776000000]}}}},
+            "node": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000, 1735776000000]}}
+                }
+            },
             "edges": {
                 "applyViews": {
                     "page": [
@@ -909,12 +998,22 @@ def test_apply_view_before():
                                             1735776000000,
                                             1735862400000,
                                             1735862400000,
-                                            1735948800000
+                                            1735948800000,
                                         ]
                                     }
                                 }
                             },
-                            "dst": {"history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}}
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
                         }
                     ]
                 }
@@ -931,13 +1030,13 @@ def test_apply_view_before():
                                     1735776000000,
                                     1735862400000,
                                     1735862400000,
-                                    1735948800000
+                                    1735948800000,
                                 ]
                             }
                         }
                     }
                 }
-            }
+            },
         }
     }
 
@@ -1015,13 +1114,30 @@ def test_apply_view_after():
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
-            "edge": {"applyViews": {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}}}
+            "edge": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "1"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1097,13 +1213,31 @@ def test_apply_view_shrink_window():
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"},"dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": [1736035200000]}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
-            "edge": {"applyViews": {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}}}
+            "edge": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1179,13 +1313,31 @@ def test_apply_view_shrink_start():
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"},"dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": [1736035200000]}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
-            "edge": {"applyViews": {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}}}
+            "edge": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1257,19 +1409,37 @@ def test_apply_view_shrink_end():
         "graph": {
             "applyViews": {"latestTime": {"timestamp": 1735689600000}},
             "nodes": {"applyViews": {"list": [{"name": "1"}, {"name": "2"}]}},
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": [1735689600000]}}, "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": [1735689600000]}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
-                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}, "src": {"name": "1"}, "dst": {"name": "2"}}
-            }
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000]}},
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1348,26 +1518,52 @@ def test_apply_view_layers():
             "nodes": {
                 "applyViews": {
                     "list": [
-                        {"name": "1", "history": {"timestamps": {"list": [1735689600000]}}},
-                        {"name": "6", "history": {"timestamps": {"list": [1736035200000]}}},
-                        {"name": "7", "history": {"timestamps": {"list": [1736035200000]}}}
+                        {
+                            "name": "1",
+                            "history": {"timestamps": {"list": [1735689600000]}},
+                        },
+                        {
+                            "name": "6",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
+                        {
+                            "name": "7",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": [1736035200000]}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
-                "applyViews":
-                    {"history": {"timestamps": {"list": [1735689600000]}}, "src": {"name": "1"}, "dst": {"name": "2"}}
-            }
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000]}},
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1441,9 +1637,7 @@ def test_apply_view_layer():
 }"""
     correct = {
         "graph": {
-            "applyViews": {
-                "earliestTime": {"timestamp": 1735689600000}
-            },
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "list": [
@@ -1457,29 +1651,46 @@ def test_apply_view_layer():
                                         1735776000000,
                                         1735862400000,
                                         1735862400000,
-                                        1735948800000
+                                        1735948800000,
                                     ]
                                 }
                             },
-                            "name": "1"
+                            "name": "1",
                         }
                     ]
                 }
             },
-            "node": {"applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": {"timestamps": {"list": []}}, "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": {"timestamps": {"list": [1736035200000]}}, "src": {"name": "6"}, "dst": {"name": "7"}}
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
-                "applyViews":
-                    {"history": {"timestamps": {"list": [1735689600000]}}, "src": {"name": "1"}, "dst": {"name": "2"}}
-            }
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000]}},
+                    "src": {"name": "1"},
+                    "dst": {"name": "2"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1569,27 +1780,43 @@ def test_apply_view_exclude_layer():
                                         1735776000000,
                                         1735862400000,
                                         1735862400000,
-                                        1735948800000
+                                        1735948800000,
                                     ]
                                 }
-                            }
+                            },
                         },
                         {
                             "name": "2",
-                            "history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
+                            },
                         },
                         {
                             "name": "3",
-                            "history": {"timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}}
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
                         {
                             "name": "6",
-                            "history": {"timestamps": {"list": [1736035200000]}}
+                            "history": {"timestamps": {"list": [1736035200000]}},
                         },
                         {
                             "name": "7",
-                            "history": {"timestamps": {"list": [1736035200000]}}
-                        }
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
@@ -1604,7 +1831,7 @@ def test_apply_view_exclude_layer():
                                 1735776000000,
                                 1735862400000,
                                 1735862400000,
-                                1735948800000
+                                1735948800000,
                             ]
                         }
                     }
@@ -1615,27 +1842,45 @@ def test_apply_view_exclude_layer():
                     "list": [
                         {
                             "history": {
-                                "timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
                             },
                             "src": {"name": "1"},
-                            "dst": {"name": "2"}
+                            "dst": {"name": "2"},
                         },
                         {
                             "history": {
-                                "timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
                             },
                             "src": {"name": "1"},
-                            "dst": {"name": "3"}
+                            "dst": {"name": "3"},
                         },
                         {
-                            "history": {
-                                "timestamps": {"list": []}},
+                            "history": {"timestamps": {"list": []}},
                             "src": {"name": "6"},
-                            "dst": {"name": "7"}}
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
-            "edge": {"applyViews": {"history": {"timestamps": {"list": []}}, "src": {"name": "6"}, "dst": {"name": "7"}}}
+            "edge": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "6"},
+                    "dst": {"name": "7"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1725,27 +1970,43 @@ def test_apply_view_exclude_layers():
                                         1735776000000,
                                         1735862400000,
                                         1735862400000,
-                                        1735948800000
+                                        1735948800000,
                                     ]
                                 }
-                            }
+                            },
                         },
                         {
                             "name": "2",
-                            "history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
+                            },
                         },
                         {
                             "name": "3",
-                            "history": {"timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}}
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
                         {
                             "name": "6",
-                            "history": {"timestamps": {"list": [1736035200000]}}
+                            "history": {"timestamps": {"list": [1736035200000]}},
                         },
                         {
                             "name": "7",
-                            "history": {"timestamps": {"list": [1736035200000]}}
-                        }
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
@@ -1760,7 +2021,7 @@ def test_apply_view_exclude_layers():
                                 1735776000000,
                                 1735862400000,
                                 1735862400000,
-                                1735948800000
+                                1735948800000,
                             ]
                         }
                     }
@@ -1770,40 +2031,40 @@ def test_apply_view_exclude_layers():
                 "applyViews": {
                     "list": [
                         {
-                            "history": {"timestamps": {"list": [1735776000000, 1735862400000]}},
+                            "history": {
+                                "timestamps": {"list": [1735776000000, 1735862400000]}
+                            },
                             "src": {"name": "1"},
-                            "dst": {"name": "2"}
-                        },
-                        {
-                            "history": {"timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}},
-                            "src": {"name": "1"},
-                            "dst": {"name": "3"}
+                            "dst": {"name": "2"},
                         },
                         {
                             "history": {
-                                "timestamps": {"list": []}
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
                             },
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
                             "src": {"name": "6"},
-                            "dst": {"name": "7"}
-                        }
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "history": {
-                        "timestamps": {
-                            "list": []
-                        }
-                    },
-                    "src": {
-                        "name": "6"
-                    },
-                    "dst": {
-                        "name": "7"
-                    }
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "6"},
+                    "dst": {"name": "7"},
                 }
-            }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1898,7 +2159,11 @@ def test_apply_view_nested():
         "graph": {
             "applyViews": {
                 "earliestTime": {"timestamp": 1735689600000},
-                "edges": {"applyViews": {"list": [{"history": {"timestamps": {"list": [1736035200000]}}}]}},
+                "edges": {
+                    "applyViews": {
+                        "list": [{"history": {"timestamps": {"list": [1736035200000]}}}]
+                    }
+                },
             }
         }
     }
@@ -1991,7 +2256,13 @@ def test_apply_view_edge_filter():
   }
 """
     correct = {
-        "graph": {"applyViews": {"edges": {"list": [{"history": {"timestamps": {"list": [1736035200000]}}}]}}}
+        "graph": {
+            "applyViews": {
+                "edges": {
+                    "list": [{"history": {"timestamps": {"list": [1736035200000]}}}]
+                }
+            }
+        }
     }
     run_graphql_test(query, correct, graph)
 
@@ -2143,7 +2414,14 @@ def test_apply_view_a_lot_of_views():
     correct = {
         "graph": {
             "nodes": {
-                "applyViews": {"list": [{"history": {"timestamps": {"list": [1735689600000]}}, "name": "1"}]}
+                "applyViews": {
+                    "list": [
+                        {
+                            "history": {"timestamps": {"list": [1735689600000]}},
+                            "name": "1",
+                        }
+                    ]
+                }
             }
         }
     }
@@ -2183,33 +2461,67 @@ def test_apply_view_neighbours():
                         "neighbours": {
                             "applyViews": {
                                 "list": [
-                                    {"history": {"timestamps": {"list": []}}, "name": "2"},
-                                    {"history": {"timestamps": {"list": []}}, "name": "3"},
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "2",
+                                    },
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "3",
+                                    },
                                 ]
                             }
                         }
                     },
                     {
                         "neighbours": {
-                            "applyViews": {"list": [{"history": {"timestamps": {"list": []}}, "name": "1"}]}
-                        }
-                    },
-                    {
-                        "neighbours": {
-                            "applyViews": {"list": [{"history": {"timestamps": {"list": []}}, "name": "1"}]}
-                        }
-                    },
-                    {
-                        "neighbours": {
                             "applyViews": {
-                                "list": [{"history": {"timestamps": {"list": [1736035200000]}}, "name": "7"}]
+                                "list": [
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "1",
+                                    }
+                                ]
                             }
                         }
                     },
                     {
                         "neighbours": {
                             "applyViews": {
-                                "list": [{"history": {"timestamps": {"list": [1736035200000]}}, "name": "6"}]
+                                "list": [
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "1",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "timestamps": {"list": [1736035200000]}
+                                        },
+                                        "name": "7",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "timestamps": {"list": [1736035200000]}
+                                        },
+                                        "name": "6",
+                                    }
+                                ]
                             }
                         }
                     },
@@ -2288,7 +2600,14 @@ def test_apply_view_neighbours_layer():
         "graph": {
             "node": {
                 "neighbours": {
-                    "applyViews": {"list": [{"history": {"timestamps": {"list": [1736035200000]}}, "name": "7"}]}
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": {"timestamps": {"list": [1736035200000]}},
+                                "name": "7",
+                            }
+                        ]
+                    }
                 }
             }
         }
@@ -2323,7 +2642,11 @@ def test_apply_view_neighbours_exclude_layer():
     correct = {
         "graph": {
             "node": {
-                "neighbours": {"applyViews": {"list": [{"history": {"timestamps": {"list": []}}, "name": "7"}]}}
+                "neighbours": {
+                    "applyViews": {
+                        "list": [{"history": {"timestamps": {"list": []}}, "name": "7"}]
+                    }
+                }
             }
         }
     }
@@ -2360,7 +2683,10 @@ def test_apply_view_neighbours_layers():
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": {"timestamps": {"list": [1735689600000]}}, "name": "2"},
+                            {
+                                "history": {"timestamps": {"list": [1735689600000]}},
+                                "name": "2",
+                            },
                             {"history": {"timestamps": {"list": []}}, "name": "3"},
                         ]
                     }
@@ -2402,12 +2728,24 @@ def test_apply_view_neighbours_exclude_layers():
                         "list": [
                             {
                                 "name": "2",
-                                "history": {"timestamps": {"list": [1735776000000, 1735862400000]}}
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735776000000, 1735862400000]
+                                    }
+                                },
                             },
                             {
                                 "name": "3",
-                                "history": {"timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}}
-                            }
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735776000000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                },
+                            },
                         ]
                     }
                 }
@@ -2446,7 +2784,10 @@ def test_apply_view_neighbours_after():
                     "applyViews": {
                         "list": [
                             {"history": {"timestamps": {"list": []}}, "name": "2"},
-                            {"history": {"timestamps": {"list": [1735948800000]}}, "name": "3"},
+                            {
+                                "history": {"timestamps": {"list": [1735948800000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -2484,8 +2825,18 @@ def test_apply_view_neighbours_before():
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": {"timestamps": {"list": [1735689600000, 1735776000000]}}, "name": "2"},
-                            {"history": {"timestamps": {"list": [1735776000000]}}, "name": "3"},
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735689600000, 1735776000000]
+                                    }
+                                },
+                                "name": "2",
+                            },
+                            {
+                                "history": {"timestamps": {"list": [1735776000000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -2550,8 +2901,18 @@ def test_apply_view_out_neighbours_window():
                 "outNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": {"timestamps": {"list": [1735689600000, 1735776000000]}}, "name": "2"},
-                            {"history": {"timestamps": {"list": [1735776000000]}}, "name": "3"},
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735689600000, 1735776000000]
+                                    }
+                                },
+                                "name": "2",
+                            },
+                            {
+                                "history": {"timestamps": {"list": [1735776000000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -2629,7 +2990,10 @@ def test_apply_view_in_neighbours_shrink_start():
                 "inNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": {"timestamps": {"list": [1736035200000]}}, "name": "6"},
+                            {
+                                "history": {"timestamps": {"list": [1736035200000]}},
+                                "name": "6",
+                            },
                         ]
                     }
                 }
@@ -2671,9 +3035,14 @@ def test_apply_view_in_neighbours_shrink_end():
                                 "name": "1",
                                 "history": {
                                     "timestamps": {
-                                        "list": [1735689600000, 1735689600000, 1735776000000, 1735776000000]
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                        ]
                                     }
-                                }
+                                },
                             }
                         ]
                     }
@@ -2710,7 +3079,18 @@ def test_apply_view_in_neighbours_at():
         "graph": {
             "node": {
                 "inNeighbours": {
-                    "applyViews": {"list": [{"history": {"timestamps": {"list": [1735862400000, 1735862400000]}}, "name": "1"}]}
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735862400000, 1735862400000]
+                                    }
+                                },
+                                "name": "1",
+                            }
+                        ]
+                    }
                 }
             }
         }
@@ -2749,15 +3129,27 @@ def test_apply_view_out_neighbours_snapshot_latest():
                             {
                                 "name": "2",
                                 "history": {
-                                    "timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}
-                                }
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                },
                             },
                             {
                                 "name": "3",
                                 "history": {
-                                    "timestamps": {"list": [1735776000000, 1735862400000, 1735948800000]}
-                                }
-                            }
+                                    "timestamps": {
+                                        "list": [
+                                            1735776000000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                },
+                            },
                         ]
                     }
                 }
@@ -2798,12 +3190,24 @@ def test_apply_view_out_neighbours_snapshot_at():
                         "list": [
                             {
                                 "name": "2",
-                                "history": {"timestamps": {"list": [1735689600000, 1735776000000, 1735862400000]}}
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                },
                             },
                             {
                                 "name": "3",
-                                "history": {"timestamps": {"list": [1735776000000, 1735862400000]}}
-                            }
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735776000000, 1735862400000]
+                                    }
+                                },
+                            },
                         ]
                     }
                 }
@@ -2834,7 +3238,9 @@ def test_valid_graph():
             }"""
     correct = {
         "graph": {
-            "applyViews": {"edges": {"list": [{"id": ["6", "7"], "latestTime": {"timestamp": 5}}]}}
+            "applyViews": {
+                "edges": {"list": [{"id": ["6", "7"], "latestTime": {"timestamp": 5}}]}
+            }
         }
     }
     run_graphql_test(query, correct, graph)

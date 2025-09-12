@@ -472,7 +472,9 @@ def test_entity_history_date_time():
         [datetime(1970, 1, 1, tzinfo=utc)],
         [datetime(1970, 1, 1, tzinfo=utc)],
     ]
-    check_arr(g.nodes.neighbours.earliest_time.collect(), expected_earliest_neighbours_dt_1)
+    check_arr(
+        g.nodes.neighbours.earliest_time.collect(), expected_earliest_neighbours_dt_1
+    )
 
     assert g.nodes.neighbours.earliest_time.dt.collect() == [
         [
@@ -1765,13 +1767,19 @@ def test_lotr_edge_history():
                 32656,
             ],
         )
-        check_arr(g.before(1000).edge("Frodo", "Gandalf").history.t.collect(), [329, 555, 861])
-        check_arr(g.edge("Frodo", "Gandalf").before(1000).history.t.collect(), [329, 555, 861])
         check_arr(
-            g.window(100, 1000).edge("Frodo", "Gandalf").history.t.collect(), [329, 555, 861]
+            g.before(1000).edge("Frodo", "Gandalf").history.t.collect(), [329, 555, 861]
         )
         check_arr(
-            g.edge("Frodo", "Gandalf").window(100, 1000).history.t.collect(), [329, 555, 861]
+            g.edge("Frodo", "Gandalf").before(1000).history.t.collect(), [329, 555, 861]
+        )
+        check_arr(
+            g.window(100, 1000).edge("Frodo", "Gandalf").history.t.collect(),
+            [329, 555, 861],
+        )
+        check_arr(
+            g.edge("Frodo", "Gandalf").window(100, 1000).history.t.collect(),
+            [329, 555, 861],
         )
 
     check(g)
@@ -2080,9 +2088,7 @@ def test_date_time_window():
         assert view.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
         assert view.latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-        assert view2.edge(1, 2).start == datetime(
-            2014, 2, 2, 0, 0, tzinfo=utc
-        )
+        assert view2.edge(1, 2).start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
         assert view2.edge(1, 2).end == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
         assert view.node(1).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
@@ -2469,7 +2475,9 @@ def test_date_time_edges():
                 old_date_way.append(edge.time.dt)
 
         assert old_date_way == [
-            item for sublist in g.nodes.edges.explode().time.dt.collect() for item in sublist
+            item
+            for sublist in g.nodes.edges.explode().time.dt.collect()
+            for item in sublist
         ]
         gw = g.window("2014-02-02", "2014-02-05")
         assert gw.edges.start == gw.start
