@@ -206,7 +206,9 @@ export function randomEdgePage(input: SetupData) {
                         count: true,
                     },
                     history: {
-                        count: true,
+                        list: {
+                            timestamp: true,
+                        },
                     },
                     src: { name: true },
                     dst: { name: true },

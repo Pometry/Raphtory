@@ -301,7 +301,7 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
-        let (src, dst) = edges.iter().choose(&mut rng).expect("non-empty graph");
+        let (src, dst) = edges.iter().choose(&mut rng).expect("has_edge_existing: non-empty graph (graph().edges().iter() is empty)");
         b.iter(|| graph.has_edge(src, dst))
     });
 
@@ -313,8 +313,8 @@ pub fn run_analysis_benchmarks<F, G>(
             let mut rng = rand::thread_rng();
             let edge = loop {
                 let edge: (&GID, &GID) = (
-                    nodes.iter().choose(&mut rng).expect("non-empty graph"),
-                    nodes.iter().choose(&mut rng).expect("non-empty graph"),
+                    nodes.iter().choose(&mut rng).expect("has_edge_nonexisting: non-empty graph (graph().nodes().id().iter() is empty)"),
+                    nodes.iter().choose(&mut rng).expect("has_edge_nonexisting: non-empty graph (graph().nodes().id().iter() is empty)"),
                 );
                 if !edges.contains(&(edge.0.clone(), edge.1.clone())) {
                     break edge;
@@ -362,7 +362,7 @@ pub fn run_analysis_benchmarks<F, G>(
 
     bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
         let mut rng = rand::thread_rng();
-        let v = nodes.iter().choose(&mut rng).expect("non-empty graph");
+        let v = nodes.iter().choose(&mut rng).expect("has_node_existing: non-empty graph (graph().nodes().id().iter() is empty)");
         b.iter(|| graph.has_node(v))
     });
 
@@ -482,8 +482,8 @@ pub fn run_graph_ops_benches(
     // graph windowed
     let group_name = format!("{graph_name}_window_10");
     let mut graph_window_group_10 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph").t();
-    let earliest = graph.earliest_time().expect("non-empty graph").t();
+    let latest = graph.latest_time().expect("windowed graph latest time error: non-empty graph").t();
+    let earliest = graph.earliest_time().expect("windowed graph earliest time error: non-empty graph").t();
     let start = latest - (latest - earliest) / 10;
     // graph_window_group_10.sample_size(10);
     let make_graph = || graph.window(start, latest + 1);
@@ -535,8 +535,8 @@ pub fn run_graph_ops_benches(
     let graph = layered_graph;
     let group_name = format!("{graph_name}_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph").t();
-    let earliest = graph.earliest_time().expect("non-empty graph").t();
+    let latest = graph.latest_time().expect("layered windowed graph latest time error: non-empty graph").t();
+    let earliest = graph.earliest_time().expect("layered windowed graph earliest time error: non-empty graph").t();
     let start = latest - (latest - earliest) / 2;
     let make_graph = || {
         graph
@@ -556,8 +556,8 @@ pub fn run_graph_ops_benches(
 
     let group_name = format!("{graph_name}_persistent_window_50_layered");
     let mut graph_window_layered_group_50 = c.benchmark_group(group_name);
-    let latest = graph.latest_time().expect("non-empty graph").t();
-    let earliest = graph.earliest_time().expect("non-empty graph").t();
+    let latest = graph.latest_time().expect("layered windowed persistent graph latest time error: non-empty graph").t();
+    let earliest = graph.earliest_time().expect("layered windowed persistent graph earliest time error: non-empty graph").t();
     let start = latest - (latest - earliest) / 2;
     let make_graph = || {
         graph
