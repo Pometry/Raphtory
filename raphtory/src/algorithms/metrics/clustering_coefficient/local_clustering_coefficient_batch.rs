@@ -66,7 +66,7 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
-    if v.is_empty() { calculate_lcc(graph, v) } else { calculate_lcc(graph, (0.. graph.unfiltered_num_nodes()).map(VID).collect()) }
+    if v.is_empty() { calculate_lcc(graph, (0.. graph.unfiltered_num_nodes()).map(VID).collect()) } else { calculate_lcc(graph, v) }
 }
 
 #[cfg(test)]
