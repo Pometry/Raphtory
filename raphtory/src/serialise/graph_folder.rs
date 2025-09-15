@@ -126,17 +126,20 @@ impl GraphFolder {
             edge_count,
             metadata: properties.as_vec(),
         };
+
         if self.write_as_zip_format {
             let file = File::options()
                 .read(true)
                 .write(true)
                 .open(&self.root_folder)?;
             let mut zip = ZipWriter::new_append(file)?;
+
             zip.start_file::<_, ()>(META_FILE_NAME, FileOptions::default())?;
             Ok(serde_json::to_writer(zip, &metadata)?)
         } else {
             let path = self.get_meta_path();
             let file = File::create(path.clone())?;
+
             Ok(serde_json::to_writer(file, &metadata)?)
         }
     }
@@ -234,6 +237,7 @@ mod zip_tests {
         assert!(result.is_err());
     }
 
+    /// Verify that the metadata is re-created if it does not exist.
     #[test]
     fn test_read_metadata_from_noninitialized_zip() {
         global_info_logger();
@@ -246,9 +250,14 @@ mod zip_tests {
         let folder = GraphFolder::new_as_zip(&zip_path);
         graph.encode(&folder).unwrap();
 
+        // Remove the metadata file from the zip to simulate a noninitialized zip
+        remove_metadata_from_zip(&zip_path);
+
+        // Should fail because the metadata file is not present
         let err = folder.try_read_metadata();
         assert!(err.is_err());
 
+        // Should re-create the metadata file
         let result = folder.read_metadata().unwrap();
         assert_eq!(
             result,
@@ -260,6 +269,33 @@ mod zip_tests {
         );
     }
 
+    /// Helper function to remove the metadata file from a zip
+    fn remove_metadata_from_zip(zip_path: &Path) {
+        let mut zip_file = std::fs::File::open(&zip_path).unwrap();
+        let mut zip_archive = zip::ZipArchive::new(&mut zip_file).unwrap();
+        let mut temp_zip = tempfile::NamedTempFile::new().unwrap();
+
+        // Scope for the zip writer
+        {
+            let mut zip_writer = zip::ZipWriter::new(&mut temp_zip);
+
+            for i in 0..zip_archive.len() {
+                let mut file = zip_archive.by_index(i).unwrap();
+
+                // Copy all files except the metadata file
+                if file.name() != META_FILE_NAME {
+                    zip_writer.start_file::<_, ()>(file.name(), FileOptions::default()).unwrap();
+                    std::io::copy(&mut file, &mut zip_writer).unwrap();
+                }
+            }
+
+            zip_writer.finish().unwrap();
+        }
+
+        std::fs::copy(temp_zip.path(), &zip_path).unwrap();
+    }
+
+    /// Verify that the metadata is re-created if it does not exist.
     #[test]
     fn test_read_metadata_from_noninitialized_folder() {
         global_info_logger();
@@ -271,9 +307,14 @@ mod zip_tests {
         let folder = GraphFolder::from(temp_folder.path());
         graph.encode(&folder).unwrap();
 
+        // Remove the metadata file
+        std::fs::remove_file(folder.get_meta_path()).unwrap();
+
+        // Should fail because the metadata file is not present
         let err = folder.try_read_metadata();
         assert!(err.is_err());
 
+        // Should re-create the metadata file
         let result = folder.read_metadata().unwrap();
         assert_eq!(
             result,
