@@ -418,7 +418,7 @@ dependencies = [
  "memchr",
  "num",
  "regex",
- "regex-syntax",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -1759,7 +1759,7 @@ dependencies = [
  "itertools 0.13.0",
  "log",
  "paste",
- "regex-syntax",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -2394,7 +2394,7 @@ dependencies = [
  "libc",
  "log",
  "rustversion",
- "windows",
+ "windows 0.58.0",
 ]
 
 [[package]]
@@ -3329,11 +3329,11 @@ dependencies = [
 
 [[package]]
 name = "matchers"
-version = "0.2.0"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
+checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
 dependencies = [
- "regex-automata",
+ "regex-automata 0.1.10",
 ]
 
 [[package]]
@@ -3622,12 +3622,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "nu-ansi-term"
-version = "0.50.1"
+name = "ntapi"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4a28e057d01f97e61255210fcff094d74ed0466038633e95017f5beb68e4399"
+checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
 dependencies = [
- "windows-sys 0.52.0",
+ "winapi",
+]
+
+[[package]]
+name = "nu-ansi-term"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
+dependencies = [
+ "overload",
+ "winapi",
 ]
 
 [[package]]
@@ -3734,6 +3744,25 @@ dependencies = [
  "num-traits",
  "pyo3",
  "rustc-hash 2.1.1",
+]
+
+[[package]]
+name = "objc2-core-foundation"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c10c2894a6fed806ade6027bcd50662746363a9589d3ec9d9bef30a4e4bc166"
+dependencies = [
+ "bitflags 2.9.0",
+]
+
+[[package]]
+name = "objc2-io-kit"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71c1c64d6120e51cd86033f67176b1cb66780c2efe34dec55176f77befd93c0a"
+dependencies = [
+ "libc",
+ "objc2-core-foundation",
 ]
 
 [[package]]
@@ -3907,6 +3936,12 @@ dependencies = [
  "quote",
  "syn 2.0.101",
 ]
+
+[[package]]
+name = "overload"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "ownedbytes"
@@ -4470,8 +4505,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "pometry-storage"
-version = "0.16.1"
+name = "pometry-storage-private"
+version = "0.12.1"
+dependencies = [
+ "ahash",
+ "bigdecimal",
+ "bincode",
+ "bytemuck",
+ "criterion",
+ "iter-enum",
+ "itertools 0.12.1",
+ "kdam",
+ "memmap2 0.9.5",
+ "once_cell",
+ "parking_lot",
+ "polars-arrow",
+ "polars-parquet",
+ "polars-utils",
+ "pretty_assertions",
+ "proptest",
+ "rand 0.8.5",
+ "raphtory-api",
+ "rayon",
+ "serde",
+ "serde_json",
+ "strum",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "tracing-subscriber",
+ "twox-hash 1.6.3",
+]
 
 [[package]]
 name = "portable-atomic"
@@ -4577,7 +4641,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_xorshift",
- "regex-syntax",
+ "regex-syntax 0.8.5",
  "rusty-fork",
  "tempfile",
  "unarray",
@@ -4922,7 +4986,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -4969,7 +5033,7 @@ dependencies = [
  "polars-core",
  "polars-io",
  "polars-parquet",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "proptest-derive",
@@ -4995,6 +5059,7 @@ dependencies = [
  "serde_json",
  "streaming-stats",
  "strsim",
+ "sysinfo",
  "tantivy",
  "tempfile",
  "thiserror 2.0.12",
@@ -5007,7 +5072,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
@@ -5043,7 +5108,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -5064,7 +5129,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5088,7 +5153,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -5103,7 +5168,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "polars-arrow",
- "pometry-storage",
+ "pometry-storage-private",
  "pretty_assertions",
  "proptest",
  "raphtory",
@@ -5119,7 +5184,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -5167,7 +5232,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "numpy",
  "pyo3",
@@ -5178,7 +5243,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "bigdecimal",
  "either",
@@ -5187,7 +5252,7 @@ dependencies = [
  "num-traits",
  "parking_lot",
  "polars-arrow",
- "pometry-storage",
+ "pometry-storage-private",
  "proptest",
  "raphtory-api",
  "raphtory-core",
@@ -5220,7 +5285,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5280,8 +5345,17 @@ checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata",
- "regex-syntax",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
+]
+
+[[package]]
+name = "regex-automata"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
+dependencies = [
+ "regex-syntax 0.6.29",
 ]
 
 [[package]]
@@ -5292,8 +5366,14 @@ checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax",
+ "regex-syntax 0.8.5",
 ]
+
+[[package]]
+name = "regex-syntax"
+version = "0.6.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
@@ -5418,7 +5498,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.16.1"
+version = "0.16.0"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
@@ -6076,6 +6156,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.35.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79251336d17c72d9762b8b54be4befe38d2db56fbbc0241396d70f173c39d47a"
+dependencies = [
+ "libc",
+ "memchr",
+ "ntapi",
+ "objc2-core-foundation",
+ "objc2-io-kit",
+ "windows 0.61.1",
+]
+
+[[package]]
 name = "tagptr"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6177,7 +6271,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d60769b80ad7953d8a7b2c70cdfe722bbcdcac6bccc8ac934c40c034d866fc18"
 dependencies = [
  "byteorder",
- "regex-syntax",
+ "regex-syntax 0.8.5",
  "utf8-ranges",
 ]
 
@@ -6650,14 +6744,14 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.20"
+version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2054a14f5307d601f88daf0553e1cbf472acc4f2c51afab632431cdcd72124d5"
+checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
 dependencies = [
  "matchers",
  "nu-ansi-term",
  "once_cell",
- "regex-automata",
+ "regex",
  "sharded-slab",
  "smallvec",
  "thread_local",
@@ -6697,6 +6791,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
+ "rand 0.8.5",
  "static_assertions",
 ]
 
@@ -7042,6 +7137,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows"
+version = "0.61.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5ee8f3d025738cb02bad7868bbb5f8a6327501e870bf51f1b455b0a2454a419"
+dependencies = [
+ "windows-collections",
+ "windows-core 0.61.0",
+ "windows-future",
+ "windows-link",
+ "windows-numerics",
+]
+
+[[package]]
+name = "windows-collections"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3beeceb5e5cfd9eb1d76b381630e82c4241ccd0d27f1a39ed41b2760b255c5e8"
+dependencies = [
+ "windows-core 0.61.0",
+]
+
+[[package]]
 name = "windows-core"
 version = "0.58.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7065,6 +7182,16 @@ dependencies = [
  "windows-link",
  "windows-result 0.3.2",
  "windows-strings 0.4.0",
+]
+
+[[package]]
+name = "windows-future"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a1d6bbefcb7b60acd19828e1bc965da6fcf18a7e39490c5f8be71e54a19ba32"
+dependencies = [
+ "windows-core 0.61.0",
+ "windows-link",
 ]
 
 [[package]]
@@ -7116,6 +7243,16 @@ name = "windows-link"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76840935b766e1b0a05c0066835fb9ec80071d4c09a16f6bd5f7e655e3c14c38"
+
+[[package]]
+name = "windows-numerics"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9150af68066c4c5c07ddc0ce30421554771e528bde427614c61038bc2c92c2b1"
+dependencies = [
+ "windows-core 0.61.0",
+ "windows-link",
+]
 
 [[package]]
 name = "windows-registry"
