@@ -11,22 +11,15 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use raphtory_api::core::entities::VID;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 struct LCCState {
     lcc: f64,
 }
 
-/// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
-/// Uses path-counting for its triangle-counting step.
-///
-/// # Arguments
-/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
-/// - `v`: vec of node ids, if empty, will return results for every node in the graph
-///
-/// # Returns
-/// the local clustering coefficient of node v in g.
-pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
+fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
@@ -59,6 +52,21 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     // new_from_eval_with_index
     GenericNodeState::new_from_eval(graph.clone(), values).transform()
     // NodeState::new(graph.clone(), graph.clone(), values.into(), result)
+}
+/// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
+/// Uses path-counting for its triangle-counting step.
+///
+/// # Arguments
+/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
+/// - `v`: vec of node ids, if empty, will return results for every node in the graph
+///
+/// # Returns
+/// the local clustering coefficient of node v in g.
+pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
+    graph: &G,
+    v: Vec<V>,
+) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
+    if v.is_empty() { calculate_lcc(graph, v) } else { calculate_lcc(graph, (0.. graph.unfiltered_num_nodes()).map(VID).collect()) }
 }
 
 #[cfg(test)]

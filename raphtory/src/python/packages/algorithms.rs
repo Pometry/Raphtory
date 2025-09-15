@@ -308,14 +308,16 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 }
 
 #[pyfunction]
+#[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
-    v: &Bound<PyAny>,
+    v: Option<&Bound<PyAny>>,
 ) -> PyResult<TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph>> {
-    match process_node_param(v) {
-        Ok(v) => Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)),
-        Err(e) => Err(e),
+    if v.is_some() {
+        let v = process_node_param(v.unwrap())?;
+        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v))
     }
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]))
 }
 
 /// Graph density - measures how dense or sparse a graph is.
