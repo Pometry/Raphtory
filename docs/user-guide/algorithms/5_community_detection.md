@@ -109,7 +109,7 @@ The algorithm identifies four clusters of nodes which could be interpreted as fo
 
 You can explore the results of our cluster detection algorithm in greater detail using the Raphtory UI.
 
-To do this assign a type to nodes of each cluster and start the Raphtory server. Each unique node type will be assigned a colour in the **Graph canvas** so that you can distinguish them visually. 
+To do this assign a type to nodes of each cluster and start the Raphtory server. Each unique node type will be assigned a colour in the **Graph canvas** so that you can distinguish them visually.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
@@ -132,3 +132,13 @@ client.send_graph("cluster-graph", G, overwrite=True)
 
 ```
 ///
+
+```{.python continuation hide}
+assert G.get_all_node_types() == ['Redentores', 'Polarslaget', 'Miyagi-Do', 'Cobra Kai']
+```
+
+You should see that there are four distinct communities, for each node you can see it's node type in the **Node Statistics** panel of the **Selected** menu and by visual inspection verify that each node is connected mostly to it's own group. 
+
+You may also spot other features that could be investigated further, for example the nodes with the highest degree are members of the 'Miyagi-Do' cluster.
+
+![UI Search page](../../assets/images/raphtory_com_detection_ui.png)
