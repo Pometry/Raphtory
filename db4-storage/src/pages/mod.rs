@@ -39,7 +39,7 @@ pub mod locked;
 pub mod node_page;
 pub mod node_store;
 pub mod session;
-#[cfg(feature = "test-utils")]
+#[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
 // graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits

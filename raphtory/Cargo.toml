@@ -21,8 +21,7 @@ raphtory-storage.workspace = true                            # = { path = "../ra
 db4-graph.workspace = true
 storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
-arrow-array = { workspace = true, features = ["chrono-tz"] }
-arrow-schema = { workspace = true }
+
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -46,10 +45,13 @@ quad-rand = { workspace = true }
 serde_json = { workspace = true }
 ouroboros = { workspace = true }
 either = { workspace = true }
-kdam = { workspace = true, optional = true }
 bytemuck = { workspace = true }
 tracing = { workspace = true }
 ahash = { workspace = true }
+roaring = { workspace = true }
+strsim = { workspace = true }
+walkdir = { workspace = true }
+uuid = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -59,6 +61,20 @@ bzip2 = { workspace = true, optional = true }
 flate2 = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
+kdam = { workspace = true, optional = true }
+
+# proto optional dependencies
+memmap2 = { workspace = true, optional = true }
+prost = { workspace = true, optional = true }
+prost-types = { workspace = true, optional = true }
+
+# arrow otional dependencies
+parquet = { workspace = true, optional = true }
+arrow-json = { workspace = true, optional = true }
+arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
+arrow-buffer = { workspace = true, optional = true }
+arrow-cast = { workspace = true, optional = true }
+arrow-schema = { workspace = true, optional = true }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -80,20 +96,9 @@ pyo3 = { workspace = true, optional = true }
 numpy = { workspace = true, optional = true }
 num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
-polars-arrow = { workspace = true, optional = true }
-polars-parquet = { workspace = true, optional = true }
-parquet = { workspace = true, optional = true }
-arrow-json = { workspace = true, optional = true }
-memmap2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 
-prost = { workspace = true, optional = true }
-prost-types = { workspace = true, optional = true }
-roaring = { workspace = true }
-strsim = { workspace = true }
-walkdir = { workspace = true }
-uuid = { workspace = true }
 
 [dev-dependencies]
 csv = { workspace = true }
@@ -104,8 +109,6 @@ dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 proptest = { workspace = true }
 proptest-derive = { workspace = true }
-polars-core = { workspace = true, features = ["fmt"] }
-polars-io = { workspace = true, features = ["parquet"] }
 indoc = { workspace = true }
 
 [build-dependencies]
@@ -122,7 +125,6 @@ io = [
     "dep:reqwest",
     "dep:tokio",
     "dep:parquet",
-    "dep:arrow-json",
     "proto",
     "kdam",
 ]
@@ -156,18 +158,20 @@ python = [
     "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
-    "polars-arrow?/compute",
     "pyo3-arrow",
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",
 ]
 arrow = [
-    "dep:polars-arrow",
-    "dep:polars-parquet",
-    "polars-parquet?/compression",
     "raphtory-api/arrow",
     "raphtory-core/arrow",
+    "dep:parquet",
+    "dep:arrow-json",
+    "dep:arrow-array",
+    "dep:arrow-buffer",
+    "dep:arrow-cast",
+    "dep:arrow-schema",
 ]
 
 proto = [
