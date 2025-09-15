@@ -307,7 +307,6 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
     local_clustering_coefficient_rs(&graph.graph, v)
 }
 
-#[pyfunction]
 /// Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 ///
 /// Uses path-counting for its triangle-counting step.
@@ -317,15 +316,18 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///     v: vec of node ids, if empty, will return results for every node in the graph
 ///
 /// Returns:
-///     dict[NodeState]:
+///     PyOutputNodeState: Mapping of vertices to lcc score
+#[pyfunction]
+#[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
-    v: &Bound<PyAny>,
+    v: Option<&Bound<PyAny>>,
 ) -> PyResult<TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph>> {
-    match process_node_param(v) {
-        Ok(v) => Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)),
-        Err(e) => Err(e),
+    if v.is_some() {
+        let v = process_node_param(v.unwrap())?;
+        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v))
     }
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]))
 }
 
 /// Graph density - measures how dense or sparse a graph is.
