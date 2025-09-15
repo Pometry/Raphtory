@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757371721083,
+  "lastUpdate": 1757952431246,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -377,6 +377,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1538,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "432df6c48990736945c323fd0b683e31045fed03",
+          "message": "Increase sleep time on graphql bench (#2278)\n\nUpdate Makefile",
+          "timestamp": "2025-09-15T16:32:17+01:00",
+          "tree_id": "90b035aebd0ed3574b1d35e09c41253a363b401f",
+          "url": "https://github.com/Pometry/Raphtory/commit/432df6c48990736945c323fd0b683e31045fed03"
+        },
+        "date": 1757952426619,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1458,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 276,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 202,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1207,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1047,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1586,
             "unit": "req/s"
           }
         ]
