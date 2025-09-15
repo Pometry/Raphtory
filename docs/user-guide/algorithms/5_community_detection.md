@@ -1,16 +1,16 @@
 # Community detection
 
-One important feature of graphs is the degree of clustering and presence of community structures. Groups of nodes that have a high degree of connection between members of the group but comparatively few connections with the rest of the graph can be considered distinct communities.
+One important feature of graphs is the degree of clustering and presence of community structures. Groups of nodes that are densely connected amongst members of the group but have comparatively few connections with the rest of the graph can be considered distinct communities.
 
 Identifying clusters can be informative in social, biological and technological networks. For example, identifying clusters in web clients accessing a site can help optimise performance using a CDN or spotting changes in the communities amongst a baboon pack over time might inform theories about group dynamics. Raphtory provides a variety of algorithms to analyse community structures in your graphs.
 
 ## Exploring Zachary's karate club network
 
-As an example, we use a data set from the paper "An Information Flow Model for Conflict and Fission in Small Groups" by Wayne W. Zachary which captures social links between the 34 members of the club. 
+As an example, we use a data set from the paper "An Information Flow Model for Conflict and Fission in Small Groups" by Wayne W. Zachary which captures social links between the 34 members of the club.
 
 ### Ingest data
 
-First we set up imports and ingest the data using NetworkX and Pandas to handle the `karate.gml` file.
+First set up imports and ingest the data using NetworkX and Pandas to handle the `karate.gml` file.
 
 /// tab | :fontawesome-brands-python: Python
 ```python
@@ -38,6 +38,8 @@ print(edges_df.head())
 ```
 ///
 
+You should see the dummy timestamps have been added in the head output.
+
 !!! Output
 
     ```output
@@ -55,16 +57,16 @@ The dataframe can then be used to create a Raphtory graph:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-raphG = Graph()
+G = Graph()
 
-raphG.load_edges_from_pandas(
+G.load_edges_from_pandas(
     df=edges_df,
     src="source",
     dst="target",
     time="time",
 )
 
-raphG.load_nodes_from_pandas(
+G.load_nodes_from_pandas(
     df=nodes_df,
     id="id",
     time="time",
@@ -76,14 +78,14 @@ raphG.load_nodes_from_pandas(
 
 Raphtory provides multiple algorithms to perform community detection, including the following:
 
-- [Louvain][raphtory.algorithms.louvain] - a commonly used and well understood algorithm.
+- [Louvain][raphtory.algorithms.louvain] - a commonly used and well understood modularity based algorithm.
 - [Label propagation][raphtory.algorithms.label_propagation] - a more efficient cluster detection algorithm when used at scale.
 
 Here we use the [Louvain][raphtory.algorithms.louvain] algorithm to identify distinct clusters of nodes.
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-clustering = rp.louvain(raphG)
+clustering = rp.louvain(G)
 
 # Extract unique cluster values
 unique_clusters = {cluster for node, cluster in clustering.items()}
@@ -97,56 +99,36 @@ print("Number of unique clusters:", len(unique_clusters))
     Number of unique clusters: 4
     ```
 
+```{.python continuation hide}
+assert len(unique_clusters) == 4
+```
+
 The algorithm identifies four clusters of nodes which could be interpreted as four social groups amongst the students.
 
-### Visualise the data
+### Explore the data
 
-We can display our graph using the results of our cluster detection algorithm to colourise the results.
+You can explore the results of our cluster detection algorithm in greater detail using the Raphtory UI.
+
+To do this assign a type to nodes of each cluster and start the Raphtory server. Each unique node type will be assigned a colour in the **Graph canvas** so that you can distinguish them visually. 
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
-edgelist = []
-for edge in raphG.edges.latest():
-    #print(edge.src.name, edge.src.name)
-    link = (int(edge.src.name), int(edge.src.name))
-    edgelist.append(link)
 
-cluster_0 = []
-cluster_1 = []
-cluster_2 = []
-cluster_3 = []
-
-# check value of cluster for each node and add to corresponding cluster list
+# Check value of cluster for each node and add to corresponding cluster list
 for node, cluster in clustering.items():
     if cluster == 0:
-        cluster_0.append(node.name)
+        raphG.node(node).set_node_type('Cobra Kai')
     elif cluster == 1:
-        cluster_1.append(node.name)
+        raphG.node(node).set_node_type('Miyagi-Do')
     elif cluster == 2:
-        cluster_2.append(node.name)
+        raphG.node(node).set_node_type('Polarslaget')
     elif cluster == 3:
-        cluster_3.append(node.name)
+        raphG.node(node).set_node_type('Redentores')
 
-nx_g = raphG.to_networkx()
+# Start a Raphtory server and send the karate graph
+server = graphql.GraphServer("./my-test/graphs")
+client = server.start().get_client()
+client.send_graph("cluster-graph", G, overwrite=True)
 
-pos = nx.spring_layout(nx_g, seed=3113794652)  # positions for all nodes
-
-
-# nodes
-options = {"edgecolors": "tab:gray", "node_size": 800, "alpha": 0.9}
-nx.draw_networkx_nodes(nx_g, pos, nodelist=cluster_0 , node_color="tab:red", **options)
-nx.draw_networkx_nodes(nx_g, pos,  nodelist=cluster_1 , node_color="tab:blue", **options)
-nx.draw_networkx_nodes(nx_g, pos,  nodelist=cluster_2 , node_color="tab:green", **options)
-nx.draw_networkx_nodes(nx_g, pos,  nodelist=cluster_3 , node_color="tab:orange", **options)
-
-nx.draw_networkx_edges(nx_g, pos, width=1.0, alpha=0.5)
-nx.draw_networkx_edges(
-    nx_g,
-    pos,
-    edgelist=edgelist,
-    width=8,
-    alpha=0.5,
-    edge_color="tab:red",
-)
 ```
 ///
