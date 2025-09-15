@@ -1,12 +1,15 @@
 use crate::{
     db::graph::views::filter::model::{
-        node_filter::{InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps},
+        node_filter::{
+            InternalNodeFilterBuilderOps, NodeFilter, NodeFilterBuilderOps, NodeIdFilterBuilder,
+        },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
         PropertyFilterFactory,
     },
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyAny, Python};
+use raphtory_api::core::entities::GID;
 use std::sync::Arc;
 
 #[pyclass(frozen, name = "NodeFilterOp", module = "raphtory.filter")]
@@ -64,12 +67,44 @@ impl PyNodeFilterBuilder {
     }
 }
 
+#[pyclass(frozen, name = "NodeIdFilterOp", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyIdNodeFilterBuilder(Arc<NodeIdFilterBuilder>);
+
+#[pymethods]
+impl PyIdNodeFilterBuilder {
+    fn __eq__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.eq(value)))
+    }
+
+    fn __ne__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ne(value)))
+    }
+
+    fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_in(values)))
+    }
+
+    fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
+    }
+}
+
 #[derive(Clone)]
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
 pub struct PyNodeFilter;
 
 #[pymethods]
 impl PyNodeFilter {
+    /// Filter node by id
+    ///
+    /// Returns:
+    ///     NodeFilterBuilder: A filter builder for filtering by node id
+    #[staticmethod]
+    fn id() -> PyIdNodeFilterBuilder {
+        PyIdNodeFilterBuilder(Arc::new(NodeFilter::id()))
+    }
+
     /// Filter node by name
     ///
     /// Returns:

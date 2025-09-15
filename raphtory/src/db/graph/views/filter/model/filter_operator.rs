@@ -1,5 +1,5 @@
 use crate::db::graph::views::filter::model::{property_filter::PropertyFilterValue, FilterValue};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{properties::prop::Prop, GidRef, GID};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
@@ -175,6 +175,7 @@ impl FilterOperator {
                 }),
                 _ => unreachable!(),
             },
+
             FilterValue::Set(l) => match self {
                 FilterOperator::In | FilterOperator::NotIn => match right {
                     Some(r) => self.collection_operation()(l, &r.to_string()),
@@ -182,6 +183,28 @@ impl FilterOperator {
                 },
                 _ => unreachable!(),
             },
+
+            FilterValue::ID(_) | FilterValue::IDSet(_) => false,
+        }
+    }
+
+    pub fn apply_id(&self, left: &FilterValue, right: GidRef<'_>) -> bool {
+        let rhs: GID = right.into();
+
+        match left {
+            FilterValue::ID(lid) => match self {
+                FilterOperator::Eq => lid == &rhs,
+                FilterOperator::Ne => lid != &rhs,
+                _ => false,
+            },
+
+            FilterValue::IDSet(set) => match self {
+                FilterOperator::In => set.contains(&rhs),
+                FilterOperator::NotIn => !set.contains(&rhs),
+                _ => false,
+            },
+
+            FilterValue::Single(_) | FilterValue::Set(_) => false,
         }
     }
 }

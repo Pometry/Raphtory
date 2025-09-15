@@ -14,7 +14,23 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::GID;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
+
+#[derive(Debug, Clone)]
+pub struct NodeIdFilter(pub Filter);
+
+impl Display for NodeIdFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<Filter> for NodeIdFilter {
+    fn from(filter: Filter) -> Self {
+        NodeIdFilter(filter)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct NodeNameFilter(pub Filter);
@@ -76,6 +92,7 @@ impl CreateFilter for CompositeNodeFilter {
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
         match self {
             CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
+                "node_id" => Ok(Arc::new(NodeIdFilter(i).create_filter(graph)?)),
                 "node_name" => Ok(Arc::new(NodeNameFilter(i).create_filter(graph)?)),
                 "node_type" => Ok(Arc::new(NodeTypeFilter(i).create_filter(graph)?)),
                 _ => {
@@ -180,6 +197,39 @@ pub trait NodeFilterBuilderOps: InternalNodeFilterBuilderOps {
 
 impl<T: InternalNodeFilterBuilderOps + ?Sized> NodeFilterBuilderOps for T {}
 
+pub struct NodeIdFilterBuilder;
+
+impl NodeIdFilterBuilder {
+    #[inline]
+    fn field_name(&self) -> &'static str {
+        "node_id"
+    }
+
+    pub fn eq<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
+        Filter::eq_id(self.field_name(), value).into()
+    }
+
+    pub fn ne<T: Into<GID>>(&self, value: T) -> NodeIdFilter {
+        Filter::ne_id(self.field_name(), value).into()
+    }
+
+    pub fn is_in<I, T>(&self, values: I) -> NodeIdFilter
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        Filter::is_in_id(self.field_name(), values).into()
+    }
+
+    pub fn is_not_in<I, T>(&self, values: I) -> NodeIdFilter
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        Filter::is_not_in_id(self.field_name(), values).into()
+    }
+}
+
 pub struct NodeNameFilterBuilder;
 
 impl InternalNodeFilterBuilderOps for NodeNameFilterBuilder {
@@ -204,6 +254,10 @@ impl InternalNodeFilterBuilderOps for NodeTypeFilterBuilder {
 pub struct NodeFilter;
 
 impl NodeFilter {
+    pub fn id() -> NodeIdFilterBuilder {
+        NodeIdFilterBuilder
+    }
+
     pub fn name() -> NodeNameFilterBuilder {
         NodeNameFilterBuilder
     }
@@ -214,6 +268,22 @@ impl NodeFilter {
 }
 
 impl PropertyFilterFactory<NodeFilter> for NodeFilter {}
+
+impl TryAsCompositeFilter for NodeIdFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Ok(CompositeNodeFilter::Node(self.0.clone()))
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
 
 impl TryAsCompositeFilter for NodeNameFilter {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {

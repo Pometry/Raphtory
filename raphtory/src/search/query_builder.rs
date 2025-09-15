@@ -1,6 +1,9 @@
 use crate::{
     db::graph::views::filter::model::{
-        filter_operator::FilterOperator, property_filter::PropertyFilterValue, Filter, FilterValue,
+        filter_operator::FilterOperator,
+        node_filter::{InternalNodeFilterBuilderOps, NodeNameFilterBuilder},
+        property_filter::PropertyFilterValue,
+        Filter, FilterValue,
     },
     errors::GraphError,
     prelude::PropertyFilter,
@@ -183,6 +186,11 @@ impl<'a> QueryBuilder<'a> {
                     _ => unreachable!(),
                 }
             }
+            // Unless we support persisting node ids (GID and not internal node ids) as part of index,
+            // we are better off falling back to raphtory apis to avoid wrong results. Because if we choose to use name
+            // to match against ids by converting ids to string before comparisons we are going to get wrong results.
+            // For instance, NodeFilter::id().ne(1) and NodeFilter::id().ne("1") should return different results.
+            _ => None,
         };
 
         Ok((Arc::from(node_index.clone()), query))
@@ -242,6 +250,7 @@ impl<'a> QueryBuilder<'a> {
                     _ => unreachable!(),
                 }
             }
+            _ => None,
         };
 
         Ok((Arc::from(edge_index.clone()), query))

@@ -87,6 +87,15 @@ class PropertyFilterOps(object):
 
 class Node(object):
     @staticmethod
+    def id():
+        """
+        Filter node by id
+
+        Returns:
+            NodeFilterBuilder: A filter builder for filtering by node id
+        """
+
+    @staticmethod
     def metadata(name): ...
     @staticmethod
     def name():
