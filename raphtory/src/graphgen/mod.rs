@@ -5,6 +5,7 @@ use raphtory_api::core::entities::GID;
 
 use crate::prelude::*;
 
+pub mod erdos_renyi;
 pub mod preferential_attachment;
 pub mod random_attachment;
 

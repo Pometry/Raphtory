@@ -140,6 +140,7 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<PyModule>, PyErr> {
         &graph_gen_module,
         random_attachment,
         ba_preferential_attachment,
+        erdos_renyi
     );
     Ok(graph_gen_module)
 }
