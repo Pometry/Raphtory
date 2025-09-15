@@ -394,7 +394,7 @@ def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
         float: the local clustering coefficient of node v in graph.
     """
 
-def local_clustering_coefficient_batch(graph, v): ...
+def local_clustering_coefficient_batch(graph, v=None): ...
 def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path

@@ -9,8 +9,8 @@ use crate::{
     },
     prelude::*,
 };
-use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 struct SCCState {

@@ -7,12 +7,11 @@ use crate::{
 };
 use indexmap::IndexSet;
 use itertools::Itertools;
-use raphtory_api::core::entities::properties::prop::Prop;
-use rayon::prelude::*;
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::prop::Prop, VID};
 use raphtory_storage::core_ops::CoreGraphOps;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 struct LCCState {
@@ -43,7 +42,9 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
                 if degree <= 1.0 {
                     LCCState { lcc: 0.0 }
                 } else {
-                    LCCState { lcc: (2.0 * triangle_count) / (degree * (degree - 1.0)) }
+                    LCCState {
+                        lcc: (2.0 * triangle_count) / (degree * (degree - 1.0)),
+                    }
                 },
             ))
         })
@@ -66,7 +67,11 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
 ) -> TypedNodeState<'static, HashMap<String, Option<Prop>>, G> {
-    if v.is_empty() { calculate_lcc(graph, (0.. graph.unfiltered_num_nodes()).map(VID).collect()) } else { calculate_lcc(graph, v) }
+    if v.is_empty() {
+        calculate_lcc(graph, (0..graph.unfiltered_num_nodes()).map(VID).collect())
+    } else {
+        calculate_lcc(graph, v)
+    }
 }
 
 #[cfg(test)]
