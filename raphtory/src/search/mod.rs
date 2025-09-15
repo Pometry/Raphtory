@@ -277,14 +277,13 @@ mod test_index {
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
 
-            graph.cache(path).unwrap();
 
             graph
                 .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
                 .unwrap();
 
             // This also tests if already existing index is replaced by new index
-            graph.write_updates().unwrap();
+            // graph.write_updates().unwrap();
 
             let graph = Graph::decode(path).unwrap();
             assert_search_results(&graph, &NodeFilter::name().eq("Ozai"), vec!["Ozai"]);
@@ -498,7 +497,6 @@ mod test_index {
 
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
-            graph.cache(path).unwrap();
 
             graph
                 .add_node(
@@ -508,7 +506,6 @@ mod test_index {
                     Some("water_tribe"),
                 )
                 .unwrap();
-            graph.write_updates().unwrap();
 
             let graph = Graph::decode(path).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
@@ -522,7 +519,6 @@ mod test_index {
 
             let binding = tempfile::TempDir::new().unwrap();
             let path = binding.path();
-            graph.cache(path).unwrap();
             // Creates index in a temp dir within graph dir
             graph.create_index().unwrap();
 
@@ -534,7 +530,6 @@ mod test_index {
                     Some("water_tribe"),
                 )
                 .unwrap();
-            graph.write_updates().unwrap();
 
             let graph = Graph::decode(path).unwrap();
             let filter = NodeFilter::name().eq("Tommy");
@@ -563,7 +558,6 @@ mod test_index {
                         }
                     }
                 }
-                graph.cache(&path.join(format!("graph {i}"))).unwrap();
                 graphs.push(graph);
             }
         }

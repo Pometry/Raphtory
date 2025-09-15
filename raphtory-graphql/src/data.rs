@@ -9,7 +9,6 @@ use moka::future::Cache;
 use raphtory::{
     db::api::view::MaterializedGraph,
     errors::{GraphError, InvalidPathReason},
-    prelude::CacheOps,
     vectors::{
         cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
@@ -68,9 +67,6 @@ impl Data {
             .max_capacity(cache_configs.capacity)
             .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
             .eviction_listener(|_, graph, _| {
-                graph
-                    .write_updates()
-                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
                 // FIXME: don't have currently a way to know which embedding updates are pending
             })
             .build();
@@ -113,9 +109,6 @@ impl Data {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
                 fs::create_dir_all(folder.get_base_path()).await?;
-                let folder_clone = folder.clone();
-                let graph_clone = graph.clone();
-                blocking_io(move || graph_clone.cache(folder_clone)).await?;
                 let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, vectors);
                 graph

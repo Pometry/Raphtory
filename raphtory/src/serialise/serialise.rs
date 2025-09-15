@@ -93,18 +93,6 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     }
 }
 
-pub trait CacheOps: Sized {
-    /// Write graph to file and append future updates to the same file.
-    ///
-    /// If the file already exists, it's contents are overwritten
-    fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
-
-    /// Persist the new updates by appending them to the cache file.
-    fn write_updates(&self) -> Result<(), GraphError>;
-
-    /// Load graph from file and append future updates to the same file
-    fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
-}
 
 #[cfg(test)]
 mod tests {
@@ -129,7 +117,7 @@ mod tests {
         serialise::{
             graph_folder::GraphFolder,
             metadata::assert_metadata_correct,
-            {StableEncode, StableDecode, CacheOps},
+            {StableEncode, StableDecode},
         },
         test_utils::{build_edge_list, build_graph_from_edge_list},
     };

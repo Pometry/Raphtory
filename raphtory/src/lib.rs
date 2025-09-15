@@ -145,7 +145,7 @@ pub mod prelude {
     #[cfg(feature = "proto")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
-        CacheOps, StableDecode, StableEncode,
+        StableDecode, StableEncode,
     };
 
     #[cfg(feature = "search")]

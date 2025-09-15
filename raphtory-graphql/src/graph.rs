@@ -12,7 +12,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps, NodeViewOps},
+    prelude::{EdgeViewOps, IndexMutationOps, NodeViewOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
@@ -67,7 +67,7 @@ impl GraphWithVectors {
 
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
         match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
+            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => Ok(()),
         }
     }
 
@@ -83,7 +83,6 @@ impl GraphWithVectors {
         println!("Graph loaded = {}", folder.get_original_path_str());
         if create_index {
             graph.create_index()?;
-            graph.write_updates()?;
         }
         Ok(Self {
             graph: graph.clone(),

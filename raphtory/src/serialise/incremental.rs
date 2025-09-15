@@ -9,7 +9,7 @@ use crate::{
     errors::{GraphError, WriteError},
     prelude::{AdditionOps, Graph},
     serialise::{
-        serialise::{CacheOps, StableDecode, StableEncode},
+        serialise::{StableDecode, StableEncode},
         ProtoGraph,
     },
 };
@@ -287,33 +287,6 @@ impl InternalCache for MaterializedGraph {
     }
 }
 
-impl<G: InternalCache + StableDecode + StableEncode + AdditionOps> CacheOps for G {
-    fn cache(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let folder = path.into();
-        self.encode(&folder)?;
-        self.init_cache(&folder)
-    }
-
-    #[instrument(level = "debug", skip(self))]
-    fn write_updates(&self) -> Result<(), GraphError> {
-        let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
-        cache.write()?;
-        cache.folder.write_metadata(self)?;
-        #[cfg(feature = "search")]
-        self.persist_index_to_disk(&cache.folder)?;
-        Ok(())
-    }
-
-    fn load_cached(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let folder = path.into();
-        if folder.is_zip() {
-            return Err(GraphError::ZippedGraphCannotBeCached);
-        }
-        let graph = Self::decode(&folder)?;
-        graph.init_cache(&folder)?;
-        Ok(graph)
-    }
-}
 
 #[cfg(test)]
 mod test {

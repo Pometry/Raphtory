@@ -9,42 +9,6 @@ macro_rules! impl_serialise {
     ($obj:ty, $field:ident: $base_type:ty, $name:literal) => {
         #[pyo3::pymethods]
         impl $obj {
-            #[doc = concat!(" Write ", $name, " to cache file and initialise the cache.")]
-            ///
-            /// Future updates are tracked. Use `write_updates` to persist them to the
-            /// cache file. If the file already exists its contents are overwritten.
-            ///
-            /// Arguments:
-            ///     path (str): The path to the cache file
-            ///
-            /// Returns:
-            ///     None:
-            fn cache(&self, path: std::path::PathBuf) -> Result<(), GraphError> {
-                $crate::serialise::CacheOps::cache(&self.$field, path)
-            }
-
-            /// Persist the new updates by appending them to the cache file.
-            ///
-            /// Returns:
-            ///     None:
-            fn write_updates(&self) -> Result<(), GraphError> {
-                $crate::serialise::CacheOps::write_updates(&self.$field)
-            }
-
-            #[doc = concat!(" Load ", $name, " from a file and initialise it as a cache file.")]
-            ///
-            /// Future updates are tracked. Use `write_updates` to persist them to the
-            /// cache file.
-            ///
-            /// Arguments:
-            ///   path (str): The path to the cache file
-            ///
-            /// Returns:
-            #[doc = concat!("   ", $name,": the loaded graph with initialised cache")]
-            #[staticmethod]
-            fn load_cached(path: PathBuf) -> Result<$base_type, GraphError> {
-                <$base_type as $crate::serialise::CacheOps>::load_cached(path)
-            }
 
             #[doc = concat!(" Load ", $name, " from a parquet file.")]
             ///

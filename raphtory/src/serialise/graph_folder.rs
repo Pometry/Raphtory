@@ -219,7 +219,7 @@ impl From<&GraphFolder> for GraphFolder {
 mod zip_tests {
     use super::*;
     use crate::{
-        prelude::{AdditionOps, CacheOps, Graph, NO_PROPS},
+        prelude::{AdditionOps, Graph, NO_PROPS},
         serialise::metadata::GraphMetadata,
     };
     use raphtory_api::core::utils::logging::global_info_logger;

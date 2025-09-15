@@ -450,7 +450,6 @@ impl GqlGraph {
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;
             other_g.import_edges(g.edges(), true)?;
-            other_g.write_updates()?;
             Ok(true)
         })
         .await
