@@ -16,7 +16,7 @@ use raphtory::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use std::{
     borrow::Cow,
     fmt,
@@ -370,12 +370,17 @@ pub struct NodeFieldFilter {
 
 impl NodeFieldFilter {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &Some(self.value.clone()))
+        match self.field {
+            NodeField::NodeId => validate_id_operator_value_pair(self.operator, &self.value),
+            _ => validate_operator_value_pair(self.operator, &Some(self.value.clone())),
+        }
     }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum NodeField {
+    /// Node id.
+    NodeId,
     /// Node name.
     NodeName,
     /// Node type.
@@ -489,6 +494,82 @@ fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphErr
     }
 }
 
+fn node_field_value(
+    field: NodeField,
+    value: Value,
+    operator: Operator,
+) -> Result<FilterValue, GraphError> {
+    match field {
+        NodeField::NodeId => id_field_value(value, operator),
+        NodeField::NodeName | NodeField::NodeType => string_field_value(value, operator),
+    }
+}
+
+fn id_field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
+    use Operator::*;
+    match (value, operator) {
+        (Value::U64(i), Equal | NotEqual) => {
+            let u = i
+                .try_into()
+                .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
+            Ok(FilterValue::ID(GID::U64(u)))
+        }
+        (Value::Str(s), Equal | NotEqual) => Ok(FilterValue::ID(GID::Str(s))),
+        (Value::List(items), IsIn | IsNotIn) => {
+            let mut set = std::collections::HashSet::with_capacity(items.len());
+            for v in items {
+                match v {
+                    Value::U64(i) => {
+                        let u = i.try_into().map_err(|_| {
+                            GraphError::InvalidGqlFilter("node_id must be >= 0".into())
+                        })?;
+                        set.insert(GID::U64(u));
+                    }
+                    Value::Str(s) => {
+                        set.insert(GID::Str(s));
+                    }
+                    other => {
+                        return Err(GraphError::InvalidGqlFilter(format!(
+                            "node_id list may contain only int/str, got {other}"
+                        )));
+                    }
+                }
+            }
+            Ok(FilterValue::IDSet(Arc::new(set)))
+        }
+        (v, op) => Err(GraphError::InvalidGqlFilter(format!(
+            "Invalid node_id value/operator combination: value {v:?}, operator {op}"
+        ))),
+    }
+}
+
+fn string_field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
+    use Operator::*;
+    match (value, operator) {
+        (
+            Value::Str(s),
+            Equal | NotEqual | StartsWith | EndsWith | Contains | NotContains | GreaterThan
+            | GreaterThanOrEqual | LessThan | LessThanOrEqual,
+        ) => Ok(FilterValue::Single(s)),
+        (Value::List(items), IsIn | IsNotIn) => {
+            let strings = items
+                .into_iter()
+                .map(|v| match v {
+                    Value::Str(s) => Ok(s),
+                    other => Err(GraphError::InvalidGqlFilter(format!(
+                        "Expected list of strings, got {other}"
+                    ))),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(FilterValue::Set(Arc::new(strings.into_iter().collect())))
+        }
+        (v, op) => Err(GraphError::InvalidGqlFilter(format!(
+            "Invalid value/operator combination for string field: value {v:?}, operator {op}"
+        ))),
+    }
+}
+
 impl TryFrom<NodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
 
@@ -498,7 +579,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                 node.validate()?;
                 Ok(CompositeNodeFilter::Node(Filter {
                     field_name: node.field.to_string(),
-                    field_value: field_value(node.value, node.operator)?,
+                    field_value: node_field_value(node.field, node.value, node.operator)?,
                     operator: node.operator.into(),
                 }))
             }
@@ -690,6 +771,7 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
 impl Display for NodeField {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let field_name = match self {
+            NodeField::NodeId => "node_id",
             NodeField::NodeName => "node_name",
             NodeField::NodeType => "node_type",
         };
@@ -726,6 +808,35 @@ impl From<TemporalType> for Temporal {
             TemporalType::First => Temporal::First,
             TemporalType::All => Temporal::All,
         }
+    }
+}
+
+fn validate_id_operator_value_pair(operator: Operator, value: &Value) -> Result<(), GraphError> {
+    use Operator::*;
+
+    match operator {
+        Equal | NotEqual => match value {
+            Value::U64(_) | Value::Str(_) => Ok(()),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires int or string, got {v}"
+            ))),
+        },
+        IsIn | IsNotIn => match value {
+            Value::List(items)
+                if items
+                    .iter()
+                    .all(|v| matches!(v, Value::U64(_) | Value::Str(_))) =>
+            {
+                Ok(())
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a list of int/str, got {v}"
+            ))),
+        },
+        StartsWith | EndsWith | Contains | NotContains | GreaterThanOrEqual | LessThanOrEqual
+        | GreaterThan | LessThan | IsNone | IsSome => Err(GraphError::InvalidGqlFilter(format!(
+            "Operator {operator} is not supported on node_id"
+        ))),
     }
 }
 

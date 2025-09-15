@@ -1550,6 +1550,10 @@ input NodeAddition {
 
 enum NodeField {
 	"""
+	Node id.
+	"""
+	NODE_ID
+	"""
 	Node name.
 	"""
 	NODE_NAME
