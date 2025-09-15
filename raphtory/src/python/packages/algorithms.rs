@@ -321,7 +321,7 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
     v: &Bound<PyAny>,
-) -> PyResult<NodeState<'static, f64, DynamicGraph>> {
+) -> PyResult<TypedNodeState<'static, HashMap<String, Option<Prop>>, DynamicGraph>> {
     match process_node_param(v) {
         Ok(v) => Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)),
         Err(e) => Err(e),
