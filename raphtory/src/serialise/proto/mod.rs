@@ -491,6 +491,7 @@ mod proto_test {
     #[test]
     fn manually_test_append() {
         let mut graph1 = proto_generated::Graph::default();
+
         graph1.set_graph_type(GraphType::Event);
         graph1.new_node(GidRef::Str("1"), VID(0), 0);
         graph1.new_node(GidRef::Str("2"), VID(1), 0);
@@ -501,9 +502,10 @@ mod proto_test {
             0,
             iter::empty::<(usize, Prop)>(),
         );
-        let mut bytes1 = graph1.encode_to_vec();
 
+        let mut bytes1 = graph1.encode_to_vec();
         let mut graph2 = proto_generated::Graph::default();
+
         graph2.new_node(GidRef::Str("3"), VID(2), 0);
         graph2.new_edge(VID(0), VID(2), EID(1));
         graph2.update_edge_tprops(
@@ -514,7 +516,10 @@ mod proto_test {
         );
         bytes1.extend(graph2.encode_to_vec());
 
-        let graph = Graph::decode_from_bytes(&bytes1).unwrap();
+        let buf = bytes1.as_slice();
+        let proto_graph = proto_generated::Graph::decode(buf).unwrap();
+        let graph = Graph::decode_from_proto(&proto_graph).unwrap();
+
         assert_eq!(graph.nodes().name().collect_vec(), ["1", "2", "3"]);
         assert_eq!(
             graph.edges().id().collect_vec(),
@@ -541,7 +546,9 @@ mod proto_test {
             .values()
             .map(|v| v.unwrap_str())
             .collect_vec();
+
         assert_eq!(values, ["test", "test", "test"]);
+
         for w in values.windows(2) {
             assert_eq!(w[0].as_ptr(), w[1].as_ptr());
         }
@@ -558,7 +565,9 @@ mod proto_test {
             .values()
             .map(|v| v.unwrap_str())
             .collect_vec();
+
         assert_eq!(values, ["test", "test", "test"]);
+
         for w in values.windows(2) {
             assert_eq!(w[0].as_ptr(), w[1].as_ptr());
         }

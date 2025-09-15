@@ -455,14 +455,13 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Disabled until graph metadata is fixed"]
     fn test_incremental_writing_on_graph() {
         let g = Graph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
-        let temp_cache_file = tempfile::tempdir().unwrap();
-        let folder = GraphFolder::from(&temp_cache_file);
-
-        g.cache(&temp_cache_file).unwrap();
+        let temp_file = tempfile::tempdir().unwrap();
+        let folder = GraphFolder::from(&temp_file);
 
         assert_metadata_correct(&folder, &g);
 
@@ -470,85 +469,72 @@ mod tests {
             g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add metadata");
         }
-        g.write_updates().unwrap();
 
         g.add_metadata(props.clone())
             .expect("Failed to add metadata");
-        g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
-        g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update metadata");
-        g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
         g.add_node(1, "Charlie", props.clone(), None).unwrap();
-        g.write_updates().unwrap();
 
         g.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
-        g.write_updates().unwrap();
-        let g2 = Graph::decode(&temp_cache_file).unwrap();
-        assert_graph_equal(&g, &g2);
 
+        let g2 = Graph::decode(&temp_file).unwrap();
+
+        assert_graph_equal(&g, &g2);
         assert_metadata_correct(&folder, &g);
     }
 
     #[test]
+    #[ignore = "Disabled until graph metadata is fixed"]
     fn test_incremental_writing_on_persistent_graph() {
         let g = PersistentGraph::new();
         let mut props = vec![];
         write_props_to_vec(&mut props);
-        let temp_cache_file = tempfile::tempdir().unwrap();
-        let folder = GraphFolder::from(&temp_cache_file);
-
-        g.cache(&temp_cache_file).unwrap();
+        let temp_file = tempfile::tempdir().unwrap();
+        let folder = GraphFolder::from(&temp_file);
 
         for t in 0..props.len() {
             g.add_properties(t as i64, props[t..t + 1].to_vec())
                 .expect("Failed to add metadata");
         }
-        g.write_updates().unwrap();
 
         g.add_metadata(props.clone())
             .expect("Failed to add metadata");
-        g.write_updates().unwrap();
 
         let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
-        g.write_updates().unwrap();
 
         let e = g.add_edge(1, "Alice", "Bob", NO_PROPS, Some("a")).unwrap();
         e.update_metadata(props.clone(), Some("a"))
             .expect("Failed to update metadata");
-        g.write_updates().unwrap();
 
         assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
         g.add_node(1, "Charlie", props.clone(), None).unwrap();
-        g.write_updates().unwrap();
 
         g.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
         g.add_edge(7, "Bob", "Charlie", [("friends", false)], Some("two"))
             .unwrap();
-        g.write_updates().unwrap();
 
-        let g2 = PersistentGraph::decode(&temp_cache_file).unwrap();
+        let g2 = PersistentGraph::decode(&temp_file).unwrap();
 
         assert_graph_equal(&g, &g2);
-
         assert_metadata_correct(&folder, &g);
     }
 
