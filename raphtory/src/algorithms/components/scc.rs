@@ -10,6 +10,12 @@ use crate::{
     prelude::*,
 };
 use std::collections::{HashMap, HashSet};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+struct SCCState {
+    component_id: usize,
+}
 
 fn tarjan<'graph, G>(
     node: NodeView<&'graph G>,
@@ -99,11 +105,11 @@ where
 {
     let groups = tarjan_scc(graph);
 
-    let mut values = vec![usize::MAX; graph.unfiltered_num_nodes()];
+    let mut values = vec![SCCState::default(); graph.unfiltered_num_nodes()];
 
     for (id, group) in groups.into_iter().enumerate() {
         for VID(node) in group {
-            values[node] = id;
+            values[node] = SCCState { component_id: id };
         }
     }
 
