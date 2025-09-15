@@ -10,6 +10,12 @@ use itertools::Itertools;
 use raphtory_api::core::entities::properties::prop::Prop;
 use rayon::prelude::*;
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+struct LCCState {
+    lcc: f64,
+}
 
 /// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
 /// Uses path-counting for its triangle-counting step.
@@ -42,14 +48,15 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
             Some((
                 s.node,
                 if degree <= 1.0 {
-                    0.0
+                    LCCState { lcc: 0.0 }
                 } else {
-                    (2.0 * triangle_count) / (degree * (degree - 1.0))
+                    LCCState { lcc: (2.0 * triangle_count) / (degree * (degree - 1.0)) }
                 },
             ))
         })
         .unzip();
-    let result: Option<_> = Some(Index::new(index));
+    // let result: Option<_> = Some(Index::new(index));
+    // new_from_eval_with_index
     GenericNodeState::new_from_eval(graph.clone(), values).transform()
     // NodeState::new(graph.clone(), graph.clone(), values.into(), result)
 }
