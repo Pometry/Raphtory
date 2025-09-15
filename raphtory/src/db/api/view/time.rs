@@ -22,6 +22,7 @@ pub(crate) mod internal {
         prelude::{GraphViewOps, TimeOps},
     };
     use std::cmp::{max, min};
+    use crate::db::api::view::internal::GraphTimeSemanticsOps;
 
     pub trait InternalTimeOps<'graph> {
         type InternalWindowedView: TimeOps<'graph> + 'graph;
@@ -39,13 +40,13 @@ pub(crate) mod internal {
 
         fn timeline_start(&self) -> Option<i64> {
             self.start()
-                .or_else(|| self.current_filter().earliest_time())
+                .or_else(|| self.current_filter().earliest_time_global())
         }
 
         fn timeline_end(&self) -> Option<i64> {
             self.end().or_else(|| {
                 self.current_filter()
-                    .latest_time()
+                    .latest_time_global()
                     .map(|v| v.saturating_add(1))
             })
         }
