@@ -30,7 +30,7 @@ use raphtory_storage::{
         nodes::node_storage_ops::NodeStorageOps,
     },
 };
-use std::{iter, ops::Deref};
+use std::{iter, ops::Deref, io::Cursor};
 use itertools::Itertools;
 
 pub mod ext;
@@ -254,14 +254,16 @@ mod proto_test {
             .map(|p| p.join("raphtory/resources/test/old_proto/str"))
             .unwrap();
 
-        let graph = Graph::decode(path).unwrap();
-
+        let bytes = std::fs::read(path).unwrap();
+        let proto_graph = proto_generated::Graph::decode(Cursor::new(bytes)).unwrap();
+        let graph = Graph::decode_from_proto(&proto_graph).unwrap();
         let nodes_props = graph
             .nodes()
             .properties()
             .into_iter()
             .flat_map(|(_, props)| props.into_iter())
             .collect::<Vec<_>>();
+
         assert_eq!(
             nodes_props,
             vec![("a".into(), Some("a".into())), ("a".into(), None)]
@@ -285,8 +287,9 @@ mod proto_test {
             .map(|p| p.join("raphtory/resources/test/old_proto/all_props"))
             .unwrap();
 
-        let graph = Graph::decode(path).unwrap();
-
+        let bytes = std::fs::read(path).unwrap();
+        let proto_graph = proto_generated::Graph::decode(Cursor::new(bytes)).unwrap();
+        let graph = Graph::decode_from_proto(&proto_graph).unwrap();
         let actual: HashMap<_, _> = graph
             .node_meta()
             .get_all_property_names(false)
