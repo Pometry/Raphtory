@@ -72,7 +72,7 @@ impl ExistingGraphFolder {
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ValidGraphFolder {
-    folder: GraphFolder,
+    pub folder: GraphFolder,
     original_path: String,
 }
 

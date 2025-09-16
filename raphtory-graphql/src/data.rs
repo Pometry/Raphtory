@@ -223,7 +223,8 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
+    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*, serialise::GraphFolder};
+    use tempfile::TempDir;
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;
 
@@ -330,7 +331,11 @@ pub(crate) mod data_tests {
 
     #[tokio::test]
     async fn test_get_graph_paths() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let mut temp_dir = tempfile::tempdir().unwrap();
+        temp_dir.disable_cleanup(true);
+
+        println!("temp_dir: {}", temp_dir.path().display());
+
         let work_dir = temp_dir.path();
         let g0_path = work_dir.join("g0");
         let g1_path = work_dir.join("g1");

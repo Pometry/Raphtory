@@ -11,9 +11,6 @@ pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     // Encode the graph into bytes
     fn encode_to_bytes(&self) -> Vec<u8>;
 
-    // Encode the graph to the given path
-    fn encode_to_path(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
-
     // Encode the graph along with any metadata/indexes to the given path
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
 }
@@ -23,24 +20,18 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         self.encode_parquet_to_bytes().unwrap()
     }
 
-    fn encode_to_path(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
-        let folder: GraphFolder = path.into();
-        self.encode_parquet(&folder.root_folder)?;
-        Ok(())
-    }
-
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError> {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = std::fs::File::create(&folder.root_folder)?;
+            let file = std::fs::File::create(&folder.get_graph_path())?;
             self.encode_parquet_to_zip(file)?;
 
             #[cfg(feature = "search")]
             self.persist_index_to_disk_zip(&folder)?;
         } else {
             folder.ensure_clean_root_dir()?;
-            self.encode_parquet(&folder.root_folder)?;
+            self.encode_parquet(&folder.get_graph_path())?;
 
             #[cfg(feature = "search")]
             self.persist_index_to_disk(&folder)?;
@@ -56,9 +47,6 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError>;
 
-    // Decode the graph from the given path
-    fn decode_from_path(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
-
     // Decode the graph along with any metadata/indexes from the given path
     fn decode(path: impl Into<GraphFolder>) -> Result<Self, GraphError>;
 }
@@ -66,12 +54,6 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
         let graph = Self::decode_parquet_from_bytes(bytes)?;
-        Ok(graph)
-    }
-
-    fn decode_from_path(path: impl Into<GraphFolder>) -> Result<Self, GraphError> {
-        let folder: GraphFolder = path.into();
-        let graph = Self::decode_parquet(folder.root_folder)?;
         Ok(graph)
     }
 

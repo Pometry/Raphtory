@@ -20,9 +20,16 @@ use std::{
 };
 use tracing::info;
 
+/// Can be either a folder or a file (zip)
 pub const GRAPH_FILE_NAME: &str = "graph";
+
+/// Stores graph metadata
 pub const META_FILE_NAME: &str = ".raph";
+
+/// Directory that stores search indexes
 const INDEX_PATH: &str = "index";
+
+/// Directory that stores vectorised graph
 const VECTORS_PATH: &str = "vectors";
 
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
@@ -54,7 +61,6 @@ impl GraphFolder {
         }
     }
 
-    // TODO: make it private again once we stop using it from the graphql crate
     pub fn get_graph_path(&self) -> PathBuf {
         self.root_folder.join(GRAPH_FILE_NAME)
     }
@@ -63,7 +69,6 @@ impl GraphFolder {
         self.root_folder.join(META_FILE_NAME)
     }
 
-    // TODO: make private once possible
     pub fn get_vectors_path(&self) -> PathBuf {
         self.root_folder.join(VECTORS_PATH)
     }
@@ -72,7 +77,6 @@ impl GraphFolder {
         self.root_folder.join(INDEX_PATH)
     }
 
-    // TODO: make private once possible
     pub fn get_base_path(&self) -> &Path {
         &self.root_folder
     }
