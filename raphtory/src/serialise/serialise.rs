@@ -65,7 +65,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
             let reader = std::fs::File::open(&folder.root_folder)?;
             graph = Self::decode_parquet_from_zip(reader)?;
         } else {
-            graph = Self::decode_parquet(&folder.root_folder)?;
+            graph = Self::decode_parquet(&folder.get_graph_path())?;
         }
 
         #[cfg(feature = "search")]

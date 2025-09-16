@@ -1,7 +1,5 @@
 use memmap2::Mmap;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
-
-#[cfg(feature = "search")]
 use crate::{
     db::api::view::MaterializedGraph,
     errors::GraphError,
