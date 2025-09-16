@@ -4,7 +4,6 @@ use crate::{
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, PropertyAdditionOps},
     python::graph::io::*,
-    serialise::incremental::InternalCache,
 };
 use polars_arrow::{array::Array, ffi};
 use pyo3::{
@@ -23,7 +22,7 @@ pub(crate) fn convert_py_prop_args(properties: Option<&[PyBackedStr]>) -> Option
 
 pub(crate) fn load_nodes_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -59,7 +58,7 @@ pub(crate) fn load_nodes_from_pandas<
 
 pub(crate) fn load_edges_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -97,7 +96,7 @@ pub(crate) fn load_edges_from_pandas<
 
 pub(crate) fn load_node_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,
@@ -127,7 +126,7 @@ pub(crate) fn load_node_props_from_pandas<
 
 pub(crate) fn load_edge_props_from_pandas<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     df: &Bound<'py, PyAny>,

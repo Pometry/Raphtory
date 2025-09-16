@@ -163,7 +163,7 @@ mod tests {
         let temp_file = TempDir::new().unwrap();
 
         g.encode(&temp_file).unwrap();
-        let g2 = MaterializedGraph::load_cached(&temp_file).unwrap();
+        let g2 = MaterializedGraph::decode(&temp_file).unwrap();
         assert_eq!(g2.nodes().name().collect_vec(), ["ben", "hamza", "haaroon"]);
         let node_names: Vec<_> = g2.nodes().iter().map(|n| n.name()).collect();
         assert_eq!(node_names, ["ben", "hamza", "haaroon"]);

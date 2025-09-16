@@ -8,7 +8,6 @@ use crate::{
         prop_handler::*,
     },
     prelude::*,
-    serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
 use either::Either;
@@ -59,7 +58,7 @@ fn process_shared_properties(
 }
 
 pub(crate) fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -192,7 +191,7 @@ pub(crate) fn load_nodes_from_df<
 }
 
 pub(crate) fn load_edges_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -623,7 +622,7 @@ pub(crate) fn load_edge_deletions_from_df<
 
 pub(crate) fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
@@ -720,7 +719,7 @@ pub(crate) fn load_node_props_from_df<
 }
 
 pub(crate) fn load_edges_props_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,

@@ -224,19 +224,6 @@ mod zip_tests {
     };
     use raphtory_api::core::utils::logging::global_info_logger;
 
-    #[test]
-    fn test_load_cached_from_zip() {
-        let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-
-        let tmp_dir = tempfile::TempDir::new().unwrap();
-        let zip_path = tmp_dir.path().join("graph.zip");
-        graph.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
-        let result = Graph::load_cached(&zip_path);
-
-        assert!(result.is_err());
-    }
-
     /// Verify that the metadata is re-created if it does not exist.
     #[test]
     fn test_read_metadata_from_noninitialized_zip() {

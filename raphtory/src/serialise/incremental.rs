@@ -1,17 +1,7 @@
 use super::graph_folder::GraphFolder;
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 use crate::{
-    db::{
-        api::{storage::storage::Storage, view::MaterializedGraph},
-        graph::views::deletion_graph::PersistentGraph,
-    },
     errors::{GraphError, WriteError},
-    prelude::{AdditionOps, Graph},
-    serialise::{
-        serialise::{StableDecode, StableEncode},
-        ProtoGraph,
-    },
+    serialise::ProtoGraph,
 };
 use parking_lot::Mutex;
 use prost::Message;
@@ -29,7 +19,6 @@ use std::{
     ops::DerefMut,
     sync::Arc,
 };
-use tracing::instrument;
 
 #[derive(Debug)]
 pub struct GraphWriter {
@@ -232,60 +221,6 @@ impl GraphWriter {
     }
 }
 
-pub trait InternalCache {
-    /// Initialise the cache by pointing it at a proto file.
-    /// Future updates will be appended to the cache.
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError>;
-
-    /// Get the cache writer if it is initialised.
-    fn get_cache(&self) -> Option<&GraphWriter>;
-}
-
-impl InternalCache for Storage {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        Ok(())
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        None
-    }
-}
-
-impl InternalCache for Graph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.inner.init_cache(path)
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.inner.get_cache()
-    }
-}
-
-impl InternalCache for PersistentGraph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        self.0.init_cache(path)
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        self.0.get_cache()
-    }
-}
-
-impl InternalCache for MaterializedGraph {
-    fn init_cache(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.init_cache(path),
-            MaterializedGraph::PersistentGraph(g) => g.init_cache(path),
-        }
-    }
-
-    fn get_cache(&self) -> Option<&GraphWriter> {
-        match self {
-            MaterializedGraph::EventGraph(g) => g.get_cache(),
-            MaterializedGraph::PersistentGraph(g) => g.get_cache(),
-        }
-    }
-}
 
 
 #[cfg(test)]
