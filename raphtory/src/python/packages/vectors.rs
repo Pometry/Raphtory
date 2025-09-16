@@ -8,7 +8,7 @@ use crate::{
     },
     vectors::{
         cache::VectorCache,
-        embeddings::{EmbeddingFunction, EmbeddingResult},
+        embeddings::{EmbeddingFunction, EmbeddingResult, OpenAIEmbeddings},
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
@@ -16,16 +16,66 @@ use crate::{
         Document, DocumentEntity, Embedding,
     },
 };
+use async_openai::config::OpenAIConfig;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-use pyo3::{
-    exceptions::PyTypeError,
-    prelude::*,
-    types::{PyFunction, PyList},
-};
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
+
+#[pyclass(name = "OpenAIEmbeddings")]
+#[derive(Clone)]
+pub struct PyOpenAIEmbeddings {
+    model: String,
+    api_base: Option<String>,
+    api_key: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+#[pymethods]
+impl PyOpenAIEmbeddings {
+    #[new]
+    #[pyo3(signature = (model, api_base=None, api_key=None, org_id=None, project_id=None))]
+    fn new(
+        model: String,
+        api_base: Option<String>,
+        api_key: Option<String>,
+        org_id: Option<String>,
+        project_id: Option<String>,
+    ) -> Self {
+        Self {
+            model,
+            api_base,
+            api_key,
+            org_id,
+            project_id,
+        }
+    }
+}
+
+impl EmbeddingFunction for PyOpenAIEmbeddings {
+    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+        let mut config = OpenAIConfig::default();
+        if let Some(api_base) = &self.api_base {
+            config = config.with_api_base(api_base)
+        }
+        if let Some(api_key) = &self.api_key {
+            config = config.with_api_key(api_key)
+        }
+        if let Some(org_id) = &self.org_id {
+            config = config.with_org_id(org_id)
+        }
+        if let Some(project_id) = &self.project_id {
+            config = config.with_project_id(project_id)
+        }
+
+        let model = self.model.clone();
+        let embeddings = OpenAIEmbeddings { model, config };
+        embeddings.call(texts)
+    }
+}
 
 pub type PyWindow = Option<(PyTime, PyTime)>;
 
@@ -150,7 +200,7 @@ impl PyGraphView {
     #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), cache = None, verbose = false))]
     fn vectorise(
         &self,
-        embedding: Bound<PyFunction>,
+        embedding: PyOpenAIEmbeddings,
         nodes: TemplateConfig,
         edges: TemplateConfig,
         cache: Option<String>,
@@ -160,7 +210,6 @@ impl PyGraphView {
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         };
-        let embedding = embedding.unbind();
         let graph = self.graph.clone();
         execute_async_task(move || async move {
             let cache = if let Some(cache) = cache {
@@ -217,10 +266,10 @@ impl PyVectorisedGraph {
         self.0.empty_selection()
     }
 
-    /// Search the top scoring entities according to `query` with no more than `limit` entities
+    /// Search the closest entities to `query` with no more than `limit` entities
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new entities to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -239,10 +288,10 @@ impl PyVectorisedGraph {
             .entities_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
+    /// Search the closest nodes to `query` with no more than `limit` nodes
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new nodes to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -261,10 +310,10 @@ impl PyVectorisedGraph {
             .nodes_by_similarity(&embedding, limit, translate_window(window))?)
     }
 
-    /// Search the top scoring edges according to `query` with no more than `limit` edges
+    /// Search the closest edges to `query` with no more than `limit` edges
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new edges to search
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -323,17 +372,17 @@ impl PyVectorSelection {
         Ok(self.0.get_documents()?)
     }
 
-    /// Return the documents alongside their scores present in the current selection
+    /// Return the documents alongside their distances present in the current selection
     ///
     /// Returns:
-    ///     list[Tuple[Document, float]]: list of documents and scores
-    fn get_documents_with_scores(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
-        Ok(self.0.get_documents_with_scores()?)
+    ///     list[Tuple[Document, float]]: list of documents and distances
+    fn get_documents_with_distances(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
+        Ok(self.0.get_documents_with_distances()?)
     }
 
     /// Add all the documents associated with the `nodes` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     ///
     /// Args:
     ///   nodes (list): a list of the node ids or nodes to add
@@ -346,7 +395,7 @@ impl PyVectorSelection {
 
     /// Add all the documents associated with the `edges` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     ///
     /// Args:
     ///   edges (list):  a list of the edge ids or edges to add
@@ -386,19 +435,18 @@ impl PyVectorSelection {
         self_.0.expand(hops, translate_window(window))
     }
 
-    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent entities closest to `query`
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///   1. All the entities 1 hop away of some of the entities included on the selection (and
     ///      not already selected) are marked as candidates.
-    ///   2. Those candidates are added to the selection in descending order according to the
-    ///      similarity score obtained against the `query`.
+    ///   2. Those candidates are added to the selection in ascending distance from `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -418,12 +466,12 @@ impl PyVectorSelection {
         Ok(())
     }
 
-    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent nodes closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new nodes to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -443,12 +491,12 @@ impl PyVectorSelection {
         Ok(())
     }
 
-    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent edges closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the maximum number of new edges to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
@@ -466,38 +514,5 @@ impl PyVectorSelection {
             .0
             .expand_edges_by_similarity(&embedding, limit, translate_window(window))?;
         Ok(())
-    }
-}
-
-impl EmbeddingFunction for Py<PyFunction> {
-    fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let embedding_function = Python::with_gil(|py| self.clone_ref(py));
-        Box::pin(async move {
-            Python::with_gil(|py| {
-                let embedding_function = embedding_function.bind(py);
-                let python_texts = PyList::new(py, texts)?;
-                let result = embedding_function.call1((python_texts,))?;
-                let embeddings = result.downcast::<PyList>().map_err(|_| {
-                    PyTypeError::new_err(
-                        "value returned by the embedding function was not a python list",
-                    )
-                })?;
-
-                let embeddings: EmbeddingResult<Vec<_>> = embeddings
-                    .iter()
-                    .map(|embedding| {
-                        let pylist = embedding.downcast::<PyList>().map_err(|_| {
-                            PyTypeError::new_err("one of the values in the list returned by the embedding function was not a python list")
-                        })?;
-                        let embedding: EmbeddingResult<Embedding> = pylist
-                            .iter()
-                            .map(|element| Ok(element.extract::<f32>()?))
-                            .collect();
-                        embedding
-                    })
-                    .collect();
-                embeddings
-            })
-        })
     }
 }

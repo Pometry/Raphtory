@@ -104,21 +104,26 @@ pub struct VectorCache {
     store: Arc<VectorStore>,
     cache: Cache<u64, ()>,
     function: Arc<dyn EmbeddingFunction>,
+    vector_sample: Embedding,
 }
 
 impl VectorCache {
-    pub fn in_memory(function: impl EmbeddingFunction + 'static) -> Self {
-        Self {
+    pub async fn in_memory(function: impl EmbeddingFunction + 'static) -> GraphResult<Self> {
+        let vector_sample = get_vector_sample(&function).await?;
+        Ok(Self {
             store: VectorStore::in_memory().into(),
             cache: Cache::new(10),
             function: Arc::new(function),
-        }
+            vector_sample,
+        })
     }
 
     pub async fn on_disk(
         path: &Path,
         function: impl EmbeddingFunction + 'static,
     ) -> GraphResult<Self> {
+        let vector_sample = get_vector_sample(&function).await?;
+
         let store: Arc<_> = VectorStore::on_disk(path)?.into();
         let cloned = store.clone();
 
@@ -135,7 +140,12 @@ impl VectorCache {
             store,
             cache,
             function: Arc::new(function),
+            vector_sample,
         })
+    }
+
+    pub(super) fn get_vector_sample(&self) -> Embedding {
+        self.vector_sample.clone()
     }
 
     async fn get(&self, text: &str) -> Option<Embedding> {
@@ -201,6 +211,13 @@ impl VectorCache {
     }
 }
 
+const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
+
+async fn get_vector_sample(function: &impl EmbeddingFunction) -> GraphResult<Embedding> {
+    let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
+    Ok(vectors.remove(0))
+}
+
 fn hash(text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     text.hash(&mut hasher);
@@ -238,14 +255,15 @@ mod cache_tests {
 
     #[tokio::test]
     async fn test_empty_request() {
-        let cache = VectorCache::in_memory(placeholder_embedding);
+        let cache = VectorCache::in_memory(placeholder_embedding).await.unwrap();
         let result: Vec<_> = cache.get_embeddings(vec![]).await.unwrap().collect();
         assert_eq!(result, vec![]);
     }
 
     #[tokio::test]
     async fn test_cache() {
-        test_abstract_cache(VectorCache::in_memory(placeholder_embedding)).await;
+        let cache = VectorCache::in_memory(placeholder_embedding).await.unwrap();
+        test_abstract_cache(cache).await;
         let dir = tempdir().unwrap();
         test_abstract_cache(
             VectorCache::on_disk(dir.path(), placeholder_embedding)

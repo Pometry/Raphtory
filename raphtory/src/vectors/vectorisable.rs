@@ -1,19 +1,22 @@
 use super::{
     cache::VectorCache,
-    db::{EdgeDb, NodeDb},
-    storage::{edge_vectors_path, node_vectors_path, VectorMeta},
+    entity_db::{EdgeDb, NodeDb},
+    storage::{db_path, VectorMeta},
 };
 use crate::{
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
     errors::GraphResult,
     prelude::GraphViewOps,
     vectors::{
-        db::EntityDb, embeddings::compute_embeddings, template::DocumentTemplate,
+        embeddings::compute_embeddings,
+        entity_db::EntityDb,
+        template::DocumentTemplate,
+        vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
         vectorised_graph::VectorisedGraph,
     },
 };
 use async_trait::async_trait;
-use std::path::Path;
+use std::{ops::Deref, path::Path};
 use tracing::info;
 
 #[async_trait]
@@ -47,16 +50,23 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         path: Option<&Path>,
         verbose: bool,
     ) -> GraphResult<VectorisedGraph<G>> {
+        let db_path = path
+            .map(|path| Ok::<Box<dyn AsRef<Path> + Send>, std::io::Error>(Box::new(db_path(path))))
+            .unwrap_or_else(|| Ok(Box::new(tempfile::tempdir()?)))?;
+        let db_path_ref = db_path.as_ref().as_ref();
+        let factory = LanceDb;
+        let dim = cache.get_vector_sample().len();
         if verbose {
             info!("computing embeddings for nodes");
         }
         let nodes = self.nodes();
         let node_docs = nodes
             .iter()
-            .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u32, doc)));
-        let node_path = path.map(node_vectors_path);
+            .filter_map(|node| template.node(node).map(|doc| (node.node.0 as u64, doc)));
         let node_vectors = compute_embeddings(node_docs, &cache);
-        let node_db = NodeDb::from_vectors(node_vectors, node_path).await?;
+        let node_db = NodeDb(factory.new_collection(db_path_ref, "nodes", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        node_db.insert_vector_stream(node_vectors).await.unwrap();
+        node_db.create_index().await;
 
         if verbose {
             info!("computing embeddings for edges");
@@ -65,18 +75,22 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         let edge_docs = edges.iter().filter_map(|edge| {
             template
                 .edge(edge)
-                .map(|doc| (edge.edge.pid().0 as u32, doc))
+                .map(|doc| (edge.edge.pid().0 as u64, doc))
         });
-        let edge_path = path.map(edge_vectors_path);
         let edge_vectors = compute_embeddings(edge_docs, &cache);
-        let edge_db = EdgeDb::from_vectors(edge_vectors, edge_path).await?;
+        let edge_db = EdgeDb(factory.new_collection(db_path_ref, "edges", dim).await?); // FIXME: dimension!!!!!!!!!!!!!!!!!!!!
+        edge_db.insert_vector_stream(edge_vectors).await.unwrap();
+        edge_db.create_index().await;
 
         if let Some(path) = path {
             let meta = VectorMeta {
                 template: template.clone(),
+                sample: cache.get_vector_sample(),
             };
             meta.write_to_path(path)?;
         }
+
+        // FIXME: here tempdir will be dropped and so the vector db will be destroyed!!!!!!!!!!!!!!
 
         Ok(VectorisedGraph {
             source_graph: self.clone(),

@@ -1,6 +1,6 @@
 use super::{
     cache::VectorCache,
-    db::{EdgeDb, EntityDb, NodeDb},
+    entity_db::{EdgeDb, EntityDb, NodeDb},
     utils::apply_window,
     vector_selection::VectorSelection,
 };
@@ -9,7 +9,12 @@ use crate::{
     db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps},
     errors::GraphResult,
     prelude::GraphViewOps,
-    vectors::{template::DocumentTemplate, utils::find_top_k, Embedding},
+    vectors::{
+        template::DocumentTemplate,
+        utils::find_top_k,
+        vector_collection::{lancedb::LanceDbCollection, VectorCollection},
+        Embedding,
+    },
 };
 
 #[derive(Clone)]
@@ -17,8 +22,8 @@ pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
     pub(crate) cache: VectorCache,
-    pub(super) node_db: NodeDb,
-    pub(super) edge_db: EdgeDb,
+    pub(super) node_db: NodeDb<LanceDbCollection>,
+    pub(super) edge_db: EdgeDb<LanceDbCollection>,
 }
 
 impl<G: StaticGraphViewOps + IntoDynamic> VectorisedGraph<G> {
@@ -40,22 +45,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             .iter()
             .filter_map(|node| {
                 self.source_graph.node(node).and_then(|node| {
-                    let id = node.node.index();
-
+                    let id = node.node.index() as u64;
                     self.template.node(node).map(|doc| (id, doc))
                 })
             })
             .unzip();
-
         let vectors = self.cache.get_embeddings(docs).await?;
-
-        self.node_db.insert_vectors(
-            ids.iter()
-                .zip(vectors)
-                .map(|(id, vector)| (*id, vector))
-                .collect(),
-        )?;
-
+        self.node_db.insert_vectors(ids, vectors).await?;
         Ok(())
     }
 
@@ -65,22 +61,13 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
             .iter()
             .filter_map(|(src, dst)| {
                 self.source_graph.edge(src, dst).and_then(|edge| {
-                    let id = edge.edge.pid().0;
-
+                    let id = edge.edge.pid().0 as u64;
                     self.template.edge(edge).map(|doc| (id, doc))
                 })
             })
             .unzip();
-
         let vectors = self.cache.get_embeddings(docs).await?;
-
-        self.edge_db.insert_vectors(
-            ids.iter()
-                .zip(vectors)
-                .map(|(id, vector)| (*id, vector))
-                .collect(),
-        )?;
-
+        self.edge_db.insert_vectors(ids, vectors).await?;
         Ok(())
     }
 
@@ -89,65 +76,65 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         VectorSelection::empty(self.clone())
     }
 
-    /// Search the top scoring entities according to `query` with no more than `limit` entities
+    /// Search the closest entities to `query` with no more than `limit` entities
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of entities to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn entities_by_similarity(
+    pub async fn entities_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let nodes = self.node_db.top_k(query, limit, view.clone(), None)?;
-        let edges = self.edge_db.top_k(query, limit, view, None)?;
+        let nodes = self.node_db.top_k(query, limit, view.clone(), None).await?;
+        let edges = self.edge_db.top_k(query, limit, view, None).await?;
         let docs = find_top_k(nodes.chain(edges), limit).collect();
         Ok(VectorSelection::new(self.clone(), docs))
     }
 
-    /// Search the top scoring nodes according to `query` with no more than `limit` nodes
+    /// Search the closest nodes to `query` with no more than `limit` nodes
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of nodes to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn nodes_by_similarity(
+    pub async fn nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.node_db.top_k(query, limit, view, None)?;
+        let docs = self.node_db.top_k(query, limit, view, None).await?;
         Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 
-    /// Search the top scoring edges according to `query` with no more than `limit` edges
+    /// Search the closest edges to `query` with no more than `limit` edges
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of edges to search
     ///   * window - the window where documents need to belong to in order to be considered
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub fn edges_by_similarity(
+    pub async fn edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> GraphResult<VectorSelection<G>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.edge_db.top_k(query, limit, view, None)?;
+        let docs = self.edge_db.top_k(query, limit, view, None).await?;
         Ok(VectorSelection::new(self.clone(), docs.collect()))
     }
 }
