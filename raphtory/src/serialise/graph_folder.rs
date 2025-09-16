@@ -2,7 +2,6 @@ use memmap2::Mmap;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 #[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::view::MaterializedGraph,
     errors::GraphError,
@@ -10,7 +9,6 @@ use crate::{
     serialise::{
         metadata::GraphMetadata,
         serialise::StableDecode,
-        serialise::StableEncode,
     },
 };
 use std::{
@@ -20,18 +18,27 @@ use std::{
 };
 use tracing::info;
 
-/// Can be either a folder or a file (zip)
-pub const GRAPH_FILE_NAME: &str = "graph";
+/// Stores graph data
+pub const GRAPH_PATH: &str = "graph";
 
 /// Stores graph metadata
-pub const META_FILE_NAME: &str = ".raph";
+pub const META_PATH: &str = ".raph";
 
 /// Directory that stores search indexes
 const INDEX_PATH: &str = "index";
 
-/// Directory that stores vectorised graph
+/// Directory that stores vector embeddings of the graph
 const VECTORS_PATH: &str = "vectors";
 
+/// A container for managing graph data.
+/// Directory structure:
+///
+/// GraphFolder
+/// ├── graph/        # Graph data
+/// ├── .raph         # Metadata file
+/// ├── index/        # Search indexes (optional)
+/// └── vectors/      # Vector embeddings (optional)
+///
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
@@ -62,19 +69,19 @@ impl GraphFolder {
     }
 
     pub fn get_graph_path(&self) -> PathBuf {
-        self.root_folder.join(GRAPH_FILE_NAME)
+        self.root_folder.join(GRAPH_PATH)
     }
 
     pub fn get_meta_path(&self) -> PathBuf {
-        self.root_folder.join(META_FILE_NAME)
-    }
-
-    pub fn get_vectors_path(&self) -> PathBuf {
-        self.root_folder.join(VECTORS_PATH)
+        self.root_folder.join(META_PATH)
     }
 
     pub fn get_index_path(&self) -> PathBuf {
         self.root_folder.join(INDEX_PATH)
+    }
+
+    pub fn get_vectors_path(&self) -> PathBuf {
+        self.root_folder.join(VECTORS_PATH)
     }
 
     pub fn get_base_path(&self) -> &Path {
@@ -109,7 +116,7 @@ impl GraphFolder {
         if self.is_zip() {
             let file = File::open(&self.root_folder)?;
             let mut archive = ZipArchive::new(file)?;
-            let zip_file = archive.by_name(META_FILE_NAME)?;
+            let zip_file = archive.by_name(META_PATH)?;
             let reader = BufReader::new(zip_file);
             let metadata = serde_json::from_reader(reader)?;
             Ok(metadata)
@@ -138,7 +145,7 @@ impl GraphFolder {
                 .open(&self.root_folder)?;
             let mut zip = ZipWriter::new_append(file)?;
 
-            zip.start_file::<_, ()>(META_FILE_NAME, FileOptions::default())?;
+            zip.start_file::<_, ()>(META_PATH, FileOptions::default())?;
             Ok(serde_json::to_writer(zip, &metadata)?)
         } else {
             let path = self.get_meta_path();
@@ -162,7 +169,7 @@ impl GraphFolder {
         } else {
             fs::create_dir(&self.root_folder)?
         }
-        File::create_new(self.root_folder.join(META_FILE_NAME))?;
+        File::create_new(self.root_folder.join(META_PATH))?;
         Ok(())
     }
 
@@ -185,7 +192,7 @@ impl GraphFolder {
                 // scope for file
                 let mut reader = File::open(&graph_file)?;
                 reader.read_to_end(&mut buffer)?;
-                zip.start_file::<_, ()>(GRAPH_FILE_NAME, FileOptions::default())?;
+                zip.start_file::<_, ()>(GRAPH_PATH, FileOptions::default())?;
                 zip.write_all(&buffer)?;
             }
             {
@@ -193,7 +200,7 @@ impl GraphFolder {
                 buffer.clear();
                 let mut reader = File::open(self.get_meta_path())?;
                 reader.read_to_end(&mut buffer)?;
-                zip.start_file::<_, ()>(META_FILE_NAME, FileOptions::default())?;
+                zip.start_file::<_, ()>(META_PATH, FileOptions::default())?;
                 zip.write_all(&buffer)?;
             }
         }
@@ -223,7 +230,7 @@ impl From<&GraphFolder> for GraphFolder {
 mod zip_tests {
     use super::*;
     use crate::{
-        prelude::{AdditionOps, Graph, NO_PROPS},
+        prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
         serialise::metadata::GraphMetadata,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
@@ -274,7 +281,7 @@ mod zip_tests {
                 let mut file = zip_archive.by_index(i).unwrap();
 
                 // Copy all files except the metadata file
-                if file.name() != META_FILE_NAME {
+                if file.name() != META_PATH {
                     zip_writer.start_file::<_, ()>(file.name(), FileOptions::default()).unwrap();
                     std::io::copy(&mut file, &mut zip_writer).unwrap();
                 }
