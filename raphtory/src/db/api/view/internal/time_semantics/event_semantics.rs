@@ -106,7 +106,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).range_t(w).history_rev()
+        node.edge_history(view).range_t(w).history()
     }
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
