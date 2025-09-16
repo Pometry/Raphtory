@@ -213,10 +213,28 @@ impl Filter {
         graph: &G,
         edge: EdgeStorageRef,
     ) -> bool {
-        match self.field_name.as_str() {
-            "src" => self.matches(graph.node(edge.src()).map(|n| n.name()).as_deref()),
-            "dst" => self.matches(graph.node(edge.dst()).map(|n| n.name()).as_deref()),
-            _ => false,
+        let node_opt = match self.field_name.as_str() {
+            "src" => graph.node(edge.src()),
+            "dst" => graph.node(edge.dst()),
+            _ => return false,
+        };
+
+        match &self.field_value {
+            FilterValue::ID(_) | FilterValue::IDSet(_) => {
+                if let Some(node) = node_opt {
+                    self.id_matches(node.id().as_ref())
+                } else {
+                    // No endpoint node -> no value present.
+                    match self.operator {
+                        FilterOperator::Ne | FilterOperator::NotIn => true,
+                        _ => false,
+                    }
+                }
+            }
+            _ => {
+                let name_opt = node_opt.map(|n| n.name());
+                self.matches(name_opt.as_deref())
+            }
         }
     }
 }

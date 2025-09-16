@@ -1722,6 +1722,90 @@ pub(crate) mod test_filters {
         graph
     }
 
+    fn init_edges_graph2<
+        G: StaticGraphViewOps
+            + AdditionOps
+            + InternalAdditionOps
+            + InternalPropertyAdditionOps
+            + PropertyAdditionOps,
+    >(
+        graph: G,
+    ) -> G {
+        let edges = [
+            (
+                1,
+                1,
+                2,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (
+                2,
+                1,
+                2,
+                vec![
+                    ("p1", "shivam_kapoor".into_prop()),
+                    ("p2", 4u64.into_prop()),
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_ship".into_prop()),
+                ],
+                Some("fire_nation"),
+            ),
+            (
+                2,
+                2,
+                3,
+                vec![
+                    ("p1", "prop12".into_prop()),
+                    ("p2", 2u64.into_prop()),
+                    ("p10", "Paper_ship".into_prop()),
+                    ("p20", "Gold_boat".into_prop()),
+                    ("p30", "Old_boat".into_prop()),
+                ],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                2,
+                3,
+                vec![
+                    ("p20", "Gold_ship".into_prop()),
+                    ("p30", "Gold_boat".into_prop()),
+                ],
+                Some("air_nomads"),
+            ),
+            (
+                3,
+                3,
+                1,
+                vec![("p2", 6u64.into_prop()), ("p3", 1u64.into_prop())],
+                Some("fire_nation"),
+            ),
+            (
+                3,
+                2,
+                1,
+                vec![
+                    ("p2", 6u64.into_prop()),
+                    ("p3", 1u64.into_prop()),
+                    ("p10", "Paper_airplane".into_prop()),
+                ],
+                None,
+            ),
+        ];
+
+        for (time, src, dst, props, edge_type) in edges {
+            graph.add_edge(time, src, dst, props, edge_type).unwrap();
+        }
+
+        graph
+    }
+
     #[cfg(test)]
     mod test_node_filter {
         use crate::{
@@ -1737,7 +1821,7 @@ pub(crate) mod test_filters {
                     test_filters::{init_nodes_graph, init_nodes_graph2, IdentityGraphTransformer},
                 },
             },
-            prelude::{AdditionOps, Graph, NodeViewOps, NO_PROPS},
+            prelude::NodeViewOps,
         };
         use raphtory_storage::core_ops::CoreGraphOps;
 
@@ -7084,7 +7168,7 @@ pub(crate) mod test_filters {
                     edge_filter::{EdgeFilter, EdgeFilterOps},
                     ComposableFilter,
                 },
-                test_filters::{init_edges_graph, IdentityGraphTransformer},
+                test_filters::{init_edges_graph, init_edges_graph2, IdentityGraphTransformer},
             },
         };
 
@@ -7552,6 +7636,634 @@ pub(crate) mod test_filters {
                 filter.clone(),
                 &expected_results,
                 TestVariants::EventOnly,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_id_eq() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().id().eq("3");
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().eq(3);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().eq(3);
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().eq("3");
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_id_eq() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().id().eq("3");
+            let expected_results = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().eq(3);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().eq(3);
+            let expected_results = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().eq("3");
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_src_id_ne() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().id().ne("3");
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().ne(3);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().ne(3);
+            let expected_results = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().ne("3");
+            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_dst_id_ne() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().id().ne("3");
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().ne(3);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().ne(3);
+            let expected_results = vec!["1->2", "2->1", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().ne("3");
+            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_id_src_is_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().id().is_in(vec!["3"]);
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_in(vec![3]);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_in(vec![3]);
+            let expected_results = vec!["3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_in(vec!["3"]);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_id_dst_is_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().id().is_in(vec!["3"]);
+            let expected_results = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_in(vec![3]);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_in(vec![3]);
+            let expected_results = vec!["2->3"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_in(vec!["3"]);
+            let expected_results = vec![];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_id_src_is_not_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::src().id().is_not_in(vec!["3"]);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_not_in(vec![3]);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_not_in(vec![3]);
+            let expected_results = vec!["1->2", "2->1", "2->3"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::src().id().is_not_in(vec!["3"]);
+            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+        }
+
+        #[test]
+        fn test_filter_edges_for_id_dst_is_not_in() {
+            // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
+            let filter = EdgeFilter::dst().id().is_not_in(vec!["3"]);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_not_in(vec![3]);
+            let expected_results = vec![
+                "1->2",
+                "2->1",
+                "2->3",
+                "3->1",
+                "David Gilmour->John Mayer",
+                "John Mayer->Jimmy Page",
+            ];
+            assert_filter_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_not_in(vec![3]);
+            let expected_results = vec!["1->2", "2->1", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
+            );
+
+            let filter = EdgeFilter::dst().id().is_not_in(vec!["3"]);
+            let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
+            assert_filter_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::EventOnly,
+            );
+            assert_search_edges_results(
+                init_edges_graph2,
+                IdentityGraphTransformer,
+                filter.clone(),
+                &expected_results,
+                TestVariants::All,
             );
         }
     }

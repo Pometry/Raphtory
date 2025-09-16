@@ -646,7 +646,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 src.validate()?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "src".to_string(),
-                    field_value: field_value(src.value, src.operator)?,
+                    field_value: node_field_value(src.field, src.value, src.operator)?,
                     operator: src.operator.into(),
                 }))
             }
@@ -654,7 +654,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 dst.validate()?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "dst".to_string(),
-                    field_value: field_value(dst.value, dst.operator)?,
+                    field_value: node_field_value(dst.field, dst.value, dst.operator)?,
                     operator: dst.operator.into(),
                 }))
             }

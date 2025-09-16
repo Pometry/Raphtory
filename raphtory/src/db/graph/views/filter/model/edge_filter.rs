@@ -12,6 +12,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::GID;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -247,6 +248,44 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EdgeIdFilterBuilder {
+    field: &'static str,
+}
+
+impl EdgeIdFilterBuilder {
+    #[inline]
+    fn field_name(&self) -> &'static str {
+        self.field
+    }
+
+    pub fn eq<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {
+        let e = EdgeFieldFilter(Filter::eq_id(self.field_name(), v));
+        println!("e = {}", e);
+        e
+    }
+
+    pub fn ne<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ne_id(self.field_name(), v))
+    }
+
+    pub fn is_in<I, V>(&self, vals: I) -> EdgeFieldFilter
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        EdgeFieldFilter(Filter::is_in_id(self.field_name(), vals))
+    }
+
+    pub fn is_not_in<I, V>(&self, vals: I) -> EdgeFieldFilter
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        EdgeFieldFilter(Filter::is_not_in_id(self.field_name(), vals))
+    }
+}
+
 pub struct EdgeSourceFilterBuilder;
 
 impl InternalEdgeFilterBuilderOps for EdgeSourceFilterBuilder {
@@ -273,6 +312,14 @@ pub enum EdgeEndpointFilter {
 }
 
 impl EdgeEndpointFilter {
+    pub fn id(&self) -> EdgeIdFilterBuilder {
+        let field = match self {
+            EdgeEndpointFilter::Src => "src",
+            EdgeEndpointFilter::Dst => "dst",
+        };
+        EdgeIdFilterBuilder { field }
+    }
+
     pub fn name(&self) -> Arc<dyn InternalEdgeFilterBuilderOps> {
         match self {
             EdgeEndpointFilter::Src => Arc::new(EdgeSourceFilterBuilder),
