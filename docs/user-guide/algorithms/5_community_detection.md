@@ -22,7 +22,7 @@ from raphtory import algorithms as rp
 import matplotlib.pyplot as plt
 
 # Load the GML file using NetworkX
-karate = nx.read_gml("./karate.gml", label=None)
+karate = nx.read_gml("../data/karate.gml", label=None)
 
 # Convert edges to a DataFrame
 edges_df = pd.DataFrame(list(karate.edges()), columns=["source", "target"])
@@ -117,16 +117,16 @@ To do this assign a type to nodes of each cluster and start the Raphtory server.
 # Check value of cluster for each node and add to corresponding cluster list
 for node, cluster in clustering.items():
     if cluster == 0:
-        raphG.node(node).set_node_type('Cobra Kai')
+        G.node(node).set_node_type('Cobra Kai')
     elif cluster == 1:
-        raphG.node(node).set_node_type('Miyagi-Do')
+        G.node(node).set_node_type('Miyagi-Do')
     elif cluster == 2:
-        raphG.node(node).set_node_type('Polarslaget')
+        G.node(node).set_node_type('Polarslaget')
     elif cluster == 3:
-        raphG.node(node).set_node_type('Redentores')
+        G.node(node).set_node_type('Redentores')
 
 # Start a Raphtory server and send the karate graph
-server = graphql.GraphServer("./my-test/graphs")
+server = graphql.GraphServer(".idea/my-test/graphs")
 client = server.start().get_client()
 client.send_graph("cluster-graph", G, overwrite=True)
 
