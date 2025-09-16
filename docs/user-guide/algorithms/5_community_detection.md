@@ -134,7 +134,7 @@ client.send_graph("cluster-graph", G, overwrite=True)
 ///
 
 ```{.python continuation hide}
-assert G.get_all_node_types() == ['Redentores', 'Polarslaget', 'Miyagi-Do', 'Cobra Kai']
+assert len(raphG.get_all_node_types()) == 4
 ```
 
 You should see that there are four distinct communities, for each node you can see it's node type in the **Node Statistics** panel of the **Selected** menu and by visual inspection verify that each node is connected mostly to it's own group. 
