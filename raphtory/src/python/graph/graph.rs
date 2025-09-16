@@ -701,6 +701,7 @@ impl PyGraph {
             &properties,
             &metadata,
             shared_metadata.as_ref(),
+            None,
         )
     }
 
@@ -799,6 +800,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
         )
     }
 
@@ -877,6 +879,7 @@ impl PyGraph {
             node_type_col,
             &metadata,
             shared_metadata.as_ref(),
+            None,
         )
     }
 
@@ -961,6 +964,7 @@ impl PyGraph {
             shared_metadata.as_ref(),
             layer,
             layer_col,
+            None,
         )
     }
 

@@ -30,6 +30,7 @@ pub fn load_nodes_from_parquet<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id, time];
     cols_to_check.extend_from_slice(properties);
@@ -39,7 +40,7 @@ pub fn load_nodes_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_nodes_from_df(
             df_view,
@@ -71,6 +72,7 @@ pub fn load_edges_from_parquet<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let parquet_path = parquet_path.as_ref();
     let mut cols_to_check = vec![src, dst, time];
@@ -106,8 +108,9 @@ pub fn load_edges_from_parquet<
     let all_df_view = get_parquet_file_paths(parquet_path)?
         .into_iter()
         .flat_map(|file| {
-            let df_view = process_parquet_file_to_df(file.as_path(), Some(&cols_to_check))
-                .expect("Failed to process Parquet file");
+            let df_view =
+                process_parquet_file_to_df(file.as_path(), Some(&cols_to_check), batch_size)
+                    .expect("Failed to process Parquet file");
             df_view.chunks
         });
 
@@ -144,6 +147,7 @@ pub fn load_node_props_from_parquet<
     node_type_col: Option<&str>,
     metadata_properties: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![id];
     cols_to_check.extend_from_slice(metadata_properties);
@@ -153,7 +157,7 @@ pub fn load_node_props_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
 
         load_node_props_from_df(
@@ -182,6 +186,7 @@ pub fn load_edge_props_from_parquet<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst];
     if let Some(ref layer_col) = layer_col {
@@ -191,7 +196,7 @@ pub fn load_edge_props_from_parquet<
     cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edges_props_from_df(
             df_view,
@@ -219,6 +224,7 @@ pub fn load_edge_deletions_from_parquet<
     dst: &str,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![src, dst, time];
     if let Some(ref layer_col) = layer_col {
@@ -226,7 +232,7 @@ pub fn load_edge_deletions_from_parquet<
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_edge_deletions_from_df(df_view, time, src, dst, layer, layer_col, graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -240,13 +246,14 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
     time: &str,
     properties: &[&str],
     metadata: &[&str],
+    batch_size: Option<usize>,
 ) -> Result<(), GraphError> {
     let mut cols_to_check = vec![time];
     cols_to_check.extend_from_slice(properties);
     cols_to_check.extend_from_slice(metadata);
 
     for path in get_parquet_file_paths(parquet_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check))?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&cols_to_check), batch_size)?;
         df_view.check_cols_exist(&cols_to_check)?;
         load_graph_props_from_df(df_view, time, Some(properties), Some(metadata), graph)
             .map_err(|e| GraphError::LoadFailure(format!("Failed to load graph {e:?}")))?;
@@ -258,6 +265,7 @@ pub fn load_graph_props_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps
 pub(crate) fn process_parquet_file_to_df(
     parquet_file_path: &Path,
     col_names: Option<&[&str]>,
+    batch_size: Option<usize>,
 ) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>, GraphError> {
     let (names, chunks, num_rows) = read_parquet_file(parquet_file_path, col_names)?;
 
@@ -265,6 +273,11 @@ pub(crate) fn process_parquet_file_to_df(
         .into_iter()
         .filter(|x| col_names.map(|cn| cn.contains(&x.as_str())).unwrap_or(true))
         .collect();
+
+    let chunks = match batch_size {
+        None => chunks,
+        Some(batch_size) => chunks.with_batch_size(batch_size),
+    };
 
     let chunks = chunks.build()?.into_iter().map(move |result| {
         result
@@ -338,7 +351,8 @@ mod test {
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/test/test_data.parquet");
 
         let col_names: &[&str] = &["src", "dst", "time", "weight", "marbles"];
-        let df = process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names)).unwrap();
+        let df =
+            process_parquet_file_to_df(parquet_file_path.as_path(), Some(col_names), None).unwrap();
 
         let expected_names: Vec<String> = ["src", "dst", "time", "weight", "marbles"]
             .iter()
