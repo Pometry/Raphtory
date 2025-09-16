@@ -10,7 +10,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use raphtory_api::GraphType;
-use raphtory_core::utils::time::{IntervalSize, ParseTimeError};
+use raphtory_core::utils::time::{AlignmentUnit, IntervalSize, ParseTimeError};
 use std::{
     cmp::{max, min},
     marker::PhantomData,
@@ -146,11 +146,39 @@ pub trait TimeOps<'graph>:
         I: TryInto<Interval>,
         ParseTimeError: From<<I as TryInto<Interval>>::Error>;
 
+    /// Creates a `WindowSet` with the given `step` size
+    /// using an expanding window. The last window may fall partially outside the range of the data/view.
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
+    ///
+    /// An expanding window is a window that grows by `step` size at each iteration.
+    fn expanding_aligned<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
+
     /// Creates a `WindowSet` with the given `window` size and optional `step`
     /// using a rolling window. The last window may fall partially outside the range of the data/view.
     ///
     /// A rolling window is a window that moves forward by `step` size at each iteration.
     fn rolling<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>;
+
+    /// Creates a `WindowSet` with the given `window` size and optional `step`
+    /// using a rolling window. The last window may fall partially outside the range of the data/view.
+    /// The window will be aligned with the smallest unit of time passed. For example, if the interval
+    /// is "1 month and 1 day", the first window will begin at the start of the day of the first time event.
+    ///
+    /// A rolling window is a window that moves forward by `step` size at each iteration.
+    fn rolling_aligned<I>(
         &self,
         window: I,
         step: Option<I>,
@@ -257,6 +285,28 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
         }
     }
 
+    fn expanding_aligned<I>(&self, step: I) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
+    {
+        let parent = self.clone();
+        match (self.timeline_start(), self.timeline_end()) {
+            (Some(start), Some(end)) => {
+                let step: Interval = step.try_into()?;
+                // Align the timestamp to the smallest unit. If there is None (the Interval is discrete),
+                // no alignment is done (aligning to millisecond is the same as not aligning)
+                let start_time = AlignmentUnit::align_timestamp(
+                    start,
+                    step.alignment_unit.unwrap_or(AlignmentUnit::Millisecond),
+                );
+                WindowSet::new(parent, start_time, end, step, None)
+            }
+            _ => WindowSet::empty(parent),
+        }
+    }
+
     fn rolling<I>(
         &self,
         window: I,
@@ -276,6 +326,36 @@ impl<'graph, V: OneHopFilter<'graph> + 'graph + InternalTimeOps<'graph>> TimeOps
                     None => window,
                 };
                 WindowSet::new(parent, start, end, step, Some(window))
+            }
+            _ => WindowSet::empty(parent),
+        }
+    }
+
+    fn rolling_aligned<I>(
+        &self,
+        window: I,
+        step: Option<I>,
+    ) -> Result<WindowSet<'graph, Self>, ParseTimeError>
+    where
+        Self: Sized + Clone + 'graph,
+        I: TryInto<Interval>,
+        ParseTimeError: From<<I as TryInto<Interval>>::Error>,
+    {
+        let parent = self.clone();
+        match (self.timeline_start(), self.timeline_end()) {
+            (Some(start), Some(end)) => {
+                let window: Interval = window.try_into()?;
+                let step: Interval = match step {
+                    Some(step) => step.try_into()?,
+                    None => window,
+                };
+                // Align the timestamp to the smallest unit. If there is None (the Interval is discrete),
+                // no alignment is done (aligning to millisecond is the same as not aligning)
+                let start_time = AlignmentUnit::align_timestamp(
+                    start,
+                    window.alignment_unit.unwrap_or(AlignmentUnit::Millisecond),
+                );
+                WindowSet::new(parent, start_time, end, step, Some(window))
             }
             _ => WindowSet::empty(parent),
         }
@@ -330,9 +410,9 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> WindowSet<'graph, T> {
 
     // TODO: make this optionally public only for the development feature flag
     pub fn temporal(&self) -> bool {
-        self.step.epoch_alignment
+        self.step.alignment_unit.is_some()
             || match self.window {
-                Some(window) => window.epoch_alignment,
+                Some(window) => window.alignment_unit.is_some(),
                 None => false,
             }
     }

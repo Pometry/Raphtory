@@ -61,11 +61,21 @@ macro_rules! impl_timeops {
             ///
             /// Arguments:
             ///     step (int | str): The step size of the window.
+            ///     align_start (bool | None): If set to True, aligns the start of the first window
+            ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+            ///         the first window will begin at the start of the day of the first time event.
+            ///         If set to False, the first window will begin at the first time event.
+            ///         align_start defaults to True.
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            fn expanding(&self, step: $crate::core::utils::time::Interval) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                self.$field.expanding(step)
+            #[pyo3(signature = (step, align_start=None))]
+            fn expanding(&self, step: $crate::core::utils::time::Interval, align_start: Option<bool>) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
+                if align_start.unwrap_or(true) {
+                    self.$field.expanding_aligned(step)
+                } else {
+                    self.$field.expanding(step)
+                }
             }
 
             /// Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
@@ -76,16 +86,26 @@ macro_rules! impl_timeops {
             ///     window (int | str): The size of the window.
             ///     step (int | str | None): The step size of the window.
             ///         `step` defaults to `window`.
+            ///     align_start (bool | None): If set to True, aligns the start of the first window
+            ///         to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+            ///         the first window will begin at the start of the day of the first time event.
+            ///         If set to False, the first window will begin at the first time event.
+            ///         align_start defaults to True.
             ///
             /// Returns:
             ///     WindowSet: A `WindowSet` object.
-            #[pyo3(signature = (window, step=None))]
+            #[pyo3(signature = (window, step=None, align_start=None))]
             fn rolling(
                 &self,
                 window:$crate::core::utils::time::Interval,
                 step: Option<$crate::core::utils::time::Interval>,
+                align_start: Option<bool>,
             ) -> Result<$crate::db::api::view::WindowSet<'static, $base_type>, raphtory_core::utils::time::ParseTimeError> {
-                self.$field.rolling(window, step)
+                if align_start.unwrap_or(true) {
+                    self.$field.rolling_aligned(window, step)
+                } else {
+                    self.$field.rolling(window, step)
+                }
             }
 
             #[doc = concat!(r" Create a view of the ", $name, r" including all events between `start` (inclusive) and `end` (exclusive)")]

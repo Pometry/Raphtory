@@ -229,7 +229,7 @@ class DegreeView(object):
              DegreeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -237,6 +237,11 @@ class DegreeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -377,7 +382,7 @@ class DegreeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -387,6 +392,11 @@ class DegreeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -1623,7 +1633,7 @@ class EarliestTimeView(object):
              EarliestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -1631,6 +1641,11 @@ class EarliestTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -1763,7 +1778,7 @@ class EarliestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -1773,6 +1788,11 @@ class EarliestTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2096,7 +2116,7 @@ class LatestTimeView(object):
              LatestTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2104,6 +2124,11 @@ class LatestTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2236,7 +2261,7 @@ class LatestTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -2246,6 +2271,11 @@ class LatestTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -2938,7 +2968,7 @@ class EarliestDateTimeView(object):
              EarliestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -2946,6 +2976,11 @@ class EarliestDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3078,7 +3113,7 @@ class EarliestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -3088,6 +3123,11 @@ class EarliestDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3411,7 +3451,7 @@ class LatestDateTimeView(object):
              LatestDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -3419,6 +3459,11 @@ class LatestDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -3551,7 +3596,7 @@ class LatestDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -3561,6 +3606,11 @@ class LatestDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4060,7 +4110,7 @@ class HistoryView(object):
              HistoryView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4068,6 +4118,11 @@ class HistoryView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4192,7 +4247,7 @@ class HistoryView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -4202,6 +4257,11 @@ class HistoryView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4525,7 +4585,7 @@ class EdgeHistoryCountView(object):
              EdgeHistoryCountView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -4533,6 +4593,11 @@ class EdgeHistoryCountView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -4665,7 +4730,7 @@ class EdgeHistoryCountView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -4675,6 +4740,11 @@ class EdgeHistoryCountView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -5174,7 +5244,7 @@ class HistoryDateTimeView(object):
              HistoryDateTimeView: The layered view
         """
 
-    def expanding(self, step: int | str) -> WindowSet:
+    def expanding(self, step: int | str, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `step` size using an expanding window.
 
@@ -5182,6 +5252,11 @@ class HistoryDateTimeView(object):
 
         Arguments:
             step (int | str): The step size of the window.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
@@ -5306,7 +5381,7 @@ class HistoryDateTimeView(object):
             Nodes: The nodes
         """
 
-    def rolling(self, window: int | str, step: int | str | None = None) -> WindowSet:
+    def rolling(self, window: int | str, step: int | str | None = None, align_start: bool | None = None) -> WindowSet:
         """
         Creates a `WindowSet` with the given `window` size and optional `step` using a rolling window.
 
@@ -5316,6 +5391,11 @@ class HistoryDateTimeView(object):
             window (int | str): The size of the window.
             step (int | str | None): The step size of the window.
                 `step` defaults to `window`.
+            align_start (bool | None): If set to True, aligns the start of the first window
+                to the smallest unit of time passed as input. For example, if the interval is "1 month and 1 day",
+                the first window will begin at the start of the day of the first time event.
+                If set to False, the first window will begin at the first time event.
+                align_start defaults to True.
 
         Returns:
             WindowSet: A `WindowSet` object.
