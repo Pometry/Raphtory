@@ -10,7 +10,7 @@ fn main() {
     use raphtory::{io::parquet_loaders::load_edges_from_parquet, prelude::*};
     use raphtory_storage::core_ops::CoreGraphOps;
 
-    let graph_path = PathBuf::from("/Volumes/Work/graphs/raphtory_graph_1");
+    let graph_path = PathBuf::from("/Users/lucasjeub/Data/test/missing_edges/graph");
     let layers = [
         // "usd₮0_opt_edge_list",
         // "dai_opt_edge_list",
@@ -22,7 +22,7 @@ fn main() {
         // "usdt_opt_edge_list",
         "usd_0_opt_edge_list_sample",
     ];
-    let parquet_root = "/Volumes/Work/assets/optimism";
+    let parquet_root = "/Users/lucasjeub/Data/test/missing_edges/parquet";
     if graph_path.exists() {
         let now = std::time::Instant::now();
         let g = Graph::load_from_path(&graph_path);
@@ -100,6 +100,7 @@ fn main() {
                 &[],
                 None,
                 Some(layer),
+                None,
                 None,
             )
             .expect("Failed to load edges from parquet");
