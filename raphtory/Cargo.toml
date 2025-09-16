@@ -51,6 +51,8 @@ bytemuck = { workspace = true }
 tracing = { workspace = true }
 ahash = { workspace = true }
 
+mimalloc = { version = "0.1", features = ["secure"] }
+
 # io optional dependencies
 csv = { workspace = true, optional = true }
 zip = { workspace = true, optional = true }

@@ -1,3 +1,8 @@
+use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+
 #[cfg(all(feature = "io", feature = "arrow"))]
 fn main() {
     use std::path::PathBuf;
@@ -12,17 +17,24 @@ fn main() {
 
     let graph_path = PathBuf::from("/Volumes/Work/graphs/raphtory_graph_1");
     let layers = [
-        // "usd₮0_opt_edge_list",
-        // "dai_opt_edge_list",
-        // "dola_opt_edge_list",
-        // "susd_opt_edge_list",
-        // "usd_0_opt_edge_list", // expected: 153547, actual:153540
-        // "usdc_e_opt_edge_list",
-        // "usdc_opt_edge_list",
-        // "usdt_opt_edge_list",
-        "usd_0_opt_edge_list_sample",
+        "usd₮0_opt_edge_list",
+        "dai_opt_edge_list",
+        "dola_opt_edge_list",
+        "susd_opt_edge_list",
+        "usdc_e_opt_edge_list",
+        "usdc_opt_edge_list",
+        "usdt_opt_edge_list",
+    ];
+    let layers = [
+        "dai_arb_edge_list",
+        "usdc_arb_edge_list",
+        "usdc_e_arb_edge_list",
+        "usde_arb_edge_list",
+        "usdt_arb_edge_list",
+        "usdx_arb_edge_list",
     ];
     let parquet_root = "/Volumes/Work/assets/optimism";
+    let parquet_root = "/Volumes/Work/assets/arbitrum_one";
     if graph_path.exists() {
         let now = std::time::Instant::now();
         let g = Graph::load_from_path(&graph_path);
@@ -76,6 +88,7 @@ fn main() {
 
             println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
         };
+        let now = std::time::Instant::now();
         for layer in layers {
             let parquet_path = format!("{parquet_root}/{layer}");
             println!("Loading layer: {layer} from {parquet_path}");
@@ -106,6 +119,7 @@ fn main() {
 
             print_stats_fn(&g);
         }
+        println!("Total time: {:?}", now.elapsed());
 
         // let g = Graph::load_from_path(&graph_path);
         // print_stats_fn(&g);

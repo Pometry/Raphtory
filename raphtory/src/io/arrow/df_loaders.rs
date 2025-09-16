@@ -21,7 +21,10 @@ use raphtory_api::{
     },
 };
 use raphtory_core::{
-    entities::{graph::logical_to_physical::ResolverShardT, GidRef, VID},
+    entities::{
+        graph::logical_to_physical::{Mapping, ResolverShardT},
+        GidRef, GidType, VID,
+    },
     storage::timeindex::AsTime,
 };
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -34,6 +37,7 @@ use std::{
         Arc,
     },
 };
+use storage::resolver::GIDResolverOps;
 
 fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
     BarBuilder::default()
@@ -246,32 +250,32 @@ pub(crate) fn load_edges_from_df<
     let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
     // set the type of the resolver;
-    let chunks = df_view.chunks.peekable();
+    let mut chunks = df_view.chunks.peekable();
     // let mapping = Mapping::new();
-    // let mapping = write_locked_graph.graph().logical_to_physical.clone();
+    let mapping = write_locked_graph.graph().logical_to_physical.clone();
 
-    // if let Some(chunk) = chunks.peek() {
-    //     if let Ok(chunk) = chunk {
-    //         let src_col = chunk.node_col(src_index)?;
-    //         let dst_col = chunk.node_col(dst_index)?;
-    //         src_col.validate(graph, LoadError::MissingSrcError)?;
-    //         dst_col.validate(graph, LoadError::MissingDstError)?;
-    //         let mut iter = src_col.iter();
+    if let Some(chunk) = chunks.peek() {
+        if let Ok(chunk) = chunk {
+            let src_col = chunk.node_col(src_index)?;
+            let dst_col = chunk.node_col(dst_index)?;
+            src_col.validate(graph, LoadError::MissingSrcError)?;
+            dst_col.validate(graph, LoadError::MissingDstError)?;
+            let mut iter = src_col.iter();
 
-    //         if let Some(id) = iter.next() {
-    //             let vid = graph
-    //                 .resolve_node(id.as_node_ref())
-    //                 .map_err(|_| LoadError::FatalError)?; // initialize the type of the resolver
-    //             mapping
-    //                 .set(id, vid.inner())
-    //                 .map_err(|_| LoadError::FatalError)?;
-    //         } else {
-    //             return Ok(());
-    //         }
-    //     }
-    // } else {
-    //     return Ok(());
-    // }
+            if let Some(id) = iter.next() {
+                let vid = graph
+                    .resolve_node(id.as_node_ref())
+                    .map_err(|_| LoadError::FatalError)?; // initialize the type of the resolver
+                mapping
+                    .set(id, vid.inner())
+                    .map_err(|_| LoadError::FatalError)?;
+            } else {
+                return Ok(());
+            }
+        }
+    } else {
+        return Ok(());
+    }
 
     let num_nodes = AtomicUsize::new(write_locked_graph.graph().internal_num_nodes());
 
@@ -291,8 +295,8 @@ pub(crate) fn load_edges_from_df<
         src_col_resolved.resize_with(df.len(), Default::default);
         dst_col_resolved.resize_with(df.len(), Default::default);
 
-        // let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
-        // let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
+        let src_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut src_col_resolved));
+        let dst_col_shared = atomic_usize_from_mut_slice(cast_slice_mut(&mut dst_col_resolved));
 
         let layer = lift_layer_col(layer, layer_index, &df)?;
         let layer_col_resolved = layer.resolve(graph)?;
@@ -303,71 +307,71 @@ pub(crate) fn load_edges_from_df<
         let dst_col = df.node_col(dst_index)?;
         dst_col.validate(graph, LoadError::MissingDstError)?;
 
-        // let gid_type = src_col.dtype();
+        let gid_type = src_col.dtype();
 
-        // let fallback_resolver = write_locked_graph.graph().logical_to_physical.clone();
+        let fallback_resolver = write_locked_graph.graph().logical_to_physical.clone();
 
-        // mapping
-        //     .mapping()
-        //     .run_with_locked(|mut shard| match gid_type {
-        //         GidType::Str => load_into_shard(
-        //             src_col_shared,
-        //             dst_col_shared,
-        //             &src_col,
-        //             &dst_col,
-        //             &num_nodes,
-        //             shard.as_str().unwrap(),
-        //             |gid| Cow::Borrowed(gid.as_str().unwrap()),
-        //             |id| fallback_resolver.get_str(id),
-        //         ),
-        //         GidType::U64 => load_into_shard(
-        //             src_col_shared,
-        //             dst_col_shared,
-        //             &src_col,
-        //             &dst_col,
-        //             &num_nodes,
-        //             shard.as_u64().unwrap(),
-        //             |gid| Cow::Owned(gid.as_u64().unwrap()),
-        //             |id| fallback_resolver.get_u64(*id),
-        //         ),
+        mapping
+            .mapping()
+            .run_with_locked(|mut shard| match gid_type {
+                GidType::Str => load_into_shard(
+                    src_col_shared,
+                    dst_col_shared,
+                    &src_col,
+                    &dst_col,
+                    &num_nodes,
+                    shard.as_str().unwrap(),
+                    |gid| Cow::Borrowed(gid.as_str().unwrap()),
+                    |id| fallback_resolver.get_str(id),
+                ),
+                GidType::U64 => load_into_shard(
+                    src_col_shared,
+                    dst_col_shared,
+                    &src_col,
+                    &dst_col,
+                    &num_nodes,
+                    shard.as_u64().unwrap(),
+                    |gid| Cow::Owned(gid.as_u64().unwrap()),
+                    |id| fallback_resolver.get_u64(*id),
+                ),
+            })?;
+
+        // // It's our graph, no one else can change it
+        // src_col
+        //     .par_iter()
+        //     .zip(src_col_resolved.par_iter_mut())
+        //     .try_for_each(|(gid, resolved)| {
+        //         let gid = gid.ok_or(LoadError::FatalError)?;
+        //         let vid = write_locked_graph
+        //             .graph()
+        //             .resolve_node(gid.as_node_ref())
+        //             .map_err(|_| LoadError::FatalError)?;
+
+        //         if vid.is_new() {
+        //             num_nodes.fetch_add(1, Ordering::Relaxed);
+        //         }
+
+        //         *resolved = vid.inner();
+        //         Ok::<(), LoadError>(())
         //     })?;
 
-        // It's our graph, no one else can change it
-        src_col
-            .par_iter()
-            .zip(src_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = write_locked_graph
-                    .graph()
-                    .resolve_node(gid.as_node_ref())
-                    .map_err(|_| LoadError::FatalError)?;
+        // dst_col
+        //     .par_iter()
+        //     .zip(dst_col_resolved.par_iter_mut())
+        //     .try_for_each(|(gid, resolved)| {
+        //         let gid = gid.ok_or(LoadError::FatalError)?;
+        //         let vid = write_locked_graph
+        //             .graph()
+        //             .resolve_node(gid.as_node_ref())
+        //             .map_err(|_| LoadError::FatalError)?;
 
-                if vid.is_new() {
-                    num_nodes.fetch_add(1, Ordering::Relaxed);
-                }
+        //         if vid.is_new() {
+        //             num_nodes.fetch_add(1, Ordering::Relaxed);
+        //         }
 
-                *resolved = vid.inner();
-                Ok::<(), LoadError>(())
-            })?;
-
-        dst_col
-            .par_iter()
-            .zip(dst_col_resolved.par_iter_mut())
-            .try_for_each(|(gid, resolved)| {
-                let gid = gid.ok_or(LoadError::FatalError)?;
-                let vid = write_locked_graph
-                    .graph()
-                    .resolve_node(gid.as_node_ref())
-                    .map_err(|_| LoadError::FatalError)?;
-
-                if vid.is_new() {
-                    num_nodes.fetch_add(1, Ordering::Relaxed);
-                }
-
-                *resolved = vid.inner();
-                Ok::<(), LoadError>(())
-            })?;
+        //         *resolved = vid.inner();
+        //         Ok::<(), LoadError>(())
+        //     })?;
 
         let time_col = df.time_col(time_index)?;
 
