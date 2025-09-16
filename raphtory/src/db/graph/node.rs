@@ -36,6 +36,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
+use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,
@@ -160,6 +161,34 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
             node,
             _marker: PhantomData,
         }
+    }
+
+    pub fn edge_history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn edge_history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn earliest_edge_time(&self) -> Option<i64> {
+        self.edge_history().next().map(|(t, _)| t.t())
+    }
+
+    pub fn latest_edge_time(&self) -> Option<i64> {
+        self.edge_history_rev().next().map(|(t, _)| t.t())
     }
 }
 

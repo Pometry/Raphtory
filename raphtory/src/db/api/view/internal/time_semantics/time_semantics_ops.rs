@@ -72,6 +72,19 @@ pub trait NodeTimeSemanticsOps {
         w: Range<i64>,
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
 
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph;
+
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,

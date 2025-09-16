@@ -203,6 +203,23 @@ impl NodeTimeSemanticsOps for TimeSemantics {
     ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_edge_history_window(node, view, w))
     }
+
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev(node, view))
+    }
+
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev_window(node, view, w))
+    }
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {
