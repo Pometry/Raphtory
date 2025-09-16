@@ -1,4 +1,3 @@
-pub(crate) mod incremental;
 pub mod metadata;
 pub(crate) mod parquet;
 pub mod proto;
