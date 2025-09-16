@@ -1,11 +1,15 @@
 use super::cache::VectorCache;
-use crate::{errors::GraphResult, vectors::Embedding};
+use crate::{
+    errors::GraphResult,
+    vectors::{storage::OpenAIEmbeddings, Embedding},
+};
 use async_openai::{
     config::OpenAIConfig,
     types::{CreateEmbeddingRequest, EmbeddingInput},
     Client,
 };
 use futures_util::{future::BoxFuture, Stream, StreamExt};
+use serde::{Deserialize, Serialize};
 use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
 use tracing::info;
 
@@ -34,14 +38,14 @@ impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
     }
 }
 
-pub struct OpenAIEmbeddings {
-    pub model: String,
-    pub config: OpenAIConfig,
-}
+// pub struct OpenAIEmbeddings {
+//     pub model: String,
+//     pub config: OpenAIConfig,
+// }
 
 impl EmbeddingFunction for OpenAIEmbeddings {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let client = Client::with_config(self.config.clone());
+        let client = Client::with_config(self.resolve_config());
         let request = CreateEmbeddingRequest {
             model: self.model.clone(),
             input: EmbeddingInput::StringArray(texts),
@@ -58,13 +62,6 @@ impl EmbeddingFunction for OpenAIEmbeddings {
                 .map(|e| e.embedding.into())
                 .collect())
         })
-    }
-}
-
-pub fn default_openai_embeddings() -> OpenAIEmbeddings {
-    OpenAIEmbeddings {
-        model: "text-embedding-3-small".to_owned(),
-        config: Default::default(),
     }
 }
 

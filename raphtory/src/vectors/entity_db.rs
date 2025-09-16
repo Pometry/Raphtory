@@ -39,7 +39,7 @@ impl<D: VectorCollection + 'static> EntityDb for NodeDb<D> {
         view.has_node(entity.as_node_gid(view).unwrap())
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> {
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> + Send {
         view.nodes().into_iter().map(|node| node.into_db_id())
     }
 }
@@ -70,7 +70,7 @@ impl<D: VectorCollection + 'static> EntityDb for EdgeDb<D> {
         view.has_edge(src, dst) // TODO: there should be a quicker way of chking of some edge exist by pid
     }
 
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> {
+    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> + Send {
         view.edges().into_iter().map(|edge| edge.into_db_id())
     }
 }
@@ -80,7 +80,9 @@ pub(super) trait EntityDb: Sized {
     fn get_db(&self) -> &Self::VectorDb;
     fn into_entity_ref(id: u64) -> EntityRef;
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool;
-    fn all_valid_entities<G: StaticGraphViewOps>(view: G) -> impl Iterator<Item = u64> + 'static;
+    fn all_valid_entities<G: StaticGraphViewOps>(
+        view: G,
+    ) -> impl Iterator<Item = u64> + Send + 'static;
 
     // async fn from_vectors(
     //     vectors: impl futures_util::Stream<Item = GraphResult<(u32, Embedding)>> + Send,
@@ -125,8 +127,8 @@ pub(super) trait EntityDb: Sized {
         k: usize,
         view: Option<G>,
         filter: Option<HashSet<EntityRef>>,
-    ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)>> {
-        let candidates: Option<Box<dyn Iterator<Item = u64>>> = match (view, filter) {
+    ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)> + Send> {
+        let candidates: Option<Box<dyn Iterator<Item = u64> + Send>> = match (view, filter) {
             (None, None) => None,
             (view, Some(filter)) => Some(Box::new(
                 filter

@@ -10,7 +10,7 @@ pub mod embeddings;
 mod entity_db;
 mod entity_ref;
 pub mod splitting;
-mod storage;
+pub mod storage; // TODO: re-export Embeddings instead of making this public
 pub mod template;
 mod utils;
 mod vector_collection;

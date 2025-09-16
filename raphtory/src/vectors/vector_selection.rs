@@ -268,7 +268,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         let view = apply_window(g, window);
         let initial_size = self.selected.len();
 
-        let nodes: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_nodes() {
+        let nodes: Box<dyn Iterator<Item = (EntityRef, f32)> + Send> = if path.includes_nodes() {
             let jump = matches!(path, ExpansionPath::Nodes);
             let filter = self.get_nodes_in_context(window, jump);
             let nodes = self
@@ -281,7 +281,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             Box::new(std::iter::empty())
         };
 
-        let edges: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_edges() {
+        let edges: Box<dyn Iterator<Item = (EntityRef, f32)> + Send> = if path.includes_edges() {
             let jump = matches!(path, ExpansionPath::Edges);
             let filter = self.get_edges_in_context(window, jump);
             let edges = self

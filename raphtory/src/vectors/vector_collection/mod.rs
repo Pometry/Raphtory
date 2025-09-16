@@ -33,6 +33,6 @@ pub(super) trait VectorCollection: Sized {
         query: &Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
-    ) -> GraphResult<impl Iterator<Item = (u64, f32)>>;
+    ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send>;
     async fn create_index(&self);
 }

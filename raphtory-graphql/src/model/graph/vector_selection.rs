@@ -44,18 +44,16 @@ impl GqlVectorSelection {
     /// Returns a list of documents in the current selection.
     async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
-        blocking_compute(move || {
-            let docs = cloned.get_documents_with_distances()?.into_iter();
-            Ok(docs
-                .map(|(doc, score)| GqlDocument {
-                    content: doc.content,
-                    entity: doc.entity.into(),
-                    embedding: doc.embedding.to_vec(),
-                    score,
-                })
-                .collect())
-        })
-        .await
+        let docs = cloned.get_documents_with_distances().await?.into_iter();
+        Ok(docs
+            .map(|(doc, score)| GqlDocument {
+                content: doc.content,
+                entity: doc.entity.into(),
+                embedding: doc.embedding.to_vec(),
+                score,
+            })
+            .collect())
+        // TODO: there was a blocking_compute here before...?
     }
 
     /// Adds all the documents associated with the specified nodes to the current selection.
@@ -63,11 +61,8 @@ impl GqlVectorSelection {
     /// Documents added by this call are assumed to have a score of 0.
     async fn add_nodes(&self, nodes: Vec<String>) -> Self {
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.add_nodes(nodes);
-            selection.into()
-        })
-        .await
+        selection.add_nodes(nodes);
+        selection.into()
     }
 
     /// Adds all the documents associated with the specified edges to the current selection.
@@ -75,12 +70,9 @@ impl GqlVectorSelection {
     /// Documents added by this call are assumed to have a score of 0.
     async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
-            selection.add_edges(edges);
-            selection.into()
-        })
-        .await
+        let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
+        selection.add_edges(edges);
+        selection.into()
     }
 
     /// Add all the documents a specified number of hops away to the selection.
@@ -107,11 +99,10 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_entities_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_entities_by_similarity(&vector, limit, window)
+            .await?;
+        Ok(selection.into())
     }
 
     /// Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
@@ -125,11 +116,10 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_nodes_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_nodes_by_similarity(&vector, limit, window)
+            .await?;
+        Ok(selection.into())
     }
 
     /// Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
@@ -143,11 +133,10 @@ impl GqlVectorSelection {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_edges_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_edges_by_similarity(&vector, limit, window)
+            .await?;
+        Ok(selection.into())
     }
 }
 

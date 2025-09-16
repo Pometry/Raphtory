@@ -121,7 +121,7 @@ impl VectorCollection for LanceDbCollection {
         query: &crate::vectors::Embedding,
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
-    ) -> GraphResult<impl Iterator<Item = (u64, f32)>> {
+    ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
         // TODO: return IntoIter?
         let vector_query = self.table.query().nearest_to(query.as_ref()).unwrap();
         let limited = vector_query.limit(k);

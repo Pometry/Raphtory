@@ -10,6 +10,7 @@ impl EmbedQuery for Context<'_> {
     /// this is meant to be called from a vector context, so the embedding conf is assumed to exist
     async fn embed_query(&self, text: String) -> GraphResult<Embedding> {
         let data = self.data_unchecked::<Data>();
-        data.vector_cache.as_ref().unwrap().get_single(text).await
+        // data.vector_cache.as_ref().unwrap().get_single(text).await // FIMXE bring this back
+        Ok(vec![1.0].into())
     }
 }

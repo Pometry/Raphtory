@@ -228,7 +228,7 @@ fn hash(text: &str) -> u64 {
 mod cache_tests {
     use tempfile::tempdir;
 
-    use crate::vectors::{embeddings::EmbeddingResult, Embedding};
+    use crate::vectors::{cache::CONTENT_SAMPLE, embeddings::EmbeddingResult, Embedding};
 
     use super::VectorCache;
 
@@ -289,5 +289,10 @@ mod cache_tests {
             .await
             .unwrap();
         assert_eq!(loaded_from_disk.get("a").await, Some(vector))
+    }
+
+    #[test]
+    fn test_vector_sample_remains_unchanged() {
+        assert_eq(CONTENT_SAMPLE, "raphtory");
     }
 }

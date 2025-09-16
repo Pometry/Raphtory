@@ -53,7 +53,10 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
+        Ok(cloned
+            .entities_by_similarity(&vector, limit, w)
+            .await?
+            .into())
     }
 
     /// Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
@@ -67,7 +70,7 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
+        Ok(cloned.nodes_by_similarity(&vector, limit, w).await?.into())
     }
 
     /// Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
@@ -81,6 +84,6 @@ impl GqlVectorisedGraph {
         let vector = ctx.embed_query(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
+        Ok(cloned.edges_by_similarity(&vector, limit, w).await?.into())
     }
 }

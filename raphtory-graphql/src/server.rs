@@ -24,8 +24,7 @@ use poem::{
 use raphtory::{
     errors::GraphResult,
     vectors::{
-        cache::VectorCache,
-        embeddings::{default_openai_embeddings, EmbeddingFunction},
+        cache::VectorCache, embeddings::EmbeddingFunction, storage::Embeddings,
         template::DocumentTemplate,
     },
 };
@@ -126,20 +125,20 @@ impl GraphServer {
 
     /// Turn off index for all graphs
     pub fn turn_off_index(&mut self) {
-        self.data.create_index = false;
+        self.data.create_index = false; // FIXME: why does this exist yet?
     }
 
-    // TODO: add docs
-    pub async fn enable_embeddings<F: EmbeddingFunction + Clone + 'static>(
-        &mut self,
-        embedding: F,
-        cache: &Path,
-        // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
-        // global_template: Option<DocumentTemplate>,
-    ) -> GraphResult<()> {
-        self.data.vector_cache = Some(VectorCache::on_disk(cache, embedding).await?);
-        Ok(())
-    }
+    // FIXME: this should be config!!!!!!!!!!!!!!!! or nothing at all since its per graph
+    // pub async fn enable_embeddings<F: EmbeddingFunction + Clone + 'static>(
+    //     &mut self,
+    //     embedding: F,
+    //     cache: &Path,
+    //     // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
+    //     // global_template: Option<DocumentTemplate>,
+    // ) -> GraphResult<()> {
+    //     self.data.vector_cache = Some(VectorCache::on_disk(cache, embedding).await?);
+    //     Ok(())
+    // }
 
     // FIXME: this function should fails if embeddings were not enabled,
     // and if they were it should grab the vector cache and pass it down
@@ -151,9 +150,15 @@ impl GraphServer {
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
-    pub async fn vectorise_all_graphs(&self, template: &DocumentTemplate) -> GraphResult<()> {
+    pub async fn vectorise_all_graphs(
+        &self,
+        template: &DocumentTemplate,
+        embeddings: Embeddings,
+    ) -> GraphResult<()> {
         for folder in self.data.get_all_graph_folders() {
-            self.data.vectorise_folder(&folder, template).await?;
+            self.data
+                .vectorise_folder(&folder, template, embeddings.clone()) // TODO: avoid clone, just ask for a ref
+                .await?;
         }
         Ok(())
     }
@@ -165,9 +170,16 @@ impl GraphServer {
     /// Arguments:
     ///   * name - the name of the graph to vectorise.
     ///   * template - the template to use for creating documents.
-    pub async fn vectorise_graph(&self, name: &str, template: DocumentTemplate) -> GraphResult<()> {
+    pub async fn vectorise_graph(
+        &self,
+        name: &str,
+        template: DocumentTemplate,
+        embeddings: Embeddings,
+    ) -> GraphResult<()> {
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), name)?;
-        self.data.vectorise_folder(&folder, &template).await
+        self.data
+            .vectorise_folder(&folder, &template, embeddings)
+            .await
     }
 
     /// Start the server on the default port and return a handle to it.

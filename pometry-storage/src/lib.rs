@@ -1,2 +1,2 @@
-#[cfg(feature = "storage")]
-compile_error!("The 'storage' feature is private");
+// #[cfg(feature = "storage")]
+// compile_error!("The 'storage' feature is private");

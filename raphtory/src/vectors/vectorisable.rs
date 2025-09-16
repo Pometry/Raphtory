@@ -10,6 +10,7 @@ use crate::{
     vectors::{
         embeddings::compute_embeddings,
         entity_db::EntityDb,
+        storage::Embeddings,
         template::DocumentTemplate,
         vector_collection::{lancedb::LanceDb, VectorCollection, VectorCollectionFactory},
         vectorised_graph::VectorisedGraph,
@@ -86,6 +87,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             let meta = VectorMeta {
                 template: template.clone(),
                 sample: cache.get_vector_sample(),
+                embeddings: Embeddings::OpenAI(Default::default()), // FIXME: this is just to make it compile, consider removing the default impl
             };
             meta.write_to_path(path)?;
         }
@@ -101,3 +103,6 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
         })
     }
 }
+
+//////////////////////////////////////////////////////////////
+// TODO: need to implement an alternative that can be used from graphql

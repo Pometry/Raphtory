@@ -73,8 +73,8 @@ arroy = { workspace = true, optional = true } # TODO: remove
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true }
 lancedb = {workspace = true, optional = true }
-# lancedb-arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "55.2.0", package = "arrow-array" }
-lancedb-arrow-array = { version = "55.2.0", package = "arrow-array", optional = true }
+# lancedb-arrow-array = { version = "55.2.0", package = "arrow-array", optional = true } # this works for lancedb 0.22.0
+lancedb-arrow-array = { version = "54.1.0", package = "arrow-array", optional = true } # this works for lancedb 0.19.1
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
