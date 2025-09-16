@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757952431246,
+  "lastUpdate": 1758028480550,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -431,6 +431,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1586,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4eb2b5ae8247ed9e6d8ab875ce9fab04a4f9f4be",
+          "message": "Bump tracing-subscriber from 0.3.19 to 0.3.20 in the cargo group across 1 directory (#2251)\n\n* Bump tracing-subscriber in the cargo group across 1 directory\n\nBumps the cargo group with 1 update in the / directory: [tracing-subscriber](https://github.com/tokio-rs/tracing).\n\n\nUpdates `tracing-subscriber` from 0.3.19 to 0.3.20\n- [Release notes](https://github.com/tokio-rs/tracing/releases)\n- [Commits](https://github.com/tokio-rs/tracing/compare/tracing-subscriber-0.3.19...tracing-subscriber-0.3.20)\n\n---\nupdated-dependencies:\n- dependency-name: tracing-subscriber\n  dependency-version: 0.3.20\n  dependency-type: direct:production\n  dependency-group: cargo\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2025-09-16T13:39:39+01:00",
+          "tree_id": "3b75c605bf3d09356afbbf5dc9a219a6a368b67f",
+          "url": "https://github.com/Pometry/Raphtory/commit/4eb2b5ae8247ed9e6d8ab875ce9fab04a4f9f4be"
+        },
+        "date": 1758028477778,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1466,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 280,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 214,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1319,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1067,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1667,
             "unit": "req/s"
           }
         ]
