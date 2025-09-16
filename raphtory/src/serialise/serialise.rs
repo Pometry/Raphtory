@@ -443,7 +443,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Disabled until graph metadata is fixed"]
     fn test_incremental_writing_on_graph() {
         let g = Graph::new();
         let mut props = vec![];
@@ -486,7 +485,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Disabled until graph metadata is fixed"]
     fn test_incremental_writing_on_persistent_graph() {
         let g = PersistentGraph::new();
         let mut props = vec![];
