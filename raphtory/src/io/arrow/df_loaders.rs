@@ -8,7 +8,6 @@ use crate::{
         prop_handler::*,
     },
     prelude::*,
-    serialise::incremental::InternalCache,
 };
 use bytemuck::checked::cast_slice_mut;
 use either::Either;
@@ -59,7 +58,7 @@ fn process_shared_properties(
 }
 
 pub(crate) fn load_nodes_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -192,7 +191,7 @@ pub(crate) fn load_nodes_from_df<
 }
 
 pub(crate) fn load_edges_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     time: &str,
@@ -623,7 +622,7 @@ pub(crate) fn load_edge_deletions_from_df<
 
 pub(crate) fn load_node_props_from_df<
     'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     node_id: &str,
@@ -720,7 +719,7 @@ pub(crate) fn load_node_props_from_df<
 }
 
 pub(crate) fn load_edges_props_from_df<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     src: &str,
@@ -1053,67 +1052,4 @@ mod tests {
         }
         assert_graph_equal(&g, &g2);
     }
-
-    // #[test]
-    // fn test_load_edges_with_cache() {
-    //     proptest!(|(edges in build_edge_list(100, 100), chunk_size in 1usize..=100)| {
-    //         let df_view = build_df(chunk_size, &edges);
-    //         let g = Graph::new();
-    //         let cache_file = TempDir::new().unwrap();
-    //         g.cache(cache_file.path()).unwrap();
-    //         let props = ["str_prop", "int_prop"];
-    //         load_edges_from_df(df_view, "time", "src", "dst", &props, &[], None, None, None, &g).unwrap();
-    //         let g = Graph::load_cached(cache_file.path()).unwrap();
-    //         let g2 = Graph::new();
-    //         for (src, dst, time, str_prop, int_prop) in edges {
-    //             g2.add_edge(time, src, dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
-    //             let edge = g.edge(src, dst).unwrap().at(time);
-    //             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //         }
-    //         assert_graph_equal(&g, &g2);
-    //     })
-    // }
-
-    // #[test]
-    // fn load_single_edge_with_cache() {
-    //     let edges = [(0, 0, 0, "".to_string(), 0)];
-    //     let df_view = build_df(1, &edges);
-    //     let g = Graph::new();
-    //     let cache_file = TempDir::new().unwrap();
-    //     g.cache(cache_file.path()).unwrap();
-    //     let props = ["str_prop", "int_prop"];
-    //     load_edges_from_df(
-    //         df_view,
-    //         "time",
-    //         "src",
-    //         "dst",
-    //         &props,
-    //         &[],
-    //         None,
-    //         None,
-    //         None,
-    //         &g,
-    //     )
-    //     .unwrap();
-    //     let g = Graph::load_cached(cache_file.path()).unwrap();
-    //     let g2 = Graph::new();
-    //     for (src, dst, time, str_prop, int_prop) in edges {
-    //         g2.add_edge(
-    //             time,
-    //             src,
-    //             dst,
-    //             [
-    //                 ("str_prop", str_prop.clone().into_prop()),
-    //                 ("int_prop", int_prop.into_prop()),
-    //             ],
-    //             None,
-    //         )
-    //         .unwrap();
-    //         let edge = g.edge(src, dst).unwrap().at(time);
-    //         assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
-    //         assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
-    //     }
-    //     assert_graph_equal(&g, &g2);
-    // }
 }

@@ -108,7 +108,7 @@ impl PyPersistentGraph {
     }
 
     fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_vec();
+        let state = self.graph.encode_to_bytes();
         (PyGraphEncoder, (state,))
     }
 

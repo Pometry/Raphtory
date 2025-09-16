@@ -12,7 +12,7 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps, NodeViewOps},
+    prelude::{EdgeViewOps, IndexMutationOps, NodeViewOps, StableDecode},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
@@ -67,7 +67,7 @@ impl GraphWithVectors {
 
     pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
         match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
+            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => Ok(()),
         }
     }
 
@@ -76,15 +76,17 @@ impl GraphWithVectors {
         cache: Option<VectorCache>,
         create_index: bool,
     ) -> Result<Self, GraphError> {
-        let graph = MaterializedGraph::load_cached(folder.clone())?;
+        let graph = MaterializedGraph::decode(folder.clone())?;
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
         });
+
         println!("Graph loaded = {}", folder.get_original_path_str());
+
         if create_index {
             graph.create_index()?;
-            graph.write_updates()?;
         }
+
         Ok(Self {
             graph: graph.clone(),
             vectors,

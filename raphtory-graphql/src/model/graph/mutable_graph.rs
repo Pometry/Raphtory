@@ -97,7 +97,6 @@ impl GqlMutableGraph {
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
@@ -106,11 +105,7 @@ impl GqlMutableGraph {
         })
         .await?;
         node.update_embeddings().await?;
-        blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
-            Ok(node.into())
-        })
-        .await
+        Ok(node.into())
     }
 
     /// Create a new node or fail if it already exists
@@ -122,7 +117,6 @@ impl GqlMutableGraph {
         node_type: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         let node = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
@@ -131,11 +125,7 @@ impl GqlMutableGraph {
         })
         .await?;
         node.update_embeddings().await?;
-        blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
-            Ok(node.into())
-        })
-        .await
+        Ok(node.into())
     }
 
     /// Add a batch of nodes
@@ -174,12 +164,7 @@ impl GqlMutableGraph {
         let nodes: Vec<_> = nodes.into_iter().collect::<Result<Vec<_>, _>>()?;
         self.graph.update_node_embeddings(nodes).await?;
 
-        let self_clone = self.clone();
-        blocking_io(move || {
-            self_clone.graph.write_updates()?;
-            Ok(true)
-        })
-        .await
+        Ok(true)
     }
 
     /// Get a mutable existing edge
@@ -197,7 +182,6 @@ impl GqlMutableGraph {
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
-        let self_clone_2 = self.clone();
         let edge = blocking_compute(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             self_clone
@@ -207,11 +191,8 @@ impl GqlMutableGraph {
         .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
-            Ok(edge.into())
-        })
-        .await
+
+        Ok(edge.into())
     }
 
     /// Add a batch of edges
@@ -256,12 +237,7 @@ impl GqlMutableGraph {
 
         self.graph.update_edge_embeddings(edge_pairs).await?;
 
-        let self_clone = self.clone();
-        blocking_io(move || {
-            self_clone.graph.write_updates()?;
-            Ok(true)
-        })
-        .await
+        Ok(true)
     }
 
     /// Mark an edge as deleted (creates the edge if it did not exist)
@@ -279,11 +255,8 @@ impl GqlMutableGraph {
                 .await;
         let edge = edge?;
         let _ = edge.update_embeddings().await;
-        blocking_io(move || {
-            self_clone_2.graph.write_updates()?;
-            Ok(edge.into())
-        })
-        .await
+
+        Ok(edge.into())
     }
 
     /// Add temporal properties to graph
@@ -297,7 +270,6 @@ impl GqlMutableGraph {
             self_clone
                 .graph
                 .add_properties(t, as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -308,7 +280,6 @@ impl GqlMutableGraph {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -321,7 +292,6 @@ impl GqlMutableGraph {
             self_clone
                 .graph
                 .update_metadata(as_properties(properties)?)?;
-            self_clone.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -379,7 +349,6 @@ impl GqlMutableNode {
         spawn(async move {
             self_clone.node.add_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
-            self_clone.node.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -392,7 +361,6 @@ impl GqlMutableNode {
         spawn(async move {
             self_clone.node.set_node_type(&new_type)?;
             let _ = self_clone.node.update_embeddings().await;
-            self_clone.node.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -407,7 +375,6 @@ impl GqlMutableNode {
                 .node
                 .update_metadata(as_properties(properties)?)?;
             let _ = self_clone.node.update_embeddings().await;
-            self_clone.node.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -426,7 +393,6 @@ impl GqlMutableNode {
                 .node
                 .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
             let _ = self_clone.node.update_embeddings().await;
-            self_clone.node.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -474,7 +440,6 @@ impl GqlMutableEdge {
         spawn(async move {
             self_clone.edge.delete(time, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
-            self_clone.edge.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -496,7 +461,6 @@ impl GqlMutableEdge {
                 .edge
                 .add_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
-            self_clone.edge.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -518,7 +482,6 @@ impl GqlMutableEdge {
                 .edge
                 .update_metadata(as_properties(properties)?, layer.as_str())?;
             let _ = self_clone.edge.update_embeddings().await;
-            self_clone.edge.graph.write_updates()?;
             Ok(true)
         })
         .await
@@ -543,7 +506,6 @@ impl GqlMutableEdge {
                 layer.as_str(),
             )?;
             let _ = self_clone.edge.update_embeddings().await;
-            self_clone.edge.graph.write_updates()?;
             Ok(true)
         })
         .await

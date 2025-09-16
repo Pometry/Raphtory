@@ -22,7 +22,7 @@ use raphtory::{
     db::{api::view::MaterializedGraph, graph::views::deletion_graph::PersistentGraph},
     errors::{GraphError, InvalidPathReason},
     prelude::*,
-    serialise::InternalStableDecode,
+    serialise::StableDecode,
     version,
 };
 use std::{

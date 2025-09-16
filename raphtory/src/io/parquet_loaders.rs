@@ -3,7 +3,6 @@ use crate::{
     errors::{GraphError, InvalidPathReason::PathDoesNotExist},
     io::arrow::{dataframe::*, df_loaders::*},
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
-    serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
 use polars_arrow::datatypes::ArrowSchema;
@@ -20,7 +19,7 @@ use std::{
 };
 
 pub fn load_nodes_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -60,7 +59,7 @@ pub fn load_nodes_from_parquet<
 }
 
 pub fn load_edges_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     parquet_path: impl AsRef<Path>,
@@ -136,7 +135,7 @@ pub fn load_edges_from_parquet<
 }
 
 pub fn load_node_props_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache + std::fmt::Debug,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     parquet_path: &Path,
@@ -173,7 +172,7 @@ pub fn load_node_props_from_parquet<
 }
 
 pub fn load_edge_props_from_parquet<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + InternalCache,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     parquet_path: &Path,
