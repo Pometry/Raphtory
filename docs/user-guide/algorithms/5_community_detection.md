@@ -21,18 +21,9 @@ from raphtory import graphql
 from raphtory import algorithms as rp
 import matplotlib.pyplot as plt
 
-# Load the GML file using NetworkX
-karate = nx.read_gml("../data/karate.gml", label=None)
-
-# Convert edges to a DataFrame
-edges_df = pd.DataFrame(list(karate.edges()), columns=["source", "target"])
-# Add a dummy timestamp column (midnight for all entries)
-edges_df["time"] = pd.Timestamp("2023-01-01 00:00:00")
-
-# Convert nodes and their attributes to a DataFrame
-nodes_df = pd.DataFrame({"id": list(karate.nodes())})
-# Add a dummy timestamp column (midnight for all entries)
-nodes_df["time"] = pd.Timestamp("2023-01-01 00:00:00")
+# Load the CSV file using NetworkX
+edges_df = pd.read_csv("../data/karate.csv")
+edges_df["time"] = pd.to_datetime(edges_df["time"])
 
 print(edges_df.head())
 ```
@@ -63,12 +54,6 @@ G.load_edges_from_pandas(
     df=edges_df,
     src="source",
     dst="target",
-    time="time",
-)
-
-G.load_nodes_from_pandas(
-    df=nodes_df,
-    id="id",
     time="time",
 )
 ```
