@@ -1,7 +1,24 @@
 # Querying the graph over time
-Raphtory provides six functions: `before()`, `at()`, `after()`, `window()`, `expand()` and `rolling()` for traveling through time and viewing a graph as it was at a specific point, or between two points (applying a time window).
 
-All of these functions can be called on a `graph`, `node`, or `edge`, returning an equivalent `GraphView`, `NodeView` or `EdgeView` which have all the same functions as its unfiltered counterpart. This means that if you write a function which takes a Raphtory entity, regardless of which filters have been applied.
+Raphtory allows you to create windows that cover a specified time period and generate views from a window. This means you can run algorithms against a subset of your data and track the evolution of variables across time.
+
+You can use the using the following functions to create and manipulate windows:
+
+- [before][raphtory.GraphView.before]
+- [at][raphtory.GraphView.at]
+- [after][raphtory.GraphView.after]
+- [window][raphtory.GraphView.window]
+- [window_size][raphtory.GraphView.window_size]
+- [shrink_end][raphtory.GraphView.shrink_end]
+- [shrink_start][raphtory.GraphView.shrink_start]
+- [shrink_window][raphtory.GraphView.shrink_window]
+
+You can also create [WindowSet][raphtory.WindowSet] iterables that adjust based on the time step:
+
+- [rolling][raphtory.GraphView.rolling]
+- [expanding][raphtory.GraphView.expanding]
+
+All of these functions can be called on a `graph`, `node`, or `edge`, returning an equivalent `GraphView`, `NodeView` or `EdgeView` which have all the same functions as its unfiltered counterpart. This means that if you write a function which takes a Raphtory entity, it will work regardless of which filters have been applied.
 
 ## Before, At and After
 
@@ -68,6 +85,7 @@ print(
     ```
 
 ## Window
+
 The `window()` function is a more general version of the functions above, allowing you to set both a `start` time as well as an `end` time, inclusive of the start and exclusive of the end time. 
 
 This is useful for digging into specific ranges of the history that you are interested in. In the below example, we look at the number of times `Lome` interacts wth `Nekke` within the full dataset and for one day between the 13th of June and the 14th of June. We use datetime objects in this example, but it would work exactly the same with string dates and epoch integers. 
@@ -207,6 +225,7 @@ print(
     ```
 
 ## Expanding
+
 If you have data covering a large period of time, or have many time points of interest, you might use filters and views repeatedly. If there is a pattern to these calls, you can instead use `expanding()`. 
 
 Using `expanding()` will return an iterable of views as if you called `before()` from the earliest time to the latest time at increments of a given `step`. 
@@ -287,7 +306,7 @@ assert str(f"The full range of time in the graph is {g.earliest_date_time} to {g
     From 2019-06-13 00:00:00+00:00 to 2019-06-23 00:00:00+00:00 there were 1164 monkey interactions
     ```
 
-## Rolling 
+## Rolling
 
 You can use `rolling()` to create a rolling window instead of including all prior history. This function will return an iterable of views, incrementing by a `window` size and only including the history from inside the window period, inclusive of start, exclusive of end. This allows you to easily extract daily or monthly metrics.
 
