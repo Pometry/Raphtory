@@ -1172,6 +1172,9 @@ mod tests {
             }
             assert_graph_equal(&g, &g2);
         }
+
+        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
     }
 
     #[test]
