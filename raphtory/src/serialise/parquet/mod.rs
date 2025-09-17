@@ -9,12 +9,12 @@ use crate::{
         load_graph_props_from_parquet, load_node_props_from_parquet, load_nodes_from_parquet,
     },
     prelude::*,
-    serialise::parquet::{
+    serialise::{parquet::{
         edges::encode_edge_deletions,
         graph::{encode_graph_cprop, encode_graph_tprop},
         model::get_id_type,
         nodes::{encode_nodes_cprop, encode_nodes_tprop},
-    },
+    }, graph_folder::GRAPH_PATH},
 };
 use arrow_json::{reader::Decoder, ReaderBuilder};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
@@ -70,7 +70,8 @@ pub trait ParquetEncoder {
 
         let mut zip_writer = ZipWriter::new(writer);
 
-        // Walk through the directory and add files to zip
+        // Walk through the directory and add files to the zip.
+        // Files are stored in the archive under the GRAPH_PATH directory.
         for entry in WalkDir::new(temp_dir.path())
             .into_iter()
             .filter_map(Result::ok)
@@ -78,9 +79,19 @@ pub trait ParquetEncoder {
         {
             let path = entry.path();
 
-            let relative_path = path.strip_prefix(temp_dir.path()).unwrap();
-            let file_name = relative_path.to_str().unwrap();
-            zip_writer.start_file(file_name, FileOptions::<()>::default())?;
+            let relative_path = path
+                .strip_prefix(temp_dir.path())
+                .map_err(|e|
+                    GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                )?;
+
+            // Attach GRAPH_PATH as a prefix to the relative path
+            let zip_entry_name = PathBuf::from(GRAPH_PATH)
+                .join(relative_path)
+                .to_string_lossy()
+                .into_owned();
+
+            zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
 
             let mut file = std::fs::File::open(path)?;
             std::io::copy(&mut file, &mut zip_writer)?;
@@ -108,13 +119,34 @@ pub trait ParquetDecoder: Sized {
 
         for i in 0..zip.len() {
             let mut file = zip.by_index(i)?;
-            let out_path = temp_dir.path().join(file.enclosed_name().unwrap());
+            let zip_entry_name = match file.enclosed_name() {
+                Some(name) => name,
+                None => continue,
+            };
 
-            if file.is_dir() {
-                std::fs::create_dir_all(&out_path)?;
-            } else {
-                let mut out_file = std::fs::File::create(&out_path)?;
-                std::io::copy(&mut file, &mut out_file)?;
+            if zip_entry_name.starts_with(GRAPH_PATH) {
+                // Since we attach the GRAPH_PATH prefix to the zip entry name
+                // when encoding, we strip it away while decoding.
+                let relative_path = zip_entry_name
+                    .strip_prefix(GRAPH_PATH)
+                    .map_err(|e|
+                        GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                    )?
+                    .to_path_buf();
+
+                let out_path = temp_dir.path().join(relative_path);
+
+                if file.is_dir() {
+                    std::fs::create_dir_all(&out_path)?;
+                } else {
+                    // Create any parent directories
+                    if let Some(parent) = out_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+
+                    let mut out_file = std::fs::File::create(&out_path)?;
+                    std::io::copy(&mut file, &mut out_file)?;
+                }
             }
         }
 

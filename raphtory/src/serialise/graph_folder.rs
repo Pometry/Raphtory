@@ -29,7 +29,7 @@ const INDEX_PATH: &str = "index";
 const VECTORS_PATH: &str = "vectors";
 
 /// A container for managing graph data.
-/// Directory structure:
+/// Folder structure:
 ///
 /// GraphFolder
 /// ├── graph/        # Graph data
@@ -37,6 +37,7 @@ const VECTORS_PATH: &str = "vectors";
 /// ├── index/        # Search indexes (optional)
 /// └── vectors/      # Vector embeddings (optional)
 ///
+/// If `write_as_zip_format` is true, then the folder is compressed into a zip file.
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
@@ -140,7 +141,7 @@ impl GraphFolder {
             let file = File::options()
                 .read(true)
                 .write(true)
-                .open(&self.root_folder)?;
+                .open(&self.get_base_path())?;
             let mut zip = ZipWriter::new_append(file)?;
 
             zip.start_file::<_, ()>(META_PATH, FileOptions::default())?;
@@ -167,6 +168,7 @@ impl GraphFolder {
         } else {
             fs::create_dir(&self.root_folder)?
         }
+
         File::create_new(self.root_folder.join(META_PATH))?;
         Ok(())
     }

@@ -24,7 +24,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = std::fs::File::create(&folder.get_graph_path())?;
+            let file = std::fs::File::create(&folder.get_base_path())?;
             self.encode_parquet_to_zip(file)?;
 
             #[cfg(feature = "search")]
@@ -62,7 +62,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         let folder: GraphFolder = path.into();
 
         if folder.is_zip() {
-            let reader = std::fs::File::open(&folder.root_folder)?;
+            let reader = std::fs::File::open(&folder.get_base_path())?;
             graph = Self::decode_parquet_from_zip(reader)?;
         } else {
             graph = Self::decode_parquet(&folder.get_graph_path())?;
@@ -135,7 +135,7 @@ mod tests {
         assert_graph_equal(&g1, &g2);
     }
 
-    #[cfg(feature = "search")]
+    #[cfg(feature = "search")] // TODO: Why is this gated?
     #[test]
     fn test_node_name() {
         let g = Graph::new();
@@ -514,6 +514,25 @@ mod tests {
             let g2 = Graph::decode_from_bytes(&bytes).unwrap();
             assert_graph_equal(&g, &g2);
         })
+    }
+
+    #[test]
+    fn encode_decode_zip() {
+        let g = Graph::new();
+
+        g.add_edge(0, 0, 1, [("test prop 1", Prop::map(NO_PROPS))], None).unwrap();
+        g.add_edge(1, 2, 3, [("test prop 1", Prop::map([("key", "value")]))], Some("layer_a")).unwrap();
+        g.add_edge(2, 3, 4, [("test prop 2", "value")], Some("layer_b")).unwrap();
+        g.add_edge(3, 1, 4, [("test prop 3", 10.0)], None).unwrap();
+        g.add_edge(4, 1, 3, [("test prop 4", true)], None).unwrap();
+
+        let tempdir = tempfile::tempdir().unwrap();
+        let folder = GraphFolder::new_as_zip(&tempdir.path().join("test_graph.zip"));
+
+        g.encode(&folder).unwrap();
+        let g2 = Graph::decode(&folder).unwrap();
+
+        assert_graph_equal(&g, &g2);
     }
 
     fn write_props_to_vec(props: &mut Vec<(&str, Prop)>) {
