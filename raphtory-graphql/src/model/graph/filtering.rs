@@ -507,38 +507,77 @@ fn node_field_value(
 
 fn id_field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
     use Operator::*;
-    match (value, operator) {
-        (Value::U64(i), Equal | NotEqual) => {
-            let u = i
-                .try_into()
-                .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
-            Ok(FilterValue::ID(GID::U64(u)))
-        }
-        (Value::Str(s), Equal | NotEqual) => Ok(FilterValue::ID(GID::Str(s))),
-        (Value::List(items), IsIn | IsNotIn) => {
-            let mut set = std::collections::HashSet::with_capacity(items.len());
-            for v in items {
-                match v {
-                    Value::U64(i) => {
-                        let u = i.try_into().map_err(|_| {
-                            GraphError::InvalidGqlFilter("node_id must be >= 0".into())
-                        })?;
-                        set.insert(GID::U64(u));
+
+    match operator {
+        Equal | NotEqual => match value {
+            Value::U64(i) => {
+                let u = i
+                    .try_into()
+                    .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
+                Ok(FilterValue::ID(GID::U64(u)))
+            }
+            Value::Str(s) => Ok(FilterValue::ID(GID::Str(s))),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires int or string, got {v}"
+            ))),
+        },
+
+        GreaterThan | GreaterThanOrEqual | LessThan | LessThanOrEqual => match value {
+            Value::U64(i) => {
+                let u = i
+                    .try_into()
+                    .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
+                Ok(FilterValue::ID(GID::U64(u)))
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires an integer (u64) value, got {v}"
+            ))),
+        },
+
+        StartsWith | EndsWith | Contains | NotContains => match value {
+            Value::Str(s) => Ok(FilterValue::ID(GID::Str(s))),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a string value, got {v}"
+            ))),
+        },
+
+        IsIn | IsNotIn => match value {
+            Value::List(items) => {
+                let all_u64 = items.iter().all(|v| matches!(v, Value::U64(_)));
+                let all_str = items.iter().all(|v| matches!(v, Value::Str(_)));
+
+                if !(all_u64 || all_str) {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "Operator {operator} on node_id requires a homogeneous list of ints or strings".into(),
+                    ));
+                }
+
+                let mut set = std::collections::HashSet::with_capacity(items.len());
+                if all_u64 {
+                    for v in items {
+                        if let Value::U64(i) = v {
+                            let u = i.try_into().map_err(|_| {
+                                GraphError::InvalidGqlFilter("node_id must be >= 0".into())
+                            })?;
+                            set.insert(GID::U64(u));
+                        }
                     }
-                    Value::Str(s) => {
-                        set.insert(GID::Str(s));
-                    }
-                    other => {
-                        return Err(GraphError::InvalidGqlFilter(format!(
-                            "node_id list may contain only int/str, got {other}"
-                        )));
+                } else {
+                    for v in items {
+                        if let Value::Str(s) = v {
+                            set.insert(GID::Str(s));
+                        }
                     }
                 }
+                Ok(FilterValue::IDSet(Arc::new(set)))
             }
-            Ok(FilterValue::IDSet(Arc::new(set)))
-        }
-        (v, op) => Err(GraphError::InvalidGqlFilter(format!(
-            "Invalid node_id value/operator combination: value {v:?}, operator {op}"
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a list, got {v}"
+            ))),
+        },
+
+        IsSome | IsNone => Err(GraphError::InvalidGqlFilter(format!(
+            "Operator {operator} is not supported on node_id"
         ))),
     }
 }
@@ -821,20 +860,35 @@ fn validate_id_operator_value_pair(operator: Operator, value: &Value) -> Result<
                 "Operator {operator} on node_id requires int or string, got {v}"
             ))),
         },
-        IsIn | IsNotIn => match value {
-            Value::List(items)
-                if items
-                    .iter()
-                    .all(|v| matches!(v, Value::U64(_) | Value::Str(_))) =>
-            {
-                Ok(())
-            }
+        GreaterThan | GreaterThanOrEqual | LessThan | LessThanOrEqual => match value {
+            Value::U64(_) => Ok(()),
             v => Err(GraphError::InvalidGqlFilter(format!(
-                "Operator {operator} on node_id requires a list of int/str, got {v}"
+                "Operator {operator} on node_id requires an integer (u64) value, got {v}"
             ))),
         },
-        StartsWith | EndsWith | Contains | NotContains | GreaterThanOrEqual | LessThanOrEqual
-        | GreaterThan | LessThan | IsNone | IsSome => Err(GraphError::InvalidGqlFilter(format!(
+        StartsWith | EndsWith | Contains | NotContains => match value {
+            Value::Str(_) => Ok(()),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a string value, got {v}"
+            ))),
+        },
+        IsIn | IsNotIn => match value {
+            Value::List(items) => {
+                let all_u64 = items.iter().all(|v| matches!(v, Value::U64(_)));
+                let all_str = items.iter().all(|v| matches!(v, Value::Str(_)));
+                if all_u64 || all_str {
+                    Ok(())
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        format!("Operator {operator} on node_id requires a homogeneous list of ints or strings"),
+                    ))
+                }
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a list, got {v}"
+            ))),
+        },
+        IsNone | IsSome => Err(GraphError::InvalidGqlFilter(format!(
             "Operator {operator} is not supported on node_id"
         ))),
     }

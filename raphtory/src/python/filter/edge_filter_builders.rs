@@ -27,12 +27,57 @@ impl PyEdgeIdFilterOp {
         PyFilterExpr(Arc::new(self.0.ne(value)))
     }
 
+    fn __lt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.lt(value)))
+    }
+
+    fn __le__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.le(value)))
+    }
+
+    fn __gt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.gt(value)))
+    }
+
+    fn __ge__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ge(value)))
+    }
+
     fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.0.is_in(values)))
     }
 
     fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
         PyFilterExpr(Arc::new(self.0.is_not_in(values)))
+    }
+
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.starts_with(value)))
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ends_with(value)))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.contains(value)))
+    }
+
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.not_contains(value)))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.fuzzy_search(
+            value,
+            levenshtein_distance,
+            prefix_match,
+        )))
     }
 }
 

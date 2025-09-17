@@ -5,8 +5,9 @@ use crate::{
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
+                filter_operator::FilterOperator,
                 property_filter::PropertyFilter,
-                AndFilter, Filter, NotFilter, OrFilter, PropertyFilterFactory,
+                AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
                 TryAsCompositeFilter,
             },
         },
@@ -14,7 +15,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::entities::GID;
+use raphtory_api::core::entities::{GidType, GID};
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -228,6 +229,47 @@ impl NodeIdFilterBuilder {
     {
         Filter::is_not_in_id(self.field_name(), values).into()
     }
+
+    pub fn lt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+        Filter::lt(self.field_name(), value).into()
+    }
+
+    pub fn le<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+        Filter::le(self.field_name(), value).into()
+    }
+
+    pub fn gt<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+        Filter::gt(self.field_name(), value).into()
+    }
+
+    pub fn ge<V: Into<GID>>(&self, value: V) -> NodeIdFilter {
+        Filter::ge(self.field_name(), value).into()
+    }
+
+    pub fn starts_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+        Filter::starts_with(self.field_name(), s.into()).into()
+    }
+
+    pub fn ends_with<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+        Filter::ends_with(self.field_name(), s.into()).into()
+    }
+
+    pub fn contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+        Filter::contains(self.field_name(), s.into()).into()
+    }
+
+    pub fn not_contains<S: Into<String>>(&self, s: S) -> NodeIdFilter {
+        Filter::not_contains(self.field_name(), s.into()).into()
+    }
+
+    pub fn fuzzy_search<S: Into<String>>(
+        &self,
+        s: S,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> NodeIdFilter {
+        Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into()
+    }
 }
 
 pub struct NodeNameFilterBuilder;
@@ -264,6 +306,94 @@ impl NodeFilter {
 
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
+    }
+
+    pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphError> {
+        use FilterOperator::*;
+        use GidType::*;
+
+        let Some(kind) = id_dtype else {
+            return Ok(());
+        };
+
+        let value_matches_kind = |fv: &FilterValue, expect: GidType| -> bool {
+            match (fv, expect) {
+                (FilterValue::ID(GID::U64(_)), U64) => true,
+                (FilterValue::IDSet(set), U64) => set.iter().all(|g| matches!(g, GID::U64(_))),
+
+                (FilterValue::ID(GID::Str(_)), Str) => true,
+                (FilterValue::IDSet(set), Str) => set.iter().all(|g| matches!(g, GID::Str(_))),
+                (FilterValue::Single(_), Str) => true,
+                (FilterValue::Set(_), Str) => true,
+
+                _ => false,
+            }
+        };
+
+        let op_allowed = match kind {
+            U64 => matches!(filter.operator, Eq | Ne | Lt | Le | Gt | Ge | In | NotIn),
+            Str => matches!(
+                filter.operator,
+                Eq | Ne
+                    | StartsWith
+                    | EndsWith
+                    | Contains
+                    | NotContains
+                    | FuzzySearch { .. }
+                    | In
+                    | NotIn
+            ),
+        };
+
+        if !op_allowed {
+            return Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {} not allowed for {:?} ID",
+                filter.operator, kind
+            )));
+        }
+
+        if !value_matches_kind(&filter.field_value, kind) {
+            return Err(GraphError::InvalidGqlFilter(format!(
+                "Filter value type does not match declared ID type {:?}",
+                kind
+            )));
+        }
+
+        match filter.operator {
+            In | NotIn => {
+                if !matches!(
+                    filter.field_value,
+                    FilterValue::IDSet(_) | FilterValue::Set(_)
+                ) {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "IN/NOT_IN on ID expects a set of IDs".into(),
+                    ));
+                }
+            }
+            StartsWith | EndsWith | Contains | NotContains | FuzzySearch { .. } => {
+                if !matches!(
+                    filter.field_value,
+                    FilterValue::ID(GID::Str(_)) | FilterValue::Single(_)
+                ) {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "String operators on ID expect a single string ID".into(),
+                    ));
+                }
+            }
+            Lt | Le | Gt | Ge => {
+                if !matches!(filter.field_value, FilterValue::ID(GID::U64(_))) {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "Numeric operators on ID expect a single numeric (u64) ID".into(),
+                    ));
+                }
+            }
+            Eq | Ne | IsSome | IsNone => {
+                // Eq/Ne already type-checked above
+                // IsSome/IsNone typically not used for IDs
+            }
+        }
+
+        Ok(())
     }
 }
 

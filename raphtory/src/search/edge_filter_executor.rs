@@ -171,7 +171,7 @@ impl<'a> EdgeFilterExecutor<'a> {
     where
         C: Collector<Fruit = HashSet<u64>>,
     {
-        if let Some((tpi, prop_id)) = self
+        if let Some((tpi, _)) = self
             .index
             .edge_index
             .entity_index

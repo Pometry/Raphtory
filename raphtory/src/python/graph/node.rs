@@ -37,11 +37,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::{
-    exceptions::{PyIndexError, PyKeyError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    pyclass, pymethods,
-    types::PyDict,
+    exceptions::PyKeyError, prelude::*, pybacked::PyBackedStr, pyclass, pymethods, types::PyDict,
     IntoPyObjectExt, PyObject, PyResult, Python,
 };
 use python::{

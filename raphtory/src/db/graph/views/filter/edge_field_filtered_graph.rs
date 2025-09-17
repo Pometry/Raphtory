@@ -9,7 +9,11 @@ use crate::{
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateFilter, model::Filter, EdgeFieldFilter},
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::{node_filter::NodeFilter, Filter},
+            EdgeFieldFilter,
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -36,6 +40,7 @@ impl CreateFilter for EdgeFieldFilter {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
         Ok(EdgeFieldFilteredGraph::new(graph, self.0))
     }
 }

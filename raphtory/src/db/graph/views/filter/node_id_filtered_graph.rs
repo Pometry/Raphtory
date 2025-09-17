@@ -10,7 +10,10 @@ use crate::{
         },
         graph::views::filter::{
             internal::CreateFilter,
-            model::{node_filter::NodeIdFilter, Filter},
+            model::{
+                node_filter::{NodeFilter, NodeIdFilter},
+                Filter,
+            },
         },
     },
     errors::GraphError,
@@ -41,6 +44,7 @@ impl CreateFilter for NodeIdFilter {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
         Ok(NodeIdFilteredGraph::new(graph, self.0))
     }
 }

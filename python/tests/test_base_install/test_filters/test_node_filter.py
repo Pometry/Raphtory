@@ -1,6 +1,7 @@
 from raphtory import filter
 from filters_setup import init_graph, init_graph2
 from utils import with_disk_variants
+import pytest
 
 
 @with_disk_variants(init_graph)
@@ -195,11 +196,6 @@ def test_filter_nodes_with_str_ids_for_node_id_eq():
         expected_ids = ["3"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.id() == 3
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
-
     return check
 
 
@@ -209,11 +205,6 @@ def test_filter_nodes_with_num_ids_for_node_id_eq():
         filter_expr = filter.Node.id() == 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = [3]
-        assert result_ids == expected_ids
-
-        filter_expr = filter.Node.id() == "3"
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
         assert result_ids == expected_ids
 
     return check
@@ -227,11 +218,6 @@ def test_filter_nodes_with_str_ids_for_node_id_ne():
         expected_ids = ["1", "2", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.id() != 3
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["1", "2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
-        assert result_ids == expected_ids
-
     return check
 
 
@@ -241,11 +227,6 @@ def test_filter_nodes_with_num_ids_for_node_id_ne():
         filter_expr = filter.Node.id() != 3
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = [1, 2, 4]
-        assert result_ids == expected_ids
-
-        filter_expr = filter.Node.id() != "3"
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = [1, 2, 3, 4]
         assert result_ids == expected_ids
 
     return check
@@ -259,11 +240,6 @@ def test_filter_nodes_with_str_ids_for_node_id_is_in():
         expected_ids = ["1"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.id().is_in([1])
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
-        assert result_ids == expected_ids
-
     return check
 
 
@@ -273,11 +249,6 @@ def test_filter_nodes_with_num_ids_for_node_id_is_in():
         filter_expr = filter.Node.id().is_in([1])
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = [1]
-        assert result_ids == expected_ids
-
-        filter_expr = filter.Node.id().is_in(["1"])
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = []
         assert result_ids == expected_ids
 
     return check
@@ -291,11 +262,6 @@ def test_filter_nodes_with_str_ids_for_node_id_is_not_in():
         expected_ids = ["2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.id().is_not_in([1])
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = ["1", "2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
-        assert result_ids == expected_ids
-
     return check
 
 
@@ -307,9 +273,30 @@ def test_filter_nodes_with_num_ids_for_node_id_is_not_in():
         expected_ids = [2, 3, 4]
         assert result_ids == expected_ids
 
-        filter_expr = filter.Node.id().is_not_in(["1"])
-        result_ids = sorted(graph.filter(filter_expr).nodes.id)
-        expected_ids = [1, 2, 3, 4]
-        assert result_ids == expected_ids
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_filter_nodes_with_str_ids_error():
+    def check(graph):
+        filter_expr = filter.Node.id() == 3
+        with pytest.raises(
+            Exception,
+            match="Invalid filter: Filter value type does not match declared ID type Str",
+        ):
+            graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+@with_disk_variants(init_graph2)
+def test_filter_nodes_with_num_ids_error():
+    def check(graph):
+        filter_expr = filter.Node.id() == "3"
+        with pytest.raises(
+            Exception,
+            match="Invalid filter: Filter value type does not match declared ID type U64",
+        ):
+            graph.filter(filter_expr).nodes.id
 
     return check

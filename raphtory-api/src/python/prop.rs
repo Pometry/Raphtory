@@ -4,7 +4,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     sync::GILOnceCell,
-    types::{PyBool, PyDict, PyIterator, PyType},
+    types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
 use rustc_hash::FxHashMap;

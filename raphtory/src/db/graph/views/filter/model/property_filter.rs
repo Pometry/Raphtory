@@ -26,7 +26,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{sort_comparable_props, unify_types, Prop, PropType, PropUnwrap},
+            prop::{sort_comparable_props, unify_types, Prop, PropType},
         },
         EID,
     },

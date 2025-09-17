@@ -200,6 +200,42 @@ impl Filter {
         }
     }
 
+    pub fn lt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Lt,
+        }
+        .into()
+    }
+
+    pub fn le<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Le,
+        }
+        .into()
+    }
+
+    pub fn gt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Gt,
+        }
+        .into()
+    }
+
+    pub fn ge<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Ge,
+        }
+        .into()
+    }
+
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
     }

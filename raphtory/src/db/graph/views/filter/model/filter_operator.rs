@@ -189,22 +189,60 @@ impl FilterOperator {
     }
 
     pub fn apply_id(&self, left: &FilterValue, right: GidRef<'_>) -> bool {
-        let rhs: GID = right.into();
-
         match left {
-            FilterValue::ID(lid) => match self {
-                FilterOperator::Eq => lid == &rhs,
-                FilterOperator::Ne => lid != &rhs,
-                _ => false,
+            FilterValue::ID(GID::U64(l)) => match right {
+                GidRef::U64(r) => match self {
+                    FilterOperator::Eq
+                    | FilterOperator::Ne
+                    | FilterOperator::Lt
+                    | FilterOperator::Le
+                    | FilterOperator::Gt
+                    | FilterOperator::Ge => self.operation()(&r, l),
+                    _ => false,
+                },
+                GidRef::Str(_) => false,
             },
 
-            FilterValue::IDSet(set) => match self {
-                FilterOperator::In => set.contains(&rhs),
-                FilterOperator::NotIn => !set.contains(&rhs),
-                _ => false,
+            FilterValue::ID(GID::Str(ls)) | FilterValue::Single(ls) => match right {
+                GidRef::Str(rs) => match self {
+                    FilterOperator::Eq | FilterOperator::Ne => self.operation()(&rs, &ls.as_str()),
+                    FilterOperator::StartsWith => rs.starts_with(ls),
+                    FilterOperator::EndsWith => rs.ends_with(ls),
+                    FilterOperator::Contains => rs.contains(ls),
+                    FilterOperator::NotContains => !rs.contains(ls),
+                    FilterOperator::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let f = self.fuzzy_search(*levenshtein_distance, *prefix_match);
+                        f(ls, rs)
+                    }
+                    _ => false,
+                },
+                GidRef::U64(_) => false,
             },
 
-            FilterValue::Single(_) | FilterValue::Set(_) => false,
+            FilterValue::IDSet(set) => match right {
+                GidRef::U64(r) => match self {
+                    FilterOperator::In => set.contains(&GID::U64(r)),
+                    FilterOperator::NotIn => !set.contains(&GID::U64(r)),
+                    _ => false,
+                },
+                GidRef::Str(s) => match self {
+                    FilterOperator::In => set.contains(&GID::Str(s.to_string())),
+                    FilterOperator::NotIn => !set.contains(&GID::Str(s.to_string())),
+                    _ => false,
+                },
+            },
+
+            FilterValue::Set(set) => match right {
+                GidRef::U64(_) => false,
+                GidRef::Str(s) => match self {
+                    FilterOperator::In => set.contains(s),
+                    FilterOperator::NotIn => !set.contains(s),
+                    _ => false,
+                },
+            },
         }
     }
 }
