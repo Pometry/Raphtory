@@ -138,6 +138,7 @@ impl PropType {
 #[cfg(feature = "storage")]
 mod storage {
     use crate::core::entities::properties::prop::PropType;
+    use arrow_schema::DataType;
     use polars_arrow::datatypes::ArrowDataType as PolarsDataType;
 
     impl From<&PolarsDataType> for PropType {
@@ -163,13 +164,6 @@ mod storage {
             }
         }
     }
-}
-
-#[cfg(feature = "arrow")]
-mod arrow {
-    use crate::core::entities::properties::prop::PropType;
-    use arrow_schema::DataType;
-
     impl From<&DataType> for PropType {
         fn from(value: &DataType) -> Self {
             match value {
@@ -194,6 +188,36 @@ mod arrow {
         }
     }
 }
+
+// #[cfg(feature = "arrow")]
+// mod arrow {
+//     use crate::core::entities::properties::prop::PropType;
+//     use arrow_schema::DataType;
+
+//     impl From<&DataType> for PropType {
+//         fn from(value: &DataType) -> Self {
+//             match value {
+//                 DataType::Utf8 => PropType::Str,
+//                 DataType::LargeUtf8 => PropType::Str,
+//                 DataType::Utf8View => PropType::Str,
+//                 DataType::UInt8 => PropType::U8,
+//                 DataType::UInt16 => PropType::U16,
+//                 DataType::Int32 => PropType::I32,
+//                 DataType::Int64 => PropType::I64,
+//                 DataType::UInt32 => PropType::U32,
+//                 DataType::UInt64 => PropType::U64,
+//                 DataType::Float32 => PropType::F32,
+//                 DataType::Float64 => PropType::F64,
+//                 DataType::Decimal128(_, scale) => PropType::Decimal {
+//                     scale: *scale as i64,
+//                 },
+//                 DataType::Boolean => PropType::Bool,
+
+//                 _ => PropType::Empty,
+//             }
+//         }
+//     }
+// }
 
 // step through these types trees and check they are structurally the same
 // if we encounter an empty we replace it with the other type

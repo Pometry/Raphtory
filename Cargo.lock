@@ -1717,7 +1717,7 @@ dependencies = [
  "num_cpus",
  "object_store",
  "parking_lot",
- "parquet",
+ "parquet 53.2.0",
  "paste",
  "pin-project-lite",
  "rand 0.8.5",
@@ -1765,7 +1765,7 @@ dependencies = [
  "libc",
  "num_cpus",
  "object_store",
- "parquet",
+ "parquet 53.2.0",
  "paste",
  "sqlparser",
  "tokio",
@@ -4234,6 +4234,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "parquet"
+version = "54.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f88838dca3b84d41444a0341b19f347e8098a3898b0f21536654b8b799e11abd"
+dependencies = [
+ "ahash",
+ "arrow-array 54.2.1",
+ "arrow-buffer 54.3.1",
+ "arrow-cast 54.2.1",
+ "arrow-data 54.3.1",
+ "arrow-ipc 54.2.1",
+ "arrow-schema 54.3.1",
+ "arrow-select 54.2.1",
+ "base64 0.22.1",
+ "brotli 7.0.0",
+ "bytes",
+ "chrono",
+ "flate2",
+ "half",
+ "hashbrown 0.15.3",
+ "lz4_flex",
+ "num",
+ "num-bigint",
+ "paste",
+ "seq-macro",
+ "simdutf8",
+ "snap",
+ "thrift",
+ "twox-hash 1.6.3",
+ "zstd",
+ "zstd-sys",
+]
+
+[[package]]
 name = "parquet-format-safe"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4533,10 +4567,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32d19c6db79cb6a3c55af3b5a3976276edaab64cbf7f69b392617c2af30d7742"
 dependencies = [
  "ahash",
- "arrow-array 53.2.0",
- "arrow-buffer 53.2.0",
- "arrow-data 53.2.0",
- "arrow-schema 53.2.0",
+ "arrow-array 54.2.1",
+ "arrow-buffer 54.3.1",
+ "arrow-data 54.3.1",
+ "arrow-schema 54.3.1",
  "atoi_simd",
  "bytemuck",
  "chrono",
@@ -4727,6 +4761,7 @@ dependencies = [
  "memmap2 0.9.5",
  "once_cell",
  "parking_lot",
+ "parquet 54.2.1",
  "polars-arrow",
  "polars-parquet",
  "polars-utils",
@@ -5236,7 +5271,7 @@ dependencies = [
  "ordered-float 4.6.0",
  "ouroboros",
  "parking_lot",
- "parquet",
+ "parquet 53.2.0",
  "polars-arrow",
  "polars-core",
  "polars-io",

@@ -57,6 +57,7 @@ python = [
 
 storage = [
     "dep:polars-arrow",
+    "dep:arrow-schema",
 ]
 
 proto = []
