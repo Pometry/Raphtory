@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758036878243,
+  "lastUpdate": 1758123219181,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -539,6 +539,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1558,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "2404621+fabianmurariu@users.noreply.github.com",
+            "name": "Fabian Murariu",
+            "username": "fabianmurariu"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c6115747197d0e9bfc4312dd09e5bbe3610a8ec",
+          "message": "Add EIDS to Node addition (#2279)\n\n* added support for edge_history in LayerAdditions\n\n* eids added to node additions\n\n* add more simple tests\n\n* push the edge_history into the higher level APIs\n\n* fix broken test\n\n* added edge_history to NodeView\n\n* added tests for NodeView\n\n* chore: apply tidy-public auto-fixes\n\n* kmerge the slow edge history for nodes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-09-17T15:58:47+01:00",
+          "tree_id": "94d0007116b75bcc5fc591345203b6aee5a2418d",
+          "url": "https://github.com/Pometry/Raphtory/commit/0c6115747197d0e9bfc4312dd09e5bbe3610a8ec"
+        },
+        "date": 1758123216603,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1471,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 294,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 226,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1300,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1010,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1727,
             "unit": "req/s"
           }
         ]
