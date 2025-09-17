@@ -2503,11 +2503,11 @@ mod db_tests {
         prop = Prop::U16(65535);
         assert_eq!(format!("{}", prop), "65535");
 
-        prop = Prop::F32(3.14159);
-        assert_eq!(format!("{}", prop), "3.14159");
+        prop = Prop::F32(3.15159);
+        assert_eq!(format!("{}", prop), "3.15159");
 
-        prop = Prop::F64(3.141592653589793);
-        assert_eq!(format!("{}", prop), "3.141592653589793");
+        prop = Prop::F64(3.151592653589793);
+        assert_eq!(format!("{}", prop), "3.151592653589793");
 
         prop = Prop::Bool(true);
         assert_eq!(format!("{}", prop), "true");

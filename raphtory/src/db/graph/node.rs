@@ -30,6 +30,7 @@ use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
 };
+use raphtory_core::{entities::ELID, storage::timeindex::AsTime};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
 use std::{
     fmt,
@@ -140,6 +141,34 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
             node,
             _marker: PhantomData,
         }
+    }
+
+    pub fn edge_history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn edge_history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + '_ {
+        let semantics = self.graph.node_time_semantics();
+        let node = self.graph.core_node(self.node);
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .into_dyn_boxed()
+        })
+    }
+
+    pub fn earliest_edge_time(&self) -> Option<i64> {
+        self.edge_history().next().map(|(t, _)| t.t())
+    }
+
+    pub fn latest_edge_time(&self) -> Option<i64> {
+        self.edge_history_rev().next().map(|(t, _)| t.t())
     }
 }
 
@@ -401,8 +430,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
 #[cfg(test)]
 mod node_test {
-    use crate::{prelude::*, test_utils::test_graph};
+    use crate::{prelude::*, test_storage, test_utils::test_graph};
     use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_core::storage::timeindex::AsTime;
     use std::collections::HashMap;
 
     #[test]
@@ -499,5 +529,196 @@ mod node_test {
         let s2 = v1.properties().get("test2").unwrap_str();
 
         assert_eq!(s1.as_ptr(), s2.as_ptr())
+    }
+
+    #[test]
+    fn test_edge_history_and_timestamps() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None).unwrap();
+
+        // Add edges at different times
+        graph.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(20, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(30, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(5, 1, 3, NO_PROPS, None).unwrap(); // Earlier edge to same pair
+
+        test_storage!(&graph, |graph| {
+            let node1 = graph.node(1).unwrap();
+
+            // Test edge_history (chronological order)
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 10, 20, 30]);
+
+            // Test edge_history_rev (reverse chronological order)
+            let history_rev: Vec<_> = node1.edge_history_rev().map(|(t, _)| t.t()).collect();
+            assert_eq!(history_rev, vec![30, 20, 10, 5]);
+
+            // Test earliest_edge_time
+            assert_eq!(node1.earliest_edge_time(), Some(5));
+
+            // Test latest_edge_time
+            assert_eq!(node1.latest_edge_time(), Some(30));
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_with_windows() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None).unwrap();
+
+        // Add edges at different times
+        graph.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(15, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(25, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(35, 1, 3, NO_PROPS, None).unwrap();
+
+        test_graph(&graph, |graph| {
+            // Test window 0-20
+            let windowed = graph.window(0, 20);
+            let node1 = windowed.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 15]);
+
+            assert_eq!(node1.earliest_edge_time(), Some(5));
+            assert_eq!(node1.latest_edge_time(), Some(15));
+
+            // Test window 10-30
+            let windowed = graph.window(10, 30);
+            let node1 = windowed.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![15, 25]);
+
+            assert_eq!(node1.earliest_edge_time(), Some(15));
+            assert_eq!(node1.latest_edge_time(), Some(25));
+
+            // Test window after all edges
+            let windowed = graph.after(40);
+            assert_eq!(windowed.node(1), None); // Node has no edges in this window
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_with_layers() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None).unwrap();
+
+        // Add edges on different layers
+        graph.add_edge(10, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(20, 1, 3, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(30, 2, 1, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(5, 1, 3, NO_PROPS, Some("layer2")).unwrap();
+
+        test_graph(&graph, |graph| {
+            // Test all layers
+            let node1 = graph.node(1).unwrap();
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 10, 20, 30]);
+            assert_eq!(node1.earliest_edge_time(), Some(5));
+            assert_eq!(node1.latest_edge_time(), Some(30));
+
+            // Test layer1 only
+            let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
+            let node1_layer1 = layer1_graph.node(1).unwrap();
+            let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![10, 30]);
+            assert_eq!(node1_layer1.earliest_edge_time(), Some(10));
+            assert_eq!(node1_layer1.latest_edge_time(), Some(30));
+
+            // Test layer2 only
+            let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
+            let node1_layer2 = layer2_graph.node(1).unwrap();
+            let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 20]);
+            assert_eq!(node1_layer2.earliest_edge_time(), Some(5));
+            assert_eq!(node1_layer2.latest_edge_time(), Some(20));
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_overlapping_windows_and_layers() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None).unwrap();
+        graph.add_node(0, 4, NO_PROPS, None).unwrap();
+
+        // Add edges with overlapping time ranges across multiple layers
+        graph.add_edge(5, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(10, 1, 3, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(15, 1, 4, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(20, 2, 1, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(25, 3, 1, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(30, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(35, 1, 4, NO_PROPS, Some("layer2")).unwrap();
+
+        test_graph(&graph, |graph| {
+            // Test overlapping window (8-22) with layer1
+            let windowed_layer1 = graph.window(8, 22).layers(vec!["layer1"]).unwrap();
+            let node1 = windowed_layer1.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![10, 20]);
+            assert_eq!(node1.earliest_edge_time(), Some(10));
+            assert_eq!(node1.latest_edge_time(), Some(20));
+
+            // Test overlapping window (12-28) with layer2
+            let windowed_layer2 = graph.window(12, 28).layers(vec!["layer2"]).unwrap();
+            let node1 = windowed_layer2.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![15, 25]);
+            assert_eq!(node1.earliest_edge_time(), Some(15));
+            assert_eq!(node1.latest_edge_time(), Some(25));
+
+            // Test overlapping window (18-32) with both layers
+            let windowed_both = graph
+                .window(18, 32)
+                .layers(vec!["layer1", "layer2"])
+                .unwrap();
+            let node1 = windowed_both.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![20, 25, 30]);
+            assert_eq!(node1.earliest_edge_time(), Some(20));
+            assert_eq!(node1.latest_edge_time(), Some(30));
+
+            // Test edge case: window with no edges for the node
+            let empty_window = graph.window(50, 60);
+            assert_eq!(empty_window.node(1), None);
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_no_edges() {
+        let graph = Graph::new();
+
+        // Add a node but no edges
+        graph.add_node(10, 1, NO_PROPS, None).unwrap();
+
+        test_graph(&graph, |graph| {
+            let node1 = graph.node(1).unwrap();
+
+            // Node exists but has no edges
+            assert_eq!(node1.edge_history().count(), 0);
+            assert_eq!(node1.edge_history_rev().count(), 0);
+            assert_eq!(node1.earliest_edge_time(), None);
+            assert_eq!(node1.latest_edge_time(), None);
+        });
     }
 }
