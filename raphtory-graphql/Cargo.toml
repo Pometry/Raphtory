@@ -13,14 +13,14 @@ readme.workspace = true
 homepage.workspace = true
 
 [dependencies]
-raphtory = { path = "../raphtory", version = "0.16.0", features = [
+raphtory = { workspace = true, features = [
     'vectors',
     'search',
     "io",
 ] }
 tempfile = { workspace = true }
-raphtory-api = { path = "../raphtory-api", version = "0.16.0" }
-raphtory-storage = { path = "../raphtory-storage", version = "0.16.0" }
+raphtory-api = { workspace = true }
+raphtory-storage = { workspace = true }
 base64 = { workspace = true }
 jsonwebtoken = { workspace = true }
 spki = { workspace = true }

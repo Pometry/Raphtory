@@ -89,7 +89,7 @@ minijinja-contrib = { workspace = true, optional = true }
 arroy = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 sysinfo = { workspace = true, optional = true }
-moka = { workspace = true, optional = true, version = "1.0.0", features = ["future"] }
+moka = { workspace = true, optional = true, features = ["future"] }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -142,9 +142,8 @@ vectors = [
     "raphtory-api/template",
     "dep:arroy",
     "dep:heed",
-    "dep:sysinfo",
     "dep:moka",
-    "dep:tempfile", # also used for the storage feature
+    "dep:tempfile",          # also used for the storage feature
 ]
 
 # Enables generating the pyo3 python bindings

@@ -1,0 +1,88 @@
+name: Rust Benchmarks
+permissions:
+  # submit PR comment
+  pull-requests: write
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  benchmark:
+    if: ${{ !inputs.skip_tests }}
+    name: GraphQL Benchmark
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Checkout
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: true
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+          cache: 'pip'
+      - name: Install maturin
+        run: pip install maturin==1.8.3
+      - name: Build raphtory
+        run: make install-python
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: grafana/setup-k6-action@v1
+        with:
+          k6-version: '1.0.0'
+      - name: Run GraphQL benchmarks
+        run: cd graphql-bench && make bench-local
+      - name: Restore metadata file
+        run: git restore graphql-bench/data/apache/master/.raph # otherwise github-action-benchmark fails to create the commit
+      - name: Print bench results
+        run: cat graphql-bench/output.json
+      - name: Store benchmark results from master branch
+        if: github.ref == 'refs/heads/master'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: GraphQL Benchmark
+          tool: 'customBiggerIsBetter'
+          output-file-path: graphql-bench/output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: '200%'
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          auto-push: true
+          benchmark-data-dir-path: dev/bench-graphql
+      - name: Compare benchmark results to master
+        if: github.ref != 'refs/heads/master'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: GraphQL Benchmark
+          tool: 'customBiggerIsBetter'
+          output-file-path: graphql-bench/output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          alert-threshold: '200%'
+          comment-on-alert: true
+          summary-always: true
+          fail-on-alert: false
+          save-data-file: false
+          benchmark-data-dir-path: dev/bench-graphql

@@ -142,13 +142,13 @@ impl GraphServer {
     /// Vectorise a subset of the graphs of the server.
     ///
     /// Arguments:
-    ///   * `graph_names` - the names of the graphs to vectorise. All if None is provided.
-    ///   * `embedding` - the embedding function to translate documents to embeddings.
-    ///   * `cache` - the directory to use as cache for the embeddings.
-    ///   * `template` - the template to use for creating documents.
+    ///   * graph_names - the names of the graphs to vectorise. All if None is provided.
+    ///   * embedding - the embedding function to translate documents to embeddings.
+    ///   * cache - the directory to use as cache for the embeddings.
+    ///   * template - the template to use for creating documents.
     ///
     /// Returns:
-    ///    A new server object containing the vectorised graphs.
+    /// A new server object containing the vectorised graphs.
     pub fn with_vectorised_graphs(
         mut self,
         graph_names: Vec<String>,
@@ -169,7 +169,7 @@ impl GraphServer {
         self.start_with_port(DEFAULT_PORT).await
     }
 
-    /// Start the server on the port `port` and return a handle to it.
+    /// Start the server on the port port and return a handle to it.
     pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
         // set up opentelemetry first of all
         let config = self.config.clone();
@@ -259,7 +259,7 @@ impl GraphServer {
         self.start().await?.wait().await
     }
 
-    /// Run the server on the port `port` until completion.
+    /// Run the server on the port port until completion.
     pub async fn run_with_port(self, port: u16) -> IoResult<()> {
         self.start_with_port(port).await?.wait().await
     }
