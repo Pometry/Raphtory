@@ -372,7 +372,7 @@ impl NodeFieldFilter {
     pub fn validate(&self) -> Result<(), GraphError> {
         match self.field {
             NodeField::NodeId => validate_id_operator_value_pair(self.operator, &self.value),
-            _ => validate_operator_value_pair(self.operator, &Some(self.value.clone())),
+            _ => validate_operator_value_pair(self.operator, Some(&self.value)),
         }
     }
 }
@@ -419,7 +419,7 @@ pub struct PropertyFilterExpr {
 
 impl PropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -435,7 +435,7 @@ pub struct MetadataFilterExpr {
 
 impl MetadataFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -453,7 +453,7 @@ pub struct TemporalPropertyFilterExpr {
 
 impl TemporalPropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -756,11 +756,11 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
 fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
-    value: Option<Value>,
+    value: Option<&Value>,
 ) -> Result<PropertyFilter<M>, GraphError> {
-    let prop = value.clone().map(Prop::try_from).transpose()?;
+    let prop = value.cloned().map(Prop::try_from).transpose()?;
 
-    validate_operator_value_pair(operator, &value)?;
+    validate_operator_value_pair(operator, value)?;
 
     let prop_value = match (&prop, operator) {
         (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
@@ -783,7 +783,11 @@ impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
-        build_property_filter(PropertyRef::Property(expr.name), expr.operator, expr.value)
+        build_property_filter(
+            PropertyRef::Property(expr.name),
+            expr.operator,
+            expr.value.as_ref(),
+        )
     }
 }
 
@@ -791,7 +795,11 @@ impl<M> TryFrom<MetadataFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: MetadataFilterExpr) -> Result<Self, Self::Error> {
-        build_property_filter(PropertyRef::Metadata(expr.name), expr.operator, expr.value)
+        build_property_filter(
+            PropertyRef::Metadata(expr.name),
+            expr.operator,
+            expr.value.as_ref(),
+        )
     }
 }
 
@@ -802,7 +810,7 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
         build_property_filter(
             PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
             expr.operator,
-            expr.value,
+            expr.value.as_ref(),
         )
     }
 }
@@ -896,7 +904,7 @@ fn validate_id_operator_value_pair(operator: Operator, value: &Value) -> Result<
 
 fn validate_operator_value_pair(
     operator: Operator,
-    value: &Option<Value>,
+    value: Option<&Value>,
 ) -> Result<(), GraphError> {
     use Operator::*;
 
