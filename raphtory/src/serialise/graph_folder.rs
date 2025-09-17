@@ -309,4 +309,80 @@ mod zip_tests {
             }
         );
     }
+
+    #[test]
+    fn test_create_zip_from_folder() {
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        // Create a regular folder and encode the graph
+        let temp_folder = tempfile::TempDir::new().unwrap();
+        let folder = GraphFolder::from(temp_folder.path());
+        graph.encode(&folder).unwrap();
+
+        assert!(folder.get_graph_path().exists());
+        assert!(folder.get_meta_path().exists());
+
+        // Create a zip file from the folder
+        let zip_path = temp_folder.path().join("output.zip");
+        let zip_file = std::fs::File::create(&zip_path).unwrap();
+        folder.create_zip(zip_file).unwrap();
+
+        assert!(zip_path.exists());
+
+        // Verify the zip file contains the expected structure
+        let zip_file = std::fs::File::open(&zip_path).unwrap();
+        let mut zip_archive = zip::ZipArchive::new(zip_file).unwrap();
+
+        assert!(zip_archive.by_name(GRAPH_PATH).is_ok());
+        assert!(zip_archive.by_name(META_PATH).is_ok());
+
+        let metadata_file = zip_archive.by_name(META_PATH).unwrap();
+        let metadata: GraphMetadata = serde_json::from_reader(metadata_file).unwrap();
+        assert_eq!(metadata.node_count, 2);
+        assert_eq!(metadata.edge_count, 1);
+    }
+
+    #[test]
+    fn test_create_zip_from_zip() {
+        let graph = Graph::new();
+        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
+
+        // Create an initial zip file
+        let temp_folder = tempfile::TempDir::new().unwrap();
+        let initial_zip_path = temp_folder.path().join("initial.zip");
+        let initial_folder = GraphFolder::new_as_zip(&initial_zip_path);
+        graph.encode(&initial_folder).unwrap();
+
+        // Verify the initial zip exists
+        assert!(initial_zip_path.exists());
+
+        // Create a new zip file from the existing zip
+        let output_zip_path = temp_folder.path().join("output.zip");
+        let output_zip_file = std::fs::File::create(&output_zip_path).unwrap();
+        initial_folder.create_zip(output_zip_file).unwrap();
+
+        assert!(output_zip_path.exists());
+
+        // Verify both zip files have the same content
+        let initial_size = std::fs::metadata(&initial_zip_path).unwrap().len();
+        let output_size = std::fs::metadata(&output_zip_path).unwrap().len();
+        assert_eq!(initial_size, output_size);
+
+        // Verify the output zip contains the expected structure
+        let zip_file = std::fs::File::open(&output_zip_path).unwrap();
+        let mut zip_archive = zip::ZipArchive::new(zip_file).unwrap();
+
+        assert!(zip_archive.by_name(GRAPH_PATH).is_ok());
+        assert!(zip_archive.by_name(META_PATH).is_ok());
+
+        let metadata_file = zip_archive.by_name(META_PATH).unwrap();
+        let metadata: GraphMetadata = serde_json::from_reader(metadata_file).unwrap();
+        assert_eq!(metadata.node_count, 2);
+        assert_eq!(metadata.edge_count, 1);
+    }
 }
