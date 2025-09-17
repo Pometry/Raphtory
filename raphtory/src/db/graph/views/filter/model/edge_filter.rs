@@ -12,6 +12,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
+use raphtory_api::core::entities::GID;
 use std::{fmt, fmt::Display, ops::Deref, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -247,6 +248,85 @@ impl<T: ?Sized + InternalEdgeFilterBuilderOps> EdgeFilterOps for T {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct EdgeIdFilterBuilder {
+    field: &'static str,
+}
+
+impl EdgeIdFilterBuilder {
+    #[inline]
+    fn field_name(&self) -> &'static str {
+        self.field
+    }
+
+    pub fn eq<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::eq_id(self.field_name(), v))
+    }
+
+    pub fn ne<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ne_id(self.field_name(), v))
+    }
+
+    pub fn is_in<I, V>(&self, vals: I) -> EdgeFieldFilter
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        EdgeFieldFilter(Filter::is_in_id(self.field_name(), vals))
+    }
+
+    pub fn is_not_in<I, V>(&self, vals: I) -> EdgeFieldFilter
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        EdgeFieldFilter(Filter::is_not_in_id(self.field_name(), vals))
+    }
+
+    pub fn lt<V: Into<GID>>(&self, value: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::lt(self.field_name(), value))
+    }
+
+    pub fn le<V: Into<GID>>(&self, value: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::le(self.field_name(), value).into())
+    }
+
+    pub fn gt<V: Into<GID>>(&self, value: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::gt(self.field_name(), value))
+    }
+
+    pub fn ge<V: Into<GID>>(&self, value: V) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ge(self.field_name(), value))
+    }
+
+    pub fn starts_with<S: Into<String>>(&self, s: S) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::starts_with(self.field_name(), s.into()))
+    }
+
+    pub fn ends_with<S: Into<String>>(&self, s: S) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::ends_with(self.field_name(), s.into()))
+    }
+
+    pub fn contains<S: Into<String>>(&self, s: S) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::contains(self.field_name(), s.into()))
+    }
+
+    pub fn not_contains<S: Into<String>>(&self, s: S) -> EdgeFieldFilter {
+        EdgeFieldFilter(Filter::not_contains(self.field_name(), s.into()))
+    }
+
+    pub fn fuzzy_search<S: Into<String>>(
+        &self,
+        s: S,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> EdgeFieldFilter {
+        EdgeFieldFilter(
+            Filter::fuzzy_search(self.field_name(), s, levenshtein_distance, prefix_match).into(),
+        )
+    }
+}
+
 pub struct EdgeSourceFilterBuilder;
 
 impl InternalEdgeFilterBuilderOps for EdgeSourceFilterBuilder {
@@ -273,6 +353,14 @@ pub enum EdgeEndpointFilter {
 }
 
 impl EdgeEndpointFilter {
+    pub fn id(&self) -> EdgeIdFilterBuilder {
+        let field = match self {
+            EdgeEndpointFilter::Src => "src",
+            EdgeEndpointFilter::Dst => "dst",
+        };
+        EdgeIdFilterBuilder { field }
+    }
+
     pub fn name(&self) -> Arc<dyn InternalEdgeFilterBuilderOps> {
         match self {
             EdgeEndpointFilter::Src => Arc::new(EdgeSourceFilterBuilder),

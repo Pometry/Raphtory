@@ -1,4 +1,4 @@
-use crate::{db::api::view::StaticGraphViewOps, search::fields};
+use crate::search::fields;
 use raphtory_api::core::{entities::EID, storage::timeindex::TimeIndexEntry};
 use std::collections::HashSet;
 use tantivy::{
@@ -7,26 +7,19 @@ use tantivy::{
     Score, SegmentReader,
 };
 
-pub struct ExplodedEdgePropertyFilterCollector<G> {
+pub struct ExplodedEdgePropertyFilterCollector {
     field: String,
-    graph: G,
 }
 
-impl<G> ExplodedEdgePropertyFilterCollector<G>
-where
-    G: StaticGraphViewOps,
-{
-    pub fn new(field: String, graph: G) -> Self {
-        Self { field, graph }
+impl ExplodedEdgePropertyFilterCollector {
+    pub fn new(field: String) -> Self {
+        Self { field }
     }
 }
 
-impl<G> Collector for ExplodedEdgePropertyFilterCollector<G>
-where
-    G: StaticGraphViewOps,
-{
+impl Collector for ExplodedEdgePropertyFilterCollector {
     type Fruit = HashSet<(TimeIndexEntry, EID, usize)>;
-    type Child = ExplodedEdgePropertyFilterSegmentCollector<G>;
+    type Child = ExplodedEdgePropertyFilterSegmentCollector;
 
     fn for_segment(
         &self,
@@ -46,7 +39,6 @@ where
             column_opt_layer_id,
             column_opt_secondary_time,
             unique_entity_ids: HashSet::new(),
-            graph: self.graph.clone(),
         })
     }
 
@@ -68,19 +60,15 @@ where
     }
 }
 
-pub struct ExplodedEdgePropertyFilterSegmentCollector<G> {
+pub struct ExplodedEdgePropertyFilterSegmentCollector {
     column_opt_time: Option<Column<i64>>,
     column_opt_entity_id: Option<Column<u64>>,
     column_opt_layer_id: Option<Column<u64>>,
     column_opt_secondary_time: Option<Column<u64>>,
     unique_entity_ids: HashSet<(TimeIndexEntry, EID, usize)>,
-    graph: G,
 }
 
-impl<G> SegmentCollector for ExplodedEdgePropertyFilterSegmentCollector<G>
-where
-    G: StaticGraphViewOps,
-{
+impl SegmentCollector for ExplodedEdgePropertyFilterSegmentCollector {
     type Fruit = HashSet<(TimeIndexEntry, EID, usize)>;
 
     fn collect(&mut self, doc_id: u32, _score: Score) {

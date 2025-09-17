@@ -16,7 +16,7 @@ use raphtory::{
     },
     errors::GraphError,
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{properties::prop::Prop, GID};
 use std::{
     borrow::Cow,
     fmt,
@@ -370,12 +370,17 @@ pub struct NodeFieldFilter {
 
 impl NodeFieldFilter {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &Some(self.value.clone()))
+        match self.field {
+            NodeField::NodeId => validate_id_operator_value_pair(self.operator, &self.value),
+            _ => validate_operator_value_pair(self.operator, Some(&self.value)),
+        }
     }
 }
 
 #[derive(Enum, Copy, Clone, Debug)]
 pub enum NodeField {
+    /// Node id.
+    NodeId,
     /// Node name.
     NodeName,
     /// Node type.
@@ -414,7 +419,7 @@ pub struct PropertyFilterExpr {
 
 impl PropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -430,7 +435,7 @@ pub struct MetadataFilterExpr {
 
 impl MetadataFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -448,7 +453,7 @@ pub struct TemporalPropertyFilterExpr {
 
 impl TemporalPropertyFilterExpr {
     pub fn validate(&self) -> Result<(), GraphError> {
-        validate_operator_value_pair(self.operator, &self.value)
+        validate_operator_value_pair(self.operator, self.value.as_ref())
     }
 }
 
@@ -489,6 +494,121 @@ fn field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphErr
     }
 }
 
+fn node_field_value(
+    field: NodeField,
+    value: Value,
+    operator: Operator,
+) -> Result<FilterValue, GraphError> {
+    match field {
+        NodeField::NodeId => id_field_value(value, operator),
+        NodeField::NodeName | NodeField::NodeType => string_field_value(value, operator),
+    }
+}
+
+fn id_field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
+    use Operator::*;
+
+    match operator {
+        Equal | NotEqual => match value {
+            Value::U64(i) => {
+                let u = i
+                    .try_into()
+                    .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
+                Ok(FilterValue::ID(GID::U64(u)))
+            }
+            Value::Str(s) => Ok(FilterValue::ID(GID::Str(s))),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires int or string, got {v}"
+            ))),
+        },
+
+        GreaterThan | GreaterThanOrEqual | LessThan | LessThanOrEqual => match value {
+            Value::U64(i) => {
+                let u = i
+                    .try_into()
+                    .map_err(|_| GraphError::InvalidGqlFilter("node_id must be >= 0".into()))?;
+                Ok(FilterValue::ID(GID::U64(u)))
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires an integer (u64) value, got {v}"
+            ))),
+        },
+
+        StartsWith | EndsWith | Contains | NotContains => match value {
+            Value::Str(s) => Ok(FilterValue::ID(GID::Str(s))),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a string value, got {v}"
+            ))),
+        },
+
+        IsIn | IsNotIn => match value {
+            Value::List(items) => {
+                let all_u64 = items.iter().all(|v| matches!(v, Value::U64(_)));
+                let all_str = items.iter().all(|v| matches!(v, Value::Str(_)));
+
+                if !(all_u64 || all_str) {
+                    return Err(GraphError::InvalidGqlFilter(
+                        "Operator {operator} on node_id requires a homogeneous list of ints or strings".into(),
+                    ));
+                }
+
+                let mut set = std::collections::HashSet::with_capacity(items.len());
+                if all_u64 {
+                    for v in items {
+                        if let Value::U64(i) = v {
+                            let u = i.try_into().map_err(|_| {
+                                GraphError::InvalidGqlFilter("node_id must be >= 0".into())
+                            })?;
+                            set.insert(GID::U64(u));
+                        }
+                    }
+                } else {
+                    for v in items {
+                        if let Value::Str(s) = v {
+                            set.insert(GID::Str(s));
+                        }
+                    }
+                }
+                Ok(FilterValue::IDSet(Arc::new(set)))
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a list, got {v}"
+            ))),
+        },
+
+        IsSome | IsNone => Err(GraphError::InvalidGqlFilter(format!(
+            "Operator {operator} is not supported on node_id"
+        ))),
+    }
+}
+
+fn string_field_value(value: Value, operator: Operator) -> Result<FilterValue, GraphError> {
+    use Operator::*;
+    match (value, operator) {
+        (
+            Value::Str(s),
+            Equal | NotEqual | StartsWith | EndsWith | Contains | NotContains | GreaterThan
+            | GreaterThanOrEqual | LessThan | LessThanOrEqual,
+        ) => Ok(FilterValue::Single(s)),
+        (Value::List(items), IsIn | IsNotIn) => {
+            let strings = items
+                .into_iter()
+                .map(|v| match v {
+                    Value::Str(s) => Ok(s),
+                    other => Err(GraphError::InvalidGqlFilter(format!(
+                        "Expected list of strings, got {other}"
+                    ))),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(FilterValue::Set(Arc::new(strings.into_iter().collect())))
+        }
+        (v, op) => Err(GraphError::InvalidGqlFilter(format!(
+            "Invalid value/operator combination for string field: value {v:?}, operator {op}"
+        ))),
+    }
+}
+
 impl TryFrom<NodeFilter> for CompositeNodeFilter {
     type Error = GraphError;
 
@@ -498,7 +618,7 @@ impl TryFrom<NodeFilter> for CompositeNodeFilter {
                 node.validate()?;
                 Ok(CompositeNodeFilter::Node(Filter {
                     field_name: node.field.to_string(),
-                    field_value: field_value(node.value, node.operator)?,
+                    field_value: node_field_value(node.field, node.value, node.operator)?,
                     operator: node.operator.into(),
                 }))
             }
@@ -565,7 +685,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 src.validate()?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "src".to_string(),
-                    field_value: field_value(src.value, src.operator)?,
+                    field_value: node_field_value(src.field, src.value, src.operator)?,
                     operator: src.operator.into(),
                 }))
             }
@@ -573,7 +693,7 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
                 dst.validate()?;
                 Ok(CompositeEdgeFilter::Edge(Filter {
                     field_name: "dst".to_string(),
-                    field_value: field_value(dst.value, dst.operator)?,
+                    field_value: node_field_value(dst.field, dst.value, dst.operator)?,
                     operator: dst.operator.into(),
                 }))
             }
@@ -636,11 +756,11 @@ impl TryFrom<EdgeFilter> for CompositeEdgeFilter {
 fn build_property_filter<M>(
     prop_ref: PropertyRef,
     operator: Operator,
-    value: Option<Value>,
+    value: Option<&Value>,
 ) -> Result<PropertyFilter<M>, GraphError> {
-    let prop = value.clone().map(Prop::try_from).transpose()?;
+    let prop = value.cloned().map(Prop::try_from).transpose()?;
 
-    validate_operator_value_pair(operator, &value)?;
+    validate_operator_value_pair(operator, value)?;
 
     let prop_value = match (&prop, operator) {
         (Some(Prop::List(list)), Operator::IsIn | Operator::IsNotIn) => {
@@ -663,7 +783,11 @@ impl<M> TryFrom<PropertyFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: PropertyFilterExpr) -> Result<Self, Self::Error> {
-        build_property_filter(PropertyRef::Property(expr.name), expr.operator, expr.value)
+        build_property_filter(
+            PropertyRef::Property(expr.name),
+            expr.operator,
+            expr.value.as_ref(),
+        )
     }
 }
 
@@ -671,7 +795,11 @@ impl<M> TryFrom<MetadataFilterExpr> for PropertyFilter<M> {
     type Error = GraphError;
 
     fn try_from(expr: MetadataFilterExpr) -> Result<Self, Self::Error> {
-        build_property_filter(PropertyRef::Metadata(expr.name), expr.operator, expr.value)
+        build_property_filter(
+            PropertyRef::Metadata(expr.name),
+            expr.operator,
+            expr.value.as_ref(),
+        )
     }
 }
 
@@ -682,7 +810,7 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
         build_property_filter(
             PropertyRef::TemporalProperty(expr.name, expr.temporal.into()),
             expr.operator,
-            expr.value,
+            expr.value.as_ref(),
         )
     }
 }
@@ -690,6 +818,7 @@ impl<M> TryFrom<TemporalPropertyFilterExpr> for PropertyFilter<M> {
 impl Display for NodeField {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let field_name = match self {
+            NodeField::NodeId => "node_id",
             NodeField::NodeName => "node_name",
             NodeField::NodeType => "node_type",
         };
@@ -729,9 +858,53 @@ impl From<TemporalType> for Temporal {
     }
 }
 
+fn validate_id_operator_value_pair(operator: Operator, value: &Value) -> Result<(), GraphError> {
+    use Operator::*;
+
+    match operator {
+        Equal | NotEqual => match value {
+            Value::U64(_) | Value::Str(_) => Ok(()),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires int or string, got {v}"
+            ))),
+        },
+        GreaterThan | GreaterThanOrEqual | LessThan | LessThanOrEqual => match value {
+            Value::U64(_) => Ok(()),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires an integer (u64) value, got {v}"
+            ))),
+        },
+        StartsWith | EndsWith | Contains | NotContains => match value {
+            Value::Str(_) => Ok(()),
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a string value, got {v}"
+            ))),
+        },
+        IsIn | IsNotIn => match value {
+            Value::List(items) => {
+                let all_u64 = items.iter().all(|v| matches!(v, Value::U64(_)));
+                let all_str = items.iter().all(|v| matches!(v, Value::Str(_)));
+                if all_u64 || all_str {
+                    Ok(())
+                } else {
+                    Err(GraphError::InvalidGqlFilter(
+                        format!("Operator {operator} on node_id requires a homogeneous list of ints or strings"),
+                    ))
+                }
+            }
+            v => Err(GraphError::InvalidGqlFilter(format!(
+                "Operator {operator} on node_id requires a list, got {v}"
+            ))),
+        },
+        IsNone | IsSome => Err(GraphError::InvalidGqlFilter(format!(
+            "Operator {operator} is not supported on node_id"
+        ))),
+    }
+}
+
 fn validate_operator_value_pair(
     operator: Operator,
-    value: &Option<Value>,
+    value: Option<&Value>,
 ) -> Result<(), GraphError> {
     use Operator::*;
 

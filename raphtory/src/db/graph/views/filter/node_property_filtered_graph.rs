@@ -81,11 +81,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodePropertyFilt
 
     #[inline]
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.internal_filter_node(node, layer_ids) {
-            self.filter.matches_node(&self.graph, self.prop_id, node)
-        } else {
-            false
-        }
+        self.graph.internal_filter_node(node, layer_ids)
+            && self.filter.matches_node(&self.graph, self.prop_id, node)
     }
 }
 

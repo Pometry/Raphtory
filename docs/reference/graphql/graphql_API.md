@@ -7222,6 +7222,14 @@ Event.
 </thead>
 <tbody>
 <tr>
+<td valign="top"><strong>NODE_ID</strong></td>
+<td>
+
+Node id.
+
+</td>
+</tr>
+<tr>
 <td valign="top"><strong>NODE_NAME</strong></td>
 <td>
 

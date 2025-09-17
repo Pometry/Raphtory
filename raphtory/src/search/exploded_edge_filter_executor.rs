@@ -7,13 +7,13 @@ use crate::{
                 internal::CreateFilter,
                 model::{
                     edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
-                    property_filter::{PropertyRef, Temporal},
+                    property_filter::PropertyRef,
                 },
             },
         },
     },
     errors::GraphError,
-    prelude::{EdgeViewOps, GraphViewOps, PropertyFilter},
+    prelude::{EdgeViewOps, PropertyFilter},
     search::{
         collectors::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
@@ -74,14 +74,14 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         reader: &IndexReader,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, G) -> C,
+        collector_fn: impl Fn(String) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
     {
         let searcher = reader.searcher();
-        let collector = collector_fn(fields::EDGE_ID.to_string(), graph.clone());
+        let collector = collector_fn(fields::EDGE_ID.to_string());
         let edge_ids = searcher.search(&query, &collector)?;
         let edges = self.resolve_exploded_edges_from_exploded_edge_ids(filter, graph, edge_ids)?;
 
@@ -118,7 +118,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         filter: &PropertyFilter<ExplodedEdgeFilter>,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, G) -> C,
+        collector_fn: impl Fn(String) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,
@@ -167,7 +167,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         filter: &PropertyFilter<ExplodedEdgeFilter>,
         limit: usize,
         offset: usize,
-        collector_fn: impl Fn(String, G) -> C,
+        collector_fn: impl Fn(String) -> C,
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         C: Collector<Fruit = HashSet<(TimeIndexEntry, EID, usize)>>,

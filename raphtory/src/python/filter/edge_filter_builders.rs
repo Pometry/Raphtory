@@ -1,7 +1,7 @@
 use crate::{
     db::graph::views::filter::model::{
         edge_filter::{
-            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, ExplodedEdgeFilter,
+            EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, EdgeIdFilterBuilder, ExplodedEdgeFilter,
             InternalEdgeFilterBuilderOps,
         },
         property_filter::{MetadataFilterBuilder, PropertyFilterBuilder},
@@ -10,7 +10,76 @@ use crate::{
     python::{filter::filter_expr::PyFilterExpr, types::iterable::FromIterable},
 };
 use pyo3::{pyclass, pymethods};
+use raphtory_api::core::entities::GID;
 use std::sync::Arc;
+
+#[pyclass(frozen, name = "EdgeIdFilterOp", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeIdFilterOp(pub EdgeIdFilterBuilder);
+
+#[pymethods]
+impl PyEdgeIdFilterOp {
+    fn __eq__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.eq(value)))
+    }
+
+    fn __ne__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ne(value)))
+    }
+
+    fn __lt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.lt(value)))
+    }
+
+    fn __le__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.le(value)))
+    }
+
+    fn __gt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.gt(value)))
+    }
+
+    fn __ge__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ge(value)))
+    }
+
+    fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_in(values)))
+    }
+
+    fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
+    }
+
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.starts_with(value)))
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ends_with(value)))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.contains(value)))
+    }
+
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.not_contains(value)))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.fuzzy_search(
+            value,
+            levenshtein_distance,
+            prefix_match,
+        )))
+    }
+}
 
 #[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
 #[derive(Clone)]
@@ -83,6 +152,10 @@ pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
 
 #[pymethods]
 impl PyEdgeEndpoint {
+    fn id(&self) -> PyEdgeIdFilterOp {
+        PyEdgeIdFilterOp(self.0.id())
+    }
+
     fn name(&self) -> PyEdgeFilterOp {
         PyEdgeFilterOp(self.0.name())
     }

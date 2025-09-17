@@ -11,10 +11,7 @@ use raphtory_api::{
     },
     iter::{BoxedLDIter, IntoDynDBoxed},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 use rayon::iter::ParallelIterator;
 use std::ops::{Deref, Range};
 

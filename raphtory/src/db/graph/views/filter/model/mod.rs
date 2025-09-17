@@ -11,6 +11,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
 };
+use raphtory_api::core::entities::{GidRef, GID};
 use raphtory_storage::graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref, sync::Arc};
 
@@ -26,6 +27,8 @@ pub mod property_filter;
 pub enum FilterValue {
     Single(String),
     Set(Arc<HashSet<String>>),
+    ID(GID),
+    IDSet(Arc<HashSet<GID>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,11 +45,24 @@ impl Display for Filter {
                 write!(f, "{} {} {}", self.field_name, self.operator, value)
             }
             FilterValue::Set(values) => {
-                let mut sorted_values: Vec<_> = values.iter().collect();
-                sorted_values.sort();
-                let values_str = sorted_values
+                let mut sorted: Vec<&String> = values.iter().collect();
+                sorted.sort();
+                let values_str = sorted
                     .iter()
-                    .map(|v| v.to_string())
+                    .map(|s| s.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
+            }
+            FilterValue::ID(id) => {
+                write!(f, "{} {} {}", self.field_name, self.operator, id)
+            }
+            FilterValue::IDSet(values) => {
+                let mut sorted: Vec<&GID> = values.iter().collect();
+                sorted.sort();
+                let values_str = sorted
+                    .iter()
+                    .map(ToString::to_string)
                     .collect::<Vec<_>>()
                     .join(", ");
                 write!(f, "{} {} [{}]", self.field_name, self.operator, values_str)
@@ -142,8 +158,90 @@ impl Filter {
         }
     }
 
+    pub fn eq_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Eq,
+        }
+    }
+
+    pub fn ne_id(field_name: impl Into<String>, field_value: impl Into<GID>) -> Self {
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Ne,
+        }
+    }
+
+    pub fn is_in_id<I, V>(field_name: impl Into<String>, field_values: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::IDSet(Arc::new(set)),
+            operator: FilterOperator::In,
+        }
+    }
+
+    pub fn is_not_in_id<I, V>(field_name: impl Into<String>, field_values: I) -> Self
+    where
+        I: IntoIterator<Item = V>,
+        V: Into<GID>,
+    {
+        let set: HashSet<GID> = field_values.into_iter().map(|x| x.into()).collect();
+        Self {
+            field_name: field_name.into(),
+            field_value: FilterValue::IDSet(Arc::new(set)),
+            operator: FilterOperator::NotIn,
+        }
+    }
+
+    pub fn lt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Lt,
+        }
+        .into()
+    }
+
+    pub fn le<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Le,
+        }
+        .into()
+    }
+
+    pub fn gt<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Gt,
+        }
+        .into()
+    }
+
+    pub fn ge<V: Into<GID>>(field_name: impl Into<String>, field_value: V) -> Self {
+        Filter {
+            field_name: field_name.into(),
+            field_value: FilterValue::ID(field_value.into()),
+            operator: FilterOperator::Ge,
+        }
+        .into()
+    }
+
     pub fn matches(&self, node_value: Option<&str>) -> bool {
         self.operator.apply(&self.field_value, node_value)
+    }
+
+    pub fn id_matches(&self, node_value: GidRef<'_>) -> bool {
+        self.operator.apply_id(&self.field_value, node_value)
     }
 
     pub fn matches_edge<'graph, G: GraphViewOps<'graph>>(
@@ -151,10 +249,28 @@ impl Filter {
         graph: &G,
         edge: EdgeStorageRef,
     ) -> bool {
-        match self.field_name.as_str() {
-            "src" => self.matches(graph.node(edge.src()).map(|n| n.name()).as_deref()),
-            "dst" => self.matches(graph.node(edge.dst()).map(|n| n.name()).as_deref()),
-            _ => false,
+        let node_opt = match self.field_name.as_str() {
+            "src" => graph.node(edge.src()),
+            "dst" => graph.node(edge.dst()),
+            _ => return false,
+        };
+
+        match &self.field_value {
+            FilterValue::ID(_) | FilterValue::IDSet(_) => {
+                if let Some(node) = node_opt {
+                    self.id_matches(node.id().as_ref())
+                } else {
+                    // No endpoint node -> no value present.
+                    match self.operator {
+                        FilterOperator::Ne | FilterOperator::NotIn => true,
+                        _ => false,
+                    }
+                }
+            }
+            _ => {
+                let name_opt = node_opt.map(|n| n.name());
+                self.matches(name_opt.as_deref())
+            }
         }
     }
 }

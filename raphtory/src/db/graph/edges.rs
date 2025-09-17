@@ -17,7 +17,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
+use raphtory_api::core::entities::LayerIds;
 use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
@@ -362,7 +362,6 @@ where
         &self,
         filtered_graph: FilteredGraph,
     ) -> Self::IterFiltered<FilteredGraph> {
-        let edges = self.edges.clone();
         let edges = self.edges.clone();
         NestedEdges {
             base_graph: self.base_graph.clone(),
