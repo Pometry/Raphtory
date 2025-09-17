@@ -57,9 +57,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq_gql2(graph):
       }
     }
     """
-    expected_error_message = (
-        "Invalid filter: Filter value type does not match declared ID type Str"
-    )
+    expected_error_message = "Invalid filter: Filter value type does not match node ID type. Expected Str but got \\"
     run_graphql_error_test(query, expected_error_message, graph)
 
 

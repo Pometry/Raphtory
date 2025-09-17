@@ -184,7 +184,7 @@ impl FilterOperator {
                 _ => unreachable!(),
             },
 
-            FilterValue::ID(_) | FilterValue::IDSet(_) => false,
+            FilterValue::ID(_) | FilterValue::IDSet(_) => unreachable!(),
         }
     }
 

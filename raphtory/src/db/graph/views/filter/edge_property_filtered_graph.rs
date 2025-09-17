@@ -95,11 +95,8 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgePropertyFilt
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.internal_filter_edge(edge, layer_ids) {
-            self.filter.matches_edge(&self.graph, self.prop_id, edge)
-        } else {
-            false
-        }
+        self.graph.internal_filter_edge(edge, layer_ids)
+            && self.filter.matches_edge(&self.graph, self.prop_id, edge)
     }
 }
 

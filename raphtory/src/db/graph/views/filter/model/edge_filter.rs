@@ -260,9 +260,7 @@ impl EdgeIdFilterBuilder {
     }
 
     pub fn eq<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {
-        let e = EdgeFieldFilter(Filter::eq_id(self.field_name(), v));
-        println!("e = {}", e);
-        e
+        EdgeFieldFilter(Filter::eq_id(self.field_name(), v))
     }
 
     pub fn ne<V: Into<GID>>(&self, v: V) -> EdgeFieldFilter {

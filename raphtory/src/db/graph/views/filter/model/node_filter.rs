@@ -5,7 +5,10 @@ use crate::{
             internal::CreateFilter,
             model::{
                 edge_filter::{CompositeEdgeFilter, CompositeExplodedEdgeFilter},
-                filter_operator::FilterOperator,
+                filter_operator::{
+                    FilterOperator,
+                    FilterOperator::{Eq, IsNone, IsSome, Ne},
+                },
                 property_filter::PropertyFilter,
                 AndFilter, Filter, FilterValue, NotFilter, OrFilter, PropertyFilterFactory,
                 TryAsCompositeFilter,
@@ -316,6 +319,24 @@ impl NodeFilter {
             return Ok(());
         };
 
+        fn filter_value_kind(fv: &FilterValue) -> &'static str {
+            match fv {
+                FilterValue::ID(GID::U64(_)) => "U64",
+                FilterValue::ID(GID::Str(_)) => "Str",
+                FilterValue::IDSet(set) => {
+                    if set.iter().all(|g| matches!(g, GID::U64(_))) {
+                        "U64"
+                    } else if set.iter().all(|g| matches!(g, GID::Str(_))) {
+                        "Str"
+                    } else {
+                        "heterogeneous id set"
+                    }
+                }
+                FilterValue::Single(_) => "Str",
+                FilterValue::Set(_) => "Str",
+            }
+        }
+
         let value_matches_kind = |fv: &FilterValue, expect: GidType| -> bool {
             match (fv, expect) {
                 (FilterValue::ID(GID::U64(_)), U64) => true,
@@ -354,8 +375,9 @@ impl NodeFilter {
 
         if !value_matches_kind(&filter.field_value, kind) {
             return Err(GraphError::InvalidGqlFilter(format!(
-                "Filter value type does not match declared ID type {:?}",
-                kind
+                "Filter value type does not match node ID type. Expected {:?} but got {:?}",
+                kind,
+                filter_value_kind(&filter.field_value)
             )));
         }
 
@@ -387,9 +409,13 @@ impl NodeFilter {
                     ));
                 }
             }
-            Eq | Ne | IsSome | IsNone => {
+            IsSome | IsNone => {
+                return Err(GraphError::InvalidGqlFilter(
+                    "IsSome/IsNone are not supported as filter operators".into(),
+                ));
+            }
+            Eq | Ne => {
                 // Eq/Ne already type-checked above
-                // IsSome/IsNone typically not used for IDs
             }
         }
 

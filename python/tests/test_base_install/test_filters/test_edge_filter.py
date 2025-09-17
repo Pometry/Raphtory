@@ -502,7 +502,7 @@ def test_filter_edges_with_str_ids_error():
         filter_expr = filter.Edge.src().id() == 3
         with pytest.raises(
             Exception,
-            match="Invalid filter: Filter value type does not match declared ID type Str",
+            match='Invalid filter: Filter value type does not match node ID type. Expected Str but got "U64"',
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -515,7 +515,7 @@ def test_filter_edges_with_num_ids_error():
         filter_expr = filter.Edge.src().id() == "3"
         with pytest.raises(
             Exception,
-            match="Invalid filter: Filter value type does not match declared ID type U64",
+            match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
         ):
             graph.filter(filter_expr).nodes.id
 

@@ -1505,7 +1505,7 @@ pub(crate) mod test_filters {
         graph
     }
 
-    fn init_nodes_graph2<
+    fn init_nodes_graph_with_num_ids<
         G: StaticGraphViewOps
             + AdditionOps
             + InternalAdditionOps
@@ -1624,7 +1624,7 @@ pub(crate) mod test_filters {
         graph
     }
 
-    fn init_nodes_graph3<
+    fn init_nodes_graph_with_str_ids<
         G: StaticGraphViewOps
             + AdditionOps
             + InternalAdditionOps
@@ -1750,7 +1750,7 @@ pub(crate) mod test_filters {
         graph
     }
 
-    fn init_edges_graph2<
+    fn init_edges_graph_with_num_ids<
         G: StaticGraphViewOps
             + AdditionOps
             + InternalAdditionOps
@@ -1834,7 +1834,7 @@ pub(crate) mod test_filters {
         graph
     }
 
-    fn init_edges_graph3<
+    fn init_edges_graph_with_str_ids<
         G: StaticGraphViewOps
             + AdditionOps
             + InternalAdditionOps
@@ -1871,7 +1871,7 @@ pub(crate) mod test_filters {
                     ComposableFilter,
                 },
                 test_filters::{
-                    init_nodes_graph, init_nodes_graph2, init_nodes_graph3,
+                    init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
                     IdentityGraphTransformer,
                 },
             },
@@ -2299,14 +2299,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["1"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2338,14 +2338,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["2", "3", "4"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -2377,14 +2377,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["1", "3"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -2416,14 +2416,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["2", "4"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
@@ -2437,14 +2437,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["1"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2458,14 +2458,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["1", "2", "3"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2479,14 +2479,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["3", "4"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2500,14 +2500,14 @@ pub(crate) mod test_filters {
             let expected_results = vec!["2", "3", "4"];
 
             assert_filter_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph2,
+                init_nodes_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2520,7 +2520,7 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().starts_with("France");
             let expected_results = vec!["France Paris"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2533,14 +2533,14 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().ends_with("wo");
             let expected_results = vec!["Two"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2553,7 +2553,7 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().contains("o");
             let expected_results = vec!["London", "Tokyo", "Two"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2566,7 +2566,7 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().not_contains("o");
             let expected_results = vec!["France Paris"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2579,14 +2579,14 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().is_in(vec!["London", "Tokyo"]);
             let expected_results = vec!["London", "Tokyo"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -2599,14 +2599,14 @@ pub(crate) mod test_filters {
             let filter = NodeFilter::id().is_not_in(vec!["London", "Tokyo"]);
             let expected_results = vec!["France Paris", "Two"];
             assert_filter_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_nodes_results(
-                init_nodes_graph3,
+                init_nodes_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7252,7 +7252,7 @@ pub(crate) mod test_filters {
                     ComposableFilter,
                 },
                 test_filters::{
-                    init_edges_graph, init_edges_graph2, init_edges_graph3,
+                    init_edges_graph, init_edges_graph_with_num_ids, init_edges_graph_with_str_ids,
                     IdentityGraphTransformer,
                 },
             },
@@ -7733,14 +7733,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().eq(3);
             let expected_results = vec!["3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7770,14 +7770,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().eq(3);
             let expected_results = vec!["2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7813,14 +7813,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().ne(3);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7856,14 +7856,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().ne(3);
             let expected_results = vec!["1->2", "2->1", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7893,14 +7893,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().is_in(vec![3]);
             let expected_results = vec!["3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7930,14 +7930,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().is_in(vec![3]);
             let expected_results = vec!["2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -7973,14 +7973,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().is_not_in(vec![3]);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8016,14 +8016,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().is_not_in(vec![3]);
             let expected_results = vec!["1->2", "2->1", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8036,14 +8036,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().lt(3);
             let expected_results = vec!["1->2", "2->1", "2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8056,14 +8056,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().lt(3);
             let expected_results = vec!["1->2", "2->1", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8076,14 +8076,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().le(3);
             let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8096,14 +8096,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().le(3);
             let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8116,14 +8116,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().gt(1);
             let expected_results = vec!["2->1", "2->3", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8136,14 +8136,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().gt(1);
             let expected_results = vec!["1->2", "2->3"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8156,14 +8156,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().ge(1);
             let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8176,14 +8176,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().ge(1);
             let expected_results = vec!["1->2", "2->1", "2->3", "3->1"];
             assert_filter_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph2,
+                init_edges_graph_with_num_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8196,14 +8196,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().starts_with("Tw");
             let expected_results = vec!["Two->One", "Two->Three"];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8216,14 +8216,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().ends_with("don");
             let expected_results = vec!["London->Paris"];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8236,7 +8236,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().contains("don");
             let expected_results = vec!["London->Paris"];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8249,7 +8249,7 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::dst().id().contains("Par");
             let expected_results = vec!["London->Paris"];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8268,14 +8268,14 @@ pub(crate) mod test_filters {
                 "Two->Three",
             ];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8288,14 +8288,14 @@ pub(crate) mod test_filters {
             let filter = EdgeFilter::src().id().is_in(["Two"]);
             let expected_results = vec!["Two->One", "Two->Three"];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
@@ -8313,14 +8313,14 @@ pub(crate) mod test_filters {
                 "Two->Three",
             ];
             assert_filter_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
                 TestVariants::All,
             );
             assert_search_edges_results(
-                init_edges_graph3,
+                init_edges_graph_with_str_ids,
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
