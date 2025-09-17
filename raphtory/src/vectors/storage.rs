@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Hash)]
 pub struct OpenAIEmbeddings {
     pub model: String,
     pub api_base: Option<String>,

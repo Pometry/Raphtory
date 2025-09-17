@@ -98,6 +98,11 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         }
     }
 
+    /// Returns the vectorised graph instance behind this selection
+    pub fn get_vectorised_graph(&self) -> &VectorisedGraph<G> {
+        &self.graph
+    }
+
     /// Return the nodes present in the current selection
     pub fn nodes(&self) -> Vec<NodeView<'static, G>> {
         let g = &self.graph.source_graph;

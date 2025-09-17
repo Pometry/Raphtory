@@ -4,12 +4,12 @@ use super::{
     node::GqlNode,
     vectorised_graph::{IntoWindowTuple, Window},
 };
-use crate::{embeddings::EmbedQuery, rayon::blocking_compute};
-use async_graphql::Context;
+use crate::rayon::blocking_compute;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    db::api::view::MaterializedGraph, errors::GraphResult,
-    vectors::vector_selection::VectorSelection,
+    db::api::view::MaterializedGraph,
+    errors::GraphResult,
+    vectors::{vector_selection::VectorSelection, vectorised_graph::VectorisedGraph, Embedding},
 };
 
 #[derive(InputObject)]
@@ -91,12 +91,11 @@ impl GqlVectorSelection {
     /// Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
     async fn expand_entities_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
@@ -108,12 +107,11 @@ impl GqlVectorSelection {
     /// Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
     async fn expand_nodes_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
@@ -125,12 +123,11 @@ impl GqlVectorSelection {
     /// Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
     async fn expand_edges_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
@@ -143,5 +140,9 @@ impl GqlVectorSelection {
 impl GqlVectorSelection {
     fn cloned(&self) -> VectorSelection<MaterializedGraph> {
         self.0.clone()
+    }
+
+    async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
+        self.0.get_vectorised_graph().embed_text(text).await
     }
 }

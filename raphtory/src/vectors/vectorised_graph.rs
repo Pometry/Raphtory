@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{
     cache::VectorCache,
     entity_db::{EdgeDb, EntityDb, NodeDb},
@@ -21,7 +23,7 @@ use crate::{
 pub struct VectorisedGraph<G: StaticGraphViewOps> {
     pub(crate) source_graph: G,
     pub(crate) template: DocumentTemplate,
-    pub(crate) cache: VectorCache,
+    pub(crate) cache: Arc<VectorCache>,
     pub(super) node_db: NodeDb<LanceDbCollection>,
     pub(super) edge_db: EdgeDb<LanceDbCollection>,
 }
@@ -136,5 +138,10 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         let view = apply_window(&self.source_graph, window);
         let docs = self.edge_db.top_k(query, limit, view, None).await?;
         Ok(VectorSelection::new(self.clone(), docs.collect()))
+    }
+
+    /// Returns the embedding for the given text using the embedding model setup for this graph
+    pub async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
+        self.cache.get_single(text).await
     }
 }

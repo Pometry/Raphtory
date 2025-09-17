@@ -1,6 +1,4 @@
 use super::vector_selection::GqlVectorSelection;
-use crate::{embeddings::EmbedQuery, model::blocking_io};
-use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::api::view::MaterializedGraph, errors::GraphResult,
@@ -45,12 +43,11 @@ impl GqlVectorisedGraph {
     /// Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
     async fn entities_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
         Ok(cloned
@@ -62,12 +59,11 @@ impl GqlVectorisedGraph {
     /// Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
     async fn nodes_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
         Ok(cloned.nodes_by_similarity(&vector, limit, w).await?.into())
@@ -76,12 +72,11 @@ impl GqlVectorisedGraph {
     /// Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
     async fn edges_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<Window>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
         Ok(cloned.edges_by_similarity(&vector, limit, w).await?.into())

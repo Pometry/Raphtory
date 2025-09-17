@@ -10,7 +10,7 @@ use async_openai::{
 };
 use futures_util::{future::BoxFuture, Stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::{future::Future, ops::Deref, pin::Pin, sync::Arc};
+use std::{future::Future, hash::Hash, ops::Deref, pin::Pin, sync::Arc};
 use tracing::info;
 
 const CHUNK_SIZE: usize = 1000;
@@ -20,6 +20,7 @@ pub type EmbeddingResult<T> = Result<T, EmbeddingError>;
 
 pub trait EmbeddingFunction: Send + Sync {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>>;
+    fn get_hash(&self) -> u64;
 }
 
 impl<T, F> EmbeddingFunction for T
@@ -30,11 +31,17 @@ where
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self(texts))
     }
+    fn get_hash(&self) -> u64 {
+        0
+    }
 }
 
 impl EmbeddingFunction for Arc<dyn EmbeddingFunction> {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         Box::pin(self.deref().call(texts))
+    }
+    fn get_hash(&self) -> u64 {
+        self.get_hash()
     }
 }
 
@@ -62,6 +69,12 @@ impl EmbeddingFunction for OpenAIEmbeddings {
                 .map(|e| e.embedding.into())
                 .collect())
         })
+    }
+
+    fn get_hash(&self) -> u64 {
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 }
 

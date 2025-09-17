@@ -2,6 +2,7 @@ use super::embeddings::EmbeddingFunction;
 use crate::{errors::GraphResult, vectors::Embedding};
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
+use itertools::Itertools;
 use moka::future::Cache;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -12,14 +13,17 @@ use std::{
     sync::Arc,
 };
 
+const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
+
 const MAX_DISK_ITEMS: usize = 1_000_000;
 const MAX_VECTOR_DIM: usize = 8960;
 const MAX_TEXT_LENGTH: usize = 200_000;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CacheEntry {
-    key: String,
-    value: Embedding,
+    model: usize,
+    text: String,
+    vector: Embedding,
 }
 type VectorDb = Database<SerdeBincode<u64>, SerdeBincode<CacheEntry>>;
 
@@ -99,31 +103,30 @@ impl VectorStore {
     }
 }
 
-#[derive(Clone)]
-pub struct VectorCache {
-    store: Arc<VectorStore>,
-    cache: Cache<u64, ()>,
-    function: Arc<dyn EmbeddingFunction>,
+#[derive(PartialEq, Clone)]
+struct EmbeddingFootprint {
+    hash: u64,
     vector_sample: Embedding,
 }
 
+// #[derive(Clone)]
+pub struct VectorCache {
+    store: Arc<VectorStore>,
+    cache: Cache<u64, ()>,
+    functions: RwLock<Vec<EmbeddingFootprint>>,
+}
+
 impl VectorCache {
-    pub async fn in_memory(function: impl EmbeddingFunction + 'static) -> GraphResult<Self> {
-        let vector_sample = get_vector_sample(&function).await?;
+    // FIXME: this doesnt need to be async anymore
+    pub async fn in_memory() -> GraphResult<Self> {
         Ok(Self {
             store: VectorStore::in_memory().into(),
             cache: Cache::new(10),
-            function: Arc::new(function),
-            vector_sample,
+            functions: Default::default(),
         })
     }
 
-    pub async fn on_disk(
-        path: &Path,
-        function: impl EmbeddingFunction + 'static,
-    ) -> GraphResult<Self> {
-        let vector_sample = get_vector_sample(&function).await?;
-
+    pub async fn on_disk(path: &Path) -> GraphResult<Self> {
         let store: Arc<_> = VectorStore::on_disk(path)?.into();
         let cloned = store.clone();
 
@@ -139,36 +142,81 @@ impl VectorCache {
         Ok(Self {
             store,
             cache,
-            function: Arc::new(function),
-            vector_sample,
+            functions: Default::default(),
         })
     }
 
-    pub(super) fn get_vector_sample(&self) -> Embedding {
-        self.vector_sample.clone()
-    }
-
-    async fn get(&self, text: &str) -> Option<Embedding> {
+    async fn get(&self, model: usize, text: &str) -> Option<Embedding> {
         let hash = hash(text);
         self.cache.get(&hash).await?;
         let entry = self.store.get(&hash)?;
-        if entry.key == text {
-            Some(entry.value)
+        if entry.model == model && entry.text == text {
+            Some(entry.vector)
         } else {
             None
         }
     }
 
-    async fn insert(&self, text: String, vector: Embedding) {
+    async fn insert(&self, model: usize, text: String, vector: Embedding) {
         let hash = hash(&text);
         let entry = CacheEntry {
-            key: text,
-            value: vector,
+            model,
+            text,
+            vector,
         };
         self.store.insert(hash, entry);
         self.cache.insert(hash, ()).await;
     }
+}
 
+trait EmbeddingCacher {
+    async fn cache(
+        &mut self,
+        embedding: impl EmbeddingFunction + 'static,
+    ) -> GraphResult<CachedEmbeddings>;
+}
+
+impl EmbeddingCacher for Arc<VectorCache> {
+    async fn cache(
+        &mut self,
+        function: impl EmbeddingFunction + 'static,
+    ) -> GraphResult<CachedEmbeddings> {
+        let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
+        let vector_sample = vectors.remove(0);
+
+        let footprint = EmbeddingFootprint {
+            hash: function.get_hash(),
+            vector_sample,
+        };
+
+        let functions = self.functions.write();
+        let maybe_id = functions.iter().find_position(|f| &&footprint == f);
+        let id = if let Some((id, _)) = maybe_id {
+            id
+        } else {
+            functions.push(footprint.clone());
+            functions
+                .iter()
+                .find_position(|f| &&footprint == f)
+                .unwrap()
+                .0
+        };
+
+        Ok(CachedEmbeddings {
+            function: Arc::new(function),
+            cache: self.clone(),
+            id,
+        })
+    }
+}
+
+struct CachedEmbeddings {
+    function: Arc<dyn EmbeddingFunction>,
+    cache: Arc<VectorCache>, // TODO: review if ok using here a parking_lot::RwLock
+    id: usize,
+}
+
+impl CachedEmbeddings {
     pub(super) async fn get_embeddings(
         &self,
         texts: Vec<String>,
@@ -176,7 +224,7 @@ impl VectorCache {
         // TODO: review, turned this into a vec only to make compute_embeddings work
         let results: Vec<_> = futures_util::stream::iter(texts)
             .then(|text| async move {
-                match self.get(&text).await {
+                match self.cache.get(self.id, &text).await {
                     Some(cached) => (text, Some(cached)),
                     None => (text, None),
                 }
@@ -196,7 +244,7 @@ impl VectorCache {
             vec![].into()
         };
         futures_util::stream::iter(misses.into_iter().zip(fresh_vectors.iter().cloned()))
-            .for_each(|(text, vector)| self.insert(text, vector))
+            .for_each(|(text, vector)| self.cache.insert(self.id, text, vector))
             .await;
         let embeddings = results.into_iter().map(move |(_, vector)| match vector {
             Some(vector) => vector,
@@ -211,12 +259,12 @@ impl VectorCache {
     }
 }
 
-const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
+// const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
 
-async fn get_vector_sample(function: &impl EmbeddingFunction) -> GraphResult<Embedding> {
-    let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
-    Ok(vectors.remove(0))
-}
+// async fn get_vector_sample(function: &impl EmbeddingFunction) -> GraphResult<Embedding> {
+//     let mut vectors = function.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
+//     Ok(vectors.remove(0))
+// }
 
 fn hash(text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
