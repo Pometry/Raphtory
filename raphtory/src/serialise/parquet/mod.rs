@@ -70,12 +70,11 @@ pub trait ParquetEncoder {
 
         let mut zip_writer = ZipWriter::new(writer);
 
-        // Walk through the directory and add files to the zip.
-        // Files are stored in the archive under the GRAPH_PATH directory.
+        // Walk through the directory and add files and directories to the zip.
+        // Files and directories are stored in the archive under the GRAPH_PATH directory.
         for entry in WalkDir::new(temp_dir.path())
             .into_iter()
             .filter_map(Result::ok)
-            .filter(|e| e.path().is_file())
         {
             let path = entry.path();
 
@@ -91,10 +90,15 @@ pub trait ParquetEncoder {
                 .to_string_lossy()
                 .into_owned();
 
-            zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
+            if path.is_file() {
+                zip_writer.start_file::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
 
-            let mut file = std::fs::File::open(path)?;
-            std::io::copy(&mut file, &mut zip_writer)?;
+                let mut file = std::fs::File::open(path)?;
+                std::io::copy(&mut file, &mut zip_writer)?;
+            } else if path.is_dir() {
+                // Add empty directories to the zip
+                zip_writer.add_directory::<_, ()>(zip_entry_name, FileOptions::<()>::default())?;
+            }
         }
 
         zip_writer.finish()?;
