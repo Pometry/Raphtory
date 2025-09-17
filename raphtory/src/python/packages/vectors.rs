@@ -8,7 +8,8 @@ use crate::{
     },
     vectors::{
         cache::VectorCache,
-        embeddings::{EmbeddingFunction, EmbeddingResult, OpenAIEmbeddings},
+        embeddings::{EmbeddingFunction, EmbeddingResult},
+        storage::OpenAIEmbeddings,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
         vector_selection::DynamicVectorSelection,
         vectorisable::Vectorisable,
@@ -20,7 +21,7 @@ use async_openai::config::OpenAIConfig;
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use std::path::PathBuf;
+use std::{future::Future, path::PathBuf};
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
@@ -29,7 +30,7 @@ type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 pub struct PyOpenAIEmbeddings {
     model: String,
     api_base: Option<String>,
-    api_key: Option<String>,
+    api_key_env: Option<String>,
     org_id: Option<String>,
     project_id: Option<String>,
 }
@@ -37,42 +38,39 @@ pub struct PyOpenAIEmbeddings {
 #[pymethods]
 impl PyOpenAIEmbeddings {
     #[new]
-    #[pyo3(signature = (model, api_base=None, api_key=None, org_id=None, project_id=None))]
+    #[pyo3(signature = (model, api_base=None, api_key_env=None, org_id=None, project_id=None))]
     fn new(
         model: String,
         api_base: Option<String>,
-        api_key: Option<String>,
+        api_key_env: Option<String>,
         org_id: Option<String>,
         project_id: Option<String>,
     ) -> Self {
         Self {
             model,
             api_base,
-            api_key,
+            api_key_env,
             org_id,
             project_id,
         }
     }
 }
+impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
+    fn from(value: PyOpenAIEmbeddings) -> Self {
+        Self {
+            model: value.model.clone(),
+            api_base: value.api_base.clone(),
+            api_key_env: value.api_key_env.clone(),
+            org_id: value.org_id.clone(),
+            project_id: value.project_id.clone(),
+        }
+    }
+}
 
 impl EmbeddingFunction for PyOpenAIEmbeddings {
+    // TODO: instead of implementing EmbeddingFunction, could just translate it into OpenAIEmbeddings when I receive it from the user
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        let mut config = OpenAIConfig::default();
-        if let Some(api_base) = &self.api_base {
-            config = config.with_api_base(api_base)
-        }
-        if let Some(api_key) = &self.api_key {
-            config = config.with_api_key(api_key)
-        }
-        if let Some(org_id) = &self.org_id {
-            config = config.with_org_id(org_id)
-        }
-        if let Some(project_id) = &self.project_id {
-            config = config.with_project_id(project_id)
-        }
-
-        let model = self.model.clone();
-        let embeddings = OpenAIEmbeddings { model, config };
+        let embeddings: OpenAIEmbeddings = self.clone().into();
         embeddings.call(texts)
     }
 }
@@ -215,7 +213,7 @@ impl PyGraphView {
             let cache = if let Some(cache) = cache {
                 VectorCache::on_disk(&PathBuf::from(cache), embedding).await?
             } else {
-                VectorCache::in_memory(embedding)
+                VectorCache::in_memory(embedding).await?
             };
             Ok(graph.vectorise(cache, template, None, verbose).await?)
         })
@@ -283,9 +281,9 @@ impl PyVectorisedGraph {
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
-        Ok(self
-            .0
-            .entities_by_similarity(&embedding, limit, translate_window(window))?)
+        let w = translate_window(window);
+        let s = block_on(self.0.entities_by_similarity(&embedding, limit, w))?;
+        Ok(s)
     }
 
     /// Search the closest nodes to `query` with no more than `limit` nodes
@@ -305,9 +303,8 @@ impl PyVectorisedGraph {
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
-        Ok(self
-            .0
-            .nodes_by_similarity(&embedding, limit, translate_window(window))?)
+        let w = translate_window(window);
+        Ok(block_on(self.0.nodes_by_similarity(&embedding, limit, w))?)
     }
 
     /// Search the closest edges to `query` with no more than `limit` edges
@@ -327,9 +324,8 @@ impl PyVectorisedGraph {
         window: PyWindow,
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
-        Ok(self
-            .0
-            .edges_by_similarity(&embedding, limit, translate_window(window))?)
+        let w = translate_window(window);
+        Ok(block_on(self.0.edges_by_similarity(&embedding, limit, w))?)
     }
 }
 
@@ -369,7 +365,7 @@ impl PyVectorSelection {
     /// Returns:
     ///     list[Document]: list of documents in the current selection
     fn get_documents(&self) -> PyResult<Vec<Document<DynamicGraph>>> {
-        Ok(self.0.get_documents()?)
+        Ok(block_on(self.0.get_documents())?)
     }
 
     /// Return the documents alongside their distances present in the current selection
@@ -377,7 +373,7 @@ impl PyVectorSelection {
     /// Returns:
     ///     list[Tuple[Document, float]]: list of documents and distances
     fn get_documents_with_distances(&self) -> PyResult<Vec<(Document<DynamicGraph>, f32)>> {
-        Ok(self.0.get_documents_with_distances()?)
+        Ok(block_on(self.0.get_documents_with_distances())?)
     }
 
     /// Add all the documents associated with the `nodes` to the current selection
@@ -454,15 +450,15 @@ impl PyVectorSelection {
     ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_entities_by_similarity(
-        mut self_: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = query.into_embedding(&self_.0.graph)?;
-        self_
-            .0
-            .expand_entities_by_similarity(&embedding, limit, translate_window(window))?;
+        let embedding = query.into_embedding(&slf.0.graph)?;
+        let w = translate_window(window);
+        block_on(slf.0.expand_entities_by_similarity(&embedding, limit, w))?;
+
         Ok(())
     }
 
@@ -479,15 +475,14 @@ impl PyVectorSelection {
     ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_nodes_by_similarity(
-        mut self_: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = query.into_embedding(&self_.0.graph)?;
-        self_
-            .0
-            .expand_nodes_by_similarity(&embedding, limit, translate_window(window))?;
+        let embedding = query.into_embedding(&slf.0.graph)?;
+        let w = translate_window(window);
+        block_on(slf.0.expand_nodes_by_similarity(&embedding, limit, w))?;
         Ok(())
     }
 
@@ -504,15 +499,22 @@ impl PyVectorSelection {
     ///     None:
     #[pyo3(signature = (query, limit, window=None))]
     fn expand_edges_by_similarity(
-        mut self_: PyRefMut<'_, Self>,
+        mut slf: PyRefMut<'_, Self>,
         query: PyQuery,
         limit: usize,
         window: PyWindow,
     ) -> PyResult<()> {
-        let embedding = query.into_embedding(&self_.0.graph)?;
-        self_
-            .0
-            .expand_edges_by_similarity(&embedding, limit, translate_window(window))?;
+        let embedding = query.into_embedding(&slf.0.graph)?;
+        let w = translate_window(window);
+        block_on(slf.0.expand_edges_by_similarity(&embedding, limit, w))?;
         Ok(())
     }
+}
+
+fn block_on<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(future)
 }

@@ -82,7 +82,8 @@ parking_lot = { version = "0.12.1", features = [
     "send_guard",
 ] }
 ordered-float = "4.2.0"
-chrono = { version = "=0.4.39", features = ["serde"] }
+# chrono = { version = "=0.4.41", features = ["serde"] } # this works for lancedb version requirements
+chrono = { version = "=0.4.39", features = ["serde"] } # this works for arrow-arith at compilation time
 tempfile = "3.10.0"
 futures-util = "0.3.30"
 thiserror = "2.0.0"
@@ -154,7 +155,8 @@ minijinja = "2.2.0"
 minijinja-contrib = { version = "2.2.0", features = ["datetime"] }
 datafusion = { version = "43.0.0" }
 arroy = "0.6.1"
-lancedb = "0.19.1" # current is 0.22.0
+# lancedb = "0.22.0" # this is the latest and asks for chrono 0.4.41
+lancedb = "0.19.1" # this uses chrono 0.4.39, which doesn't causes the problem when compiling arrow-arith 53.2.0
 heed = "0.22.0"
 sqlparser = "0.51.0"
 futures = "0.3"
@@ -177,3 +179,6 @@ arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" 
 arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
 arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
 arrow-array = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
+# chrono = { version = "0.4.39" }
+# chrono = { version="0.4.41", git = "https://github.com/chronotope/chrono.git", tag = "v0.4.39" }
+chrono = { git = "https://github.com/chronotope/chrono.git", tag = "v0.4.38" } # this forces lancedb to work with chrono 0.4.38

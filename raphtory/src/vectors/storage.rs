@@ -21,11 +21,11 @@ use std::{
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OpenAIEmbeddings {
-    pub(super) model: String,
-    api_base: Option<String>,
-    api_key_env: Option<String>,
-    org_id: Option<String>,
-    project_id: Option<String>,
+    pub model: String,
+    pub api_base: Option<String>,
+    pub api_key_env: Option<String>,
+    pub org_id: Option<String>,
+    pub project_id: Option<String>,
 }
 
 impl Default for OpenAIEmbeddings {

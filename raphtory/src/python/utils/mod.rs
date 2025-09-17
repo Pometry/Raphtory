@@ -468,7 +468,8 @@ where
 {
     Python::with_gil(|py| {
         py.allow_threads(move || {
-            // we call `allow_threads` because the task might need to grab the GIL
+            // we call `allow_threads` because the task might need to grab the GIL // FIXME: this might not be the case anymore, also remember removing the imlpementation of EmbeddingFunction for a python function
+            // FIXME: why do we need a thread here??? DO I need it as well in the implementation for the VectorisedGraph functions
             thread::spawn(move || {
                 tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
