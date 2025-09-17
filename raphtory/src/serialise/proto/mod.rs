@@ -251,7 +251,7 @@ mod proto_test {
     fn prev_proto_str() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("raphtory/resources/test/old_proto/str"))
+            .map(|p| p.join("raphtory/resources/test/old_proto/str/graph"))
             .unwrap();
 
         let bytes = std::fs::read(path).unwrap();
@@ -284,7 +284,7 @@ mod proto_test {
     fn can_read_previous_proto() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .parent()
-            .map(|p| p.join("raphtory/resources/test/old_proto/all_props"))
+            .map(|p| p.join("raphtory/resources/test/old_proto/all_props/graph"))
             .unwrap();
 
         let bytes = std::fs::read(path).unwrap();
