@@ -73,13 +73,11 @@ impl GqlGraphWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "NodeWindowSet")]
 pub(crate) struct GqlNodeWindowSet {
-    pub(crate) ws: WindowSet<'static, NodeView<'static, DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, NodeView<'static, DynamicGraph>>,
 }
 
 impl GqlNodeWindowSet {
-    pub(crate) fn new(
-        ws: WindowSet<'static, NodeView<'static, DynamicGraph, DynamicGraph>>,
-    ) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, NodeView<'static, DynamicGraph>>) -> Self {
         Self { ws }
     }
 }
@@ -173,11 +171,11 @@ impl GqlNodesWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNodeWindowSet")]
 pub(crate) struct GqlPathFromNodeWindowSet {
-    pub(crate) ws: WindowSet<'static, PathFromNode<'static, DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, PathFromNode<'static, DynamicGraph>>,
 }
 
 impl GqlPathFromNodeWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, PathFromNode<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, PathFromNode<DynamicGraph>>) -> Self {
         Self { ws }
     }
 }
@@ -229,11 +227,11 @@ impl GqlPathFromNodeWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EdgeWindowSet")]
 pub(crate) struct GqlEdgeWindowSet {
-    pub(crate) ws: WindowSet<'static, EdgeView<DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, EdgeView<DynamicGraph>>,
 }
 
 impl GqlEdgeWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, EdgeView<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, EdgeView<DynamicGraph>>) -> Self {
         Self { ws }
     }
 }
@@ -278,11 +276,11 @@ impl GqlEdgeWindowSet {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "EdgesWindowSet")]
 pub(crate) struct GqlEdgesWindowSet {
-    pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph, DynamicGraph>>,
+    pub(crate) ws: WindowSet<'static, Edges<'static, DynamicGraph>>,
 }
 
 impl GqlEdgesWindowSet {
-    pub(crate) fn new(ws: WindowSet<'static, Edges<DynamicGraph, DynamicGraph>>) -> Self {
+    pub(crate) fn new(ws: WindowSet<'static, Edges<DynamicGraph>>) -> Self {
         Self { ws }
     }
 }

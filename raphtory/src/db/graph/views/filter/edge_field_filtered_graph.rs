@@ -9,7 +9,11 @@ use crate::{
                 InheritTimeSemantics, InternalEdgeFilterOps, Static,
             },
         },
-        graph::views::filter::{internal::CreateEdgeFilter, model::Filter, EdgeFieldFilter},
+        graph::views::filter::{
+            internal::CreateFilter,
+            model::{node_filter::NodeFilter, Filter},
+            EdgeFieldFilter,
+        },
     },
     errors::GraphError,
     prelude::GraphViewOps,
@@ -29,13 +33,14 @@ impl<G> EdgeFieldFilteredGraph<G> {
     }
 }
 
-impl CreateEdgeFilter for EdgeFieldFilter {
-    type EdgeFiltered<'graph, G: GraphViewOps<'graph>> = EdgeFieldFilteredGraph<G>;
+impl CreateFilter for EdgeFieldFilter {
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = EdgeFieldFilteredGraph<G>;
 
-    fn create_edge_filter<'graph, G: GraphViewOps<'graph>>(
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
         self,
         graph: G,
-    ) -> Result<Self::EdgeFiltered<'graph, G>, GraphError> {
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        NodeFilter::validate(graph.id_type(), &self.0)?;
         Ok(EdgeFieldFilteredGraph::new(graph, self.0))
     }
 }
@@ -79,10 +84,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for EdgeFieldFiltere
 
     #[inline]
     fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
-        if self.graph.internal_filter_edge(edge, layer_ids) {
-            self.filter.matches_edge(&self.graph, edge)
-        } else {
-            false
-        }
+        self.graph.internal_filter_edge(edge, layer_ids)
+            && self.filter.matches_edge(&self.graph, edge)
     }
 }

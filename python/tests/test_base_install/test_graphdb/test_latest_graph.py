@@ -61,7 +61,7 @@ def test_node_latest():
     wg = g.window(5, 12)
     assert wg.node(1).latest().history() == [10]
 
-    assert g.nodes.latest().id.collect() == [1, 3]
+    assert g.nodes.latest().id.collect() == [1, 2, 3]
     assert wg.nodes.latest().id.collect() == [1, 2]
 
 

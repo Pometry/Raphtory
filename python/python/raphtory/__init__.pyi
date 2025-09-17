@@ -25,7 +25,7 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
+__all__ = ['GraphView', 'Graph', 'PersistentGraph', 'Node', 'Nodes', 'PathFromNode', 'PathFromGraph', 'MutableNode', 'Edge', 'Edges', 'NestedEdges', 'MutableEdge', 'Properties', 'Metadata', 'TemporalProperties', 'PropertiesView', 'TemporalProp', 'WindowSet', 'IndexSpecBuilder', 'IndexSpec', 'Prop', 'version', 'graphql', 'algorithms', 'graph_loader', 'graph_gen', 'vectors', 'node_state', 'filter', 'nullmodels', 'plottingutils']
 class GraphView(object): 
     """Graph view is a read-only version of a graph at a certain point in time."""
 
@@ -249,34 +249,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: Any) -> GraphView:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> GraphView:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> GraphView:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             GraphView: The filtered view
@@ -2122,34 +2100,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: Any) -> Node:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Node:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> Node:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Node: The filtered view
@@ -2678,34 +2634,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: Any) -> Nodes:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Nodes:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> Nodes:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Nodes: The filtered view
@@ -3056,6 +2990,9 @@ class PathFromNode(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -3213,34 +3150,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: Any) -> PathFromNode:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromNode:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromNode:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromNode: The filtered view
@@ -3507,6 +3422,9 @@ class PathFromGraph(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -3663,34 +3581,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: Any) -> PathFromGraph:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromGraph:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromGraph: The filtered view
@@ -4518,6 +4414,9 @@ class Edges(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -5003,6 +4902,9 @@ class NestedEdges(object):
 
     def __bool__(self):
         """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -5911,6 +5813,62 @@ class IndexSpec(object):
 
     @property
     def node_properties(self):
+        ...
+
+class Prop(object): 
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @staticmethod
+    def bool(value):
+        ...
+
+    def dtype(self):
+        ...
+
+    @staticmethod
+    def f32(value):
+        ...
+
+    @staticmethod
+    def f64(value):
+        ...
+
+    @staticmethod
+    def i32(value):
+        ...
+
+    @staticmethod
+    def i64(value):
+        ...
+
+    @staticmethod
+    def list(values):
+        ...
+
+    @staticmethod
+    def map(dict):
+        ...
+
+    @staticmethod
+    def str(value):
+        ...
+
+    @staticmethod
+    def u16(value):
+        ...
+
+    @staticmethod
+    def u32(value):
+        ...
+
+    @staticmethod
+    def u64(value):
+        ...
+
+    @staticmethod
+    def u8(value):
         ...
 
 def version():

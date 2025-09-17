@@ -1,5 +1,5 @@
 use crate::db::graph::views::filter::model::{property_filter::PropertyFilterValue, FilterValue};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{properties::prop::Prop, GidRef, GID};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
@@ -15,6 +15,8 @@ pub enum FilterOperator {
     NotIn,
     IsSome,
     IsNone,
+    StartsWith,
+    EndsWith,
     Contains,
     NotContains,
     FuzzySearch {
@@ -36,6 +38,8 @@ impl Display for FilterOperator {
             FilterOperator::NotIn => "NOT_IN",
             FilterOperator::IsSome => "IS_SOME",
             FilterOperator::IsNone => "IS_NONE",
+            FilterOperator::StartsWith => "STARTS_WITH",
+            FilterOperator::EndsWith => "ENDS_WITH",
             FilterOperator::Contains => "CONTAINS",
             FilterOperator::NotContains => "NOT_CONTAINS",
             FilterOperator::FuzzySearch {
@@ -110,7 +114,18 @@ impl FilterOperator {
                 | FilterOperator::Lt
                 | FilterOperator::Le
                 | FilterOperator::Gt
-                | FilterOperator::Ge => right.is_some_and(|r| self.operation()(r, l)),
+                | FilterOperator::Ge => right.is_some_and(|r| {
+                    // println!("right: {:?}, left: {:?}", r, l);
+                    self.operation()(r, l)
+                }),
+                FilterOperator::StartsWith => right.is_some_and(|r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => r.deref().starts_with(l.deref()),
+                    _ => unreachable!(),
+                }),
+                FilterOperator::EndsWith => right.is_some_and(|r| match (l, r) {
+                    (Prop::Str(l), Prop::Str(r)) => r.deref().ends_with(l.deref()),
+                    _ => unreachable!(),
+                }),
                 FilterOperator::Contains => right.is_some_and(|r| match (l, r) {
                     (Prop::Str(l), Prop::Str(r)) => r.deref().contains(l.deref()),
                     _ => unreachable!(),
@@ -147,6 +162,8 @@ impl FilterOperator {
                     Some(r) => self.operation()(r, l),
                     None => matches!(self, FilterOperator::Ne),
                 },
+                FilterOperator::StartsWith => right.is_some_and(|r| r.starts_with(l)),
+                FilterOperator::EndsWith => right.is_some_and(|r| r.ends_with(l)),
                 FilterOperator::Contains => right.is_some_and(|r| r.contains(l)),
                 FilterOperator::NotContains => right.is_some_and(|r| !r.contains(l)),
                 FilterOperator::FuzzySearch {
@@ -158,12 +175,73 @@ impl FilterOperator {
                 }),
                 _ => unreachable!(),
             },
+
             FilterValue::Set(l) => match self {
                 FilterOperator::In | FilterOperator::NotIn => match right {
                     Some(r) => self.collection_operation()(l, &r.to_string()),
                     None => matches!(self, FilterOperator::NotIn),
                 },
                 _ => unreachable!(),
+            },
+
+            FilterValue::ID(_) | FilterValue::IDSet(_) => unreachable!(),
+        }
+    }
+
+    pub fn apply_id(&self, left: &FilterValue, right: GidRef<'_>) -> bool {
+        match left {
+            FilterValue::ID(GID::U64(l)) => match right {
+                GidRef::U64(r) => match self {
+                    FilterOperator::Eq
+                    | FilterOperator::Ne
+                    | FilterOperator::Lt
+                    | FilterOperator::Le
+                    | FilterOperator::Gt
+                    | FilterOperator::Ge => self.operation()(&r, l),
+                    _ => false,
+                },
+                GidRef::Str(_) => false,
+            },
+
+            FilterValue::ID(GID::Str(ls)) | FilterValue::Single(ls) => match right {
+                GidRef::Str(rs) => match self {
+                    FilterOperator::Eq | FilterOperator::Ne => self.operation()(&rs, &ls.as_str()),
+                    FilterOperator::StartsWith => rs.starts_with(ls),
+                    FilterOperator::EndsWith => rs.ends_with(ls),
+                    FilterOperator::Contains => rs.contains(ls),
+                    FilterOperator::NotContains => !rs.contains(ls),
+                    FilterOperator::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let f = self.fuzzy_search(*levenshtein_distance, *prefix_match);
+                        f(ls, rs)
+                    }
+                    _ => false,
+                },
+                GidRef::U64(_) => false,
+            },
+
+            FilterValue::IDSet(set) => match right {
+                GidRef::U64(r) => match self {
+                    FilterOperator::In => set.contains(&GID::U64(r)),
+                    FilterOperator::NotIn => !set.contains(&GID::U64(r)),
+                    _ => false,
+                },
+                GidRef::Str(s) => match self {
+                    FilterOperator::In => set.contains(&GID::Str(s.to_string())),
+                    FilterOperator::NotIn => !set.contains(&GID::Str(s.to_string())),
+                    _ => false,
+                },
+            },
+
+            FilterValue::Set(set) => match right {
+                GidRef::U64(_) => false,
+                GidRef::Str(s) => match self {
+                    FilterOperator::In => set.contains(s),
+                    FilterOperator::NotIn => !set.contains(s),
+                    _ => false,
+                },
             },
         }
     }

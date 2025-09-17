@@ -394,6 +394,9 @@ pub enum GraphError {
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
 
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
+
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
 
