@@ -1,12 +1,20 @@
-# Writing Raphtory queries in GraphQL
+# Making GraphQL requests
+
+The GraphQL API largely follows the same patterns as the Python API but has a few key differences.
+
+In GraphQL, there are two different types of requests: a query to search through your data or a mutation of your data. Only the top-level fields in mutation operations are allowed to cause side effects. To accommodate this, in the Raphtory API you can make queries to graphs or metagraphs but must make changes using a mutable graph, node or edge.
+
+This division means that the distinction between Graphs and GraphViews is less important in GraphQL and all non-mutable Graph endpoints are GraphViews while MutableGraphs are used for mutation operations. This is also true for Nodes and Edges and their respective views. Graphs can be further distinguished as either `PERSISTENT` or `EVENT` types.
+
+## Graphical playground
 
 When you start a GraphQL server, you can find your GraphQL UI in the browser at `localhost:1736/playground` or an alternative port if you specified one.
 
-The schema for the queries can be found on the right hand side in a pull out toggle.
+An annotated schema is available from the documentation tab in the left hand menu of the playground.
 
-![alt text](schema.png)
+![alt text](../../assets/images/raphtory_ui_playground_docs.png)
 
-## Example Queries in GraphQL
+## Query a graph
 
 Here are some example queries to get you started:
 
@@ -26,7 +34,7 @@ query {
 ```
 ///
 
-## List of all the edges, with specific node properties 
+### List of all the edges, with specific node properties
 
 To find nodes with `age`:
 
@@ -59,7 +67,7 @@ query {
 ```
 ///
 
-This will return something like this:
+This will return something like:
 
 !!! Output
 
@@ -120,9 +128,163 @@ g.node("Ben").properties.get("age")
 ```
 ///
 
-## Querying GraphQL in Python
+### Examine the metadata of a node
 
-It is possible to send GraphQL queries in Python without the in-browser IDE. This can be useful if you want to update your Raphtory graph in Python. This example shows you how to do this with the Raphtory client:
+Metadata does not change over the lifetime of an object. You can request it with a query like the following:
+
+
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+{
+  graph(path: "traffic_graph") {
+    nodes {
+      list {
+        name
+        metadata {
+          values {
+            key
+            value
+          }
+        }
+      }
+    }
+  }
+}
+```
+///
+
+Which will return something like:
+
+!!! Output
+    ```json
+    {
+    "data": {
+        "graph": {
+        "nodes": {
+            "list": [
+            {
+                "name": "ServerA",
+                "metadata": {
+                "values": [
+                    {
+                    "key": "datasource",
+                    "value": "network_traffic_edges.csv"
+                    },
+                    {
+                    "key": "server_name",
+                    "value": "Alpha"
+                    },
+                    {
+                    "key": "hardware_type",
+                    "value": "Blade Server"
+                    }
+                ]
+                }
+            },
+            {
+                "name": "ServerB",
+                "metadata": {
+                "values": [
+                    {
+                    "key": "datasource",
+                    "value": "network_traffic_edges.csv"
+                    },
+                    {
+                    "key": "server_name",
+                    "value": "Beta"
+                    },
+                    {
+                    "key": "hardware_type",
+                    "value": "Rack Server"
+                    }
+                ]
+                }
+            }
+            ]
+        }
+        }
+    }
+    }
+    ```
+
+### Examine the properties of a node
+
+Properties can change over time so it is often useful to make a query for a specific time or window.
+
+/// tab | ![GraphQL](https://img.icons8.com/ios-filled/15/graphql.png) GraphQL
+```
+{
+  graph(path: "traffic_graph") {
+    at(time: 1693555500000) {
+      nodes {
+        list {
+          name
+          properties {
+            values {
+              key
+              value
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+///
+
+Which will return something like:
+
+!!! Output
+    ```json
+    {
+    "data": {
+        "graph": {
+        "at": {
+            "nodes": {
+            "list": [
+                {
+                "name": "ServerA",
+                "properties": {
+                    "values": []
+                }
+                },
+                {
+                "name": "ServerB",
+                "properties": {
+                    "values": [
+                    {
+                        "key": "OS_version",
+                        "value": "Red Hat 8.1"
+                    },
+                    {
+                        "key": "primary_function",
+                        "value": "Web Server"
+                    },
+                    {
+                        "key": "uptime_days",
+                        "value": 45
+                    }
+                    ]
+                }
+                },
+                {
+                "name": "ServerC",
+                "properties": {
+                    "values": []
+                }
+                }
+            ]
+            }
+        }
+        }
+    }
+    }
+    ```
+
+### Querying GraphQL in Python
+
+You can also send GraphQL queries in Python directl using the [`.query()`][raphtory.graphql.RaphtoryClient.query] function on a `RaphtoryClient`. The following example shows you how to do this:
 
 /// tab | :fontawesome-brands-python: Python
 ```{.python notest}
@@ -144,40 +306,16 @@ Pass your graph object string into the `client.query()` method to execute the Gr
     {'graph': {'created': 1729075008085, 'lastOpened': 1729075036222, 'lastUpdated': 1729075008085}}
     ```
 
+## Mutation requests
 
-## Mutation Queries
+You can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
 
-In GraphQL, you can write two different types of queries - a query to search through your data or a query that mutates your data.
+From GraphQL these operations are available from the [Mutation root](../../../reference/graphql/graphql_API/#mutation-mutroot) which operates on mutable objects by specified by a path.
 
-The examples in the previous section are all queries used to search through your data. However in our API, you can also mutate your graph. This can be done both in the GraphQL IDE and in Python.
+!!! note
+    Some methods to mutate the graph are exclusive to Python.
 
-The schema in the GraphQL IDE shows how you can mutate the graph within the IDE:
-
-```
-type MutRoot {
-  plugins: MutationPlugin!
-  deleteGraph(path: String!): Boolean!
-  newGraph(path: String!, graphType: GqlGraphType!): Boolean!
-  moveGraph(path: String!, newPath: String!): Boolean!
-  copyGraph(path: String!, newPath: String!): Boolean!
-
-  # Use GQL multipart upload to send new graphs to server
-  #
-  # Returns::
-  # name of the new graph
-  uploadGraph(path: String!, graph: Upload!, overwrite: Boolean!): String!
-
-  # Send graph bincode as base64 encoded string
-  #
-  # Returns::
-  # path of the new graph
-  sendGraph(path: String!, graph: String!, overwrite: Boolean!): String!
-}
-```
-
-There are additional methods to mutate the graph exclusive to Python such as sending, receiving and updating a graph, these will all be explained below.
-
-## Sending a graph
+### Sending a graph
 
 You can send a graph to the server and overwrite an existing graph if needed.
 
@@ -223,7 +361,7 @@ This should return:
     }
     ```
 
-## Receiving graphs
+### Receiving graphs
 
 You can retrieve graphs from a "path" on the server which returns a Python Raphtory graph object.
 
@@ -234,7 +372,7 @@ g.edge("sally", "tony")
 ```
 ///
 
-## Creating a new graph
+### Creating a new graph
 
 This is an example of how to create a new graph in the server.
 
@@ -272,7 +410,7 @@ The returning result to confirm that a new graph has been created:
     }
     ```
 
-## Moving a graph
+### Moving a graph
 
 It is possible to move a graph to a new path on the server.
 
@@ -307,7 +445,7 @@ The returning GraphQL result to confirm that the graph has been moved:
     }
     ```
 
-## Copying a graph
+### Copying a graph
 
 It is possible to copy a graph to a new path on the server.
 
@@ -342,7 +480,7 @@ The returning GraphQL result to confirm that the graph has been copied:
     }
     ```
 
-## Deleting a graph
+### Deleting a graph
 
 It is possible to delete a graph on the server.
 
@@ -377,7 +515,7 @@ The returning GraphQL result to confirm that the graph has been deleted:
     }
     ```
 
-## Updating the graph
+### Updating the graph
 
 It is possible to update the graph using the `remote_graph()` method.
 

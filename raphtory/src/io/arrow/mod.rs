@@ -13,8 +13,9 @@ mod test {
         },
         prelude::*,
     };
-    use polars_arrow::array::{PrimitiveArray, Utf8Array};
+    use arrow_array::{Float64Array, Int64Array, StringArray, UInt64Array};
     use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+    use std::sync::Arc;
 
     #[test]
     fn load_edges_from_pretend_df() {
@@ -26,20 +27,20 @@ mod test {
             chunks: vec![
                 Ok(DFChunk {
                     chunk: vec![
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                        Box::new(PrimitiveArray::<f64>::from(vec![Some(1.0)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
+                        Arc::new(UInt64Array::from(vec![1u64])),
+                        Arc::new(UInt64Array::from(vec![2u64])),
+                        Arc::new(Int64Array::from(vec![1i64])),
+                        Arc::new(Float64Array::from(vec![1.0f64])),
+                        Arc::new(StringArray::from(vec!["a"])),
                     ],
                 }),
                 Ok(DFChunk {
                     chunk: vec![
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2), Some(3)])),
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(3), Some(4)])),
-                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2), Some(3)])),
-                        Box::new(PrimitiveArray::<f64>::from(vec![Some(2.0), Some(3.0)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("b"), Some("c")])),
+                        Arc::new(UInt64Array::from(vec![Some(2), Some(3)])),
+                        Arc::new(UInt64Array::from(vec![Some(3), Some(4)])),
+                        Arc::new(Int64Array::from(vec![Some(2), Some(3)])),
+                        Arc::new(Float64Array::from(vec![Some(2.0), Some(3.0)])),
+                        Arc::new(StringArray::from(vec![Some("b"), Some("c")])),
                     ],
                 }),
             ]
@@ -125,18 +126,18 @@ mod test {
             chunks: vec![
                 Ok(DFChunk {
                     chunk: vec![
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(1)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("a")])),
-                        Box::new(PrimitiveArray::<i64>::from(vec![Some(1)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("atype")])),
+                        Arc::new(UInt64Array::from(vec![Some(1)])),
+                        Arc::new(StringArray::from(vec![Some("a")])),
+                        Arc::new(Int64Array::from(vec![Some(1)])),
+                        Arc::new(StringArray::from(vec![Some("atype")])),
                     ],
                 }),
                 Ok(DFChunk {
                     chunk: vec![
-                        Box::new(PrimitiveArray::<u64>::from(vec![Some(2)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("b")])),
-                        Box::new(PrimitiveArray::<i64>::from(vec![Some(2)])),
-                        Box::new(Utf8Array::<i32>::from(vec![Some("btype")])),
+                        Arc::new(UInt64Array::from(vec![Some(2)])),
+                        Arc::new(StringArray::from(vec![Some("b")])),
+                        Arc::new(Int64Array::from(vec![Some(2)])),
+                        Arc::new(StringArray::from(vec![Some("btype")])),
                     ],
                 }),
             ]
