@@ -1,3 +1,4 @@
+use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 use crate::{
     db::api::view::MaterializedGraph,
@@ -173,23 +174,34 @@ impl GraphFolder {
             writer.write_all(&buffer)?;
         } else {
             let mut zip = ZipWriter::new(writer);
-            let graph_file = self.get_graph_path();
+
+            for entry in WalkDir::new(&self.root_folder)
+                .into_iter()
+                .filter_map(Result::ok)
             {
-                // scope for file
-                let mut reader = File::open(&graph_file)?;
-                reader.read_to_end(&mut buffer)?;
-                zip.start_file::<_, ()>(GRAPH_PATH, FileOptions::default())?;
-                zip.write_all(&buffer)?;
+                let path = entry.path();
+                let rel_path = path
+                    .strip_prefix(&self.root_folder)
+                    .map_err(|e|
+                        GraphError::IOErrorMsg(format!("Failed to strip prefix from path: {}", e))
+                    )?;
+
+                let zip_entry_name = rel_path.to_string_lossy().into_owned();
+
+                if path.is_file() {
+                    zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())?;
+
+                    let mut file = File::open(path)?;
+                    std::io::copy(&mut file, &mut zip)?;
+                } else if path.is_dir() {
+                    // Add empty directories to the zip
+                    zip.add_directory::<_, ()>(zip_entry_name, FileOptions::default())?;
+                }
             }
-            {
-                // scope for file
-                buffer.clear();
-                let mut reader = File::open(self.get_meta_path())?;
-                reader.read_to_end(&mut buffer)?;
-                zip.start_file::<_, ()>(META_PATH, FileOptions::default())?;
-                zip.write_all(&buffer)?;
-            }
+
+            zip.finish()?;
         }
+
         Ok(())
     }
 }
@@ -216,8 +228,8 @@ impl From<&GraphFolder> for GraphFolder {
 mod zip_tests {
     use super::*;
     use crate::{
+        db::graph::graph::assert_graph_equal,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        serialise::metadata::GraphMetadata,
     };
     use raphtory_api::core::utils::logging::global_info_logger;
 
@@ -319,30 +331,24 @@ mod zip_tests {
 
         // Create a regular folder and encode the graph
         let temp_folder = tempfile::TempDir::new().unwrap();
-        let folder = GraphFolder::from(temp_folder.path());
-        graph.encode(&folder).unwrap();
+        let initial_folder = GraphFolder::from(temp_folder.path().join("initial"));
+        graph.encode(&initial_folder).unwrap();
 
-        assert!(folder.get_graph_path().exists());
-        assert!(folder.get_meta_path().exists());
+        assert!(initial_folder.get_graph_path().exists());
+        assert!(initial_folder.get_meta_path().exists());
 
         // Create a zip file from the folder
-        let zip_path = temp_folder.path().join("output.zip");
-        let zip_file = std::fs::File::create(&zip_path).unwrap();
-        folder.create_zip(zip_file).unwrap();
+        let output_zip_path = temp_folder.path().join("output.zip");
+        let output_zip_file = std::fs::File::create(&output_zip_path).unwrap();
+        initial_folder.create_zip(output_zip_file).unwrap();
 
-        assert!(zip_path.exists());
+        assert!(output_zip_path.exists());
 
-        // Verify the zip file contains the expected structure
-        let zip_file = std::fs::File::open(&zip_path).unwrap();
-        let mut zip_archive = zip::ZipArchive::new(zip_file).unwrap();
+        // Verify the output zip contains the same graph
+        let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
+        let decoded_graph = Graph::decode(&zip_folder).unwrap();
 
-        assert!(zip_archive.by_name(GRAPH_PATH).is_ok());
-        assert!(zip_archive.by_name(META_PATH).is_ok());
-
-        let metadata_file = zip_archive.by_name(META_PATH).unwrap();
-        let metadata: GraphMetadata = serde_json::from_reader(metadata_file).unwrap();
-        assert_eq!(metadata.node_count, 2);
-        assert_eq!(metadata.edge_count, 1);
+        assert_graph_equal(&graph, &decoded_graph);
     }
 
     #[test]
@@ -358,7 +364,6 @@ mod zip_tests {
         let initial_folder = GraphFolder::new_as_zip(&initial_zip_path);
         graph.encode(&initial_folder).unwrap();
 
-        // Verify the initial zip exists
         assert!(initial_zip_path.exists());
 
         // Create a new zip file from the existing zip
@@ -368,21 +373,15 @@ mod zip_tests {
 
         assert!(output_zip_path.exists());
 
-        // Verify both zip files have the same content
+        // Verify zip file sizes
         let initial_size = std::fs::metadata(&initial_zip_path).unwrap().len();
         let output_size = std::fs::metadata(&output_zip_path).unwrap().len();
         assert_eq!(initial_size, output_size);
 
-        // Verify the output zip contains the expected structure
-        let zip_file = std::fs::File::open(&output_zip_path).unwrap();
-        let mut zip_archive = zip::ZipArchive::new(zip_file).unwrap();
+        // Verify the output zip contains the same graph
+        let zip_folder = GraphFolder::new_as_zip(&output_zip_path);
+        let decoded_graph = Graph::decode(&zip_folder).unwrap();
 
-        assert!(zip_archive.by_name(GRAPH_PATH).is_ok());
-        assert!(zip_archive.by_name(META_PATH).is_ok());
-
-        let metadata_file = zip_archive.by_name(META_PATH).unwrap();
-        let metadata: GraphMetadata = serde_json::from_reader(metadata_file).unwrap();
-        assert_eq!(metadata.node_count, 2);
-        assert_eq!(metadata.edge_count, 1);
+        assert_graph_equal(&graph, &decoded_graph);
     }
 }
