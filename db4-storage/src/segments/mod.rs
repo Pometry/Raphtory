@@ -22,6 +22,7 @@ use rustc_hash::FxHashMap;
 use std::{
     collections::hash_map::Entry,
     fmt::{Debug, Formatter, Pointer},
+    iter,
     ops::Range,
     sync::Arc,
 };
@@ -316,15 +317,18 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
-    pub fn all_entries(
-        &self,
-    ) -> impl ExactSizeIterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
-        self.data.iter_all().enumerate().map(|(i, v)| {
-            (
-                LocalPOS::from(i),
-                v.map(|v| (v, self.properties().get_entry(v.row()))),
-            )
-        })
+    pub fn all_entries(&self) -> impl Iterator<Item = (LocalPOS, Option<(&T, RowEntry<'_>)>)> {
+        self.data
+            .iter_all()
+            .chain(iter::repeat(None))
+            .take(self.max_page_len as usize)
+            .enumerate()
+            .map(|(i, v)| {
+                (
+                    LocalPOS::from(i),
+                    v.map(|v| (v, self.properties().get_entry(v.row()))),
+                )
+            })
     }
 
     pub fn all_entries_par(
