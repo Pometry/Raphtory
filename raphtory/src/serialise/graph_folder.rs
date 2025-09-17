@@ -1,4 +1,3 @@
-use memmap2::Mmap;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
 use crate::{
     db::api::view::MaterializedGraph,
@@ -37,25 +36,12 @@ const VECTORS_PATH: &str = "vectors";
 /// ├── index/        # Search indexes (optional)
 /// └── vectors/      # Vector embeddings (optional)
 ///
-/// If `write_as_zip_format` is true, then the folder is compressed into a zip file.
+/// If `write_as_zip_format` is true, then the folder is compressed
+/// and stored as a zip file.
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct GraphFolder {
     pub root_folder: PathBuf,
     pub(crate) write_as_zip_format: bool,
-}
-
-pub enum GraphReader {
-    Zip(Vec<u8>),
-    Folder(Mmap),
-}
-
-impl AsRef<[u8]> for GraphReader {
-    fn as_ref(&self) -> &[u8] {
-        match self {
-            Self::Zip(bytes) => bytes.as_ref(),
-            Self::Folder(mmap) => mmap.as_ref(),
-        }
-    }
 }
 
 impl GraphFolder {

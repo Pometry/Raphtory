@@ -8,10 +8,10 @@ use crate::{
 };
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
-    // Encode the graph into bytes
+    /// Encode the graph into bytes. Does not include any metadata/indexes.
     fn encode_to_bytes(&self) -> Vec<u8>;
 
-    // Encode the graph along with any metadata/indexes to the given path
+    /// Encode the graph along with any metadata/indexes to the given path.
     fn encode(&self, path: impl Into<GraphFolder>) -> Result<(), GraphError>;
 }
 
