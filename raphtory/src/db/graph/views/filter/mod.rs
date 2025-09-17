@@ -2526,13 +2526,6 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_nodes_results(
-            //     init_nodes_graph3,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
         }
 
         #[test]
@@ -2566,13 +2559,6 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_nodes_results(
-            //     init_nodes_graph3,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
         }
 
         #[test]
@@ -2586,13 +2572,6 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_nodes_results(
-            //     init_nodes_graph3,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
         }
 
         #[test]
@@ -8263,13 +8242,6 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     init_edges_graph3,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
         }
 
         #[test]
@@ -8283,13 +8255,6 @@ pub(crate) mod test_filters {
                 &expected_results,
                 TestVariants::All,
             );
-            // assert_search_edges_results(
-            //     init_edges_graph3,
-            //     IdentityGraphTransformer,
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::All,
-            // );
         }
 
         #[test]
