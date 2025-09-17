@@ -71,26 +71,19 @@ pub trait ParquetEncoder {
         let mut zip_writer = ZipWriter::new(writer);
 
         // Walk through the directory and add files to zip
-        for entry in WalkDir::new(temp_dir.path()) {
-            let entry = entry.unwrap();
+        for entry in WalkDir::new(temp_dir.path())
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_file())
+        {
             let path = entry.path();
+
             let relative_path = path.strip_prefix(temp_dir.path()).unwrap();
+            let file_name = relative_path.to_str().unwrap();
+            zip_writer.start_file(file_name, FileOptions::<()>::default())?;
 
-            if path.is_file() {
-                let file_name = relative_path.to_str().unwrap();
-                zip_writer.start_file(file_name, FileOptions::<()>::default())?;
-
-                let mut file = std::fs::File::open(path)?;
-                std::io::copy(&mut file, &mut zip_writer)?;
-            } else if path.is_dir() {
-                // Skip empty relative paths (for eg, the root directory)
-                if relative_path.to_str().unwrap().is_empty() {
-                    continue;
-                }
-
-                let dir_name = relative_path.to_str().unwrap();
-                zip_writer.add_directory(dir_name, FileOptions::<()>::default())?;
-            }
+            let mut file = std::fs::File::open(path)?;
+            std::io::copy(&mut file, &mut zip_writer)?;
         }
 
         zip_writer.finish()?;
