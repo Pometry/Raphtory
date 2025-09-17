@@ -22,9 +22,20 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['FilterExpr', 'PropertyFilterOps', 'NodeFilterBuilder', 'Node', 'EdgeFilterOp', 'EdgeEndpoint', 'Edge', 'Property', 'Metadata', 'TemporalPropertyFilterBuilder']
-class FilterExpr(object): 
+__all__ = [
+    "FilterExpr",
+    "PropertyFilterOps",
+    "Node",
+    "EdgeFilterOp",
+    "EdgeEndpoint",
+    "Edge",
+    "ExplodedEdge",
+    "Property",
+    "Metadata",
+    "TemporalPropertyFilterBuilder",
+]
 
+class FilterExpr(object):
     def __and__(self, value):
         """Return self&value."""
 
@@ -40,8 +51,7 @@ class FilterExpr(object):
     def __ror__(self, value):
         """Return value|self."""
 
-class PropertyFilterOps(object): 
-
+class PropertyFilterOps(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -105,8 +115,10 @@ class Node(object):
             NodeFilterBuilder: A filter builder for filtering by node type
         """
 
-class EdgeFilterOp(object): 
+    @staticmethod
+    def property(name): ...
 
+class EdgeFilterOp(object):
     def __eq__(self, value):
         """Return self==value."""
 
@@ -125,38 +137,35 @@ class EdgeFilterOp(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def contains(self, value):
-        ...
+    def contains(self, value): ...
+    def ends_with(self, value): ...
+    def fuzzy_search(self, value, levenshtein_distance, prefix_match): ...
+    def is_in(self, values): ...
+    def is_not_in(self, values): ...
+    def not_contains(self, value): ...
+    def starts_with(self, value): ...
 
 class EdgeEndpoint(object):
     def id(self): ...
     def name(self): ...
 
-    def is_in(self, values):
-        ...
-
-    def is_not_in(self, values):
-        ...
-
-    def not_contains(self, value):
-        ...
-
-class EdgeEndpoint(object): 
-
-    def name(self):
-        ...
-
-class Edge(object): 
-
+class Edge(object):
     @staticmethod
-    def dst():
-        ...
-
+    def dst(): ...
     @staticmethod
-    def src():
-        ...
+    def metadata(name): ...
+    @staticmethod
+    def property(name): ...
+    @staticmethod
+    def src(): ...
 
-class Property(PropertyFilterOps): 
+class ExplodedEdge(object):
+    @staticmethod
+    def metadata(name): ...
+    @staticmethod
+    def property(name): ...
+
+class Property(PropertyFilterOps):
     """
     Construct a property filter
 
@@ -164,13 +173,9 @@ class Property(PropertyFilterOps):
         name (str): the name of the property to filter
     """
 
-    def __new__(cls, name: str) -> Property:
-        """Create and return a new object.  See help(type) for accurate signature."""
+    def temporal(self): ...
 
-    def temporal(self):
-        ...
-
-class Metadata(PropertyFilterOps): 
+class Metadata(PropertyFilterOps):
     """
     Construct a metadata filter
 
@@ -178,13 +183,8 @@ class Metadata(PropertyFilterOps):
         name (str): the name of the property to filter
     """
 
-    def __new__(cls, name: str) -> Metadata:
-        """Create and return a new object.  See help(type) for accurate signature."""
-
-class TemporalPropertyFilterBuilder(object): 
-
-    def any(self):
-        ...
-
-    def latest(self):
-        ...
+class TemporalPropertyFilterBuilder(object):
+    def all(self): ...
+    def any(self): ...
+    def first(self): ...
+    def latest(self): ...

@@ -1,7 +1,6 @@
 //! Defines the `ViewApi` trait, which represents the API for querying a view of the graph.
 
 mod edge;
-mod exploded_edge_property_filter;
 pub(crate) mod filter_ops;
 pub(crate) mod graph;
 pub mod internal;
