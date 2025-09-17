@@ -175,6 +175,7 @@ uuid = { version = "1.16.0", features = ["v4"] }
 
 # Make sure that transitive dependencies stick to disk_graph 50
 [patch.crates-io]
+# if we ever can, please try to sync these versions with those used by lancedb, ask Pedro for more details
 arrow-buffer = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
 arrow-schema = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
 arrow-data = { git = "https://github.com/apache/arrow-rs.git", tag = "53.2.0" }
