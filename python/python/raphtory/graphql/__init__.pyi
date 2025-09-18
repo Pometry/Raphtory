@@ -22,8 +22,26 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'RemoteIndexSpec', 'PropsInput', 'SomePropertySpec', 'AllPropertySpec', 'encode_graph', 'decode_graph', 'schema']
-class GraphServer(object): 
+__all__ = [
+    "GraphServer",
+    "RunningGraphServer",
+    "RaphtoryClient",
+    "RemoteGraph",
+    "RemoteEdge",
+    "RemoteNode",
+    "RemoteNodeAddition",
+    "RemoteUpdate",
+    "RemoteEdgeAddition",
+    "RemoteIndexSpec",
+    "PropsInput",
+    "SomePropertySpec",
+    "AllPropertySpec",
+    "encode_graph",
+    "decode_graph",
+    "schema",
+]
+
+class GraphServer(object):
     """
     A class for defining and running a Raphtory GraphQL server
 
@@ -39,7 +57,21 @@ class GraphServer(object):
     config_path (str | PathLike, optional): Path to the config file
     """
 
-    def __new__(cls, work_dir, cache_capacity=None, cache_tti_seconds=None, log_level=None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path=None, create_index=None) -> GraphServer:
+    def __new__(
+        cls,
+        work_dir,
+        cache_capacity=None,
+        cache_tti_seconds=None,
+        log_level=None,
+        tracing=None,
+        otlp_agent_host=None,
+        otlp_agent_port=None,
+        otlp_tracing_service_name=None,
+        auth_public_key=None,
+        auth_enabled_for_reads=None,
+        config_path=None,
+        create_index=None,
+    ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def run(self, port=1736, timeout_ms=180000):
@@ -102,15 +134,11 @@ class GraphServer(object):
         GraphServer: A new server object containing the vectorised graphs.
         """
 
-class RunningGraphServer(object): 
+class RunningGraphServer(object):
     """A Raphtory server handler that also enables querying the server"""
 
-    def __enter__(self):
-        ...
-
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
-        ...
-
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def get_client(self):
         """
         Get the client for the server
@@ -127,7 +155,7 @@ class RunningGraphServer(object):
         None:
         """
 
-class RaphtoryClient(object): 
+class RaphtoryClient(object):
     """
     A client for handling GraphQL operations in the context of Raphtory.
 
@@ -272,8 +300,7 @@ class RaphtoryClient(object):
         dict[str, Any]: The data field from the graphQL response after executing the mutation.
         """
 
-class RemoteGraph(object): 
-
+class RemoteGraph(object):
     def add_edge(self, timestamp, src, dst, properties=None, layer=None):
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
@@ -408,7 +435,7 @@ class RemoteGraph(object):
         None:
         """
 
-class RemoteEdge(object): 
+class RemoteEdge(object):
     """
     A remote edge reference
 
@@ -473,8 +500,7 @@ class RemoteEdge(object):
         None:
         """
 
-class RemoteNode(object): 
-
+class RemoteNode(object):
     def add_metadata(self, properties):
         """
         Add metadata to a node in the remote graph.
@@ -526,7 +552,7 @@ class RemoteNode(object):
         None:
         """
 
-class RemoteNodeAddition(object): 
+class RemoteNodeAddition(object):
     """
     Node addition update
 
@@ -537,10 +563,12 @@ class RemoteNodeAddition(object):
     updates (list[RemoteUpdate], optional): the temporal updates
     """
 
-    def __new__(cls, name, node_type=None, metadata=None, updates=None) -> RemoteNodeAddition:
+    def __new__(
+        cls, name, node_type=None, metadata=None, updates=None
+    ) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteUpdate(object): 
+class RemoteUpdate(object):
     """
     A temporal update
 
@@ -552,7 +580,7 @@ class RemoteUpdate(object):
     def __new__(cls, time, properties=None) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteEdgeAddition(object): 
+class RemoteEdgeAddition(object):
     """
     An edge update
 
@@ -564,10 +592,12 @@ class RemoteEdgeAddition(object):
     updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
-    def __new__(cls, src, dst, layer=None, metadata=None, updates=None) -> RemoteEdgeAddition:
+    def __new__(
+        cls, src, dst, layer=None, metadata=None, updates=None
+    ) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteIndexSpec(object): 
+class RemoteIndexSpec(object):
     """
     Create a RemoteIndexSpec specifying which node and edge properties to index.
 
@@ -579,7 +609,7 @@ class RemoteIndexSpec(object):
     def __new__(cls, node_props, edge_props) -> RemoteIndexSpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class PropsInput(object): 
+class PropsInput(object):
     """
     Create a PropsInput by choosing to include all/some properties explicitly.
 
@@ -594,7 +624,7 @@ class PropsInput(object):
     def __new__(cls, all=None, some=None) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class SomePropertySpec(object): 
+class SomePropertySpec(object):
     """
     Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
 
@@ -606,7 +636,7 @@ class SomePropertySpec(object):
     def __new__(cls, metadata=..., properties=...) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class AllPropertySpec(object): 
+class AllPropertySpec(object):
     """
     Specifies that **all** properties should be included when creating an index.
     Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
