@@ -10,7 +10,7 @@ Before reading this topic, please ensure you are familiar with:
 
 ## Creating layers views
 
-An edge object by default will contain information on all layers between its source and destination nodes. Often there are only a subset of these relationships that you are interested in. To handle this the `Graph`, `Node` and `Edge` provide the `layers()` function which takes a list of layer names and returns a view with only the edge updates that occurred on these layers. 
+An edge object by default will contain information on all layers between its source and destination nodes. Often there are only a subset of these relationships that you are interested in. To handle this the `Graph`, `Node` and `Edge` provide the `layers()` function which takes a list of layer names and returns a view with only the edge updates that occurred on these layers.
 
 Layer views can also be used in combination with any other view function. In the example below, we look at the total edge weight over the full graph, then restrict this to the `Grooming` and `Resting` layers and then reduce this further by applying a window between the 13th and 20th of June.
 
