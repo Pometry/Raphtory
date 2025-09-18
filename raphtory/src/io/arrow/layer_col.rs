@@ -3,18 +3,18 @@ use crate::{
     io::arrow::dataframe::DFChunk,
     prelude::AdditionOps,
 };
+use arrow_array::{cast::AsArray, Array, LargeStringArray, StringArray, StringViewArray};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
-use polars_arrow::array::{StaticArray, Utf8Array, Utf8ViewArray};
 use rayon::prelude::*;
 
 #[derive(Copy, Clone)]
 pub(crate) enum LayerCol<'a> {
     Name { name: Option<&'a str>, len: usize },
-    Utf8 { col: &'a Utf8Array<i32> },
-    LargeUtf8 { col: &'a Utf8Array<i64> },
-    Utf8View { col: &'a Utf8ViewArray },
+    Utf8 { col: &'a StringArray },
+    LargeUtf8 { col: &'a LargeStringArray },
+    Utf8View { col: &'a StringViewArray },
 }
 
 #[derive(
@@ -33,16 +33,31 @@ impl<'a> LayerCol<'a> {
             LayerCol::Name { name, len } => {
                 LayerColVariants::Name((0..len).into_par_iter().map(move |_| name))
             }
-            LayerCol::Utf8 { col } => {
-                LayerColVariants::Utf8((0..col.len()).into_par_iter().map(|i| col.get(i)))
-            }
-            LayerCol::LargeUtf8 { col } => {
-                LayerColVariants::LargeUtf8((0..col.len()).into_par_iter().map(|i| col.get(i)))
-            }
+            LayerCol::Utf8 { col } => LayerColVariants::Utf8(
+                (0..col.len())
+                    .into_par_iter()
+                    .map(|i| col.is_valid(i).then(|| col.value(i))),
+            ),
+            LayerCol::LargeUtf8 { col } => LayerColVariants::LargeUtf8(
+                (0..col.len())
+                    .into_par_iter()
+                    .map(|i| col.is_valid(i).then(|| col.value(i))),
+            ),
 
-            LayerCol::Utf8View { col } => {
-                LayerColVariants::Utf8View((0..col.len()).into_par_iter().map(|i| col.get(i)))
-            }
+            LayerCol::Utf8View { col } => LayerColVariants::Utf8View(
+                (0..col.len())
+                    .into_par_iter()
+                    .map(|i| col.is_valid(i).then(|| col.value(i))),
+            ),
+        }
+    }
+
+    pub fn iter(self) -> impl Iterator<Item = Option<&'a str>> {
+        match self {
+            LayerCol::Name { name, len } => LayerColVariants::Name((0..len).map(move |_| name)),
+            LayerCol::Utf8 { col } => LayerColVariants::Utf8(col.iter()),
+            LayerCol::LargeUtf8 { col } => LayerColVariants::LargeUtf8(col.iter()),
+            LayerCol::Utf8View { col } => LayerColVariants::Utf8View(col.iter()),
         }
     }
 
@@ -82,11 +97,11 @@ pub(crate) fn lift_layer_col<'a>(
         }),
         (None, Some(layer_index)) => {
             let col = &df.chunk[layer_index];
-            if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i32>>() {
+            if let Some(col) = col.as_string_opt() {
                 Ok(LayerCol::Utf8 { col })
-            } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
+            } else if let Some(col) = col.as_string_opt() {
                 Ok(LayerCol::LargeUtf8 { col })
-            } else if let Some(col) = col.as_any().downcast_ref::<Utf8ViewArray>() {
+            } else if let Some(col) = col.as_string_view_opt() {
                 Ok(LayerCol::Utf8View { col })
             } else {
                 Err(LoadError::InvalidLayerType(col.data_type().clone()).into())
@@ -111,11 +126,11 @@ pub(crate) fn lift_node_type_col<'a>(
         }),
         (None, Some(layer_index)) => {
             let col = &df.chunk[layer_index];
-            if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i32>>() {
+            if let Some(col) = col.as_string_opt() {
                 Ok(LayerCol::Utf8 { col })
-            } else if let Some(col) = col.as_any().downcast_ref::<Utf8Array<i64>>() {
+            } else if let Some(col) = col.as_string_opt() {
                 Ok(LayerCol::LargeUtf8 { col })
-            } else if let Some(col) = col.as_any().downcast_ref::<Utf8ViewArray>() {
+            } else if let Some(col) = col.as_string_view_opt() {
                 Ok(LayerCol::Utf8View { col })
             } else {
                 Err(LoadError::InvalidNodeType(col.data_type().clone()).into())

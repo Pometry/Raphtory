@@ -6,10 +6,9 @@ use crate::{
     serialise::incremental::InternalCache,
 };
 use itertools::Itertools;
-use polars_arrow::datatypes::ArrowSchema;
-use polars_parquet::{
-    read,
-    read::{read_metadata, FileMetaData, FileReader},
+use parquet::{
+    arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask},
+    file::reader::FileReader,
 };
 use std::{
     collections::HashMap,
@@ -247,10 +246,12 @@ pub(crate) fn process_parquet_file_to_df(
         .filter(|x| col_names.map(|cn| cn.contains(&x.as_str())).unwrap_or(true))
         .collect();
 
-    let chunks = chunks.into_iter().map(move |result| {
-        result.map(|r| DFChunk { chunk: r.to_vec() }).map_err(|e| {
-            GraphError::LoadFailure(format!("Failed to process Parquet file: {:?}", e))
-        })
+    let chunks = chunks.build()?.into_iter().map(move |result| {
+        result
+            .map(|r| DFChunk {
+                chunk: r.columns().to_vec(),
+            })
+            .map_err(|e| GraphError::LoadFailure(format!("Failed to process Parquet file: {e:?}")))
     });
 
     Ok(DFView {
@@ -263,37 +264,23 @@ pub(crate) fn process_parquet_file_to_df(
 pub fn read_parquet_file(
     path: impl AsRef<Path>,
     col_names: Option<&[&str]>,
-) -> Result<(Vec<String>, FileReader<File>, usize), GraphError> {
-    let read_schema = |metadata: &FileMetaData| -> Result<(ArrowSchema, usize), GraphError> {
-        let schema = read::infer_schema(metadata)?;
-        let fields = schema
-            .fields
-            .into_iter()
-            .filter(|f| {
-                // Filtered fields to avoid loading data that is not needed
-                col_names
-                    .map(|cn| cn.contains(&f.name.as_str()))
-                    .unwrap_or(true)
-            })
-            .collect::<Vec<_>>();
-
-        Ok((
-            ArrowSchema::from(fields).with_metadata(schema.metadata),
-            metadata.num_rows,
-        ))
-    };
-
-    let mut file = std::fs::File::open(&path)?;
-    let metadata = read_metadata(&mut file)?;
-    let row_groups = metadata.clone().row_groups;
-    let (schema, num_rows) = read_schema(&metadata)?;
-
-    // Although fields are already filtered by col_names, we need names in the order as it appears
-    // in the schema to create PretendDF
-    let names = schema.fields.iter().map(|f| f.name.clone()).collect_vec();
-
-    let reader = FileReader::new(file, row_groups, schema, None);
-    Ok((names, reader, num_rows))
+) -> Result<(Vec<String>, ParquetRecordBatchReaderBuilder<File>, usize), GraphError> {
+    let builder = ParquetRecordBatchReaderBuilder::try_new(File::open(&path)?)?;
+    let metadata = builder.metadata();
+    let num_rows = metadata.file_metadata().num_rows() as usize;
+    let schema = builder.schema();
+    let (idx, names): (Vec<_>, Vec<_>) = schema
+        .fields
+        .into_iter()
+        .enumerate()
+        .filter_map(|(idx, field)| {
+            col_names
+                .is_none_or(|filter| filter.contains(&field.name().as_str()))
+                .then(|| (idx, field.name().clone()))
+        })
+        .unzip();
+    let projection = ProjectionMask::roots(builder.parquet_schema(), idx);
+    Ok((names, builder.with_projection(projection), num_rows))
 }
 
 pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, GraphError> {
@@ -349,11 +336,10 @@ pub fn read_struct_arrays(
 #[cfg(test)]
 mod test {
     use super::*;
-    use polars_arrow::{
-        array::{Array, PrimitiveArray, StaticArray, Utf8ViewArray},
-        datatypes::ArrowDataType,
+    use arrow_array::{
+        ArrayRef, Float64Array, Int64Array, PrimitiveArray, StringArray, StringViewArray,
     };
-    use std::path::PathBuf;
+    use std::{path::PathBuf, sync::Arc};
 
     #[test]
     fn test_process_parquet_file_to_df() {
@@ -367,24 +353,21 @@ mod test {
             .iter()
             .map(|s| s.to_string())
             .collect();
-        let expected_chunks: Vec<Vec<Box<dyn Array>>> = vec![vec![
-            Box::new(PrimitiveArray::<i64>::from_values(vec![1, 2, 3, 4, 5])),
-            Box::new(PrimitiveArray::<i64>::from_values(vec![2, 3, 4, 5, 6])),
-            Box::new(PrimitiveArray::<i64>::from_values(vec![1, 2, 3, 4, 5])),
-            Box::new(PrimitiveArray::<f64>::from_values(vec![
-                1f64, 2f64, 3f64, 4f64, 5f64,
+        let expected_chunks: Vec<Vec<ArrayRef>> = vec![vec![
+            Arc::new(Int64Array::from(vec![1i64, 2, 3, 4, 5])),
+            Arc::new(Int64Array::from(vec![2i64, 3, 4, 5, 6])),
+            Arc::new(Int64Array::from(vec![1i64, 2, 3, 4, 5])),
+            Arc::new(Float64Array::from(vec![1f64, 2f64, 3f64, 4f64, 5f64])),
+            Arc::new(StringArray::from(vec![
+                "red", "blue", "green", "yellow", "purple",
             ])),
-            Box::new(Utf8ViewArray::from_vec(
-                vec!["red", "blue", "green", "yellow", "purple"],
-                ArrowDataType::Utf8View,
-            )),
         ]];
 
         let actual_names = df.names;
         let chunks: Vec<Result<DFChunk, GraphError>> = df.chunks.collect_vec();
         let chunks: Result<Vec<DFChunk>, GraphError> = chunks.into_iter().collect();
         let chunks: Vec<DFChunk> = chunks.unwrap();
-        let actual_chunks: Vec<Vec<Box<dyn Array>>> =
+        let actual_chunks: Vec<Vec<ArrayRef>> =
             chunks.into_iter().map(|c: DFChunk| c.chunk).collect_vec();
 
         assert_eq!(actual_names, expected_names);
