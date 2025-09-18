@@ -214,6 +214,23 @@ mod test_utils {
         )
     }
 
+
+    pub(crate) fn build_edge_list_str(
+        len: usize,
+        num_nodes: u64,
+    ) -> impl Strategy<Value = Vec<(String, String, i64, String, i64)>> {
+        proptest::collection::vec(
+            (
+                (0..num_nodes).prop_map(|i| i.to_string()),
+                (0..num_nodes).prop_map(|i| i.to_string()),
+                i64::MIN..i64::MAX,
+                any::<String>(),
+                any::<i64>(),
+            ),
+            0..=len,
+        )
+    }
+
     pub(crate) fn build_edge_deletions(
         len: usize,
         num_nodes: u64,
