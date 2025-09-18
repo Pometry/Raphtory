@@ -247,6 +247,7 @@ fn collect_prop_columns(
 fn decode_graph_storage(
     path: impl AsRef<Path>,
     expected_gt: GraphType,
+    batch_size: Option<usize>,
 ) -> Result<Arc<Storage>, GraphError> {
     let g = Arc::new(Storage::default());
 
@@ -256,7 +257,7 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL];
         let (c_props, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
         let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props)?;
+        load_graph_props_from_parquet(&g, &c_graph_path, TIME_COL, &[], &c_props, batch_size)?;
 
         g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))?
     };
@@ -274,7 +275,7 @@ fn decode_graph_storage(
         let exclude = vec![TIME_COL];
         let (t_props, _) = collect_prop_columns(&t_graph_path, &exclude)?;
         let t_props = t_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[])?;
+        load_graph_props_from_parquet(&g, &t_graph_path, TIME_COL, &t_props, &[], batch_size)?;
     }
 
     let t_node_path = path.as_ref().join(NODES_T_PATH);
@@ -296,6 +297,7 @@ fn decode_graph_storage(
             &t_prop_columns,
             &[],
             None,
+            batch_size,
         )?;
     }
 
@@ -316,6 +318,7 @@ fn decode_graph_storage(
             Some(TYPE_COL),
             &c_prop_columns,
             None,
+            batch_size,
         )?;
     }
 
@@ -339,6 +342,7 @@ fn decode_graph_storage(
             None,
             None,
             Some(LAYER_COL),
+            batch_size,
         )?;
     }
 
@@ -352,6 +356,7 @@ fn decode_graph_storage(
             DST_COL,
             None,
             Some(LAYER_COL),
+            batch_size,
         )?;
     }
 
@@ -372,6 +377,7 @@ fn decode_graph_storage(
             None,
             None,
             Some(LAYER_COL),
+            batch_size,
         )?;
     }
 
@@ -382,7 +388,7 @@ impl ParquetDecoder for Graph {
     where
         Self: Sized,
     {
-        let gs = decode_graph_storage(path, GraphType::EventGraph)?;
+        let gs = decode_graph_storage(path, GraphType::EventGraph, None)?;
         Ok(Graph::from_storage(gs))
     }
 }
@@ -392,8 +398,25 @@ impl ParquetDecoder for PersistentGraph {
     where
         Self: Sized,
     {
-        let gs = decode_graph_storage(path, GraphType::PersistentGraph)?;
+        let gs = decode_graph_storage(path, GraphType::PersistentGraph, None)?;
         Ok(PersistentGraph(gs))
+    }
+}
+
+impl ParquetDecoder for MaterializedGraph {
+    fn decode_parquet(path: impl AsRef<Path>) -> Result<Self, GraphError>
+    where
+        Self: Sized,
+    {
+        // Try to decode as EventGraph first
+        match decode_graph_storage(path.as_ref(), GraphType::EventGraph, None) {
+            Ok(gs) => Ok(MaterializedGraph::EventGraph(Graph::from_storage(gs))),
+            Err(_) => {
+                // If that fails, try PersistentGraph
+                let gs = decode_graph_storage(path.as_ref(), GraphType::PersistentGraph, None)?;
+                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(gs)))
+            }
+        }
     }
 }
 

@@ -2,7 +2,6 @@ use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
-use arrow_schema::ArrowError;
 use itertools::Itertools;
 use raphtory_api::core::entities::{
     properties::prop::{PropError, PropType},
@@ -28,7 +27,7 @@ use tracing::error;
 use pometry_storage::RAError;
 #[cfg(feature = "arrow")]
 use {
-    arrow_schema::DataType,
+    arrow_schema::{ArrowError, DataType},
     parquet::errors::ParquetError,
     raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
 };
