@@ -1,0 +1,29 @@
+{
+    "name": "bench",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "module": "./dist/index.js",
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "prebuild": "genql --schema ../raphtory-graphql/schema.graphql --output src/__generated",
+        "build": "tsc --noEmit && tsup",
+        "bench": "pnpm build && K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --out csv=output.csv.gz dist/bench.js"
+    },
+    "devDependencies": {
+        "@genql/cli": "^6.3.2",
+        "@types/k6": "^1.0.2",
+        "@types/node": "^22.10.2",
+        "concurrently": "^9.1.2",
+        "tsup": "8.3.0",
+        "typescript": "^5.8.3"
+    },
+    "dependencies": {
+        "@google-cloud/compute": "^5.2.0",
+        "dotenv": "^16.5.0",
+        "node-ssh": "^13.2.1",
+        "zod": "^3.23.8"
+    }
+}

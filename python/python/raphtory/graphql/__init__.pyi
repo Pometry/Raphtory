@@ -22,461 +22,393 @@ from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
-__all__ = [
-    "GraphServer",
-    "RunningGraphServer",
-    "RaphtoryClient",
-    "RemoteGraph",
-    "RemoteEdge",
-    "RemoteNode",
-    "RemoteNodeAddition",
-    "RemoteUpdate",
-    "RemoteEdgeAddition",
-    "RemoteIndexSpec",
-    "PropsInput",
-    "SomePropertySpec",
-    "AllPropertySpec",
-    "encode_graph",
-    "decode_graph",
-    "schema",
-]
-
-class GraphServer(object):
+__all__ = ['GraphServer', 'RunningGraphServer', 'RaphtoryClient', 'RemoteGraph', 'RemoteEdge', 'RemoteNode', 'RemoteNodeAddition', 'RemoteUpdate', 'RemoteEdgeAddition', 'RemoteIndexSpec', 'PropsInput', 'SomePropertySpec', 'AllPropertySpec', 'encode_graph', 'decode_graph', 'schema']
+class GraphServer(object): 
     """
     A class for defining and running a Raphtory GraphQL server
 
     Arguments:
-        work_dir (str | PathLike): the working directory for the server
-        cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
-        cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
-        log_level (str, optional): the log level for the server
-        tracing (bool, optional): whether tracing should be enabled
-        otlp_agent_host (str, optional): OTLP agent host for tracing
-        otlp_agent_port(str, optional): OTLP agent port for tracing
-        otlp_tracing_service_name (str, optional): The OTLP tracing service name
-        config_path (str | PathLike, optional): Path to the config file
+    work_dir (str | PathLike): the working directory for the server
+    cache_capacity (int, optional): the maximum number of graphs to keep in memory at once
+    cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
+    log_level (str, optional): the log level for the server
+    tracing (bool, optional): whether tracing should be enabled
+    otlp_agent_host (str, optional): OTLP agent host for tracing
+    otlp_agent_port(str, optional): OTLP agent port for tracing
+    otlp_tracing_service_name (str, optional): The OTLP tracing service name
+    config_path (str | PathLike, optional): Path to the config file
     """
 
-    def __new__(
-        cls,
-        work_dir: str | PathLike,
-        cache_capacity: Optional[int] = None,
-        cache_tti_seconds: Optional[int] = None,
-        log_level: Optional[str] = None,
-        tracing: Optional[bool] = None,
-        otlp_agent_host: Optional[str] = None,
-        otlp_agent_port: Optional[str] = None,
-        otlp_tracing_service_name: Optional[str] = None,
-        auth_public_key=None,
-        auth_enabled_for_reads=None,
-        config_path: Optional[str | PathLike] = None,
-        create_index=None,
-    ) -> GraphServer:
+    def __new__(cls, work_dir, cache_capacity=None, cache_tti_seconds=None, log_level=None, tracing=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path=None, create_index=None) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
+    def run(self, port=1736, timeout_ms=180000):
         """
         Run the server until completion.
 
         Arguments:
-          port (int): The port to use. Defaults to 1736.
-          timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
+        port (int): The port to use. Defaults to 1736.
+        timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
 
         Returns:
-            None:
+        None:
         """
 
-    def set_embeddings(
-        self,
-        cache: str,
-        embedding: Optional[Callable] = None,
-        nodes: bool | str = True,
-        edges: bool | str = True,
-    ) -> GraphServer:
+    def set_embeddings(self, cache, embedding=None, nodes=..., edges=...):
         """
         Setup the server to vectorise graphs with a default template.
 
         Arguments:
-          cache (str):  the directory to use as cache for the embeddings.
-          embedding (Callable, optional):  the embedding function to translate documents to embeddings.
-          nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-          edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+        cache (str): the directory to use as cache for the embeddings.
+        embedding (Callable, optional): the embedding function to translate documents to embeddings.
+        nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+        edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
-           GraphServer: A new server object with embeddings setup.
+        GraphServer: A new server object with embeddings setup.
         """
 
-    def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
+    def start(self, port=1736, timeout_ms=5000):
         """
         Start the server and return a handle to it.
 
         Arguments:
-          port (int):  the port to use. Defaults to 1736.
-          timeout_ms (int): wait for server to be online. Defaults to 5000.
-            The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
+        port (int): the port to use. Defaults to 1736.
+        timeout_ms (int): wait for server to be online. Defaults to 5000.
+        The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
 
         Returns:
-          RunningGraphServer: The running server
+        RunningGraphServer: The running server
         """
 
-    def turn_off_index(self) -> GraphServer:
+    def turn_off_index(self):
         """
         Turn off index for all graphs
 
         Returns:
-            GraphServer: The server with indexing disabled
+        GraphServer: The server with indexing disabled
         """
 
-    def with_vectorised_graphs(
-        self, graph_names: list[str], nodes: bool | str = True, edges: bool | str = True
-    ) -> GraphServer:
+    def with_vectorised_graphs(self, graph_names, nodes=..., edges=...):
         """
         Vectorise a subset of the graphs of the server.
 
         Arguments:
-          graph_names (list[str]): the names of the graphs to vectorise. All by default.
-          nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-          edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+        graph_names (list[str]): the names of the graphs to vectorise. All by default.
+        nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+        edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
 
         Returns:
-           GraphServer: A new server object containing the vectorised graphs.
+        GraphServer: A new server object containing the vectorised graphs.
         """
 
-class RunningGraphServer(object):
+class RunningGraphServer(object): 
     """A Raphtory server handler that also enables querying the server"""
 
-    def __enter__(self): ...
-    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
-    def get_client(self) -> RaphtoryClient:
+    def __enter__(self):
+        ...
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        ...
+
+    def get_client(self):
         """
         Get the client for the server
 
         Returns:
-            RaphtoryClient: the client
+        RaphtoryClient: the client
         """
 
-    def stop(self) -> None:
+    def stop(self):
         """
         Stop the server and wait for it to finish
 
         Returns:
-            None:
+        None:
         """
 
-class RaphtoryClient(object):
+class RaphtoryClient(object): 
     """
     A client for handling GraphQL operations in the context of Raphtory.
 
     Arguments:
-        url (str): the URL of the Raphtory GraphQL server
+    url (str): the URL of the Raphtory GraphQL server
     """
 
-    def __new__(cls, url: str, token=None) -> RaphtoryClient:
+    def __new__(cls, url, token=None) -> RaphtoryClient:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def copy_graph(self, path: str, new_path: str) -> None:
+    def copy_graph(self, path, new_path):
         """
-        Copy graph from a path `path` on the server to a `new_path` on the server
+        Copy graph from a path path on the server to a new_path on the server
 
         Arguments:
-          path (str): the path of the graph to be copied
-          new_path (str): the new path of the copied graph
+        path (str): the path of the graph to be copied
+        new_path (str): the new path of the copied graph
 
         Returns:
-           None:
+        None:
         """
 
-    def create_index(
-        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
-    ) -> None:
+    def create_index(self, path, index_spec, in_ram=True):
         """
         Create Index for graph on the server at 'path'
 
         Arguments:
-          path (str): the path of the graph to be created
-          index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-          in_ram (bool): create index in ram
+        path (str): the path of the graph to be created
+        index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+        in_ram (bool): create index in ram
 
         Returns:
-           None:
+        None:
 
         """
 
-    def delete_graph(self, path: str) -> None:
+    def delete_graph(self, path):
         """
-        Delete graph from a path `path` on the server
+        Delete graph from a path path on the server
 
         Arguments:
-          path (str): the path of the graph to be deleted
+        path (str): the path of the graph to be deleted
 
         Returns:
-            None:
+        None:
         """
 
-    def is_server_online(self) -> bool:
+    def is_server_online(self):
         """
         Check if the server is online.
 
         Returns:
-           bool: Returns true if server is online otherwise false.
+        bool: Returns true if server is online otherwise false.
         """
 
-    def move_graph(self, path: str, new_path: str) -> None:
+    def move_graph(self, path, new_path):
         """
-        Move graph from a path `path` on the server to a `new_path` on the server
+        Move graph from a path path on the server to a new_path on the server
 
         Arguments:
-          path (str): the path of the graph to be moved
-          new_path (str): the new path of the moved graph
+        path (str): the path of the graph to be moved
+        new_path (str): the new path of the moved graph
 
         Returns:
-           None:
+        None:
         """
 
-    def new_graph(self, path: str, graph_type: Literal["EVENT", "PERSISTENT"]) -> None:
+    def new_graph(self, path, graph_type):
         """
-        Create a new empty Graph on the server at `path`
+        Create a new empty Graph on the server at path
 
         Arguments:
-          path (str): the path of the graph to be created
-          graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
+        path (str): the path of the graph to be created
+        graph_type (Literal["EVENT", "PERSISTENT"]): the type of graph that should be created - this can be EVENT or PERSISTENT
 
         Returns:
-           None:
+        None:
 
         """
 
-    def query(
-        self, query: str, variables: Optional[dict[str, Any]] = None
-    ) -> dict[str, Any]:
+    def query(self, query, variables=None):
         """
         Make a GraphQL query against the server.
 
         Arguments:
-          query (str): the query to make.
-          variables (dict[str, Any], optional): a dict of variables present on the query and their values.
+        query (str): the query to make.
+        variables (dict[str, Any], optional): a dict of variables present on the query and their values.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response.
+        dict[str, Any]: The data field from the graphQL response.
         """
 
-    def receive_graph(self, path: str) -> Union[Graph, PersistentGraph]:
+    def receive_graph(self, path):
         """
-        Receive graph from a path `path` on the server
+        Receive graph from a path path on the server
 
         Note:
-            This downloads a copy of the graph. Modifications are not persistet to the server.
+        This downloads a copy of the graph. Modifications are not persistet to the server.
 
         Arguments:
-          path (str): the path of the graph to be received
+        path (str): the path of the graph to be received
 
         Returns:
-           Union[Graph, PersistentGraph]: A copy of the graph
+        Union[Graph, PersistentGraph]: A copy of the graph
         """
 
-    def remote_graph(self, path: str) -> RemoteGraph:
+    def remote_graph(self, path):
         """
-        Get a RemoteGraph reference to a graph on the server at `path`
+        Get a RemoteGraph reference to a graph on the server at path
 
         Arguments:
-          path (str): the path of the graph to be created
+        path (str): the path of the graph to be created
 
         Returns:
-           RemoteGraph: the remote graph reference
+        RemoteGraph: the remote graph reference
 
         """
 
-    def send_graph(
-        self, path: str, graph: Graph | PersistentGraph, overwrite: bool = False
-    ) -> dict[str, Any]:
+    def send_graph(self, path, graph, overwrite=False):
         """
         Send a graph to the server
 
         Arguments:
-          path (str): the path of the graph
-          graph (Graph | PersistentGraph): the graph to send
-          overwrite (bool): overwrite existing graph. Defaults to False.
+        path (str): the path of the graph
+        graph (Graph | PersistentGraph): the graph to send
+        overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+        dict[str, Any]: The data field from the graphQL response after executing the mutation.
         """
 
-    def upload_graph(
-        self, path: str, file_path: str, overwrite: bool = False
-    ) -> dict[str, Any]:
+    def upload_graph(self, path, file_path, overwrite=False):
         """
-        Upload graph file from a path `file_path` on the client
+        Upload graph file from a path file_path on the client
 
         Arguments:
-          path (str): the name of the graph
-          file_path (str): the path of the graph on the client
-          overwrite (bool): overwrite existing graph. Defaults to False.
+        path (str): the name of the graph
+        file_path (str): the path of the graph on the client
+        overwrite (bool): overwrite existing graph. Defaults to False.
 
         Returns:
-           dict[str, Any]: The `data` field from the graphQL response after executing the mutation.
+        dict[str, Any]: The data field from the graphQL response after executing the mutation.
         """
 
-class RemoteGraph(object):
-    def add_edge(
-        self,
-        timestamp: int | str | datetime,
-        src: str | int,
-        dst: str | int,
-        properties: Optional[dict] = None,
-        layer: Optional[str] = None,
-    ) -> RemoteEdge:
+class RemoteGraph(object): 
+
+    def add_edge(self, timestamp, src, dst, properties=None, layer=None):
         """
         Adds a new edge with the given source and destination nodes and properties to the remote graph.
 
         Arguments:
-           timestamp (int | str | datetime): The timestamp of the edge.
-           src (str | int): The id of the source node.
-           dst (str | int): The id of the destination node.
-           properties (dict, optional): The properties of the edge, as a dict of string and properties.
-           layer (str, optional): The layer of the edge.
+        timestamp (int | str | datetime): The timestamp of the edge.
+        src (str | int): The id of the source node.
+        dst (str | int): The id of the destination node.
+        properties (dict, optional): The properties of the edge, as a dict of string and properties.
+        layer (str, optional): The layer of the edge.
 
         Returns:
-          RemoteEdge: the remote edge
+        RemoteEdge: the remote edge
         """
 
-    def add_edges(self, updates: List[RemoteEdgeAddition]) -> None:
+    def add_edges(self, updates):
         """
         Batch add edge updates to the remote graph
 
         Arguments:
-          updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
+        updates (List[RemoteEdgeAddition]): The list of updates you want to apply to the remote graph
 
         Returns:
-            None:
+        None:
         """
 
-    def add_metadata(self, properties: dict) -> None:
+    def add_metadata(self, properties):
         """
         Adds metadata to the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+        properties (dict): The metadata of the graph.
 
         Returns:
-            None:
+        None:
         """
 
-    def add_node(
-        self,
-        timestamp: int | str | datetime,
-        id: str | int,
-        properties: Optional[dict] = None,
-        node_type: Optional[str] = None,
-    ) -> RemoteNode:
+    def add_node(self, timestamp, id, properties=None, node_type=None):
         """
         Adds a new node with the given id and properties to the remote graph.
 
         Arguments:
-           timestamp (int | str | datetime): The timestamp of the node.
-           id (str | int): The id of the node.
-           properties (dict, optional): The properties of the node.
-           node_type (str, optional): The optional string which will be used as a node type
+        timestamp (int | str | datetime): The timestamp of the node.
+        id (str | int): The id of the node.
+        properties (dict, optional): The properties of the node.
+        node_type (str, optional): The optional string which will be used as a node type
         Returns:
-          RemoteNode: the new remote node
+        RemoteNode: the new remote node
         """
 
-    def add_nodes(self, updates: List[RemoteNodeAddition]) -> None:
+    def add_nodes(self, updates):
         """
         Batch add node updates to the remote graph
 
         Arguments:
-          updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
+        updates (List[RemoteNodeAddition]): The list of updates you want to apply to the remote graph
 
         Returns:
-            None:
+        None:
         """
 
-    def add_property(self, timestamp: int | str | datetime, properties: dict) -> None:
+    def add_property(self, timestamp, properties):
         """
         Adds properties to the remote graph.
 
         Arguments:
-           timestamp (int | str | datetime): The timestamp of the temporal property.
-           properties (dict): The temporal properties of the graph.
+        timestamp (int | str | datetime): The timestamp of the temporal property.
+        properties (dict): The temporal properties of the graph.
 
         Returns:
-            None:
+        None:
         """
 
-    def create_node(
-        self,
-        timestamp: int | str | datetime,
-        id: str | int,
-        properties: Optional[dict] = None,
-        node_type: Optional[str] = None,
-    ) -> RemoteNode:
+    def create_node(self, timestamp, id, properties=None, node_type=None):
         """
         Create a new node with the given id and properties to the remote graph and fail if the node already exists.
 
         Arguments:
-           timestamp (int | str | datetime): The timestamp of the node.
-           id (str | int): The id of the node.
-           properties (dict, optional): The properties of the node.
-           node_type (str, optional): The optional string which will be used as a node type
+        timestamp (int | str | datetime): The timestamp of the node.
+        id (str | int): The id of the node.
+        properties (dict, optional): The properties of the node.
+        node_type (str, optional): The optional string which will be used as a node type
         Returns:
-          RemoteNode: the new remote node
+        RemoteNode: the new remote node
         """
 
-    def delete_edge(
-        self,
-        timestamp: int,
-        src: str | int,
-        dst: str | int,
-        layer: Optional[str] = None,
-    ) -> RemoteEdge:
+    def delete_edge(self, timestamp, src, dst, layer=None):
         """
         Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
 
         Arguments:
-          timestamp (int): The timestamp of the edge.
-          src (str | int): The id of the source node.
-          dst (str | int): The id of the destination node.
-          layer (str, optional): The layer of the edge.
+        timestamp (int): The timestamp of the edge.
+        src (str | int): The id of the source node.
+        dst (str | int): The id of the destination node.
+        layer (str, optional): The layer of the edge.
 
         Returns:
-          RemoteEdge: the remote edge
+        RemoteEdge: the remote edge
         """
 
-    def edge(self, src: str | int, dst: str | int) -> RemoteEdge:
+    def edge(self, src, dst):
         """
         Gets a remote edge with the specified source and destination nodes
 
         Arguments:
-            src (str | int): the source node id
-            dst (str | int): the destination node id
+        src (str | int): the source node id
+        dst (str | int): the destination node id
 
         Returns:
-            RemoteEdge: the remote edge reference
+        RemoteEdge: the remote edge reference
         """
 
-    def node(self, id: str | int) -> RemoteNode:
+    def node(self, id):
         """
         Gets a remote node with the specified id
 
         Arguments:
-          id (str | int): the node id
+        id (str | int): the node id
 
         Returns:
-          RemoteNode: the remote node reference
+        RemoteNode: the remote node reference
         """
 
-    def update_metadata(self, properties: dict) -> None:
+    def update_metadata(self, properties):
         """
         Updates metadata on the remote graph.
 
         Arguments:
-            properties (dict): The metadata of the graph.
+        properties (dict): The metadata of the graph.
 
         Returns:
-            None:
+        None:
         """
 
-class RemoteEdge(object):
+class RemoteEdge(object): 
     """
     A remote edge reference
 
@@ -485,28 +417,21 @@ class RemoteEdge(object):
     and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
     """
 
-    def add_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
-    ) -> None:
+    def add_metadata(self, properties, layer=None):
         """
         Add metadata to the edge within the remote graph.
         This function is used to add metadata to an edge that does not
         change over time. This metadata is fundamental information of the edge.
 
         Parameters:
-            properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-            layer (str, optional): The layer you want these properties to be added on to.
+        properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+        layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
-            None:
+        None:
         """
 
-    def add_updates(
-        self,
-        t: int | str | datetime,
-        properties: Optional[dict[str, PropValue]] = None,
-        layer: Optional[str] = None,
-    ) -> None:
+    def add_updates(self, t, properties=None, layer=None):
         """
         Add updates to an edge in the remote graph at a specified time.
 
@@ -514,199 +439,177 @@ class RemoteEdge(object):
         The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (int | str | datetime): The timestamp at which the updates should be applied.
-            properties (dict[str, PropValue], optional): A dictionary of properties to update.
-            layer (str, optional): The layer you want the updates to be applied.
+        t (int | str | datetime): The timestamp at which the updates should be applied.
+        properties (dict[str, PropValue], optional): A dictionary of properties to update.
+        layer (str, optional): The layer you want the updates to be applied.
 
         Returns:
-            None:
+        None:
         """
 
-    def delete(self, t: int | str | datetime, layer: Optional[str] = None) -> None:
+    def delete(self, t, layer=None):
         """
         Mark the edge as deleted at the specified time.
 
         Parameters:
-            t (int | str | datetime): The timestamp at which the deletion should be applied.
-            layer (str, optional): The layer you want the deletion applied to.
+        t (int | str | datetime): The timestamp at which the deletion should be applied.
+        layer (str, optional): The layer you want the deletion applied to.
 
         Returns:
-            None:
+        None:
         """
 
-    def update_metadata(
-        self, properties: dict[str, PropValue], layer: Optional[str] = None
-    ) -> None:
+    def update_metadata(self, properties, layer=None):
         """
         Update metadata of an edge in the remote graph overwriting existing values.
         This function is used to add properties to an edge that does not
         change over time. These properties are fundamental attributes of the edge.
 
         Parameters:
-            properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
-            layer (str, optional): The layer you want these properties to be added on to.
+        properties (dict[str, PropValue]): A dictionary of properties to be added to the edge.
+        layer (str, optional): The layer you want these properties to be added on to.
 
         Returns:
-            None:
+        None:
         """
 
-class RemoteNode(object):
-    def add_metadata(self, properties: dict[str, PropValue]) -> None:
+class RemoteNode(object): 
+
+    def add_metadata(self, properties):
         """
         Add metadata to a node in the remote graph.
         This function is used to add properties to a node that do not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+        properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
-            None:
+        None:
         """
 
-    def add_updates(
-        self, t: int | str | datetime, properties: Optional[dict[str, PropValue]] = None
-    ) -> None:
+    def add_updates(self, t, properties=None):
         """
         Add updates to a node in the remote graph at a specified time.
         This function allows for the addition of property updates to a node within the graph. The updates are time-stamped, meaning they are applied at the specified time.
 
         Parameters:
-            t (int | str | datetime): The timestamp at which the updates should be applied.
-            properties (dict[str, PropValue], optional): A dictionary of properties to update.
+        t (int | str | datetime): The timestamp at which the updates should be applied.
+        properties (dict[str, PropValue], optional): A dictionary of properties to update.
 
         Returns:
-            None:
+        None:
         """
 
-    def set_node_type(self, new_type: str) -> None:
+    def set_node_type(self, new_type):
         """
         Set the type on the node. This only works if the type has not been previously set, otherwise will
         throw an error
 
         Parameters:
-            new_type (str): The new type to be set
+        new_type (str): The new type to be set
 
         Returns:
-            None:
+        None:
         """
 
-    def update_metadata(self, properties: dict[str, PropValue]) -> None:
+    def update_metadata(self, properties):
         """
         Update metadata of a node in the remote graph overwriting existing values.
         This function is used to add properties to a node that does not
         change over time. These properties are fundamental attributes of the node.
 
         Parameters:
-            properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
+        properties (dict[str, PropValue]): A dictionary of properties to be added to the node.
 
         Returns:
-            None:
+        None:
         """
 
-class RemoteNodeAddition(object):
+class RemoteNodeAddition(object): 
     """
     Node addition update
 
     Arguments:
-        name (GID): the id of the node
-        node_type (str, optional): the node type
-        metadata (PropInput, optional): the metadata
-        updates (list[RemoteUpdate], optional): the temporal updates
+    name (GID): the id of the node
+    node_type (str, optional): the node type
+    metadata (PropInput, optional): the metadata
+    updates (list[RemoteUpdate], optional): the temporal updates
     """
 
-    def __new__(
-        cls,
-        name: GID,
-        node_type: Optional[str] = None,
-        metadata: Optional[PropInput] = None,
-        updates: Optional[list[RemoteUpdate]] = None,
-    ) -> RemoteNodeAddition:
+    def __new__(cls, name, node_type=None, metadata=None, updates=None) -> RemoteNodeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteUpdate(object):
+class RemoteUpdate(object): 
     """
     A temporal update
 
     Arguments:
-        time (TimeInput): the timestamp for the update
-        properties (PropInput, optional): the properties for the update
+    time (TimeInput): the timestamp for the update
+    properties (PropInput, optional): the properties for the update
     """
 
-    def __new__(
-        cls, time: TimeInput, properties: Optional[PropInput] = None
-    ) -> RemoteUpdate:
+    def __new__(cls, time, properties=None) -> RemoteUpdate:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteEdgeAddition(object):
+class RemoteEdgeAddition(object): 
     """
     An edge update
 
     Arguments:
-        src (GID): the id of the source node
-        dst (GID): the id of the destination node
-        layer (str, optional): the layer for the update
-        metadata (PropInput, optional): the metadata for the edge
-        updates (list[RemoteUpdate], optional): the temporal updates for the edge
+    src (GID): the id of the source node
+    dst (GID): the id of the destination node
+    layer (str, optional): the layer for the update
+    metadata (PropInput, optional): the metadata for the edge
+    updates (list[RemoteUpdate], optional): the temporal updates for the edge
     """
 
-    def __new__(
-        cls,
-        src: GID,
-        dst: GID,
-        layer: Optional[str] = None,
-        metadata: Optional[PropInput] = None,
-        updates: Optional[list[RemoteUpdate]] = None,
-    ) -> RemoteEdgeAddition:
+    def __new__(cls, src, dst, layer=None, metadata=None, updates=None) -> RemoteEdgeAddition:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class RemoteIndexSpec(object):
+class RemoteIndexSpec(object): 
     """
-    Create a `RemoteIndexSpec` specifying which node and edge properties to index.
+    Create a RemoteIndexSpec specifying which node and edge properties to index.
 
     Arguments:
-        node_props (PropsInput): Property spec for nodes.
-        edge_props (PropsInput): Property spec for edges.
+    node_props (PropsInput): Property spec for nodes.
+    edge_props (PropsInput): Property spec for edges.
     """
 
-    def __new__(cls, node_props: PropsInput, edge_props: PropsInput) -> RemoteIndexSpec:
+    def __new__(cls, node_props, edge_props) -> RemoteIndexSpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class PropsInput(object):
+class PropsInput(object): 
     """
-    Create a `PropsInput` by choosing to include all/some properties explicitly.
+    Create a PropsInput by choosing to include all/some properties explicitly.
 
     Arguments:
-        all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
-        some (SomePropertySpec, optional): Explicitly list the properties to include.
+    all (AllPropertySpec, optional): Use a predefined spec to include all properties of a kind.
+    some (SomePropertySpec, optional): Explicitly list the properties to include.
 
     Raises:
-        ValueError: If neither `all` and `some` are specified.
+    ValueError: If neither all and some are specified.
     """
 
-    def __new__(
-        cls,
-        all: Optional[AllPropertySpec] = None,
-        some: Optional[SomePropertySpec] = None,
-    ) -> PropsInput:
+    def __new__(cls, all=None, some=None) -> PropsInput:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class SomePropertySpec(object):
+class SomePropertySpec(object): 
     """
-    Create a `SomePropertySpec` by explicitly listing metadata and/or temporal property names.
+    Create a SomePropertySpec by explicitly listing metadata and/or temporal property names.
 
     Arguments:
-        metadata (list[str]): Metadata property names. Defaults to [].
-        temporal (list[str]): Temporal property names. Defaults to [].
+    metadata (list[str]): Metadata property names. Defaults to [].
+    temporal (list[str]): Temporal property names. Defaults to [].
     """
 
-    def __new__(cls, metadata: list[str] = [], properties=...) -> SomePropertySpec:
+    def __new__(cls, metadata=..., properties=...) -> SomePropertySpec:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class AllPropertySpec(object):
+class AllPropertySpec(object): 
     """
     Specifies that **all** properties should be included when creating an index.
-    Use one of the predefined variants: `ALL`, `ALL_METADATA`, or `ALL_TEMPORAL`.
+    Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
     """
 
     def __eq__(self, value):
@@ -733,26 +636,26 @@ class AllPropertySpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
-def encode_graph(graph: Graph | PersistentGraph) -> str:
+def encode_graph(graph):
     """
     Encode a graph using Base64 encoding
 
     Arguments:
-        graph (Graph | PersistentGraph): the graph
+    graph (Graph | PersistentGraph): the graph
 
     Returns:
-        str: the encoded graph
+    str: the encoded graph
     """
 
-def decode_graph(graph: str) -> Union[Graph, PersistentGraph]:
+def decode_graph(graph):
     """
     Decode a Base64-encoded graph
 
     Arguments:
-        graph (str): the encoded graph
+    graph (str): the encoded graph
 
     Returns:
-        Union[Graph, PersistentGraph]: the decoded graph
+    Union[Graph, PersistentGraph]: the decoded graph
     """
 
 def schema():
@@ -760,5 +663,5 @@ def schema():
     Returns the raphtory graphql server schema
 
     Returns
-        str: Graphql schema
+    str: Graphql schema
     """

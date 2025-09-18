@@ -9,7 +9,9 @@ use raphtory::{
 
 #[derive(InputObject)]
 pub(super) struct Window {
+    /// Start time.
     start: i64,
+    /// End time.
     end: i64,
 }
 
@@ -35,10 +37,12 @@ impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
+    /// Returns an empty selection of documents.
     async fn empty_selection(&self) -> GqlVectorSelection {
         self.0.empty_selection().into()
     }
 
+    /// Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
     async fn entities_by_similarity(
         &self,
         ctx: &Context<'_>,
@@ -52,6 +56,7 @@ impl GqlVectorisedGraph {
         blocking_io(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
     }
 
+    /// Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
     async fn nodes_by_similarity(
         &self,
         ctx: &Context<'_>,
@@ -65,6 +70,7 @@ impl GqlVectorisedGraph {
         blocking_io(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
     }
 
+    /// Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
     async fn edges_by_similarity(
         &self,
         ctx: &Context<'_>,

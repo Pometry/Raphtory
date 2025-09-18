@@ -2,6 +2,14 @@
 
 The Raphtory CLI tool is included in the Python package and allows you to interact directly with the Raphtory server. This is useful for experimentation and scripting.
 
+Access the version of raphtory
+
+Usage:
+
+```sh
+raphtory --version
+```
+
 ## Server
 
 The server subcommand starts the GraphQL server with the specified configuration.
@@ -15,6 +23,7 @@ raphtory server --port 1736
 | Command                     | Parameter(s)              | Description                                                         |
 |-----------------------------|---------------------------|---------------------------------------------------------------------|
 | -h, --help                  |                           | Show the help message and exit                                      |
+| --work-dir                  | WORK_DIR                  | Working directory                                                   |
 | --cache-capacity            | CACHE_CAPACITY            | Cache capacity                                                      |
 | --cache-tti-seconds         | CACHE_TTI_SECONDS         | Cache time-to-idle in seconds                                       |
 | --log-level                 | LOG_LEVEL                 | Log level                                                           |

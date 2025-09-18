@@ -561,10 +561,10 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
     fn edge_layers<'graph, G: GraphViewOps<'graph>>(
         self,
         e: EdgeStorageRef<'graph>,
-        _view: G,
+        view: G,
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph {
-        e.layer_ids_iter(layer_ids)
+        e.filtered_layer_ids_iter(view, layer_ids)
     }
 
     fn edge_window_exploded<'graph, G: GraphViewOps<'graph>>(

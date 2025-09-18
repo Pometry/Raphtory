@@ -325,7 +325,7 @@ separately or merged with other layers as required.
 
 You can see this in the example below where we add five updates between `Person 1` and `Person 2` across the layers
 `Friends`, `Co Workers` and `Family`. When we query the history of the `weight` property on the edge we initially get
-all of the values back. However, by applying the [`layers()` graph view](../views/3_layer.md) we can return only updates
+all of the values back. However, by applying the [`layers()` GraphView](../views/3_layer.md) we can return only updates
 from `Co Workers` and `Family`.
 
 /// tab | :fontawesome-brands-python: Python
