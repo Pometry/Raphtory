@@ -54,6 +54,32 @@ impl GraphFolder {
         }
     }
 
+    /// Reserve a folder, marking it as occupied by a graph.
+    pub fn reserve(&self) -> Result<(), GraphError> {
+        if self.write_as_zip_format {
+            return Err(
+                GraphError::IOErrorMsg("Cannot reserve a zip folder".to_string())
+            );
+        }
+
+        self.ensure_clean_root_dir()?;
+
+        // Mark as occupied using empty metadata placeholder.
+        File::create_new(self.get_meta_path())?;
+
+        Ok(())
+    }
+
+    /// Returns true if folder is occupied by a graph.
+    pub fn is_reserved(&self) -> bool {
+        self.get_meta_path().exists()
+    }
+
+    /// Returns true if the folder is reserved and has some graph data.
+    pub fn has_graph_data(&self) -> bool {
+        self.is_reserved() && self.get_graph_path().exists()
+    }
+
     pub fn get_graph_path(&self) -> PathBuf {
         self.root_folder.join(GRAPH_PATH)
     }
@@ -146,17 +172,16 @@ impl GraphFolder {
         Ok(OpenOptions::new().append(true).open(path)?)
     }
 
-    pub(crate) fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
+    fn ensure_clean_root_dir(&self) -> Result<(), GraphError> {
         if self.root_folder.exists() {
             let non_empty = self.root_folder.read_dir()?.next().is_some();
             if non_empty {
                 return Err(GraphError::NonEmptyGraphFolder(self.root_folder.clone()));
             }
         } else {
-            fs::create_dir(&self.root_folder)?
+            fs::create_dir_all(&self.root_folder)?
         }
 
-        File::create_new(self.root_folder.join(META_PATH))?;
         Ok(())
     }
 

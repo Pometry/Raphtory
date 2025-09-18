@@ -30,7 +30,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
             #[cfg(feature = "search")]
             self.persist_index_to_disk_zip(&folder)?;
         } else {
-            folder.ensure_clean_root_dir()?;
+            folder.reserve()?;
             self.encode_parquet(&folder.get_graph_path())?;
 
             #[cfg(feature = "search")]

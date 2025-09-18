@@ -110,13 +110,18 @@ impl Data {
         match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
             Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
             Err(_) => {
-                fs::create_dir_all(folder.get_base_path()).await?;
+                let folder_clone = folder.clone();
+                blocking_io(move || folder_clone.reserve()).await?;
+
                 let vectors = self.vectorise(graph.clone(), &folder).await;
                 let graph = GraphWithVectors::new(graph, vectors);
+
                 graph
                     .folder
                     .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
+
                 self.cache.insert(path.into(), graph).await;
+
                 Ok(())
             }
         }

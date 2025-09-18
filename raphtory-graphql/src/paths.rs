@@ -37,7 +37,7 @@ impl From<ExistingGraphFolder> for GraphFolder {
 impl ExistingGraphFolder {
     pub(crate) fn try_from(base_path: PathBuf, relative_path: &str) -> Result<Self, GraphError> {
         let graph_folder = ValidGraphFolder::try_from(base_path, relative_path)?;
-        if graph_folder.get_meta_path().exists() {
+        if graph_folder.is_reserved() {
             Ok(Self {
                 folder: graph_folder,
             })
