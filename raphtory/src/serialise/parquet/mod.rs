@@ -400,6 +400,12 @@ fn decode_graph_storage(
     expected_gt: GraphType,
 ) -> Result<Arc<Storage>, GraphError> {
     let g = Arc::new(Storage::default());
+    let mut dir = std::fs::read_dir(&path)?;
+
+    // If the directory is empty, immediately return an empty graph
+    if dir.next().is_none() {
+        return Ok(g);
+    }
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
 

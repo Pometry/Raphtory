@@ -64,8 +64,9 @@ impl GraphFolder {
 
         self.ensure_clean_root_dir()?;
 
-        // Mark as occupied using empty metadata placeholder.
+        // Mark as occupied using empty metadata & graph data.
         File::create_new(self.get_meta_path())?;
+        fs::create_dir_all(self.get_graph_path())?;
 
         Ok(())
     }
@@ -73,11 +74,6 @@ impl GraphFolder {
     /// Returns true if folder is occupied by a graph.
     pub fn is_reserved(&self) -> bool {
         self.get_meta_path().exists()
-    }
-
-    /// Returns true if the folder is reserved and has some graph data.
-    pub fn has_graph_data(&self) -> bool {
-        self.is_reserved() && self.get_graph_path().exists()
     }
 
     pub fn get_graph_path(&self) -> PathBuf {

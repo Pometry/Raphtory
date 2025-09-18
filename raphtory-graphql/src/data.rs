@@ -230,8 +230,11 @@ pub(crate) mod data_tests {
         data::Data,
     };
     use itertools::Itertools;
-    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*, serialise::GraphFolder};
-    use tempfile::TempDir;
+    use raphtory::{
+        db::api::view::MaterializedGraph,
+        errors::GraphError, prelude::*,
+        serialise::{GraphFolder, GRAPH_PATH}
+    };
     use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
     use tokio::time::sleep;
 
@@ -252,9 +255,8 @@ pub(crate) mod data_tests {
     }
 
     fn create_graph_folder(path: &Path) {
-        fs::create_dir_all(path).unwrap();
-        File::create(path.join(".raph")).unwrap();
-        File::create(path.join("graph")).unwrap();
+        let folder = GraphFolder::from(path);
+        folder.reserve().unwrap();
     }
 
     pub(crate) fn save_graphs_to_work_dir(
@@ -338,12 +340,9 @@ pub(crate) mod data_tests {
 
     #[tokio::test]
     async fn test_get_graph_paths() {
-        let mut temp_dir = tempfile::tempdir().unwrap();
-        temp_dir.disable_cleanup(true);
-
-        println!("temp_dir: {}", temp_dir.path().display());
-
+        let temp_dir = tempfile::tempdir().unwrap();
         let work_dir = temp_dir.path();
+
         let g0_path = work_dir.join("g0");
         let g1_path = work_dir.join("g1");
         let g2_path = work_dir.join("shivam/investigations/2024-12-22/g2");
@@ -356,13 +355,15 @@ pub(crate) mod data_tests {
         create_graph_folder(&g1_path);
         create_graph_folder(&g2_path);
         create_graph_folder(&g3_path);
+        create_graph_folder(&g4_path);
 
-        fs::create_dir_all(&g4_path.join("graph")).unwrap();
-        File::create(g4_path.join(".raph")).unwrap();
-        create_ipc_files_in_dir(&g4_path.join("graph")).unwrap();
+        // Simulate disk graph
+        create_ipc_files_in_dir(&g4_path.join(GRAPH_PATH)).unwrap();
 
+        // Empty, non-graph folder
         fs::create_dir_all(&g5_path).unwrap();
 
+        // Simulate non-graph folder with random files
         fs::create_dir_all(&g6_path).unwrap();
         fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
@@ -385,7 +386,8 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
-        assert!(!paths.contains(&g5_path)); // Empty dir is ignored
+        assert!(!paths.contains(&g5_path)); // Empty folder is ignored
+        assert!(!paths.contains(&g6_path)); // Non-graph folder is ignored
 
         assert!(data
             .get_graph("shivam/investigations/2024-12-22/g2")
