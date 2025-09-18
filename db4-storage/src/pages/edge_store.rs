@@ -19,7 +19,7 @@ use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
 use raphtory_core::{
     entities::{ELID, LayerIds},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::{AsTime, TimeIndexEntry},
 };
 use rayon::prelude::*;
 
@@ -268,11 +268,27 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Clone + Send + Sync> EdgeStorageI
             }
         }
 
+        let earliest = pages
+            .iter()
+            .filter_map(|(_, page)| page.earliest().filter(|t| t.t() != i64::MAX))
+            .map(|t| t.t())
+            .min()
+            .unwrap_or(i64::MAX);
+
+        let latest = pages
+            .iter()
+            .filter_map(|(_, page)| page.latest().filter(|t| t.t() != i64::MIN))
+            .map(|t| t.t())
+            .max()
+            .unwrap_or(i64::MIN);
+
+        let stats = GraphStats::load(layer_counts, earliest, latest);
+
         Ok(Self {
             segments: pages,
             edges_path: Some(edges_path.to_path_buf()),
             max_page_len,
-            layer_counter: GraphStats::from(layer_counts).into(),
+            layer_counter: stats.into(),
             free_pages: free_pages.try_into().unwrap(),
             prop_meta: meta,
             ext,

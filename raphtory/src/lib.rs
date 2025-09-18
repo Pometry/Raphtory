@@ -197,7 +197,6 @@ mod test_utils {
         )
     }
 
-
     pub(crate) fn build_edge_list_str(
         len: usize,
         num_nodes: u64,

@@ -27,10 +27,10 @@ fn main() {
     ];
     let layers = [
         "dai_arb_edge_list",
-        "usdc_arb_edge_list",
-        "usdc_e_arb_edge_list",
-        "usde_arb_edge_list",
-        "usdt_arb_edge_list",
+        // "usdc_arb_edge_list",
+        // "usdc_e_arb_edge_list",
+        // "usde_arb_edge_list",
+        // "usdt_arb_edge_list",
         "usdx_arb_edge_list",
     ];
     let parquet_root = "/Volumes/Work/assets/optimism";
@@ -40,11 +40,13 @@ fn main() {
         let g = Graph::load_from_path(&graph_path);
 
         println!(
-            "num_edges: {} num_nodes: {}, temporal_edges: {}, layers: {:?}, time to load: {:?}",
+            "num_edges: {} num_nodes: {}, temporal_edges: {}, layers: {:?}, earliest:{:?}, latest: {:?}, time to load: {:?}",
             g.unfiltered_num_edges(),
             g.unfiltered_num_nodes(),
             g.count_temporal_edges(),
             g.unique_layers().collect::<Vec<_>>(),
+            g.earliest_time(),
+            g.latest_time(),
             now.elapsed()
         );
     } else {
@@ -52,15 +54,17 @@ fn main() {
 
         let print_stats_fn = |g: &Graph| {
             println!(
-                "num_edges: {} num_nodes: {}, temporal_edges: {}, layers: {:?}",
+                "num_edges: {} num_nodes: {}, temporal_edges: {}, earliest: {:?}, latest: {:?}, layers: {:?}",
                 g.unfiltered_num_edges(),
                 g.unfiltered_num_nodes(),
                 g.count_temporal_edges(),
+                g.earliest_time(),
+                g.latest_time(),
                 g.unique_layers().collect::<Vec<_>>()
             );
 
-            let mut all_edges_count = 0;
-            let mut all_nodes_count = 0;
+            // let mut all_edges_count = 0;
+            // let mut all_nodes_count = 0;
 
             // let mut wtr = csv::WriterBuilder::new()
             //     .has_headers(true)
@@ -70,23 +74,23 @@ fn main() {
             //     .expect("Failed to create CSV writer");
 
             // let mut edges = vec![];
-            for n in g.nodes() {
-                all_nodes_count += 1usize;
-                for e in n.out_edges() {
-                    all_edges_count += 1usize;
-                    // edges.push(Edge {
-                    //     src: e.src().name().to_string(),
-                    //     dst: e.dst().name().to_string(),
-                    // });
-                }
-            }
+            // for n in g.nodes() {
+            //     all_nodes_count += 1usize;
+            //     for e in n.out_edges() {
+            //         all_edges_count += 1usize;
+            //         // edges.push(Edge {
+            //         //     src: e.src().name().to_string(),
+            //         //     dst: e.dst().name().to_string(),
+            //         // });
+            //     }
+            // }
             // edges.sort();
 
             // for edge in edges {
             //     wtr.serialize(edge).expect("Failed to write edge to CSV");
             // }
 
-            println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
+            // println!("Total edges in graph: {all_edges_count}, total nodes: {all_nodes_count}");
         };
         let now = std::time::Instant::now();
         for layer in layers {
@@ -114,7 +118,7 @@ fn main() {
                 None,
                 Some(layer),
                 None,
-                Some(1_000_000),
+                Some(2_000_000),
             )
             .expect("Failed to load edges from parquet");
 
