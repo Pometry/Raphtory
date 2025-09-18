@@ -130,6 +130,43 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
     }
 
     #[inline]
+    fn node_edge_history<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        self.semantics
+            .node_edge_history_window(node, view, self.window.clone())
+    }
+
+    #[inline]
+    fn node_edge_history_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        self.semantics.node_edge_history_window(node, view, w)
+    }
+    #[inline]
+    fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        self.semantics
+            .node_edge_history_rev_window(node, view, self.window.clone())
+    }
+    #[inline]
+    fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<i64>,
+    ) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + Send + Sync + 'graph {
+        self.semantics.node_edge_history_rev_window(node, view, w)
+    }
+    #[inline]
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
