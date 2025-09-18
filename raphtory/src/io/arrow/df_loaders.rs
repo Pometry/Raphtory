@@ -61,6 +61,9 @@ pub(crate) fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -225,6 +228,9 @@ pub fn load_edges_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties_indices = properties
         .iter()
         .map(|name| df_view.get_index(name))
@@ -486,6 +492,9 @@ pub(crate) fn load_edge_deletions_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let src_index = df_view.get_index(src)?;
     let dst_index = df_view.get_index(dst)?;
     let time_index = df_view.get_index(time)?;
@@ -535,6 +544,9 @@ pub(crate) fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -655,6 +667,9 @@ pub(crate) fn load_edges_props_from_df<
     layer_col: Option<&str>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -816,6 +831,9 @@ pub(crate) fn load_graph_props_from_df<
     metadata: Option<&[&str]>,
     graph: &G,
 ) -> Result<(), GraphError> {
+    if df_view.is_empty() {
+        return Ok(());
+    }
     let properties = properties.unwrap_or(&[]);
     let metadata = metadata.unwrap_or(&[]);
 

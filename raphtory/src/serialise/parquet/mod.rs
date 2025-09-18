@@ -1,5 +1,8 @@
 use crate::{
-    db::{api::storage::storage::Storage, graph::views::deletion_graph::PersistentGraph},
+    db::{
+        api::{storage::storage::Storage, view::MaterializedGraph},
+        graph::views::deletion_graph::PersistentGraph,
+    },
     errors::GraphError,
     io::parquet_loaders::{
         load_edge_deletions_from_parquet, load_edge_props_from_parquet, load_edges_from_parquet,
