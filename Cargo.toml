@@ -67,6 +67,7 @@ reqwest = { version = "0.12.8", default-features = false, features = [
     "json",
 ] }
 boxcar = "0.2.14"
+mimalloc = { version = "0.1", features = ["secure"] }
 arrow-csv = { version = "=53.4.1" }
 iter-enum = { version = "1.2.0", features = ["rayon"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
